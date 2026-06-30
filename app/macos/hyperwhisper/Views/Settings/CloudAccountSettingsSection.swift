@@ -569,6 +569,8 @@ struct CloudAccountSettingsSection: View {
         errorMessage = nil
 
         do {
+            // The manager is @MainActor and assigns self.credits internally, so
+            // we just await the refresh and discard the returned value here.
             _ = try await hyperWhisperCloudManager.fetchCredits(forceRefresh: forceRefresh)
             errorMessage = nil
         } catch {
