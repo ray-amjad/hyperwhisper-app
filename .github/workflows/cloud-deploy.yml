@@ -1,0 +1,62 @@
+# Reusable deploy + smoke-test job for HyperWhisper Cloud.
+#
+# Called by cloud-deploy-staging.yml and cloud-deploy-prod.yml. Deploys one
+# Fly app from the given config, then runs scripts/smoke-test.ts against its
+# public URL. A failed smoke test fails the job — which is what blocks prod
+# promotion.
+#
+# The Fly backend is vendored at hyperwhisper-cloud/ in the app repo, so every
+# job runs from inside that folder (working-directory). working-directory
+# defaults are NOT inherited by a workflow_call'ed file, so this is set here in
+# addition to the calling workflows.
+name: cloud-deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment name (preview | prod)
+        type: string
+        required: true
+      fly_config:
+        description: Fly config file to deploy (fly.staging.toml | fly.prod.toml | fly.dev.toml)
+        type: string
+        required: true
+      base_url:
+        description: Public URL to smoke test after deploy
+        type: string
+        required: true
+    secrets:
+      FLY_API_TOKEN:
+        required: true
+      SMOKE_LICENSE_KEY:
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    # Serialize deploys per environment; never cancel an in-flight deploy.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: hyperwhisper-cloud
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly (${{ inputs.environment }})
+        run: flyctl deploy --config ${{ inputs.fly_config }} --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Smoke test (${{ inputs.environment }})
+        run: bun run scripts/smoke-test.ts
+        env:
+          SMOKE_BASE_URL: ${{ inputs.base_url }}
+          SMOKE_LICENSE_KEY: ${{ secrets.SMOKE_LICENSE_KEY }}

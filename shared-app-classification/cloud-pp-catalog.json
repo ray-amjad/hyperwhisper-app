@@ -1,5 +1,5 @@
 {
-  "$schemaDoc": "Shared source of truth for HyperWhisper Cloud POST-PROCESSING (LLM) engines. Loaded by macOS and Windows to drive the credit-billed (no-key) post-processing Engine + Model picker and the X-LLM-Provider / X-LLM-Model headers sent to backend-v2-flyio /post-process. Mirrors cloud-stt-catalog.json. Prices are USD per 1M tokens and are the DISPLAY/estimate source of truth; the ACTUAL billing constants live in backend-v2-flyio/src/lib/cost-calculator.ts and MUST match these values (see CLAUDE.md). See CLAUDE.md in this directory before editing.",
+  "$schemaDoc": "Shared source of truth for HyperWhisper Cloud POST-PROCESSING (LLM) engines. Loaded by macOS and Windows to drive the credit-billed (no-key) post-processing Engine + Model picker and the X-LLM-Provider / X-LLM-Model headers sent to hyperwhisper-cloud /post-process. Mirrors cloud-stt-catalog.json. Prices are USD per 1M tokens and are the DISPLAY/estimate source of truth; the ACTUAL billing constants live in hyperwhisper-cloud/src/lib/cost-calculator.ts and MUST match these values (see CLAUDE.md). See CLAUDE.md in this directory before editing.",
   "version": 1,
   "updated": "2026-06-19",
   "providers": [
@@ -76,7 +76,7 @@
       "apiStyle": "openai",
       "endpoint": "https://api.openai.com/v1/chat/completions",
       "enabled": true,
-      "enabledNote": "Set true once backend-v2-flyio PR #47 (hyperwhisper-fly) deploys with OPENAI_API_KEY set. Until then the app hides this engine so X-LLM-Provider: openai won't silently fall back to Cerebras (wrong model + wrong billing).",
+      "enabledNote": "Set true once hyperwhisper-cloud PR #47 (hyperwhisper-fly) deploys with OPENAI_API_KEY set. Until then the app hides this engine so X-LLM-Provider: openai won't silently fall back to Cerebras (wrong model + wrong billing).",
       "models": [
         { "id": "gpt-5-mini", "displayName": "GPT-5 mini", "llmModelHeader": "gpt-5-mini",
           "pricePerMInput": 0.25, "pricePerMOutput": 2.00, "isDefault": true, "isRecommended": true,
@@ -96,7 +96,7 @@
       "apiStyle": "openai",
       "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
       "enabled": true,
-      "enabledNote": "Set true once backend-v2-flyio PR #47 deploys with GEMINI_API_KEY set.",
+      "enabledNote": "Set true once hyperwhisper-cloud PR #47 deploys with GEMINI_API_KEY set.",
       "models": [
         { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "llmModelHeader": "gemini-2.5-flash",
           "pricePerMInput": 0.30, "pricePerMOutput": 2.50, "isDefault": true, "isRecommended": true,
@@ -116,7 +116,7 @@
       "apiStyle": "openai",
       "endpoint": "https://api.mistral.ai/v1/chat/completions",
       "enabled": true,
-      "enabledNote": "Set true once backend-v2-flyio PR #47 deploys with MISTRAL_API_KEY set.",
+      "enabledNote": "Set true once hyperwhisper-cloud PR #47 deploys with MISTRAL_API_KEY set.",
       "models": [
         { "id": "mistral-small-latest", "displayName": "Mistral Small", "llmModelHeader": "mistral-small-latest",
           "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": true, "isRecommended": true,

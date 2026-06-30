@@ -316,7 +316,7 @@ export default function PrivacyPolicyPage() {
         backend. You can read the full source code for the{" "}
         <a
           className="text-blue-600 dark:text-blue-400 hover:underline"
-          href="https://github.com/ray-amjad/hyperwhisper-fly"
+          href="https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud"
           target="_blank"
           rel="noopener noreferrer"
         >

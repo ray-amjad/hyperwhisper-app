@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Hva er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er innebygd skytranskribering for mindre tekniske brukere som vil komme raskt i gang.\n\nDet er pay-as-you-go. Når du kjøper en kontonøkkel får du $5 i transkripsjonskreditter. Du kan legge til flere kreditter senere.\n    \nVi tilbyr tre nøyaktighetsnivåer: Medium (raskest, drevet av Groq), High (anbefalt, drevet av Deepgram) og Highest (best kvalitet, drevet av xAI Grok STT). Etterbehandling er automatisk. Vi lagrer ingenting annet enn hvor mange kreditter du har brukt.\n\nDu betaler nøyaktig det vi betaler disse leverandørene. Vi tar ikke påslag.\n\nFor ekstra trygghet kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud er innebygd skytranskribering for mindre tekniske brukere som vil komme raskt i gang.\n\nDet er pay-as-you-go. Når du kjøper en kontonøkkel får du $5 i transkripsjonskreditter. Du kan legge til flere kreditter senere.\n    \nVi tilbyr tre nøyaktighetsnivåer: Medium (raskest, drevet av Groq), High (anbefalt, drevet av Deepgram) og Highest (best kvalitet, drevet av xAI Grok STT). Etterbehandling er automatisk. Vi lagrer ingenting annet enn hvor mange kreditter du har brukt.\n\nDu betaler nøyaktig det vi betaler disse leverandørene. Vi tar ikke påslag.\n\nFor ekstra trygghet kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Vil stemmedataene mine bli brukt til å trene KI-modeller?",

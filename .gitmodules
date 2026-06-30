@@ -1,6 +1,3 @@
-[submodule "backend-v2-flyio"]
-	path = backend-v2-flyio
-	url = https://github.com/ray-amjad/hyperwhisper-fly.git
 [submodule "integrations/hyperwhisper-mcp"]
 	path = integrations/hyperwhisper-mcp
 	url = https://github.com/hyperwhisper-app/hyperwhisper-mcp.git

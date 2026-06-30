@@ -1,0 +1,36 @@
+# Manual staging deploy for the vendored Fly backend (hyperwhisper-cloud/).
+#
+# The app repo has no `preview` branch (Vercel handles per-PR previews), so
+# this is workflow_dispatch-only — run it for ad-hoc staging deploys. The
+# staging→prod gate still lives in cloud-deploy-prod.yml (it deploys staging
+# first and only promotes to prod if staging's smoke test passes).
+name: cloud-deploy-staging
+
+on:
+  workflow_dispatch:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hyperwhisper-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: hyperwhisper-cloud/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+
+  staging:
+    needs: typecheck
+    uses: ./.github/workflows/cloud-deploy.yml
+    with:
+      environment: preview
+      fly_config: fly.staging.toml
+      base_url: https://transcribe-staging-v2.hyperwhisper.com
+    secrets: inherit

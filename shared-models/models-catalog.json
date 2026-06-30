@@ -351,7 +351,7 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "Live via HyperWhisper Cloud (backend-v2-flyio hyperwhisper-fly#48 deployed 2026-06-19); kept in sync with cloud-pp-catalog.json mistral 'enabled':true."
+      "notes": "Live via HyperWhisper Cloud (hyperwhisper-cloud hyperwhisper-fly#48 deployed 2026-06-19); kept in sync with cloud-pp-catalog.json mistral 'enabled':true."
     },
 
     {
@@ -361,7 +361,7 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "Live via HyperWhisper Cloud (backend-v2-flyio hyperwhisper-fly#48 deployed 2026-06-19)."
+      "notes": "Live via HyperWhisper Cloud (hyperwhisper-cloud hyperwhisper-fly#48 deployed 2026-06-19)."
     },
 
     {

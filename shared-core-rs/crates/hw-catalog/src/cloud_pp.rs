@@ -9,7 +9,7 @@
 //! Drives the credit-billed (no-key) post-processing Engine + Model picker and
 //! the `X-LLM-Provider` / `X-LLM-Model` headers sent to the backend
 //! `/post-process` route. Prices are display/estimate only — the actual billing
-//! constants live in `backend-v2-flyio/src/lib/cost-calculator.ts`.
+//! constants live in `hyperwhisper-cloud/src/lib/cost-calculator.ts`.
 //!
 //! Parity notes:
 //! - **`enabled` rollout gate.** `None` is treated as enabled (older catalogs);
