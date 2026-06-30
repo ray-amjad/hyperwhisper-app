@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Woordenlijst";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Er is een onbekende fout opgetreden";
 "app.microphone.permission.message" = "HyperWhisper heeft toegang nodig tot je microfoon om audio te transcriberen.\n\nGa naar Systeeminstellingen > Privacy & Beveiliging > Microfoon en schakel toegang in voor HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper slaat opnamen op in een map in je Documenten, dus je kunt ze gemakkelijk vinden: Documents/hyperwhisper/recordings. macOS kan de eerste keer toestemming vragen om daar op te slaan. Als je liever geen toegang geeft, kunnen we opnamen in plaats daarvan in een privéappmap opslaan.";
-"app.upgrade.to.pro" = "Upgrade naar Pro";
-"app.enter.license.key" = "Voer licentsleutel in";
-"accessibility.upgrade.pro" = "Upgrade naar HyperWhisper Pro";
-"accessibility.enter.license" = "Voer licentsleutel in";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Actief";
 "license.status.expired.title" = "Verlopen";
 "license.status.invalid.title" = "Ongeldig";
-"license.status.trial.description" = "Gratis proefversie (5 min/dag, %d modellen)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Gelicentieerd – Volledige toegang";
 "license.status.expired.description" = "Licentie verlopen";
 "license.status.invalid.description" = "Ongeldige licentie";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Offlinemodellen";
 "settings.license.models.progress" = "%d van %d modellen gedownload";
 "settings.license.models.progress.one" = "%d van %d model gedownload";
-"settings.license.upgrade.text" = "Upgrade voor onbeperkte transcriptie en modeldownloads";
-"settings.license.upgrade.button" = "Upgrade";
 "license.error.invalidResponse" = "Ongeldig responsformaat";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Netwerkfout: %@";
 "settings.credits.error.invalidResponse" = "Ongeldige respons van server. Probeer het opnieuw.";
 "settings.credits.error.server" = "Serverfout: %@";
-"settings.models.alert.limit.title" = "Modeldownloadlimiet bereikt";
-"settings.models.alert.limit.message" = "Proefversies bevatten %d modeldownloads. Upgrade je licentie voor onbeperkte downloads.";
 "settings.models.alert.cannotDelete.title" = "Kan model niet verwijderen";
 "settings.models.parakeet.title" = "Parakeetmodellen";
 "settings.models.parakeet.subtitle" = "Aanbevolen voor de meeste gebruikers. Meertalig model ondersteunt 25 talen.";
@@ -830,7 +824,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "modes.postProcessing.accuracy" = "Nauwkeurigheid";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Je hebt je dagelijkse limiet van %@ minuten transcriptie bereikt. Upgrade naar HyperWhisper Pro voor onbeperkte transcriptie.";
 "recording.error.documentsAccess" = "Kan geen toegang krijgen tot de opnamemap. Kies een ander locatie in Instellingen → Opslag.";
 "recording.error.modeMissing" = "Geselecteerde modus niet gevonden. Selecteer een geldige modus.";
 "recording.warning.oversizedWAV" = "Audiocompressie mislukt. Gebruikt ongecomprimeerd bestand van %@ MB - transcriptie kan langzamer zijn.";

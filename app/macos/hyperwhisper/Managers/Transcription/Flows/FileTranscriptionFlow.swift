@@ -386,16 +386,7 @@ class FileTranscriptionFlow {
                 postProcessingProvider: result.postProcessingProvider
             )
 
-            // Record usage for trial users
-            // Licensed users (status == .active) don't have usage limits tracked
-            if let licenseManager = licenseManager,
-               licenseManager.licenseStatus != .active {
-                // Guard against a non-finite duration: Int(Double.nan) traps at runtime.
-                // getAudioDuration already rejects non-finite values, but clamp here too
-                // so a future caller cannot reintroduce the crash.
-                let secondsUsed = duration.isFinite ? Int(max(0, duration).rounded()) : 0
-                await licenseManager.recordTranscriptionTime(secondsUsed)
-            }
+            // No local usage recording — local transcription is unlimited (open source).
 
             // Complete progress animation
             progressState.animateProgress(to: 1.0, duration: 0.2)

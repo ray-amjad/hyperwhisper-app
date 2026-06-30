@@ -14,7 +14,6 @@ struct ModelLibraryView: View {
     @EnvironmentObject var qwen3AsrManager: Qwen3AsrModelManager
     @EnvironmentObject var nemotronManager: NemotronModelManager
     @EnvironmentObject var localLLMManager: LocalModelManager
-    @EnvironmentObject var licenseManager: LicenseManager
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var customEndpointManager: CustomPostProcessingManager
 
@@ -35,7 +34,6 @@ struct ModelLibraryView: View {
     @State private var sheetTarget: ProviderKeyTarget?
     @State private var sheetMode: ProviderKeySheetMode = .connect
     @State private var showAPIKeysManager = false
-    @State private var showTrialLimitAlert = false
     @State private var showingModelInUseAlert = false
     @State private var modelInUseMessage = ""
     @State private var showCustomEndpointSheet = false
@@ -160,12 +158,6 @@ struct ModelLibraryView: View {
         .sheet(isPresented: $showCustomEndpointSheet, onDismiss: { editingEndpoint = nil }) {
             CustomEndpointSheet(existingEndpoint: editingEndpoint, onSave: { _ in })
                 .environmentObject(customEndpointManager)
-        }
-        .alert("Trial limit reached", isPresented: $showTrialLimitAlert) {
-            Button("Upgrade") { licenseManager.openPurchasePage() }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Trial accounts can install up to \(licenseManager.trialModelDownloadLimit) offline models. Upgrade to download more.")
         }
         .alert(LocalizedStringKey("settings.models.alert.cannotDelete.title"), isPresented: $showingModelInUseAlert) {
             Button(LocalizedStringKey("common.ok"), role: .cancel) {}
@@ -658,10 +650,7 @@ struct ModelLibraryView: View {
             if installed {
                 triggerDelete(for: model)
             } else {
-                if !licenseManager.canDownloadModel() {
-                    showTrialLimitAlert = true
-                    return
-                }
+                // Local model downloads are unlimited (open source) — no gate.
                 triggerDownload(for: model)
             }
         }

@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Rječnik";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Došlo je do nepoznate greške";
 "app.microphone.permission.message" = "HyperWhisper treba pristup vašem mikrofonu kako bi transkribirao audio.\n\nMolimo idite na Sistemske postavke > Privatnost i sigurnost > Mikrofon i omogućite pristup za HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper sprema snimke u mapu u vašim Dokumentima kako bi bile lako dostupne: Dokumenti/hyperwhisper/recordings. macOS može zatražiti dozvolu prvi put kada pokušamo spremiti tamo. Ako ne želite dati pristup, možemo spremati snimke u privatnu mapu aplikacije.";
-"app.upgrade.to.pro" = "Nadogradi na Pro";
-"app.enter.license.key" = "Unesi licencni ključ";
-"accessibility.upgrade.pro" = "Nadogradi na HyperWhisper Pro";
-"accessibility.enter.license" = "Unesi licencni ključ";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktivno";
 "license.status.expired.title" = "Isteklo";
 "license.status.invalid.title" = "Nevažeće";
-"license.status.trial.description" = "Besplatno probno (5 min/dan, %d modela)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencirano – potpuni pristup";
 "license.status.expired.description" = "Licenca istekla";
 "license.status.invalid.description" = "Nevažeća licenca";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Offline modeli";
 "settings.license.models.progress" = "%d od %d modela preuzeto";
 "settings.license.models.progress.one" = "%d od %d model preuze";
-"settings.license.upgrade.text" = "Nadogradite za neograničenu transkripciju i preuzimanje modela";
-"settings.license.upgrade.button" = "Nadogradi";
 "license.error.invalidResponse" = "Nevažeći format odgovora";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Mrežna greška: %@";
 "settings.credits.error.invalidResponse" = "Nevažeći odgovor s poslužitelja. Molimo pokušajte ponovno.";
 "settings.credits.error.server" = "Greška poslužitelja: %@";
-"settings.models.alert.limit.title" = "Dosegnuto ograničenje preuzimanja modela";
-"settings.models.alert.limit.message" = "Probne verzije uključuju %d preuzimanja modela. Nadogradite licencu za neograničeno preuzimanje.";
 "settings.models.alert.cannotDelete.title" = "Nije moguće izbrisati model";
 "settings.models.parakeet.title" = "Parakeet modeli";
 "settings.models.parakeet.subtitle" = "Preporučeno za većinu korisnika. Višejezični model podržava 25 jezika.";
@@ -830,7 +824,6 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "modes.postProcessing.accuracy" = "Preciznost";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Dosegli ste svoje dnevno ograničenje transkripcije od %@ minuta. Nadogradite na HyperWhisper Pro za neograničenu transkripciju.";
 "recording.error.documentsAccess" = "Nije moguće pristupiti mapi snimki. Odaberite drugu lokaciju u Postavke → Pohrana.";
 "recording.error.modeMissing" = "Odabrani način nije pronađen. Molimo odaberite važeći način.";
 "recording.warning.oversizedWAV" = "Kompresija zvuka nije uspjela. Korištenje nekomprimirane %@ MB datoteke - transkripcija može biti sporija.";

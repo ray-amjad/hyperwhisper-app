@@ -485,20 +485,8 @@
   <data name="settings.license.trial.subtitle" xml:space="preserve">
     <value>Your daily usage limits reset at midnight</value>
   </data>
-  <data name="settings.license.trial.dailyTranscription" xml:space="preserve">
-    <value>Daily Transcription</value>
-  </data>
-  <data name="settings.license.trial.modelDownloads" xml:space="preserve">
-    <value>Model Downloads</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Kosongkan</value>
-  </data>
-  <data name="settings.license.upgrade.text" xml:space="preserve">
-    <value>Naik taraf untuk transkripsi tanpa had dan muat turun model</value>
-  </data>
-  <data name="settings.license.upgrade.button" xml:space="preserve">
-    <value>Naik Taraf</value>
   </data>
   <data name="license.status.trial.title" xml:space="preserve">
     <value>Percubaan</value>
@@ -917,9 +905,6 @@ Tindakan ini tidak boleh dibuat asal.</value>
   <data name="errors.noModeSelected" xml:space="preserve">
     <value>No mode selected</value>
   </data>
-  <data name="errors.trialLimitReached" xml:space="preserve">
-    <value>Daily trial limit reached. Upgrade for unlimited transcription.</value>
-  </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
     <value>Model '{0}' not downloaded</value>
   </data>
@@ -1215,14 +1200,6 @@ You must have at least one mode.</value>
     <value>Failed to disable launch at startup. Please check if you have permission to modify startup settings.</value>
   </data>
   <!-- Settings - Models -->
-  <data name="settings.models.trialLimit.title" xml:space="preserve">
-    <value>Trial Limit Reached</value>
-  </data>
-  <data name="settings.models.trialLimit.message" xml:space="preserve">
-    <value>You've reached the model download limit for trial users.
-
-Upgrade to a license for unlimited model downloads.</value>
-  </data>
   <data name="settings.models.vramWarning.title" xml:space="preserve">
     <value>Insufficient VRAM</value>
   </data>
@@ -1366,7 +1343,7 @@ You can re-download it later.</value>
 
   <!-- License Status Descriptions -->
   <data name="license.status.trial.description" xml:space="preserve">
-    <value>Percubaan Percuma (5 min/hari, %d model)</value>
+    <value>Local transcription is free and unlimited.</value>
   </data>
   <data name="license.status.active.description" xml:space="preserve">
     <value>Berlesen – Akses Penuh</value>
@@ -1402,18 +1379,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.models.gpu.recommendBase" xml:space="preserve">
     <value>GPU not detected. We recommend using the Base model for CPU transcription.</value>
-  </data>
-  <data name="settings.models.limitReached.title" xml:space="preserve">
-    <value>Model Limit Reached</value>
-  </data>
-  <data name="settings.models.limitReached.message" xml:space="preserve">
-    <value>You have downloaded {0} models, which is the maximum allowed for trial users ({1}).</value>
-  </data>
-  <data name="settings.models.trial.title" xml:space="preserve">
-    <value>Trial Mode</value>
-  </data>
-  <data name="settings.models.trial.message" xml:space="preserve">
-    <value>You have downloaded {0} of {1} models. {2} remaining.</value>
   </data>
   <data name="settings.models.diskUsage.none" xml:space="preserve">
     <value>No models downloaded</value>
@@ -1795,12 +1760,6 @@ You can re-download it later.</value>
   </data>
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
-  </data>
-  <data name="app.upgrade.to.pro" xml:space="preserve">
-    <value>Upgrade to Pro</value>
-  </data>
-  <data name="app.enter.license.key" xml:space="preserve">
-    <value>Enter License Key</value>
   </data>
   <data name="window.caption.minimize" xml:space="preserve">
     <value>Minimize</value>
@@ -2332,5 +2291,8 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.vocabConflict.skip" xml:space="preserve">
     <value>Simpan perkataan saya yang sedia ada</value>
+  </data>
+  <data name="app.cloud.cta.title" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
 </root>

@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Orðaforði";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Óþekkt villa kom upp";
 "app.microphone.permission.message" = "HyperWhisper þarf aðgang að hljóðnemanum þínum til að afrituð hljóð.\n\nFarðu í Kerfisstillingar > Persónuvernd og öryggi > Hljóðnemi og virkjaðu aðgang fyrir HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper vistar upptökur í möppu í skjölunum þínum svo þær séu auðfinnanleg: Skjöl/hyperwhisper/recordings. macOS gæti spurt um leyfi í fyrsta skipti sem við reynum að vista þar. Ef þú vilt ekki veita aðgang, getum við geymt upptökur í einkamöppu forritsins í staðinn.";
-"app.upgrade.to.pro" = "Uppfæra í Pro";
-"app.enter.license.key" = "Slá inn leyfislykil";
-"accessibility.upgrade.pro" = "Uppfæra í HyperWhisper Pro";
-"accessibility.enter.license" = "Slá inn leyfislykil";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Virkt";
 "license.status.expired.title" = "Útrunnið";
 "license.status.invalid.title" = "Ógilt";
-"license.status.trial.description" = "Ókeypis prufuútgáfa (5 mín/dag, %d líkön)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Leyfishafi – fullur aðgangur";
 "license.status.expired.description" = "Leyfi útrunnið";
 "license.status.invalid.description" = "Ógilt leyfi";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Ónettengt líkön";
 "settings.license.models.progress" = "%d af %d líkön sótt";
 "settings.license.models.progress.one" = "%d af %d líkan sótt";
-"settings.license.upgrade.text" = "Uppfærðu fyrir ótakmarkaða afritun og sótt líkön";
-"settings.license.upgrade.button" = "Uppfæra";
 "license.error.invalidResponse" = "Ógilt svarform";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Netvilla: %@";
 "settings.credits.error.invalidResponse" = "Ógilt svar frá netþjóni. Vinsamlegast reyndu aftur.";
 "settings.credits.error.server" = "Netþjónavilla: %@";
-"settings.models.alert.limit.title" = "Líkanasóttarmörk náð";
-"settings.models.alert.limit.message" = "Prufuútgáfur innihalda %d líkanasóttir. Uppfærðu leyfið þitt fyrir ótakmarkaðar sóttir.";
 "settings.models.alert.cannotDelete.title" = "Get ekki eytt líkani";
 "settings.models.parakeet.title" = "Parakeet líkön";
 "settings.models.parakeet.subtitle" = "Mælt með fyrir flesta notendur. Fjöltungda líkan styður 25 tungumál.";
@@ -830,7 +824,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "modes.postProcessing.accuracy" = "Nákvæmni";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Þú hefur náð daglegu %@-mínútu afritunarmarkinu þínu. Uppfærðu í HyperWhisper Pro fyrir ótakmarkaða afritun.";
 "recording.error.documentsAccess" = "Get ekki nálgast upptökumöppuna. Veldu aðra staðsetningu í Stillingar → Geymsla.";
 "recording.error.modeMissing" = "Valinn hamur fannst ekki. Vinsamlegast veldu gildan ham.";
 "recording.warning.oversizedWAV" = "Hljóðþjöppun mistókst. Nota óþjappaða %@ MB skrá - afritun gæti verið hægari.";

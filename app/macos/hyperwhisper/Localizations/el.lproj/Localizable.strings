@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Λεξιλόγιο";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Προέκυψε ένα άγνωστο σφάλμα";
 "app.microphone.permission.message" = "Το HyperWhisper χρειάζεται πρόσβαση στο μικροφώνό σας για μεταγραφή ήχου.\n\nΠαρακαλώ πηγαίνετε στις Ρυθμίσεις Συστήματος > Ιδιωτικότητα & Ασφάλεια > Μικροφώνο και ενεργοποιήστε την πρόσβαση για το HyperWhisper.";
 "app.recordings.location.message" = "Το HyperWhisper αποθηκεύει τις εγγραφές σε ένα φάκελο στα Έγγραφά σας ώστε να είναι εύκολο να τις βρείτε: Documents/hyperwhisper/recordings. Το macOS μπορεί να ζητήσει άδεια την πρώτη φορά που προσπαθούμε να αποθηκεύσουμε εκεί. Αν προτιμάτε να μην δώσετε πρόσβαση, μπορούμε να αποθηκεύσουμε τις εγγραφές σε ένα ιδιωτικό φάκελο εφαρμογής.";
-"app.upgrade.to.pro" = "Αναβάθμιση σε Pro";
-"app.enter.license.key" = "Εισαγάγετε Κλειδί Άδειας";
-"accessibility.upgrade.pro" = "Αναβάθμιση σε HyperWhisper Pro";
-"accessibility.enter.license" = "Εισαγάγετε Κλειδί Άδειας";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Ενεργό";
 "license.status.expired.title" = "Λήξη";
 "license.status.invalid.title" = "Μη έγκυρο";
-"license.status.trial.description" = "Δωρεάν Δοκιμή (5 λεπτά/ημέρα, %d μοντέλα)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Αδειοδοτημένο – Πλήρης Πρόσβαση";
 "license.status.expired.description" = "Άδεια Λήξη";
 "license.status.invalid.description" = "Μη Έγκυρη Άδεια";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Αυτόνομα Μοντέλα";
 "settings.license.models.progress" = "%d από %d μοντέλα ληφθέντα";
 "settings.license.models.progress.one" = "%d από %d μοντέλο ληφθέν";
-"settings.license.upgrade.text" = "Αναβάθμιση για απεριόριστη μεταγραφή και λήψη μοντέλων";
-"settings.license.upgrade.button" = "Αναβάθμιση";
 "license.error.invalidResponse" = "Μη έγκυρη μορφή απάντησης";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Σφάλμα δικτύου: %@";
 "settings.credits.error.invalidResponse" = "Μη έγκυρη απάντηση από το διακομιστή. Παρακαλώ δοκιμάστε ξανά.";
 "settings.credits.error.server" = "Σφάλμα διακομιστή: %@";
-"settings.models.alert.limit.title" = "Ανώτατο όριο λήψης μοντέλου φθάνει";
-"settings.models.alert.limit.message" = "Οι δοκιμές περιλαμβάνουν λήψεις μοντέλων %d. Αναβαθμίστε την άδειά σας για απεριόριστες λήψεις.";
 "settings.models.alert.cannotDelete.title" = "Δεν Είναι Δυνατή η Διαγραφή Μοντέλου";
 "settings.models.parakeet.title" = "Μοντέλα Parakeet";
 "settings.models.parakeet.subtitle" = "Συνιστάται για τους περισσότερους χρήστες. Το πολυγλωσσικό μοντέλο υποστηρίζει 25 γλώσσες.";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "Ακρίβεια";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Έχετε φτάσει το καθημερινό όριο μεταγραφής %@ λεπτών. Αναβαθμίστε σε HyperWhisper Pro για απεριόριστη μεταγραφή.";
 "recording.error.documentsAccess" = "Δεν είναι δυνατή η πρόσβαση στο φάκελο εγγραφών. Επιλέξτε διαφορετική θέση στις Ρυθμίσεις → Αποθήκευση.";
 "recording.error.modeMissing" = "Η επιλεγμένη λειτουργία δεν βρέθηκε. Παρακαλώ επιλέξτε μια έγκυρη λειτουργία.";
 "recording.warning.oversizedWAV" = "Η συμπίεση ήχου απέτυχε. Χρησιμοποιώντας ασυμπίεστο αρχείο %@ MB - η μεταγραφή μπορεί να είναι πιο αργή.";

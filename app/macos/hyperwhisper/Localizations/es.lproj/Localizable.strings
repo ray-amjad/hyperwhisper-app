@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Vocabulario";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Ocurrió un error desconocido";
 "app.microphone.permission.message" = "HyperWhisper necesita acceso a tu micrófono para transcribir audio.\n\nVe a Ajustes del Sistema > Privacidad y seguridad > Micrófono y habilita el acceso para HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper guarda las grabaciones en una carpeta dentro de Documentos para que sea fácil encontrarlas: Documents/hyperwhisper/recordings. macOS puede pedir permiso la primera vez que intentemos guardar allí. Si prefieres no conceder acceso, podemos almacenar las grabaciones en una carpeta privada de la app.";
-"app.upgrade.to.pro" = "Actualizar a Pro";
-"app.enter.license.key" = "Introducir clave de licencia";
-"accessibility.upgrade.pro" = "Actualizar a HyperWhisper Pro";
-"accessibility.enter.license" = "Introducir clave de licencia";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Activa";
 "license.status.expired.title" = "Caducada";
 "license.status.invalid.title" = "No válida";
-"license.status.trial.description" = "Prueba gratuita (5 min/día, %d modelos)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Con licencia: acceso completo";
 "license.status.expired.description" = "Licencia caducada";
 "license.status.invalid.description" = "Licencia no válida";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Modelos sin conexión";
 "settings.license.models.progress" = "%d de %d modelos descargados";
 "settings.license.models.progress.one" = "%d de %d modelo descargado";
-"settings.license.upgrade.text" = "Actualiza para transcripción y descargas de modelos ilimitadas";
-"settings.license.upgrade.button" = "Actualizar";
 "license.error.invalidResponse" = "Formato de respuesta no válido";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Error de red: %@";
 "settings.credits.error.invalidResponse" = "Respuesta del servidor no válida. Inténtalo de nuevo.";
 "settings.credits.error.server" = "Error del servidor: %@";
-"settings.models.alert.limit.title" = "Se alcanzó el límite de descargas de modelos";
-"settings.models.alert.limit.message" = "Las pruebas incluyen %d descargas de modelos. Actualiza tu licencia para descargas ilimitadas.";
 "settings.models.alert.cannotDelete.title" = "No se puede eliminar el modelo";
 "settings.models.parakeet.title" = "Modelos Parakeet";
 "settings.models.parakeet.subtitle" = "Recomendado para la mayoría. El modelo multilingüe admite 25 idiomas.";
@@ -831,7 +825,6 @@ Actualiza estos modos para usar un modelo diferente antes de eliminarlo.";
 "modes.postProcessing.accuracy" = "Precisión";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Has alcanzado tu límite diario de transcripción de %@ minutos. Actualiza a HyperWhisper Pro para transcripción ilimitada.";
 "recording.error.documentsAccess" = "No se puede acceder a la carpeta de grabaciones. Elige otra ubicación en Ajustes → Almacenamiento.";
 "recording.error.modeMissing" = "No se encontró el modo seleccionado. Selecciona un modo válido.";
 "recording.warning.oversizedWAV" = "Falló la compresión de audio. Se usará el archivo sin comprimir de %@ MB; la transcripción puede ser más lenta.";

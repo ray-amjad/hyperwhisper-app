@@ -337,12 +337,12 @@ extension RecordingTranscriptionFlow {
             // Run critical checks in parallel for faster validation
             // NOTE: Provider health check removed - errors will surface during transcription instead.
             // This prevents network timeouts from blocking recording start.
-            async let licenseResult = self.validateLicense()
+            // NOTE: No local license/trial gate — local transcription is unlimited (open source).
             async let apiKeysResult = self.validateAPIKeys(for: modeSnapshot)
             async let storageResult = self.prepareStorage()
 
             // Wait for all critical checks to complete
-            let results = await [licenseResult, apiKeysResult, storageResult]
+            let results = await [apiKeysResult, storageResult]
 
             // If any check failed, cancel recording and show the first error
             // GUARD: Only cancel if still actively recording
@@ -419,25 +419,6 @@ extension RecordingTranscriptionFlow {
     }
 
     // MARK: - Background Validation Helpers
-
-    /// Validate license allows recording (trial users have daily limit)
-    /// Returns error message if validation fails, nil if OK
-    private func validateLicense() async -> String? {
-        guard let licenseManager else { return nil }
-
-        if !licenseManager.canStartRecording() {
-            let remainingTime = licenseManager.getRemainingDailyTime()
-            if remainingTime <= 0 {
-                let limitSeconds = licenseManager.trialDailyTranscriptionLimit
-                let minutes = Double(limitSeconds) / 60.0
-                let formatted = abs(minutes.rounded() - minutes) < 0.01
-                    ? String(format: "%.0f", minutes)
-                    : String(format: "%.1f", minutes)
-                return "recording.error.dailyLimit".localized(arguments: formatted)
-            }
-        }
-        return nil
-    }
 
     /// Validate API keys are configured for the selected mode
     /// Returns error message if critical keys are missing, nil if OK

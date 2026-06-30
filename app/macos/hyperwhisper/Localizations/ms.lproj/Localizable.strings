@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Perbendaharaan Kata";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Ralat tidak diketahui berlaku";
 "app.microphone.permission.message" = "HyperWhisper memerlukan akses ke mikrofon anda untuk mentranskrip audio.\n\nSila pergi ke Tetapan Sistem > Privasi & Keselamatan > Mikrofon dan dayakan akses untuk HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper menyimpan rakaman ke folder dalam Dokumen anda supaya mudah dijumpai: Documents/hyperwhisper/recordings. macOS mungkin meminta kebenaran kali pertama kami cuba menyimpan di sana. Jika anda tidak mahu memberikan akses, kami boleh menyimpan rakaman dalam folder aplikasi peribadi sebaliknya.";
-"app.upgrade.to.pro" = "Naik Taraf ke Pro";
-"app.enter.license.key" = "Masukkan Kunci Lesen";
-"accessibility.upgrade.pro" = "Naik Taraf ke HyperWhisper Pro";
-"accessibility.enter.license" = "Masukkan Kunci Lesen";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktif";
 "license.status.expired.title" = "Tamat Tempoh";
 "license.status.invalid.title" = "Tidak Sah";
-"license.status.trial.description" = "Percubaan Percuma (5 min/hari, %d model)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Berlesen – Akses Penuh";
 "license.status.expired.description" = "Lesen Tamat Tempoh";
 "license.status.invalid.description" = "Lesen Tidak Sah";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Model Luar Talian";
 "settings.license.models.progress" = "%d daripada %d model dimuat turun";
 "settings.license.models.progress.one" = "%d daripada %d model dimuat turun";
-"settings.license.upgrade.text" = "Naik taraf untuk transkripsi tanpa had dan muat turun model";
-"settings.license.upgrade.button" = "Naik Taraf";
 "license.error.invalidResponse" = "Format respons tidak sah";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Ralat rangkaian: %@";
 "settings.credits.error.invalidResponse" = "Respons tidak sah dari pelayan. Sila cuba lagi.";
 "settings.credits.error.server" = "Ralat pelayan: %@";
-"settings.models.alert.limit.title" = "Had muat turun model dicapai";
-"settings.models.alert.limit.message" = "Percubaan termasuk %d muat turun model. Naik taraf lesen anda untuk muat turun tanpa had.";
 "settings.models.alert.cannotDelete.title" = "Tidak Boleh Padam Model";
 "settings.models.parakeet.title" = "Model Parakeet";
 "settings.models.parakeet.subtitle" = "Disyorkan untuk kebanyakan pengguna. Model pelbagai bahasa menyokong 25 bahasa.";
@@ -830,7 +824,6 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "modes.postProcessing.accuracy" = "Ketepatan";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Anda telah mencapai had transkripsi harian %@ minit anda. Naik taraf ke HyperWhisper Pro untuk transkripsi tanpa had.";
 "recording.error.documentsAccess" = "Tidak dapat mengakses folder rakaman. Pilih lokasi berbeza dalam Tetapan → Penyimpanan.";
 "recording.error.modeMissing" = "Mod yang dipilih tidak dijumpai. Sila pilih mod yang sah.";
 "recording.warning.oversizedWAV" = "Pemampatan audio gagal. Menggunakan fail %@ MB yang tidak dimampatkan - transkripsi mungkin lebih perlahan.";

@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "אוצר מילים";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "אירעה שגיאה לא ידועה";
 "app.microphone.permission.message" = "HyperWhisper זקוק לגישה למיקרופון כדי לתמלל אודיו.\n\nאנא עבור להגדרות מערכת > פרטיות ואבטחה > מיקרופון והפעל גישה עבור HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper שומר הקלטות בתיקייה במסמכים שלך כך שקל למצוא אותן: מסמכים/hyperwhisper/recordings. macOS עשוי לבקש הרשאה בפעם הראשונה שננסה לשמור שם. אם אינך רוצה להעניק גישה, נוכל לאחסן הקלטות בתיקיית אפליקציה פרטית במקום זאת.";
-"app.upgrade.to.pro" = "שדרג ל-Pro";
-"app.enter.license.key" = "הזן מפתח רישיון";
-"accessibility.upgrade.pro" = "שדרג ל-HyperWhisper Pro";
-"accessibility.enter.license" = "הזן מפתח רישיון";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "פעיל";
 "license.status.expired.title" = "פג תוקף";
 "license.status.invalid.title" = "לא תקין";
-"license.status.trial.description" = "ניסיון חינם (5 דק'/יום, %d מודלים)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "מורשה – גישה מלאה";
 "license.status.expired.description" = "רישיון פג תוקף";
 "license.status.invalid.description" = "רישיון לא תקין";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "מודלים לא מקוונים";
 "settings.license.models.progress" = "%d מתוך %d מודלים הורדו";
 "settings.license.models.progress.one" = "%d מתוך %d מודל הורד";
-"settings.license.upgrade.text" = "שדרג לתמלול והורדות מודל בלתי מוגבלים";
-"settings.license.upgrade.button" = "שדרג";
 "license.error.invalidResponse" = "פורמט תגובה לא תקין";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "שגיאת רשת: %@";
 "settings.credits.error.invalidResponse" = "תגובה לא תקינה מהשרת. אנא נסה שוב.";
 "settings.credits.error.server" = "שגיאת שרת: %@";
-"settings.models.alert.limit.title" = "הגעת למגבלת הורדת מודלים";
-"settings.models.alert.limit.message" = "ניסיונות כוללים %d הורדות מודל. שדרג את הרישיון שלך להורדות בלתי מוגבלות.";
 "settings.models.alert.cannotDelete.title" = "לא ניתן למחוק מודל";
 "settings.models.parakeet.title" = "מודלי Parakeet";
 "settings.models.parakeet.subtitle" = "מומלץ לרוב המשתמשים. מודל רב-לשוני תומך ב-25 שפות.";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "דיוק";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "הגעת למגבלת התמלול היומית של %@ דקות. שדרג ל-HyperWhisper Pro לתמלול בלתי מוגבל.";
 "recording.error.documentsAccess" = "לא ניתן לגשת לתיקיית ההקלטות. בחר מיקום אחר בהגדרות → אחסון.";
 "recording.error.modeMissing" = "המצב שנבחר לא נמצא. אנא בחר מצב תקין.";
 "recording.warning.oversizedWAV" = "דחיסת אודיו נכשלה. שימוש בקובץ %@ MB לא דחוס - התמלול עשוי להיות איטי יותר.";

@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Словарь";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Произошла неизвестная ошибка";
 "app.microphone.permission.message" = "HyperWhisper нуждается в доступе к вашему микрофону для транскрипции аудио.\n\nПожалуйста, перейдите в Параметры системы > Приватность и безопасность > Микрофон и включите доступ для HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper сохраняет записи в папку в вашей папке Документы, чтобы их было легко найти: Documents/hyperwhisper/recordings. macOS может попросить разрешение при первой попытке сохранения. Если вы предпочитаете не предоставлять доступ, мы можем сохранять записи в приватной папке приложения.";
-"app.upgrade.to.pro" = "Обновить на Pro";
-"app.enter.license.key" = "Введите лицензионный ключ";
-"accessibility.upgrade.pro" = "Обновить на HyperWhisper Pro";
-"accessibility.enter.license" = "Введите лицензионный ключ";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Активна";
 "license.status.expired.title" = "Истекла";
 "license.status.invalid.title" = "Недействительна";
-"license.status.trial.description" = "Бесплатная пробная версия (5 мин/день, %d моделей)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Лицензировано – Полный доступ";
 "license.status.expired.description" = "Лицензия истекла";
 "license.status.invalid.description" = "Недействительная лицензия";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Локальные модели";
 "settings.license.models.progress" = "%d из %d моделей загружено";
 "settings.license.models.progress.one" = "%d из %d модели загружено";
-"settings.license.upgrade.text" = "Обновитесь для неограниченной транскрипции и загрузок моделей";
-"settings.license.upgrade.button" = "Обновить";
 "license.error.invalidResponse" = "Неверный формат ответа";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Ошибка сети: %@";
 "settings.credits.error.invalidResponse" = "Неверный ответ от сервера. Пожалуйста, попробуйте снова.";
 "settings.credits.error.server" = "Ошибка сервера: %@";
-"settings.models.alert.limit.title" = "Лимит загрузки моделей достигнут";
-"settings.models.alert.limit.message" = "Пробные версии включают %d загрузок моделей. Обновитесь на лицензию для неограниченных загрузок.";
 "settings.models.alert.cannotDelete.title" = "Невозможно удалить модель";
 "settings.models.parakeet.title" = "Модели Parakeet";
 "settings.models.parakeet.subtitle" = "Рекомендуется для большинства пользователей. Многоязычная модель поддерживает 25 языков.";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "Точность";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Вы достигли дневного лимита транскрипции на %@ минут. Обновитесь на HyperWhisper Pro для неограниченной транскрипции.";
 "recording.error.documentsAccess" = "Невозможно получить доступ к папке записей. Выберите другое местоположение в параметры → Хранилище.";
 "recording.error.modeMissing" = "Выбранный режим не найден. Пожалуйста, выберите действительный режим.";
 "recording.warning.oversizedWAV" = "Ошибка сжатия аудио. Использование несжатого файла %@ МБ - транскрипция может быть медленнее.";

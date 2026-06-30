@@ -141,7 +141,7 @@ public sealed class ModelDownloadService
 
         if (result.IsSuccess)
         {
-            LicenseUsageTracker.Instance.IncrementModelDownloadCount();
+            // No local model-download counting — downloads are unlimited (open source).
             LoggingService.Info($"ModelDownloadService: Download completed for {download.Model.DisplayName}");
         }
         else if (result.Error?.Contains("cancelled", StringComparison.OrdinalIgnoreCase) == true)

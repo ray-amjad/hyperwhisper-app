@@ -66,12 +66,6 @@
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
   </data>
-  <data name="app.upgrade.to.pro" xml:space="preserve">
-    <value>Pro にアップグレード</value>
-  </data>
-  <data name="app.enter.license.key" xml:space="preserve">
-    <value>ライセンスキーを入力</value>
-  </data>
 
   <!-- Common UI -->
   <data name="common.ok" xml:space="preserve">
@@ -566,20 +560,8 @@
   <data name="settings.license.trial.subtitle" xml:space="preserve">
     <value>1日の利用制限は深夜にリセットされます</value>
   </data>
-  <data name="settings.license.trial.dailyTranscription" xml:space="preserve">
-    <value>1日の文字起こし</value>
-  </data>
-  <data name="settings.license.trial.modelDownloads" xml:space="preserve">
-    <value>モデルダウンロード</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>クリア</value>
-  </data>
-  <data name="settings.license.upgrade.text" xml:space="preserve">
-    <value>無制限の文字起こしとモデルダウンロードにアップグレード</value>
-  </data>
-  <data name="settings.license.upgrade.button" xml:space="preserve">
-    <value>アップグレード</value>
   </data>
   <data name="license.status.trial.title" xml:space="preserve">
     <value>トライアル</value>
@@ -1047,9 +1029,6 @@
   <data name="errors.noModeSelected" xml:space="preserve">
     <value>モードが選択されていません</value>
   </data>
-  <data name="errors.trialLimitReached" xml:space="preserve">
-    <value>1日のトライアル上限に達しました。無制限の文字起こしにはアップグレードしてください。</value>
-  </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
     <value>モデル '{0}' がダウンロードされていません</value>
   </data>
@@ -1348,14 +1327,6 @@
     <value>起動時に開始の無効化に失敗しました。スタートアップ設定を変更する権限があるか確認してください。</value>
   </data>
   <!-- Settings - Models -->
-  <data name="settings.models.trialLimit.title" xml:space="preserve">
-    <value>トライアル制限に達しました</value>
-  </data>
-  <data name="settings.models.trialLimit.message" xml:space="preserve">
-    <value>トライアルユーザーのモデルダウンロード上限に達しました。
-
-無制限のモデルダウンロードにはライセンスをご購入ください。</value>
-  </data>
   <data name="settings.models.vramWarning.title" xml:space="preserve">
     <value>VRAM不足</value>
   </data>
@@ -1499,7 +1470,7 @@
 
   <!-- License Status Descriptions -->
   <data name="license.status.trial.description" xml:space="preserve">
-    <value>トライアルモード - 機能制限あり</value>
+    <value>Local transcription is free and unlimited.</value>
   </data>
   <data name="license.status.active.description" xml:space="preserve">
     <value>ライセンス済み - フルアクセス</value>
@@ -1535,18 +1506,6 @@
   </data>
   <data name="settings.models.gpu.recommendBase" xml:space="preserve">
     <value>GPUが検出されませんでした。CPU文字起こしにはBaseモデルの使用をお勧めします。</value>
-  </data>
-  <data name="settings.models.limitReached.title" xml:space="preserve">
-    <value>モデル上限に達しました</value>
-  </data>
-  <data name="settings.models.limitReached.message" xml:space="preserve">
-    <value>{0}個のモデルをダウンロードしました。これはトライアルユーザーの上限（{1}）です。</value>
-  </data>
-  <data name="settings.models.trial.title" xml:space="preserve">
-    <value>トライアルモード</value>
-  </data>
-  <data name="settings.models.trial.message" xml:space="preserve">
-    <value>{1}個中{0}個のモデルをダウンロード済み。残り{2}個。</value>
   </data>
   <data name="settings.models.diskUsage.none" xml:space="preserve">
     <value>ダウンロード済みモデルなし</value>
@@ -2389,5 +2348,8 @@ Do you want to restart now?</value>
   </data>
   <data name="settings.backup.import.vocabConflict.skip" xml:space="preserve">
     <value>既存の単語を保持する</value>
+  </data>
+  <data name="app.cloud.cta.title" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
 </root>

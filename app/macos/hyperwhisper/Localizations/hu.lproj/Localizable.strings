@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Szókincs";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Ismeretlen hiba történt";
 "app.microphone.permission.message" = "A HyperWhispernek szüksége van a mikrofon hozzáférésére az audio átírásához.\n\nKérlek menj a Rendszerbeállítások > Adatvédelem és Biztonság > Mikrofon menübe, és engedélyezd a hozzáférést a HyperWhisper számára.";
 "app.recordings.location.message" = "A HyperWhisper a felvételeket egy mappába menti a Dokumentumaidban, hogy könnyen megtalálhatók legyenek: Dokumentumok/hyperwhisper/recordings. A macOS engedélyt kérhet, amikor először próbálunk oda menteni. Ha nem szeretnél hozzáférést adni, privát alkalmazás mappában is tárolhatjuk a felvételeket.";
-"app.upgrade.to.pro" = "Frissítés Pro-ra";
-"app.enter.license.key" = "Licenckulcs megadása";
-"accessibility.upgrade.pro" = "Frissítés HyperWhisper Pro-ra";
-"accessibility.enter.license" = "Licenckulcs megadása";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktív";
 "license.status.expired.title" = "Lejárt";
 "license.status.invalid.title" = "Érvénytelen";
-"license.status.trial.description" = "Ingyenes próba (5 perc/nap, %d modell)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencelt – Teljes hozzáférés";
 "license.status.expired.description" = "Licenc lejárt";
 "license.status.invalid.description" = "Érvénytelen licenc";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Offline modellek";
 "settings.license.models.progress" = "%d / %d modell letöltve";
 "settings.license.models.progress.one" = "%d / %d modell letöltve";
-"settings.license.upgrade.text" = "Frissítés korlátlan átíráshoz és modell letöltésekhez";
-"settings.license.upgrade.button" = "Frissítés";
 "license.error.invalidResponse" = "Érvénytelen válasz formátum";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Hálózati hiba: %@";
 "settings.credits.error.invalidResponse" = "Érvénytelen válasz a szervertől. Kérlek próbáld újra.";
 "settings.credits.error.server" = "Szerver hiba: %@";
-"settings.models.alert.limit.title" = "Modell letöltési limit elérve";
-"settings.models.alert.limit.message" = "A próba %d modell letöltést tartalmaz. Frissítsd a licencedet korlátlan letöltésekhez.";
 "settings.models.alert.cannotDelete.title" = "Nem lehet törölni a modellt";
 "settings.models.parakeet.title" = "Parakeet modellek";
 "settings.models.parakeet.subtitle" = "Ajánlott a legtöbb felhasználónak. A többnyelvű modell 25 nyelvet támogat.";
@@ -830,7 +824,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "modes.postProcessing.accuracy" = "Pontosság";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Elérted a napi %@-perces átírási limitedet. Frissítsd HyperWhisper Pro-ra korlátlan átírásért.";
 "recording.error.documentsAccess" = "Nem lehet hozzáférni a felvételek mappához. Válassz másik helyet a Beállítások → Tárhely menüben.";
 "recording.error.modeMissing" = "Kiválasztott mód nem található. Kérlek válassz érvényes módot.";
 "recording.warning.oversizedWAV" = "Audio tömörítés sikertelen. Tömörítetlen %@ MB fájl használata - átírás lassabb lehet.";

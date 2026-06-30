@@ -5,15 +5,17 @@
 //  LICENSE STATUS MODEL
 //  Defines the various license states and their UI representations.
 //
-//  This enum encapsulates all possible license states in HyperWhisper:
-//  - trial: User hasn't purchased a license (5 min/day limit, 3 model limit)
-//  - active: Valid paid license (unlimited usage)
+//  This enum encapsulates the HyperWhisper Cloud license states. Local, on-device
+//  transcription is always free and unlimited (open source); these states only
+//  describe the Cloud "wallet":
+//  - trial: User hasn't activated a Cloud license (uses device_id for Cloud)
+//  - active: Valid Cloud license (uses license_key for Cloud)
 //  - expired: License was valid but expired
 //  - invalid: License key is malformed or revoked
 //
 //  Each status includes:
 //  - Localized display text for UI
-//  - User-friendly descriptions (trial description uses format string with model count)
+//  - User-friendly descriptions
 //  - Color coding for badges
 //
 
@@ -29,10 +31,11 @@ extension Notification.Name {
 /// Represents the current license status of the application
 ///
 /// This enum is used throughout the app to:
-/// 1. Display license state in the UI (badge colors, text)
-/// 2. Enforce usage limits (daily transcription time, model downloads)
-/// 3. Determine which transcription identifier to use (license_key vs device_id)
-/// 4. Show appropriate upgrade prompts and messages
+/// 1. Display Cloud license state in the UI (badge colors, text)
+/// 2. Determine which Cloud transcription identifier to use (license_key vs device_id)
+/// 3. Surface the Cloud credits CTA
+///
+/// Note: local transcription/model downloads are unlimited and NOT gated by status.
 enum LicenseStatus: String, CaseIterable {
     case trial = "Trial"
     case active = "Active"
@@ -54,13 +57,7 @@ enum LicenseStatus: String, CaseIterable {
         }
     }
 
-    /// User-friendly description of the status
-    /// Provides context about what this status means for the user
-    ///
-    /// NOTE: For trial status, this returns a format string that requires
-    /// the model limit parameter. Use LicenseManager.licenseStatusDescription
-    /// instead, which properly formats the trial description with the current
-    /// model limit from the usage tracker.
+    /// User-friendly description of the Cloud license status.
     var description: String {
         switch self {
         case .trial:

@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "詞彙";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "發生未知錯誤";
 "app.microphone.permission.message" = "HyperWhisper 需要存取您的麥克風以轉錄音頻。\n\n請前往系統設定 > 隱私與安全 > 麥克風，並為 HyperWhisper 啟用存取權限。";
 "app.recordings.location.message" = "HyperWhisper 將錄音儲存在您文件資料夾中的一個資料夾中，使其易於找到：Documents/hyperwhisper/recordings。第一次嘗試儲存時，macOS 可能會要求許可。如果您不想授予存取權限，我們可以將錄音儲存在私密應用資料夾中。";
-"app.upgrade.to.pro" = "升級至 Pro";
-"app.enter.license.key" = "輸入授權金鑰";
-"accessibility.upgrade.pro" = "升級至 HyperWhisper Pro";
-"accessibility.enter.license" = "輸入授權金鑰";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "活躍";
 "license.status.expired.title" = "已過期";
 "license.status.invalid.title" = "無效";
-"license.status.trial.description" = "免費試用（每天 5 分鐘，%d 個模型）";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "已授權 – 完全存取";
 "license.status.expired.description" = "授權已過期";
 "license.status.invalid.description" = "無效授權";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "離線模型";
 "settings.license.models.progress" = "%d 個模型已下載（共 %d 個）";
 "settings.license.models.progress.one" = "%d 個模型已下載（共 %d 個）";
-"settings.license.upgrade.text" = "升級以取得無限轉錄和模型下載";
-"settings.license.upgrade.button" = "升級";
 "license.error.invalidResponse" = "無效的回應格式";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "網路錯誤：%@";
 "settings.credits.error.invalidResponse" = "伺服器回應無效。請再試一次。";
 "settings.credits.error.server" = "伺服器錯誤：%@";
-"settings.models.alert.limit.title" = "已達到模型下載限制";
-"settings.models.alert.limit.message" = "試用版包含 %d 個模型下載。升級您的授權以取得無限下載。";
 "settings.models.alert.cannotDelete.title" = "無法刪除模型";
 "settings.models.parakeet.title" = "Parakeet 模型";
 "settings.models.parakeet.subtitle" = "為大多數用戶推薦。多語言模型支援 25 種語言。";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "精確度";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "您已達到每日 %@ 分鐘的轉錄限制。升級至 HyperWhisper Pro 以取得無限轉錄。";
 "recording.error.documentsAccess" = "無法存取錄音資料夾。請在設定 → 儲存中選擇不同位置。";
 "recording.error.modeMissing" = "找不到選定的模式。請選擇有效的模式。";
 "recording.warning.oversizedWAV" = "音頻壓縮失敗。使用未壓縮 %@ MB 檔案 - 轉錄可能較慢。";

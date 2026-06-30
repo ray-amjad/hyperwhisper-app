@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "ศัพท์เฉพาะ";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "เกิดข้อผิดพลาดที่ไม่รู้จัก";
 "app.microphone.permission.message" = "HyperWhisper ต้องการการเข้าถึงไมโครโฟนเพื่อสัญลักษณ์เสียง\n\nโปรดไปที่การตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย > ไมโครโฟน และเปิดใช้การเข้าถึงสำหรับ HyperWhisper";
 "app.recordings.location.message" = "HyperWhisper บันทึกการบันทึกเสียงลงในโฟลเดอร์ในเอกสารของคุณเพื่อให้ง่ายต่อการค้นหา: เอกสาร/hyperwhisper/recordings macOS อาจขออนุญาตครั้งแรกที่เราพยายามบันทึกที่นั่น หากคุณไม่ต้องการให้การเข้าถึง เราสามารถเก็บการบันทึกไว้ในโฟลเดอร์แอปส่วนตัวแทนได้";
-"app.upgrade.to.pro" = "อัปเกรดเป็น Pro";
-"app.enter.license.key" = "ป้อนคีย์ลัทธิ";
-"accessibility.upgrade.pro" = "อัปเกรดเป็น HyperWhisper Pro";
-"accessibility.enter.license" = "ป้อนคีย์ลัทธิ";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "ใช้งานอยู่";
 "license.status.expired.title" = "หมดอายุ";
 "license.status.invalid.title" = "ไม่ถูกต้อง";
-"license.status.trial.description" = "ทดลองใช้ฟรี (5 นาที/วัน %d โมเดล)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "ลัทธิ - เข้าถึงแบบเต็ม";
 "license.status.expired.description" = "ลัทธิหมดอายุ";
 "license.status.invalid.description" = "ลัทธิไม่ถูกต้อง";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "โมเดลออฟไลน์";
 "settings.license.models.progress" = "%d ของ %d โมเดลดาวน์โหลดแล้ว";
 "settings.license.models.progress.one" = "%d ของ %d โมเดลดาวน์โหลดแล้ว";
-"settings.license.upgrade.text" = "อัปเกรดเพื่อการสัญลักษณ์แบบไม่จำกัดและการดาวน์โหลดโมเดล";
-"settings.license.upgrade.button" = "อัปเกรด";
 "license.error.invalidResponse" = "รูปแบบการตอบสนองไม่ถูกต้อง";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "ข้อผิดพลาดเครือข่าย: %@";
 "settings.credits.error.invalidResponse" = "การตอบสนองจากเซิร์ฟเวอร์ไม่ถูกต้อง โปรดลองใหม่";
 "settings.credits.error.server" = "ข้อผิดพลาดเซิร์ฟเวอร์: %@";
-"settings.models.alert.limit.title" = "ถึงขีดจำกัดการดาวน์โหลดโมเดล";
-"settings.models.alert.limit.message" = "ทดลองใช้รวม %d การดาวน์โหลดโมเดล อัปเกรดลัทธิของคุณเพื่อการดาวน์โหลดแบบไม่จำกัด";
 "settings.models.alert.cannotDelete.title" = "ไม่สามารถลบโมเดล";
 "settings.models.parakeet.title" = "โมเดล Parakeet";
 "settings.models.parakeet.subtitle" = "แนะนำสำหรับผู้ใช้ส่วนใหญ่ โมเดลพหุภาษารองรับ 25 ภาษา";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "ความแม่นยำ";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "คุณได้ถึงขีดจำกัดการสัญลักษณ์ %@-นาทีรายวัน อัปเกรดเป็น HyperWhisper Pro สำหรับการสัญลักษณ์แบบไม่จำกัด";
 "recording.error.documentsAccess" = "ไม่สามารถเข้าถึงโฟลเดอร์การบันทึก เลือกตำแหน่งอื่นในการตั้งค่า → ที่เก็บข้อมูล";
 "recording.error.modeMissing" = "ไม่พบโหมดที่เลือก โปรดเลือกโหมดที่ถูกต้อง";
 "recording.warning.oversizedWAV" = "การบีบอัดเสียงล้มเหลว การใช้ไฟล์ %@ MB ที่ไม่มีการบีบอัด - การสัญลักษณ์อาจช้าลง";

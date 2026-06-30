@@ -460,12 +460,7 @@ extension RecordingTranscriptionFlow {
                 AppLogger.audio.info("\(uiLogMessage, privacy: .public)")
             }
 
-            // Record usage for trial users
-            if let licenseManager = licenseManager {
-                let durationSeconds = Int(recordingDuration.rounded())
-                await licenseManager.recordTranscriptionTime(durationSeconds)
-                AppLogger.audio.info("📊 Recorded \(durationSeconds) seconds of transcription usage")
-            }
+            // No local usage recording — local transcription is unlimited (open source).
 
             // Step 5: Update transcript with results
             await MainActor.run {

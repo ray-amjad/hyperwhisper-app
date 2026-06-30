@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "語彙";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "不明なエラーが発生しました";
 "app.microphone.permission.message" = "HyperWhisperが音声を文字起こしするにはマイクへのアクセスが必要です。\n\nシステム設定 > プライバシーとセキュリティ > マイクに移動し、HyperWhisperのアクセスを有効にしてください。";
 "app.recordings.location.message" = "HyperWhisperは録音をDocumentsフォルダに保存して見つけやすくします：Documents/hyperwhisper/recordings。初めて保存するときにmacOSがアクセス許可を求めることがあります。アクセスを許可したくない場合は、プライベートアプリフォルダに保存することもできます。";
-"app.upgrade.to.pro" = "Proにアップグレード";
-"app.enter.license.key" = "ライセンスキーを入力";
-"accessibility.upgrade.pro" = "HyperWhisper Pro にアップグレード";
-"accessibility.enter.license" = "ライセンスキーを入力";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "有効";
 "license.status.expired.title" = "期限切れ";
 "license.status.invalid.title" = "無効";
-"license.status.trial.description" = "無料トライアル（1日5分、%dモデル）";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "ライセンス済み - すべての機能が利用可能";
 "license.status.expired.description" = "ライセンスの有効期限が切れました";
 "license.status.invalid.description" = "ライセンスが無効です";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "オフラインモデル";
 "settings.license.models.progress" = "%d / %d モデルをダウンロード済み";
 "settings.license.models.progress.one" = "%d / %d モデルをダウンロード済み";
-"settings.license.upgrade.text" = "無制限の文字起こしとモデルを利用するにはアップグレードしてください";
-"settings.license.upgrade.button" = "アップグレード";
 "license.error.invalidResponse" = "応答フォーマットが不正です";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "ネットワークエラー: %@";
 "settings.credits.error.invalidResponse" = "サーバーからのレスポンスが無効です。もう一度お試しください。";
 "settings.credits.error.server" = "サーバーエラー: %@";
-"settings.models.alert.limit.title" = "モデルのダウンロード制限に達しました";
-"settings.models.alert.limit.message" = "トライアルでは%dつのモデルをダウンロードできます。無制限に利用するにはライセンスをアップグレードしてください。";
 "settings.models.alert.cannotDelete.title" = "モデルを削除できません";
 "settings.models.parakeet.title" = "Parakeetモデル";
 "settings.models.parakeet.subtitle" = "ほとんどのユーザーにおすすめ。多言語モデルは25言語に対応しています。";
@@ -831,7 +825,6 @@
 "modes.postProcessing.accuracy" = "精度";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "1 日あたり %@ 分の文字起こし上限に達しました。無制限で利用するには HyperWhisper Pro にアップグレードしてください。";
 "recording.error.documentsAccess" = "録音フォルダにアクセスできません。設定 → ストレージで別の場所を選択してください。";
 "recording.error.modeMissing" = "選択したモードが見つかりません。有効なモードを選択してください。";
 "recording.warning.oversizedWAV" = "音声の圧縮に失敗しました。非圧縮の %@ MB ファイルを使用します - 文字起こしに時間がかかる場合があります。";

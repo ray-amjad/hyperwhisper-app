@@ -1173,16 +1173,7 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        // Check trial limit for unlicensed users
-        if (!LicenseUsageTracker.Instance.CanStartRecording())
-        {
-            LoggingService.Warn("StartRecordingAsync: Trial daily limit reached");
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.trialLimitReached"),
-                showSettingsButton: true,
-                settingsSection: "License"));
-            return;
-        }
+        // No local trial gate — local transcription is unlimited (open source).
 
         var recordingMode = SelectedMode;
         _activeRecordingMode = recordingMode;
@@ -1353,15 +1344,7 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        if (!LicenseUsageTracker.Instance.CanStartRecording())
-        {
-            LoggingService.Warn("StartStreamingRecordingAsync: Trial daily limit reached");
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.trialLimitReached"),
-                showSettingsButton: true,
-                settingsSection: "License"));
-            return;
-        }
+        // No local trial gate — local transcription is unlimited (open source).
 
         var vocabulary = _vocabularyService.GetVocabularyWords(100);
         var clientResult = StreamingTranscriptionSessionFactory.Create(vocabulary);
@@ -1573,7 +1556,7 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            LicenseUsageTracker.Instance.RecordTranscriptionTime((int)durationSeconds);
+            // No local usage recording — local transcription is unlimited (open source).
 
             var textToProcess = finalText;
 
@@ -2124,8 +2107,7 @@ public partial class MainViewModel : ViewModelBase
             transcript.TranscriptionProvider = result.TranscriptionProvider;
             transcript.PostProcessingProvider = result.PostProcessingProvider;
 
-            // Record transcription time for trial usage tracking
-            LicenseUsageTracker.Instance.RecordTranscriptionTime((int)RecordingDuration.TotalSeconds);
+            // No local usage recording — local transcription is unlimited (open source).
 
             // STEP 6: Smart paste FIRST, then persist to DB (paste is latency-critical)
             string modeLanguage = recordingMode.Language ?? "auto";

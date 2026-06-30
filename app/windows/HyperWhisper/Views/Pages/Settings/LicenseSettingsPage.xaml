@@ -90,66 +90,6 @@
                 </StackPanel>
             </Border>
 
-            <!-- Trial Usage Card (for trial users) -->
-            <Border x:Name="TrialUsageCard" Style="{StaticResource CardStyle}">
-                <StackPanel>
-                    <!-- Daily Transcription Progress -->
-                    <StackPanel>
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{loc:Loc settings.license.trial.dailyTranscription}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock x:Name="DailyUsageText" Grid.Column="1"
-                                       Text="0 seconds" FontSize="12"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        </Grid>
-                        <ProgressBar x:Name="DailyUsageProgress" Height="8"
-                                     Minimum="0" Maximum="300" Value="0"
-                                     Background="{DynamicResource InputBackgroundBrush}"
-                                     Foreground="{DynamicResource AccentBrush}"/>
-                    </StackPanel>
-
-                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
-
-                    <!-- Model Downloads Progress -->
-                    <StackPanel>
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="{loc:Loc settings.license.trial.modelDownloads}" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock x:Name="ModelDownloadsText" Grid.Column="1"
-                                       Text="0 / 3 models" FontSize="12"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        </Grid>
-                        <ProgressBar x:Name="ModelDownloadsProgress" Height="8"
-                                     Minimum="0" Maximum="3" Value="0"
-                                     Background="{DynamicResource InputBackgroundBrush}"
-                                     Foreground="{DynamicResource AccentBrush}"/>
-                    </StackPanel>
-
-                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
-
-                    <!-- Upgrade Prompt -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="{loc:Loc settings.license.upgrade.text}"
-                                   Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"
-                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Content="{loc:Loc settings.license.upgrade.button}"
-                                Margin="12,0,0,0"
-                                Click="PurchaseLicense_Click"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
         </StackPanel>
     </ScrollViewer>
 </Page>

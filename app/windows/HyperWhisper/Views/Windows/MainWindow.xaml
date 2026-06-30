@@ -225,8 +225,11 @@
                         </Grid>
                     </Border>
 
-                    <StackPanel x:Name="TrialSidebarActions">
-                        <Button Click="UpgradeSidebar_Click"
+                    <!-- Cloud credits CTA (for users without an active Cloud license).
+                         Local transcription is free & unlimited (open source); this is a
+                         discoverable path to HyperWhisper Cloud (paid, credit-based). -->
+                    <StackPanel x:Name="CloudSidebarActions">
+                        <Button Click="CloudCreditsSidebar_Click"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Padding="14,8"
                                 HorizontalContentAlignment="Stretch">
@@ -236,13 +239,13 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="&#xE734;"
+                                <TextBlock Text="&#xE753;"
                                            FontFamily="Segoe MDL2 Assets"
                                            FontSize="11"
                                            VerticalAlignment="Center"
                                            Margin="0,0,8,0"/>
                                 <TextBlock Grid.Column="1"
-                                           Text="{loc:Loc app.upgrade.to.pro}"
+                                           Text="{loc:Loc app.cloud.cta.title}"
                                            FontSize="12"
                                            FontWeight="Medium"
                                            VerticalAlignment="Center"
@@ -253,33 +256,6 @@
                                            FontSize="10"
                                            VerticalAlignment="Center"
                                            Margin="8,0,0,0"/>
-                            </Grid>
-                        </Button>
-
-                        <Button Click="EnterLicenseSidebar_Click"
-                                Background="{DynamicResource CardBackgroundBrush}"
-                                BorderBrush="{DynamicResource BorderBrush}"
-                                BorderThickness="1"
-                                Padding="14,6"
-                                Margin="0,8,0,0"
-                                Cursor="Hand">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="&#xE72E;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,8,0"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="{loc:Loc app.enter.license.key}"
-                                           FontSize="11"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"/>
                             </Grid>
                         </Button>
                     </StackPanel>

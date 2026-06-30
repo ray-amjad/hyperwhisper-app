@@ -66,12 +66,6 @@
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
   </data>
-  <data name="app.upgrade.to.pro" xml:space="preserve">
-    <value>升级到 Pro</value>
-  </data>
-  <data name="app.enter.license.key" xml:space="preserve">
-    <value>输入许可证密钥</value>
-  </data>
 
   <!-- Common UI -->
   <data name="common.ok" xml:space="preserve">
@@ -566,20 +560,8 @@
   <data name="settings.license.trial.subtitle" xml:space="preserve">
     <value>每日使用限额在午夜重置</value>
   </data>
-  <data name="settings.license.trial.dailyTranscription" xml:space="preserve">
-    <value>每日转写</value>
-  </data>
-  <data name="settings.license.trial.modelDownloads" xml:space="preserve">
-    <value>模型下载</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>清除</value>
-  </data>
-  <data name="settings.license.upgrade.text" xml:space="preserve">
-    <value>升级以获得无限转写和模型下载</value>
-  </data>
-  <data name="settings.license.upgrade.button" xml:space="preserve">
-    <value>升级</value>
   </data>
   <data name="license.status.trial.title" xml:space="preserve">
     <value>试用</value>
@@ -1047,9 +1029,6 @@
   <data name="errors.noModeSelected" xml:space="preserve">
     <value>未选择模式</value>
   </data>
-  <data name="errors.trialLimitReached" xml:space="preserve">
-    <value>每日试用上限已达。升级以获得无限转写。</value>
-  </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
     <value>模型 '{0}' 未下载</value>
   </data>
@@ -1348,14 +1327,6 @@
     <value>禁用开机启动失败。请检查你是否有权限修改启动设置。</value>
   </data>
   <!-- Settings - Models -->
-  <data name="settings.models.trialLimit.title" xml:space="preserve">
-    <value>试用上限已达</value>
-  </data>
-  <data name="settings.models.trialLimit.message" xml:space="preserve">
-    <value>你已达到试用用户的模型下载限制。
-
-升级到许可证以获得无限模型下载。</value>
-  </data>
   <data name="settings.models.vramWarning.title" xml:space="preserve">
     <value>显存不足</value>
   </data>
@@ -1499,7 +1470,7 @@
 
   <!-- License Status Descriptions -->
   <data name="license.status.trial.description" xml:space="preserve">
-    <value>试用模式 - 功能受限</value>
+    <value>Local transcription is free and unlimited.</value>
   </data>
   <data name="license.status.active.description" xml:space="preserve">
     <value>已授权 - 完全访问</value>
@@ -1535,18 +1506,6 @@
   </data>
   <data name="settings.models.gpu.recommendBase" xml:space="preserve">
     <value>未检测到 GPU。建议使用 Base 模型进行 CPU 转写。</value>
-  </data>
-  <data name="settings.models.limitReached.title" xml:space="preserve">
-    <value>已达模型上限</value>
-  </data>
-  <data name="settings.models.limitReached.message" xml:space="preserve">
-    <value>你已下载 {0} 个模型，这是试用用户的最大数量（{1}）。</value>
-  </data>
-  <data name="settings.models.trial.title" xml:space="preserve">
-    <value>试用模式</value>
-  </data>
-  <data name="settings.models.trial.message" xml:space="preserve">
-    <value>你已下载 {0}/{1} 个模型。剩余 {2} 个。</value>
   </data>
   <data name="settings.models.diskUsage.none" xml:space="preserve">
     <value>未下载任何模型</value>
@@ -2389,5 +2348,8 @@ Do you want to restart now?</value>
   </data>
   <data name="settings.backup.import.vocabConflict.skip" xml:space="preserve">
     <value>保留我现有的词</value>
+  </data>
+  <data name="app.cloud.cta.title" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
 </root>

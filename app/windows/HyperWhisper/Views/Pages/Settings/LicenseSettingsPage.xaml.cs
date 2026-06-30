@@ -1,5 +1,6 @@
 // LICENSE SETTINGS PAGE
-// Handles license activation, deactivation, and trial usage display.
+// Handles HyperWhisper Cloud license activation, deactivation, and credit/billing
+// links. Local transcription is free & unlimited (open source) — no trial usage UI.
 
 using System;
 using System.Windows;
@@ -10,7 +11,6 @@ using HyperWhisper.Models;
 using HyperWhisper.Services;
 
 using Brush = System.Windows.Media.Brush;
-using Brushes = System.Windows.Media.Brushes;
 
 namespace HyperWhisper.Views.Pages.Settings;
 
@@ -27,7 +27,6 @@ public partial class LicenseSettingsPage : Page
     {
         // Subscribe to events
         LicenseManager.Instance.LicenseStatusChanged += OnLicenseStatusChanged;
-        LicenseUsageTracker.Instance.UsageChanged += OnUsageChanged;
 
         // Initial UI update
         RefreshLicenseUI();
@@ -36,7 +35,6 @@ public partial class LicenseSettingsPage : Page
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         LicenseManager.Instance.LicenseStatusChanged -= OnLicenseStatusChanged;
-        LicenseUsageTracker.Instance.UsageChanged -= OnUsageChanged;
     }
 
     // =========================================================================
@@ -46,11 +44,6 @@ public partial class LicenseSettingsPage : Page
     private void OnLicenseStatusChanged(object? sender, EventArgs e)
     {
         Dispatcher.Invoke(RefreshLicenseUI);
-    }
-
-    private void OnUsageChanged(object? sender, EventArgs e)
-    {
-        Dispatcher.Invoke(UpdateTrialUsageUI);
     }
 
     // =========================================================================
@@ -68,13 +61,7 @@ public partial class LicenseSettingsPage : Page
 
         LicenseActivationDivider.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
         LicenseActivationPanel.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
-        TrialUsageCard.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
         LicensedUserActions.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
-
-        if (!isLicensed)
-        {
-            UpdateTrialUsageUI();
-        }
 
         LicenseErrorText.Visibility = Visibility.Collapsed;
         LoggingService.Debug($"LicenseSettingsPage: UI refreshed (status: {status})");
@@ -113,41 +100,6 @@ public partial class LicenseSettingsPage : Page
         LicenseStatusBadgeText.Text = badgeText;
         LicenseStatusBadge.Background = (Brush)FindResource(backgroundBrushKey);
         LicenseStatusBadgeText.Foreground = (Brush)FindResource(foregroundBrushKey);
-    }
-
-    private void UpdateTrialUsageUI()
-    {
-        var tracker = LicenseUsageTracker.Instance;
-
-        var dailyUsed = tracker.DailyUsageSeconds;
-        var dailyLimit = LicenseUsageTracker.TrialDailyLimitSeconds;
-        DailyUsageText.Text = $"{dailyUsed} / {dailyLimit} seconds";
-        DailyUsageProgress.Maximum = dailyLimit;
-        DailyUsageProgress.Value = dailyUsed;
-
-        if (tracker.IsDailyLimitReached)
-        {
-            DailyUsageProgress.Foreground = (Brush)FindResource("ErrorForegroundBrush");
-        }
-        else
-        {
-            DailyUsageProgress.Foreground = FindResource("AccentBrush") as Brush ?? Brushes.Blue;
-        }
-
-        var modelsDownloaded = tracker.ModelsDownloaded;
-        var modelLimit = LicenseUsageTracker.TrialModelLimit;
-        ModelDownloadsText.Text = $"{modelsDownloaded} / {modelLimit} models";
-        ModelDownloadsProgress.Maximum = modelLimit;
-        ModelDownloadsProgress.Value = modelsDownloaded;
-
-        if (tracker.IsModelLimitReached)
-        {
-            ModelDownloadsProgress.Foreground = (Brush)FindResource("ErrorForegroundBrush");
-        }
-        else
-        {
-            ModelDownloadsProgress.Foreground = FindResource("AccentBrush") as Brush ?? Brushes.Blue;
-        }
     }
 
     // =========================================================================

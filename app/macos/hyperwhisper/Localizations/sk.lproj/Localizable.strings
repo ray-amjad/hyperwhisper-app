@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Slovník";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Došlo k neznámej chybe";
 "app.microphone.permission.message" = "HyperWhisper potrebuje prístup k mikrofónu na prepis zvuku.\n\nPerejdite na Nastavenia systému > Súkromie a bezpečnosť > Mikrofón a povoľte prístup pre HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper ukladá nahrávky do zložky v Dokumentoch, aby ich boli ľahko nájsť: Dokumenty/hyperwhisper/recordings. macOS môže požiadať o povolenie pri prvom pokuse o uloženie. Ak nechcete udeliť prístup, môžeme nahrávky uložiť do súkromnej zložky aplikácie.";
-"app.upgrade.to.pro" = "Upgradovať na Pro";
-"app.enter.license.key" = "Zadať kľúč licencie";
-"accessibility.upgrade.pro" = "Upgradovať na HyperWhisper Pro";
-"accessibility.enter.license" = "Zadať kľúč licencie";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktívna";
 "license.status.expired.title" = "Vypršala";
 "license.status.invalid.title" = "Neplatná";
-"license.status.trial.description" = "Bezplatná skúšobná verzia (5 min/deň, %d modelov)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencovaný – Úplný prístup";
 "license.status.expired.description" = "Licencia vypršala";
 "license.status.invalid.description" = "Neplatná licencia";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Offline modely";
 "settings.license.models.progress" = "%d z %d modelov stiahnutých";
 "settings.license.models.progress.one" = "%d z %d model stiahnuutý";
-"settings.license.upgrade.text" = "Upgradujte na neobmedzenú prepis a stiahnutia modelov";
-"settings.license.upgrade.button" = "Upgradovať";
 "license.error.invalidResponse" = "Neplatný formát odpovede";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Chyba siete: %@";
 "settings.credits.error.invalidResponse" = "Neplatná odpoveď zo servera. Skúste znova.";
 "settings.credits.error.server" = "Chyba servera: %@";
-"settings.models.alert.limit.title" = "Limit stiahnutia modelov dosiahnutý";
-"settings.models.alert.limit.message" = "Skúšobné verzie zahŕňajú %d stahnutí modelov. Upgradujte svoju licenciu na neobmedzené stiahnutia.";
 "settings.models.alert.cannotDelete.title" = "Nie je možné vymazať model";
 "settings.models.parakeet.title" = "Parakeet modely";
 "settings.models.parakeet.subtitle" = "Odporúčané pre väčšinu používateľov. Multijazyčný model podporuje 25 jazykov.";
@@ -830,7 +824,6 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "modes.postProcessing.accuracy" = "Presnosť";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Dosiahli ste svoj denný limit prepisu %@-minút. Upgradujte na HyperWhisper Pro na neobmedzený prepis.";
 "recording.error.documentsAccess" = "Nie je možné pristupovať k zložke nahrávok. Zvoľte si iné miesto v Nastavenia → Úložisko.";
 "recording.error.modeMissing" = "Vybraný režim sa nenašiel. Vyberte prosím platný režim.";
 "recording.warning.oversizedWAV" = "Kompresie zvuku zlyhala. Použitie nekomprimovaného súboru %@ MB - prepis môže byť pomalší.";

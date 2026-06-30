@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Sanasto";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Tapahtui tuntematon virhe";
 "app.microphone.permission.message" = "HyperWhisper tarvitsee pääsyn mikrofoniisi transkriboidakseen ääntä.\n\nMene kohtaan Järjestelmäasetukset > Tietosuoja ja turvallisuus > Mikrofoni ja ota käyttöön pääsy HyperWhisperille.";
 "app.recordings.location.message" = "HyperWhisper tallentaa nauhoitukset kansioon Documents-kansiosi sisällä, jotta ne ovat helposti löydettävissä: Documents/hyperwhisper/recordings. macOS saattaa kysyä lupaa ensimmäisellä kerralla. Jos et halua myöntää lupaa, voimme tallentaa nauhoitukset yksityiseen sovelluskansioon sen sijaan.";
-"app.upgrade.to.pro" = "Päivitä Pro-versioon";
-"app.enter.license.key" = "Syötä lisenssiavain";
-"accessibility.upgrade.pro" = "Päivitä HyperWhisper Pro -versioon";
-"accessibility.enter.license" = "Syötä lisenssiavain";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktiivinen";
 "license.status.expired.title" = "Vanhentunut";
 "license.status.invalid.title" = "Virheellinen";
-"license.status.trial.description" = "Ilmainen kokeilu (5 min/päivä, %d mallia)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Lisensoitu – täysi pääsy";
 "license.status.expired.description" = "Lisenssi vanhentunut";
 "license.status.invalid.description" = "Virheellinen lisenssi";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Offline-mallit";
 "settings.license.models.progress" = "%d / %d mallia ladattu";
 "settings.license.models.progress.one" = "%d / %d malli ladattu";
-"settings.license.upgrade.text" = "Päivitä saadaksesi rajoittamattoman transkription ja mallilataukset";
-"settings.license.upgrade.button" = "Päivitä";
 "license.error.invalidResponse" = "Virheellinen vastausmuoto";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Verkkovirhe: %@";
 "settings.credits.error.invalidResponse" = "Virheellinen vastaus palvelimelta. Yritä uudelleen.";
 "settings.credits.error.server" = "Palvelinvirhe: %@";
-"settings.models.alert.limit.title" = "Mallien latausraja saavutettu";
-"settings.models.alert.limit.message" = "Kokeilut sisältävät %d mallilatauksen. Päivitä lisenssisi rajoittamattomia latauksia varten.";
 "settings.models.alert.cannotDelete.title" = "Mallia ei voi poistaa";
 "settings.models.parakeet.title" = "Parakeet-mallit";
 "settings.models.parakeet.subtitle" = "Suositeltu useimmille käyttäjille. Monikielinen malli tukee 25 kieltä.";
@@ -830,7 +824,6 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "modes.postProcessing.accuracy" = "Tarkkuus";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Olet saavuttanut päivittäisen %@-minuutin transkriptiorajasi. Päivitä HyperWhisper Pro -versioon saadaksesi rajoittamattoman transkription.";
 "recording.error.documentsAccess" = "Nauhoituskansiota ei voi käyttää. Valitse toinen sijainti kohdassa Asetukset → Tallennus.";
 "recording.error.modeMissing" = "Valittua tilaa ei löydy. Valitse kelvollinen tila.";
 "recording.warning.oversizedWAV" = "Äänen pakkaus epäonnistui. Käytetään pakkaamatonta %@ Mt tiedostoa - transkriptio saattaa olla hitaampaa.";

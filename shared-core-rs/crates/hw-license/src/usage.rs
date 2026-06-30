@@ -1,5 +1,17 @@
-//! Trial usage tracking + limit enforcement, persisted through the platform's
-//! [`KeyValueStore`].
+//! Local usage tracking, persisted through the platform's [`KeyValueStore`].
+//!
+//! **Local limits are removed (HyperWhisper is open source).** All local,
+//! on-device transcription and model downloads are unconditionally free and
+//! unlimited: `check_limits` reports unlimited for every status and
+//! `can_start_recording` / `can_download_model` always return `true`. The
+//! `Limits` / `DEFAULT_*` constants, `record_usage` / `record_model_download`,
+//! and the `cache.rs` remote-override functions are kept inert to preserve a
+//! stable FFI surface (deleting them is an optional later cleanup). The daily
+//! day-index reset logic is retained only so the surfaced `daily_seconds_used`
+//! counter still behaves sensibly.
+//!
+//! This is orthogonal to HyperWhisper **Cloud** (server-side paid transcription),
+//! which remains the paid moat and is enforced server-side.
 //!
 //! No clock in Rust: the daily-usage bucket is keyed off a *day index* derived
 //! from `now_unix_secs` passed in by the platform, so a fresh day automatically
@@ -127,15 +139,19 @@ pub fn record_model_download(store: &dyn KeyValueStore) {
     store.set(K_MODELS_DOWNLOADED.to_string(), updated.to_string());
 }
 
-/// Compute the current usage snapshot vs `limits` for `status` at `now`.
+/// Compute the current usage snapshot for `status` at `now`.
 ///
-/// Licensed (`Active`) users have no limits: both `*_reached` flags are `false`
-/// and both `remaining_*` are `i64::MAX` (the analogue of macOS' `Int.max`).
-/// Trial / Expired / Invalid users are subject to `limits`.
+/// **Local transcription is unconditionally free and unlimited** (HyperWhisper is
+/// open source). Regardless of `status` or `limits`, both `*_reached` flags are
+/// `false` and both `remaining_*` are `i64::MAX` (the analogue of macOS'
+/// `Int.max`). The `limits` parameter and the `Limits`/`DEFAULT_*` machinery are
+/// retained inert to keep the FFI surface stable; they no longer gate anything.
 ///
-/// Reading the snapshot performs the same day-boundary reset as `record_usage`,
-/// so calling `check_limits` after midnight surfaces a fresh daily counter even
-/// if no usage was recorded.
+/// HyperWhisper **Cloud** (server-side paid transcription) is the paid moat and is
+/// enforced server-side — it is orthogonal to this local usage tracking.
+///
+/// Reading the snapshot still performs the day-boundary reset as `record_usage`,
+/// so the surfaced `daily_seconds_used` counter resets after midnight.
 pub fn check_limits(
     store: &dyn KeyValueStore,
     status: LicenseStatus,
@@ -145,28 +161,17 @@ pub fn check_limits(
     let daily = current_daily_seconds(store, now_unix_secs);
     let models = current_models_downloaded(store);
 
-    // Only Active licenses bypass limits — matches the platforms, which check
-    // `licenseStatus == .active` (Expired/Invalid fall back to trial limits).
-    let unlimited = status == LicenseStatus::Active;
+    // Local limits are removed (open source): every status is unlimited. `status`
+    // and `limits` are ignored for gating and kept only for FFI stability.
+    let _ = (status, limits);
 
-    if unlimited {
-        UsageSnapshot {
-            daily_seconds_used: daily,
-            models_downloaded: models,
-            daily_limit_reached: false,
-            model_limit_reached: false,
-            remaining_daily_seconds: i64::MAX,
-            remaining_model_downloads: i64::MAX,
-        }
-    } else {
-        UsageSnapshot {
-            daily_seconds_used: daily,
-            models_downloaded: models,
-            daily_limit_reached: daily >= limits.daily_seconds,
-            model_limit_reached: models >= limits.model_downloads,
-            remaining_daily_seconds: (limits.daily_seconds - daily).max(0),
-            remaining_model_downloads: (limits.model_downloads - models).max(0),
-        }
+    UsageSnapshot {
+        daily_seconds_used: daily,
+        models_downloaded: models,
+        daily_limit_reached: false,
+        model_limit_reached: false,
+        remaining_daily_seconds: i64::MAX,
+        remaining_model_downloads: i64::MAX,
     }
 }
 
@@ -181,17 +186,16 @@ pub fn can_start_recording(
     !check_limits(store, status, limits, now_unix_secs).daily_limit_reached
 }
 
-/// Whether another model may be downloaded. Licensed users: always `true`. Trial
-/// users: `true` while under the model limit. Mirrors macOS `canDownloadModel`.
+/// Whether another model may be downloaded. **Always `true`** — local model
+/// downloads are unlimited (open source). `store`/`status`/`limits` are ignored
+/// and kept only for FFI stability.
 pub fn can_download_model(
     store: &dyn KeyValueStore,
     status: LicenseStatus,
     limits: Limits,
 ) -> bool {
-    if status == LicenseStatus::Active {
-        return true;
-    }
-    current_models_downloaded(store) < limits.model_downloads
+    let _ = (store, status, limits);
+    true
 }
 
 #[cfg(test)]
@@ -209,34 +213,76 @@ mod tests {
         Limits::defaults(false)
     }
 
+    /// Every status — including the inert `Limits` — yields an unlimited
+    /// snapshot now that local limits are removed (open source).
+    const ALL_STATUSES: [LicenseStatus; 4] = [
+        LicenseStatus::Active,
+        LicenseStatus::Trial,
+        LicenseStatus::Expired,
+        LicenseStatus::Invalid,
+    ];
+
+    fn assert_unlimited(snap: &UsageSnapshot) {
+        assert!(!snap.daily_limit_reached);
+        assert!(!snap.model_limit_reached);
+        assert_eq!(snap.remaining_daily_seconds, i64::MAX);
+        assert_eq!(snap.remaining_model_downloads, i64::MAX);
+    }
+
     #[test]
     fn defaults_match_build_flavor() {
+        // The `Limits` machinery is inert but retained for FFI stability.
         assert_eq!(Limits::defaults(false).daily_seconds, 300);
         assert_eq!(Limits::defaults(true).daily_seconds, 1800);
         assert_eq!(Limits::defaults(false).model_downloads, 3);
     }
 
     #[test]
-    fn record_and_check_daily_usage() {
+    fn local_usage_is_unlimited_for_every_status() {
+        let now = 10 * DAY + 500;
+        for status in ALL_STATUSES {
+            let s = store();
+            // Pile on far more usage than any historical trial limit.
+            record_usage(&s, 100_000, now);
+            for _ in 0..20 {
+                record_model_download(&s);
+            }
+            let snap = check_limits(&s, status, release_limits(), now);
+            assert_unlimited(&snap);
+            assert!(can_start_recording(&s, status, release_limits(), now));
+            assert!(can_download_model(&s, status, release_limits()));
+        }
+    }
+
+    #[test]
+    fn limits_parameter_is_ignored() {
+        // Even an absurdly tight override never gates anything.
+        let tiny = Limits {
+            daily_seconds: 1,
+            model_downloads: 0,
+        };
+        let now = 0;
+        for status in ALL_STATUSES {
+            let s = store();
+            record_usage(&s, 10_000, now);
+            record_model_download(&s);
+            let snap = check_limits(&s, status, tiny, now);
+            assert_unlimited(&snap);
+            assert!(can_start_recording(&s, status, tiny, now));
+            assert!(can_download_model(&s, status, tiny));
+        }
+    }
+
+    #[test]
+    fn record_still_tracks_daily_seconds() {
+        // Usage is still recorded (and surfaced) even though it never gates.
         let s = store();
-        let now = 10 * DAY + 500; // some instant on day 10
+        let now = 10 * DAY + 500;
         record_usage(&s, 120, now);
         record_usage(&s, 100, now + 60);
         let snap = check_limits(&s, LicenseStatus::Trial, release_limits(), now + 120);
         assert_eq!(snap.daily_seconds_used, 220);
-        assert_eq!(snap.remaining_daily_seconds, 80);
-        assert!(!snap.daily_limit_reached);
-    }
-
-    #[test]
-    fn daily_limit_enforced_at_boundary() {
-        let s = store();
-        let now = 10 * DAY;
-        record_usage(&s, 300, now); // exactly the release limit
-        let snap = check_limits(&s, LicenseStatus::Trial, release_limits(), now);
-        assert!(snap.daily_limit_reached);
-        assert_eq!(snap.remaining_daily_seconds, 0);
-        assert!(!can_start_recording(&s, LicenseStatus::Trial, release_limits(), now));
+        assert_unlimited(&snap);
     }
 
     #[test]
@@ -244,13 +290,7 @@ mod tests {
         let s = store();
         let day10 = 10 * DAY + 100;
         record_usage(&s, 300, day10);
-        assert!(!can_start_recording(
-            &s,
-            LicenseStatus::Trial,
-            release_limits(),
-            day10
-        ));
-        // Next UTC day → counter resets, recording allowed again.
+        // Next UTC day → surfaced counter resets.
         let day11 = 11 * DAY + 100;
         let snap = check_limits(&s, LicenseStatus::Trial, release_limits(), day11);
         assert_eq!(snap.daily_seconds_used, 0);
@@ -273,60 +313,6 @@ mod tests {
         record_usage(&s, 40, 11 * DAY + 10);
         let snap = check_limits(&s, LicenseStatus::Trial, release_limits(), 11 * DAY + 20);
         assert_eq!(snap.daily_seconds_used, 40);
-    }
-
-    #[test]
-    fn model_downloads_enforced() {
-        let s = store();
-        let now = 0;
-        assert!(can_download_model(&s, LicenseStatus::Trial, release_limits()));
-        record_model_download(&s);
-        record_model_download(&s);
-        record_model_download(&s);
-        assert!(!can_download_model(&s, LicenseStatus::Trial, release_limits()));
-        let snap = check_limits(&s, LicenseStatus::Trial, release_limits(), now);
-        assert!(snap.model_limit_reached);
-        assert_eq!(snap.remaining_model_downloads, 0);
-    }
-
-    #[test]
-    fn active_license_is_unlimited() {
-        let s = store();
-        let now = 0;
-        record_usage(&s, 10_000, now);
-        for _ in 0..10 {
-            record_model_download(&s);
-        }
-        let snap = check_limits(&s, LicenseStatus::Active, release_limits(), now);
-        assert!(!snap.daily_limit_reached);
-        assert!(!snap.model_limit_reached);
-        assert_eq!(snap.remaining_daily_seconds, i64::MAX);
-        assert_eq!(snap.remaining_model_downloads, i64::MAX);
-        assert!(can_start_recording(&s, LicenseStatus::Active, release_limits(), now));
-        assert!(can_download_model(&s, LicenseStatus::Active, release_limits()));
-    }
-
-    #[test]
-    fn expired_license_is_limited_like_trial() {
-        let s = store();
-        let now = 0;
-        record_usage(&s, 300, now);
-        let snap = check_limits(&s, LicenseStatus::Expired, release_limits(), now);
-        assert!(snap.daily_limit_reached);
-    }
-
-    #[test]
-    fn remote_override_applied_via_limits() {
-        let s = store();
-        let now = 0;
-        let override_limits = Limits {
-            daily_seconds: 600,
-            model_downloads: 5,
-        };
-        record_usage(&s, 400, now);
-        let snap = check_limits(&s, LicenseStatus::Trial, override_limits, now);
-        assert!(!snap.daily_limit_reached);
-        assert_eq!(snap.remaining_daily_seconds, 200);
     }
 
     #[test]
