@@ -250,32 +250,18 @@
     "copied": "Kopiert!"
   },
   "purchaseSuccess": {
-    "title": "Kauf erfolgreich!",
-    "subtitle": "Willkommen bei HyperWhisper Pro! Ihr Kontoschlüssel ist bereit.",
-    "checkEmail": {
-      "title": "Überprüfen Sie Ihre E-Mail",
-      "description": "Wir haben Ihren Kontoschlüssel und die Download-Anweisungen an Ihre E-Mail-Adresse gesendet. Es sollte in den nächsten Minuten eintreffen."
-    },
-    "whatsNext": {
-      "title": "Was kommt als nächstes?",
-      "step1": {
-        "title": "Überprüfen Sie Ihren Posteingang",
-        "description": "Suchen Sie nach einer E-Mail von HyperWhisper"
-      },
-      "step2": {
-        "title": "Kopieren Sie Ihren Kontoschlüssel",
-        "description": "Diese benötigen Sie, um die App zu aktivieren"
-      },
-      "step3": {
-        "title": "HyperWhisper herunterladen",
-        "description": "Installieren Sie die App und geben Sie Ihren Kontoschlüssel ein"
-      }
-    },
-    "downloadButton": "HyperWhisper herunterladen",
-    "returnHome": "Zurück zur Homepage",
-    "noEmail": "Sie haben keine E-Mail erhalten? Prüfen Sie Ihren Spam-Ordner oder",
-    "contactSupport": "Support kontaktieren",
-    "loading": "Laden..."
+    "title": "Alles bereit!",
+    "subtitle": "Zahlung bestätigt. {credits, number} Credits hinzugefügt. Dein Account Key und die Rechnung sind unterwegs an die E-Mail, die du beim Bezahlen genutzt hast.",
+    "subtitleGeneric": "Zahlung bestätigt. Dein Account Key und die Rechnung sind unterwegs an die E-Mail, die du beim Bezahlen genutzt hast.",
+    "whatsNext": "Wie es weitergeht",
+    "step1Title": "Posteingang prüfen",
+    "step1Desc": "Dein Account Key kommt innerhalb einer Minute an (auch den Spam-Ordner prüfen).",
+    "step2Title": "In der App aktivieren, um zu transkribieren",
+    "step2Desc": "Settings → License → Schlüssel einfügen → Activate. Hier nutzt du deine Credits.",
+    "step3Title": "Credits hier jederzeit verwalten",
+    "step3Desc": "Melde dich im Web an, um dein Guthaben zu sehen, aufzuladen oder die Abrechnung zu prüfen.",
+    "manageButton": "Anmelden, um Credits zu verwalten",
+    "loading": "Wird geladen..."
   },
   "footer": {
     "tagline": "Schreiben Sie 5x schneller mit der KI-gestützten Sprachtranskription für macOS und Windows.",

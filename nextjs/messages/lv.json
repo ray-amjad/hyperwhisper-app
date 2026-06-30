@@ -250,31 +250,17 @@
     "copied": "Nokopēts!"
   },
   "purchaseSuccess": {
-    "title": "Pirkums veiksmīgs!",
-    "subtitle": "Laipni lūdzam HyperWhisper Pro! Jūsu konta atslēga ir gatava.",
-    "checkEmail": {
-      "title": "Pārbaudiet savu e-pastu",
-      "description": "Mēs nosūtījām jūsu konta atslēgu un lejupielādes instrukcijas uz jūsu e-pasta adresi. Tām vajadzētu pienākt dažu minūšu laikā."
-    },
-    "whatsNext": {
-      "title": "Kas tālāk?",
-      "step1": {
-        "title": "Pārbaudiet iesūtni",
-        "description": "Meklējiet e-pastu no HyperWhisper"
-      },
-      "step2": {
-        "title": "Nokopējiet konta atslēgu",
-        "description": "Tā būs vajadzīga, lai aktivizētu lietotni"
-      },
-      "step3": {
-        "title": "Lejupielādējiet HyperWhisper",
-        "description": "Instalējiet lietotni un ievadiet konta atslēgu"
-      }
-    },
-    "downloadButton": "Lejupielādēt HyperWhisper",
-    "returnHome": "Atgriezties sākumlapā",
-    "noEmail": "Nesaņēmāt e-pastu? Pārbaudiet spam mapi vai",
-    "contactSupport": "sazinieties ar atbalstu",
+    "title": "Viss gatavs!",
+    "subtitle": "Maksājums apstiprināts. Pievienoti {credits, number} kredīti. Tava Konta atslēga un čeks ir ceļā uz e-pastu, ko izmantoji maksājot.",
+    "subtitleGeneric": "Maksājums apstiprināts. Tava Konta atslēga un čeks ir ceļā uz e-pastu, ko izmantoji maksājot.",
+    "whatsNext": "Kas tālāk",
+    "step1Title": "Pārbaudi iesūtni",
+    "step1Desc": "Tava Konta atslēga pienāks minūtes laikā (pārbaudi arī mēstules).",
+    "step2Title": "Aktivizē lietotnē, lai transkribētu",
+    "step2Desc": "Settings → License → ielīmē atslēgu → Activate. Šeit tu izmanto kredītus.",
+    "step3Title": "Pārvaldi kredītus šeit jebkurā laikā",
+    "step3Desc": "Pieslēdzies tīmeklī, lai redzētu atlikumu, papildinātu vai apskatītu rēķinus.",
+    "manageButton": "Pieslēdzies, lai pārvaldītu kredītus",
     "loading": "Notiek ielāde..."
   },
   "footer": {

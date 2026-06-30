@@ -250,31 +250,17 @@
     "copied": "Skopírované!"
   },
   "purchaseSuccess": {
-    "title": "Nákup bol úspešný!",
-    "subtitle": "Vitajte v HyperWhisper Pro! Váš kľúč k účtu je pripravený.",
-    "checkEmail": {
-      "title": "Skontrolujte svoj email",
-      "description": "Kľúč k účtu a pokyny na stiahnutie sme poslali na vašu emailovú adresu. Mali by doraziť v priebehu niekoľkých minút."
-    },
-    "whatsNext": {
-      "title": "Čo ďalej?",
-      "step1": {
-        "title": "Skontrolujte doručenú poštu",
-        "description": "Hľadajte email od HyperWhisper"
-      },
-      "step2": {
-        "title": "Skopírujte kľúč k účtu",
-        "description": "Budete ho potrebovať na aktiváciu aplikácie"
-      },
-      "step3": {
-        "title": "Stiahnite HyperWhisper",
-        "description": "Nainštalujte aplikáciu a zadajte kľúč k účtu"
-      }
-    },
-    "downloadButton": "Stiahnuť HyperWhisper",
-    "returnHome": "Návrat na domovskú stránku",
-    "noEmail": "Nedostali ste email? Skontrolujte spam alebo",
-    "contactSupport": "kontaktujte podporu",
+    "title": "Všetko je pripravené!",
+    "subtitle": "Platba potvrdená. Pridaných {credits, number} kreditov. Váš Kľúč účtu a potvrdenie smerujú na e-mail, ktorý ste zadali pri platbe.",
+    "subtitleGeneric": "Platba potvrdená. Váš Kľúč účtu a potvrdenie smerujú na e-mail, ktorý ste zadali pri platbe.",
+    "whatsNext": "Čo ďalej",
+    "step1Title": "Skontrolujte schránku",
+    "step1Desc": "Kľúč účtu dorazí do minúty (skontrolujte aj spam).",
+    "step2Title": "Aktivujte v aplikácii na prepis",
+    "step2Desc": "Settings → License → vložte kľúč → Activate. Tu používate svoje kredity.",
+    "step3Title": "Kredity spravujte tu kedykoľvek",
+    "step3Desc": "Prihláste sa na webe a pozrite zostatok, doplňte kredity alebo zobrazte fakturáciu.",
+    "manageButton": "Prihlásiť sa a spravovať kredity",
     "loading": "Načítava sa..."
   },
   "footer": {

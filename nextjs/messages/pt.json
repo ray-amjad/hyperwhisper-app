@@ -250,32 +250,18 @@
     "copied": "Copiado!"
   },
   "purchaseSuccess": {
-    "title": "Compra concluída!",
-    "subtitle": "Bem-vindo ao HyperWhisper Pro! Sua chave da conta está pronta.",
-    "checkEmail": {
-      "title": "Verifique seu e-mail",
-      "description": "Enviamos sua chave da conta e as instruções de download para seu e-mail. Deve chegar nos próximos minutos."
-    },
-    "whatsNext": {
-      "title": "Próximos passos",
-      "step1": {
-        "title": "Verifique sua caixa de entrada",
-        "description": "Procure um e-mail do HyperWhisper"
-      },
-      "step2": {
-        "title": "Copie sua chave da conta",
-        "description": "Você vai precisar dela para ativar o app"
-      },
-      "step3": {
-        "title": "Baixe o HyperWhisper",
-        "description": "Instale o app e insira sua chave da conta"
-      }
-    },
-    "downloadButton": "Baixar HyperWhisper",
-    "returnHome": "Voltar para a página inicial",
-    "noEmail": "Não recebeu seu e-mail? Verifique a pasta de spam ou",
-    "contactSupport": "fale com o suporte",
-    "loading": "Carregando..."
+    "title": "Tudo pronto!",
+    "subtitle": "Pagamento confirmado. {credits, number} créditos adicionados. A tua Chave de conta e o recibo estão a caminho do e-mail que usaste no pagamento.",
+    "subtitleGeneric": "Pagamento confirmado. A tua Chave de conta e o recibo estão a caminho do e-mail que usaste no pagamento.",
+    "whatsNext": "O que vem a seguir",
+    "step1Title": "Verifica a tua caixa de entrada",
+    "step1Desc": "A tua Chave de conta chega dentro de um minuto (verifica também o spam).",
+    "step2Title": "Ativa na app para transcrever",
+    "step2Desc": "Settings → License → cola a tua chave → Activate. É aqui que usas os teus créditos.",
+    "step3Title": "Gere os créditos aqui a qualquer momento",
+    "step3Desc": "Inicia sessão na web para ver o saldo, recarregar ou consultar a faturação.",
+    "manageButton": "Inicia sessão para gerir os meus créditos",
+    "loading": "A carregar..."
   },
   "footer": {
     "tagline": "Escreva 5x mais rápido com transcrição de voz com IA para macOS e Windows.",

@@ -194,9 +194,11 @@ export async function POST(req: NextRequest) {
       // Managed Payments: Stripe handles tax, invoicing, and compliance
       managed_payments: { enabled: true },
 
-      // Redirect to user dashboard after checkout
-      success_url: `${siteUrl}/user/dashboard?purchase=success`,
-      cancel_url: `${siteUrl}/user/dashboard`,
+      // Land on the public confirmation page (works for guests, who have no
+      // account yet). It only personalizes copy from `credits` — entitlement is
+      // always enforced server-side via the webhook-minted key.
+      success_url: `${siteUrl}/purchase-success?session_id={CHECKOUT_SESSION_ID}&credits=${creditAmount}`,
+      cancel_url: `${siteUrl}/credits`,
     });
 
     // Return checkout URL to client

@@ -250,31 +250,17 @@
     "copied": "Copiat!"
   },
   "purchaseSuccess": {
-    "title": "Achiziție reușită!",
-    "subtitle": "Bine ai venit la HyperWhisper Pro! Cheia ta de cont este gata.",
-    "checkEmail": {
-      "title": "Verifică-ți emailul",
-      "description": "Ți-am trimis cheia de cont și instrucțiunile de descărcare la adresa ta de email. Ar trebui să ajungă în următoarele minute."
-    },
-    "whatsNext": {
-      "title": "Ce urmează?",
-      "step1": {
-        "title": "Verifică inboxul",
-        "description": "Caută un email de la HyperWhisper"
-      },
-      "step2": {
-        "title": "Copiază cheia de cont",
-        "description": "Vei avea nevoie de ea pentru a activa aplicația"
-      },
-      "step3": {
-        "title": "Descarcă HyperWhisper",
-        "description": "Instalează aplicația și introdu cheia de cont"
-      }
-    },
-    "downloadButton": "Descarcă HyperWhisper",
-    "returnHome": "Înapoi la pagina principală",
-    "noEmail": "Nu ai primit emailul? Verifică folderul spam sau",
-    "contactSupport": "contactează suportul",
+    "title": "Gata, ești pregătit!",
+    "subtitle": "Plată confirmată. S-au adăugat {credits, number} credite. Cheia de cont și chitanța sunt pe drum către e-mailul folosit la plată.",
+    "subtitleGeneric": "Plată confirmată. Cheia de cont și chitanța sunt pe drum către e-mailul folosit la plată.",
+    "whatsNext": "Ce urmează",
+    "step1Title": "Verifică-ți inboxul",
+    "step1Desc": "Cheia de cont ajunge într-un minut (verifică și folderul spam).",
+    "step2Title": "Activeaz-o în aplicație pentru transcriere",
+    "step2Desc": "Settings → License → lipește cheia → Activate. Aici îți folosești creditele.",
+    "step3Title": "Gestionează creditele de aici oricând",
+    "step3Desc": "Autentifică-te pe web ca să vezi soldul, să adaugi credite sau să vezi facturarea.",
+    "manageButton": "Autentifică-te pentru a gestiona creditele",
     "loading": "Se încarcă..."
   },
   "footer": {

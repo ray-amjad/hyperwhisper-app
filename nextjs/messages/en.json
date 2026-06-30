@@ -250,31 +250,17 @@
     "copied": "Copied!"
   },
   "purchaseSuccess": {
-    "title": "Purchase Successful!",
-    "subtitle": "Welcome to HyperWhisper Pro! Your Account Key is ready.",
-    "checkEmail": {
-      "title": "Check Your Email",
-      "description": "We've sent your Account Key and download instructions to your email address. It should arrive within the next few minutes."
-    },
-    "whatsNext": {
-      "title": "What's Next?",
-      "step1": {
-        "title": "Check your inbox",
-        "description": "Look for an email from HyperWhisper"
-      },
-      "step2": {
-        "title": "Copy your Account Key",
-        "description": "You'll need this to activate the app"
-      },
-      "step3": {
-        "title": "Download HyperWhisper",
-        "description": "Install the app and enter your Account Key"
-      }
-    },
-    "downloadButton": "Download HyperWhisper",
-    "returnHome": "Return to Homepage",
-    "noEmail": "Didn't receive your email? Check your spam folder or",
-    "contactSupport": "contact support",
+    "title": "You're all set!",
+    "subtitle": "Payment confirmed. {credits, number} credits added. Your Account Key and receipt are on the way to the email you used at checkout.",
+    "subtitleGeneric": "Payment confirmed. Your Account Key and receipt are on the way to the email you used at checkout.",
+    "whatsNext": "What's next",
+    "step1Title": "Check your inbox",
+    "step1Desc": "Your Account Key arrives within a minute (check spam too).",
+    "step2Title": "Activate in the app to transcribe",
+    "step2Desc": "Settings → License → paste your key → Activate. This is where you use your credits.",
+    "step3Title": "Manage credits here anytime",
+    "step3Desc": "Sign in on the web to check your balance, top up, or view billing.",
+    "manageButton": "Sign in to manage my credits",
     "loading": "Loading..."
   },
   "footer": {

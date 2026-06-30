@@ -250,31 +250,17 @@
     "copied": "Đã sao chép!"
   },
   "purchaseSuccess": {
-    "title": "Mua hàng thành công!",
-    "subtitle": "Chào mừng bạn đến với HyperWhisper Pro! Khóa tài khoản của bạn đã sẵn sàng.",
-    "checkEmail": {
-      "title": "Kiểm tra Email của bạn",
-      "description": "Chúng tôi đã gửi khóa tài khoản và hướng dẫn tải xuống đến địa chỉ email của bạn. Email sẽ đến trong vài phút tới."
-    },
-    "whatsNext": {
-      "title": "Bước tiếp theo",
-      "step1": {
-        "title": "Kiểm tra hộp thư đến",
-        "description": "Tìm email từ HyperWhisper"
-      },
-      "step2": {
-        "title": "Sao chép khóa tài khoản",
-        "description": "Bạn sẽ cần khóa này để kích hoạt ứng dụng"
-      },
-      "step3": {
-        "title": "Tải HyperWhisper",
-        "description": "Cài ứng dụng và nhập khóa tài khoản"
-      }
-    },
-    "downloadButton": "Tải xuống HyperWhisper",
-    "returnHome": "Quay lại Trang chủ",
-    "noEmail": "Không nhận được email? Hãy kiểm tra thư mục spam hoặc",
-    "contactSupport": "liên hệ hỗ trợ",
+    "title": "Tất cả đã sẵn sàng!",
+    "subtitle": "Đã xác nhận thanh toán. Đã thêm {credits, number} tín dụng. Khóa Tài khoản và biên nhận của bạn đang được gửi tới email bạn dùng khi thanh toán.",
+    "subtitleGeneric": "Đã xác nhận thanh toán. Khóa Tài khoản và biên nhận của bạn đang được gửi tới email bạn dùng khi thanh toán.",
+    "whatsNext": "Tiếp theo",
+    "step1Title": "Kiểm tra hộp thư của bạn",
+    "step1Desc": "Khóa Tài khoản sẽ đến trong vòng một phút (kiểm tra cả thư rác).",
+    "step2Title": "Kích hoạt trong ứng dụng để chép lời",
+    "step2Desc": "Settings → License → dán khóa của bạn → Activate. Đây là nơi bạn dùng tín dụng.",
+    "step3Title": "Quản lý tín dụng tại đây bất cứ lúc nào",
+    "step3Desc": "Đăng nhập trên web để xem số dư, nạp thêm hoặc xem hóa đơn.",
+    "manageButton": "Đăng nhập để quản lý tín dụng",
     "loading": "Đang tải..."
   },
   "footer": {

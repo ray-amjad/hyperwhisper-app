@@ -250,31 +250,17 @@
     "copied": "Skopiowano!"
   },
   "purchaseSuccess": {
-    "title": "Zakup zakończony sukcesem!",
-    "subtitle": "Witamy w HyperWhisper Pro! Twój klucz konta jest gotowy.",
-    "checkEmail": {
-      "title": "Sprawdź swoją skrzynkę e-mail",
-      "description": "Wysłaliśmy klucz konta i instrukcje pobrania na Twój adres e-mail. Powinny dotrzeć w ciągu kilku minut."
-    },
-    "whatsNext": {
-      "title": "Co dalej?",
-      "step1": {
-        "title": "Sprawdź skrzynkę odbiorczą",
-        "description": "Poszukaj wiadomości od HyperWhisper"
-      },
-      "step2": {
-        "title": "Skopiuj klucz konta",
-        "description": "Będzie potrzebny do aktywacji aplikacji"
-      },
-      "step3": {
-        "title": "Pobierz HyperWhisper",
-        "description": "Zainstaluj aplikację i wpisz klucz konta"
-      }
-    },
-    "downloadButton": "Pobierz HyperWhisper",
-    "returnHome": "Wróć na stronę główną",
-    "noEmail": "Nie otrzymałeś e-maila? Sprawdź folder spam lub",
-    "contactSupport": "skontaktuj się ze wsparciem",
+    "title": "Wszystko gotowe!",
+    "subtitle": "Płatność potwierdzona. Dodano {credits, number} kredytów. Twój Klucz konta i potwierdzenie są w drodze na adres e-mail podany przy płatności.",
+    "subtitleGeneric": "Płatność potwierdzona. Twój Klucz konta i potwierdzenie są w drodze na adres e-mail podany przy płatności.",
+    "whatsNext": "Co dalej",
+    "step1Title": "Sprawdź skrzynkę odbiorczą",
+    "step1Desc": "Twój Klucz konta dotrze w ciągu minuty (sprawdź też spam).",
+    "step2Title": "Aktywuj w aplikacji, aby transkrybować",
+    "step2Desc": "Settings → License → wklej klucz → Activate. Tutaj wykorzystujesz kredyty.",
+    "step3Title": "Zarządzaj kredytami tutaj w dowolnej chwili",
+    "step3Desc": "Zaloguj się w sieci, aby zobaczyć saldo, doładować lub sprawdzić rozliczenia.",
+    "manageButton": "Zaloguj się, aby zarządzać kredytami",
     "loading": "Ładowanie..."
   },
   "footer": {

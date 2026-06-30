@@ -250,32 +250,18 @@
     "copied": "Kopirano!"
   },
   "purchaseSuccess": {
-    "title": "Kupovina uspešna!",
-    "subtitle": "Dobrodošli u HyperWhisper Pro! Vaš ključ naloga je spreman.",
-    "checkEmail": {
-      "title": "Proverite svoj email",
-      "description": "Poslali smo vaš ključ naloga i uputstva za preuzimanje na vašu email adresu. Trebalo bi da stigne u narednih nekoliko minuta."
-    },
-    "whatsNext": {
-      "title": "Šta je sledeće?",
-      "step1": {
-        "title": "Proverite inbox",
-        "description": "Potražite email od HyperWhispera"
-      },
-      "step2": {
-        "title": "Kopirajte ključ naloga",
-        "description": "Biće vam potreban za aktivaciju aplikacije"
-      },
-      "step3": {
-        "title": "Preuzmite HyperWhisper",
-        "description": "Instalirajte aplikaciju i unesite ključ naloga"
-      }
-    },
-    "downloadButton": "Preuzmi HyperWhisper",
-    "returnHome": "Vrati se na početnu stranicu",
-    "noEmail": "Niste primili email? Proverite spam folder ili",
-    "contactSupport": "kontaktirajte podršku",
-    "loading": "Učitavanje..."
+    "title": "Све је спремно!",
+    "subtitle": "Плаћање потврђено. Додато {credits, number} кредита. Твој Кључ налога и рачун стижу на имејл који си користио при плаћању.",
+    "subtitleGeneric": "Плаћање потврђено. Твој Кључ налога и рачун стижу на имејл који си користио при плаћању.",
+    "whatsNext": "Шта следи",
+    "step1Title": "Провери пристиглу пошту",
+    "step1Desc": "Твој Кључ налога стиже за минут (провери и нежељену пошту).",
+    "step2Title": "Активирај у апликацији за транскрипцију",
+    "step2Desc": "Settings → License → налепи кључ → Activate. Овде трошиш кредите.",
+    "step3Title": "Кредитима управљај овде било кад",
+    "step3Desc": "Пријави се на вебу да видиш стање, додаш кредите или прегледаш наплату.",
+    "manageButton": "Пријави се да управљаш кредитима",
+    "loading": "Учитавање..."
   },
   "footer": {
     "tagline": "Pišite 5x brže uz AI transkripciju glasa za macOS i Windows.",

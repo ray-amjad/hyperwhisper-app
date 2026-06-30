@@ -250,31 +250,17 @@
     "copied": "Disalin!"
   },
   "purchaseSuccess": {
-    "title": "Pembelian Berhasil!",
-    "subtitle": "Selamat datang di HyperWhisper Pro! Kunci akun Anda sudah siap.",
-    "checkEmail": {
-      "title": "Periksa Email Anda",
-      "description": "Kami telah mengirimkan kunci akun dan instruksi unduhan ke alamat email Anda. Seharusnya tiba dalam beberapa menit ke depan."
-    },
-    "whatsNext": {
-      "title": "Langkah Selanjutnya",
-      "step1": {
-        "title": "Periksa kotak masuk Anda",
-        "description": "Cari email dari HyperWhisper"
-      },
-      "step2": {
-        "title": "Salin kunci akun Anda",
-        "description": "Anda akan membutuhkannya untuk mengaktifkan aplikasi"
-      },
-      "step3": {
-        "title": "Unduh HyperWhisper",
-        "description": "Instal aplikasi dan masukkan kunci akun Anda"
-      }
-    },
-    "downloadButton": "Unduh HyperWhisper",
-    "returnHome": "Kembali ke Beranda",
-    "noEmail": "Tidak menerima email? Periksa folder spam Anda atau",
-    "contactSupport": "hubungi dukungan",
+    "title": "Semua sudah siap!",
+    "subtitle": "Pembayaran dikonfirmasi. {credits, number} kredit ditambahkan. Kunci Akun dan tanda terima Anda sedang dikirim ke email yang Anda gunakan saat membayar.",
+    "subtitleGeneric": "Pembayaran dikonfirmasi. Kunci Akun dan tanda terima Anda sedang dikirim ke email yang Anda gunakan saat membayar.",
+    "whatsNext": "Berikutnya",
+    "step1Title": "Periksa kotak masuk Anda",
+    "step1Desc": "Kunci Akun Anda tiba dalam satu menit (periksa juga folder spam).",
+    "step2Title": "Aktifkan di aplikasi untuk transkripsi",
+    "step2Desc": "Settings → License → tempel kunci Anda → Activate. Di sinilah Anda memakai kredit.",
+    "step3Title": "Kelola kredit di sini kapan saja",
+    "step3Desc": "Masuk di web untuk melihat saldo, menambah kredit, atau melihat penagihan.",
+    "manageButton": "Masuk untuk mengelola kredit saya",
     "loading": "Memuat..."
   },
   "footer": {

@@ -250,31 +250,17 @@
     "copied": "已複製！"
   },
   "purchaseSuccess": {
-    "title": "購買成功！",
-    "subtitle": "歡迎加入 HyperWhisper Pro！你的帳戶金鑰已就緒。",
-    "checkEmail": {
-      "title": "請檢查你的信箱",
-      "description": "我們已將帳戶金鑰與下載說明寄到你的電子郵件地址。幾分鐘內應會收到。"
-    },
-    "whatsNext": {
-      "title": "接下來做什麼？",
-      "step1": {
-        "title": "查看收件匣",
-        "description": "尋找來自 HyperWhisper 的郵件"
-      },
-      "step2": {
-        "title": "複製帳戶金鑰",
-        "description": "啟用應用程式時會用到"
-      },
-      "step3": {
-        "title": "下載 HyperWhisper",
-        "description": "安裝應用程式並輸入帳戶金鑰"
-      }
-    },
-    "downloadButton": "下載 HyperWhisper",
-    "returnHome": "返回首頁",
-    "noEmail": "沒收到郵件？請檢查垃圾郵件資料夾或",
-    "contactSupport": "聯絡支援",
+    "title": "一切就緒！",
+    "subtitle": "付款已確認。已新增 {credits, number} 點數。你的帳戶金鑰與收據正寄往你付款時使用的電子郵件。",
+    "subtitleGeneric": "付款已確認。你的帳戶金鑰與收據正寄往你付款時使用的電子郵件。",
+    "whatsNext": "接下來",
+    "step1Title": "查看你的收件匣",
+    "step1Desc": "帳戶金鑰會在一分鐘內送達（也請查看垃圾郵件）。",
+    "step2Title": "在應用程式中啟用以進行轉錄",
+    "step2Desc": "Settings → License → 貼上你的金鑰 → Activate。你在這裡使用點數。",
+    "step3Title": "隨時在這裡管理點數",
+    "step3Desc": "登入網頁即可查看餘額、加值或檢視帳單。",
+    "manageButton": "登入以管理我的點數",
     "loading": "載入中..."
   },
   "footer": {

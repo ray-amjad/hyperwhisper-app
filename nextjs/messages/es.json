@@ -250,31 +250,17 @@
     "copied": "¡Copiado!"
   },
   "purchaseSuccess": {
-    "title": "¡Compra exitosa!",
-    "subtitle": "¡Bienvenido a HyperWhisper Pro! Tu clave de cuenta está lista.",
-    "checkEmail": {
-      "title": "Revisa tu correo",
-      "description": "Hemos enviado tu clave de cuenta y las instrucciones de descarga a tu correo. Debería llegar en unos minutos."
-    },
-    "whatsNext": {
-      "title": "¿Qué sigue?",
-      "step1": {
-        "title": "Revisa tu bandeja de entrada",
-        "description": "Busca un correo de HyperWhisper"
-      },
-      "step2": {
-        "title": "Copia tu clave de cuenta",
-        "description": "La necesitarás para activar la app"
-      },
-      "step3": {
-        "title": "Descarga HyperWhisper",
-        "description": "Instala la app e introduce tu clave de cuenta"
-      }
-    },
-    "downloadButton": "Descargar HyperWhisper",
-    "returnHome": "Volver a inicio",
-    "noEmail": "¿No recibiste el correo? Revisa tu carpeta de spam o",
-    "contactSupport": "contacta a soporte",
+    "title": "¡Todo listo!",
+    "subtitle": "Pago confirmado. Se añadieron {credits, number} créditos. Tu Clave de cuenta y el recibo van camino al correo que usaste al pagar.",
+    "subtitleGeneric": "Pago confirmado. Tu Clave de cuenta y el recibo van camino al correo que usaste al pagar.",
+    "whatsNext": "Qué sigue",
+    "step1Title": "Revisa tu bandeja de entrada",
+    "step1Desc": "Tu Clave de cuenta llega en un minuto (revisa también el spam).",
+    "step2Title": "Actívala en la app para transcribir",
+    "step2Desc": "Settings → License → pega tu clave → Activate. Aquí es donde usas tus créditos.",
+    "step3Title": "Gestiona tus créditos aquí cuando quieras",
+    "step3Desc": "Inicia sesión en la web para ver tu saldo, recargar o consultar la facturación.",
+    "manageButton": "Inicia sesión para gestionar mis créditos",
     "loading": "Cargando..."
   },
   "footer": {

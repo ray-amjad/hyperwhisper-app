@@ -250,31 +250,17 @@
     "copied": "Kopirano!"
   },
   "purchaseSuccess": {
-    "title": "Kupnja uspješna!",
-    "subtitle": "Dobrodošli u HyperWhisper Pro! Vaš ključ računa je spreman.",
-    "checkEmail": {
-      "title": "Provjerite svoj email",
-      "description": "Poslali smo vaš ključ računa i upute za preuzimanje na vašu email adresu. Trebali bi stići unutar nekoliko minuta."
-    },
-    "whatsNext": {
-      "title": "Što slijedi?",
-      "step1": {
-        "title": "Provjerite inbox",
-        "description": "Potražite email od HyperWhispera"
-      },
-      "step2": {
-        "title": "Kopirajte ključ računa",
-        "description": "Trebat će vam za aktivaciju aplikacije"
-      },
-      "step3": {
-        "title": "Preuzmite HyperWhisper",
-        "description": "Instalirajte aplikaciju i unesite ključ računa"
-      }
-    },
-    "downloadButton": "Preuzmi HyperWhisper",
-    "returnHome": "Povratak na početnu stranicu",
-    "noEmail": "Niste primili email? Provjerite spam mapu ili",
-    "contactSupport": "kontaktirajte podršku",
+    "title": "Sve je spremno!",
+    "subtitle": "Plaćanje potvrđeno. Dodano {credits, number} kredita. Tvoj Ključ računa i račun stižu na e-poštu koju si upotrijebio pri plaćanju.",
+    "subtitleGeneric": "Plaćanje potvrđeno. Tvoj Ključ računa i račun stižu na e-poštu koju si upotrijebio pri plaćanju.",
+    "whatsNext": "Što slijedi",
+    "step1Title": "Provjeri pristiglu poštu",
+    "step1Desc": "Tvoj Ključ računa stiže za minutu (provjeri i neželjenu poštu).",
+    "step2Title": "Aktiviraj u aplikaciji za transkripciju",
+    "step2Desc": "Settings → License → zalijepi ključ → Activate. Ovdje koristiš svoje kredite.",
+    "step3Title": "Kreditima upravljaj ovdje bilo kada",
+    "step3Desc": "Prijavi se na webu da vidiš stanje, dodaš kredite ili pregledaš naplatu.",
+    "manageButton": "Prijavi se za upravljanje kreditima",
     "loading": "Učitavanje..."
   },
   "footer": {

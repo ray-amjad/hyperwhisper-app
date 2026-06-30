@@ -250,31 +250,17 @@
     "copied": "Kimásolva!"
   },
   "purchaseSuccess": {
-    "title": "Sikeres vásárlás!",
-    "subtitle": "Üdv a HyperWhisper Pro-ban! A fiókkulcsod készen áll.",
-    "checkEmail": {
-      "title": "Ellenőrizd az emailed",
-      "description": "Elküldtük a fiókkulcsot és a letöltési útmutatót az email címedre. Néhány percen belül meg kell érkeznie."
-    },
-    "whatsNext": {
-      "title": "Mi a következő lépés?",
-      "step1": {
-        "title": "Nézd meg a beérkező üzeneteket",
-        "description": "Keresd a HyperWhisper emailjét"
-      },
-      "step2": {
-        "title": "Másold ki a fiókkulcsot",
-        "description": "Szükséged lesz rá az alkalmazás aktiválásához"
-      },
-      "step3": {
-        "title": "Töltsd le a HyperWhispert",
-        "description": "Telepítsd az alkalmazást és add meg a fiókkulcsot"
-      }
-    },
-    "downloadButton": "HyperWhisper letöltése",
-    "returnHome": "Vissza a főoldalra",
-    "noEmail": "Nem kaptad meg az emailed? Ellenőrizd a spam mappát vagy",
-    "contactSupport": "lépj kapcsolatba a támogatással",
+    "title": "Minden kész!",
+    "subtitle": "Fizetés megerősítve. {credits, number} kredit hozzáadva. A Fiókkulcsod és a nyugta úton van a fizetéskor megadott e-mail-címre.",
+    "subtitleGeneric": "Fizetés megerősítve. A Fiókkulcsod és a nyugta úton van a fizetéskor megadott e-mail-címre.",
+    "whatsNext": "Mi a következő lépés",
+    "step1Title": "Nézd meg a postaládád",
+    "step1Desc": "A Fiókkulcsod egy percen belül megérkezik (a spam mappát is nézd meg).",
+    "step2Title": "Aktiváld az appban az átíráshoz",
+    "step2Desc": "Settings → License → illeszd be a kulcsot → Activate. Itt használod a kreditjeidet.",
+    "step3Title": "A krediteket itt kezelheted bármikor",
+    "step3Desc": "Jelentkezz be a weben az egyenleg megtekintéséhez, feltöltéshez vagy a számlázáshoz.",
+    "manageButton": "Bejelentkezés a kreditek kezeléséhez",
     "loading": "Betöltés..."
   },
   "footer": {

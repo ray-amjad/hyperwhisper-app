@@ -250,31 +250,17 @@
     "copied": "已复制！"
   },
   "purchaseSuccess": {
-    "title": "购买成功！",
-    "subtitle": "欢迎加入 HyperWhisper Pro！你的账户密钥已就绪。",
-    "checkEmail": {
-      "title": "请检查邮箱",
-      "description": "我们已将账户密钥和下载说明发送到你的邮箱。几分钟内应会收到。"
-    },
-    "whatsNext": {
-      "title": "接下来做什么？",
-      "step1": {
-        "title": "查看收件箱",
-        "description": "寻找来自 HyperWhisper 的邮件"
-      },
-      "step2": {
-        "title": "复制账户密钥",
-        "description": "激活应用时需要它"
-      },
-      "step3": {
-        "title": "下载 HyperWhisper",
-        "description": "安装应用并输入账户密钥"
-      }
-    },
-    "downloadButton": "下载 HyperWhisper",
-    "returnHome": "返回首页",
-    "noEmail": "没收到邮件？检查垃圾邮件文件夹或",
-    "contactSupport": "联系支持",
+    "title": "一切就绪！",
+    "subtitle": "付款已确认。已添加 {credits, number} 点数。你的账户密钥和收据正发往你付款时使用的邮箱。",
+    "subtitleGeneric": "付款已确认。你的账户密钥和收据正发往你付款时使用的邮箱。",
+    "whatsNext": "接下来",
+    "step1Title": "查看你的收件箱",
+    "step1Desc": "账户密钥会在一分钟内送达（也请查看垃圾邮件）。",
+    "step2Title": "在应用中激活以进行转录",
+    "step2Desc": "Settings → License → 粘贴你的密钥 → Activate。你在这里使用点数。",
+    "step3Title": "随时在这里管理点数",
+    "step3Desc": "登录网页即可查看余额、充值或查看账单。",
+    "manageButton": "登录以管理我的点数",
     "loading": "加载中..."
   },
   "footer": {

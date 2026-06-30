@@ -250,31 +250,17 @@
     "copied": "Copié !"
   },
   "purchaseSuccess": {
-    "title": "Achat réussi !",
-    "subtitle": "Bienvenue sur HyperWhisper Pro ! Votre clé de compte est prête.",
-    "checkEmail": {
-      "title": "Vérifiez votre e-mail",
-      "description": "Nous avons envoyé votre clé de compte et les instructions de téléchargement à votre adresse e-mail. Elle devrait arriver dans les prochaines minutes."
-    },
-    "whatsNext": {
-      "title": "Et maintenant ?",
-      "step1": {
-        "title": "Vérifiez votre boîte de réception",
-        "description": "Recherchez un e-mail de HyperWhisper"
-      },
-      "step2": {
-        "title": "Copiez votre clé de compte",
-        "description": "Vous en aurez besoin pour activer l'app"
-      },
-      "step3": {
-        "title": "Téléchargez HyperWhisper",
-        "description": "Installez l'app et saisissez votre clé de compte"
-      }
-    },
-    "downloadButton": "Télécharger HyperWhisper",
-    "returnHome": "Retour à la page d'accueil",
-    "noEmail": "Vous n'avez pas reçu votre e-mail ? Vérifiez vos spams ou",
-    "contactSupport": "contactez le support",
+    "title": "Tout est prêt !",
+    "subtitle": "Paiement confirmé. {credits, number} crédits ajoutés. Votre Clé de compte et votre reçu sont en route vers l'e-mail utilisé au paiement.",
+    "subtitleGeneric": "Paiement confirmé. Votre Clé de compte et votre reçu sont en route vers l'e-mail utilisé au paiement.",
+    "whatsNext": "Et maintenant",
+    "step1Title": "Vérifiez votre boîte de réception",
+    "step1Desc": "Votre Clé de compte arrive en moins d'une minute (vérifiez aussi les spams).",
+    "step2Title": "Activez-la dans l'app pour transcrire",
+    "step2Desc": "Settings → License → collez votre clé → Activate. C'est là que vous utilisez vos crédits.",
+    "step3Title": "Gérez vos crédits ici à tout moment",
+    "step3Desc": "Connectez-vous sur le web pour voir votre solde, recharger ou consulter la facturation.",
+    "manageButton": "Se connecter pour gérer mes crédits",
     "loading": "Chargement..."
   },
   "footer": {

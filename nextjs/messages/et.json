@@ -250,31 +250,17 @@
     "copied": "Kopeeritud!"
   },
   "purchaseSuccess": {
-    "title": "Ost õnnestus!",
-    "subtitle": "Tere tulemast HyperWhisper Pro-sse! Sinu kontovõti on valmis.",
-    "checkEmail": {
-      "title": "Kontrolli oma e-posti",
-      "description": "Saatsime sinu kontovõtme ja allalaadimisjuhised sinu e-posti aadressile. Need peaksid kohale jõudma mõne minuti jooksul."
-    },
-    "whatsNext": {
-      "title": "Mis edasi?",
-      "step1": {
-        "title": "Kontrolli oma postkasti",
-        "description": "Otsi HyperWhisperi e-kirja"
-      },
-      "step2": {
-        "title": "Kopeeri oma kontovõti",
-        "description": "Seda on vaja rakenduse aktiveerimiseks"
-      },
-      "step3": {
-        "title": "Laadi HyperWhisper alla",
-        "description": "Paigalda rakendus ja sisesta kontovõti"
-      }
-    },
-    "downloadButton": "Laadi HyperWhisper alla",
-    "returnHome": "Tagasi avalehele",
-    "noEmail": "Ei saanud e-kirja? Kontrolli rämpsposti kausta või",
-    "contactSupport": "võta ühendust toega",
+    "title": "Kõik valmis!",
+    "subtitle": "Makse kinnitatud. Lisati {credits, number} krediiti. Sinu konto võti ja kviitenumber on teel e-posti aadressile, mille maksmisel sisestasid.",
+    "subtitleGeneric": "Makse kinnitatud. Sinu konto võti ja kviitung on teel e-posti aadressile, mille maksmisel sisestasid.",
+    "whatsNext": "Mis edasi",
+    "step1Title": "Vaata oma postkasti",
+    "step1Desc": "Sinu konto võti saabub minuti jooksul (vaata ka rämpsposti).",
+    "step2Title": "Aktiveeri rakenduses transkribeerimiseks",
+    "step2Desc": "Settings → License → kleebi võti → Activate. Siin kasutad oma krediite.",
+    "step3Title": "Halda krediite siit igal ajal",
+    "step3Desc": "Logi veebis sisse, et näha saldot, lisada krediite või vaadata arveldust.",
+    "manageButton": "Logi sisse krediitide haldamiseks",
     "loading": "Laadimine..."
   },
   "footer": {

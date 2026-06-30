@@ -250,32 +250,18 @@
     "copied": "Copiat!"
   },
   "purchaseSuccess": {
-    "title": "Compra completada!",
-    "subtitle": "Benvingut a HyperWhisper Pro! La teva clau del compte ja està llesta.",
-    "checkEmail": {
-      "title": "Comprova el teu correu",
-      "description": "Hem enviat la teva clau del compte i les instruccions de descàrrega al teu correu electrònic. Hauria d'arribar en pocs minuts."
-    },
-    "whatsNext": {
-      "title": "Què ve ara?",
-      "step1": {
-        "title": "Comprova la safata d'entrada",
-        "description": "Busca un correu de HyperWhisper"
-      },
-      "step2": {
-        "title": "Copia la teva clau del compte",
-        "description": "La necessitaràs per activar l'aplicació"
-      },
-      "step3": {
-        "title": "Descarrega HyperWhisper",
-        "description": "Instal·la l'aplicació i introdueix la clau del compte"
-      }
-    },
-    "downloadButton": "Descarrega HyperWhisper",
-    "returnHome": "Torna a la pàgina principal",
-    "noEmail": "No has rebut el correu? Revisa la carpeta de spam o",
-    "contactSupport": "contacta amb suport",
-    "loading": "Carregant..."
+    "title": "Ja ho tens tot a punt!",
+    "subtitle": "Pagament confirmat. S'han afegit {credits, number} crèdits. La teva Clau de compte i el rebut van cap a l'adreça de correu que has utilitzat al pagament.",
+    "subtitleGeneric": "Pagament confirmat. La teva Clau de compte i el rebut van cap a l'adreça de correu que has utilitzat al pagament.",
+    "whatsNext": "Què ve ara",
+    "step1Title": "Revisa la safata d'entrada",
+    "step1Desc": "La teva Clau de compte arriba en un minut (revisa també el correu brossa).",
+    "step2Title": "Activa-la a l'aplicació per transcriure",
+    "step2Desc": "Settings → License → enganxa la clau → Activate. Aquí és on fas servir els crèdits.",
+    "step3Title": "Gestiona els crèdits des d'aquí quan vulguis",
+    "step3Desc": "Inicia la sessió al web per veure el saldo, afegir crèdits o consultar la facturació.",
+    "manageButton": "Inicia la sessió per gestionar els crèdits",
+    "loading": "S'està carregant..."
   },
   "footer": {
     "tagline": "Escriu 5x més ràpid amb transcripció de veu amb IA per a macOS i Windows.",
