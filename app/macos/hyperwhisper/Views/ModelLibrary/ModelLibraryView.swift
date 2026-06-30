@@ -14,7 +14,6 @@ struct ModelLibraryView: View {
     @EnvironmentObject var qwen3AsrManager: Qwen3AsrModelManager
     @EnvironmentObject var nemotronManager: NemotronModelManager
     @EnvironmentObject var localLLMManager: LocalModelManager
-    @EnvironmentObject var licenseManager: LicenseManager
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var customEndpointManager: CustomPostProcessingManager
 

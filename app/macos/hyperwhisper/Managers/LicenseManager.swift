@@ -47,11 +47,6 @@ class LicenseManager: ObservableObject {
     /// Whether deactivation is in progress
     @Published var isDeactivating: Bool = false
 
-    /// Formatted license status description (Cloud license state).
-    var licenseStatusDescription: String {
-        licenseStatus.description
-    }
-
     // MARK: - Components
 
     /// Shared key-value store backing the Rust license core. Created ONCE here

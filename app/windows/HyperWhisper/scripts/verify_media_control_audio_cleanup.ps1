@@ -126,11 +126,6 @@ Assert-Match `
     -Label "app cleanup restores mic boost/output mute and resumes keep-warm before recorder disposal"
 
 Assert-Match `
-    -Content $ViewModelSource `
-    -Pattern "StartRecordingAsync\(\).*?if \(!LicenseUsageTracker\.Instance\.CanStartRecording\(\)\).*?return;.*?var recordingMode = SelectedMode;.*?_activeRecordingMode = recordingMode;" `
-    -Label "active recording mode is not pinned before trial-limit early return"
-
-Assert-Match `
     -Content $MacAudioSettingsSource `
     -Pattern "migratePauseMediaMode.*?stored == `"pauseMedia`".*?mediaControlMode = \.off.*?enum MediaControlMode.*?case off.*?case muteAudio.*?init\(from decoder: Decoder\).*?rawValue == `"pauseMedia`".*?self = \.off" `
     -Label "macOS media-control settings expose off/muteAudio and migrate removed pause-media behavior"

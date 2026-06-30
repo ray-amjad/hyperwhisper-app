@@ -20,8 +20,6 @@
 // - ActivateLicenseAsync(): Validates and stores a license key
 // - DeactivateLicense(): Clears stored license (returns to trial)
 // - LoadStoredLicenseAsync(): Loads and validates stored license on startup
-// - CanStartRecording(): Checks if recording is allowed
-// - CanDownloadModel(): Checks if model download is allowed
 
 using System;
 using System.ComponentModel;
