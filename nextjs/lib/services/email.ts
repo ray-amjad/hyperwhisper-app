@@ -192,18 +192,13 @@ export class EmailService {
 
         console.log(`${capitalize(kind)} email sent successfully to ${customerEmail}`);
 
-        // Best-effort audit log; a logging failure must never affect delivery.
-        try {
-          await logSentEmail({
-            recipient: customerEmail,
-            emailType: kind,
-            subject,
-            providerMessageId: (result.data as { id?: string })?.id ?? null,
-            status: "sent",
-          });
-        } catch (logError) {
-          console.error(`Failed to log sent ${kind} email:`, logError);
-        }
+        await this.safeLogSentEmail({
+          recipient: customerEmail,
+          emailType: kind,
+          subject,
+          providerMessageId: (result.data as { id?: string })?.id ?? null,
+          status: "sent",
+        });
 
         return { success: true, data: result.data };
       } catch (error) {
@@ -229,24 +224,38 @@ export class EmailService {
       }
     }
 
-    // Best-effort audit log; a logging failure must never affect the result.
-    try {
-      await logSentEmail({
-        recipient: customerEmail,
-        emailType: kind,
-        subject,
-        status: "failed",
-        errorMessage: lastError?.message ?? null,
-      });
-    } catch (logError) {
-      console.error(`Failed to log failed ${kind} email:`, logError);
-    }
+    await this.safeLogSentEmail({
+      recipient: customerEmail,
+      emailType: kind,
+      subject,
+      status: "failed",
+      errorMessage: lastError?.message ?? null,
+    });
 
     return {
       success: false,
       error:
         lastError?.message || "Failed to send email after multiple attempts",
     };
+  }
+
+  /**
+   * Best-effort audit log of one logical email. A logging failure must never
+   * affect email delivery or its result, so this swallows and console.errors —
+   * both the success and failure paths route through here so the behavior can't
+   * drift between them.
+   */
+  private async safeLogSentEmail(
+    data: Parameters<typeof logSentEmail>[0],
+  ): Promise<void> {
+    try {
+      await logSentEmail(data);
+    } catch (logError) {
+      console.error(
+        `Failed to log ${data.status} ${data.emailType} email:`,
+        logError,
+      );
+    }
   }
 
   /**

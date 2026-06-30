@@ -57,7 +57,14 @@ export async function POST(req: NextRequest) {
 
     // Optional license key: when supplied, this is a top-up of an existing
     // wallet; when absent, the webhook mints a brand-new key on payment.
-    const hasLicenseKey = typeof licenseKey === "string" && licenseKey.length > 0;
+    // Trim first: a whitespace-only key must NOT count as "present" (which would
+    // skip the mint path and then fail the key lookup). Normalize once and use the
+    // trimmed value everywhere below.
+    const normalizedLicenseKey =
+      typeof licenseKey === "string" && licenseKey.trim().length > 0
+        ? licenseKey.trim()
+        : undefined;
+    const hasLicenseKey = normalizedLicenseKey !== undefined;
 
     // Mint path only: a guest-supplied email to prefill at checkout. Loose
     // format check — Stripe re-validates and the buyer can still edit it. The
@@ -79,13 +86,13 @@ export async function POST(req: NextRequest) {
     // same customer/email. The mint path lets Stripe collect the email itself.
     let stripeCustomerId: string | undefined;
 
-    if (hasLicenseKey) {
-      const license = await findLicenseByKey(licenseKey);
+    if (normalizedLicenseKey) {
+      const license = await findLicenseByKey(normalizedLicenseKey);
 
       if (!license) {
         console.error(
           "License lookup failed for key:",
-          licenseKey.substring(0, 7)
+          normalizedLicenseKey.substring(0, 7)
         );
         return NextResponse.json(
           { error: "Invalid license key" },
@@ -111,7 +118,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      metadata.license_key = licenseKey;
+      metadata.license_key = normalizedLicenseKey;
 
       // Find or create the Stripe customer by email and cache it on the license.
       stripeCustomerId = license.stripeCustomerId ?? undefined;
@@ -126,7 +133,7 @@ export async function POST(req: NextRequest) {
         } else {
           const newCustomer = await stripe.customers.create({
             email,
-            metadata: { license_key: licenseKey },
+            metadata: { license_key: normalizedLicenseKey },
           });
           stripeCustomerId = newCustomer.id;
         }

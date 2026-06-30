@@ -11,7 +11,8 @@ import {
   MIN_CREDIT_DOLLARS,
   MAX_CREDIT_DOLLARS,
   CREDITS_PER_DOLLAR,
-  CREDIT_FEE_RATE,
+  validateCreditPurchaseAmount,
+  computeCreditPurchase,
 } from "@/app/api/checkout/credits/validation";
 
 const PRESETS = [5, 10] as const;
@@ -39,20 +40,21 @@ export default function CreditsPurchase() {
 
   const effectiveAmount = isCustom ? Number(customAmount) : amount;
 
-  const amountValid =
-    Number.isInteger(effectiveAmount) &&
-    effectiveAmount >= MIN_CREDIT_DOLLARS &&
-    effectiveAmount <= MAX_CREDIT_DOLLARS;
+  // Single source of truth for bounds — same validator the API route enforces,
+  // so the client preview can't accept/reject a different amount than the server.
+  const amountValid = validateCreditPurchaseAmount(effectiveAmount) === null;
 
   const emailValid = EMAIL_RE.test(email.trim());
 
   const { credits, feeUsd, totalUsd } = useMemo(() => {
-    const a = amountValid ? effectiveAmount : 0;
-    const fee = Math.round(a * 100 * CREDIT_FEE_RATE) / 100;
+    if (!amountValid) return { credits: 0, feeUsd: 0, totalUsd: 0 };
+    // Reuse the server's pricing math (cents) so the preview matches the charge.
+    const { creditAmount, creditCents, feeCents } =
+      computeCreditPurchase(effectiveAmount);
     return {
-      credits: a * CREDITS_PER_DOLLAR,
-      feeUsd: fee,
-      totalUsd: a + fee,
+      credits: creditAmount,
+      feeUsd: feeCents / 100,
+      totalUsd: (creditCents + feeCents) / 100,
     };
   }, [amountValid, effectiveAmount]);
 
@@ -63,6 +65,9 @@ export default function CreditsPurchase() {
   };
 
   const handleCheckout = async () => {
+    // Guard against double-submit (rapid clicks create duplicate checkout
+    // sessions / charges); the button is also disabled while loading.
+    if (loading) return;
     setError(null);
 
     if (!emailValid) {
@@ -237,7 +242,7 @@ export default function CreditsPurchase() {
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold mt-6"
               size="lg"
               isLoading={loading}
-              isDisabled={!emailValid || !amountValid}
+              isDisabled={loading || !emailValid || !amountValid}
               onPress={handleCheckout}
             >
               {loading ? "Starting checkout" : "Continue to checkout"}

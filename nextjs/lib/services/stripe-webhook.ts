@@ -244,6 +244,10 @@ async function handleCreditTopUp(
     stripeObjectId: session.id,
     licenseKeyId: license.id,
     creditAmount,
+    // Explicit (matches the mint path); the refund clawback resolves grants by
+    // (sourceType, sourceId), so keep both paths writing the same provenance.
+    sourceType: "stripe_credit_pack",
+    sourceId: session.id,
   });
 
   if (grantResult === "duplicate") {
@@ -259,7 +263,7 @@ async function handleCreditTopUp(
   const newBalance = await getCreditBalance(license.id);
   const customerEmail = license.email;
   const customerName =
-    session.customer_details?.name || customerEmail.split("@")[0] || "Customer";
+    session.customer_details?.name || customerEmail?.split("@")[0] || "Customer";
 
   const emailResult = await emailService.sendCreditTopUp({
     customerName,
@@ -396,9 +400,12 @@ async function handleCreditMint(
  * - "license" purchases: revoke the associated license.
  * - "credits" purchases: deduct the granted credits from the balance.
  *
- * FULL REFUNDS ONLY:
- * Only acts when amount_refunded === amount (full refund).
- * Partial refunds are ignored - the license/credits remain valid.
+ * REFUND SCOPE (per purchase type):
+ * - license: acts only on a FULL refund (amount_refunded === amount).
+ * - credits: the 6% processing fee is a separate, non-refundable line item, so a
+ *   policy-compliant credit refund refunds only the credit value — a *partial*
+ *   Stripe refund. Acts once amount_refunded covers the credit portion
+ *   (charge total minus the non-refundable fee).
  *
  * TRACE PATH:
  * Charge -> PaymentIntent -> Checkout Session -> license_keys.stripe_session_id
@@ -412,15 +419,9 @@ export async function handleChargeRefunded(
   charge: Stripe.Charge,
   eventId: string
 ): Promise<void> {
-  // STEP 1: Check if this is a FULL refund
-  if (charge.amount_refunded !== charge.amount) {
-    console.log(
-      `Partial refund detected (${charge.amount_refunded}/${charge.amount}), skipping refund handling`
-    );
-    return;
-  }
-
-  console.log(`Processing full refund for charge ${charge.id}`);
+  console.log(
+    `Processing refund for charge ${charge.id} (${charge.amount_refunded}/${charge.amount})`
+  );
 
   // STEP 2: Get PaymentIntent ID from the charge
   const paymentIntentId =
@@ -451,8 +452,20 @@ export async function handleChargeRefunded(
   const checkoutSession = sessions.data[0];
   const purchaseType = checkoutSession.metadata?.purchase_type;
 
-  // STEP 4: Route by purchase type
+  // STEP 4: Route by purchase type, applying the right "is this refund
+  // actionable?" rule for each.
   if (purchaseType === "credits") {
+    // The 6% fee is a separate, non-refundable line item, so a credit refund
+    // refunds only the credit value — a partial Stripe refund. Act once the
+    // refunded amount covers the credit portion (charge total minus the fee).
+    const feeCents = parseInt(checkoutSession.metadata?.fee_cents || "0", 10);
+    const creditPortion = charge.amount - feeCents;
+    if (charge.amount_refunded < creditPortion) {
+      console.log(
+        `Refund ${charge.amount_refunded}/${charge.amount} does not cover the credit portion (${creditPortion}) for credits session ${checkoutSession.id}, skipping`
+      );
+      return;
+    }
     await handleCreditRefund(charge, checkoutSession, eventId);
     return;
   }
@@ -460,6 +473,14 @@ export async function handleChargeRefunded(
   if (purchaseType !== "license") {
     console.log(
       `Refund for unknown purchase type (${purchaseType}), skipping`
+    );
+    return;
+  }
+
+  // License purchases: act only on a FULL refund.
+  if (charge.amount_refunded !== charge.amount) {
+    console.log(
+      `Partial refund (${charge.amount_refunded}/${charge.amount}) for license session ${checkoutSession.id}, skipping`
     );
     return;
   }

@@ -289,6 +289,13 @@ export async function provisionLicenseForEmail(email: string): Promise<LicenseKe
 // up the pool while row locks are held).
 type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+// A grant still backs spendable balance when it has no expiry or hasn't expired
+// yet. This is the single source of that rule for the raw-SQL credit queries
+// below (balance read, spend, clawback) — keep it here so expiry semantics live
+// in one place. The Drizzle-builder variant (using creditGrants.expiresAt) is
+// expressed inline where the query is built with the query builder.
+const ACTIVE_GRANT_EXPIRY = sql`(expires_at IS NULL OR expires_at > now())`;
+
 /**
  * Authoritative spendable balance: the SUM of remaining_amount across a
  * license's still-active grants. The credit_grants rows are the source of
@@ -306,7 +313,7 @@ async function getActiveGrantsTotal(
     WHERE license_key_id = ${licenseKeyId}
       AND status = 'active'
       AND remaining_amount > 0
-      AND (expires_at IS NULL OR expires_at > now())
+      AND ${ACTIVE_GRANT_EXPIRY}
   `);
   return Number(result.rows[0]?.total ?? 0);
 }
@@ -494,7 +501,7 @@ export async function refundCreditGrant(
       WHERE license_key_id = ${grant.license_key_id}
         AND remaining_amount > 0
         AND status = 'active'
-        AND (expires_at IS NULL OR expires_at > now())
+        AND ${ACTIVE_GRANT_EXPIRY}
       ORDER BY
         CASE WHEN id = ${grant.id} THEN 0 ELSE 1 END,
         expires_at ASC,
@@ -564,7 +571,7 @@ export async function spendCreditGrantsByProvenance(
       WHERE license_key_id = ${licenseKeyId}
         AND remaining_amount > 0
         AND status = 'active'
-        AND (expires_at IS NULL OR expires_at > now())
+        AND ${ACTIVE_GRANT_EXPIRY}
       -- Spend OLDEST-FIRST: soonest-to-expire grants are consumed before grants
       -- that still have time on them (and never-expiring grants last), so a user
       -- naturally burns down credits before they lapse. This replaces the older
