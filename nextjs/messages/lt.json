@@ -250,32 +250,18 @@
     "copied": "Nukopijuota!"
   },
   "purchaseSuccess": {
-    "title": "Pirkimas sėkmingas!",
-    "subtitle": "Sveiki atvykę į HyperWhisper Pro! Jūsų paskyros raktas paruoštas.",
-    "checkEmail": {
-      "title": "Patikrinkite savo el. paštą",
-      "description": "Išsiuntėme jūsų paskyros raktą ir atsisiuntimo instrukcijas į jūsų el. pašto adresą. Turėtumėte gauti per kelias minutes."
-    },
-    "whatsNext": {
-      "title": "Kas toliau?",
-      "step1": {
-        "title": "Patikrinkite gautuosius",
-        "description": "Ieškokite laiško nuo HyperWhisper"
-      },
-      "step2": {
-        "title": "Nukopijuokite paskyros raktą",
-        "description": "Jo reikės programėlei aktyvuoti"
-      },
-      "step3": {
-        "title": "Atsisiųskite HyperWhisper",
-        "description": "Įdiekite programėlę ir įveskite paskyros raktą"
-      }
-    },
-    "downloadButton": "Atsisiųsti HyperWhisper",
-    "returnHome": "Grįžti į pagrindinį puslapį",
-    "noEmail": "Negavote el. laiško? Patikrinkite spam aplanką arba",
-    "contactSupport": "susisiekite su pagalba",
-    "loading": "Kraunama..."
+    "title": "Viskas paruošta!",
+    "subtitle": "Mokėjimas patvirtintas. Pridėta {credits, number} kreditų. Jūsų Paskyros raktas ir kvitas keliauja į el. paštą, kurį nurodėte mokėdami.",
+    "subtitleGeneric": "Mokėjimas patvirtintas. Jūsų Paskyros raktas ir kvitas keliauja į el. paštą, kurį nurodėte mokėdami.",
+    "whatsNext": "Kas toliau",
+    "step1Title": "Patikrinkite gautuosius",
+    "step1Desc": "Paskyros raktas atkeliaus per minutę (patikrinkite ir šlamštą).",
+    "step2Title": "Aktyvinkite programėlėje transkripcijai",
+    "step2Desc": "Settings → License → įklijuokite raktą → Activate. Čia naudojate kreditus.",
+    "step3Title": "Kreditus valdykite čia bet kada",
+    "step3Desc": "Prisijunkite žiniatinklyje, kad pamatytumėte likutį, papildytumėte ar peržiūrėtumėte sąskaitas.",
+    "manageButton": "Prisijunkite valdyti kreditų",
+    "loading": "Įkeliama..."
   },
   "footer": {
     "tagline": "Rašykite 5x greičiau su AI balso transkripcija, skirta macOS ir Windows.",

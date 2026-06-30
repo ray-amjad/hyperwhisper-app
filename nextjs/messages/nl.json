@@ -250,31 +250,17 @@
     "copied": "Gekopieerd!"
   },
   "purchaseSuccess": {
-    "title": "Aankoop geslaagd!",
-    "subtitle": "Welkom bij HyperWhisper Pro! Je accountsleutel staat klaar.",
-    "checkEmail": {
-      "title": "Controleer je e-mail",
-      "description": "We hebben je accountsleutel en downloadinstructies naar je e-mailadres gestuurd. Die zouden binnen enkele minuten moeten arriveren."
-    },
-    "whatsNext": {
-      "title": "Wat nu?",
-      "step1": {
-        "title": "Controleer je inbox",
-        "description": "Zoek naar een e-mail van HyperWhisper"
-      },
-      "step2": {
-        "title": "Kopieer je accountsleutel",
-        "description": "Deze heb je nodig om de app te activeren"
-      },
-      "step3": {
-        "title": "Download HyperWhisper",
-        "description": "Installeer de app en voer je accountsleutel in"
-      }
-    },
-    "downloadButton": "Download HyperWhisper",
-    "returnHome": "Terug naar homepage",
-    "noEmail": "Geen e-mail ontvangen? Controleer je spammap of",
-    "contactSupport": "neem contact op met support",
+    "title": "Helemaal klaar!",
+    "subtitle": "Betaling bevestigd. {credits, number} credits toegevoegd. Je Accountsleutel en bon zijn onderweg naar het e-mailadres dat je bij het betalen gebruikte.",
+    "subtitleGeneric": "Betaling bevestigd. Je Accountsleutel en bon zijn onderweg naar het e-mailadres dat je bij het betalen gebruikte.",
+    "whatsNext": "Hoe nu verder",
+    "step1Title": "Controleer je inbox",
+    "step1Desc": "Je Accountsleutel komt binnen een minuut aan (controleer ook je spam).",
+    "step2Title": "Activeer in de app om te transcriberen",
+    "step2Desc": "Settings → License → plak je sleutel → Activate. Hier gebruik je je credits.",
+    "step3Title": "Beheer credits hier wanneer je wilt",
+    "step3Desc": "Log in op het web om je saldo te bekijken, bij te vullen of de facturering te zien.",
+    "manageButton": "Log in om mijn credits te beheren",
     "loading": "Laden..."
   },
   "footer": {

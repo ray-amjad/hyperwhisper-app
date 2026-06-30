@@ -250,32 +250,18 @@
     "copied": "Afritað!"
   },
   "purchaseSuccess": {
-    "title": "Kaup tókst!",
-    "subtitle": "Velkomin(n) í HyperWhisper Pro! Aðgangslykillinn þinn er tilbúinn.",
-    "checkEmail": {
-      "title": "Athugaðu tölvupóstinn þinn",
-      "description": "Við höfum sent aðgangslykilinn þinn og niðurhalsleiðbeiningar á netfangið þitt. Þetta ætti að berast á næstu mínútum."
-    },
-    "whatsNext": {
-      "title": "Hvað næst?",
-      "step1": {
-        "title": "Athugaðu pósthólfið",
-        "description": "Leitaðu að tölvupósti frá HyperWhisper"
-      },
-      "step2": {
-        "title": "Afritaðu aðgangslykilinn",
-        "description": "Þú þarft hann til að virkja appið"
-      },
-      "step3": {
-        "title": "Sæktu HyperWhisper",
-        "description": "Settu upp appið og sláðu inn aðgangslykilinn"
-      }
-    },
-    "downloadButton": "Sækja HyperWhisper",
-    "returnHome": "Til baka á forsíðu",
-    "noEmail": "Fékkstu ekki tölvupóst? Athugaðu ruslpóstmöppuna eða",
-    "contactSupport": "hafðu samband við aðstoð",
-    "loading": "Hleð inn..."
+    "title": "Allt klárt!",
+    "subtitle": "Greiðsla staðfest. {credits, number} inneignir bættust við. Aðgangslykillinn þinn og kvittunin eru á leið í netfangið sem þú notaðir við greiðslu.",
+    "subtitleGeneric": "Greiðsla staðfest. Aðgangslykillinn þinn og kvittunin eru á leið í netfangið sem þú notaðir við greiðslu.",
+    "whatsNext": "Næstu skref",
+    "step1Title": "Athugaðu pósthólfið þitt",
+    "step1Desc": "Aðgangslykillinn berst innan mínútu (athugaðu líka ruslpóst).",
+    "step2Title": "Virkjaðu í forritinu til að umrita",
+    "step2Desc": "Settings → License → límdu lykilinn → Activate. Hér notarðu inneignirnar þínar.",
+    "step3Title": "Stjórnaðu inneignum héðan hvenær sem er",
+    "step3Desc": "Skráðu þig inn á vefnum til að sjá stöðuna, bæta við inneign eða skoða reikninga.",
+    "manageButton": "Skrá inn til að stjórna inneignum",
+    "loading": "Hleð..."
   },
   "footer": {
     "tagline": "Skrifaðu 5x hraðar með AI tal-í-texta umritun fyrir macOS og Windows.",

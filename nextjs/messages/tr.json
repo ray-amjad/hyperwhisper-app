@@ -250,31 +250,17 @@
     "copied": "Kopyalandı!"
   },
   "purchaseSuccess": {
-    "title": "Satın Alma Başarılı!",
-    "subtitle": "HyperWhisper Pro'ya hoş geldiniz! Hesap Anahtarınız hazır.",
-    "checkEmail": {
-      "title": "E-postanızı kontrol edin",
-      "description": "Hesap Anahtarınızı ve indirme talimatlarını e-posta adresinize gönderdik. Birkaç dakika içinde ulaşmalıdır."
-    },
-    "whatsNext": {
-      "title": "Sırada ne var?",
-      "step1": {
-        "title": "Gelen kutunuzu kontrol edin",
-        "description": "HyperWhisper'dan gelen e-postayı bulun"
-      },
-      "step2": {
-        "title": "Hesap Anahtarınızı kopyalayın",
-        "description": "Uygulamayı etkinleştirmek için buna ihtiyacınız olacak"
-      },
-      "step3": {
-        "title": "HyperWhisper'ı indirin",
-        "description": "Uygulamayı yükleyin ve Hesap Anahtarınızı girin"
-      }
-    },
-    "downloadButton": "HyperWhisper'ı İndir",
-    "returnHome": "Ana Sayfaya Dön",
-    "noEmail": "E-postanız gelmedi mi? Spam klasörünü kontrol edin veya",
-    "contactSupport": "destekle iletişime geçin",
+    "title": "Her şey hazır!",
+    "subtitle": "Ödeme onaylandı. {credits, number} kredi eklendi. Hesap Anahtarınız ve makbuzunuz, ödeme sırasında kullandığınız e-postaya gönderiliyor.",
+    "subtitleGeneric": "Ödeme onaylandı. Hesap Anahtarınız ve makbuzunuz, ödeme sırasında kullandığınız e-postaya gönderiliyor.",
+    "whatsNext": "Sırada ne var",
+    "step1Title": "Gelen kutunuzu kontrol edin",
+    "step1Desc": "Hesap Anahtarınız bir dakika içinde gelir (spam klasörünü de kontrol edin).",
+    "step2Title": "Yazıya dökmek için uygulamada etkinleştirin",
+    "step2Desc": "Settings → License → anahtarınızı yapıştırın → Activate. Kredilerinizi burada kullanırsınız.",
+    "step3Title": "Kredileri buradan istediğiniz zaman yönetin",
+    "step3Desc": "Bakiyenizi görmek, kredi eklemek veya faturalandırmayı görüntülemek için web'de oturum açın.",
+    "manageButton": "Kredileri yönetmek için oturum aç",
     "loading": "Yükleniyor..."
   },
   "footer": {

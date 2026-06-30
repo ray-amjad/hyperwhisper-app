@@ -250,31 +250,17 @@
     "copied": "Copiato!"
   },
   "purchaseSuccess": {
-    "title": "Acquisto completato!",
-    "subtitle": "Benvenuto in HyperWhisper Pro! La tua chiave dell'account è pronta.",
-    "checkEmail": {
-      "title": "Controlla la tua email",
-      "description": "Ti abbiamo inviato la tua chiave dell'account e le istruzioni di download al tuo indirizzo email. Dovrebbe arrivare nei prossimi minuti."
-    },
-    "whatsNext": {
-      "title": "E adesso?",
-      "step1": {
-        "title": "Controlla la posta in arrivo",
-        "description": "Cerca un'email da HyperWhisper"
-      },
-      "step2": {
-        "title": "Copia la tua chiave dell'account",
-        "description": "Ti servirà per attivare l'app"
-      },
-      "step3": {
-        "title": "Scarica HyperWhisper",
-        "description": "Installa l'app e inserisci la tua chiave dell'account"
-      }
-    },
-    "downloadButton": "Scarica HyperWhisper",
-    "returnHome": "Torna alla homepage",
-    "noEmail": "Non hai ricevuto l'email? Controlla la cartella spam oppure",
-    "contactSupport": "contatta il supporto",
+    "title": "Tutto pronto!",
+    "subtitle": "Pagamento confermato. Aggiunti {credits, number} crediti. La tua Chiave dell'account e la ricevuta stanno arrivando all'email usata al pagamento.",
+    "subtitleGeneric": "Pagamento confermato. La tua Chiave dell'account e la ricevuta stanno arrivando all'email usata al pagamento.",
+    "whatsNext": "Cosa fare ora",
+    "step1Title": "Controlla la posta in arrivo",
+    "step1Desc": "La tua Chiave dell'account arriva entro un minuto (controlla anche lo spam).",
+    "step2Title": "Attivala nell'app per trascrivere",
+    "step2Desc": "Settings → License → incolla la chiave → Activate. È qui che usi i tuoi crediti.",
+    "step3Title": "Gestisci i crediti da qui quando vuoi",
+    "step3Desc": "Accedi sul web per vedere il saldo, ricaricare o consultare la fatturazione.",
+    "manageButton": "Accedi per gestire i miei crediti",
     "loading": "Caricamento..."
   },
   "footer": {

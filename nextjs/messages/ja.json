@@ -250,31 +250,17 @@
     "copied": "コピーしました！"
   },
   "purchaseSuccess": {
-    "title": "ご購入ありがとうございます！",
-    "subtitle": "HyperWhisper Proへようこそ！アカウントキーの準備が整いました。",
-    "checkEmail": {
-      "title": "メールをご確認ください",
-      "description": "アカウントキーとダウンロード手順をメールでお送りしました。数分以内に届きます。"
-    },
-    "whatsNext": {
-      "title": "次のステップ",
-      "step1": {
-        "title": "受信トレイをご確認ください",
-        "description": "HyperWhisperからのメールをお探しください"
-      },
-      "step2": {
-        "title": "アカウントキーをコピー",
-        "description": "アプリの認証に必要です"
-      },
-      "step3": {
-        "title": "HyperWhisperをダウンロード",
-        "description": "アプリをインストールして、アカウントキーを入力してください"
-      }
-    },
-    "downloadButton": "HyperWhisperをダウンロード",
-    "returnHome": "トップページに戻る",
-    "noEmail": "メールが届きませんか？迷惑メールフォルダをご確認いただくか、",
-    "contactSupport": "サポートへお問い合わせください",
+    "title": "準備完了です！",
+    "subtitle": "お支払いが確認されました。{credits, number} クレジットが追加されました。アカウントキーと領収書を、お支払い時のメールアドレスにお送りしています。",
+    "subtitleGeneric": "お支払いが確認されました。アカウントキーと領収書を、お支払い時のメールアドレスにお送りしています。",
+    "whatsNext": "次のステップ",
+    "step1Title": "受信トレイをご確認ください",
+    "step1Desc": "アカウントキーは1分以内に届きます（迷惑メールもご確認ください）。",
+    "step2Title": "文字起こしするにはアプリで有効化",
+    "step2Desc": "Settings → License → キーを貼り付け → Activate。ここでクレジットを使います。",
+    "step3Title": "クレジットはいつでもここで管理",
+    "step3Desc": "残高の確認、追加購入、請求の確認はウェブにサインインしてください。",
+    "manageButton": "サインインしてクレジットを管理",
     "loading": "読み込み中..."
   },
   "footer": {

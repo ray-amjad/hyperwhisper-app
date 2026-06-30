@@ -250,32 +250,18 @@
     "copied": "복사됨!"
   },
   "purchaseSuccess": {
-    "title": "구매가 완료되었습니다!",
-    "subtitle": "HyperWhisper Pro에 오신 것을 환영합니다! 계정 키가 준비되었습니다.",
-    "checkEmail": {
-      "title": "이메일을 확인하세요",
-      "description": "계정 키와 다운로드 안내를 이메일로 보냈습니다. 몇 분 내에 도착합니다."
-    },
-    "whatsNext": {
-      "title": "다음 단계",
-      "step1": {
-        "title": "받은편지함 확인",
-        "description": "HyperWhisper에서 보낸 이메일을 찾아보세요"
-      },
-      "step2": {
-        "title": "계정 키 복사",
-        "description": "앱 활성화에 필요합니다"
-      },
-      "step3": {
-        "title": "HyperWhisper 다운로드",
-        "description": "앱을 설치하고 계정 키를 입력하세요"
-      }
-    },
-    "downloadButton": "HyperWhisper 다운로드",
-    "returnHome": "홈페이지로 돌아가기",
-    "noEmail": "이메일을 받지 못하셨나요? 스팸함을 확인하거나",
-    "contactSupport": "지원팀에 문의하세요",
-    "loading": "로딩 중..."
+    "title": "모두 준비됐어요!",
+    "subtitle": "결제가 확인되었습니다. {credits, number} 크레딧이 추가되었습니다. 계정 키와 영수증을 결제 시 사용한 이메일로 보내 드리고 있습니다.",
+    "subtitleGeneric": "결제가 확인되었습니다. 계정 키와 영수증을 결제 시 사용한 이메일로 보내 드리고 있습니다.",
+    "whatsNext": "다음 단계",
+    "step1Title": "받은 편지함을 확인하세요",
+    "step1Desc": "계정 키는 1분 이내에 도착합니다 (스팸함도 확인하세요).",
+    "step2Title": "전사하려면 앱에서 활성화",
+    "step2Desc": "Settings → License → 키 붙여넣기 → Activate. 여기서 크레딧을 사용합니다.",
+    "step3Title": "크레딧은 언제든 여기서 관리",
+    "step3Desc": "잔액 확인, 충전, 청구 내역 보기는 웹에 로그인하세요.",
+    "manageButton": "로그인하여 크레딧 관리",
+    "loading": "불러오는 중..."
   },
   "footer": {
     "tagline": "macOS 및 Windows용 AI 음성 전사로 5배 더 빠르게 작성하세요.",

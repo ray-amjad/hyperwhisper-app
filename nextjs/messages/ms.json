@@ -250,31 +250,17 @@
     "copied": "Disalin!"
   },
   "purchaseSuccess": {
-    "title": "Pembelian Berjaya!",
-    "subtitle": "Selamat datang ke HyperWhisper Pro! Kunci akaun anda sudah sedia.",
-    "checkEmail": {
-      "title": "Semak Emel Anda",
-      "description": "Kami telah menghantar kunci akaun dan arahan muat turun ke alamat emel anda. Ia sepatutnya tiba dalam beberapa minit."
-    },
-    "whatsNext": {
-      "title": "Seterusnya?",
-      "step1": {
-        "title": "Semak peti masuk anda",
-        "description": "Cari emel daripada HyperWhisper"
-      },
-      "step2": {
-        "title": "Salin kunci akaun anda",
-        "description": "Anda memerlukannya untuk mengaktifkan aplikasi"
-      },
-      "step3": {
-        "title": "Muat turun HyperWhisper",
-        "description": "Pasang aplikasi dan masukkan kunci akaun anda"
-      }
-    },
-    "downloadButton": "Muat Turun HyperWhisper",
-    "returnHome": "Kembali ke Halaman Utama",
-    "noEmail": "Tidak menerima emel? Semak folder spam anda atau",
-    "contactSupport": "hubungi sokongan",
+    "title": "Semuanya sedia!",
+    "subtitle": "Pembayaran disahkan. {credits, number} kredit ditambah. Kunci Akaun dan resit anda sedang dihantar ke e-mel yang anda guna semasa membayar.",
+    "subtitleGeneric": "Pembayaran disahkan. Kunci Akaun dan resit anda sedang dihantar ke e-mel yang anda guna semasa membayar.",
+    "whatsNext": "Seterusnya",
+    "step1Title": "Semak peti masuk anda",
+    "step1Desc": "Kunci Akaun anda tiba dalam seminit (semak juga folder spam).",
+    "step2Title": "Aktifkan dalam apl untuk menyalin",
+    "step2Desc": "Settings → License → tampal kunci anda → Activate. Di sinilah anda guna kredit.",
+    "step3Title": "Urus kredit di sini bila-bila masa",
+    "step3Desc": "Log masuk di web untuk lihat baki, tambah kredit atau lihat pengebilan.",
+    "manageButton": "Log masuk untuk urus kredit saya",
     "loading": "Memuatkan..."
   },
   "footer": {

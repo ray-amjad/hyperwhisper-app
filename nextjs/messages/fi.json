@@ -250,31 +250,17 @@
     "copied": "Kopioitu!"
   },
   "purchaseSuccess": {
-    "title": "Osto onnistui!",
-    "subtitle": "Tervetuloa HyperWhisper Prohon! Tiliavaimesi on valmis.",
-    "checkEmail": {
-      "title": "Tarkista sähköpostisi",
-      "description": "Lähetimme tiliavaimesi ja latausohjeet sähköpostiosoitteeseesi. Viestin pitäisi saapua muutaman minuutin sisällä."
-    },
-    "whatsNext": {
-      "title": "Mitä seuraavaksi?",
-      "step1": {
-        "title": "Tarkista saapuneet",
-        "description": "Etsi HyperWhisperiltä tullut sähköposti"
-      },
-      "step2": {
-        "title": "Kopioi tiliavaimesi",
-        "description": "Tarvitset sen sovelluksen aktivointiin"
-      },
-      "step3": {
-        "title": "Lataa HyperWhisper",
-        "description": "Asenna sovellus ja syötä tiliavaimesi"
-      }
-    },
-    "downloadButton": "Lataa HyperWhisper",
-    "returnHome": "Palaa etusivulle",
-    "noEmail": "Etkö saanut sähköpostia? Tarkista roskapostikansio tai",
-    "contactSupport": "ota yhteyttä tukeen",
+    "title": "Valmista tuli!",
+    "subtitle": "Maksu vahvistettu. Lisätty {credits, number} krediittiä. Tiliavaimesi ja kuitti ovat matkalla sähköpostiin, jota käytit maksaessasi.",
+    "subtitleGeneric": "Maksu vahvistettu. Tiliavaimesi ja kuitti ovat matkalla sähköpostiin, jota käytit maksaessasi.",
+    "whatsNext": "Seuraavaksi",
+    "step1Title": "Tarkista sähköpostisi",
+    "step1Desc": "Tiliavaimesi saapuu minuutissa (tarkista myös roskaposti).",
+    "step2Title": "Aktivoi sovelluksessa litterointia varten",
+    "step2Desc": "Settings → License → liitä avaimesi → Activate. Täällä käytät krediittejäsi.",
+    "step3Title": "Hallitse krediittejä täältä milloin tahansa",
+    "step3Desc": "Kirjaudu verkossa nähdäksesi saldosi, lisätäksesi krediittejä tai tarkastellaksesi laskutusta.",
+    "manageButton": "Kirjaudu hallitaksesi krediittejä",
     "loading": "Ladataan..."
   },
   "footer": {

@@ -250,31 +250,17 @@
     "copied": "Kopiert!"
   },
   "purchaseSuccess": {
-    "title": "Kjøp fullført!",
-    "subtitle": "Velkommen til HyperWhisper Pro! Kontonøkkelen din er klar.",
-    "checkEmail": {
-      "title": "Sjekk e-posten din",
-      "description": "Vi har sendt kontonøkkelen din og nedlastingsinstruksjoner til e-postadressen din. Den bør komme i løpet av de neste minuttene."
-    },
-    "whatsNext": {
-      "title": "Hva skjer nå?",
-      "step1": {
-        "title": "Sjekk innboksen",
-        "description": "Se etter en e-post fra HyperWhisper"
-      },
-      "step2": {
-        "title": "Kopier kontonøkkelen",
-        "description": "Du trenger den for å aktivere appen"
-      },
-      "step3": {
-        "title": "Last ned HyperWhisper",
-        "description": "Installer appen og skriv inn kontonøkkelen"
-      }
-    },
-    "downloadButton": "Last ned HyperWhisper",
-    "returnHome": "Tilbake til forsiden",
-    "noEmail": "Fikk du ikke e-posten? Sjekk søppelpostmappen eller",
-    "contactSupport": "kontakt support",
+    "title": "Alt er klart!",
+    "subtitle": "Betaling bekreftet. {credits, number} kreditter lagt til. Kontonøkkelen og kvitteringen din er på vei til e-posten du brukte ved betaling.",
+    "subtitleGeneric": "Betaling bekreftet. Kontonøkkelen og kvitteringen din er på vei til e-posten du brukte ved betaling.",
+    "whatsNext": "Hva nå",
+    "step1Title": "Sjekk innboksen din",
+    "step1Desc": "Kontonøkkelen ankommer innen et minutt (sjekk også søppelpost).",
+    "step2Title": "Aktiver i appen for å transkribere",
+    "step2Desc": "Settings → License → lim inn nøkkelen → Activate. Det er her du bruker kredittene.",
+    "step3Title": "Administrer kreditter her når som helst",
+    "step3Desc": "Logg inn på nettet for å se saldo, fylle på eller se faktureringen.",
+    "manageButton": "Logg inn for å administrere kreditter",
     "loading": "Laster..."
   },
   "footer": {
