@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "切換語言"
-    }
+    },
+    "cloud": "雲端"
   },
   "hero": {
     "logoAlt": "HyperWhisper 標誌",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "什麼是 HyperWhisper Cloud？",
-        "answer": "HyperWhisper Cloud 是內建的雲端轉寫服務，面向不太技術化但想快速上手的使用者。\n\n它採按量計費。購買授權後會贈送 $5 轉寫額度，之後可再儲值。\n    \n我們提供三種準確度等級：中（最快，由 Groq 提供）、高（推薦，由 Deepgram 提供）、最高（最佳品質，由 xAI Grok STT 提供）。後處理會自動完成。我們只記錄你消耗的額度，不保存其他內容。\n\n你支付的價格與我們向這些供應商支付的成本完全一致，不加價。\n\n為了安心，你可以在 [這裡](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud 是內建的雲端轉寫服務，面向不太技術化但想快速上手的使用者。\n\n它採按量計費。購買帳戶金鑰後會贈送 $5 轉寫額度，之後可再儲值。\n    \n我們提供三種準確度等級：中（最快，由 Groq 提供）、高（推薦，由 Deepgram 提供）、最高（最佳品質，由 xAI Grok STT 提供）。後處理會自動完成。我們只記錄你消耗的額度，不保存其他內容。\n\n你支付的價格與我們向這些供應商支付的成本完全一致，不加價。\n\n為了安心，你可以在 [這裡](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "我的語音資料會被用於訓練 AI 模型嗎？",
@@ -187,8 +188,8 @@
         "answer": "我們相信簡單、公平的定價。一次支付 $39，即可永久使用 HyperWhisper。沒有月費，沒有意外開銷。免費版每天 5 分鐘轉寫，足以體驗關鍵功能。"
       },
       "deviceLimit": {
-        "question": "我的授權可以在多少台裝置上使用？",
-        "answer": "只要遵守我們 [服務條款](/legal/terms-of-service) 中的公平使用政策，你的授權可以在任意數量的裝置上使用。此政策旨在兼顧合法的個人與商業使用，同時防止濫用。"
+        "question": "我的帳戶金鑰可以在多少台裝置上使用？",
+        "answer": "只要遵守我們 [服務條款](/legal/terms-of-service) 中的公平使用政策，你的帳戶金鑰可以在任意數量的裝置上使用。此政策旨在兼顧合法的個人與商業使用，同時防止濫用。"
       },
       "requirements": {
         "question": "系統需求是什麼？",
@@ -208,7 +209,7 @@
     "title": "支援中心",
     "subtitle": "我們會幫助你更好地使用 HyperWhisper",
     "getInTouch": "聯絡我們",
-    "description": "無論是技術支援、授權問題，或任何關於 HyperWhisper 的疑問，我們都願意協助。",
+    "description": "無論是技術支援、帳戶金鑰問題，或任何關於 HyperWhisper 的疑問，我們都願意協助。",
     "emailUsAt": "請寄信至：",
     "openInClient": "在你的郵件用戶端中開啟：",
     "defaultClient": "預設郵件用戶端",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "購買成功！",
-    "subtitle": "歡迎加入 HyperWhisper Pro！你的終身授權已就緒。",
+    "subtitle": "歡迎加入 HyperWhisper Pro！你的帳戶金鑰已就緒。",
     "checkEmail": {
       "title": "請檢查你的信箱",
-      "description": "我們已將授權金鑰與下載說明寄到你的電子郵件地址。幾分鐘內應會收到。"
+      "description": "我們已將帳戶金鑰與下載說明寄到你的電子郵件地址。幾分鐘內應會收到。"
     },
     "whatsNext": {
       "title": "接下來做什麼？",
@@ -262,12 +263,12 @@
         "description": "尋找來自 HyperWhisper 的郵件"
       },
       "step2": {
-        "title": "複製授權金鑰",
+        "title": "複製帳戶金鑰",
         "description": "啟用應用程式時會用到"
       },
       "step3": {
         "title": "下載 HyperWhisper",
-        "description": "安裝應用程式並輸入授權金鑰"
+        "description": "安裝應用程式並輸入帳戶金鑰"
       }
     },
     "downloadButton": "下載 HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. 保留所有權利。",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "雲端",
+    "title": "兩種上雲方式",
+    "subtitle": "自備 API 金鑰並逐一設定每個供應商，或使用 HyperWhisper Cloud Credits 完全省去設定步驟。",
+    "byo": {
+      "title": "自備金鑰",
+      "subtitle": "免費，但所有工作都得自己來。",
+      "features": {
+        "signup": "分別向每個供應商註冊",
+        "rotate": "自行複製、貼上並輪換 API 金鑰",
+        "bill": "分別追蹤每個供應商的帳單",
+        "control": "完全掌控每個帳戶",
+        "free": "隨應用程式永遠免費"
+      },
+      "cta": "免費下載"
+    },
+    "credits": {
+      "badge": "最簡單",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "用多少付多少。零設定。",
+      "features": {
+        "noKeys": "永遠不需要 API 金鑰",
+        "oneBalance": "所有供應商共用一個餘額",
+        "models": "30+ 種模型，一張簡單帳單",
+        "payPerUse": "只為你轉錄的內容付費",
+        "noTraining": "自動退出模型訓練"
+      },
+      "cta": "以 $5 點數開始"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO、優先支援、自家託管與客製整合",
+      "cta": "聯絡銷售團隊"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "雲端",
+    "title": "Cloud Credits",
+    "subtitle": "一個餘額，涵蓋所有供應商。無需管理 API 金鑰。只為你轉錄的內容付費。",
+    "emailLabel": "你的電子郵件",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "付款後，我們會將你的帳戶金鑰與點數餘額寄到這裡。",
+    "amountLabel": "選擇金額",
+    "creditsCount": "{count, number} 點",
+    "custom": "自訂",
+    "customSub": "你的金額",
+    "customPlaceholder": "金額（美元，{min} 至 {max}）",
+    "summaryCredits": "點數",
+    "summaryFee": "處理費（6%，不可退款）",
+    "summaryTotal": "今日總計",
+    "errorEmail": "請輸入有效的電子郵件地址。",
+    "errorAmount": "請選擇 ${min} 至 ${max} 之間的整數美元金額。",
+    "errorCheckout": "無法開始結帳。請再試一次。",
+    "errorGeneric": "發生錯誤。請再試一次。",
+    "ctaIdle": "前往結帳",
+    "ctaLoading": "正在開始結帳",
+    "secure": "透過 Stripe 安全結帳。點數自購買日起一年內有效。",
+    "stripProviders": "9+ 家供應商，一個餘額",
+    "stripNoSub": "無訂閱",
+    "stripNoTraining": "已退出訓練",
+    "haveKey": "已經有金鑰？",
+    "signIn": "登入以儲值"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "剩餘約 {minutes} 分鐘",
+    "creditsCount": "{count, number} 點",
+    "minutes": "約 {minutes} 分鐘",
+    "custom": "自訂",
+    "customSub": "你的金額",
+    "topUp": "儲值"
   }
 }

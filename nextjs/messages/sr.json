@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Promeni jezik"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Šta je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je ugrađena cloud transkripcija namenjena manje tehničkim korisnicima koji žele brzo da počnu.\n\nRadi po modelu pay as you go. Kupovina licence daje vam $5 kredita za transkripciju. Kasnije možete dodati još kredita.\n    \nNudimo tri nivoa preciznosti: Medium (najbrže, pokreće Groq), High (preporučeno, pokreće Deepgram) i Highest (najbolji kvalitet, pokreće xAI Grok STT). Naknadna obrada je automatska. Ne čuvamo ništa osim koliko ste kredita potrošili.\n\nPlaćate tačno koliko i mi plaćamo tim provajderima. Ne naplaćujemo maržu.\n\nZa mirnu savest, možete pogledati izvorni kod HyperWhisper Clouda [ovde](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud je ugrađena cloud transkripcija namenjena manje tehničkim korisnicima koji žele brzo da počnu.\n\nRadi po modelu pay as you go. Kupovina ključa naloga daje vam $5 kredita za transkripciju. Kasnije možete dodati još kredita.\n    \nNudimo tri nivoa preciznosti: Medium (najbrže, pokreće Groq), High (preporučeno, pokreće Deepgram) i Highest (najbolji kvalitet, pokreće xAI Grok STT). Naknadna obrada je automatska. Ne čuvamo ništa osim koliko ste kredita potrošili.\n\nPlaćate tačno koliko i mi plaćamo tim provajderima. Ne naplaćujemo maržu.\n\nZa mirnu savest, možete pogledati izvorni kod HyperWhisper Clouda [ovde](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Да ли ће моји гласовни подаци бити коришћени за обуку АИ модела?",
@@ -187,8 +188,8 @@
         "answer": "Verujemo u jednostavne i fer cene. Platite jednom $39 i koristite HyperWhisper zauvek. Bez mesečnih naknada, bez iznenađenja. Besplatna verzija vam omogućava da isprobate ključne funkcije sa 3 minuta dnevne transkripcije."
       },
       "deviceLimit": {
-        "question": "Na koliko uređaja mogu da koristim svoju licencu?",
-        "answer": "Licencu možete koristiti na koliko god uređaja želite, u skladu sa našom Politikom fer korišćenja kako je navedeno u [Uslovima korišćenja](/legal/terms-of-service). Ova politika je osmišljena da bude fleksibilna za legitimnu ličnu i poslovnu upotrebu, uz sprečavanje zloupotreba."
+        "question": "Na koliko uređaja mogu da koristim svoj ključ naloga?",
+        "answer": "Ključ naloga možete koristiti na koliko god uređaja želite, u skladu sa našom Politikom fer korišćenja kako je navedeno u [Uslovima korišćenja](/legal/terms-of-service). Ova politika je osmišljena da bude fleksibilna za legitimnu ličnu i poslovnu upotrebu, uz sprečavanje zloupotreba."
       },
       "requirements": {
         "question": "Koji su sistemski zahtevi?",
@@ -208,7 +209,7 @@
     "title": "Centar za podršku",
     "subtitle": "Tu smo da vam pomognemo da izvučete maksimum iz HyperWhispera",
     "getInTouch": "Kontaktirajte nas",
-    "description": "Za tehničku podršku, probleme sa licencom ili bilo kakva pitanja o HyperWhisperu, naš tim je tu da pomogne.",
+    "description": "Za tehničku podršku, probleme sa ključem naloga ili bilo kakva pitanja o HyperWhisperu, naš tim je tu da pomogne.",
     "emailUsAt": "Pišite nam na:",
     "openInClient": "Otvori u svom email klijentu:",
     "defaultClient": "Podrazumevani Email Klijent",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Kupovina uspešna!",
-    "subtitle": "Dobrodošli u HyperWhisper Pro! Vaša doživotna licenca je spremna.",
+    "subtitle": "Dobrodošli u HyperWhisper Pro! Vaš ključ naloga je spreman.",
     "checkEmail": {
       "title": "Proverite svoj email",
-      "description": "Poslali smo vaš licencni ključ i uputstva za preuzimanje na vašu email adresu. Trebalo bi da stigne u narednih nekoliko minuta."
+      "description": "Poslali smo vaš ključ naloga i uputstva za preuzimanje na vašu email adresu. Trebalo bi da stigne u narednih nekoliko minuta."
     },
     "whatsNext": {
       "title": "Šta je sledeće?",
@@ -262,12 +263,12 @@
         "description": "Potražite email od HyperWhispera"
       },
       "step2": {
-        "title": "Kopirajte licencni ključ",
+        "title": "Kopirajte ključ naloga",
         "description": "Biće vam potreban za aktivaciju aplikacije"
       },
       "step3": {
         "title": "Preuzmite HyperWhisper",
-        "description": "Instalirajte aplikaciju i unesite licencni ključ"
+        "description": "Instalirajte aplikaciju i unesite ključ naloga"
       }
     },
     "downloadButton": "Preuzmi HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Sva prava zadržana.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Dva nacina za prelazak na cloud",
+    "subtitle": "Donesite sopstvene API kljuceve i sami podesite svakog provajdera ili u potpunosti preskocite podesavanje uz HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Donesite sopstvene kljuceve",
+      "subtitle": "Besplatno, ali sav posao radite sami.",
+      "features": {
+        "signup": "Registrujte se za svakog provajdera posebno",
+        "rotate": "Sami kopirate, nalepite i menjate API kljuceve",
+        "bill": "Pratite poseban racun za svakog provajdera",
+        "control": "Potpuna kontrola nad svakim nalogom",
+        "free": "Uvek besplatno uz aplikaciju"
+      },
+      "cta": "Preuzmite besplatno"
+    },
+    "credits": {
+      "badge": "Najlakse",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Placate po potrosnji. Bez podesavanja.",
+      "features": {
+        "noKeys": "Nikada nikakvih API kljuceva",
+        "oneBalance": "Svi provajderi na jednom stanju",
+        "models": "30+ modela, jedan jednostavan racun",
+        "payPerUse": "Placate samo ono sto transkribujete",
+        "noTraining": "Automatski iskljuceni iz treniranja modela"
+      },
+      "cta": "Pocnite sa $5 kredita"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioritetna podrska, hostovanje kod vas i prilagodjene integracije",
+      "cta": "Kontaktirajte prodaju"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Jedno stanje, svi provajderi. Bez upravljanja API kljucevima. Placate samo ono sto transkribujete.",
+    "emailLabel": "Vas imejl",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Nakon placanja vam ovde saljemo kljuc naloga i stanje kredita.",
+    "amountLabel": "Izaberite iznos",
+    "creditsCount": "{count, number} kredita",
+    "custom": "Prilagodjeno",
+    "customSub": "vas iznos",
+    "customPlaceholder": "Iznos u USD ({min} do {max})",
+    "summaryCredits": "Krediti",
+    "summaryFee": "Naknada za obradu (6%, nepovratno)",
+    "summaryTotal": "Ukupno danas",
+    "errorEmail": "Unesite vazecu imejl adresu.",
+    "errorAmount": "Izaberite ceo iznos u dolarima izmedju ${min} i ${max}.",
+    "errorCheckout": "Pokretanje placanja nije uspelo. Pokusajte ponovo.",
+    "errorGeneric": "Nesto je poslo naopako. Pokusajte ponovo.",
+    "ctaIdle": "Nastavite na placanje",
+    "ctaLoading": "Pokretanje placanja",
+    "secure": "Bezbedno placanje preko Stripe. Krediti vaze godinu dana od kupovine.",
+    "stripProviders": "9+ provajdera, jedno stanje",
+    "stripNoSub": "Bez pretplate",
+    "stripNoTraining": "Iskljuceni iz treniranja",
+    "haveKey": "Vec imate kljuc?",
+    "signIn": "Prijavite se za dopunu"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minuta preostalo",
+    "creditsCount": "{count, number} kredita",
+    "minutes": "~{minutes} min",
+    "custom": "Prilagodjeno",
+    "customSub": "vas iznos",
+    "topUp": "Dopuni"
   }
 }

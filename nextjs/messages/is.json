@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Skipta um tungumál"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper merki",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Hvað er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er innbyggð skýjaumritun ætluð notendum sem eru minna tæknivæddir og vilja byrja hratt.\n\nHún virkar með pay as you go. Með leyfiskaupum færðu $5 í umritunarinneign. Þú getur bætt við meiri inneign síðar.\n    \nVið bjóðum þrjú nákvæmnistig: Medium (hraðast, knúið af Groq), High (ráðlagt, knúið af Deepgram), og Highest (best gæði, knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk. Við geymum ekkert annað en hversu mikla inneign þú notaðir.\n\nÞú borgar nákvæmlega það sem við borgum þessum veitendum. Engin álagning.\n\nTil að vera alveg örugg(ur) geturðu skoðað frumkóða HyperWhisper Cloud [hér](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud er innbyggð skýjaumritun ætluð notendum sem eru minna tæknivæddir og vilja byrja hratt.\n\nHún virkar með pay as you go. Með kaupum á aðgangslykli færðu $5 í umritunarinneign. Þú getur bætt við meiri inneign síðar.\n    \nVið bjóðum þrjú nákvæmnistig: Medium (hraðast, knúið af Groq), High (ráðlagt, knúið af Deepgram), og Highest (best gæði, knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk. Við geymum ekkert annað en hversu mikla inneign þú notaðir.\n\nÞú borgar nákvæmlega það sem við borgum þessum veitendum. Engin álagning.\n\nTil að vera alveg örugg(ur) geturðu skoðað frumkóða HyperWhisper Cloud [hér](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Verða raddgögnin mín notuð til að þjálfa gervigreindarlíkön?",
@@ -187,8 +188,8 @@
         "answer": "Við trúum á einfalt og sanngjarnt verðlag. Borgaðu einu sinni $39 og notaðu HyperWhisper að eilífu. Engin mánaðargjöld, engin óvænt gjöld. Ókeypis útgáfan leyfir þér að prófa lykileiginleika með 3 mínútum af daglegri umritun."
       },
       "deviceLimit": {
-        "question": "Á hversu mörgum tækjum má ég nota leyfið mitt?",
-        "answer": "Þú getur notað leyfið á eins mörgum tækjum og þú vilt, með fyrirvara um sanngjarna notkun samkvæmt [þjónustuskilmálum](/legal/terms-of-service). Stefnan er hönnuð til að vera sveigjanleg fyrir lögmæta persónulega og viðskiptalega notkun en koma í veg fyrir misnotkun."
+        "question": "Á hversu mörgum tækjum má ég nota aðgangslykilinn minn?",
+        "answer": "Þú getur notað aðgangslykilinn á eins mörgum tækjum og þú vilt, með fyrirvara um sanngjarna notkun samkvæmt [þjónustuskilmálum](/legal/terms-of-service). Stefnan er hönnuð til að vera sveigjanleg fyrir lögmæta persónulega og viðskiptalega notkun en koma í veg fyrir misnotkun."
       },
       "requirements": {
         "question": "Hverjar eru kerfiskröfurnar?",
@@ -208,7 +209,7 @@
     "title": "Aðstoðarmiðstöð",
     "subtitle": "Við erum hér til að hjálpa þér að fá sem mest út úr HyperWhisper",
     "getInTouch": "Hafðu samband",
-    "description": "Fyrir tækniaðstoð, leyfisvandamál eða hvaða spurningar sem er um HyperWhisper er teymið okkar hér til að hjálpa.",
+    "description": "Fyrir tækniaðstoð, vandamál með aðgangslykil eða hvaða spurningar sem er um HyperWhisper er teymið okkar hér til að hjálpa.",
     "emailUsAt": "Sendu okkur póst á:",
     "openInClient": "Opna í póstforritinu þínu:",
     "defaultClient": "Sjálfgefið póstforrit",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Kaup tókst!",
-    "subtitle": "Velkomin(n) í HyperWhisper Pro! Ævilangt leyfi þitt er tilbúið.",
+    "subtitle": "Velkomin(n) í HyperWhisper Pro! Aðgangslykillinn þinn er tilbúinn.",
     "checkEmail": {
       "title": "Athugaðu tölvupóstinn þinn",
-      "description": "Við höfum sent leyfislykilinn þinn og niðurhalsleiðbeiningar á netfangið þitt. Þetta ætti að berast á næstu mínútum."
+      "description": "Við höfum sent aðgangslykilinn þinn og niðurhalsleiðbeiningar á netfangið þitt. Þetta ætti að berast á næstu mínútum."
     },
     "whatsNext": {
       "title": "Hvað næst?",
@@ -262,12 +263,12 @@
         "description": "Leitaðu að tölvupósti frá HyperWhisper"
       },
       "step2": {
-        "title": "Afritaðu leyfislykilinn",
+        "title": "Afritaðu aðgangslykilinn",
         "description": "Þú þarft hann til að virkja appið"
       },
       "step3": {
         "title": "Sæktu HyperWhisper",
-        "description": "Settu upp appið og sláðu inn leyfislykilinn"
+        "description": "Settu upp appið og sláðu inn aðgangslykilinn"
       }
     },
     "downloadButton": "Sækja HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Öll réttindi áskilin.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Tvær leiðir í skýið",
+    "subtitle": "Komdu með þína eigin API-lykla og tengdu hverja þjónustu sjálf(ur), eða slepptu allri uppsetningu með HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Komdu með þína eigin lykla",
+      "subtitle": "Ókeypis, en þú sérð um vinnuna.",
+      "features": {
+        "signup": "Skráðu þig hjá hverri þjónustu fyrir sig",
+        "rotate": "Afritaðu, límdu og skiptu um API-lykla sjálf(ur)",
+        "bill": "Fylgstu með aðskildum reikningi fyrir hverja þjónustu",
+        "control": "Full stjórn yfir hverjum reikningi",
+        "free": "Alltaf ókeypis með forritinu"
+      },
+      "cta": "Sækja ókeypis"
+    },
+    "credits": {
+      "badge": "Auðveldast",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Borgaðu eftir notkun. Engin uppsetning.",
+      "features": {
+        "noKeys": "Aldrei neinir API-lyklar",
+        "oneBalance": "Allar þjónustur á einni innstæðu",
+        "models": "30+ líkön, einn einfaldur reikningur",
+        "payPerUse": "Borgaðu aðeins fyrir það sem þú umritar",
+        "noTraining": "Sjálfkrafa undanþegið þjálfun líkana"
+      },
+      "cta": "Byrjaðu með $5 í inneign"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, forgangsstuðningur, hýsing innanhúss og sérsniðnar samþættingar",
+      "cta": "Hafðu samband við sölu"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Ein innstæða, allar þjónustur. Engir API-lyklar til að halda utan um. Borgaðu aðeins fyrir það sem þú umritar.",
+    "emailLabel": "Netfangið þitt",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Við sendum aðgangslykilinn þinn og inneignarstöðu hingað eftir greiðslu.",
+    "amountLabel": "Veldu upphæð",
+    "creditsCount": "{count, number} inneignir",
+    "custom": "Sérsniðið",
+    "customSub": "þín upphæð",
+    "customPlaceholder": "Upphæð í USD ({min} til {max})",
+    "summaryCredits": "Inneignir",
+    "summaryFee": "Vinnslugjald (6%, ekki endurgreiðanlegt)",
+    "summaryTotal": "Samtals í dag",
+    "errorEmail": "Sláðu inn gilt netfang.",
+    "errorAmount": "Veldu heila dollaraupphæð á milli ${min} og ${max}.",
+    "errorCheckout": "Ekki tókst að hefja greiðslu. Vinsamlegast reyndu aftur.",
+    "errorGeneric": "Eitthvað fór úrskeiðis. Vinsamlegast reyndu aftur.",
+    "ctaIdle": "Halda áfram að greiðslu",
+    "ctaLoading": "Hef greiðslu",
+    "secure": "Örugg greiðsla í gegnum Stripe. Inneign gildir í eitt ár frá kaupum.",
+    "stripProviders": "9+ þjónustur, ein innstæða",
+    "stripNoSub": "Engin áskrift",
+    "stripNoTraining": "Undanþegið þjálfun",
+    "haveKey": "Áttu þegar lykil?",
+    "signIn": "Skráðu þig inn til að bæta við inneign"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} mínútur eftir",
+    "creditsCount": "{count, number} inneignir",
+    "minutes": "~{minutes} mín",
+    "custom": "Sérsniðið",
+    "customSub": "þín upphæð",
+    "topUp": "Bæta við inneign"
   }
 }

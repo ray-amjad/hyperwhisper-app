@@ -13,9 +13,9 @@ import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
-  getLicensesByEmail,
-  getCreditBalancesForLicenses,
-  getPaidCreditGrantsForLicenses,
+  getAccountKeysByEmail,
+  getCreditBalancesForUsers,
+  getPaidCreditGrantsForUsers,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
 
@@ -37,20 +37,26 @@ export const customerRouter = createTRPCRouter({
       });
     }
 
-    const licenses = await getLicensesByEmail(userEmail);
+    const licenses = await getAccountKeysByEmail(userEmail);
 
     if (licenses.length === 0) {
       return {
         licenses: [],
         creditsPerMinute: CREDITS_PER_MINUTE,
+        totalCredits: 0,
+        totalMinutesRemaining: 0,
       };
     }
 
-    const licenseIds = licenses.map((l) => l.id);
-    const balanceMap = await getCreditBalancesForLicenses(licenseIds);
+    // Credits are pooled per account. Resolve balances by the licenses' distinct
+    // owning users; each license reports its account balance, and the account
+    // total is the sum of the DISTINCT user balances (summing per license would
+    // double-count a multi-key account's pooled balance).
+    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));
+    const balanceMap = await getCreditBalancesForUsers(userIds);
 
     const licensesWithCredits = licenses.map((license) => {
-      const credits = balanceMap.get(license.id) || 0;
+      const credits = balanceMap.get(license.userId) || 0;
       return {
         id: license.id,
         key: license.key,
@@ -63,9 +69,16 @@ export const customerRouter = createTRPCRouter({
       };
     });
 
+    const totalCredits = userIds.reduce(
+      (sum, uid) => sum + (balanceMap.get(uid) || 0),
+      0
+    );
+
     return {
       licenses: licensesWithCredits,
       creditsPerMinute: CREDITS_PER_MINUTE,
+      totalCredits,
+      totalMinutesRemaining: Math.floor(totalCredits / CREDITS_PER_MINUTE),
     };
   }),
 
@@ -82,7 +95,7 @@ export const customerRouter = createTRPCRouter({
       });
     }
 
-    const licenses = await getLicensesByEmail(userEmail);
+    const licenses = await getAccountKeysByEmail(userEmail);
 
     if (licenses.length === 0) {
       return {
@@ -92,12 +105,14 @@ export const customerRouter = createTRPCRouter({
       };
     }
 
-    const licenseIds = licenses.map((l) => l.id);
-    const balanceMap = await getCreditBalancesForLicenses(licenseIds);
+    // Credits are pooled per account: sum the DISTINCT user balances so a
+    // multi-key account's pooled balance isn't counted once per key.
+    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));
+    const balanceMap = await getCreditBalancesForUsers(userIds);
 
     let totalCredits = 0;
-    for (const balance of Array.from(balanceMap.values())) {
-      totalCredits += balance;
+    for (const uid of userIds) {
+      totalCredits += balanceMap.get(uid) || 0;
     }
 
     const minutesRemaining = Math.floor(totalCredits / CREDITS_PER_MINUTE);
@@ -126,13 +141,15 @@ export const customerRouter = createTRPCRouter({
       });
     }
 
-    const licenses = await getLicensesByEmail(userEmail);
+    const licenses = await getAccountKeysByEmail(userEmail);
     if (licenses.length === 0) {
       return { grants: [] };
     }
 
-    const grants = await getPaidCreditGrantsForLicenses(
-      licenses.map((l) => l.id)
+    // Credits are pooled per account, so history is keyed by the licenses'
+    // distinct owning users (de-duped) rather than per license.
+    const grants = await getPaidCreditGrantsForUsers(
+      Array.from(new Set(licenses.map((l) => l.userId)))
     );
 
     const now = Date.now();
@@ -159,7 +176,7 @@ export const customerRouter = createTRPCRouter({
   billingProviders: protectedProcedure.query(async ({ ctx }) => {
     const userEmail = ctx.user.email?.toLowerCase();
     if (!userEmail) return { hasStripe: false, hasPolar: false };
-    const licenses = await getLicensesByEmail(userEmail);
+    const licenses = await getAccountKeysByEmail(userEmail);
     return {
       hasStripe: licenses.some((l) => !!l.stripeCustomerId),
       hasPolar: licenses.some((l) => !!l.polarCustomerId),
@@ -180,7 +197,7 @@ export const customerRouter = createTRPCRouter({
     }
 
     // Find license with Stripe customer ID
-    const licenses = await getLicensesByEmail(userEmail);
+    const licenses = await getAccountKeysByEmail(userEmail);
     const licenseWithStripe = licenses.find((l) => l.stripeCustomerId);
 
     if (!licenseWithStripe?.stripeCustomerId) {

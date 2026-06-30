@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Mainīt valodu"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper logotips",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Kas ir HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ir iebūvēta cloud transkripcija, kas paredzēta mazāk tehniskiem lietotājiem, kuri vēlas ātri sākt.\n\nTas darbojas pēc pay as you go principa. Iegādājoties licenci, saņemat $5 transkripcijas kredītos. Vēlāk varat pievienot vairāk kredītu.\n    \nPiedāvājam trīs precizitātes līmeņus: Medium (ātrākais, ar Groq), High (ieteicams, ar Deepgram) un Highest (labākā kvalitāte, ar xAI Grok STT). Pēcapstrāde notiek automātiski. Mēs neglabājam neko citu kā tikai informāciju par izlietotajiem kredītiem.\n\nJūs maksājat tieši tik, cik maksājam mēs šiem pakalpojumu sniedzējiem. Mēs nepiemērojam uzcenojumu.\n\nSirdsmieram HyperWhisper Cloud pirmkodu varat apskatīt [šeit](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud ir iebūvēta cloud transkripcija, kas paredzēta mazāk tehniskiem lietotājiem, kuri vēlas ātri sākt.\n\nTas darbojas pēc pay as you go principa. Iegādājoties konta atslēgu, saņemat $5 transkripcijas kredītos. Vēlāk varat pievienot vairāk kredītu.\n    \nPiedāvājam trīs precizitātes līmeņus: Medium (ātrākais, ar Groq), High (ieteicams, ar Deepgram) un Highest (labākā kvalitāte, ar xAI Grok STT). Pēcapstrāde notiek automātiski. Mēs neglabājam neko citu kā tikai informāciju par izlietotajiem kredītiem.\n\nJūs maksājat tieši tik, cik maksājam mēs šiem pakalpojumu sniedzējiem. Mēs nepiemērojam uzcenojumu.\n\nSirdsmieram HyperWhisper Cloud pirmkodu varat apskatīt [šeit](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Vai mani balss dati tiks izmantoti MI modeļu apmācībai?",
@@ -187,8 +188,8 @@
         "answer": "Mēs ticam vienkāršai un godīgai cenu politikai. Samaksājiet vienreiz $39 un izmantojiet HyperWhisper uz visiem laikiem. Bez ikmēneša maksām, bez pārsteigumiem. Bezmaksas versija ļauj izmēģināt galvenās funkcijas ar 3 minūtēm transkripcijas dienā."
       },
       "deviceLimit": {
-        "question": "Cik ierīcēs varu izmantot savu licenci?",
-        "answer": "Jūs varat izmantot savu licenci tik ierīcēs, cik vēlaties, ievērojot mūsu Godīgas lietošanas politiku, kas aprakstīta [Pakalpojuma noteikumos](/legal/terms-of-service). Šī politika ir veidota elastīgi likumīgai personīgai un biznesa lietošanai, vienlaikus novēršot ļaunprātīgu izmantošanu."
+        "question": "Cik ierīcēs varu izmantot savu konta atslēgu?",
+        "answer": "Jūs varat izmantot savu konta atslēgu tik ierīcēs, cik vēlaties, ievērojot mūsu Godīgas lietošanas politiku, kas aprakstīta [Pakalpojuma noteikumos](/legal/terms-of-service). Šī politika ir veidota elastīgi likumīgai personīgai un biznesa lietošanai, vienlaikus novēršot ļaunprātīgu izmantošanu."
       },
       "requirements": {
         "question": "Kādas ir sistēmas prasības?",
@@ -208,7 +209,7 @@
     "title": "Atbalsta centrs",
     "subtitle": "Mēs esam šeit, lai palīdzētu jums izmantot HyperWhisper pilnā apjomā",
     "getInTouch": "Sazinieties ar mums",
-    "description": "Tehniskam atbalstam, licenču jautājumiem vai jebkuriem jautājumiem par HyperWhisper mūsu komanda ir gatava palīdzēt.",
+    "description": "Tehniskam atbalstam, konta atslēgas jautājumiem vai jebkuriem jautājumiem par HyperWhisper mūsu komanda ir gatava palīdzēt.",
     "emailUsAt": "Rakstiet mums uz:",
     "openInClient": "Atvērt savā e-pasta klientā:",
     "defaultClient": "Noklusējuma e-pasta klients",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Pirkums veiksmīgs!",
-    "subtitle": "Laipni lūdzam HyperWhisper Pro! Jūsu mūža licence ir gatava.",
+    "subtitle": "Laipni lūdzam HyperWhisper Pro! Jūsu konta atslēga ir gatava.",
     "checkEmail": {
       "title": "Pārbaudiet savu e-pastu",
-      "description": "Mēs nosūtījām jūsu licences atslēgu un lejupielādes instrukcijas uz jūsu e-pasta adresi. Tām vajadzētu pienākt dažu minūšu laikā."
+      "description": "Mēs nosūtījām jūsu konta atslēgu un lejupielādes instrukcijas uz jūsu e-pasta adresi. Tām vajadzētu pienākt dažu minūšu laikā."
     },
     "whatsNext": {
       "title": "Kas tālāk?",
@@ -262,12 +263,12 @@
         "description": "Meklējiet e-pastu no HyperWhisper"
       },
       "step2": {
-        "title": "Nokopējiet licences atslēgu",
+        "title": "Nokopējiet konta atslēgu",
         "description": "Tā būs vajadzīga, lai aktivizētu lietotni"
       },
       "step3": {
         "title": "Lejupielādējiet HyperWhisper",
-        "description": "Instalējiet lietotni un ievadiet licences atslēgu"
+        "description": "Instalējiet lietotni un ievadiet konta atslēgu"
       }
     },
     "downloadButton": "Lejupielādēt HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Visas tiesības aizsargātas.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Divi veidi, kā pāriet uz mākoni",
+    "subtitle": "Izmantojiet savas API atslēgas un pievienojiet katru pakalpojumu sniedzēju pats, vai pilnībā izlaidiet iestatīšanu ar HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Izmantojiet savas atslēgas",
+      "subtitle": "Bezmaksas, bet darbu darāt jūs.",
+      "features": {
+        "signup": "Reģistrējieties pie katra pakalpojumu sniedzēja atsevišķi",
+        "rotate": "Kopējiet, ielīmējiet un mainiet API atslēgas pats",
+        "bill": "Sekojiet atsevišķam rēķinam katram pakalpojumu sniedzējam",
+        "control": "Pilna kontrole pār katru kontu",
+        "free": "Vienmēr bezmaksas ar lietotni"
+      },
+      "cta": "Lejupielādēt bez maksas"
+    },
+    "credits": {
+      "badge": "Vienkāršākais",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Maksājiet pēc patēriņa. Bez iestatīšanas.",
+      "features": {
+        "noKeys": "Nekādu API atslēgu, nekad",
+        "oneBalance": "Visi pakalpojumu sniedzēji vienā bilancē",
+        "models": "30+ modeļi, viens vienkāršs rēķins",
+        "payPerUse": "Maksājiet tikai par to, ko transkribējat",
+        "noTraining": "Automātiski atteikts no modeļu apmācības"
+      },
+      "cta": "Sāciet ar $5 kredītos"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioritārs atbalsts, izvietošana uz vietas un pielāgotas integrācijas",
+      "cta": "Sazināties ar pārdošanu"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Viena bilance, visi pakalpojumu sniedzēji. Nav jāpārvalda API atslēgas. Maksājiet tikai par to, ko transkribējat.",
+    "emailLabel": "Jūsu e-pasts",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Pēc maksājuma šeit nosūtīsim jūsu konta atslēgu un kredītu bilanci.",
+    "amountLabel": "Izvēlieties summu",
+    "creditsCount": "{count, number} kredīti",
+    "custom": "Pielāgota",
+    "customSub": "jūsu summa",
+    "customPlaceholder": "Summa USD ({min} līdz {max})",
+    "summaryCredits": "Kredīti",
+    "summaryFee": "Apstrādes maksa (6%, neatmaksājama)",
+    "summaryTotal": "Kopā šodien",
+    "errorEmail": "Ievadiet derīgu e-pasta adresi.",
+    "errorAmount": "Izvēlieties veselu dolāru summu no ${min} līdz ${max}.",
+    "errorCheckout": "Neizdevās sākt apmaksu. Lūdzu, mēģiniet vēlreiz.",
+    "errorGeneric": "Kaut kas nogāja greizi. Lūdzu, mēģiniet vēlreiz.",
+    "ctaIdle": "Turpināt uz apmaksu",
+    "ctaLoading": "Sāk apmaksu",
+    "secure": "Droša apmaksa caur Stripe. Kredīti ir derīgi gadu no pirkuma.",
+    "stripProviders": "9+ pakalpojumu sniedzēji, viena bilance",
+    "stripNoSub": "Bez abonementa",
+    "stripNoTraining": "Atteikts no apmācības",
+    "haveKey": "Jau ir atslēga?",
+    "signIn": "Pierakstieties, lai papildinātu"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minūtes atlikušas",
+    "creditsCount": "{count, number} kredīti",
+    "minutes": "~{minutes} min",
+    "custom": "Pielāgota",
+    "customSub": "jūsu summa",
+    "topUp": "Papildināt"
   }
 }

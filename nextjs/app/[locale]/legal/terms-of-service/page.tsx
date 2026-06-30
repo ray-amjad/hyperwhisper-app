@@ -121,8 +121,8 @@ export default function TermsOfServicePage() {
       <ul>
         <li>
           <strong>Credits as balance</strong>: HyperWhisper Cloud is paid for
-          with credits, which are held against your license key. Buying credits
-          is the way to obtain a license key. Credits are priced at 1,000
+          with credits, which are held against your Account Key. Buying credits
+          is the way to obtain an Account Key. Credits are priced at 1,000
           credits per US$1.
         </li>
         <li>
@@ -206,7 +206,7 @@ export default function TermsOfServicePage() {
           malicious content.
         </li>
         <li>
-          Do not attempt to bypass technical protections or share license keys
+          Do not attempt to bypass technical protections or share Account Keys
           publicly.
         </li>
       </ul>

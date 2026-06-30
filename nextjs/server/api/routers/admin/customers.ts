@@ -10,17 +10,17 @@ import Stripe from "stripe";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
 import {
-  getAllLicensesWithCreditsForAdmin,
-  searchLicensesByEmail,
+  getAllAccountKeysWithCreditsForAdmin,
+  searchAccountKeysByEmail,
   getOrCreateUser,
-  insertLicenseKey,
-  findLicenseByKey,
-  findLicenseById,
+  insertAccountKey,
+  findAccountByKey,
+  findAccountById,
   getCreditBalance,
   grantCreditLot,
   refundCreditGrant,
-  updateLicenseKey,
-  getLicensesWithCreditsForUserIds,
+  updateAccountKey,
+  getAccountKeysWithCreditsForUserIds,
   getUserById,
   getUserByEmail,
   getUsersByIds,
@@ -51,15 +51,15 @@ export const customersRouter = createTRPCRouter({
       try {
         const search = input?.search?.trim();
         const matched = search
-          ? await searchLicensesByEmail(search)
-          : await getAllLicensesWithCreditsForAdmin(1000);
+          ? await searchAccountKeysByEmail(search)
+          : await getAllAccountKeysWithCreditsForAdmin(1000);
 
         // Expand search matches to each customer's full license set so counts
         // and credits are true totals. The no-search path already has every
         // license. Then pull canonical user.email for display.
         const userIds = Array.from(new Set(matched.map((l) => l.userId)));
         const licenses = search
-          ? await getLicensesWithCreditsForUserIds(userIds)
+          ? await getAccountKeysWithCreditsForUserIds(userIds)
           : matched;
         const userMap = await getUsersByIds(userIds);
 
@@ -102,7 +102,10 @@ export const customersRouter = createTRPCRouter({
             customerMap.set(l.userId, customer);
           }
           customer.licenseCount += 1;
-          customer.totalCredits += l.credits;
+          // Credits are pooled per account, so every one of this customer's
+          // licenses reports the SAME account balance. Set the total once rather
+          // than summing per license (which would multiply it by the key count).
+          customer.totalCredits = l.credits;
           // Show the customer's earliest license date as their "Created".
           if (created < customer.created) customer.created = created;
           customer.licenses.push({
@@ -199,7 +202,7 @@ export const customersRouter = createTRPCRouter({
       let key: string;
       for (let i = 0; i < 5; i++) {
         key = generateLicenseKey();
-        const existing = await findLicenseByKey(key);
+        const existing = await findAccountByKey(key);
         if (!existing) break;
         if (i === 4) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate unique license key" });
       }
@@ -211,7 +214,7 @@ export const customersRouter = createTRPCRouter({
       }
 
       // Insert the license key
-      const license = await insertLicenseKey({
+      const license = await insertAccountKey({
         key: key!,
         email,
         userId: user.id,
@@ -223,7 +226,7 @@ export const customersRouter = createTRPCRouter({
 
       // Grant initial credits
       await grantCreditLot({
-        licenseKeyId: license.id,
+        userId: license.userId,
         amount: 5000,
         sourceType: "admin_license_bundle",
         sourceId: license.id,
@@ -255,7 +258,7 @@ export const customersRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const { licenseKeyId, amount } = input;
 
-      const license = await findLicenseById(licenseKeyId);
+      const license = await findAccountById(licenseKeyId);
       if (!license) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -263,9 +266,11 @@ export const customersRouter = createTRPCRouter({
         });
       }
 
-      const currentBalance = await getCreditBalance(licenseKeyId);
+      // Credits are pooled per account: grant to and read the license's owning
+      // user, so the added credits land on the same wallet every key reads.
+      const currentBalance = await getCreditBalance(license.userId);
       const grantResult = await grantCreditLot({
-        licenseKeyId,
+        userId: license.userId,
         amount,
         sourceType: "admin_manual",
         sourceId: crypto.randomUUID(),
@@ -293,7 +298,7 @@ export const customersRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const { licenseKeyId, revokeLicense } = input;
 
-      const license = await findLicenseById(licenseKeyId);
+      const license = await findAccountById(licenseKeyId);
       if (!license) {
         throw new TRPCError({ code: "NOT_FOUND", message: "License key not found" });
       }
@@ -330,7 +335,7 @@ export const customersRouter = createTRPCRouter({
 
       // Optionally revoke the license
       if (revokeLicense) {
-        await updateLicenseKey(licenseKeyId, { status: "revoked" });
+        await updateAccountKey(licenseKeyId, { status: "revoked" });
       }
 
       return { success: true, revoked: revokeLicense };

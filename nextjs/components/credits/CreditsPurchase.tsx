@@ -5,7 +5,8 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { m } from "framer-motion";
-import { Cloud, Wallet, ShieldCheck, Layers, Check } from "lucide-react";
+import { Wallet, ShieldCheck, Layers, LogIn } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import {
   MIN_CREDIT_DOLLARS,
@@ -26,11 +27,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * amount, and we POST to /api/checkout/credits (mint path — no license key).
  * Stripe collects payment, the webhook mints a key and emails it to them.
  *
- * Copy is intentionally hardcoded English: the site has 41 locale files with no
- * missing-key fallback, so new i18n keys would render raw paths for every other
- * language. Translation is tracked as a follow-up.
+ * Copy lives under the `buyCredits` namespace in messages/*.json.
  */
-export default function CreditsPurchase() {
+export default function CreditsPurchase({ locale }: { locale: string }) {
+  const t = useTranslations("buyCredits");
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState<number>(PRESETS[0]);
   const [customAmount, setCustomAmount] = useState("");
@@ -71,12 +71,15 @@ export default function CreditsPurchase() {
     setError(null);
 
     if (!emailValid) {
-      setError("Enter a valid email address.");
+      setError(t("errorEmail"));
       return;
     }
     if (!amountValid) {
       setError(
-        `Choose a whole-dollar amount between $${MIN_CREDIT_DOLLARS} and $${MAX_CREDIT_DOLLARS}.`
+        t("errorAmount", {
+          min: MIN_CREDIT_DOLLARS,
+          max: MAX_CREDIT_DOLLARS,
+        })
       );
       return;
     }
@@ -95,16 +98,16 @@ export default function CreditsPurchase() {
         return;
       }
 
-      setError(data.error || "Could not start checkout. Please try again.");
+      setError(data.error || t("errorCheckout"));
       setLoading(false);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("errorGeneric"));
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className="max-w-2xl mx-auto">
       <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -112,28 +115,25 @@ export default function CreditsPurchase() {
       >
         <div className="text-center mb-10">
           <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
-            Cloud
+            {t("eyebrow")}
           </span>
           <h1 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Add Cloud Credits
+            {t("title")}
           </h1>
-          <p className="text-lg text-gray-400">
-            One balance, every provider. No API keys to manage. Pay only for what
-            you transcribe.
-          </p>
+          <p className="text-lg text-gray-400">{t("subtitle")}</p>
         </div>
 
         <Card className="bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
           <CardBody className="p-6 md:p-8">
             {/* Email */}
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Your email
+              {t("emailLabel")}
             </label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t("emailPlaceholder")}
               variant="bordered"
               size="lg"
               classNames={{
@@ -142,14 +142,12 @@ export default function CreditsPurchase() {
                 input: "text-white",
               }}
             />
-            <p className="text-xs text-gray-500 mt-2">
-              We email your license key and credit balance here after payment.
-            </p>
+            <p className="text-xs text-gray-500 mt-2">{t("emailHelp")}</p>
 
             {/* Amount */}
             <div className="mt-7">
               <span className="block text-sm font-medium text-gray-300 mb-3">
-                Choose an amount
+                {t("amountLabel")}
               </span>
               <div className="grid grid-cols-3 gap-3">
                 {PRESETS.map((value) => {
@@ -169,7 +167,9 @@ export default function CreditsPurchase() {
                         ${value}
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
-                        {(value * CREDITS_PER_DOLLAR).toLocaleString()} credits
+                        {t("creditsCount", {
+                          count: value * CREDITS_PER_DOLLAR,
+                        })}
                       </div>
                     </button>
                   );
@@ -183,8 +183,12 @@ export default function CreditsPurchase() {
                       : "bg-gray-900/50 border-gray-800 hover:border-gray-700"
                   }`}
                 >
-                  <div className="text-2xl font-bold text-white">Custom</div>
-                  <div className="text-xs text-gray-400 mt-1">your amount</div>
+                  <div className="text-2xl font-bold text-white">
+                    {t("custom")}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {t("customSub")}
+                  </div>
                 </button>
               </div>
 
@@ -197,7 +201,10 @@ export default function CreditsPurchase() {
                       setCustomAmount(e.target.value);
                       setError(null);
                     }}
-                    placeholder={`Amount in USD (${MIN_CREDIT_DOLLARS} to ${MAX_CREDIT_DOLLARS})`}
+                    placeholder={t("customPlaceholder", {
+                      min: MIN_CREDIT_DOLLARS,
+                      max: MAX_CREDIT_DOLLARS,
+                    })}
                     variant="bordered"
                     size="lg"
                     min={MIN_CREDIT_DOLLARS}
@@ -217,17 +224,17 @@ export default function CreditsPurchase() {
             {/* Summary */}
             <div className="mt-7 rounded-2xl border border-gray-800 bg-black/30 p-4 text-sm">
               <div className="flex justify-between text-gray-400 mb-2">
-                <span>Credits</span>
+                <span>{t("summaryCredits")}</span>
                 <span className="text-gray-200">
                   {credits.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between text-gray-400 mb-2">
-                <span>Processing fee (6%, non-refundable)</span>
+                <span>{t("summaryFee")}</span>
                 <span className="text-gray-200">${feeUsd.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-semibold text-white border-t border-gray-800 pt-2 mt-2">
-                <span>Total today</span>
+                <span>{t("summaryTotal")}</span>
                 <span>${totalUsd.toFixed(2)}</span>
               </div>
             </div>
@@ -245,12 +252,11 @@ export default function CreditsPurchase() {
               isDisabled={loading || !emailValid || !amountValid}
               onPress={handleCheckout}
             >
-              {loading ? "Starting checkout" : "Continue to checkout"}
+              {loading ? t("ctaLoading") : t("ctaIdle")}
             </Button>
 
             <p className="text-xs text-gray-500 text-center mt-3">
-              Secure checkout via Stripe. Credits never expire for a year from
-              purchase.
+              {t("secure")}
             </p>
           </CardBody>
         </Card>
@@ -258,23 +264,34 @@ export default function CreditsPurchase() {
         {/* Reassurance strip */}
         <div className="grid sm:grid-cols-3 gap-3 mt-6 text-sm">
           <div className="flex items-center gap-2 text-gray-400">
-            <Layers className="w-4 h-4 text-purple-300 shrink-0" />9+ providers,
-            one balance
+            <Layers className="w-4 h-4 text-purple-300 shrink-0" />
+            {t("stripProviders")}
           </div>
           <div className="flex items-center gap-2 text-gray-400">
             <Wallet className="w-4 h-4 text-purple-300 shrink-0" />
-            No subscription
+            {t("stripNoSub")}
           </div>
           <div className="flex items-center gap-2 text-gray-400">
             <ShieldCheck className="w-4 h-4 text-purple-300 shrink-0" />
-            Opted out of training
+            {t("stripNoTraining")}
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 text-xs text-gray-600 mt-8">
-          <Cloud className="w-3.5 h-3.5" />
-          <Check className="w-3.5 h-3.5 text-green-600" />
-          Already have a key? Top up from your dashboard after signing in.
+        {/* Existing customers: a prominent sign-in CTA so they top up their
+            current wallet instead of buying a second license by mistake. */}
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <p className="text-sm text-gray-400">{t("haveKey")}</p>
+          <Button
+            variant="bordered"
+            size="lg"
+            startContent={<LogIn className="w-4 h-4" />}
+            className="border-gray-700 text-gray-200 data-[hover=true]:border-gray-500"
+            onPress={() => {
+              window.location.href = `/${locale}/user/sign-in`;
+            }}
+          >
+            {t("signIn")}
+          </Button>
         </div>
       </m.div>
     </div>

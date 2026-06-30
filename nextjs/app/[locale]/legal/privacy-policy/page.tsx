@@ -61,7 +61,7 @@ export default function PrivacyPolicyPage() {
         <li>
           <strong>License information</strong>: The app contacts our licensing
           service to activate and validate your license. During this process, we
-          receive your license key, a SHA-256 hash of your device&apos;s
+          receive your Account Key, a SHA-256 hash of your device&apos;s
           hardware identifier (we never receive the raw identifier), and your
           device&apos;s hostname. This information is used to enforce our fair
           usage policy. No audio or transcripts are transmitted.
@@ -373,7 +373,7 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <strong>Licensing</strong>: License activation/validation may send
-          your license key and minimal device information to our licensing
+          your Account Key and minimal device information to our licensing
           service to prevent abuse. No audio or transcripts are transmitted.
         </li>
       </ul>

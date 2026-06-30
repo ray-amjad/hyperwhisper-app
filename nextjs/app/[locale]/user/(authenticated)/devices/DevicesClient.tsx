@@ -44,7 +44,7 @@ export default function DevicesClient() {
             Device Activations
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Unique devices per license key (active in last {days} days)
+            Unique devices per Account Key (active in last {days} days)
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function DevicesClient() {
                   Email
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  License Key
+                  Account Key
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Devices
@@ -161,7 +161,7 @@ export default function DevicesClient() {
       {/* Row Count */}
       {!loading && devices.length > 0 && (
         <p className="text-gray-400 text-sm">
-          Showing {devices.length} license
+          Showing {devices.length} Account Key
           {devices.length !== 1 ? "s" : ""} with active devices
         </p>
       )}

@@ -149,7 +149,7 @@ export default function UserSignInPage() {
                   : "text-gray-400 hover:text-gray-300"
               }`}
             >
-              License Key
+              Account Key
             </button>
             <button
               type="button"
@@ -175,7 +175,7 @@ export default function UserSignInPage() {
 
               <div>
                 <label htmlFor="license-key" className="block text-sm font-medium text-gray-300 mb-2">
-                  License Key
+                  Account Key
                 </label>
                 <input
                   id="license-key"
@@ -189,7 +189,7 @@ export default function UserSignInPage() {
                   spellCheck={false}
                 />
                 <p className="text-gray-500 text-xs mt-2">
-                  Enter the license key from your purchase confirmation
+                  Enter the Account Key from your purchase confirmation
                 </p>
               </div>
 

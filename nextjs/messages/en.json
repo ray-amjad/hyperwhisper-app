@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Switch language"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper Logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "What is HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud is a built-in cloud transcription aimed at less technical users who want to get started quickly.\n\nIt's pay as you go. Buying a license gives you $5 in transcription credits. You can add more credits later.\n    \nWe offer four accuracy levels: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), and Highest (Grok SST, default for new installs and powered by xAI Grok STT). Post-processing is automatic and defaults to Grok 4.1 Fast non-reasoning. We store nothing besides how many credits you consumed, and we've opted you out of model training on every upstream provider we use. See our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy) for details.\n\nYou pay exactly what we pay to these providers. We charge no markup.\n\nFor peace of mind, you can view the source code for HyperWhisper Cloud [here](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud is a built-in cloud transcription aimed at less technical users who want to get started quickly.\n\nIt's pay as you go. Buying an Account Key gives you $5 in transcription credits. You can add more credits later.\n    \nWe offer four accuracy levels: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), and Highest (Grok SST, default for new installs and powered by xAI Grok STT). Post-processing is automatic and defaults to Grok 4.1 Fast non-reasoning. We store nothing besides how many credits you consumed, and we've opted you out of model training on every upstream provider we use. See our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy) for details.\n\nYou pay exactly what we pay to these providers. We charge no markup.\n\nFor peace of mind, you can view the source code for HyperWhisper Cloud [here](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Will my voice data be used to train AI models?",
@@ -187,8 +188,8 @@
         "answer": "We believe in simple, fair pricing. Pay once for $39 and use HyperWhisper forever. No monthly fees, no surprises. The free version lets you try key features with 5 minutes of daily transcription."
       },
       "deviceLimit": {
-        "question": "How many devices can I use my license on?",
-        "answer": "You can use your license on as many devices as you like, subject to our Fair Usage Policy as outlined in our [Terms of Service](/legal/terms-of-service). This policy is designed to be flexible for legitimate personal and business use while preventing abuse."
+        "question": "How many devices can I use my Account Key on?",
+        "answer": "You can use your Account Key on as many devices as you like, subject to our Fair Usage Policy as outlined in our [Terms of Service](/legal/terms-of-service). This policy is designed to be flexible for legitimate personal and business use while preventing abuse."
       },
       "requirements": {
         "question": "What are the system requirements?",
@@ -208,7 +209,7 @@
     "title": "Support Center",
     "subtitle": "We're here to help you get the most out of HyperWhisper",
     "getInTouch": "Get in Touch",
-    "description": "For technical support, license issues, or any questions about HyperWhisper, our team is here to help.",
+    "description": "For technical support, Account Key issues, or any questions about HyperWhisper, our team is here to help.",
     "emailUsAt": "Email us at:",
     "openInClient": "Open in your email client:",
     "defaultClient": "Default Email Client",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Purchase Successful!",
-    "subtitle": "Welcome to HyperWhisper Pro! Your lifetime license is ready.",
+    "subtitle": "Welcome to HyperWhisper Pro! Your Account Key is ready.",
     "checkEmail": {
       "title": "Check Your Email",
-      "description": "We've sent your license key and download instructions to your email address. It should arrive within the next few minutes."
+      "description": "We've sent your Account Key and download instructions to your email address. It should arrive within the next few minutes."
     },
     "whatsNext": {
       "title": "What's Next?",
@@ -262,12 +263,12 @@
         "description": "Look for an email from HyperWhisper"
       },
       "step2": {
-        "title": "Copy your license key",
+        "title": "Copy your Account Key",
         "description": "You'll need this to activate the app"
       },
       "step3": {
         "title": "Download HyperWhisper",
-        "description": "Install the app and enter your license key"
+        "description": "Install the app and enter your Account Key"
       }
     },
     "downloadButton": "Download HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Two ways to go cloud",
+    "subtitle": "Bring your own API keys and wire up each provider yourself, or skip the setup entirely with HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Bring your own keys",
+      "subtitle": "Free, but you do the legwork.",
+      "features": {
+        "signup": "Sign up for each provider separately",
+        "rotate": "Copy, paste and rotate API keys yourself",
+        "bill": "Track a separate bill per provider",
+        "control": "Full control over each account",
+        "free": "Always free with the app"
+      },
+      "cta": "Download free"
+    },
+    "credits": {
+      "badge": "Easiest",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Pay-as-you-go. Zero setup.",
+      "features": {
+        "noKeys": "No API keys, ever",
+        "oneBalance": "Every provider on one balance",
+        "models": "30+ models, one simple invoice",
+        "payPerUse": "Pay only for what you transcribe",
+        "noTraining": "Opted out of model training automatically"
+      },
+      "cta": "Start with $5 in credits"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, priority support, in-house hosting, and custom integrations",
+      "cta": "Contact Sales"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "One balance, every provider. No API keys to manage. Pay only for what you transcribe.",
+    "emailLabel": "Your email",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "We email your Account Key and credit balance here after payment.",
+    "amountLabel": "Choose an amount",
+    "creditsCount": "{count, number} credits",
+    "custom": "Custom",
+    "customSub": "your amount",
+    "customPlaceholder": "Amount in USD ({min} to {max})",
+    "summaryCredits": "Credits",
+    "summaryFee": "Processing fee (6%, non-refundable)",
+    "summaryTotal": "Total today",
+    "errorEmail": "Enter a valid email address.",
+    "errorAmount": "Choose a whole-dollar amount between ${min} and ${max}.",
+    "errorCheckout": "Could not start checkout. Please try again.",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "ctaIdle": "Continue to checkout",
+    "ctaLoading": "Starting checkout",
+    "secure": "Secure checkout via Stripe. Credits are valid for a year from purchase.",
+    "stripProviders": "9+ providers, one balance",
+    "stripNoSub": "No subscription",
+    "stripNoTraining": "Opted out of training",
+    "haveKey": "Already have a key?",
+    "signIn": "Sign in to top up"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minutes remaining",
+    "creditsCount": "{count, number} credits",
+    "minutes": "~{minutes} min",
+    "custom": "Custom",
+    "customSub": "your amount",
+    "topUp": "Top up"
   }
 }

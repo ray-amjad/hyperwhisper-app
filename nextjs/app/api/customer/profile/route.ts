@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/src/lib/auth";
 import {
-  getLicensesByEmail,
-  getCreditBalancesForLicenses,
+  getAccountKeysByEmail,
+  getCreditBalancesForUsers,
 } from "@/src/lib/db-layer";
 
 /**
@@ -33,11 +33,12 @@ export async function GET(req: NextRequest) {
     const userEmail = user.email?.toLowerCase() ?? "";
 
     // Fetch user's license keys from database
-    const licenses = await getLicensesByEmail(userEmail);
+    const licenses = await getAccountKeysByEmail(userEmail);
 
-    // Fetch credit balances for all licenses
-    const licenseIds = licenses.map((l) => l.id);
-    const creditMap = await getCreditBalancesForLicenses(licenseIds);
+    // Credits are pooled per account. Resolve balances by the licenses' distinct
+    // owning users; each license then reports its account balance.
+    const userIds = Array.from(new Set(licenses.map((l) => l.userId)));
+    const creditMap = await getCreditBalancesForUsers(userIds);
 
     // Add credits to each license object
     const licensesWithCredits = licenses.map((license) => ({
@@ -47,12 +48,15 @@ export async function GET(req: NextRequest) {
       created_at: license.createdAt.toISOString(),
       stripe_customer_id: license.stripeCustomerId,
       polar_customer_id: license.polarCustomerId,
-      credits: creditMap.get(license.id) || 0,
+      credits: creditMap.get(license.userId) || 0,
     }));
 
-    // Calculate total credits across all licenses
-    const totalCredits =
-      licensesWithCredits.reduce((sum, license) => sum + license.credits, 0) || 0;
+    // Total credits = the sum of the DISTINCT account balances (not a per-license
+    // sum, which would double-count a multi-key account's pooled balance).
+    const totalCredits = userIds.reduce(
+      (sum, uid) => sum + (creditMap.get(uid) || 0),
+      0
+    );
 
     return NextResponse.json({
       user: {

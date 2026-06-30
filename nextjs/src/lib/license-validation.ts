@@ -1,12 +1,12 @@
 import { polarClient, POLAR_ORGANIZATION_ID } from "@/lib/clients/polar";
 import {
-  findLicenseByKey,
-  findLicenseById,
-  findLicenseByPolarLicenseKeyId,
-  insertLicenseKey,
+  findAccountByKey,
+  findAccountById,
+  findAccountByPolarLicenseKeyId,
+  insertAccountKey,
   grantCreditLot,
   getOrCreateUser,
-  type LicenseKeyRow,
+  type AccountKeyRow,
 } from "@/src/lib/db-layer";
 
 /**
@@ -41,12 +41,12 @@ async function importLicenseFromPolar(licenseKey: string): Promise<{
     }
 
     // 2b. Dedupe by the stable Polar license-key id (casing-independent).
-    // findLicenseByKey is a case-sensitive exact match, so a different casing
+    // findAccountByKey is a case-sensitive exact match, so a different casing
     // or whitespace variant of an already-imported key misses the DB lookup
     // and reaches this fallback. Without this guard each variant would insert a
     // fresh license row and grant another 5000 credits. polarResult.id is the
     // canonical resource id regardless of how the input key was cased.
-    const alreadyImported = await findLicenseByPolarLicenseKeyId(polarResult.id);
+    const alreadyImported = await findAccountByPolarLicenseKeyId(polarResult.id);
     if (alreadyImported) {
       return { success: true, licenseId: alreadyImported.id };
     }
@@ -67,7 +67,7 @@ async function importLicenseFromPolar(licenseKey: string): Promise<{
     }
 
     // 5. Insert license into database
-    const license = await insertLicenseKey({
+    const license = await insertAccountKey({
       key: licenseKey,
       email: email.toLowerCase().trim(),
       userId: user.id,
@@ -84,7 +84,7 @@ async function importLicenseFromPolar(licenseKey: string): Promise<{
     // 6. Create credit balance with 5000 credits
     try {
       await grantCreditLot({
-        licenseKeyId: license.id,
+        userId: license.userId,
         amount: 5000,
         sourceType: "polar_bundle",
         sourceId: polarResult.id,
@@ -109,7 +109,7 @@ async function importLicenseFromPolar(licenseKey: string): Promise<{
 }
 
 export type LicenseCheckResult =
-  | { valid: true; license: LicenseKeyRow }
+  | { valid: true; license: AccountKeyRow }
   | { valid: false; error: string; status: number };
 
 /**
@@ -123,7 +123,7 @@ export async function checkLicenseKey(
   licenseKey: string
 ): Promise<LicenseCheckResult> {
   // Query database for the license
-  let license = await findLicenseByKey(licenseKey.trim());
+  let license = await findAccountByKey(licenseKey.trim());
 
   // POLAR FALLBACK: If not found in DB, try Polar API
   if (!license) {
@@ -138,7 +138,7 @@ export async function checkLicenseKey(
     }
 
     // Re-query the newly imported license
-    license = await findLicenseById(polarImport.licenseId!);
+    license = await findAccountById(polarImport.licenseId!);
 
     if (!license) {
       return {

@@ -8,15 +8,15 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { licenseKeys } from "./license-keys";
+import { user } from "./auth";
 
 export const creditGrants = pgTable(
   "credit_grants",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    licenseKeyId: uuid("license_key_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => licenseKeys.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     sourceType: text("source_type").notNull(),
     sourceId: text("source_id").notNull(),
     originalAmount: numeric("original_amount", { precision: 20, scale: 2 })
@@ -46,14 +46,14 @@ export const creditGrants = pgTable(
       table.sourceType,
       table.sourceId,
     ),
-    index("credit_grants_license_source_remaining_idx").on(
-      table.licenseKeyId,
+    index("credit_grants_user_source_remaining_idx").on(
+      table.userId,
       table.sourceType,
       table.remainingAmount,
     ),
-    // Supports the per-license active-and-unexpired scan used by balance/spend.
-    index("credit_grants_license_status_expires_idx").on(
-      table.licenseKeyId,
+    // Supports the per-account active-and-unexpired scan used by balance/spend.
+    index("credit_grants_user_status_expires_idx").on(
+      table.userId,
       table.status,
       table.expiresAt,
     ),
@@ -61,8 +61,8 @@ export const creditGrants = pgTable(
 );
 
 export const creditGrantsRelations = relations(creditGrants, ({ one }) => ({
-  licenseKey: one(licenseKeys, {
-    fields: [creditGrants.licenseKeyId],
-    references: [licenseKeys.id],
+  user: one(user, {
+    fields: [creditGrants.userId],
+    references: [user.id],
   }),
 }));

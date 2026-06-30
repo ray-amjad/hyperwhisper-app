@@ -17,7 +17,7 @@ export default function FooterSection() {
   const footerLinks = {
     [t("product")]: [
       { label: t("links.features"), href: "/#features" },
-      { label: t("links.pricing"), href: "/#pricing" },
+      { label: t("links.pricing"), href: "/#cloud" },
       { label: t("links.download"), href: "#" },
       { label: t("links.roadmap"), href: "https://hyperwhisper.userjot.com/" },
     ],

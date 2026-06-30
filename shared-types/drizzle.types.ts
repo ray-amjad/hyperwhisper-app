@@ -5,7 +5,7 @@
  */
 
 import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import type { licenseKeys } from "../nextjs/src/db/schema/license-keys";
+import type { accountKeys } from "../nextjs/src/db/schema/account-keys";
 import type { creditBalances } from "../nextjs/src/db/schema/credit-balances";
 import type { deviceValidations } from "../nextjs/src/db/schema/device-validations";
 import type { emails } from "../nextjs/src/db/schema/emails";
@@ -16,9 +16,9 @@ import type {
   verification,
 } from "../nextjs/src/db/schema/auth";
 
-// ── License Keys ──────────────────────────────────────────────
-export type LicenseKey = InferSelectModel<typeof licenseKeys>;
-export type NewLicenseKey = InferInsertModel<typeof licenseKeys>;
+// ── Account Keys ──────────────────────────────────────────────
+export type AccountKey = InferSelectModel<typeof accountKeys>;
+export type NewAccountKey = InferInsertModel<typeof accountKeys>;
 
 // ── Credit Balances ───────────────────────────────────────────
 export type CreditBalance = InferSelectModel<typeof creditBalances>;

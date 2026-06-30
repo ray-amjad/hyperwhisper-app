@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Bytt språk"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Hva er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er innebygd skytranskribering for mindre tekniske brukere som vil komme raskt i gang.\n\nDet er pay-as-you-go. Når du kjøper en lisens får du $5 i transkripsjonskreditter. Du kan legge til flere kreditter senere.\n    \nVi tilbyr tre nøyaktighetsnivåer: Medium (raskest, drevet av Groq), High (anbefalt, drevet av Deepgram) og Highest (best kvalitet, drevet av xAI Grok STT). Etterbehandling er automatisk. Vi lagrer ingenting annet enn hvor mange kreditter du har brukt.\n\nDu betaler nøyaktig det vi betaler disse leverandørene. Vi tar ikke påslag.\n\nFor ekstra trygghet kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud er innebygd skytranskribering for mindre tekniske brukere som vil komme raskt i gang.\n\nDet er pay-as-you-go. Når du kjøper en kontonøkkel får du $5 i transkripsjonskreditter. Du kan legge til flere kreditter senere.\n    \nVi tilbyr tre nøyaktighetsnivåer: Medium (raskest, drevet av Groq), High (anbefalt, drevet av Deepgram) og Highest (best kvalitet, drevet av xAI Grok STT). Etterbehandling er automatisk. Vi lagrer ingenting annet enn hvor mange kreditter du har brukt.\n\nDu betaler nøyaktig det vi betaler disse leverandørene. Vi tar ikke påslag.\n\nFor ekstra trygghet kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Vil stemmedataene mine bli brukt til å trene KI-modeller?",
@@ -187,8 +188,8 @@
         "answer": "Vi tror på enkel og rettferdig prising. Betal én gang $39 og bruk HyperWhisper for alltid. Ingen månedlige kostnader, ingen overraskelser. Gratisversjonen lar deg bruke nøkkelfunksjonene med 3 minutter transkribering per dag."
       },
       "deviceLimit": {
-        "question": "Hvor mange enheter kan jeg bruke lisensen min på?",
-        "answer": "Du kan bruke lisensen din på så mange enheter du vil, underlagt vår Fair Usage Policy som beskrevet i våre [Tjenestevilkår](/legal/terms-of-service). Denne policyen er laget for å være fleksibel for legitim personlig og forretningsmessig bruk, samtidig som misbruk forhindres."
+        "question": "Hvor mange enheter kan jeg bruke kontonøkkelen min på?",
+        "answer": "Du kan bruke kontonøkkelen din på så mange enheter du vil, underlagt vår Fair Usage Policy som beskrevet i våre [Tjenestevilkår](/legal/terms-of-service). Denne policyen er laget for å være fleksibel for legitim personlig og forretningsmessig bruk, samtidig som misbruk forhindres."
       },
       "requirements": {
         "question": "Hva er systemkravene?",
@@ -208,7 +209,7 @@
     "title": "Supportsenter",
     "subtitle": "Vi er her for å hjelpe deg med å få mest mulig ut av HyperWhisper",
     "getInTouch": "Ta kontakt",
-    "description": "For teknisk support, lisensproblemer eller spørsmål om HyperWhisper er teamet vårt her for å hjelpe.",
+    "description": "For teknisk support, kontonøkkelproblemer eller spørsmål om HyperWhisper er teamet vårt her for å hjelpe.",
     "emailUsAt": "Send e-post til:",
     "openInClient": "Åpne i e-postklienten din:",
     "defaultClient": "Standard e-postklient",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Kjøp fullført!",
-    "subtitle": "Velkommen til HyperWhisper Pro! Livstidslisensen din er klar.",
+    "subtitle": "Velkommen til HyperWhisper Pro! Kontonøkkelen din er klar.",
     "checkEmail": {
       "title": "Sjekk e-posten din",
-      "description": "Vi har sendt lisensnøkkelen din og nedlastingsinstruksjoner til e-postadressen din. Den bør komme i løpet av de neste minuttene."
+      "description": "Vi har sendt kontonøkkelen din og nedlastingsinstruksjoner til e-postadressen din. Den bør komme i løpet av de neste minuttene."
     },
     "whatsNext": {
       "title": "Hva skjer nå?",
@@ -262,12 +263,12 @@
         "description": "Se etter en e-post fra HyperWhisper"
       },
       "step2": {
-        "title": "Kopier lisensnøkkelen",
+        "title": "Kopier kontonøkkelen",
         "description": "Du trenger den for å aktivere appen"
       },
       "step3": {
         "title": "Last ned HyperWhisper",
-        "description": "Installer appen og skriv inn lisensnøkkelen"
+        "description": "Installer appen og skriv inn kontonøkkelen"
       }
     },
     "downloadButton": "Last ned HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Alle rettigheter forbeholdt.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "To måter å gå til skyen på",
+    "subtitle": "Ta med dine egne API-nøkler og koble til hver leverandør selv, eller hopp helt over oppsettet med HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Ta med egne nøkler",
+      "subtitle": "Gratis, men du gjør jobben.",
+      "features": {
+        "signup": "Registrer deg hos hver leverandør separat",
+        "rotate": "Kopier, lim inn og roter API-nøkler selv",
+        "bill": "Følg en egen faktura per leverandør",
+        "control": "Full kontroll over hver konto",
+        "free": "Alltid gratis med appen"
+      },
+      "cta": "Last ned gratis"
+    },
+    "credits": {
+      "badge": "Enklest",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Betal etter bruk. Null oppsett.",
+      "features": {
+        "noKeys": "Aldri noen API-nøkler",
+        "oneBalance": "Alle leverandører på én saldo",
+        "models": "30+ modeller, én enkel faktura",
+        "payPerUse": "Betal kun for det du transkriberer",
+        "noTraining": "Automatisk fravalgt modelltrening"
+      },
+      "cta": "Start med $5 i kreditter"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioritert støtte, intern hosting og tilpassede integrasjoner",
+      "cta": "Kontakt salg"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Én saldo, alle leverandører. Ingen API-nøkler å håndtere. Betal kun for det du transkriberer.",
+    "emailLabel": "Din e-post",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Vi sender kontonøkkelen og kredittsaldoen din hit etter betaling.",
+    "amountLabel": "Velg et beløp",
+    "creditsCount": "{count, number} kreditter",
+    "custom": "Egendefinert",
+    "customSub": "ditt beløp",
+    "customPlaceholder": "Beløp i USD ({min} til {max})",
+    "summaryCredits": "Kreditter",
+    "summaryFee": "Behandlingsgebyr (6%, ikke refunderbart)",
+    "summaryTotal": "Totalt i dag",
+    "errorEmail": "Skriv inn en gyldig e-postadresse.",
+    "errorAmount": "Velg et helt dollarbeløp mellom ${min} og ${max}.",
+    "errorCheckout": "Kunne ikke starte betaling. Prøv igjen.",
+    "errorGeneric": "Noe gikk galt. Prøv igjen.",
+    "ctaIdle": "Fortsett til betaling",
+    "ctaLoading": "Starter betaling",
+    "secure": "Sikker betaling via Stripe. Kreditter er gyldige i ett år fra kjøp.",
+    "stripProviders": "9+ leverandører, én saldo",
+    "stripNoSub": "Ingen abonnement",
+    "stripNoTraining": "Fravalgt trening",
+    "haveKey": "Har du allerede en nøkkel?",
+    "signIn": "Logg inn for å fylle på"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minutter igjen",
+    "creditsCount": "{count, number} kreditter",
+    "minutes": "~{minutes} min",
+    "custom": "Egendefinert",
+    "customSub": "ditt beløp",
+    "topUp": "Fyll på"
   }
 }

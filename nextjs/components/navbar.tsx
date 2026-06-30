@@ -26,13 +26,13 @@ export const Navbar = () => {
 
   const navItems = [
     { label: t("features"), href: `/${locale}#features` },
-    { label: t("pricing"), href: `/${locale}#pricing` },
+    { label: t("cloud"), href: `/${locale}#cloud` },
     { label: t("faq"), href: `/${locale}#faq` },
   ];
 
   const navMenuItems = [
     { label: t("features"), href: `/${locale}#features` },
-    { label: t("pricing"), href: `/${locale}#pricing` },
+    { label: t("cloud"), href: `/${locale}#cloud` },
     { label: t("faq"), href: `/${locale}#faq` },
     { label: t("support"), href: "/support" },
   ];

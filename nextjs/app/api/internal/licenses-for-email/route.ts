@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import {
-  getLicensesByEmail,
-  getCreditBalancesForLicenses,
-  provisionLicenseForEmail,
+  getAccountKeysByEmail,
+  getCreditBalancesForUsers,
+  provisionAccountKeyForEmail,
 } from "@/src/lib/db-layer";
 
 export async function POST(request: NextRequest) {
@@ -29,22 +29,26 @@ export async function POST(request: NextRequest) {
     // Mint only when the email has *zero* keys of any status. A revoked-only
     // email is intentionally not re-minted (closes the refund-then-regrant gap):
     // it returns an empty list rather than a fresh free key.
-    let all = await getLicensesByEmail(email);
+    let all = await getAccountKeysByEmail(email);
     if (all.length === 0) {
       // The freshly minted row is granted with the full 5,000-credit bundle, so
       // use it directly instead of issuing a second read for the same row.
-      all = [await provisionLicenseForEmail(email)];
+      all = [await provisionAccountKeyForEmail(email)];
     }
 
-    // Display only active keys; revoked keys are hidden.
+    // Display only active keys; revoked keys are hidden. Credits are pooled per
+    // account, so resolve balances by the keys' distinct owning users; each key
+    // then reports its account balance.
     const granted = all.filter((l) => l.status === "granted");
-    const balances = await getCreditBalancesForLicenses(granted.map((l) => l.id));
+    const balances = await getCreditBalancesForUsers(
+      Array.from(new Set(granted.map((l) => l.userId)))
+    );
 
     const licenses = granted.map((license) => ({
       key: license.key,
       status: license.status,
       createdAt: license.createdAt.toISOString(),
-      credits: balances.get(license.id) ?? 0,
+      credits: balances.get(license.userId) ?? 0,
     }));
 
     return NextResponse.json({ licenses });

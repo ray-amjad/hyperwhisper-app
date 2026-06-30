@@ -8,7 +8,7 @@ import { eq, and, desc, gte, inArray, count, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
-  licenseKeys,
+  accountKeys,
   creditBalances,
   creditGrants,
   deviceValidations,
@@ -23,7 +23,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-export interface LicenseKeyInsert {
+export interface AccountKeyInsert {
   key: string;
   email: string;
   userId: string;
@@ -34,7 +34,7 @@ export interface LicenseKeyInsert {
   stripeSessionId?: string | null;
 }
 
-export interface LicenseKeyRow {
+export interface AccountKeyRow {
   id: string;
   key: string;
   email: string;
@@ -48,7 +48,7 @@ export interface LicenseKeyRow {
 }
 
 export interface CreditBalanceRow {
-  licenseKeyId: string;
+  userId: string;
   balance: number;
 }
 
@@ -65,14 +65,14 @@ export interface StripeCreditGrantInsert {
   eventId: string;
   eventType: string;
   stripeObjectId: string;
-  licenseKeyId: string;
+  userId: string;
   creditAmount: number;
   sourceType?: CreditGrantSourceType;
   sourceId?: string;
 }
 
 export interface CreditGrantInsert {
-  licenseKeyId: string;
+  userId: string;
   amount: number;
   sourceType: CreditGrantSourceType;
   sourceId: string;
@@ -92,7 +92,7 @@ export interface UserResult {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function drizzleLicenseToRow(row: typeof licenseKeys.$inferSelect): LicenseKeyRow {
+function drizzleAccountKeyToRow(row: typeof accountKeys.$inferSelect): AccountKeyRow {
   return {
     id: row.id,
     key: row.key,
@@ -111,10 +111,10 @@ function drizzleLicenseToRow(row: typeof licenseKeys.$inferSelect): LicenseKeyRo
 // License Keys
 // ---------------------------------------------------------------------------
 
-export async function insertLicenseKey(data: LicenseKeyInsert): Promise<LicenseKeyRow | null> {
+export async function insertAccountKey(data: AccountKeyInsert): Promise<AccountKeyRow | null> {
   const polarLicenseKeyId = data.polarLicenseKeyId ?? null;
   const insert = db
-    .insert(licenseKeys)
+    .insert(accountKeys)
     .values({
       key: data.key,
       email: data.email,
@@ -134,98 +134,102 @@ export async function insertLicenseKey(data: LicenseKeyInsert): Promise<LicenseK
   // common case; this makes the rare race deterministic.
   const [row] = polarLicenseKeyId
     ? await insert
-        .onConflictDoNothing({ target: licenseKeys.polarLicenseKeyId })
+        .onConflictDoNothing({ target: accountKeys.polarLicenseKeyId })
         .returning()
     : await insert.returning();
 
   if (!row) {
     return polarLicenseKeyId
-      ? await findLicenseByPolarLicenseKeyId(polarLicenseKeyId)
+      ? await findAccountByPolarLicenseKeyId(polarLicenseKeyId)
       : null;
   }
-  return drizzleLicenseToRow(row);
+  return drizzleAccountKeyToRow(row);
 }
 
-export async function updateLicenseKey(
+export async function updateAccountKey(
   id: string,
-  updates: Partial<Pick<LicenseKeyInsert, "status" | "stripeCustomerId" | "email">>
+  updates: Partial<Pick<AccountKeyInsert, "status" | "stripeCustomerId" | "email">>
 ): Promise<void> {
   const values: Record<string, unknown> = {};
   if (updates.status !== undefined) values.status = updates.status;
   if (updates.stripeCustomerId !== undefined) values.stripeCustomerId = updates.stripeCustomerId;
   if (updates.email !== undefined) values.email = updates.email;
 
-  await db.update(licenseKeys).set(values).where(eq(licenseKeys.id, id));
+  await db.update(accountKeys).set(values).where(eq(accountKeys.id, id));
 }
 
-export async function findLicenseByKey(key: string): Promise<LicenseKeyRow | null> {
-  const row = await db.query.licenseKeys.findFirst({
-    where: eq(licenseKeys.key, key.trim()),
+export async function findAccountByKey(key: string): Promise<AccountKeyRow | null> {
+  const row = await db.query.accountKeys.findFirst({
+    where: eq(accountKeys.key, key.trim()),
   });
-  return row ? drizzleLicenseToRow(row) : null;
+  return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function findLicenseById(id: string): Promise<LicenseKeyRow | null> {
-  const row = await db.query.licenseKeys.findFirst({
-    where: eq(licenseKeys.id, id),
+export async function findAccountById(id: string): Promise<AccountKeyRow | null> {
+  const row = await db.query.accountKeys.findFirst({
+    where: eq(accountKeys.id, id),
   });
-  return row ? drizzleLicenseToRow(row) : null;
+  return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function findLicenseByStripeSession(sessionId: string): Promise<LicenseKeyRow | null> {
-  const row = await db.query.licenseKeys.findFirst({
-    where: eq(licenseKeys.stripeSessionId, sessionId),
+export async function findAccountByStripeSession(sessionId: string): Promise<AccountKeyRow | null> {
+  const row = await db.query.accountKeys.findFirst({
+    where: eq(accountKeys.stripeSessionId, sessionId),
   });
-  return row ? drizzleLicenseToRow(row) : null;
+  return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function findLicenseByPolarLicenseKeyId(
+export async function findAccountByPolarLicenseKeyId(
   polarLicenseKeyId: string
-): Promise<LicenseKeyRow | null> {
-  const row = await db.query.licenseKeys.findFirst({
-    where: eq(licenseKeys.polarLicenseKeyId, polarLicenseKeyId),
+): Promise<AccountKeyRow | null> {
+  const row = await db.query.accountKeys.findFirst({
+    where: eq(accountKeys.polarLicenseKeyId, polarLicenseKeyId),
   });
-  return row ? drizzleLicenseToRow(row) : null;
+  return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function findLicenseByEmail(email: string): Promise<LicenseKeyRow | null> {
-  const row = await db.query.licenseKeys.findFirst({
-    where: eq(licenseKeys.email, email.toLowerCase()),
+export async function findAccountByEmail(email: string): Promise<AccountKeyRow | null> {
+  const row = await db.query.accountKeys.findFirst({
+    where: eq(accountKeys.email, email.toLowerCase()),
   });
-  return row ? drizzleLicenseToRow(row) : null;
+  return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function getLicensesByEmail(email: string): Promise<LicenseKeyRow[]> {
-  const rows = await db.query.licenseKeys.findMany({
-    where: eq(licenseKeys.email, email.toLowerCase()),
-    orderBy: [desc(licenseKeys.createdAt)],
+export async function getAccountKeysByEmail(email: string): Promise<AccountKeyRow[]> {
+  const rows = await db.query.accountKeys.findMany({
+    where: eq(accountKeys.email, email.toLowerCase()),
+    orderBy: [desc(accountKeys.createdAt)],
   });
-  return rows.map(drizzleLicenseToRow);
+  return rows.map(drizzleAccountKeyToRow);
 }
 
-export async function getAllLicensesForAdmin(limit = 1000): Promise<LicenseKeyRow[]> {
-  const rows = await db.query.licenseKeys.findMany({
-    orderBy: [desc(licenseKeys.createdAt)],
+export async function getAllAccountKeysForAdmin(limit = 1000): Promise<AccountKeyRow[]> {
+  const rows = await db.query.accountKeys.findMany({
+    orderBy: [desc(accountKeys.createdAt)],
     limit,
   });
-  return rows.map(drizzleLicenseToRow);
+  return rows.map(drizzleAccountKeyToRow);
 }
 
-export async function searchLicensesByEmail(
+export async function searchAccountKeysByEmail(
   email: string,
   limit = 1000
-): Promise<Array<LicenseKeyRow & { credits: number }>> {
-  const rows = await db.query.licenseKeys.findMany({
-    where: ilike(licenseKeys.email, `%${email}%`),
-    orderBy: [desc(licenseKeys.createdAt)],
+): Promise<Array<AccountKeyRow & { credits: number }>> {
+  const rows = await db.query.accountKeys.findMany({
+    where: ilike(accountKeys.email, `%${email}%`),
+    orderBy: [desc(accountKeys.createdAt)],
     limit,
   });
-  const licenses = rows.map(drizzleLicenseToRow);
+  const licenses = rows.map(drizzleAccountKeyToRow);
   if (licenses.length === 0) return [];
-  const balanceMap = await getCreditBalancesForLicenses(licenses.map((l) => l.id));
+  // Credits are pooled per account, so resolve balances by the licenses'
+  // distinct owning users. Each license then reports its account balance.
+  const balanceMap = await getCreditBalancesForUsers(
+    Array.from(new Set(licenses.map((l) => l.userId)))
+  );
   return licenses.map((license) => ({
     ...license,
-    credits: balanceMap.get(license.id) || 0,
+    credits: balanceMap.get(license.userId) || 0,
   }));
 }
 
@@ -239,14 +243,14 @@ export async function searchLicensesByEmail(
  * mint (e.g. only when no license exists); this just performs the mint and
  * returns the new row. Throws on any failure.
  */
-export async function provisionLicenseForEmail(email: string): Promise<LicenseKeyRow> {
+export async function provisionAccountKeyForEmail(email: string): Promise<AccountKeyRow> {
   const normalizedEmail = email.toLowerCase().trim();
 
   // Generate a unique license key with collision check
   let key = "";
   for (let i = 0; i < 5; i++) {
     key = generateLicenseKey();
-    const collision = await findLicenseByKey(key);
+    const collision = await findAccountByKey(key);
     if (!collision) break;
     if (i === 4) {
       throw new Error("Failed to generate unique license key");
@@ -259,7 +263,7 @@ export async function provisionLicenseForEmail(email: string): Promise<LicenseKe
     throw new Error("Failed to create user");
   }
 
-  const license = await insertLicenseKey({
+  const license = await insertAccountKey({
     key,
     email: normalizedEmail,
     userId: userResult.id,
@@ -270,7 +274,7 @@ export async function provisionLicenseForEmail(email: string): Promise<LicenseKe
   }
 
   await grantCreditLot({
-    licenseKeyId: license.id,
+    userId: license.userId,
     amount: 5000,
     sourceType: "internal_bundle",
     sourceId: license.id,
@@ -305,12 +309,12 @@ const ACTIVE_GRANT_EXPIRY = sql`(expires_at IS NULL OR expires_at > now())`;
  */
 async function getActiveGrantsTotal(
   executor: DbExecutor,
-  licenseKeyId: string
+  userId: string
 ): Promise<number> {
   const result = await executor.execute<{ total: string | null }>(sql`
     SELECT COALESCE(SUM(remaining_amount), 0) AS total
     FROM credit_grants
-    WHERE license_key_id = ${licenseKeyId}
+    WHERE user_id = ${userId}
       AND status = 'active'
       AND remaining_amount > 0
       AND ${ACTIVE_GRANT_EXPIRY}
@@ -327,14 +331,14 @@ async function getActiveGrantsTotal(
  */
 async function reconcileCreditBalance(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  licenseKeyId: string
+  userId: string
 ): Promise<number> {
-  const total = await getActiveGrantsTotal(tx, licenseKeyId);
+  const total = await getActiveGrantsTotal(tx, userId);
   await tx
     .insert(creditBalances)
-    .values({ licenseKeyId, balance: total.toString() })
+    .values({ userId, balance: total.toString() })
     .onConflictDoUpdate({
-      target: creditBalances.licenseKeyId,
+      target: creditBalances.userId,
       set: {
         balance: total.toString(),
         updatedAt: new Date(),
@@ -345,14 +349,14 @@ async function reconcileCreditBalance(
 
 async function incrementCreditBalance(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
-  licenseKeyId: string,
+  userId: string,
   amount: number
 ): Promise<number> {
   const [row] = await tx
     .insert(creditBalances)
-    .values({ licenseKeyId, balance: amount.toString() })
+    .values({ userId, balance: amount.toString() })
     .onConflictDoUpdate({
-      target: creditBalances.licenseKeyId,
+      target: creditBalances.userId,
       set: {
         balance: sql`${creditBalances.balance} + ${amount}`,
         updatedAt: new Date(),
@@ -377,7 +381,7 @@ async function grantCreditLotInTransaction(
   const [grantRow] = await tx
     .insert(creditGrants)
     .values({
-      licenseKeyId: data.licenseKeyId,
+      userId: data.userId,
       sourceType: data.sourceType,
       sourceId: data.sourceId,
       originalAmount: data.amount.toString(),
@@ -394,11 +398,11 @@ async function grantCreditLotInTransaction(
   if (!grantRow) {
     // Read inside the transaction so the balance reflects the locked, in-tx
     // view rather than a stale snapshot from a second pooled connection.
-    const balance = await getActiveGrantsTotal(tx, data.licenseKeyId);
+    const balance = await getActiveGrantsTotal(tx, data.userId);
     return { status: "duplicate", balance };
   }
 
-  const balance = await incrementCreditBalance(tx, data.licenseKeyId, data.amount);
+  const balance = await incrementCreditBalance(tx, data.userId, data.amount);
   return { status: "processed", balance };
 }
 
@@ -427,7 +431,7 @@ export async function grantCreditsForStripeEvent(
     }
 
     await grantCreditLotInTransaction(tx, {
-      licenseKeyId: data.licenseKeyId,
+      userId: data.userId,
       amount: data.creditAmount,
       sourceType: data.sourceType ?? "stripe_credit_pack",
       sourceId: data.sourceId ?? data.stripeObjectId,
@@ -451,11 +455,11 @@ export async function refundCreditGrant(
     // free PLUS the cash refund (the inverse money-loss bug).
     const target = await tx.execute<{
       id: string;
-      license_key_id: string;
+      user_id: string;
       original_amount: string;
       refunded_amount: string;
     }>(sql`
-      SELECT id, license_key_id, original_amount, refunded_amount
+      SELECT id, user_id, original_amount, refunded_amount
       FROM credit_grants
       WHERE source_type = ${data.sourceType}
         AND source_id = ${data.sourceId}
@@ -485,7 +489,7 @@ export async function refundCreditGrant(
     //   total, so neither bundle-first nor pack-first ordering can leak money.
     let toClawback = Math.min(
       clawback,
-      await getActiveGrantsTotal(tx, grant.license_key_id)
+      await getActiveGrantsTotal(tx, grant.user_id)
     );
 
     // Draw the clawback down from the license's active, unexpired grants,
@@ -498,7 +502,7 @@ export async function refundCreditGrant(
     const drawdown = await tx.execute<{ id: string; remaining_amount: string }>(sql`
       SELECT id, remaining_amount
       FROM credit_grants
-      WHERE license_key_id = ${grant.license_key_id}
+      WHERE user_id = ${grant.user_id}
         AND remaining_amount > 0
         AND status = 'active'
         AND ${ACTIVE_GRANT_EXPIRY}
@@ -541,7 +545,7 @@ export async function refundCreditGrant(
       .where(eq(creditGrants.id, grant.id));
 
     // Reconcile the cache to the authoritative grant total, healing any drift.
-    await reconcileCreditBalance(tx, grant.license_key_id);
+    await reconcileCreditBalance(tx, grant.user_id);
     return {
       status: "processed",
       refundedAmount: clawback,
@@ -561,14 +565,14 @@ export async function hasProcessedStripeObject(
 }
 
 export async function spendCreditGrantsByProvenance(
-  licenseKeyId: string,
+  userId: string,
   amount: number
 ): Promise<{ balance: number; deductedAmount: number }> {
   return db.transaction(async (tx) => {
     const result = await tx.execute<{ id: string; remaining_amount: string }>(sql`
       SELECT id, remaining_amount
       FROM credit_grants
-      WHERE license_key_id = ${licenseKeyId}
+      WHERE user_id = ${userId}
         AND remaining_amount > 0
         AND status = 'active'
         AND ${ACTIVE_GRANT_EXPIRY}
@@ -619,7 +623,7 @@ export async function spendCreditGrantsByProvenance(
     // of a second pooled connection, and (b) self-heals any drift between the
     // credit_balances cache and the grant rows, so the cache can never report
     // spendable credits the grants can't actually back, or vice versa.
-    const balance = await reconcileCreditBalance(tx, licenseKeyId);
+    const balance = await reconcileCreditBalance(tx, userId);
 
     return { balance, deductedAmount };
   });
@@ -631,8 +635,8 @@ export async function spendCreditGrantsByProvenance(
  * Returns the new cached aggregate balance. The public API response shape is
  * preserved, but the underlying grant rows record which source was consumed.
  */
-export async function deductCreditBalance(licenseKeyId: string, amount: number): Promise<number> {
-  const result = await spendCreditGrantsByProvenance(licenseKeyId, amount);
+export async function deductCreditBalance(userId: string, amount: number): Promise<number> {
+  const result = await spendCreditGrantsByProvenance(userId, amount);
   return result.balance;
 }
 
@@ -645,67 +649,67 @@ export async function deductCreditBalance(licenseKeyId: string, amount: number):
  * authoritative grant total and lazily heals the cache when the two have
  * drifted. The cheap read path (cache hit that already matches) does no write.
  */
-export async function getCreditBalance(licenseKeyId: string): Promise<number> {
+export async function getCreditBalance(userId: string): Promise<number> {
   const [cachedRow, grantsTotal] = await Promise.all([
     db.query.creditBalances.findFirst({
-      where: eq(creditBalances.licenseKeyId, licenseKeyId),
+      where: eq(creditBalances.userId, userId),
     }),
-    getActiveGrantsTotal(db, licenseKeyId),
+    getActiveGrantsTotal(db, userId),
   ]);
 
   const cached = cachedRow ? Number(cachedRow.balance) : null;
   if (cached !== grantsTotal) {
     // Drift detected (e.g. a legacy balance row with no matching grants, or a
     // partially-applied write): heal the cache to the authoritative total.
-    await db.transaction((tx) => reconcileCreditBalance(tx, licenseKeyId));
+    await db.transaction((tx) => reconcileCreditBalance(tx, userId));
   }
 
   return grantsTotal;
 }
 
 /**
- * Spendable credit balances for many licenses at once (dashboard / admin list).
+ * Spendable credit balances for many accounts at once (dashboard / admin list).
  *
  * Like {@link getCreditBalance}, the credit_grants rows are the source of truth
  * and credit_balances is only a cache. This reads the authoritative grant total
- * (SUM of remaining_amount across each license's still-active grants) directly,
- * so a license whose cached balance has drifted above its true grant total never
- * shows phantom credits on the dashboard. Licenses with no active grants default
- * to 0. (The cache still self-heals on the next single-license ledger
+ * (SUM of remaining_amount across each account's still-active grants) directly,
+ * so an account whose cached balance has drifted above its true grant total never
+ * shows phantom credits on the dashboard. Accounts with no active grants default
+ * to 0. (The cache still self-heals on the next single-account ledger
  * operation; this read path simply never relies on it.)
  */
-export async function getCreditBalancesForLicenses(licenseKeyIds: string[]): Promise<Map<string, number>> {
+export async function getCreditBalancesForUsers(userIds: string[]): Promise<Map<string, number>> {
   const map = new Map<string, number>();
-  if (licenseKeyIds.length === 0) return map;
-  // Default every requested id to 0 so licenses with no active grants are
+  if (userIds.length === 0) return map;
+  // Default every requested id to 0 so accounts with no active grants are
   // explicitly present in the map.
-  for (const id of licenseKeyIds) {
+  for (const id of userIds) {
     map.set(id, 0);
   }
   const rows = await db
     .select({
-      licenseKeyId: creditGrants.licenseKeyId,
+      userId: creditGrants.userId,
       total: sql<string>`COALESCE(SUM(${creditGrants.remainingAmount}), 0)`,
     })
     .from(creditGrants)
     .where(
       and(
-        inArray(creditGrants.licenseKeyId, licenseKeyIds),
+        inArray(creditGrants.userId, userIds),
         eq(creditGrants.status, "active"),
         sql`${creditGrants.remainingAmount} > 0`,
         sql`(${creditGrants.expiresAt} IS NULL OR ${creditGrants.expiresAt} > now())`
       )
     )
-    .groupBy(creditGrants.licenseKeyId);
+    .groupBy(creditGrants.userId);
   for (const row of rows) {
-    map.set(row.licenseKeyId, Number(row.total ?? 0));
+    map.set(row.userId, Number(row.total ?? 0));
   }
   return map;
 }
 
 export interface CreditGrantHistoryRow {
   id: string;
-  licenseKeyId: string;
+  userId: string;
   createdAt: Date;
   expiresAt: Date | null;
   originalAmount: number;
@@ -722,14 +726,14 @@ export interface CreditGrantHistoryRow {
  * statement of purchases, distinct from the spendable-balance reads which
  * exclude expired grants.
  */
-export async function getPaidCreditGrantsForLicenses(
-  licenseKeyIds: string[]
+export async function getPaidCreditGrantsForUsers(
+  userIds: string[]
 ): Promise<CreditGrantHistoryRow[]> {
-  if (licenseKeyIds.length === 0) return [];
+  if (userIds.length === 0) return [];
   const rows = await db
     .select({
       id: creditGrants.id,
-      licenseKeyId: creditGrants.licenseKeyId,
+      userId: creditGrants.userId,
       createdAt: creditGrants.createdAt,
       expiresAt: creditGrants.expiresAt,
       originalAmount: creditGrants.originalAmount,
@@ -739,7 +743,7 @@ export async function getPaidCreditGrantsForLicenses(
     .from(creditGrants)
     .where(
       and(
-        inArray(creditGrants.licenseKeyId, licenseKeyIds),
+        inArray(creditGrants.userId, userIds),
         eq(creditGrants.sourceType, "stripe_credit_pack")
       )
     )
@@ -747,7 +751,7 @@ export async function getPaidCreditGrantsForLicenses(
 
   return rows.map((row) => ({
     id: row.id,
-    licenseKeyId: row.licenseKeyId,
+    userId: row.userId,
     createdAt: row.createdAt,
     expiresAt: row.expiresAt,
     originalAmount: Number(row.originalAmount),
@@ -756,15 +760,19 @@ export async function getPaidCreditGrantsForLicenses(
   }));
 }
 
-export async function getAllLicensesWithCreditsForAdmin(limit = 1000): Promise<
-  Array<LicenseKeyRow & { credits: number }>
+export async function getAllAccountKeysWithCreditsForAdmin(limit = 1000): Promise<
+  Array<AccountKeyRow & { credits: number }>
 > {
-  const licenses = await getAllLicensesForAdmin(limit);
+  const licenses = await getAllAccountKeysForAdmin(limit);
   if (licenses.length === 0) return [];
-  const balanceMap = await getCreditBalancesForLicenses(licenses.map((l) => l.id));
+  // Credits are pooled per account: resolve balances by distinct owning users,
+  // then each license reports its account balance.
+  const balanceMap = await getCreditBalancesForUsers(
+    Array.from(new Set(licenses.map((l) => l.userId)))
+  );
   return licenses.map((license) => ({
     ...license,
-    credits: balanceMap.get(license.id) || 0,
+    credits: balanceMap.get(license.userId) || 0,
   }));
 }
 
@@ -773,20 +781,24 @@ export async function getAllLicensesWithCreditsForAdmin(limit = 1000): Promise<
  * newest-first. Used by the admin list so that a customer's full license set
  * is shown even when a search only matched a subset of their licenses.
  */
-export async function getLicensesWithCreditsForUserIds(
+export async function getAccountKeysWithCreditsForUserIds(
   userIds: string[]
-): Promise<Array<LicenseKeyRow & { credits: number }>> {
+): Promise<Array<AccountKeyRow & { credits: number }>> {
   if (userIds.length === 0) return [];
-  const rows = await db.query.licenseKeys.findMany({
-    where: inArray(licenseKeys.userId, userIds),
-    orderBy: [desc(licenseKeys.createdAt)],
+  const rows = await db.query.accountKeys.findMany({
+    where: inArray(accountKeys.userId, userIds),
+    orderBy: [desc(accountKeys.createdAt)],
   });
-  const licenses = rows.map(drizzleLicenseToRow);
+  const licenses = rows.map(drizzleAccountKeyToRow);
   if (licenses.length === 0) return [];
-  const balanceMap = await getCreditBalancesForLicenses(licenses.map((l) => l.id));
+  // Credits are pooled per account: resolve balances by distinct owning users,
+  // then each license reports its account balance.
+  const balanceMap = await getCreditBalancesForUsers(
+    Array.from(new Set(licenses.map((l) => l.userId)))
+  );
   return licenses.map((license) => ({
     ...license,
-    credits: balanceMap.get(license.id) || 0,
+    credits: balanceMap.get(license.userId) || 0,
   }));
 }
 
@@ -865,15 +877,15 @@ export async function getDeviceCountsPerLicense(sinceDays?: number): Promise<
 
   const rows = await db
     .select({
-      licenseKeyId: licenseKeys.id,
-      email: licenseKeys.email,
-      licenseKey: licenseKeys.key,
+      licenseKeyId: accountKeys.id,
+      email: accountKeys.email,
+      licenseKey: accountKeys.key,
       deviceCount: count(deviceValidations.id),
     })
     .from(deviceValidations)
-    .innerJoin(licenseKeys, eq(deviceValidations.licenseKeyId, licenseKeys.id))
+    .innerJoin(accountKeys, eq(deviceValidations.licenseKeyId, accountKeys.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .groupBy(licenseKeys.id, licenseKeys.email, licenseKeys.key)
+    .groupBy(accountKeys.id, accountKeys.email, accountKeys.key)
     .orderBy(sql`count(${deviceValidations.id}) desc`);
 
   return rows.map((r) => ({ ...r, deviceCount: Number(r.deviceCount) }));
@@ -1015,8 +1027,8 @@ export async function updateCustomerEmail(
       .set({ email, emailVerified: false, updatedAt: new Date() })
       .where(eq(user.id, userId));
     await tx
-      .update(licenseKeys)
+      .update(accountKeys)
       .set({ email })
-      .where(eq(licenseKeys.userId, userId));
+      .where(eq(accountKeys.userId, userId));
   });
 }

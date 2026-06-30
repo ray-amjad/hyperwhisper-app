@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Trocar idioma"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "Logo do HyperWhisper",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "O que é o HyperWhisper Cloud?",
-        "answer": "O HyperWhisper Cloud é uma transcrição em nuvem embutida, voltada para usuários menos técnicos que querem começar rapidamente.\n\nÉ pay-as-you-go. Ao comprar uma licença, você recebe $5 em créditos de transcrição. Você pode adicionar mais créditos depois.\n    \nOferecemos três níveis de precisão: Medium (mais rápido, com Groq), High (recomendado, com Deepgram) e Highest (melhor qualidade, com xAI Grok STT). O pós-processamento é automático. Não armazenamos nada além de quantos créditos você consumiu.\n\nVocê paga exatamente o que nós pagamos a esses provedores. Não cobramos markup.\n\nPara sua tranquilidade, você pode ver o código-fonte do HyperWhisper Cloud [aqui](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "O HyperWhisper Cloud é uma transcrição em nuvem embutida, voltada para usuários menos técnicos que querem começar rapidamente.\n\nÉ pay-as-you-go. Ao comprar uma chave da conta, você recebe $5 em créditos de transcrição. Você pode adicionar mais créditos depois.\n    \nOferecemos três níveis de precisão: Medium (mais rápido, com Groq), High (recomendado, com Deepgram) e Highest (melhor qualidade, com xAI Grok STT). O pós-processamento é automático. Não armazenamos nada além de quantos créditos você consumiu.\n\nVocê paga exatamente o que nós pagamos a esses provedores. Não cobramos markup.\n\nPara sua tranquilidade, você pode ver o código-fonte do HyperWhisper Cloud [aqui](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Os meus dados de voz serão usados para treinar modelos de IA?",
@@ -187,8 +188,8 @@
         "answer": "Acreditamos em preços simples e justos. Pague uma vez $39 e use o HyperWhisper para sempre. Sem mensalidades, sem surpresas. A versão gratuita permite usar os principais recursos com 3 minutos de transcrição por dia."
       },
       "deviceLimit": {
-        "question": "Em quantos dispositivos posso usar minha licença?",
-        "answer": "Você pode usar sua licença em quantos dispositivos quiser, sujeito à nossa Política de Uso Justo descrita em nossos [Termos de Serviço](/legal/terms-of-service). Essa política foi criada para ser flexível para uso pessoal e empresarial legítimo, enquanto evita abusos."
+        "question": "Em quantos dispositivos posso usar minha chave da conta?",
+        "answer": "Você pode usar sua chave da conta em quantos dispositivos quiser, sujeito à nossa Política de Uso Justo descrita em nossos [Termos de Serviço](/legal/terms-of-service). Essa política foi criada para ser flexível para uso pessoal e empresarial legítimo, enquanto evita abusos."
       },
       "requirements": {
         "question": "Quais são os requisitos do sistema?",
@@ -208,7 +209,7 @@
     "title": "Central de suporte",
     "subtitle": "Estamos aqui para ajudar você a aproveitar ao máximo o HyperWhisper",
     "getInTouch": "Entrar em contato",
-    "description": "Para suporte técnico, problemas de licença ou qualquer dúvida sobre o HyperWhisper, nossa equipe está pronta para ajudar.",
+    "description": "Para suporte técnico, problemas com a chave da conta ou qualquer dúvida sobre o HyperWhisper, nossa equipe está pronta para ajudar.",
     "emailUsAt": "Envie e-mail para:",
     "openInClient": "Abrir no seu cliente de e-mail:",
     "defaultClient": "Cliente de e-mail padrão",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Compra concluída!",
-    "subtitle": "Bem-vindo ao HyperWhisper Pro! Sua licença vitalícia está pronta.",
+    "subtitle": "Bem-vindo ao HyperWhisper Pro! Sua chave da conta está pronta.",
     "checkEmail": {
       "title": "Verifique seu e-mail",
-      "description": "Enviamos sua chave de licença e as instruções de download para seu e-mail. Deve chegar nos próximos minutos."
+      "description": "Enviamos sua chave da conta e as instruções de download para seu e-mail. Deve chegar nos próximos minutos."
     },
     "whatsNext": {
       "title": "Próximos passos",
@@ -262,12 +263,12 @@
         "description": "Procure um e-mail do HyperWhisper"
       },
       "step2": {
-        "title": "Copie sua chave de licença",
+        "title": "Copie sua chave da conta",
         "description": "Você vai precisar dela para ativar o app"
       },
       "step3": {
         "title": "Baixe o HyperWhisper",
-        "description": "Instale o app e insira sua chave de licença"
+        "description": "Instale o app e insira sua chave da conta"
       }
     },
     "downloadButton": "Baixar HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Todos os direitos reservados.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Duas formas de usar a cloud",
+    "subtitle": "Use suas próprias chaves de API e configure cada provedor manualmente, ou pule toda a configuração com os HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Use suas próprias chaves",
+      "subtitle": "Gratuito, mas o trabalho é seu.",
+      "features": {
+        "signup": "Cadastre-se separadamente em cada provedor",
+        "rotate": "Copie, cole e rotacione as chaves de API você mesmo",
+        "bill": "Acompanhe uma fatura separada por provedor",
+        "control": "Controle total sobre cada conta",
+        "free": "Sempre gratuito com o app"
+      },
+      "cta": "Baixar grátis"
+    },
+    "credits": {
+      "badge": "Mais fácil",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Pague conforme o uso. Zero configuração.",
+      "features": {
+        "noKeys": "Sem chaves de API, nunca",
+        "oneBalance": "Todos os provedores em um único saldo",
+        "models": "30+ modelos, uma fatura simples",
+        "payPerUse": "Pague apenas pelo que transcrever",
+        "noTraining": "Exclusão automática do treinamento de modelos"
+      },
+      "cta": "Comece com $5 em créditos"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, suporte prioritário, hospedagem interna e integrações personalizadas",
+      "cta": "Fale com Vendas"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Um saldo, todos os provedores. Sem chaves de API para gerenciar. Pague apenas pelo que transcrever.",
+    "emailLabel": "Seu e-mail",
+    "emailPlaceholder": "voce@exemplo.com",
+    "emailHelp": "Enviamos sua chave da conta e o saldo de créditos para este e-mail após o pagamento.",
+    "amountLabel": "Escolha um valor",
+    "creditsCount": "{count, number} créditos",
+    "custom": "Personalizado",
+    "customSub": "seu valor",
+    "customPlaceholder": "Valor em USD ({min} a {max})",
+    "summaryCredits": "Créditos",
+    "summaryFee": "Taxa de processamento (6%, não reembolsável)",
+    "summaryTotal": "Total de hoje",
+    "errorEmail": "Insira um endereço de e-mail válido.",
+    "errorAmount": "Escolha um valor em dólares inteiros entre ${min} e ${max}.",
+    "errorCheckout": "Não foi possível iniciar o checkout. Tente novamente.",
+    "errorGeneric": "Algo deu errado. Tente novamente.",
+    "ctaIdle": "Continuar para o checkout",
+    "ctaLoading": "Iniciando o checkout",
+    "secure": "Checkout seguro via Stripe. Os créditos são válidos por um ano a partir da compra.",
+    "stripProviders": "9+ provedores, um saldo",
+    "stripNoSub": "Sem assinatura",
+    "stripNoTraining": "Exclusão do treinamento",
+    "haveKey": "Já tem uma chave?",
+    "signIn": "Entre para recarregar"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minutos restantes",
+    "creditsCount": "{count, number} créditos",
+    "minutes": "~{minutes} min",
+    "custom": "Personalizado",
+    "customSub": "seu valor",
+    "topUp": "Recarregar"
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { stripe } from "@/lib/clients/stripe";
-import { findLicenseByKey, updateLicenseKey } from "@/src/lib/db-layer";
+import { findAccountByKey, updateAccountKey } from "@/src/lib/db-layer";
 import {
   validateCreditPurchaseAmount,
   computeCreditPurchase,
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     let stripeCustomerId: string | undefined;
 
     if (normalizedLicenseKey) {
-      const license = await findLicenseByKey(normalizedLicenseKey);
+      const license = await findAccountByKey(normalizedLicenseKey);
 
       if (!license) {
         console.error(
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
           stripeCustomerId = newCustomer.id;
         }
 
-        await updateLicenseKey(license.id, { stripeCustomerId });
+        await updateAccountKey(license.id, { stripeCustomerId });
       }
     }
 
@@ -161,6 +161,10 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: "HyperWhisper Cloud credits",
               description: `${creditAmount.toLocaleString()} credits`,
+              // Managed Payments requires every line item's product to carry a
+              // tax_code. txcd_10000000 = "General - Electronically Supplied
+              // Services", which fits prepaid credits for a cloud STT service.
+              tax_code: "txcd_10000000",
             },
             unit_amount: creditCents,
           },
@@ -172,6 +176,8 @@ export async function POST(req: NextRequest) {
             product_data: {
               name: "Processing fee (6%)",
               description: "Non-refundable payment processing fee",
+              // Same Managed Payments requirement: the fee line needs a tax_code.
+              tax_code: "txcd_10000000",
             },
             unit_amount: feeCents,
           },

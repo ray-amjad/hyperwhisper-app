@@ -8,12 +8,10 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { user } from "./auth";
-import { creditBalances } from "./credit-balances";
-import { creditGrants } from "./credit-grants";
 import { deviceValidations } from "./device-validations";
 
-export const licenseKeys = pgTable(
-  "license_keys",
+export const accountKeys = pgTable(
+  "account_keys",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: text("user_id")
@@ -31,34 +29,29 @@ export const licenseKeys = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("idx_license_keys_stripe_session").on(table.stripeSessionId),
+    uniqueIndex("idx_account_keys_stripe_session").on(table.stripeSessionId),
     // Backs the read-then-write dedupe in importLicenseFromPolar: a unique
     // index on the stable Polar license-key id prevents two concurrent imports
     // of casing/whitespace variants of the same key from both inserting a row.
     // NULLs are distinct in Postgres unique indexes, so Stripe-only license
     // rows (no polar_license_key_id) are unaffected.
-    uniqueIndex("idx_license_keys_polar_license_key_id").on(
+    uniqueIndex("idx_account_keys_polar_license_key_id").on(
       table.polarLicenseKeyId
     ),
-    index("idx_license_keys_email").on(table.email),
-    uniqueIndex("idx_license_keys_key").on(table.key),
-    index("idx_license_keys_user_id").on(table.userId),
-    index("idx_license_keys_polar_customer").on(table.polarCustomerId),
-    index("idx_license_keys_stripe_customer").on(table.stripeCustomerId),
+    index("idx_account_keys_email").on(table.email),
+    uniqueIndex("idx_account_keys_key").on(table.key),
+    index("idx_account_keys_user_id").on(table.userId),
+    index("idx_account_keys_polar_customer").on(table.polarCustomerId),
+    index("idx_account_keys_stripe_customer").on(table.stripeCustomerId),
   ]
 );
 
 // Relations
 
-export const licenseKeysRelations = relations(licenseKeys, ({ one, many }) => ({
+export const accountKeysRelations = relations(accountKeys, ({ one, many }) => ({
   user: one(user, {
-    fields: [licenseKeys.userId],
+    fields: [accountKeys.userId],
     references: [user.id],
   }),
-  creditBalance: one(creditBalances, {
-    fields: [licenseKeys.id],
-    references: [creditBalances.licenseKeyId],
-  }),
-  creditGrants: many(creditGrants),
   deviceValidations: many(deviceValidations),
 }));

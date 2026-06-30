@@ -39,7 +39,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
 
   return (
     <div className="bg-white/5 rounded-xl border border-white/10 p-5">
-      <p className="text-sm text-gray-400 mb-3">License Keys</p>
+      <p className="text-sm text-gray-400 mb-3">Account Keys</p>
       <div className="space-y-3">
         {licenses.map((license) => {
           const isActive = license.status === "granted";
@@ -55,7 +55,7 @@ export default function LicenseKeysCard({ licenses }: LicenseKeysCardProps) {
                 <button
                   onClick={() => toggleShowKey(license.id)}
                   className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors shrink-0"
-                  title={isShown ? "Hide license key" : "Show license key"}
+                  title={isShown ? "Hide Account Key" : "Show Account Key"}
                 >
                   {isShown ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

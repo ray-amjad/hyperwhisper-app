@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Dili değiştir"
-    }
+    },
+    "cloud": "Bulut"
   },
   "hero": {
     "logoAlt": "HyperWhisper Logosu",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud nedir?",
-        "answer": "HyperWhisper Cloud, hızlı başlamak isteyen daha az teknik kullanıcılar için tasarlanmış yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde modelindedir. Lisans satın aldığınızda $5 transkripsiyon kredisi alırsınız. Daha sonra kredi ekleyebilirsiniz.\n    \nÜç doğruluk seviyesi sunuyoruz: Medium (en hızlı, Groq destekli), High (önerilen, Deepgram destekli) ve Highest (en iyi kalite, xAI Grok STT destekli). Son işleme otomatik yapılır. Tükettiğiniz kredi miktarı dışında hiçbir şey saklamıyoruz.\n\nBu sağlayıcılara ödediğimiz tutarın aynısını ödersiniz. Ek ücret koymuyoruz.\n\nİçinizin rahat olması için HyperWhisper Cloud kaynak kodunu [burada](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud, hızlı başlamak isteyen daha az teknik kullanıcılar için tasarlanmış yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde modelindedir. Hesap Anahtarı satın aldığınızda $5 transkripsiyon kredisi alırsınız. Daha sonra kredi ekleyebilirsiniz.\n    \nÜç doğruluk seviyesi sunuyoruz: Medium (en hızlı, Groq destekli), High (önerilen, Deepgram destekli) ve Highest (en iyi kalite, xAI Grok STT destekli). Son işleme otomatik yapılır. Tükettiğiniz kredi miktarı dışında hiçbir şey saklamıyoruz.\n\nBu sağlayıcılara ödediğimiz tutarın aynısını ödersiniz. Ek ücret koymuyoruz.\n\nİçinizin rahat olması için HyperWhisper Cloud kaynak kodunu [burada](https://github.com/theramjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Ses verilerim yapay zekâ modellerini eğitmek için kullanılacak mı?",
@@ -187,8 +188,8 @@
         "answer": "Basit ve adil fiyatlandırmaya inanıyoruz. Bir kez $39 ödeyin ve HyperWhisper'ı sonsuza dek kullanın. Aylık ücret yok, sürpriz yok. Ücretsiz sürüm, günde 3 dakika transkripsiyonla temel özellikleri denemenizi sağlar."
       },
       "deviceLimit": {
-        "question": "Lisansımı kaç cihazda kullanabilirim?",
-        "answer": "Lisansınızı, [Hizmet Şartlarımızda](/legal/terms-of-service) belirtilen Adil Kullanım Politikamıza tabi olarak istediğiniz kadar cihazda kullanabilirsiniz. Bu politika, meşru kişisel ve kurumsal kullanımlar için esnek olacak şekilde tasarlanırken kötüye kullanımı engeller."
+        "question": "Hesap Anahtarımı kaç cihazda kullanabilirim?",
+        "answer": "Hesap Anahtarınızı, [Hizmet Şartlarımızda](/legal/terms-of-service) belirtilen Adil Kullanım Politikamıza tabi olarak istediğiniz kadar cihazda kullanabilirsiniz. Bu politika, meşru kişisel ve kurumsal kullanımlar için esnek olacak şekilde tasarlanırken kötüye kullanımı engeller."
       },
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
@@ -208,7 +209,7 @@
     "title": "Destek Merkezi",
     "subtitle": "HyperWhisper'dan en iyi şekilde yararlanmanız için buradayız",
     "getInTouch": "Bize Ulaşın",
-    "description": "Teknik destek, lisans sorunları veya HyperWhisper ile ilgili her türlü sorunuz için ekibimiz yardımcı olmaya hazır.",
+    "description": "Teknik destek, Hesap Anahtarı sorunları veya HyperWhisper ile ilgili her türlü sorunuz için ekibimiz yardımcı olmaya hazır.",
     "emailUsAt": "Bize e-posta gönderin:",
     "openInClient": "E-posta istemcinizde açın:",
     "defaultClient": "Varsayılan E-posta İstemcisi",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Satın Alma Başarılı!",
-    "subtitle": "HyperWhisper Pro'ya hoş geldiniz! Ömür boyu lisansınız hazır.",
+    "subtitle": "HyperWhisper Pro'ya hoş geldiniz! Hesap Anahtarınız hazır.",
     "checkEmail": {
       "title": "E-postanızı kontrol edin",
-      "description": "Lisans anahtarınızı ve indirme talimatlarını e-posta adresinize gönderdik. Birkaç dakika içinde ulaşmalıdır."
+      "description": "Hesap Anahtarınızı ve indirme talimatlarını e-posta adresinize gönderdik. Birkaç dakika içinde ulaşmalıdır."
     },
     "whatsNext": {
       "title": "Sırada ne var?",
@@ -262,12 +263,12 @@
         "description": "HyperWhisper'dan gelen e-postayı bulun"
       },
       "step2": {
-        "title": "Lisans anahtarınızı kopyalayın",
+        "title": "Hesap Anahtarınızı kopyalayın",
         "description": "Uygulamayı etkinleştirmek için buna ihtiyacınız olacak"
       },
       "step3": {
         "title": "HyperWhisper'ı indirin",
-        "description": "Uygulamayı yükleyin ve lisans anahtarınızı girin"
+        "description": "Uygulamayı yükleyin ve Hesap Anahtarınızı girin"
       }
     },
     "downloadButton": "HyperWhisper'ı İndir",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Tüm hakları saklıdır.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Bulut",
+    "title": "Buluta gecmenin iki yolu",
+    "subtitle": "Kendi API anahtarlarinizi getirip her saglayiciyi kendiniz baglayin ya da HyperWhisper Cloud Credits ile kurulumu tamamen atlayin.",
+    "byo": {
+      "title": "Kendi anahtarlarinizi getirin",
+      "subtitle": "Ucretsiz, ama isi siz yaparsiniz.",
+      "features": {
+        "signup": "Her saglayiciya ayri ayri kaydolun",
+        "rotate": "API anahtarlarini kendiniz kopyalayin, yapistirin ve degistirin",
+        "bill": "Her saglayici icin ayri bir fatura takip edin",
+        "control": "Her hesap uzerinde tam kontrol",
+        "free": "Uygulamayla her zaman ucretsiz"
+      },
+      "cta": "Ucretsiz indir"
+    },
+    "credits": {
+      "badge": "En kolayi",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Kullandikca ode. Kurulum yok.",
+      "features": {
+        "noKeys": "Asla API anahtari yok",
+        "oneBalance": "Tum saglayicilar tek bakiyede",
+        "models": "30+ model, tek basit fatura",
+        "payPerUse": "Yalnizca yaziya doktugunuz kadar odeyin",
+        "noTraining": "Model egitiminden otomatik olarak haric tutuldu"
+      },
+      "cta": "$5 kredi ile baslayin"
+    },
+    "enterprise": {
+      "title": "Kurumsal",
+      "description": "SSO, oncelikli destek, kurum ici barindirma ve ozel entegrasyonlar",
+      "cta": "Satisla iletisime gecin"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Bulut",
+    "title": "Bulut Kredileri",
+    "subtitle": "Tek bakiye, tum saglayicilar. Yonetilecek API anahtari yok. Yalnizca yaziya doktugunuz kadar odeyin.",
+    "emailLabel": "E-postaniz",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Odeme sonrasi Hesap Anahtarinizi ve kredi bakiyenizi buraya e-postayla gondeririz.",
+    "amountLabel": "Bir tutar secin",
+    "creditsCount": "{count, number} kredi",
+    "custom": "Ozel",
+    "customSub": "kendi tutariniz",
+    "customPlaceholder": "USD cinsinden tutar ({min} - {max})",
+    "summaryCredits": "Krediler",
+    "summaryFee": "Islem ucreti (6%, iade edilmez)",
+    "summaryTotal": "Bugunku toplam",
+    "errorEmail": "Gecerli bir e-posta adresi girin.",
+    "errorAmount": "${min} ile ${max} arasinda tam dolar tutari secin.",
+    "errorCheckout": "Odeme baslatilamadi. Lutfen tekrar deneyin.",
+    "errorGeneric": "Bir seyler ters gitti. Lutfen tekrar deneyin.",
+    "ctaIdle": "Odemeye devam et",
+    "ctaLoading": "Odeme baslatiliyor",
+    "secure": "Stripe ile guvenli odeme. Krediler satin alma tarihinden itibaren bir yil gecerlidir.",
+    "stripProviders": "9+ saglayici, tek bakiye",
+    "stripNoSub": "Abonelik yok",
+    "stripNoTraining": "Egitimden haric",
+    "haveKey": "Zaten bir anahtariniz mi var?",
+    "signIn": "Yuklemek icin giris yapin"
+  },
+  "cloudCreditsCard": {
+    "title": "Bulut Kredileri",
+    "minutesRemaining": "~{minutes} dakika kaldi",
+    "creditsCount": "{count, number} kredi",
+    "minutes": "~{minutes} dk",
+    "custom": "Ozel",
+    "customSub": "kendi tutariniz",
+    "topUp": "Yukle"
   }
 }
