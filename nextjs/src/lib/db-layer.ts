@@ -13,6 +13,7 @@ import {
   creditGrants,
   deviceValidations,
   emails,
+  sentEmails,
   user,
   account,
   stripeProcessedEvents,
@@ -892,6 +893,28 @@ export async function upsertEmail(data: {
       country: data.country ?? null,
     })
     .onConflictDoNothing({ target: emails.email });
+}
+
+// ---------------------------------------------------------------------------
+// Sent emails (outbound audit log)
+// ---------------------------------------------------------------------------
+
+export async function logSentEmail(data: {
+  recipient: string;
+  emailType: string;
+  subject?: string | null;
+  providerMessageId?: string | null;
+  status: "sent" | "failed";
+  errorMessage?: string | null;
+}): Promise<void> {
+  await db.insert(sentEmails).values({
+    recipient: data.recipient,
+    emailType: data.emailType,
+    subject: data.subject ?? null,
+    providerMessageId: data.providerMessageId ?? null,
+    status: data.status,
+    errorMessage: data.errorMessage ?? null,
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ import {
   creditTopUpEmailText,
   type CreditTopUpEmailData,
 } from "@/lib/templates/credit-topup-email";
+import { logSentEmail } from "@/src/lib/db-layer";
 
 export interface EmailResult {
   success: boolean;
@@ -88,11 +89,12 @@ export class EmailService {
    * Send license key email with retry logic
    */
   async sendLicenseKey(data: LicenseEmailData): Promise<EmailResult> {
-    return this.sendWithRetry("license", data.customerEmail, () =>
+    const subject = `Your ${data.productName} License Key`;
+    return this.sendWithRetry("license", data.customerEmail, subject, () =>
       resend.emails.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
-        subject: `Your ${data.productName} License Key`,
+        subject,
         html: licenseEmailHtml(data),
         text: licenseEmailText(data),
       }),
@@ -103,11 +105,12 @@ export class EmailService {
    * Send the onboarding welcome email used after someone submits the download form.
    */
   async sendWelcomeEmail(data: WelcomeEmailData): Promise<EmailResult> {
-    return this.sendWithRetry("welcome", data.customerEmail, () =>
+    const subject = `Welcome to ${data.productName}`;
+    return this.sendWithRetry("welcome", data.customerEmail, subject, () =>
       resend.emails.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
-        subject: `Welcome to ${data.productName}`,
+        subject,
         html: welcomeEmailHtml(data),
         text: welcomeEmailText(data),
       }),
@@ -119,11 +122,12 @@ export class EmailService {
    * Delivers the new key and its starting balance.
    */
   async sendCreditMint(data: CreditMintEmailData): Promise<EmailResult> {
-    return this.sendWithRetry("credit-mint", data.customerEmail, () =>
+    const subject = `Your ${data.productName} key and credits`;
+    return this.sendWithRetry("credit-mint", data.customerEmail, subject, () =>
       resend.emails.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
-        subject: `Your ${data.productName} key and credits`,
+        subject,
         html: creditMintEmailHtml(data),
         text: creditMintEmailText(data),
       }),
@@ -134,11 +138,12 @@ export class EmailService {
    * Send the top-up receipt: credits were added to an existing license key.
    */
   async sendCreditTopUp(data: CreditTopUpEmailData): Promise<EmailResult> {
-    return this.sendWithRetry("credit-topup", data.customerEmail, () =>
+    const subject = `${data.creditAmount.toLocaleString()} credits added`;
+    return this.sendWithRetry("credit-topup", data.customerEmail, subject, () =>
       resend.emails.send({
         from: DEFAULT_FROM_EMAIL,
         to: data.customerEmail,
-        subject: `${data.creditAmount.toLocaleString()} credits added`,
+        subject,
         html: creditTopUpEmailHtml(data),
         text: creditTopUpEmailText(data),
       }),
@@ -157,6 +162,7 @@ export class EmailService {
   private async sendWithRetry(
     kind: "license" | "welcome" | "credit-mint" | "credit-topup",
     customerEmail: string,
+    subject: string,
     send: () => Promise<{ data: unknown; error: unknown }>,
   ): Promise<EmailResult> {
     let lastError: Error | undefined;
@@ -186,6 +192,19 @@ export class EmailService {
 
         console.log(`${capitalize(kind)} email sent successfully to ${customerEmail}`);
 
+        // Best-effort audit log; a logging failure must never affect delivery.
+        try {
+          await logSentEmail({
+            recipient: customerEmail,
+            emailType: kind,
+            subject,
+            providerMessageId: (result.data as { id?: string })?.id ?? null,
+            status: "sent",
+          });
+        } catch (logError) {
+          console.error(`Failed to log sent ${kind} email:`, logError);
+        }
+
         return { success: true, data: result.data };
       } catch (error) {
         lastError = error as Error;
@@ -208,6 +227,19 @@ export class EmailService {
           await this.sleep(delay);
         }
       }
+    }
+
+    // Best-effort audit log; a logging failure must never affect the result.
+    try {
+      await logSentEmail({
+        recipient: customerEmail,
+        emailType: kind,
+        subject,
+        status: "failed",
+        errorMessage: lastError?.message ?? null,
+      });
+    } catch (logError) {
+      console.error(`Failed to log failed ${kind} email:`, logError);
     }
 
     return {

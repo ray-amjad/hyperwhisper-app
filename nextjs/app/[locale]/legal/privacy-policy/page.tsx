@@ -10,7 +10,7 @@ export default function PrivacyPolicyPage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: February 12, 2026
+        Last Updated: June 30, 2026
       </p>
 
       <h1>Privacy Policy</h1>
@@ -40,7 +40,10 @@ export default function PrivacyPolicyPage() {
       <ul>
         <li>
           <strong>Email</strong>: Used to deliver receipts, licenses, and
-          support.
+          support. We keep a record of the transactional emails we send you —
+          the recipient address, email type, subject, send timestamp, and
+          delivery status — retained for support, audit, and deliverability
+          troubleshooting. We do not store the message body.
         </li>
         <li>
           <strong>Order and billing info</strong>: Processed by our payment
