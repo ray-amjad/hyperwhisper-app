@@ -12,7 +12,7 @@ HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcri
 - `app/macos` — macOS app (Swift / SwiftUI)
 - `app/windows` — Windows app (C# / WPF / .NET 10)
 - `app/ios` — iOS app
-- `backend-v2-flyio` — Fly.io edge transcription service (git submodule)
+- `hyperwhisper-cloud` — Fly.io edge transcription service
 - `nextjs` — Next.js marketing & license website
 - `mintlify-help` — Mintlify documentation site
 - `shared-types` — TypeScript types shared across projects (Drizzle types)
@@ -32,7 +32,7 @@ HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcri
 
 - **GitHub Actions** — Production (and Preview) **environment** secrets, NOT repo-level. CI jobs that need them must declare `environment: Production` (e.g. `macos-release` / `windows-release`).
 - **Vercel** — `nextjs` env vars (prod + preview).
-- **Fly.io** — `backend-v2-flyio` runtime secrets.
+- **Fly.io** — `hyperwhisper-cloud` runtime secrets.
 
 Rotate or add a secret **in Infisical only** — never edit GitHub/Vercel/Fly directly or the next sync overwrites your change. Never commit secret values to the repo.
 </important>

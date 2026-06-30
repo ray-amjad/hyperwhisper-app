@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Mi az a HyperWhisper Cloud?",
-        "answer": "A HyperWhisper Cloud egy beépített felhős átírási szolgáltatás, amely kevésbé technikai felhasználóknak szól, akik gyorsan szeretnének elindulni.\n\nHasználat alapú elszámolással működik. Fiókkulcs vásárlásakor $5 átírási kreditet kapsz. Később további kreditet adhatsz hozzá.\n    \nHárom pontossági szintet kínálunk: Medium (leggyorsabb, Groq), High (ajánlott, Deepgram) és Highest (legjobb minőség, xAI Grok STT). Az utófeldolgozás automatikus. Nem tárolunk mást, csak a felhasznált kreditek mennyiségét.\n\nPontosan annyit fizetsz, amennyit mi fizetünk ezeknek a szolgáltatóknak. Nem számolunk fel felárat.\n\nA nyugalom kedvéért a HyperWhisper Cloud forráskódját [itt](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "A HyperWhisper Cloud egy beépített felhős átírási szolgáltatás, amely kevésbé technikai felhasználóknak szól, akik gyorsan szeretnének elindulni.\n\nHasználat alapú elszámolással működik. Fiókkulcs vásárlásakor $5 átírási kreditet kapsz. Később további kreditet adhatsz hozzá.\n    \nHárom pontossági szintet kínálunk: Medium (leggyorsabb, Groq), High (ajánlott, Deepgram) és Highest (legjobb minőség, xAI Grok STT). Az utófeldolgozás automatikus. Nem tárolunk mást, csak a felhasznált kreditek mennyiségét.\n\nPontosan annyit fizetsz, amennyit mi fizetünk ezeknek a szolgáltatóknak. Nem számolunk fel felárat.\n\nA nyugalom kedvéért a HyperWhisper Cloud forráskódját [itt](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "A hangadataimat felhasználják AI-modellek betanítására?",

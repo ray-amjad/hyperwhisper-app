@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Què és HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, orientada a usuaris menys tècnics que volen començar ràpid.\n\nFunciona amb model pay as you go. En comprar una clau del compte, reps $5 en crèdits de transcripció. Més endavant pots afegir-ne més.\n    \nOferim tres nivells de precisió: Medium (més ràpid, amb Groq), High (recomanat, amb Deepgram) i Highest (millor qualitat, amb xAI Grok STT). El postprocessament és automàtic. No guardem res, excepte quants crèdits has consumit.\n\nPagues exactament el que nosaltres paguem a aquests proveïdors. No hi afegim marge.\n\nPer a més tranquil·litat, pots veure el codi font d'HyperWhisper Cloud [aquí](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, orientada a usuaris menys tècnics que volen començar ràpid.\n\nFunciona amb model pay as you go. En comprar una clau del compte, reps $5 en crèdits de transcripció. Més endavant pots afegir-ne més.\n    \nOferim tres nivells de precisió: Medium (més ràpid, amb Groq), High (recomanat, amb Deepgram) i Highest (millor qualitat, amb xAI Grok STT). El postprocessament és automàtic. No guardem res, excepte quants crèdits has consumit.\n\nPagues exactament el que nosaltres paguem a aquests proveïdors. No hi afegim marge.\n\nPer a més tranquil·litat, pots veure el codi font d'HyperWhisper Cloud [aquí](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Les meves dades de veu s'utilitzaran per entrenar models d'IA?",

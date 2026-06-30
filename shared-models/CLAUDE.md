@@ -9,7 +9,7 @@ Two fields per `(provider, id)`:
 | Field | Meaning |
 |---|---|
 | `supportsCustomVocabulary` | Model accepts user-supplied keyword / keyterm / `initial_prompt` boosts at request time. Cross-checked against the actual transcription request site, not vendor marketing. |
-| `availableViaHyperWhisperCloud` | Model is reachable through the credit-based HyperWhisper Cloud routing service (Fly backend at `backend-v2-flyio`). When `true`, users without their own API key for that provider can still use the model via cloud credits. |
+| `availableViaHyperWhisperCloud` | Model is reachable through the credit-based HyperWhisper Cloud routing service (Fly backend at `hyperwhisper-cloud`). When `true`, users without their own API key for that provider can still use the model via cloud credits. |
 
 Plus a `platforms` array so a model can sit in the catalog before any given app ships it — each app filters out entries whose platform isn't in the list.
 
@@ -58,7 +58,7 @@ Row builders in `ModelLibraryManager` (both platforms) call these instead of har
 You MUST update `models-catalog.json` when:
 
 - Adding a new cloud transcription or post-processing model to either platform — add an entry with the correct `provider`, `id`, `kind`, `platforms`, and the two booleans.
-- The Fly backend (`backend-v2-flyio/src/routes/transcribe.ts` and `backend-v2-flyio/src/lib/llm-provider.ts`) starts or stops routing for a model — flip `availableViaHyperWhisperCloud` accordingly.
+- The Fly backend (`hyperwhisper-cloud/src/routes/transcribe.ts` and `hyperwhisper-cloud/src/lib/llm-provider.ts`) starts or stops routing for a model — flip `availableViaHyperWhisperCloud` accordingly.
 - A provider gains or loses custom-vocabulary support in a model upgrade (e.g., Scribe v1 → v2) — flip `supportsCustomVocabulary`.
 
 You do **not** need to update this catalog for changes to pricing, descriptions, accuracy ratings, default-picker promotion (`isPopular`), or any field that's still platform-local.
@@ -71,7 +71,7 @@ You do **not** need to update this catalog for changes to pricing, descriptions,
 
 Before flipping `availableViaHyperWhisperCloud = true` for a model:
 
-1. Confirm the Fly backend routes the upstream id. Transcription IDs are in `backend-v2-flyio/src/routes/transcribe.ts`; LLM IDs are in `backend-v2-flyio/src/lib/llm-provider.ts` (`LLM_PROVIDER_NAMES`).
+1. Confirm the Fly backend routes the upstream id. Transcription IDs are in `hyperwhisper-cloud/src/routes/transcribe.ts`; LLM IDs are in `hyperwhisper-cloud/src/lib/llm-provider.ts` (`LLM_PROVIDER_NAMES`).
 2. Confirm the id string exactly matches what each platform's registry uses. Watch for prefix differences (`openai/gpt-oss-120b` vs `gpt-oss-120b`).
 
 Before flipping `supportsCustomVocabulary = true` for a transcription model:

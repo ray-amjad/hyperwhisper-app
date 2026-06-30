@@ -1,0 +1,62 @@
+[
+  {
+    "file": "en-us-sarah.mp3",
+    "language": "en",
+    "voice": "Sarah",
+    "text": "The quick brown fox jumps over the lazy dog near the river bank."
+  },
+  {
+    "file": "en-gb-george.mp3",
+    "language": "en",
+    "voice": "George",
+    "text": "Good morning, this is a smoke test of the transcription service."
+  },
+  {
+    "file": "es-m.mp3",
+    "language": "es",
+    "voice": "M",
+    "text": "Hola, esto es una prueba del servicio de transcripción en español."
+  },
+  {
+    "file": "fr-lily.mp3",
+    "language": "fr",
+    "voice": "Lily",
+    "text": "Bonjour, ceci est un test du service de transcription en français."
+  },
+  {
+    "file": "de-brian.mp3",
+    "language": "de",
+    "voice": "Brian",
+    "text": "Guten Tag, dies ist ein Test des Transkriptionsdienstes auf Deutsch."
+  },
+  {
+    "file": "it-alice.mp3",
+    "language": "it",
+    "voice": "Alice",
+    "text": "Buongiorno, questo è un test del servizio di trascrizione in italiano."
+  },
+  {
+    "file": "pt-eric.mp3",
+    "language": "pt",
+    "voice": "Eric",
+    "text": "Olá, este é um teste do serviço de transcrição em português."
+  },
+  {
+    "file": "hi-rashmi.mp3",
+    "language": "hi",
+    "voice": "Rashmi",
+    "text": "नमस्ते, यह ट्रांसक्रिप्शन सेवा का एक परीक्षण है।"
+  },
+  {
+    "file": "ja-yuki.mp3",
+    "language": "ja",
+    "voice": "Yuki",
+    "text": "こんにちは、これは文字起こしサービスのテストです。"
+  },
+  {
+    "file": "zh-roger.mp3",
+    "language": "zh",
+    "voice": "Roger",
+    "text": "你好，这是转录服务的一个测试。"
+  }
+]

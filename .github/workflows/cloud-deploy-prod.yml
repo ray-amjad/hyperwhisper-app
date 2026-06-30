@@ -1,0 +1,55 @@
+# Push to `main` that touches the vendored Fly backend (hyperwhisper-cloud/) →
+# typecheck → deploy to STAGING first and smoke test it → only if that's green,
+# deploy to PROD and smoke test it.
+#
+# The staging hop is a real pre-prod gate: the exact image/config is exercised
+# on the staging app against live providers before any prod machine is touched.
+# main is the production branch — but it is now shared with Vercel/macOS/Windows,
+# so the path filter ensures only cloud-folder changes trigger a Fly deploy.
+name: cloud-deploy-prod
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'hyperwhisper-cloud/**'
+      - '.github/workflows/cloud-*.yml'
+  workflow_dispatch:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hyperwhisper-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: hyperwhisper-cloud/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+
+  # Stage 1: deploy to the staging app and smoke test it.
+  staging:
+    needs: typecheck
+    uses: ./.github/workflows/cloud-deploy.yml
+    with:
+      environment: preview
+      fly_config: fly.staging.toml
+      base_url: https://transcribe-staging-v2.hyperwhisper.com
+    secrets: inherit
+
+  # Stage 2: only runs if the staging smoke test passed.
+  # The GitHub Environment is named `production`.
+  prod:
+    needs: staging
+    uses: ./.github/workflows/cloud-deploy.yml
+    with:
+      environment: production
+      fly_config: fly.prod.toml
+      base_url: https://transcribe-prod-v2.hyperwhisper.com
+    secrets: inherit

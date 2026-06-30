@@ -33,7 +33,7 @@ schemas — open-sourced under **Apache-2.0**.
 Everything in HyperWhisper is open source under **Apache-2.0** — the macOS,
 Windows, and iOS apps, the marketing/license website, the docs, the shared
 schemas, **and the Fly.io transcription backend**
-([`hyperwhisper-fly`](https://github.com/ray-amjad/hyperwhisper-fly)). Nothing is
+([`hyperwhisper-cloud/`](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)). Nothing is
 closed source. **Local transcription runs entirely on your machine** with no
 account and no network — clone it, build it, use it.
 
@@ -56,7 +56,7 @@ development of everything in this repo.
 | `app/macos` | macOS app (Swift / SwiftUI) |
 | `app/windows` | Windows app (C# / WPF / .NET 10) |
 | `app/ios` | iOS app *(work in progress; not built here)* |
-| `backend-v2-flyio` | Fly.io edge transcription service ([`hyperwhisper-fly`](https://github.com/ray-amjad/hyperwhisper-fly) submodule) |
+| `hyperwhisper-cloud` | Fly.io edge transcription service |
 | `nextjs` | Marketing & license website (Next.js) |
 | `mintlify-help` | Documentation site (Mintlify) |
 | `shared-core-rs` | Rust shared core (UniFFI) used by the native apps |

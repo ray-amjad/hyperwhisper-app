@@ -115,7 +115,7 @@ cargo_metadata and their transitive deps (dual **MIT / Apache-2.0**).
 
 ---
 
-## Web (`nextjs`) and backend (`backend-v2-flyio`)
+## Web (`nextjs`) and backend (`hyperwhisper-cloud`)
 
 All Node.js / npm dependencies use permissive licenses (**MIT**, **Apache-2.0**,
 or **ISC**). See each project's `package.json` for the authoritative dependency
