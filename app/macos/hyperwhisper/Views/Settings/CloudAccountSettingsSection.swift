@@ -561,6 +561,7 @@ struct CloudAccountSettingsSection: View {
         String(key.map { $0 == "-" ? "-" : "•" })
     }
 
+    @MainActor
     private func fetchCredits(forceRefresh: Bool = false) async {
         guard !isLoading else { return }
 
@@ -568,10 +569,7 @@ struct CloudAccountSettingsSection: View {
         errorMessage = nil
 
         do {
-            let fetchedCredits = try await hyperWhisperCloudManager.fetchCredits(forceRefresh: forceRefresh)
-            await MainActor.run {
-                hyperWhisperCloudManager.credits = fetchedCredits
-            }
+            _ = try await hyperWhisperCloudManager.fetchCredits(forceRefresh: forceRefresh)
             errorMessage = nil
         } catch {
             if let cloudError = error as? HyperWhisperCloudError {
