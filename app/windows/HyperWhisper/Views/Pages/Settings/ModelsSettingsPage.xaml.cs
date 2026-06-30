@@ -91,15 +91,12 @@ public partial class ModelsSettingsPage : Page
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        LicenseUsageTracker.Instance.UsageChanged += OnUsageChanged;
-        LicenseManager.Instance.LicenseStatusChanged += OnLicenseChanged;
         CustomEndpointManager.Instance.EndpointsChanged += OnEndpointsChanged;
         ApiKeyService.Instance.ApiKeysChanged += OnApiKeysChanged;
         CloudProviderHealthService.Instance.TranscriptionProviderStatusChanged += OnTranscriptionProviderHealthChanged;
         CloudProviderHealthService.Instance.PostProcessingProviderStatusChanged += OnPostProcessingProviderHealthChanged;
         ModelDownloadService.Instance.DownloadChanged += OnModelDownloadChanged;
 
-        UpdateTrialWarning();
         RebuildLibrary();
         _ = RefreshProviderHealthAsync();
 
@@ -115,8 +112,6 @@ public partial class ModelsSettingsPage : Page
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        LicenseUsageTracker.Instance.UsageChanged -= OnUsageChanged;
-        LicenseManager.Instance.LicenseStatusChanged -= OnLicenseChanged;
         CustomEndpointManager.Instance.EndpointsChanged -= OnEndpointsChanged;
         ApiKeyService.Instance.ApiKeysChanged -= OnApiKeysChanged;
         CloudProviderHealthService.Instance.TranscriptionProviderStatusChanged -= OnTranscriptionProviderHealthChanged;
@@ -624,43 +619,6 @@ public partial class ModelsSettingsPage : Page
             : $"{endpoints} custom endpoint{(endpoints == 1 ? "" : "s")} available in the table. Use the row actions to edit, duplicate, or delete.";
     }
 
-    private void UpdateTrialWarning()
-    {
-        var tracker = LicenseUsageTracker.Instance;
-        if (LicenseManager.Instance.LicenseStatus == LicenseStatus.Active)
-        {
-            ModelsTrialWarning.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        var downloaded = tracker.ModelsDownloaded;
-        var limit = LicenseUsageTracker.TrialModelLimit;
-        var remaining = tracker.GetRemainingModelDownloads();
-
-        if (tracker.IsModelLimitReached)
-        {
-            ModelsTrialWarningTitle.Text = Loc.S("settings.models.limitReached.title");
-            ModelsTrialWarningText.Text = Loc.S("settings.models.limitReached.message", downloaded, limit);
-            ModelsTrialWarning.Background = (WpfBrush)FindResource("ErrorBackgroundBrush");
-            ModelsTrialWarningTitle.Foreground = (WpfBrush)FindResource("ErrorForegroundBrush");
-            ModelsTrialWarningText.Foreground = (WpfBrush)FindResource("ErrorForegroundBrush");
-            ModelsTrialWarning.Visibility = Visibility.Visible;
-        }
-        else if (downloaded > 0)
-        {
-            ModelsTrialWarningTitle.Text = Loc.S("settings.models.trial.title");
-            ModelsTrialWarningText.Text = Loc.S("settings.models.trial.message", downloaded, limit, remaining);
-            ModelsTrialWarning.Background = (WpfBrush)FindResource("WarningBackgroundBrush");
-            ModelsTrialWarningTitle.Foreground = (WpfBrush)FindResource("WarningForegroundBrush");
-            ModelsTrialWarningText.Foreground = (WpfBrush)FindResource("WarningForegroundBrush");
-            ModelsTrialWarning.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            ModelsTrialWarning.Visibility = Visibility.Collapsed;
-        }
-    }
-
     private void LibraryRowPrimaryAction_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: LibraryModelViewModel row }) return;
@@ -730,16 +688,7 @@ public partial class ModelsSettingsPage : Page
 
     private void DownloadModel(LibraryModelViewModel row)
     {
-        if (!LicenseUsageTracker.Instance.CanDownloadModel())
-        {
-            WpfMessageBox.Show(
-                Loc.S("settings.models.trialLimit.message"),
-                Loc.S("settings.models.trialLimit.title"),
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
-        }
-
+        // Local model downloads are unlimited (open source) — no gate.
         SetRowDownloading(row, 0);
         if (!ModelDownloadService.Instance.TryStartDownload(row.Model))
         {
@@ -1001,24 +950,6 @@ public partial class ModelsSettingsPage : Page
         }
     }
 
-    private void ModelsUpgrade_Click(object sender, RoutedEventArgs e)
-    {
-        if (!LicenseManager.Instance.OpenPurchasePage(out var errorMessage))
-        {
-            WpfMessageBox.Show(
-                Loc.S("settings.general.support.openFailed", errorMessage ?? ""),
-                Loc.S("common.error"),
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-    }
-
-    private void OnUsageChanged(object? sender, EventArgs e)
-        => Dispatcher.Invoke(UpdateTrialWarning);
-
-    private void OnLicenseChanged(object? sender, EventArgs e)
-        => Dispatcher.Invoke(UpdateTrialWarning);
-
     private void OnEndpointsChanged(object? sender, EventArgs e)
         => Dispatcher.Invoke(RebuildLibrary);
 
@@ -1051,7 +982,6 @@ public partial class ModelsSettingsPage : Page
                 }
 
                 RebuildLibrary();
-                UpdateTrialWarning();
                 return;
             }
 

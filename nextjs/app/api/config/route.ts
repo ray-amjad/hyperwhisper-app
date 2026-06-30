@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 
+// DEPRECATED: local trial limits were removed (HyperWhisper is open source —
+// local transcription and model downloads are unconditionally free and
+// unlimited). The desktop apps no longer fetch or enforce these values; this
+// endpoint is kept only so older app versions still get a valid response.
+// Safe to delete once those versions are no longer in the field.
 export async function GET() {
   return NextResponse.json(
     {

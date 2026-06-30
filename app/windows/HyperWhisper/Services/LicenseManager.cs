@@ -1,9 +1,10 @@
 // LICENSE MANAGER
-// Coordinates license operations and manages UI state.
+// Coordinates HyperWhisper Cloud license operations and UI state. The license key
+// is the Cloud "wallet" (status drives the Cloud transcription identifier). Local
+// transcription/model downloads are free & unlimited (open source) — no trial gate.
 //
 // COMPONENTS:
 // - LicenseNetworkService: API calls and local caching
-// - LicenseUsageTracker: Trial limits (daily time, model downloads)
 // - DeviceIdService: Device identification
 //
 // USAGE:
@@ -107,9 +108,6 @@ public sealed class LicenseManager : INotifyPropertyChanged
 
     private LicenseManager()
     {
-        // Subscribe to usage tracker changes
-        LicenseUsageTracker.Instance.UsageChanged += OnUsageChanged;
-
         LoggingService.Info("LicenseManager: Initialized");
     }
 
@@ -199,43 +197,9 @@ public sealed class LicenseManager : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Whether the user has an active license.
+    /// Whether the user has an active Cloud license.
     /// </summary>
     public bool IsLicensed => _licenseStatus == LicenseStatus.Active;
-
-    // =========================================================================
-    // USAGE TRACKER DELEGATED PROPERTIES
-    // =========================================================================
-
-    /// <summary>
-    /// Daily transcription usage in seconds.
-    /// </summary>
-    public int DailyUsageSeconds => LicenseUsageTracker.Instance.DailyUsageSeconds;
-
-    /// <summary>
-    /// Number of models downloaded.
-    /// </summary>
-    public int ModelsDownloaded => LicenseUsageTracker.Instance.ModelsDownloaded;
-
-    /// <summary>
-    /// Whether daily limit is reached (trial users).
-    /// </summary>
-    public bool IsDailyLimitReached => LicenseUsageTracker.Instance.IsDailyLimitReached;
-
-    /// <summary>
-    /// Whether model limit is reached (trial users).
-    /// </summary>
-    public bool IsModelLimitReached => LicenseUsageTracker.Instance.IsModelLimitReached;
-
-    /// <summary>
-    /// Trial daily transcription limit (for UI display).
-    /// </summary>
-    public int TrialDailyTranscriptionLimit => LicenseUsageTracker.TrialDailyLimitSeconds;
-
-    /// <summary>
-    /// Trial model download limit (for UI display).
-    /// </summary>
-    public int TrialModelDownloadLimit => LicenseUsageTracker.TrialModelLimit;
 
     // =========================================================================
     // LICENSE OPERATIONS
@@ -288,7 +252,6 @@ public sealed class LicenseManager : INotifyPropertyChanged
             // Reset state
             LicenseStatus = LicenseStatus.Trial;
             CustomerEmail = null;
-            LicenseUsageTracker.Instance.UpdateLicenseStatus(LicenseStatus.Trial);
 
             LoggingService.Info("LicenseManager: License deactivated, reverted to trial");
             return true;
@@ -320,7 +283,6 @@ public sealed class LicenseManager : INotifyPropertyChanged
         {
             LoggingService.Info("LicenseManager: No stored license, using trial mode");
             LicenseStatus = LicenseStatus.Trial;
-            LicenseUsageTracker.Instance.UpdateLicenseStatus(LicenseStatus.Trial);
         }
         else if (LicenseNetworkService.Instance.ShouldRevalidate())
         {
@@ -336,7 +298,6 @@ public sealed class LicenseManager : INotifyPropertyChanged
             {
                 LoggingService.Info($"LicenseManager: Using cached license status: {cachedStatus.Value}");
                 LicenseStatus = cachedStatus.Value;
-                LicenseUsageTracker.Instance.UpdateLicenseStatus(cachedStatus.Value);
             }
             else
             {
@@ -345,33 +306,7 @@ public sealed class LicenseManager : INotifyPropertyChanged
             }
         }
 
-        // Load remote trial config (non-blocking for license flow)
-        await LoadRemoteConfigAsync();
-    }
-
-    /// <summary>
-    /// Loads remote trial config: applies cached values immediately, then fetches fresh values.
-    /// Non-blocking — uses defaults if no cache and no network.
-    /// </summary>
-    private async Task LoadRemoteConfigAsync()
-    {
-        // Apply cached config immediately (if fresh)
-        var cached = ConfigService.Instance.GetCachedConfig();
-        if (cached != null)
-        {
-            LicenseUsageTracker.Instance.UpdateTrialLimits(
-                cached.TrialDailyLimitSeconds, cached.TrialModelDownloadLimit);
-            return; // Cache is fresh, no need to fetch
-        }
-
-        // Cache expired or missing — fetch from server
-        var fetched = await ConfigService.Instance.FetchConfigAsync();
-        if (fetched != null)
-        {
-            LicenseUsageTracker.Instance.UpdateTrialLimits(
-                fetched.TrialDailyLimitSeconds, fetched.TrialModelDownloadLimit);
-        }
-        // On failure, hardcoded defaults remain in effect
+        // No remote trial-config fetch — local limits are removed (open source).
     }
 
     /// <summary>
@@ -380,66 +315,6 @@ public sealed class LicenseManager : INotifyPropertyChanged
     public string? GetStoredLicenseKey()
     {
         return LicenseNetworkService.Instance.GetStoredLicenseKey();
-    }
-
-    // =========================================================================
-    // USAGE TRACKING (DELEGATED)
-    // =========================================================================
-
-    /// <summary>
-    /// Checks if user can start recording based on daily limit.
-    /// </summary>
-    public bool CanStartRecording()
-    {
-        return LicenseUsageTracker.Instance.CanStartRecording();
-    }
-
-    /// <summary>
-    /// Records transcription time and updates usage.
-    /// </summary>
-    public void RecordTranscriptionTime(int seconds)
-    {
-        LicenseUsageTracker.Instance.RecordTranscriptionTime(seconds);
-    }
-
-    /// <summary>
-    /// Gets remaining daily transcription time in seconds.
-    /// </summary>
-    public int GetRemainingDailyTime()
-    {
-        return LicenseUsageTracker.Instance.GetRemainingDailyTime();
-    }
-
-    /// <summary>
-    /// Gets remaining daily time as formatted string.
-    /// </summary>
-    public string GetRemainingDailyTimeFormatted()
-    {
-        return LicenseUsageTracker.Instance.GetRemainingDailyTimeFormatted();
-    }
-
-    /// <summary>
-    /// Checks if user can download another model.
-    /// </summary>
-    public bool CanDownloadModel()
-    {
-        return LicenseUsageTracker.Instance.CanDownloadModel();
-    }
-
-    /// <summary>
-    /// Increments the model download count.
-    /// </summary>
-    public void IncrementModelDownloadCount()
-    {
-        LicenseUsageTracker.Instance.IncrementModelDownloadCount();
-    }
-
-    /// <summary>
-    /// Gets remaining model downloads.
-    /// </summary>
-    public int GetRemainingModelDownloads()
-    {
-        return LicenseUsageTracker.Instance.GetRemainingModelDownloads();
     }
 
     // =========================================================================
@@ -528,22 +403,7 @@ public sealed class LicenseManager : INotifyPropertyChanged
             LastError = null;
         }
 
-        // Update usage tracker with new license status
-        LicenseUsageTracker.Instance.UpdateLicenseStatus(result.Status);
-
         LoggingService.Info($"LicenseManager: License status updated to {result.Status}");
-    }
-
-    /// <summary>
-    /// Handles usage tracker changes to notify property changed.
-    /// </summary>
-    private void OnUsageChanged(object? sender, EventArgs e)
-    {
-        // Notify that usage-related properties may have changed
-        OnPropertyChanged(nameof(DailyUsageSeconds));
-        OnPropertyChanged(nameof(ModelsDownloaded));
-        OnPropertyChanged(nameof(IsDailyLimitReached));
-        OnPropertyChanged(nameof(IsModelLimitReached));
     }
 
     /// <summary>

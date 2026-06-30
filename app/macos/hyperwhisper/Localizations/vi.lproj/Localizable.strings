@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Từ vựng";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Đã xảy ra lỗi không xác định";
 "app.microphone.permission.message" = "HyperWhisper cần quyền truy cập micrô của bạn để chuyển đổi âm thanh.\n\nVui lòng đi tới Cài đặt Hệ thống > Quyền riêng tư & Bảo mật > Micrô và bật quyền truy cập cho HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper lưu các bản ghi âm vào một thư mục trong Tài liệu của bạn để dễ tìm thấy: Documents/hyperwhisper/recordings. macOS có thể yêu cầu quyền lần đầu tiên chúng tôi cố gắng lưu ở đó. Nếu bạn không muốn cấp quyền truy cập, chúng tôi có thể lưu trữ các bản ghi âm trong một thư mục ứng dụng riêng thay thế.";
-"app.upgrade.to.pro" = "Nâng cấp lên Pro";
-"app.enter.license.key" = "Nhập Khóa Giấy phép";
-"accessibility.upgrade.pro" = "Nâng cấp lên HyperWhisper Pro";
-"accessibility.enter.license" = "Nhập Khóa Giấy phép";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Hoạt động";
 "license.status.expired.title" = "Đã hết hạn";
 "license.status.invalid.title" = "Không hợp lệ";
-"license.status.trial.description" = "Dùng thử Miễn phí (5 phút/ngày, %d mô hình)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Được cấp phép – Quyền truy cập Đầy đủ";
 "license.status.expired.description" = "Giấy phép Đã hết hạn";
 "license.status.invalid.description" = "Giấy phép Không hợp lệ";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Mô hình Ngoại tuyến";
 "settings.license.models.progress" = "Đã tải xuống %d trên %d mô hình";
 "settings.license.models.progress.one" = "Đã tải xuống %d trên %d mô hình";
-"settings.license.upgrade.text" = "Nâng cấp để chuyển đổi không giới hạn và tải xuống mô hình";
-"settings.license.upgrade.button" = "Nâng cấp";
 "license.error.invalidResponse" = "Định dạng phản hồi không hợp lệ";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Lỗi mạng: %@";
 "settings.credits.error.invalidResponse" = "Phản hồi không hợp lệ từ máy chủ. Vui lòng thử lại.";
 "settings.credits.error.server" = "Lỗi máy chủ: %@";
-"settings.models.alert.limit.title" = "Giới hạn tải xuống mô hình đã đạt";
-"settings.models.alert.limit.message" = "Phiên bản dùng thử bao gồm %d lần tải xuống mô hình. Nâng cấp giấy phép của bạn để tải xuống không giới hạn.";
 "settings.models.alert.cannotDelete.title" = "Không thể Xóa Mô hình";
 "settings.models.parakeet.title" = "Mô hình Parakeet";
 "settings.models.parakeet.subtitle" = "Được đề xuất cho hầu hết người dùng. Mô hình đa ngôn ngữ hỗ trợ 25 ngôn ngữ.";
@@ -830,7 +824,6 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "modes.postProcessing.accuracy" = "Độ chính xác";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Bạn đã đạt giới hạn chuyển đổi %@-phút hàng ngày của mình. Nâng cấp lên HyperWhisper Pro để chuyển đổi không giới hạn.";
 "recording.error.documentsAccess" = "Không thể truy cập thư mục bản ghi âm. Chọn một vị trí khác trong Cài đặt → Lưu trữ.";
 "recording.error.modeMissing" = "Không tìm thấy chế độ được chọn. Vui lòng chọn một chế độ hợp lệ.";
 "recording.warning.oversizedWAV" = "Nén âm thanh không thành công. Sử dụng tệp chưa nén %@ MB - chuyển đổi có thể chậm hơn.";

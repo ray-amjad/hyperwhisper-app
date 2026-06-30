@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Ordförråd";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Ett okänt fel uppstod";
 "app.microphone.permission.message" = "HyperWhisper behöver åtkomst till din mikrofon för att transkribera ljud.\n\nGå till Systeminställningar > Sekretess och säkerhet > Mikrofon och aktivera åtkomst för HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper sparar inspelningar i en mapp i dina Dokument för att de ska vara lätta att hitta: Dokument/hyperwhisper/inspelningar. macOS kan fråga om tillåtelse första gången vi försöker spara där. Om du hellre vill inte ge åtkomst kan vi spara inspelningar i en privat appmapp istället.";
-"app.upgrade.to.pro" = "Uppgradera till Pro";
-"app.enter.license.key" = "Ange licensnyckel";
-"accessibility.upgrade.pro" = "Uppgradera till HyperWhisper Pro";
-"accessibility.enter.license" = "Ange licensnyckel";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktiv";
 "license.status.expired.title" = "Utgånget";
 "license.status.invalid.title" = "Ogiltig";
-"license.status.trial.description" = "Gratis testversion (5 min/dag, %d modeller)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licensierad – fullständig åtkomst";
 "license.status.expired.description" = "Licens utgånget";
 "license.status.invalid.description" = "Ogiltig licens";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Offline-modeller";
 "settings.license.models.progress" = "%d av %d modeller nedladdad";
 "settings.license.models.progress.one" = "%d av %d modell nedladdad";
-"settings.license.upgrade.text" = "Uppgradera för obegränsad transkription och modellnedladdningar";
-"settings.license.upgrade.button" = "Uppgradera";
 "license.error.invalidResponse" = "Ogiltigt svarsformat";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Nätverksfel: %@";
 "settings.credits.error.invalidResponse" = "Ogiltigt svar från servern. Försök igen.";
 "settings.credits.error.server" = "Serverfel: %@";
-"settings.models.alert.limit.title" = "Modellnedladdningsgräns nådd";
-"settings.models.alert.limit.message" = "Testversioner inkluderar %d modellnedladdningar. Uppgradera din licens för obegränsade nedladdningar.";
 "settings.models.alert.cannotDelete.title" = "Det gick inte att ta bort modellen";
 "settings.models.parakeet.title" = "Parakeet-modeller";
 "settings.models.parakeet.subtitle" = "Rekommenderas för de flesta användare. Flerspråkig modell stöder 25 språk.";
@@ -830,7 +824,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "modes.postProcessing.accuracy" = "Noggrannhet";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Du har nått din dagliga gräns för %@-minuters transkription. Uppgradera till HyperWhisper Pro för obegränsad transkription.";
 "recording.error.documentsAccess" = "Kan inte komma åt inspelningsmappen. Välj en annan plats i Inställningar → Lagring.";
 "recording.error.modeMissing" = "Valt läge hittades inte. Välj ett giltigt läge.";
 "recording.warning.oversizedWAV" = "Audiokomprimering misslyckades. Använder okomprimerad %@ MB-fil - transkriptionen kan vara långsammare.";

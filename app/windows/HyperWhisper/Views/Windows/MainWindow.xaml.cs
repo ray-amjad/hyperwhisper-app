@@ -310,23 +310,12 @@ public partial class MainWindow : Window
     {
         var isLicensed = LicenseManager.Instance.LicenseStatus == LicenseStatus.Active;
         LicensedSidebarCard.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
-        TrialSidebarActions.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
+        CloudSidebarActions.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void UpgradeSidebar_Click(object sender, RoutedEventArgs e)
+    private void CloudCreditsSidebar_Click(object sender, RoutedEventArgs e)
     {
-        if (!LicenseManager.Instance.OpenPurchasePage(out var errorMessage))
-        {
-            WpfMessageBox.Show(
-                Loc.S("settings.general.support.openFailed", errorMessage ?? ""),
-                Loc.S("common.error"),
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-    }
-
-    private void EnterLicenseSidebar_Click(object sender, RoutedEventArgs e)
-    {
+        // Open the combined Cloud account / credits + license activation panel.
         SettingsNavButton.IsChecked = true;
         _viewModel.CurrentPage = MainViewModel.NavigationPage.Settings;
         NavigateToPage(MainViewModel.NavigationPage.Settings, "License");

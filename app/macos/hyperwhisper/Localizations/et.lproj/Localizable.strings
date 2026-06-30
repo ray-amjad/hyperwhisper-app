@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Sõnavara";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Tekkis tundmatu viga";
 "app.microphone.permission.message" = "HyperWhisper vajab juurdepääsu teie mikrofonile heli transkribeerimiseks.\n\nPalun minge Süsteemiseaded > Privaatsus ja turvalisus > Mikrofon ja lubage juurdepääs rakendusele HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper salvestab salvestused kausta teie dokumentides, et neid oleks lihtne leida: Dokumendid/hyperwhisper/recordings. macOS võib esimesel korral küsida luba. Kui te ei soovi juurdepääsu anda, saame salvestused hoida privaatses rakenduse kaustas.";
-"app.upgrade.to.pro" = "Uuenda Pro-le";
-"app.enter.license.key" = "Sisesta litsentsivõti";
-"accessibility.upgrade.pro" = "Uuenda HyperWhisper Pro-le";
-"accessibility.enter.license" = "Sisesta litsentsivõti";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktiivne";
 "license.status.expired.title" = "Aegunud";
 "license.status.invalid.title" = "Kehtetu";
-"license.status.trial.description" = "Tasuta proov (5 min/päevas, %d mudelit)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Litsentsitud – täielik juurdepääs";
 "license.status.expired.description" = "Litsents aegunud";
 "license.status.invalid.description" = "Kehtetu litsents";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Võrguühenduseta mudelid";
 "settings.license.models.progress" = "%d %d mudelist alla laaditud";
 "settings.license.models.progress.one" = "%d %d mudelist alla laaditud";
-"settings.license.upgrade.text" = "Uuenda piiramatu transkriptsiooni ja mudeli allalaadimiste jaoks";
-"settings.license.upgrade.button" = "Uuenda";
 "license.error.invalidResponse" = "Vale vastuse vorming";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Võrgu viga: %@";
 "settings.credits.error.invalidResponse" = "Vale vastus serverist. Palun proovige uuesti.";
 "settings.credits.error.server" = "Serveri viga: %@";
-"settings.models.alert.limit.title" = "Mudeli allalaadimise limiit saavutatud";
-"settings.models.alert.limit.message" = "Proovid sisaldavad %d mudeli allalaadimist. Uuendage oma litsentsi piiramatu allalaadimiste jaoks.";
 "settings.models.alert.cannotDelete.title" = "Mudelit ei saa kustutada";
 "settings.models.parakeet.title" = "Parakeet mudelid";
 "settings.models.parakeet.subtitle" = "Soovitatav enamikule kasutajatele. Mitmekeelne mudel toetab 25 keelt.";
@@ -830,7 +824,6 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "modes.postProcessing.accuracy" = "Täpsus";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Olete jõudnud oma igapäevasele %@-minutilise transkriptsiooni limiidile. Uuendage HyperWhisper Pro-le piiramatu transkriptsiooni jaoks.";
 "recording.error.documentsAccess" = "Salvestuste kaustale ei pääse juurde. Valige seadetes → Salvestusruum teine asukoht.";
 "recording.error.modeMissing" = "Valitud režiimi ei leitud. Palun valige kehtiv režiim.";
 "recording.warning.oversizedWAV" = "Heli tihendamine ebaõnnestus. Kasutan tihendamata %@ MB faili - transkriptsioon võib olla aeglasem.";

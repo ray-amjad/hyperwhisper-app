@@ -56,32 +56,6 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <StackPanel MaxWidth="{StaticResource ContentMaxWidthWide}" Margin="24,24,24,24">
 
-            <Border x:Name="ModelsTrialWarning"
-                    Background="{DynamicResource WarningBackgroundBrush}"
-                    CornerRadius="{StaticResource CardCornerRadius}"
-                    Padding="16"
-                    Margin="0,0,0,14"
-                    Visibility="Collapsed">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel>
-                        <TextBlock x:Name="ModelsTrialWarningTitle" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource WarningForegroundBrush}"/>
-                        <TextBlock x:Name="ModelsTrialWarningText" FontSize="13"
-                                   Foreground="{DynamicResource WarningForegroundBrush}"
-                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
-                    </StackPanel>
-                    <Button Grid.Column="1" Content="{loc:Loc settings.license.upgrade.button}"
-                            Style="{StaticResource PrimaryButtonStyle}"
-                            Margin="12,0,0,0"
-                            VerticalAlignment="Center"
-                            Click="ModelsUpgrade_Click"/>
-                </Grid>
-            </Border>
-
             <!-- Search pill with inline filter chips + integrated filter dropdown (mirrors the macOS Model Library). -->
             <Border Background="{DynamicResource InputBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}"

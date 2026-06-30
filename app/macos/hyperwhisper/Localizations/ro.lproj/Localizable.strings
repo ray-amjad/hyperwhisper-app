@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Vocabular";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "A apărut o eroare necunoscută";
 "app.microphone.permission.message" = "HyperWhisper necesită acces la microfonul dvs. pentru a transcrie audio.\n\nVă rugăm să accesați Setări de sistem > Confidențialitate și securitate > Microfon și activați accesul pentru HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper salvează înregistrări într-un folder din Documente pentru a le găsi ușor: Documents/hyperwhisper/recordings. macOS poate solicita permisiune prima dată când încercăm să salvez acolo. Dacă preferați să nu acordați acces, putem stoca înregistrări într-un folder privat al aplicației.";
-"app.upgrade.to.pro" = "Upgrade la Pro";
-"app.enter.license.key" = "Introduceți cheia de licență";
-"accessibility.upgrade.pro" = "Upgrade la HyperWhisper Pro";
-"accessibility.enter.license" = "Introduceți cheia de licență";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Activ";
 "license.status.expired.title" = "Expirat";
 "license.status.invalid.title" = "Nevalid";
-"license.status.trial.description" = "Versiune de probă gratuită (5 min/zi, %d modele)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Cu licență – Acces complet";
 "license.status.expired.description" = "Licența a expirat";
 "license.status.invalid.description" = "Licență nevalidă";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Modele offline";
 "settings.license.models.progress" = "%d din %d modele descărcate";
 "settings.license.models.progress.one" = "%d din %d model descărcat";
-"settings.license.upgrade.text" = "Upgrade pentru transcriere nelimitată și descărcări de model";
-"settings.license.upgrade.button" = "Upgrade";
 "license.error.invalidResponse" = "Format de răspuns nevalid";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Eroare de rețea: %@";
 "settings.credits.error.invalidResponse" = "Răspuns nevalid de la server. Vă rugăm încercați din nou.";
 "settings.credits.error.server" = "Eroare de server: %@";
-"settings.models.alert.limit.title" = "Limită de descărcare de modele atinsă";
-"settings.models.alert.limit.message" = "Versiunile de probă includ %d descărcări de modele. Upgrade licența pentru descărcări nelimitate.";
 "settings.models.alert.cannotDelete.title" = "Nu se poate șterge modelul";
 "settings.models.parakeet.title" = "Modele Parakeet";
 "settings.models.parakeet.subtitle" = "Recomandat pentru cei mai mulți utilizatori. Model multilingv suportă 25 de limbi.";
@@ -830,7 +824,6 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "modes.postProcessing.accuracy" = "Precizie";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Ați atins limita de transcriere zilnică de %@ minute. Upgrade la HyperWhisper Pro pentru transcriere nelimitată.";
 "recording.error.documentsAccess" = "Nu se poate accesa folderul înregistrări. Alegeți o locație diferită în Setări → Stocare.";
 "recording.error.modeMissing" = "Modul selectat nu a fost găsit. Vă rugăm selectați un mod valid.";
 "recording.warning.oversizedWAV" = "Comprimarea audio a eșuat. Se utilizează fișier necomprimat %@ MB - transcriere poate fi mai lentă.";

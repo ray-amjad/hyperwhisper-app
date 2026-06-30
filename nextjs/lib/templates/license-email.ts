@@ -54,7 +54,7 @@ export const licenseEmailHtml = (data: LicenseEmailData) => {
         }
 
         <div style="background-color: #fef3c7; border-radius: 8px; padding: 16px; margin-top: 24px; border-left: 4px solid #f59e0b;">
-            <p style="margin: 0; color: #92400e;"><strong>Pro Tip:</strong> You can also quickly access the license entry by clicking the "Enter License Key" button next to "Upgrade to Pro" in the app.</p>
+            <p style="margin: 0; color: #92400e;"><strong>Pro Tip:</strong> You can enter your key in the app under <strong>Settings → License</strong> (the HyperWhisper Cloud panel).</p>
         </div>
     </div>
 
@@ -94,7 +94,7 @@ Quick Start Guide:
 4. Paste your Account Key: ${licenseKey}
 5. Click "Activate" to unlock all Pro features
 
-Pro Tip: You can also quickly access the license entry by clicking the "Enter License Key" button next to "Upgrade to Pro" in the app.
+Pro Tip: You can enter your key in the app under Settings → License (the HyperWhisper Cloud panel).
 
 ${downloadUrl ? `Download ${productName}: ${downloadUrl}` : ""}
 

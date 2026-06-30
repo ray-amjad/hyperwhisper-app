@@ -565,89 +565,60 @@ struct UpgradeSidebarCTA: View {
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
             )
         } else {
-            // UPGRADE BUTTONS (for non-Pro users)
-            VStack(spacing: 8) {
-                // Primary: Upgrade to Pro button
-                Button(action: { licenseManager.openPurchasePage() }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkle")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.primary.opacity(0.7))
-                        
-                        Text(localized: "app.upgrade.to.pro")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.primary.opacity(0.85))
-                        
-                        Spacer(minLength: 0)
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.primary.opacity(0.5))
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(
-                                isHovering ? 
-                                Color.primary.opacity(0.15) : 
-                                Color.primary.opacity(0.08), 
-                                lineWidth: 0.5
-                            )
-                    )
-                    .scaleEffect(isHovering ? 1.02 : 1.0)
-                    .shadow(
-                        color: .black.opacity(isHovering ? 0.15 : 0.1), 
-                        radius: isHovering ? 8 : 4, 
-                        x: 0, 
-                        y: 2
-                    )
+            // CLOUD CREDITS CTA (for users without an active Cloud license)
+            // Local transcription is free & unlimited (open source); this is a
+            // discoverable path to HyperWhisper Cloud (paid, credit-based).
+            Button(action: {
+                // Navigate to the combined Cloud account / credits panel.
+                appState.selectedNavigationItem = .settings
+                appState.selectedSettingsSection = "license"
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "cloud.fill")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.7))
+
+                    Text(localized: "app.cloud.cta.title")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.85))
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.primary.opacity(0.5))
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
-                        isHovering = hovering
-                    }
-                }
-                .accessibilityLabel(Text(localized: "accessibility.upgrade.pro"))
-                
-                // Secondary: Enter License Key button
-                Button(action: { 
-                    // Navigate to Settings > License
-                    appState.selectedNavigationItem = .settings
-                    appState.selectedSettingsSection = "license"
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "key")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.primary.opacity(0.6))
-                        
-                        Text(localized: "app.enter.license.key")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundColor(.primary.opacity(0.7))
-                        
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(.ultraThinMaterial.opacity(0.5))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.05), lineWidth: 0.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(localized: "accessibility.enter.license"))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(
+                            isHovering ?
+                            Color.primary.opacity(0.15) :
+                            Color.primary.opacity(0.08),
+                            lineWidth: 0.5
+                        )
+                )
+                .scaleEffect(isHovering ? 1.02 : 1.0)
+                .shadow(
+                    color: .black.opacity(isHovering ? 0.15 : 0.1),
+                    radius: isHovering ? 8 : 4,
+                    x: 0,
+                    y: 2
+                )
             }
+            .buttonStyle(.plain)
+            .onHover { hovering in
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                    isHovering = hovering
+                }
+            }
+            .accessibilityLabel(Text(localized: "accessibility.cloud.cta"))
         }
     }
 }

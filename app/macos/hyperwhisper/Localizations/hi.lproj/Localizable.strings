@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "शब्दावली";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "एक अज्ञात त्रुटि हुई";
 "app.microphone.permission.message" = "HyperWhisper को ऑडियो ट्रांसक्राइब करने के लिए आपके माइक्रोफ़ोन तक पहुंच की आवश्यकता है।\n\nकृपया सिस्टम सेटिंग्स > गोपनीयता और सुरक्षा > माइक्रोफ़ोन पर जाएं और HyperWhisper के लिए एक्सेस सक्षम करें।";
 "app.recordings.location.message" = "HyperWhisper रिकॉर्डिंग को आपके दस्तावेज़ों में एक फ़ोल्डर में सहेजता है ताकि उन्हें ढूंढना आसान हो: Documents/hyperwhisper/recordings। macOS पहली बार जब हम वहां सहेजने का प्रयास करें तो अनुमति मांग सकता है। यदि आप एक्सेस नहीं देना चाहते, तो हम रिकॉर्डिंग को एक निजी ऐप फ़ोल्डर में संग्रहीत कर सकते हैं।";
-"app.upgrade.to.pro" = "Pro में अपग्रेड करें";
-"app.enter.license.key" = "लाइसेंस कुंजी दर्ज करें";
-"accessibility.upgrade.pro" = "HyperWhisper Pro में अपग्रेड करें";
-"accessibility.enter.license" = "लाइसेंस कुंजी दर्ज करें";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "सक्रिय";
 "license.status.expired.title" = "समाप्त";
 "license.status.invalid.title" = "अमान्य";
-"license.status.trial.description" = "मुफ्त ट्रायल (5 मिनट/दिन, %d मॉडल)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "लाइसेंसप्राप्त – पूर्ण पहुंच";
 "license.status.expired.description" = "लाइसेंस समाप्त";
 "license.status.invalid.description" = "अमान्य लाइसेंस";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "ऑफ़लाइन मॉडल";
 "settings.license.models.progress" = "%d में से %d मॉडल डाउनलोड किए गए";
 "settings.license.models.progress.one" = "%d में से %d मॉडल डाउनलोड किया गया";
-"settings.license.upgrade.text" = "असीमित ट्रांसक्रिप्शन और मॉडल डाउनलोड के लिए अपग्रेड करें";
-"settings.license.upgrade.button" = "अपग्रेड करें";
 "license.error.invalidResponse" = "अमान्य प्रतिक्रिया प्रारूप";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "नेटवर्क त्रुटि: %@";
 "settings.credits.error.invalidResponse" = "सर्वर से अमान्य प्रतिक्रिया। कृपया पुनः प्रयास करें।";
 "settings.credits.error.server" = "सर्वर त्रुटि: %@";
-"settings.models.alert.limit.title" = "मॉडल डाउनलोड सीमा पहुंच गई";
-"settings.models.alert.limit.message" = "ट्रायल में %d मॉडल डाउनलोड शामिल हैं। असीमित डाउनलोड के लिए अपने लाइसेंस को अपग्रेड करें।";
 "settings.models.alert.cannotDelete.title" = "मॉडल हटाना नहीं जा सकता";
 "settings.models.parakeet.title" = "Parakeet मॉडल";
 "settings.models.parakeet.subtitle" = "अधिकांश उपयोगकर्ताओं के लिए अनुशंसित। बहुभाषी मॉडल 25 भाषाओं का समर्थन करता है।";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "सटीकता";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "आपने अपनी दैनिक %@-मिनट ट्रांसक्रिप्शन सीमा तक पहुंच गया है। असीमित ट्रांसक्रिप्शन के लिए HyperWhisper Pro में अपग्रेड करें।";
 "recording.error.documentsAccess" = "रिकॉर्डिंग फ़ोल्डर तक पहुंचा नहीं जा सकता। सेटिंग्स → संग्रहण में एक अलग स्थान चुनें।";
 "recording.error.modeMissing" = "चयनित मोड नहीं मिला। कृपया एक वैध मोड चुनें।";
 "recording.warning.oversizedWAV" = "ऑडियो संपीड़न विफल। अनुपीड़ित %@ MB फ़ाइल का उपयोग किया जा रहा है - ट्रांसक्रिप्शन धीमा हो सकता है।";

@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Vārdu krājums";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Notika nezināma kļūda";
 "app.microphone.permission.message" = "HyperWhisper prasa piekļuvi jūsu mikrofonam, lai transkribētu audio.\n\nLūdzu dodieties uz Sistēmas iestatījumi > Privātums un drošība > Mikrofons un iespējojiet piekļuvi HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper saglabā ierakstus mapē jūsu Dokumentos, lai tos varētu viegli atrast: Documents/hyperwhisper/recordings. macOS var lūgt atļauju pirmo reizi, kad mēs cenšamies tur saglabāt. Ja vēlaties nepiešķirt piekļuvi, mēs varam saglabāt ierakstus privātā programmas mapē.";
-"app.upgrade.to.pro" = "Jaunināt uz Pro";
-"app.enter.license.key" = "Ievadīt licences atslēgu";
-"accessibility.upgrade.pro" = "Jaunināt uz HyperWhisper Pro";
-"accessibility.enter.license" = "Ievadīt licences atslēgu";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktīvs";
 "license.status.expired.title" = "Beidzies";
 "license.status.invalid.title" = "Nepareizs";
-"license.status.trial.description" = "Bezmaksas izmēģinājums (5 min/diena, %d modeļi)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencēts – Pilna piekļuve";
 "license.status.expired.description" = "Licence beidzusies";
 "license.status.invalid.description" = "Nepamatota licence";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Bezsaistes modeļi";
 "settings.license.models.progress" = "%d no %d modeļi lejupielādēti";
 "settings.license.models.progress.one" = "%d no %d modelis lejupielādēts";
-"settings.license.upgrade.text" = "Jauniniet, lai iegūtu neierobežotu transkripciiju un modeļu lejupielādes";
-"settings.license.upgrade.button" = "Jaunināt";
 "license.error.invalidResponse" = "Nepareiza atbildes formāta";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Tīkla kļūda: %@";
 "settings.credits.error.invalidResponse" = "Nepareiza atbilde no servera. Lūdzu mēģiniet vēlreiz.";
 "settings.credits.error.server" = "Servera kļūda: %@";
-"settings.models.alert.limit.title" = "Modeļa lejupielādes limits sasniegts";
-"settings.models.alert.limit.message" = "Izmēģinājumi ietver %d modeļa lejupielādes. Jauniniet savu licenci neierobežotiem lejupielādēm.";
 "settings.models.alert.cannotDelete.title" = "Neiespējams dzēst modeli";
 "settings.models.parakeet.title" = "Parakeet modeļi";
 "settings.models.parakeet.subtitle" = "Ieteicams lielākajai daļai lietotāju. Daudzvalodu modelis atbalsta 25 valodas.";
@@ -830,7 +824,6 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "modes.postProcessing.accuracy" = "Precizitāte";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Jūs esat sasniedzis savu ikdienas %@ minūšu transkripciijas limitu. Jauniniet uz HyperWhisper Pro neierobežotai transkripcijam.";
 "recording.error.documentsAccess" = "Nevar piekļūt ierakstu mapei. Izvēlieties citu vietu sadaļā Iestatījumi → Glabāšana.";
 "recording.error.modeMissing" = "Atlasītais režīms nav atrasts. Lūdzu atlasiet derīgu režīmu.";
 "recording.warning.oversizedWAV" = "Audio kompresija neizdevās. Izmantošanas nesaspiests %@ MB fails - transkripcija var būt lēnāka.";

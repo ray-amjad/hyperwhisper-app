@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Žodynas";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Įvyko nežinoma klaida";
 "app.microphone.permission.message" = "HyperWhisper reikalingas prieigos prie jūsų mikrofo leidimas, kad transkribuotų audio.\n\nEikite į Sistemos nustatymai > Privatumas ir sauga > Mikrofon ir suteikite prieigą HyperWhisper.";
 "app.recordings.location.message" = "HyperWhisper įrašus išsaugo aplankoje jūsų Dokumentuose, todėl juos lengva rasti: Documents/hyperwhisper/recordings. macOS gali paprašyti leidimo pirmą kartą bandydami joje išsaugoti. Jei nenorite suteikti prieigos, galime įrašus saugoti privačiame programos aplankale.";
-"app.upgrade.to.pro" = "Atnaujinti į Pro";
-"app.enter.license.key" = "Įvesti licencijos raktą";
-"accessibility.upgrade.pro" = "Atnaujinti į HyperWhisper Pro";
-"accessibility.enter.license" = "Įvesti licencijos raktą";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Aktyvi";
 "license.status.expired.title" = "Baigėsi";
 "license.status.invalid.title" = "Neteisinga";
-"license.status.trial.description" = "Bandomoji (5 min./dieną, %d modeliai)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencijuota – Pilna prieiga";
 "license.status.expired.description" = "Licencija baigėsi";
 "license.status.invalid.description" = "Neteisinga licencija";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Neprisijungiami modeliai";
 "settings.license.models.progress" = "%d iš %d modelių atsisiųsti";
 "settings.license.models.progress.one" = "%d iš %d modelis atsisiųstas";
-"settings.license.upgrade.text" = "Atnaujinti neribotam transkripcijai ir modelio atsisiuntimams";
-"settings.license.upgrade.button" = "Atnaujinti";
 "license.error.invalidResponse" = "Neteisinas atsakymo formatas";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Tinklo klaida: %@";
 "settings.credits.error.invalidResponse" = "Neteisingas serverio atsakymas. Bandykite dar kartą.";
 "settings.credits.error.server" = "Serverio klaida: %@";
-"settings.models.alert.limit.title" = "Modelio atsisiuntimo limitas pasiektas";
-"settings.models.alert.limit.message" = "Bandomosios versijos apima %d modelio atsisiuntimą. Atnaujinkite savo licenciją neribotiems atsisiuntimams.";
 "settings.models.alert.cannotDelete.title" = "Negalima ištrinti modelio";
 "settings.models.parakeet.title" = "Parakeet modeliai";
 "settings.models.parakeet.subtitle" = "Rekomenduojama daugumai vartotojų. Daugiakalbis modelis palaiko 25 kalbas.";
@@ -830,7 +824,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "modes.postProcessing.accuracy" = "Tikslumas";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Pasiekėte savo kasdienio %@-minučių transkriptsiniu limito. Atnaujinkite į HyperWhisper Pro neribotam transkriptsiniu.";
 "recording.error.documentsAccess" = "Negalima pasiekti įrašų aplanko. Pasirinkite kitą vietą nustatymuose → saugojimas.";
 "recording.error.modeMissing" = "Pasirinktas režimas nerastas. Pasirinkite tinkamą režimą.";
 "recording.warning.oversizedWAV" = "Audio suspaudimas nepavyko. Naudojamas nesupakavotas %@ MB failas - transkripija gali būti lėtesnė.";

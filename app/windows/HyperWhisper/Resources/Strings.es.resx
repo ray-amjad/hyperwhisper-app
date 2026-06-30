@@ -66,12 +66,6 @@
   <data name="app.badge.pro" xml:space="preserve">
     <value>PRO</value>
   </data>
-  <data name="app.upgrade.to.pro" xml:space="preserve">
-    <value>Actualizar a Pro</value>
-  </data>
-  <data name="app.enter.license.key" xml:space="preserve">
-    <value>Introducir clave de licencia</value>
-  </data>
 
   <!-- Common UI -->
   <data name="common.ok" xml:space="preserve">
@@ -566,20 +560,8 @@
   <data name="settings.license.trial.subtitle" xml:space="preserve">
     <value>Sus límites de uso diarios se restablecen a medianoche</value>
   </data>
-  <data name="settings.license.trial.dailyTranscription" xml:space="preserve">
-    <value>Transcripción diaria</value>
-  </data>
-  <data name="settings.license.trial.modelDownloads" xml:space="preserve">
-    <value>Descargas de modelos</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Borrar</value>
-  </data>
-  <data name="settings.license.upgrade.text" xml:space="preserve">
-    <value>Actualice para transcripción y descargas de modelos ilimitadas</value>
-  </data>
-  <data name="settings.license.upgrade.button" xml:space="preserve">
-    <value>Actualizar</value>
   </data>
   <data name="license.status.trial.title" xml:space="preserve">
     <value>Prueba</value>
@@ -1047,9 +1029,6 @@
   <data name="errors.noModeSelected" xml:space="preserve">
     <value>Ningún modo seleccionado</value>
   </data>
-  <data name="errors.trialLimitReached" xml:space="preserve">
-    <value>Límite diario de prueba alcanzado. Actualice para transcripción ilimitada.</value>
-  </data>
   <data name="errors.modelNotDownloaded" xml:space="preserve">
     <value>Modelo '{0}' no descargado</value>
   </data>
@@ -1348,14 +1327,6 @@ Debe tener al menos un modo.</value>
     <value>No se pudo deshabilitar el inicio con Windows. Compruebe si tiene permiso para modificar la configuración de inicio.</value>
   </data>
   <!-- Settings - Models -->
-  <data name="settings.models.trialLimit.title" xml:space="preserve">
-    <value>Límite de prueba alcanzado</value>
-  </data>
-  <data name="settings.models.trialLimit.message" xml:space="preserve">
-    <value>Ha alcanzado el límite de descarga de modelos para usuarios de prueba.
-
-Actualice a una licencia para descargas de modelos ilimitadas.</value>
-  </data>
   <data name="settings.models.vramWarning.title" xml:space="preserve">
     <value>VRAM insuficiente</value>
   </data>
@@ -1499,7 +1470,7 @@ Puede volver a descargarlo más tarde.</value>
 
   <!-- License Status Descriptions -->
   <data name="license.status.trial.description" xml:space="preserve">
-    <value>Modo de prueba - Funciones limitadas</value>
+    <value>Local transcription is free and unlimited.</value>
   </data>
   <data name="license.status.active.description" xml:space="preserve">
     <value>Con licencia - Acceso completo</value>
@@ -1535,18 +1506,6 @@ Puede volver a descargarlo más tarde.</value>
   </data>
   <data name="settings.models.gpu.recommendBase" xml:space="preserve">
     <value>GPU no detectada. Recomendamos usar el modelo Base para transcripción con CPU.</value>
-  </data>
-  <data name="settings.models.limitReached.title" xml:space="preserve">
-    <value>Límite de modelos alcanzado</value>
-  </data>
-  <data name="settings.models.limitReached.message" xml:space="preserve">
-    <value>Ha descargado {0} modelos, que es el máximo permitido para usuarios de prueba ({1}).</value>
-  </data>
-  <data name="settings.models.trial.title" xml:space="preserve">
-    <value>Modo de prueba</value>
-  </data>
-  <data name="settings.models.trial.message" xml:space="preserve">
-    <value>Ha descargado {0} de {1} modelos. Quedan {2}.</value>
   </data>
   <data name="settings.models.diskUsage.none" xml:space="preserve">
     <value>No hay modelos descargados</value>
@@ -2389,5 +2348,8 @@ Do you want to restart now?</value>
   </data>
   <data name="settings.backup.import.vocabConflict.skip" xml:space="preserve">
     <value>Mantener mi palabra existente</value>
+  </data>
+  <data name="app.cloud.cta.title" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
 </root>

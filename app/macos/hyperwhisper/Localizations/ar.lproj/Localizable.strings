@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "المفردات";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "حدث خطأ غير معروف";
 "app.microphone.permission.message" = "يحتاج HyperWhisper إلى الوصول إلى ميكروفونك لنسخ الصوت.\n\nيُرجى الانتقال إلى إعدادات النظام > الخصوصية والأمان > الميكروفون وتفعيل الوصول لـ HyperWhisper.";
 "app.recordings.location.message" = "يحفظ HyperWhisper التسجيلات في مجلد في مستنداتك ليسهل العثور عليها: المستندات/hyperwhisper/recordings. قد يطلب macOS إذناً في المرة الأولى التي نحاول فيها الحفظ هناك. إذا كنت تفضل عدم منح الوصول، يمكننا تخزين التسجيلات في مجلد تطبيق خاص بدلاً من ذلك.";
-"app.upgrade.to.pro" = "ترقية إلى Pro";
-"app.enter.license.key" = "أدخل مفتاح الترخيص";
-"accessibility.upgrade.pro" = "ترقية إلى HyperWhisper Pro";
-"accessibility.enter.license" = "أدخل مفتاح الترخيص";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "نشط";
 "license.status.expired.title" = "انتهت الصلاحية";
 "license.status.invalid.title" = "غير صحيح";
-"license.status.trial.description" = "تجربة مجانية (5 دقائق/يوم، %d نماذج)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "مرخص – وصول كامل";
 "license.status.expired.description" = "انتهت صلاحية الترخيص";
 "license.status.invalid.description" = "ترخيص غير صحيح";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "النماذج غير المتصلة بالإنترنت";
 "settings.license.models.progress" = "%d من %d نماذج تم تحميلها";
 "settings.license.models.progress.one" = "%d من %d نموذج تم تحميله";
-"settings.license.upgrade.text" = "ترقية للحصول على نسخ غير محدود وتحميلات نموذج";
-"settings.license.upgrade.button" = "ترقية";
 "license.error.invalidResponse" = "صيغة الرد غير صحيحة";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "خطأ في الشبكة: %@";
 "settings.credits.error.invalidResponse" = "رد غير صحيح من الخادم. يرجى المحاولة مجدداً.";
 "settings.credits.error.server" = "خطأ في الخادم: %@";
-"settings.models.alert.limit.title" = "تم الوصول إلى حد تحميل النموذج";
-"settings.models.alert.limit.message" = "تتضمن التجارب %d من تحميلات النموذج. ترقية ترخيصك للحصول على تحميلات غير محدودة.";
 "settings.models.alert.cannotDelete.title" = "لا يمكن حذف النموذج";
 "settings.models.parakeet.title" = "نماذج Parakeet";
 "settings.models.parakeet.subtitle" = "موصى بها لمعظم المستخدمين. نموذج متعدد اللغات يدعم 25 لغة.";
@@ -830,7 +824,6 @@
 "modes.postProcessing.accuracy" = "الدقة";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "لقد وصلت إلى حد %@ دقيقة يومي. ترقية إلى HyperWhisper Pro للنسخ غير المحدود.";
 "recording.error.documentsAccess" = "لا يمكن الوصول إلى مجلد التسجيلات. اختر موقعاً مختلفاً في الإعدادات → التخزين.";
 "recording.error.modeMissing" = "لم يتم العثور على الوضع المحدد. يرجى تحديد وضع صحيح.";
 "recording.warning.oversizedWAV" = "فشل ضغط الصوت. استخدام ملف %@ MB غير مضغوط - قد يكون النسخ أبطأ.";

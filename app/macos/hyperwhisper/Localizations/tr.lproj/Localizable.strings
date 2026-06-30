@@ -13,6 +13,8 @@
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
+"app.cloud.cta.title" = "HyperWhisper Cloud";
+"accessibility.cloud.cta" = "HyperWhisper Cloud";
 
 // MARK: - Vocabulary View
 "vocabulary.title" = "Kelime Hazinesi";
@@ -90,10 +92,6 @@
 "app.unknown.error" = "Bilinmeyen bir hata oluştu";
 "app.microphone.permission.message" = "HyperWhisper, sesi transkribe etmek için mikrofonunuza erişim gerektirir.\n\nLütfen Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon'a gidin ve HyperWhisper için erişimi etkinleştirin.";
 "app.recordings.location.message" = "HyperWhisper, kayıtları Belgeler klasöründeki bir klasöre kaydeder, böylece bulması kolay olur: Belgeler/hyperwhisper/recordings. ilk kez orada kaydetmeyi denediğimizde macOS izin isteyebilir. Erişim vermek istemiyorsanız, kayıtları bunun yerine özel bir uygulama klasöründe saklayabiliriz.";
-"app.upgrade.to.pro" = "Pro'ya Yükselt";
-"app.enter.license.key" = "Lisans Anahtarını Gir";
-"accessibility.upgrade.pro" = "HyperWhisper Pro'ya Yükselt";
-"accessibility.enter.license" = "Lisans Anahtarını Gir";
 
 // MARK: - Settings
 
@@ -428,7 +426,7 @@
 "license.status.active.title" = "Etkin";
 "license.status.expired.title" = "Süresi Doldu";
 "license.status.invalid.title" = "Geçersiz";
-"license.status.trial.description" = "Ücretsiz Deneme (gün başına 5 dakika, %d modeller)";
+"license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Lisanslı – Tam Erişim";
 "license.status.expired.description" = "Lisans Süresi Doldu";
 "license.status.invalid.description" = "Geçersiz Lisans";
@@ -444,8 +442,6 @@
 "settings.license.models.title" = "Çevrimdışı Modeller";
 "settings.license.models.progress" = "%d / %d modeller indirildi";
 "settings.license.models.progress.one" = "%d / %d model indirildi";
-"settings.license.upgrade.text" = "Sınırsız transkripsiyon ve model indirmeleri için yükseltin";
-"settings.license.upgrade.button" = "Yükseltin";
 "license.error.invalidResponse" = "Geçersiz yanıt biçimi";
 
 // MARK: - Settings · Credits
@@ -484,8 +480,6 @@
 "settings.credits.error.network" = "Ağ hatası: %@";
 "settings.credits.error.invalidResponse" = "Sunucudan geçersiz yanıt. Lütfen tekrar deneyin.";
 "settings.credits.error.server" = "Sunucu hatası: %@";
-"settings.models.alert.limit.title" = "Model indirme sınırına ulaşıldı";
-"settings.models.alert.limit.message" = "Denemeler %d model indirmeyi içerir. Sınırsız indirmeler için lisansınızı yükseltin.";
 "settings.models.alert.cannotDelete.title" = "Model Silinemez";
 "settings.models.parakeet.title" = "Parakeet Modelleri";
 "settings.models.parakeet.subtitle" = "Çoğu kullanıcı için önerilir. Çok dillli model 25 dili destekler.";
@@ -830,7 +824,6 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "modes.postProcessing.accuracy" = "Doğruluk";
 
 // Cloud post-processing model labels (HyperWhisper Cloud)
-"recording.error.dailyLimit" = "Günlük %@-dakikalık transkripsiyon sınırınızı ulaştınız. Sınırsız transkripsiyon için HyperWhisper Pro'ya yükseltin.";
 "recording.error.documentsAccess" = "Kayıtlar klasörüne erişilemiyor. Ayarlar → Depolama'da farklı bir konum seçin.";
 "recording.error.modeMissing" = "Seçilen mod bulunamadı. Lütfen geçerli bir mod seçin.";
 "recording.warning.oversizedWAV" = "Ses sıkıştırması başarısız oldu. Sıkıştırılmamış %@ MB dosyası kullanılıyor - transkripsiyon daha yavaş olabilir.";
