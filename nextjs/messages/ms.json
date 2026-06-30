@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam untuk pengguna kurang teknikal yang mahu mula dengan cepat.\n\nIa berasaskan pay as you go. Membeli kunci akaun memberi anda $5 kredit transkripsi. Anda boleh tambah kredit kemudian.\n    \nKami menawarkan tiga tahap ketepatan: Medium (paling pantas, dikuasakan Groq), High (disyorkan, dikuasakan Deepgram), dan Highest (kualiti terbaik, dikuasakan xAI Grok STT). Pascapemprosesan adalah automatik. Kami tidak menyimpan apa-apa selain jumlah kredit yang digunakan.\n\nAnda bayar tepat seperti yang kami bayar kepada penyedia ini. Tiada markup.\n\nUntuk ketenangan fikiran, anda boleh lihat kod sumber HyperWhisper Cloud [di sini](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam untuk pengguna kurang teknikal yang mahu mula dengan cepat.\n\nIa berasaskan pay as you go. Membeli kunci akaun memberi anda $5 kredit transkripsi. Anda boleh tambah kredit kemudian.\n    \nKami menawarkan tiga tahap ketepatan: Medium (paling pantas, dikuasakan Groq), High (disyorkan, dikuasakan Deepgram), dan Highest (kualiti terbaik, dikuasakan xAI Grok STT). Pascapemprosesan adalah automatik. Kami tidak menyimpan apa-apa selain jumlah kredit yang digunakan.\n\nAnda bayar tepat seperti yang kami bayar kepada penyedia ini. Tiada markup.\n\nUntuk ketenangan fikiran, anda boleh lihat kod sumber HyperWhisper Cloud [di sini](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Adakah data suara saya akan digunakan untuk melatih model AI?",

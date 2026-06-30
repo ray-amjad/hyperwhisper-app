@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Čo je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vstavaný cloudový prepis určený pre menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe pay as you go. Kúpou kľúča k účtu získate $5 v kreditoch na prepis. Neskôr môžete pridať ďalšie kredity.\n    \nPonúkame tri úrovne presnosti: Medium (najrýchlejšie, poháňané Groq), High (odporúčané, poháňané Deepgram) a Highest (najlepšia kvalita, poháňané xAI Grok STT). Následné spracovanie je automatické. Neukladáme nič okrem toho, koľko kreditov ste minuli.\n\nPlatíte presne to, čo platíme týmto poskytovateľom aj my. Neúčtujeme žiadnu prirážku.\n\nPre pokoj na duši si môžete pozrieť zdrojový kód HyperWhisper Cloud [tu](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud je vstavaný cloudový prepis určený pre menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe pay as you go. Kúpou kľúča k účtu získate $5 v kreditoch na prepis. Neskôr môžete pridať ďalšie kredity.\n    \nPonúkame tri úrovne presnosti: Medium (najrýchlejšie, poháňané Groq), High (odporúčané, poháňané Deepgram) a Highest (najlepšia kvalita, poháňané xAI Grok STT). Následné spracovanie je automatické. Neukladáme nič okrem toho, koľko kreditov ste minuli.\n\nPlatíte presne to, čo platíme týmto poskytovateľom aj my. Neúčtujeme žiadnu prirážku.\n\nPre pokoj na duši si môžete pozrieť zdrojový kód HyperWhisper Cloud [tu](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Budú moje hlasové údaje použité na trénovanie modelov AI?",

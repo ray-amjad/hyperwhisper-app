@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Ce este HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud este o transcriere cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay as you go. Cumpărarea unei chei de cont îți oferă $5 în credite de transcriere. Poți adăuga mai multe credite ulterior.\n    \nOferim trei niveluri de acuratețe: Medium (cel mai rapid, cu Groq), High (recomandat, cu Deepgram) și Highest (cea mai bună calitate, cu xAI Grok STT). Post-procesarea este automată. Nu stocăm nimic, în afară de câte credite ai consumat.\n\nPlătești exact cât plătim și noi acestor furnizori. Nu adăugăm markup.\n\nPentru liniștea ta, poți vedea codul sursă HyperWhisper Cloud [aici](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud este o transcriere cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay as you go. Cumpărarea unei chei de cont îți oferă $5 în credite de transcriere. Poți adăuga mai multe credite ulterior.\n    \nOferim trei niveluri de acuratețe: Medium (cel mai rapid, cu Groq), High (recomandat, cu Deepgram) și Highest (cea mai bună calitate, cu xAI Grok STT). Post-procesarea este automată. Nu stocăm nimic, în afară de câte credite ai consumat.\n\nPlătești exact cât plătim și noi acestor furnizori. Nu adăugăm markup.\n\nPentru liniștea ta, poți vedea codul sursă HyperWhisper Cloud [aici](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Datele mele vocale vor fi folosite pentru antrenarea modelelor AI?",

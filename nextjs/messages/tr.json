@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud nedir?",
-        "answer": "HyperWhisper Cloud, hızlı başlamak isteyen daha az teknik kullanıcılar için tasarlanmış yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde modelindedir. Hesap Anahtarı satın aldığınızda $5 transkripsiyon kredisi alırsınız. Daha sonra kredi ekleyebilirsiniz.\n    \nÜç doğruluk seviyesi sunuyoruz: Medium (en hızlı, Groq destekli), High (önerilen, Deepgram destekli) ve Highest (en iyi kalite, xAI Grok STT destekli). Son işleme otomatik yapılır. Tükettiğiniz kredi miktarı dışında hiçbir şey saklamıyoruz.\n\nBu sağlayıcılara ödediğimiz tutarın aynısını ödersiniz. Ek ücret koymuyoruz.\n\nİçinizin rahat olması için HyperWhisper Cloud kaynak kodunu [burada](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud, hızlı başlamak isteyen daha az teknik kullanıcılar için tasarlanmış yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde modelindedir. Hesap Anahtarı satın aldığınızda $5 transkripsiyon kredisi alırsınız. Daha sonra kredi ekleyebilirsiniz.\n    \nÜç doğruluk seviyesi sunuyoruz: Medium (en hızlı, Groq destekli), High (önerilen, Deepgram destekli) ve Highest (en iyi kalite, xAI Grok STT destekli). Son işleme otomatik yapılır. Tükettiğiniz kredi miktarı dışında hiçbir şey saklamıyoruz.\n\nBu sağlayıcılara ödediğimiz tutarın aynısını ödersiniz. Ek ücret koymuyoruz.\n\nİçinizin rahat olması için HyperWhisper Cloud kaynak kodunu [burada](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Ses verilerim yapay zekâ modellerini eğitmek için kullanılacak mı?",

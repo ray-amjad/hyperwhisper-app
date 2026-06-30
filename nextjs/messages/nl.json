@@ -177,7 +177,7 @@
       },
       "cloud": {
         "question": "Wat is HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud is ingebouwde cloudtranscriptie voor minder technische gebruikers die snel willen starten.\n\nHet is pay-as-you-go. Bij aankoop van een accountsleutel krijg je $5 aan transcriptiecredits. Je kunt later extra credits toevoegen.\n    \nWe bieden drie nauwkeurigheidsniveaus: Medium (snelst, aangedreven door Groq), High (aanbevolen, aangedreven door Deepgram) en Highest (beste kwaliteit, aangedreven door xAI Grok STT). Nabewerking is automatisch. We slaan niets op behalve hoeveel credits je hebt verbruikt.\n\nJe betaalt exact wat wij aan deze providers betalen. We rekenen geen opslag.\n\nVoor extra zekerheid kun je de broncode van HyperWhisper Cloud [hier](https://github.com/theramjad/hyperwhisper-fly) bekijken."
+        "answer": "HyperWhisper Cloud is ingebouwde cloudtranscriptie voor minder technische gebruikers die snel willen starten.\n\nHet is pay-as-you-go. Bij aankoop van een accountsleutel krijg je $5 aan transcriptiecredits. Je kunt later extra credits toevoegen.\n    \nWe bieden drie nauwkeurigheidsniveaus: Medium (snelst, aangedreven door Groq), High (aanbevolen, aangedreven door Deepgram) en Highest (beste kwaliteit, aangedreven door xAI Grok STT). Nabewerking is automatisch. We slaan niets op behalve hoeveel credits je hebt verbruikt.\n\nJe betaalt exact wat wij aan deze providers betalen. We rekenen geen opslag.\n\nVoor extra zekerheid kun je de broncode van HyperWhisper Cloud [hier](https://github.com/ray-amjad/hyperwhisper-fly) bekijken."
       },
       "dataTraining": {
         "question": "Worden mijn spraakgegevens gebruikt om AI-modellen te trainen?",
