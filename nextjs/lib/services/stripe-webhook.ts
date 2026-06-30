@@ -4,7 +4,7 @@ import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import {
   findAccountByKey,
-  findAccountByEmail,
+  getAccountKeysByEmail,
   findAccountByStripeSession,
   insertAccountKey,
   getOrCreateUser,
@@ -317,10 +317,15 @@ async function handleCreditMint(
   // only for granted keys (a revoked key is dead — mint a fresh one instead).
   let pooledIntoExisting = false;
   if (!license) {
-    const existing = await findAccountByEmail(
+    // An email can own several keys (e.g. a revoked key plus a live one), so
+    // scan all of them newest-first and pool into the most recent GRANTED key.
+    // (findFirst-by-email could hand back the dead revoked row and wrongly mint
+    // a second key with a split balance.)
+    const existingKeys = await getAccountKeysByEmail(
       customerEmail.toLowerCase().trim()
     );
-    if (existing && existing.status === "granted") {
+    const existing = existingKeys.find((k) => k.status === "granted");
+    if (existing) {
       license = existing;
       pooledIntoExisting = true;
     }

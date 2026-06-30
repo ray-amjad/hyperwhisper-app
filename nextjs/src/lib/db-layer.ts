@@ -188,13 +188,6 @@ export async function findAccountByPolarLicenseKeyId(
   return row ? drizzleAccountKeyToRow(row) : null;
 }
 
-export async function findAccountByEmail(email: string): Promise<AccountKeyRow | null> {
-  const row = await db.query.accountKeys.findFirst({
-    where: eq(accountKeys.email, email.toLowerCase()),
-  });
-  return row ? drizzleAccountKeyToRow(row) : null;
-}
-
 export async function getAccountKeysByEmail(email: string): Promise<AccountKeyRow[]> {
   const rows = await db.query.accountKeys.findMany({
     where: eq(accountKeys.email, email.toLowerCase()),
@@ -221,16 +214,7 @@ export async function searchAccountKeysByEmail(
     limit,
   });
   const licenses = rows.map(drizzleAccountKeyToRow);
-  if (licenses.length === 0) return [];
-  // Credits are pooled per account, so resolve balances by the licenses'
-  // distinct owning users. Each license then reports its account balance.
-  const balanceMap = await getCreditBalancesForUsers(
-    Array.from(new Set(licenses.map((l) => l.userId)))
-  );
-  return licenses.map((license) => ({
-    ...license,
-    credits: balanceMap.get(license.userId) || 0,
-  }));
+  return attachPooledCredits(licenses);
 }
 
 /**
@@ -707,6 +691,25 @@ export async function getCreditBalancesForUsers(userIds: string[]): Promise<Map<
   return map;
 }
 
+/**
+ * Attach each license's pooled account balance. Credits are pooled per account,
+ * so balances are resolved by the licenses' distinct owning users and every
+ * license of an account reports that one shared balance. Returns [] for empty
+ * input without issuing a query.
+ */
+async function attachPooledCredits<T extends { userId: string }>(
+  licenses: T[]
+): Promise<Array<T & { credits: number }>> {
+  if (licenses.length === 0) return [];
+  const balanceMap = await getCreditBalancesForUsers(
+    Array.from(new Set(licenses.map((l) => l.userId)))
+  );
+  return licenses.map((license) => ({
+    ...license,
+    credits: balanceMap.get(license.userId) || 0,
+  }));
+}
+
 export interface CreditGrantHistoryRow {
   id: string;
   userId: string;
@@ -764,16 +767,7 @@ export async function getAllAccountKeysWithCreditsForAdmin(limit = 1000): Promis
   Array<AccountKeyRow & { credits: number }>
 > {
   const licenses = await getAllAccountKeysForAdmin(limit);
-  if (licenses.length === 0) return [];
-  // Credits are pooled per account: resolve balances by distinct owning users,
-  // then each license reports its account balance.
-  const balanceMap = await getCreditBalancesForUsers(
-    Array.from(new Set(licenses.map((l) => l.userId)))
-  );
-  return licenses.map((license) => ({
-    ...license,
-    credits: balanceMap.get(license.userId) || 0,
-  }));
+  return attachPooledCredits(licenses);
 }
 
 /**
@@ -790,16 +784,7 @@ export async function getAccountKeysWithCreditsForUserIds(
     orderBy: [desc(accountKeys.createdAt)],
   });
   const licenses = rows.map(drizzleAccountKeyToRow);
-  if (licenses.length === 0) return [];
-  // Credits are pooled per account: resolve balances by distinct owning users,
-  // then each license reports its account balance.
-  const balanceMap = await getCreditBalancesForUsers(
-    Array.from(new Set(licenses.map((l) => l.userId)))
-  );
-  return licenses.map((license) => ({
-    ...license,
-    credits: balanceMap.get(license.userId) || 0,
-  }));
+  return attachPooledCredits(licenses);
 }
 
 // ---------------------------------------------------------------------------
