@@ -13,6 +13,7 @@ import {
   creditGrants,
   deviceValidations,
   emails,
+  sentEmails,
   user,
   account,
   stripeProcessedEvents,
@@ -288,6 +289,13 @@ export async function provisionLicenseForEmail(email: string): Promise<LicenseKe
 // up the pool while row locks are held).
 type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+// A grant still backs spendable balance when it has no expiry or hasn't expired
+// yet. This is the single source of that rule for the raw-SQL credit queries
+// below (balance read, spend, clawback) — keep it here so expiry semantics live
+// in one place. The Drizzle-builder variant (using creditGrants.expiresAt) is
+// expressed inline where the query is built with the query builder.
+const ACTIVE_GRANT_EXPIRY = sql`(expires_at IS NULL OR expires_at > now())`;
+
 /**
  * Authoritative spendable balance: the SUM of remaining_amount across a
  * license's still-active grants. The credit_grants rows are the source of
@@ -305,6 +313,7 @@ async function getActiveGrantsTotal(
     WHERE license_key_id = ${licenseKeyId}
       AND status = 'active'
       AND remaining_amount > 0
+      AND ${ACTIVE_GRANT_EXPIRY}
   `);
   return Number(result.rows[0]?.total ?? 0);
 }
@@ -354,10 +363,17 @@ async function incrementCreditBalance(
   return Number(row.balance);
 }
 
+// Every credit grant expires one year after it is created (OpenRouter model):
+// the ToS reserves the right to expire unused credits 365 days after purchase.
+// Stamped here so it covers every insert path (paid packs, minted keys, admin
+// grants); enforcement is the lazy `expires_at > now()` filter on reads/spends.
+const CREDIT_GRANT_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
 async function grantCreditLotInTransaction(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   data: CreditGrantInsert
 ): Promise<{ status: "processed" | "duplicate"; balance: number }> {
+  const expiresAt = new Date(Date.now() + CREDIT_GRANT_TTL_MS);
   const [grantRow] = await tx
     .insert(creditGrants)
     .values({
@@ -368,6 +384,7 @@ async function grantCreditLotInTransaction(
       remainingAmount: data.amount.toString(),
       refundedAmount: "0",
       status: "active",
+      expiresAt,
     })
     .onConflictDoNothing({
       target: [creditGrants.sourceType, creditGrants.sourceId],
@@ -471,29 +488,24 @@ export async function refundCreditGrant(
       await getActiveGrantsTotal(tx, grant.license_key_id)
     );
 
-    // Draw the clawback down from the license's active grants, starting with the
-    // refunded grant itself, then the same provenance order used when spending
-    // (refundable/paid sources first) so a partial clawback hits paid credits
-    // before free bundles.
+    // Draw the clawback down from the license's active, unexpired grants,
+    // starting with the refunded grant itself, then the same oldest-first order
+    // used when spending (soonest-to-expire first). The clawback total is
+    // clamped at the license's current active balance, and both spend and
+    // clawback reconcile against that same running total, so no ordering can
+    // leak money. Expired grants are skipped: they no longer back any spendable
+    // balance, so clawing them back would remove value that was never available.
     const drawdown = await tx.execute<{ id: string; remaining_amount: string }>(sql`
       SELECT id, remaining_amount
       FROM credit_grants
       WHERE license_key_id = ${grant.license_key_id}
         AND remaining_amount > 0
         AND status = 'active'
+        AND ${ACTIVE_GRANT_EXPIRY}
       ORDER BY
         CASE WHEN id = ${grant.id} THEN 0 ELSE 1 END,
-        CASE source_type
-          WHEN 'stripe_credit_pack' THEN 1
-          WHEN 'admin_manual' THEN 2
-          WHEN 'legacy_unknown' THEN 3
-          WHEN 'license_bundle' THEN 4
-          WHEN 'polar_bundle' THEN 4
-          WHEN 'internal_bundle' THEN 4
-          WHEN 'admin_license_bundle' THEN 4
-          ELSE 5
-        END,
-        created_at,
+        expires_at ASC,
+        created_at ASC,
         id
       FOR UPDATE
     `);
@@ -559,24 +571,19 @@ export async function spendCreditGrantsByProvenance(
       WHERE license_key_id = ${licenseKeyId}
         AND remaining_amount > 0
         AND status = 'active'
+        AND ${ACTIVE_GRANT_EXPIRY}
+      -- Spend OLDEST-FIRST: soonest-to-expire grants are consumed before grants
+      -- that still have time on them (and never-expiring grants last), so a user
+      -- naturally burns down credits before they lapse. This replaces the older
+      -- provenance (paid-pack-first) order; refund safety is now preserved a
+      -- different way — refundCreditGrant clamps every clawback at the license's
+      -- current active balance and reconciles against the same running total
+      -- (#872 / spec §6), so neither spend nor clawback ordering can leak money
+      -- regardless of which grant a given unit of usage drew from. Expired
+      -- grants are excluded above and never spent.
       ORDER BY
-        CASE source_type
-          -- Spend refundable, paid credit packs FIRST. If a user later refunds
-          -- a pack, refundCreditGrant only reverses the pack's *unspent*
-          -- remaining_amount; consuming the pack first means usage draws down
-          -- the very credits a refund would reclaim, so a refund cannot leave
-          -- the user with free paid usage. Bundles (free/included) are spent
-          -- last, after every refundable source is exhausted.
-          WHEN 'stripe_credit_pack' THEN 1
-          WHEN 'admin_manual' THEN 2
-          WHEN 'legacy_unknown' THEN 3
-          WHEN 'license_bundle' THEN 4
-          WHEN 'polar_bundle' THEN 4
-          WHEN 'internal_bundle' THEN 4
-          WHEN 'admin_license_bundle' THEN 4
-          ELSE 5
-        END,
-        created_at,
+        expires_at ASC,
+        created_at ASC,
         id
       FOR UPDATE
     `);
@@ -685,7 +692,8 @@ export async function getCreditBalancesForLicenses(licenseKeyIds: string[]): Pro
       and(
         inArray(creditGrants.licenseKeyId, licenseKeyIds),
         eq(creditGrants.status, "active"),
-        sql`${creditGrants.remainingAmount} > 0`
+        sql`${creditGrants.remainingAmount} > 0`,
+        sql`(${creditGrants.expiresAt} IS NULL OR ${creditGrants.expiresAt} > now())`
       )
     )
     .groupBy(creditGrants.licenseKeyId);
@@ -693,6 +701,59 @@ export async function getCreditBalancesForLicenses(licenseKeyIds: string[]): Pro
     map.set(row.licenseKeyId, Number(row.total ?? 0));
   }
   return map;
+}
+
+export interface CreditGrantHistoryRow {
+  id: string;
+  licenseKeyId: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+  originalAmount: number;
+  remainingAmount: number;
+  status: string;
+}
+
+/**
+ * Paid credit-pack grants for the given licenses, newest-first.
+ *
+ * Top-up history shows PAID packs only (source_type = 'stripe_credit_pack'),
+ * not free/included bundles or admin/legacy grants. Expired rows are still
+ * returned (their status/expiresAt let the UI show them as expired) — this is a
+ * statement of purchases, distinct from the spendable-balance reads which
+ * exclude expired grants.
+ */
+export async function getPaidCreditGrantsForLicenses(
+  licenseKeyIds: string[]
+): Promise<CreditGrantHistoryRow[]> {
+  if (licenseKeyIds.length === 0) return [];
+  const rows = await db
+    .select({
+      id: creditGrants.id,
+      licenseKeyId: creditGrants.licenseKeyId,
+      createdAt: creditGrants.createdAt,
+      expiresAt: creditGrants.expiresAt,
+      originalAmount: creditGrants.originalAmount,
+      remainingAmount: creditGrants.remainingAmount,
+      status: creditGrants.status,
+    })
+    .from(creditGrants)
+    .where(
+      and(
+        inArray(creditGrants.licenseKeyId, licenseKeyIds),
+        eq(creditGrants.sourceType, "stripe_credit_pack")
+      )
+    )
+    .orderBy(desc(creditGrants.createdAt));
+
+  return rows.map((row) => ({
+    id: row.id,
+    licenseKeyId: row.licenseKeyId,
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    originalAmount: Number(row.originalAmount),
+    remainingAmount: Number(row.remainingAmount),
+    status: row.status,
+  }));
 }
 
 export async function getAllLicensesWithCreditsForAdmin(limit = 1000): Promise<
@@ -839,6 +900,28 @@ export async function upsertEmail(data: {
       country: data.country ?? null,
     })
     .onConflictDoNothing({ target: emails.email });
+}
+
+// ---------------------------------------------------------------------------
+// Sent emails (outbound audit log)
+// ---------------------------------------------------------------------------
+
+export async function logSentEmail(data: {
+  recipient: string;
+  emailType: string;
+  subject?: string | null;
+  providerMessageId?: string | null;
+  status: "sent" | "failed";
+  errorMessage?: string | null;
+}): Promise<void> {
+  await db.insert(sentEmails).values({
+    recipient: data.recipient,
+    emailType: data.emailType,
+    subject: data.subject ?? null,
+    providerMessageId: data.providerMessageId ?? null,
+    status: data.status,
+    errorMessage: data.errorMessage ?? null,
+  });
 }
 
 // ---------------------------------------------------------------------------

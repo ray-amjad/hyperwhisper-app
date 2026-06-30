@@ -27,6 +27,13 @@ export const creditGrants = pgTable(
       .notNull()
       .default("0"),
     status: text("status").notNull().default("active"),
+    // When this grant's credits expire and stop counting toward the spendable
+    // balance. Null means never expires (e.g. trial credits). Enforcement is a
+    // lazy filter (`expires_at IS NULL OR expires_at > now()`) in the read/spend
+    // queries — there is no cron, so an expired row stays status='active' but is
+    // excluded from balance and spend. New paid/minted grants are stamped
+    // created_at + 365 days; see grantCreditLotInTransaction in db-layer.ts.
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -43,6 +50,12 @@ export const creditGrants = pgTable(
       table.licenseKeyId,
       table.sourceType,
       table.remainingAmount,
+    ),
+    // Supports the per-license active-and-unexpired scan used by balance/spend.
+    index("credit_grants_license_status_expires_idx").on(
+      table.licenseKeyId,
+      table.status,
+      table.expiresAt,
     ),
   ],
 );

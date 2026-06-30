@@ -14,10 +14,6 @@ export const serverSchema = z.object({
 
   // Stripe
   STRIPE_SECRET_KEY: z.string().startsWith("sk_"),
-  STRIPE_LICENSE_PRODUCT_ID: z.string().startsWith("prod_"),
-  STRIPE_CREDITS_PRODUCT_5: z.string().startsWith("prod_"),
-  STRIPE_CREDITS_PRODUCT_10: z.string().startsWith("prod_"),
-  STRIPE_CREDITS_PRODUCT_20: z.string().startsWith("prod_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
 
   // Upstash Redis
@@ -71,10 +67,6 @@ export const serverEnv = {
 
   // Stripe
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-  STRIPE_LICENSE_PRODUCT_ID: process.env.STRIPE_LICENSE_PRODUCT_ID,
-  STRIPE_CREDITS_PRODUCT_5: process.env.STRIPE_CREDITS_PRODUCT_5,
-  STRIPE_CREDITS_PRODUCT_10: process.env.STRIPE_CREDITS_PRODUCT_10,
-  STRIPE_CREDITS_PRODUCT_20: process.env.STRIPE_CREDITS_PRODUCT_20,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 
   // Upstash Redis

@@ -120,30 +120,43 @@ export default function TermsOfServicePage() {
       <h2>HyperWhisper Cloud Credits</h2>
       <ul>
         <li>
-          <strong>Trial credits</strong>: New devices receive a limited number
-          of free credits for trying HyperWhisper Cloud. Trial credits do not
-          expire.
+          <strong>Credits as balance</strong>: HyperWhisper Cloud is paid for
+          with credits, which are held against your license key. Buying credits
+          is the way to obtain a license key. Credits are priced at 1,000
+          credits per US$1.
         </li>
         <li>
-          <strong>Purchased credits</strong>: Licensed users receive
-          complimentary credits with their license purchase and may buy
-          additional credits. Purchased credits do not expire and are tied to
-          your license.
+          <strong>Processing fee</strong>: A non-refundable processing fee of 6%
+          is added to each credit purchase as a separate line item. The fee is
+          not converted into credits and is never refunded, including where the
+          underlying credits are refunded.
+        </li>
+        <li>
+          <strong>Expiry</strong>: We reserve the right to expire unused credits
+          365 days after purchase. Expired credits are removed from your
+          spendable balance and are not refundable or recoverable. Credits are
+          consumed oldest-first so that those closest to expiry are used before
+          newer ones.
+        </li>
+        <li>
+          <strong>Trial credits</strong>: Some devices may receive a limited
+          number of free trial credits for evaluating HyperWhisper Cloud.
         </li>
         <li>
           <strong>Usage</strong>: Credits are deducted after each successful
           transcription based on the actual cost of the providers used.
         </li>
         <li>
-          <strong>Refunds</strong>: Consumed credits are non-refundable. Only
-          unused purchased credits may be refunded as described in our{" "}
+          <strong>Refunds</strong>: Consumed and expired credits are
+          non-refundable, and the processing fee is non-refundable. Only unused,
+          unexpired purchased credits may be refunded as described in our{" "}
           <a
             className="text-blue-600 dark:text-blue-400 hover:underline"
             href="/legal/refund-policy"
           >
             Refund Policy
           </a>
-          .
+          . A credit refund reverses the credit value only.
         </li>
       </ul>
 

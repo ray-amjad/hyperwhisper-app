@@ -11,7 +11,7 @@ import {
   grantCreditLot,
   grantCreditsForStripeEvent,
   refundCreditGrant,
-  hasProcessedStripeObject,
+  getCreditBalance,
 } from "@/src/lib/db-layer";
 
 /**
@@ -170,27 +170,23 @@ async function sendLicenseEmail(
 /**
  * Process a completed credit purchase.
  *
- * FLOW:
- * 1. Look up license key to get license_key_id
- * 2. Fetch current balance from credit_balances (or 0 if no row)
- * 3. Upsert new balance
+ * Two paths, decided by whether the checkout carried a license key:
+ * - TOP-UP (`metadata.license_key` present): add credits to the existing key.
+ * - MINT (`metadata.license_key` absent): a guest bought credits with no key,
+ *   so we mint one, grant the credits, and email the new key. This is now the
+ *   only way to obtain a key (the standalone license product is retired).
+ *
+ * CRITICAL: idempotent. Stripe may deliver the same event multiple times.
+ * Mint dedupes on license_keys.stripe_session_id; the grant dedupes on
+ * stripe_processed_events(stripe_object_id = session.id).
  */
 export async function handleCreditPurchase(
   session: Stripe.Checkout.Session,
   eventId: string,
   eventType = "checkout.session.completed"
 ): Promise<void> {
-  const stripeCustomerId = session.customer as string;
   const licenseKey = session.metadata?.license_key;
   const creditAmount = parseInt(session.metadata?.credit_amount || "0", 10);
-
-  if (!stripeCustomerId) {
-    throw new Error("No customer ID in checkout session");
-  }
-
-  if (!licenseKey) {
-    throw new Error("No license key in checkout session metadata");
-  }
 
   if (!creditAmount || creditAmount <= 0) {
     throw new Error(
@@ -205,22 +201,31 @@ export async function handleCreditPurchase(
     return;
   }
 
+  if (licenseKey) {
+    await handleCreditTopUp(session, eventId, eventType, licenseKey, creditAmount);
+  } else {
+    await handleCreditMint(session, eventId, eventType, creditAmount);
+  }
+}
+
+/**
+ * Top-up path: grant credits to an existing license key and email a receipt.
+ */
+async function handleCreditTopUp(
+  session: Stripe.Checkout.Session,
+  eventId: string,
+  eventType: string,
+  licenseKey: string,
+  creditAmount: number
+): Promise<void> {
   console.log(
-    `Processing credit purchase: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
+    `Processing credit top-up: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
   );
 
-  // STEP 1: Get license
   const license = await findLicenseByKey(licenseKey);
 
   if (!license) {
     throw new Error(`License not found: ${licenseKey.substring(0, 7)}...`);
-  }
-
-  if (await hasProcessedStripeObject(session.id)) {
-    console.log(
-      `Credit purchase already processed for session ${session.id}, skipping`
-    );
-    return;
   }
 
   // Refuse to credit a non-granted (e.g. revoked) license: those credits would be
@@ -232,23 +237,161 @@ export async function handleCreditPurchase(
     );
   }
 
-  // STEP 2: Idempotently record the checkout session and atomically grant credits.
+  // Idempotently record the checkout session and atomically grant credits.
   const grantResult = await grantCreditsForStripeEvent({
     eventId,
     eventType,
     stripeObjectId: session.id,
     licenseKeyId: license.id,
     creditAmount,
+    // Explicit (matches the mint path); the refund clawback resolves grants by
+    // (sourceType, sourceId), so keep both paths writing the same provenance.
+    sourceType: "stripe_credit_pack",
+    sourceId: session.id,
   });
 
   if (grantResult === "duplicate") {
     console.log(
-      `Credit purchase already processed for session ${session.id}, skipping`
+      `Credit top-up already processed for session ${session.id}, skipping`
     );
     return;
   }
 
   console.log(`Credits added: ${creditAmount} for session ${session.id}`);
+
+  // Email a receipt with the amount added and the new balance.
+  const newBalance = await getCreditBalance(license.id);
+  const customerEmail = license.email;
+  const customerName =
+    session.customer_details?.name || customerEmail?.split("@")[0] || "Customer";
+
+  const emailResult = await emailService.sendCreditTopUp({
+    customerName,
+    customerEmail,
+    licenseKey,
+    creditAmount,
+    newBalance,
+    productName: "HyperWhisper",
+    supportEmail: "support@hyperwhisper.com",
+  });
+
+  if (!emailResult.success) {
+    console.error(`Failed to send top-up email: ${emailResult.error}`);
+  }
+}
+
+/**
+ * Mint path: a guest bought credits with no key. Generate a key, grant the
+ * credits onto it, and email the key + starting balance.
+ *
+ * Idempotency: license insert is guarded by the unique stripe_session_id index
+ * (we look it up first, and catch a concurrent insert's 23505); the credit
+ * grant is independently idempotent on session.id, so it is safe to (re)run on
+ * every delivery — retries never double-grant and always converge to a key with
+ * the credits attached.
+ */
+async function handleCreditMint(
+  session: Stripe.Checkout.Session,
+  eventId: string,
+  eventType: string,
+  creditAmount: number
+): Promise<void> {
+  const customerEmail = session.customer_details?.email;
+  const customerName =
+    session.customer_details?.name || customerEmail?.split("@")[0] || "Customer";
+  const stripeCustomerId = (session.customer as string) || null;
+
+  if (!customerEmail) {
+    throw new Error("No customer email in credit checkout session");
+  }
+
+  console.log(`Minting license for credit purchase by ${customerEmail}`);
+
+  // STEP 1: Resolve the license for this session (existing on retry, else mint).
+  let license = await findLicenseByStripeSession(session.id);
+
+  if (!license) {
+    // Generate a unique license key with collision check.
+    let licenseKey = "";
+    const maxAttempts = 10;
+    for (let attempt = 1; ; attempt++) {
+      licenseKey = generateLicenseKey();
+      const collision = await findLicenseByKey(licenseKey);
+      if (!collision) break;
+      console.warn(`License key collision detected, retrying... (${attempt})`);
+      if (attempt >= maxAttempts) {
+        throw new Error("Failed to generate unique license key after max attempts");
+      }
+    }
+
+    const user = await getOrCreateUser(customerEmail, {
+      name: customerName,
+      ...(stripeCustomerId ? { stripeCustomerId } : {}),
+    });
+    if (!user) {
+      throw new Error(`Failed to create user for ${customerEmail}`);
+    }
+
+    try {
+      license = await insertLicenseKey({
+        key: licenseKey,
+        email: customerEmail.toLowerCase().trim(),
+        userId: user.id,
+        stripeCustomerId,
+        stripeSessionId: session.id,
+        status: "granted",
+      });
+    } catch (insertError: unknown) {
+      // Concurrent webhook delivery inserted the row first (unique
+      // stripe_session_id): fall back to the existing row.
+      if (
+        insertError &&
+        typeof insertError === "object" &&
+        "code" in insertError &&
+        (insertError as { code: string }).code === "23505"
+      ) {
+        console.log("License already inserted by concurrent request");
+        license = await findLicenseByStripeSession(session.id);
+      } else {
+        console.error("Failed to store license key:", insertError);
+        throw insertError;
+      }
+    }
+  }
+
+  if (!license) {
+    throw new Error(`Failed to resolve minted license for session ${session.id}`);
+  }
+
+  // STEP 2: Grant the purchased credits (no included bundle on credit purchases).
+  // Idempotent on session.id, so safe to run on every delivery.
+  await grantCreditsForStripeEvent({
+    eventId,
+    eventType,
+    stripeObjectId: session.id,
+    licenseKeyId: license.id,
+    creditAmount,
+    sourceType: "stripe_credit_pack",
+    sourceId: session.id,
+  });
+
+  console.log(
+    `Minted license ${license.key.substring(0, 7)}... with ${creditAmount} credits for ${customerEmail}`
+  );
+
+  // STEP 3: Email the new key and starting balance.
+  const emailResult = await emailService.sendCreditMint({
+    customerName,
+    customerEmail,
+    licenseKey: license.key,
+    creditAmount,
+    productName: "HyperWhisper",
+    supportEmail: "support@hyperwhisper.com",
+  });
+
+  if (!emailResult.success) {
+    console.error(`Failed to send mint email: ${emailResult.error}`);
+  }
 }
 
 /**
@@ -257,9 +400,12 @@ export async function handleCreditPurchase(
  * - "license" purchases: revoke the associated license.
  * - "credits" purchases: deduct the granted credits from the balance.
  *
- * FULL REFUNDS ONLY:
- * Only acts when amount_refunded === amount (full refund).
- * Partial refunds are ignored - the license/credits remain valid.
+ * REFUND SCOPE (per purchase type):
+ * - license: acts only on a FULL refund (amount_refunded === amount).
+ * - credits: the 6% processing fee is a separate, non-refundable line item, so a
+ *   policy-compliant credit refund refunds only the credit value — a *partial*
+ *   Stripe refund. Acts once amount_refunded covers the credit portion
+ *   (charge total minus the non-refundable fee).
  *
  * TRACE PATH:
  * Charge -> PaymentIntent -> Checkout Session -> license_keys.stripe_session_id
@@ -273,15 +419,9 @@ export async function handleChargeRefunded(
   charge: Stripe.Charge,
   eventId: string
 ): Promise<void> {
-  // STEP 1: Check if this is a FULL refund
-  if (charge.amount_refunded !== charge.amount) {
-    console.log(
-      `Partial refund detected (${charge.amount_refunded}/${charge.amount}), skipping refund handling`
-    );
-    return;
-  }
-
-  console.log(`Processing full refund for charge ${charge.id}`);
+  console.log(
+    `Processing refund for charge ${charge.id} (${charge.amount_refunded}/${charge.amount})`
+  );
 
   // STEP 2: Get PaymentIntent ID from the charge
   const paymentIntentId =
@@ -312,8 +452,20 @@ export async function handleChargeRefunded(
   const checkoutSession = sessions.data[0];
   const purchaseType = checkoutSession.metadata?.purchase_type;
 
-  // STEP 4: Route by purchase type
+  // STEP 4: Route by purchase type, applying the right "is this refund
+  // actionable?" rule for each.
   if (purchaseType === "credits") {
+    // The 6% fee is a separate, non-refundable line item, so a credit refund
+    // refunds only the credit value — a partial Stripe refund. Act once the
+    // refunded amount covers the credit portion (charge total minus the fee).
+    const feeCents = parseInt(checkoutSession.metadata?.fee_cents || "0", 10);
+    const creditPortion = charge.amount - feeCents;
+    if (charge.amount_refunded < creditPortion) {
+      console.log(
+        `Refund ${charge.amount_refunded}/${charge.amount} does not cover the credit portion (${creditPortion}) for credits session ${checkoutSession.id}, skipping`
+      );
+      return;
+    }
     await handleCreditRefund(charge, checkoutSession, eventId);
     return;
   }
@@ -321,6 +473,14 @@ export async function handleChargeRefunded(
   if (purchaseType !== "license") {
     console.log(
       `Refund for unknown purchase type (${purchaseType}), skipping`
+    );
+    return;
+  }
+
+  // License purchases: act only on a FULL refund.
+  if (charge.amount_refunded !== charge.amount) {
+    console.log(
+      `Partial refund (${charge.amount_refunded}/${charge.amount}) for license session ${checkoutSession.id}, skipping`
     );
     return;
   }
@@ -366,24 +526,18 @@ async function handleCreditRefund(
   checkoutSession: Stripe.Checkout.Session,
   eventId: string
 ): Promise<void> {
+  // license_key is only present on top-ups; minted credit purchases carry none.
+  // The clawback is keyed on the checkout session id (the grant's source_id),
+  // so it works for both paths — license_key is informational only here.
   const licenseKey = checkoutSession.metadata?.license_key;
   const creditAmount = parseInt(
     checkoutSession.metadata?.credit_amount || "0",
     10
   );
 
-  if (!licenseKey || !creditAmount || creditAmount <= 0) {
+  if (!creditAmount || creditAmount <= 0) {
     console.error(
-      `Credit refund for session ${checkoutSession.id}: invalid metadata (license_key=${licenseKey}, credit_amount=${checkoutSession.metadata?.credit_amount}), skipping`
-    );
-    return;
-  }
-
-  const license = await findLicenseByKey(licenseKey);
-
-  if (!license) {
-    console.error(
-      `Credit refund: license not found: ${licenseKey.substring(0, 7)}...`
+      `Credit refund for session ${checkoutSession.id}: invalid metadata (credit_amount=${checkoutSession.metadata?.credit_amount}), skipping`
     );
     return;
   }
@@ -400,7 +554,8 @@ async function handleCreditRefund(
     return;
   }
 
+  const licenseHint = licenseKey ? ` (license ${licenseKey.substring(0, 7)}...)` : "";
   console.log(
-    `Deducted ${result.refundedAmount} credits for refunded charge ${charge.id} (license ${licenseKey.substring(0, 7)}...)`
+    `Deducted ${result.refundedAmount} credits for refunded charge ${charge.id}${licenseHint}`
   );
 }

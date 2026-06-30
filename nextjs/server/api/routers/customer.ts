@@ -15,6 +15,7 @@ import { createTRPCRouter, protectedProcedure } from "../trpc";
 import {
   getLicensesByEmail,
   getCreditBalancesForLicenses,
+  getPaidCreditGrantsForLicenses,
 } from "@/src/lib/db-layer";
 import { stripe } from "@/lib/clients/stripe";
 
@@ -105,6 +106,49 @@ export const customerRouter = createTRPCRouter({
       totalCredits,
       minutesRemaining,
       creditsPerMinute: CREDITS_PER_MINUTE,
+    };
+  }),
+
+  /**
+   * Paid credit-pack top-up history for the authenticated user.
+   *
+   * Returns the user's PAID credit grants (source_type = 'stripe_credit_pack')
+   * newest-first, including expired ones so the dashboard can show their status.
+   * Free/included bundles and admin/legacy grants are intentionally excluded.
+   */
+  creditHistory: protectedProcedure.query(async ({ ctx }) => {
+    const userEmail = ctx.user.email?.toLowerCase();
+
+    if (!userEmail) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "User email not found",
+      });
+    }
+
+    const licenses = await getLicensesByEmail(userEmail);
+    if (licenses.length === 0) {
+      return { grants: [] };
+    }
+
+    const grants = await getPaidCreditGrantsForLicenses(
+      licenses.map((l) => l.id)
+    );
+
+    const now = Date.now();
+    return {
+      grants: grants.map((g) => ({
+        id: g.id,
+        createdAt: g.createdAt.toISOString(),
+        expiresAt: g.expiresAt ? g.expiresAt.toISOString() : null,
+        originalAmount: g.originalAmount,
+        remainingAmount: g.remainingAmount,
+        // Surface expiry as a derived flag so the client doesn't re-parse dates;
+        // a grant is expired once its expiresAt has passed, regardless of the
+        // stored status (enforcement is a lazy filter, not a cron).
+        expired: g.expiresAt ? g.expiresAt.getTime() <= now : false,
+        status: g.status,
+      })),
     };
   }),
 
