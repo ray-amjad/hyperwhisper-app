@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Nyelvváltás"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "A HyperWhisper megtekintese a GitHubon"
   },
   "hero": {
     "logoAlt": "HyperWhisper logó",
@@ -83,6 +84,10 @@
       "medical": "Orvosi",
       "presetModes": "Előre beállított módok",
       "customModes": "Egyéni módok"
+    },
+    "openSource": {
+      "title": "Nyilt forraskod",
+      "description": "Apache-2.0 licenc alatt. Vizsgaljon meg minden sort, forkolja, vagy uzemeltesse sajat maga. Nincsenek fekete dobozok, nincs bezartsag."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Mi az a HyperWhisper Cloud?",
-        "answer": "A HyperWhisper Cloud egy beépített felhős átírási szolgáltatás, amely kevésbé technikai felhasználóknak szól, akik gyorsan szeretnének elindulni.\n\nHasználat alapú elszámolással működik. Fiókkulcs vásárlásakor $5 átírási kreditet kapsz. Később további kreditet adhatsz hozzá.\n    \nHárom pontossági szintet kínálunk: Medium (leggyorsabb, Groq), High (ajánlott, Deepgram) és Highest (legjobb minőség, xAI Grok STT). Az utófeldolgozás automatikus. Nem tárolunk mást, csak a felhasznált kreditek mennyiségét.\n\nPontosan annyit fizetsz, amennyit mi fizetünk ezeknek a szolgáltatóknak. Nem számolunk fel felárat.\n\nA nyugalom kedvéért a HyperWhisper Cloud forráskódját [itt](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "A HyperWhisper Cloud egy beepitett felhoalapu atiras, amely a kevesbe technikai felhasznaloknak szol, akik gyorsan szeretnenek elkezdeni.\n\nEz hasznalat alapu kredit. Mar $5-tol feltoltheti (1.000 kredit $1-onkent), es csak akkor kolti el, amikor atir. Az elso kreditvasarlas automatikusan letrehozza az Account Key-t, igy nincs mas vasarolnivalo.\n    \nNegy pontossagi szintet kinalunk: Kozepes (Groq), Kozepes (Deepgram Nova 3), Magas (ElevenLabs Scribe v2) es Legmagasabb (Grok STT, az uj telepitesek alapertelmezese, amelyet az xAI Grok STT hajt). Az utofeldolgozas automatikus, es alapertelmezes szerint a Grok 4.1 Fast nem ervelo modot hasznalja. Semmit nem tarolunk azon kivul, hogy hany kreditet hasznalt fel, es minden altalunk hasznalt upstream szolgaltatonal kivettuk Ont a modelltanitasbol. A reszletekert lasd az [Adatvedelmi utmutatonkat](https://hyperwhisper.com/docs/data-privacy).\n\nA kreditek a szolgaltatok sajat feldolgozasi koltsegen kerulnek elkoltesre — nincs felar az atirason. A fizeteskor egy fix, 6%-os fizetesfeldolgozasi dij kerul hozzaadasra, kulon tetelkent feltuntetve. A fel nem hasznalt kreditek 12 honap utan lejarnak (lasd alabb).\n\nA nyugalom erdekeben az egesz alkalmazas nyilt forraskodu az Apache-2.0 alatt — beleertve a Cloud hatteret is. Elolvashatja a kod minden sorat, amely az alkalmazasa es azon szolgaltatok kozott fut, amelyekhez proxyzunk [a GitHubon](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "A hangadataimat felhasználják AI-modellek betanítására?",
         "answer": "A HyperWhisper Cloud minden általunk használt szolgáltatónál letiltja az adatainak modellbetanításra való felhasználását. Saját API-kulcs használata esetén a letiltás az Ön felelőssége — lásd az [adatvédelmi útmutatónkat](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Miért élethosszig tartó árazás előfizetés helyett?",
-        "answer": "Hiszünk az egyszerű és tisztességes árazásban. Fizess egyszer $39-t, és használd a HyperWhispert örökre. Nincs havi díj, nincs meglepetés. Az ingyenes verzió napi 3 perc átírással lehetővé teszi a fő funkciók kipróbálását."
+        "question": "Van elofizetes?",
+        "answer": "Nem — soha. A HyperWhisper egy nyilt forraskodu alkalmazas, amely az One, nem elofizetes, amelyet berel. Toltse le ingyen, es hasznalja a helyi, offline atirast orokre, dijmentesen; az ingyenes csomag napi 5 perc felhoalapu atirast is tartalmaz. Amikor ezen tul beallitas nelkuli felhoalapu atirast szeretne, a HyperWhisper Cloud egyszeru, hasznalat alapu kredit — csak akkor toltson fel, amikor szuksege van ra, havi dijak nelkul es lemondanivalo nelkul."
       },
       "deviceLimit": {
         "question": "Hány eszközön használhatom a fiókkulcsomat?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Ki készítette ezt?",
         "answer": "Ezt a YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Lejarnak a Cloud kreditjeim?",
+        "answer": "Igen — a kreditek a vasarlas utan 12 honappal lejarnak. Ez egy szokvanyos szamviteli es felelossegi biztositek, es ugyanaz a 12 honapos szabaly, amelyet az olyan szolgaltatok is hasznalnak, mint az OpenAI, a Google, az Anthropic es az OpenRouter. Amikor atir, mindig a legregebbi kreditjei kerulnek elkoltesre eloszor, igy a lejarathoz legkozelebbiek barmely ujabb feltoltes elott felhasznalodnak."
+      },
+      "dataStorage": {
+        "question": "Taroljak a hangomat vagy az atirataimat?",
+        "answer": "Nem. A HyperWhisper Cloud eseten a hangja a memoriaban kerul feldolgozasra, es azonnal eldobjuk, amint az atiras visszaerkezik — soha nem irjuk a hangjat vagy atiratait lemezre, es semmi nem marad meg a keres befejezese utan. Az egyetlen dolog, amelyet rogzitunk, az anonim hasznalati metaadat (mennyi ideig tartott a hang, a koltseg, a nyelv, es melyik modell kezelte), hogy a megfelelo szamu kreditet vonhassuk le. Ne higgye el csak a szavunkra: a Cloud hatter nyilt forraskodu, igy [sajat maga elolvashatja a kodot](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Mi a visszateritesi szabalyzatuk?",
+        "answer": "14 napos, kerdes nelkuli penzvisszafizetesi garanciat kinalunk. Ezen az idoszakon tul barmely fel nem hasznalt, le nem jart kredit keresre visszaterithleto — csak kuldjon nekunk egy e-mailt, es legjobb tudasunk szerint elrendezzuk. A mar elkoltott vagy lejart kreditek nem visszaterithetok, es a 6%-os feldolgozasi dij sem visszaterithleto, mivel a vasarlaskor felmerulo fizetesfeldolgozasi koltsegeket fedezi. A teljes reszletek a [Visszateritesi szabalyzatunkban](/legal/refund-policy) es a [Felhasznalasi feltetelekben](/legal/terms-of-service) talalhatok."
+      },
+      "funding": {
+        "question": "Hogyan keres penzt a HyperWhisper, ha nyilt forraskodu?",
+        "answer": "A HyperWhispert a fuggetlen fejleszto, Ray Amjad keszti, es nagyreszt az O mas termekei — az [AgentStack](https://agentstack.build) es a [VidTempla](https://vidtempla.com) — tamogatjak, ami lehetove teszi, hogy maga az alkalmazas ingyenes es nyilt forraskodu maradjon. Ezen felul a HyperWhisper Cloud egy kis feldolgozasi dijat ad a kreditvasarlasokhoz. Ennyi: nincsenek hirdetesek, nincs adatertekesites, nincsenek elofizetesi csapdak."
+      },
+      "selfHost": {
+        "question": "Uzemeltethetem sajat magam a Cloud hatteret?",
+        "answer": "Igen. A Cloud atirasi hatter nyilt forraskodu az Apache-2.0 alatt, igy szabadon futtathat sajat peldanyt, ha inkabb nem a mienkre szeretne tamaszkodni. Ennek ellenere a legtobben egyszeruen a HyperWhisper Cloudot hasznaljak, es megfizetik a kis feldolgozasi dijat — ez a beallitas nelkuli lehetoseg. Minden, amire szuksege van, [a GitHubon](https://github.com/ray-amjad/hyperwhisper-app) megtalalhato."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Egyéni",
     "customSub": "az Ön összege",
     "topUp": "Feltöltés"
+  },
+  "openSource": {
+    "heading": "Nyilt forraskod. Nincs mit rejtegetni.",
+    "body": "A HyperWhisper teljesen nyilt forraskodu az Apache-2.0 alatt — az asztali alkalmazasok es a Cloud hatter egyarant. Egy alkalmazas, amely a mikrofonjat hallgatja, olyan legyen, amelyet ellenorizni tud, nem csupan megbizni benne: olvasson el minden sort, ellenorizze pontosan, hova kerul a hangja, es tudja, hogy soha nem lesz bezarva — a kod az One, hogy orokre forkolja es sajat maga uzemeltesse. Nyiltan keszitette a fuggetlen fejleszto, Ray Amjad.",
+    "cta": "Megtekintes a GitHubon"
   }
 }

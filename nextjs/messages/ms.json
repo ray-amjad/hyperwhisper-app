@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Tukar bahasa"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Lihat HyperWhisper di GitHub"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -83,6 +84,10 @@
       "medical": "Perubatan",
       "presetModes": "Mod pratetap",
       "customModes": "Mod tersuai"
+    },
+    "openSource": {
+      "title": "Sumber Terbuka",
+      "description": "Dilesenkan di bawah Apache-2.0. Periksa setiap baris, fork ia, atau hos sendiri. Tiada kotak hitam, tiada terkurung."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam untuk pengguna kurang teknikal yang mahu mula dengan cepat.\n\nIa berasaskan pay as you go. Membeli kunci akaun memberi anda $5 kredit transkripsi. Anda boleh tambah kredit kemudian.\n    \nKami menawarkan tiga tahap ketepatan: Medium (paling pantas, dikuasakan Groq), High (disyorkan, dikuasakan Deepgram), dan Highest (kualiti terbaik, dikuasakan xAI Grok STT). Pascapemprosesan adalah automatik. Kami tidak menyimpan apa-apa selain jumlah kredit yang digunakan.\n\nAnda bayar tepat seperti yang kami bayar kepada penyedia ini. Tiada markup.\n\nUntuk ketenangan fikiran, anda boleh lihat kod sumber HyperWhisper Cloud [di sini](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam yang disasarkan kepada pengguna kurang teknikal yang mahu bermula dengan cepat.\n\nIa kredit bayar sambil guna. Anda menambah nilai serendah $5 (1,000 kredit setiap $1) dan membelanjakannya hanya semasa anda membuat transkripsi. Pembelian kredit pertama anda secara automatik mencipta Account Key anda, jadi tiada apa-apa lagi untuk dibeli.\n    \nKami menawarkan empat tahap ketepatan: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) dan Highest (Grok STT, lalai untuk pemasangan baharu dan dikuasakan oleh xAI Grok STT). Pemprosesan pasca adalah automatik dan lalainya Grok 4.1 Fast non-reasoning. Kami tidak menyimpan apa-apa selain berapa banyak kredit yang anda gunakan, dan kami telah menarik anda keluar daripada latihan model pada setiap penyedia huluan yang kami guna. Lihat [panduan Privasi Data](https://hyperwhisper.com/docs/data-privacy) kami untuk butiran.\n\nKredit dibelanjakan pada kos pemprosesan penyedia sendiri — tiada tokokan pada transkripsi. Pembayaran menambah yuran pemprosesan pembayaran tetap 6%, ditunjukkan sebagai item baris berasingan. Kredit yang tidak digunakan tamat tempoh selepas 12 bulan (lihat di bawah).\n\nUntuk ketenangan fikiran, keseluruhan aplikasi adalah sumber terbuka di bawah Apache-2.0 — termasuk backend Cloud. Anda boleh membaca setiap baris kod yang berjalan antara aplikasi anda dan penyedia yang kami proksi [di GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Adakah data suara saya akan digunakan untuk melatih model AI?",
         "answer": "HyperWhisper Cloud mengecualikan anda daripada latihan model di setiap penyedia yang kami gunakan. Dengan kunci API anda sendiri, pengecualian adalah tanggungjawab anda — lihat [panduan privasi data](https://hyperwhisper.com/docs/data-privacy) kami."
       },
       "lifetime": {
-        "question": "Kenapa harga seumur hidup berbanding langganan?",
-        "answer": "Kami percaya pada harga yang mudah dan adil. Bayar sekali $39 dan guna HyperWhisper selamanya. Tiada yuran bulanan, tiada kejutan. Versi percuma membolehkan anda mencuba ciri utama dengan 3 minit transkripsi harian."
+        "question": "Adakah terdapat langganan?",
+        "answer": "Tidak — tidak sekali-kali. HyperWhisper ialah aplikasi sumber terbuka yang anda miliki, bukan langganan yang anda sewa. Muat turun secara percuma dan gunakan transkripsi luar talian setempat tanpa kos selamanya; peringkat percuma juga termasuk 5 minit transkripsi awan sehari. Apabila anda mahukan transkripsi awan tanpa persediaan melebihi itu, HyperWhisper Cloud ialah kredit bayar sambil guna yang mudah — tambah nilai hanya apabila anda perlu, tanpa yuran bulanan dan tiada apa-apa untuk dibatalkan."
       },
       "deviceLimit": {
         "question": "Berapa banyak peranti boleh guna kunci akaun saya?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Siapa yang membangunkan ini?",
         "answer": "Ini dibangunkan oleh YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Adakah kredit Cloud saya tamat tempoh?",
+        "answer": "Ya — kredit tamat tempoh 12 bulan selepas pembelian. Ini ialah langkah perlindungan perakaunan dan liabiliti yang standard, dan ia dasar 12 bulan yang sama digunakan oleh penyedia seperti OpenAI, Google, Anthropic dan OpenRouter. Apabila anda membuat transkripsi, kredit anda yang paling lama sentiasa dibelanjakan dahulu, jadi yang paling hampir tamat tempoh digunakan sebelum sebarang tambah nilai yang lebih baharu."
+      },
+      "dataStorage": {
+        "question": "Adakah anda menyimpan audio atau transkrip saya?",
+        "answer": "Tidak. Dengan HyperWhisper Cloud, audio anda diproses dalam memori dan dibuang sebaik sahaja transkripsi kembali — kami tidak sekali-kali menulis audio atau transkrip anda ke cakera, dan tiada apa-apa disimpan selepas permintaan selesai. Satu-satunya perkara yang kami rekodkan ialah metadata penggunaan tanpa nama (berapa lama audio itu, kosnya, bahasanya dan model yang mengendalikannya) supaya kami boleh menolak bilangan kredit yang betul. Jangan ambil kata-kata kami: backend Cloud ialah sumber terbuka, jadi anda boleh [baca kod itu sendiri](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Apakah dasar bayaran balik anda?",
+        "answer": "Kami menawarkan jaminan wang dikembalikan 14 hari, tanpa soal jawab. Selepas tempoh itu, sebarang kredit yang tidak digunakan dan belum tamat tempoh boleh dibayar balik atas permintaan — hanya e-mel kami dan kami akan menyelesaikannya atas dasar usaha terbaik. Kredit yang telah anda belanjakan atau yang telah tamat tempoh tidak boleh dibayar balik, dan yuran pemprosesan 6% tidak boleh dibayar balik kerana ia menampung kos pemprosesan pembayaran yang kami tanggung semasa pembelian. Butiran penuh ada dalam [Dasar Bayaran Balik](/legal/refund-policy) dan [Terma Perkhidmatan](/legal/terms-of-service) kami."
+      },
+      "funding": {
+        "question": "Bagaimana HyperWhisper menjana wang jika ia sumber terbuka?",
+        "answer": "HyperWhisper dibina oleh pereka indie Ray Amjad dan kebanyakannya disubsidi oleh produk-produknya yang lain — [AgentStack](https://agentstack.build) dan [VidTempla](https://vidtempla.com) — itulah yang membolehkan aplikasi ini sendiri kekal percuma dan sumber terbuka. Selain itu, HyperWhisper Cloud menambah yuran pemprosesan kecil pada pembelian kredit. Itu sahaja: tiada iklan, tiada penjualan data anda, tiada perangkap langganan."
+      },
+      "selfHost": {
+        "question": "Bolehkah saya hos sendiri backend Cloud?",
+        "answer": "Ya. Backend transkripsi Cloud ialah sumber terbuka di bawah Apache-2.0, jadi anda bebas untuk menjalankan salinan anda sendiri jika anda tidak mahu bergantung pada kami. Walau bagaimanapun, kebanyakan orang hanya menggunakan HyperWhisper Cloud dan membayar yuran pemprosesan kecil — ia pilihan tanpa persediaan. Segala yang anda perlukan ada [di GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Tersuai",
     "customSub": "jumlah anda",
     "topUp": "Tambah nilai"
+  },
+  "openSource": {
+    "heading": "Sumber terbuka. Tiada apa-apa untuk disembunyikan.",
+    "body": "HyperWhisper sepenuhnya sumber terbuka di bawah Apache-2.0 — kedua-dua aplikasi desktop dan backend Cloud. Aplikasi yang mendengar mikrofon anda sepatutnya sesuatu yang boleh anda sahkan, bukan sekadar percaya: baca setiap baris, audit dengan tepat ke mana audio anda pergi, dan ketahui yang anda tidak akan sekali-kali terkurung — kod itu milik anda untuk difork dan dihos sendiri selamanya. Dibina secara terbuka oleh pereka indie Ray Amjad.",
+    "cta": "Lihat di GitHub"
   }
 }

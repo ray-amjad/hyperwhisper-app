@@ -12,7 +12,8 @@ import {
 import { Button } from "@heroui/button";
 import { link as linkStyles } from "@heroui/theme";
 import clsx from "clsx";
-import { Download } from "lucide-react";
+import { Link as HeroUILink } from "@heroui/link";
+import { Download, Github } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Link as LocaleLink } from "@/src/i18n/navigation";
@@ -89,6 +90,16 @@ export const Navbar = () => {
       >
         <NavbarItem className="hidden sm:flex">
           <LanguageSwitcher />
+        </NavbarItem>
+        <NavbarItem className="hidden sm:flex">
+          <HeroUILink
+            isExternal
+            aria-label={t("githubAria")}
+            className="text-gray-400 hover:text-white transition-colors"
+            href="https://github.com/ray-amjad/hyperwhisper-app"
+          >
+            <Github className="w-5 h-5" />
+          </HeroUILink>
         </NavbarItem>
         <NavbarItem className="hidden md:flex">
           <Button

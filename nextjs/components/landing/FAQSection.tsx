@@ -58,15 +58,20 @@ export default function FAQSection() {
     "accuracy",
     "privacy",
     "dataTraining",
+    "dataStorage",
     "lifetime",
+    "refund",
     "requirements",
     "windowsStatus",
     "languages",
     "apiKey",
     "cloud",
+    "creditExpiry",
     "deviceLimit",
     "offlineModels",
     "madeBy",
+    "funding",
+    "selfHost",
   ];
 
   return (

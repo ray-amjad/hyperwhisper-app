@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Canvia d'idioma"
     },
-    "cloud": "Núvol"
+    "cloud": "Núvol",
+    "githubAria": "Mostra HyperWhisper a GitHub"
   },
   "hero": {
     "logoAlt": "Logotip de HyperWhisper",
@@ -83,6 +84,10 @@
       "medical": "Mèdic",
       "presetModes": "Modes predefinits",
       "customModes": "Modes personalitzats"
+    },
+    "openSource": {
+      "title": "Codi obert",
+      "description": "Amb llicència Apache-2.0. Inspecciona cada línia, fes-ne un fork o allotja-ho tu mateix. Sense caixes negres, sense dependència forçada."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Què és HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, orientada a usuaris menys tècnics que volen començar ràpid.\n\nFunciona amb model pay as you go. En comprar una clau del compte, reps $5 en crèdits de transcripció. Més endavant pots afegir-ne més.\n    \nOferim tres nivells de precisió: Medium (més ràpid, amb Groq), High (recomanat, amb Deepgram) i Highest (millor qualitat, amb xAI Grok STT). El postprocessament és automàtic. No guardem res, excepte quants crèdits has consumit.\n\nPagues exactament el que nosaltres paguem a aquests proveïdors. No hi afegim marge.\n\nPer a més tranquil·litat, pots veure el codi font d'HyperWhisper Cloud [aquí](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, pensada per a usuaris menys tècnics que volen començar ràpidament.\n\nFunciona amb crèdits de pagament per ús. Recarregues des de només $5 (1.000 crèdits per $1) i els gastes només mentre transcrius. La teva primera compra de crèdits crea automàticament la teva Account Key, així que no has de comprar res més.\n    \nOferim quatre nivells de precisió: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) i Highest (Grok STT, per defecte a les instal·lacions noves i impulsat per xAI Grok STT). El postprocessament és automàtic i per defecte utilitza Grok 4.1 Fast sense raonament. No emmagatzemem res més que quants crèdits has consumit, i t'hem exclòs de l'entrenament de models a cada proveïdor amb què treballem. Consulta la nostra [Guia de privadesa de dades](https://hyperwhisper.com/docs/data-privacy) per a més detalls.\n\nEls crèdits es gasten al cost de processament dels propis proveïdors — sense cap marge sobre la transcripció. En pagar s'afegeix una comissió fixa del 6% de processament del pagament, mostrada com una línia separada. Els crèdits no utilitzats caduquen al cap de 12 mesos (vegeu més avall).\n\nPer tranquil·litat, tota l'aplicació és de codi obert sota Apache-2.0 — inclòs el backend de Cloud. Pots llegir cada línia de codi que s'executa entre la teva aplicació i els proveïdors als quals fem de proxy [a GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Les meves dades de veu s'utilitzaran per entrenar models d'IA?",
         "answer": "HyperWhisper Cloud t'exclou de l'entrenament de models a cada proveïdor que utilitzem. Amb la teva pròpia clau API, l'exclusió és responsabilitat teva — consulta la nostra [guia de privadesa de dades](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Per què preu de per vida en lloc de subscripció?",
-        "answer": "Creiem en una política de preus simple i justa. Paga una vegada $39 i fes servir HyperWhisper per sempre. Sense quotes mensuals, sense sorpreses. La versió gratuïta et permet provar les funcions clau amb 3 minuts de transcripció diària."
+        "question": "Hi ha cap subscripció?",
+        "answer": "No — mai. HyperWhisper és una aplicació de codi obert que posseeixes, no una subscripció que llogues. Descarrega-la gratis i utilitza la transcripció local i sense connexió sense cap cost per sempre; el pla gratuït també inclou 5 minuts de transcripció al núvol al dia. Quan vulguis transcripció al núvol sense cap configuració més enllà d'això, HyperWhisper Cloud són simples crèdits de pagament per ús — recarregues només quan ho necessites, sense quotes mensuals i sense res per cancel·lar."
       },
       "deviceLimit": {
         "question": "A quants dispositius puc usar la meva clau del compte?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Qui ho ha creat?",
         "answer": "Ho ha creat el YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Caduquen els meus crèdits de Cloud?",
+        "answer": "Sí — els crèdits caduquen 12 mesos després de la compra. És una salvaguarda comptable i de responsabilitat estàndard, i és la mateixa política de 12 mesos que utilitzen proveïdors com OpenAI, Google, Anthropic i OpenRouter. Quan transcrius, sempre es gasten primer els crèdits més antics, de manera que els més propers a caducar s'utilitzen abans que qualsevol recàrrega més nova."
+      },
+      "dataStorage": {
+        "question": "Emmagatzemeu el meu àudio o les meves transcripcions?",
+        "answer": "No. Amb HyperWhisper Cloud, el teu àudio es processa a la memòria i es descarta en el moment que torna la transcripció — mai no escrivim el teu àudio ni les teves transcripcions al disc, i no es conserva res un cop finalitza la petició. L'única cosa que registrem són metadades d'ús anònimes (quant durava l'àudio, el cost, l'idioma i quin model l'ha gestionat) per descomptar el nombre correcte de crèdits. No te'n refiïs només de la nostra paraula: el backend de Cloud és de codi obert, així que pots [llegir el codi tu mateix](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Quina és la vostra política de reemborsament?",
+        "answer": "Oferim una garantia de devolució dels diners de 14 dies sense preguntes. Passat aquest termini, qualsevol crèdit no utilitzat que no hagi caducat es pot reemborsar a petició — només cal que ens enviïs un correu i ho resoldrem en la mesura del possible. Els crèdits que ja has gastat o que han caducat no són reemborsables, i la comissió de processament del 6% no és reemborsable perquè cobreix els costos de processament del pagament que assumim en la compra. Tots els detalls són a la nostra [Política de reemborsament](/legal/refund-policy) i les [Condicions del servei](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Com guanya diners HyperWhisper si és de codi obert?",
+        "answer": "HyperWhisper està creat pel creador independent Ray Amjad i està majoritàriament subvencionat pels seus altres productes — [AgentStack](https://agentstack.build) i [VidTempla](https://vidtempla.com) —, cosa que permet que l'aplicació mateixa es mantingui gratuïta i de codi obert. A més, HyperWhisper Cloud afegeix una petita comissió de processament en les compres de crèdits. Això és tot: sense anuncis, sense vendre les teves dades, sense paranys de subscripció."
+      },
+      "selfHost": {
+        "question": "Puc allotjar jo mateix el backend de Cloud?",
+        "answer": "Sí. El backend de transcripció al núvol és de codi obert sota Apache-2.0, així que ets lliure d'executar la teva pròpia còpia si prefereixes no dependre de la nostra. Dit això, la majoria de la gent simplement utilitza HyperWhisper Cloud i paga la petita comissió de processament — és l'opció sense configuració. Tot el que necessites és [a GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Personalitzat",
     "customSub": "el teu import",
     "topUp": "Recarrega"
+  },
+  "openSource": {
+    "heading": "Codi obert. Res a amagar.",
+    "body": "HyperWhisper és totalment de codi obert sota Apache-2.0 — tant les aplicacions d'escriptori com el backend de Cloud. Una aplicació que escolta el teu micròfon hauria de ser quelcom que puguis verificar, no només confiar-hi: llegeix cada línia, audita exactament on va el teu àudio i tingues la certesa que mai no quedaràs lligat — el codi és teu per fer-ne un fork i allotjar-lo tu mateix per sempre. Creat de manera oberta pel creador independent Ray Amjad.",
+    "cta": "Mostra a GitHub"
   }
 }

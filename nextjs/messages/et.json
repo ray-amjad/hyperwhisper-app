@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Vaheta keelt"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Vaata HyperWhisperit GitHubis"
   },
   "hero": {
     "logoAlt": "HyperWhisperi logo",
@@ -83,6 +84,10 @@
       "medical": "Meditsiiniline",
       "presetModes": "Eelseadistatud režiimid",
       "customModes": "Kohandatud režiimid"
+    },
+    "openSource": {
+      "title": "Avatud lähtekood",
+      "description": "Apache-2.0 litsentsiga. Uuri iga rida, tee fork või majuta ise. Ei mingeid musti kaste ega lukustust."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Mis on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisseehitatud pilvetranskriptsioon vähem tehnilistele kasutajatele, kes soovivad kiiresti alustada.\n\nSee töötab pay as you go mudeliga. Kontovõtme ostmisel saad $5 transkriptsioonikrediiti. Hiljem saad krediiti juurde lisada.\n    \nPakume kolme täpsustaset: Medium (kiireim, Groq), High (soovitatud, Deepgram) ja Highest (parim kvaliteet, xAI Grok STT). Järeltöötlus on automaatne. Me ei talleta midagi peale selle, kui palju krediiti sa kasutasid.\n\nMaksad täpselt sama palju, kui meie nendele pakkujatele maksame. Me ei lisa juurdehindlust.\n\nKindluse mõttes saad HyperWhisper Cloudi lähtekoodi vaadata [siin](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud on sisseehitatud pilvetranskriptsioon, mis on mõeldud vähem tehnilistele kasutajatele, kes soovivad kiiresti alustada.\n\nTegemist on kasutuspõhiste krediitidega. Lae kontot juba alates 5 $ (1000 krediiti 1 $ kohta) ja kuluta neid ainult transkribeerimise käigus. Sinu esimene krediidiost loob automaatselt sinu Account Key, nii et midagi muud pole vaja osta.\n    \nPakume nelja täpsustaset: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) ja Highest (Grok STT, vaikevalik uutele paigaldustele ja töötab xAI Grok STT-l). Järeltöötlus on automaatne ja kasutab vaikimisi Grok 4.1 Fast ilma arutluseta. Me ei salvesta midagi peale selle, kui palju krediite sa kulutasid, ning oleme välistanud sind mudelite treenimisest igal eelneval teenusepakkujal, keda kasutame. Üksikasju vaata meie [andmekaitse juhendist](https://hyperwhisper.com/docs/data-privacy).\n\nKrediite kulutatakse teenusepakkujate enda töötluskuluga — transkriptsioonile lisandust ei ole. Maksmisel lisandub ühtne 6 % makse töötlemise tasu, mis kuvatakse eraldi reana. Kasutamata krediidid aeguvad 12 kuu pärast (vaata allpool).\n\nMeelerahu huvides on kogu rakendus avatud lähtekoodiga Apache-2.0 litsentsi all — sealhulgas Cloudi backend. Sa saad lugeda iga koodirida, mis jookseb sinu rakenduse ja teenusepakkujate vahel, kelle poole me proxime, [GitHubis](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Kas minu häälandmeid kasutatakse tehisintellekti mudelite treenimiseks?",
         "answer": "HyperWhisper Cloud loobub teie andmete kasutamisest mudelite treenimiseks kõigi meie kasutatavate teenusepakkujate juures. Oma API-võtme kasutamisel on loobumine teie vastutusel — vaadake meie [andmete privaatsuse juhendit](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Miks eluaegne hind tellimuse asemel?",
-        "answer": "Usume lihtsasse ja ausasse hinnastamisse. Maksa üks kord $39 ja kasuta HyperWhisperit igavesti. Ei mingeid kuutasusid, ei mingeid üllatusi. Tasuta versioon võimaldab proovida põhifunktsioone 3 minuti transkriptsiooniga päevas."
+        "question": "Kas on olemas tellimus?",
+        "answer": "Ei — mitte kunagi. HyperWhisper on avatud lähtekoodiga rakendus, mis kuulub sulle, mitte tellimus, mida üürid. Laadi see tasuta alla ja kasuta kohalikku, võrguühenduseta transkriptsiooni igavesti tasuta; tasuta tase sisaldab ka 5 minutit pilvetranskriptsiooni päevas. Kui soovid seadistuseta pilvetranskriptsiooni rohkem kui seda, on HyperWhisper Cloud lihtsalt kasutuspõhised krediidid — lae kontot ainult siis, kui vaja, ilma kuutasudeta ja ilma millegita, mida tühistada."
       },
       "deviceLimit": {
         "question": "Mitmes seadmes saan oma kontovõtit kasutada?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Kes selle tegi?",
         "answer": "Selle tegi YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Kas mu Cloudi krediidid aeguvad?",
+        "answer": "Jah — krediidid aeguvad 12 kuud pärast ostu. See on tavapärane raamatupidamis- ja vastutuskaitse ning sama 12-kuuline poliitika, mida kasutavad teenusepakkujad nagu OpenAI, Google, Anthropic ja OpenRouter. Kui sa transkribeerid, kulutatakse alati esmalt sinu vanimad krediidid, nii et aegumisele kõige lähemal olevad kasutatakse ära enne uuemaid laadimisi."
+      },
+      "dataStorage": {
+        "question": "Kas te salvestate mu heli või transkriptsioone?",
+        "answer": "Ei. HyperWhisper Cloudiga töödeldakse sinu heli mälus ja kustutatakse hetkel, mil transkriptsioon tagasi tuleb — me ei kirjuta sinu heli ega transkriptsioone kunagi kettale ja pärast päringu lõppemist ei säilitata midagi. Ainus, mida me salvestame, on anonüümsed kasutusandmed (kui pikk heli oli, kulu, keel ja milline mudel seda töötles), et saaksime maha arvata õige arvu krediite. Ära usu meid pelgalt sõnade peale: Cloudi backend on avatud lähtekoodiga, nii et sa saad [koodi ise lugeda](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Milline on teie tagasimaksepoliitika?",
+        "answer": "Pakume 14-päevast küsimusteta raha tagasi garantiid. Pärast seda akent saab iga kasutamata krediidi, mis pole aegunud, soovi korral tagasi maksta — saada meile lihtsalt e-kiri ja me lahendame selle parima võimaluse korral. Krediite, mille oled juba kulutanud või mis on aegunud, ei tagastata, ja 6 % töötlemise tasu ei tagastata, kuna see katab makse töötlemise kulud, mis meil ostu hetkel tekivad. Täpsemad üksikasjad on meie [tagasimaksepoliitikas](/legal/refund-policy) ja [kasutustingimustes](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Kuidas HyperWhisper raha teenib, kui see on avatud lähtekoodiga?",
+        "answer": "HyperWhisperit ehitab indie-tegija Ray Amjad ja seda subsideerivad peamiselt tema teised tooted — [AgentStack](https://agentstack.build) ja [VidTempla](https://vidtempla.com) — mis võimaldabki rakendusel endal jääda tasuta ja avatud lähtekoodiga. Lisaks lisab HyperWhisper Cloud krediidiostudele väikese töötlemise tasu. See ongi kõik: ei mingit reklaami, sinu andmete müümist ega tellimuslõkse."
+      },
+      "selfHost": {
+        "question": "Kas ma saan Cloudi backendi ise majutada?",
+        "answer": "Jah. Cloudi transkriptsiooni backend on avatud lähtekoodiga Apache-2.0 litsentsi all, nii et sul on vabadus käitada oma koopiat, kui sa pigem ei taha meie omale loota. Sellegipoolest kasutab enamik inimesi lihtsalt HyperWhisper Cloudi ja maksab väikese töötlemise tasu — see on seadistuseta valik. Kõik, mida vajad, on [GitHubis](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Kohandatud",
     "customSub": "sinu summa",
     "topUp": "Täienda"
+  },
+  "openSource": {
+    "heading": "Avatud lähtekood. Midagi pole varjata.",
+    "body": "HyperWhisper on täielikult avatud lähtekoodiga Apache-2.0 litsentsi all — nii töölauarakendused kui ka Cloudi backend. Rakendus, mis kuulab sinu mikrofoni, peaks olema midagi, mida saad kontrollida, mitte lihtsalt usaldada: loe iga rida, auditeeri täpselt, kuhu su heli läheb, ja tea, et sind ei lukustata kunagi sisse — kood on sinu oma, et seda igavesti forkida ja ise majutada. Ehitatud avatult indie-tegija Ray Amjadi poolt.",
+    "cta": "Vaata GitHubis"
   }
 }

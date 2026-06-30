@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Zmień język"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Zobacz HyperWhisper na GitHub"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -83,6 +84,10 @@
       "medical": "Medyczny",
       "presetModes": "Gotowe tryby",
       "customModes": "Własne tryby"
+    },
+    "openSource": {
+      "title": "Otwarte oprogramowanie",
+      "description": "Na licencji Apache-2.0. Sprawdź każdą linię kodu, sforkuj go lub hostuj samodzielnie. Żadnych czarnych skrzynek, żadnego uzależnienia od dostawcy."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Czym jest HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud to wbudowana transkrypcja w chmurze skierowana do mniej technicznych użytkowników, którzy chcą szybko zacząć.\n\nTo model pay as you go. Zakup klucza konta daje Ci $5 kredytów na transkrypcję. Później możesz doładować więcej kredytów.\n    \nOferujemy trzy poziomy dokładności: Medium (najszybszy, oparty na Groq), High (zalecany, oparty na Deepgram) i Highest (najlepsza jakość, oparty na xAI Grok STT). Post-processing jest automatyczny. Nie przechowujemy niczego poza informacją o liczbie wykorzystanych kredytów.\n\nPłacisz dokładnie tyle, ile my płacimy tym dostawcom. Nie doliczamy marży.\n\nDla pełnego spokoju możesz zobaczyć kod źródłowy HyperWhisper Cloud [tutaj](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud to wbudowana transkrypcja w chmurze przeznaczona dla mniej technicznych użytkowników, którzy chcą szybko zacząć.\n\nDziała na zasadzie kredytów płaconych w miarę użycia. Doładowujesz konto już od $5 (1 000 kredytów za $1) i wydajesz je tylko w trakcie transkrypcji. Pierwszy zakup kredytów automatycznie tworzy Twój Account Key, więc nie musisz kupować nic więcej.\n    \nOferujemy cztery poziomy dokładności: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) oraz Highest (Grok STT, domyślny dla nowych instalacji i napędzany przez xAI Grok STT). Przetwarzanie końcowe jest automatyczne i domyślnie korzysta z Grok 4.1 Fast w trybie bez rozumowania. Nie przechowujemy nic poza liczbą wykorzystanych przez Ciebie kredytów, a u każdego dostawcy, z którego korzystamy, wypisaliśmy Cię z trenowania modeli. Szczegóły znajdziesz w naszym [przewodniku po prywatności danych](https://hyperwhisper.com/docs/data-privacy).\n\nKredyty są wydawane po własnym koszcie przetwarzania dostawców — bez marży na transkrypcji. Przy płatności doliczana jest stała opłata za obsługę płatności w wysokości 6%, pokazywana jako osobna pozycja. Niewykorzystane kredyty wygasają po 12 miesiącach (zobacz poniżej).\n\nDla spokoju ducha cała aplikacja jest otwartoźródłowa na licencji Apache-2.0 — w tym backend Cloud. Możesz przeczytać każdą linię kodu, która działa pomiędzy Twoją aplikacją a dostawcami, do których pośredniczymy, [na GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Czy moje dane głosowe będą używane do trenowania modeli AI?",
         "answer": "HyperWhisper Cloud wyłącza Cię z trenowania modeli u każdego dostawcy, z którego korzystamy. W przypadku własnego klucza API rezygnacja należy do Ciebie — zobacz nasz [przewodnik po prywatności danych](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Dlaczego cena dożywotnia zamiast subskrypcji?",
-        "answer": "Wierzymy w prosty i uczciwy cennik. Zapłać raz $39 i korzystaj z HyperWhisper na zawsze. Bez miesięcznych opłat i bez niespodzianek. Darmowa wersja pozwala przetestować kluczowe funkcje z limitem 3 minut transkrypcji dziennie."
+        "question": "Czy jest subskrypcja?",
+        "answer": "Nie — nigdy. HyperWhisper to otwartoźródłowa aplikacja, którą posiadasz, a nie subskrypcja, którą wynajmujesz. Pobierz ją za darmo i korzystaj z lokalnej, offline'owej transkrypcji bez żadnych kosztów na zawsze; darmowy plan obejmuje też 5 minut transkrypcji w chmurze dziennie. Gdy zechcesz transkrypcji w chmurze bez konfiguracji ponad ten limit, HyperWhisper Cloud to proste kredyty płacone w miarę użycia — doładowujesz tylko wtedy, gdy tego potrzebujesz, bez miesięcznych opłat i bez niczego do anulowania."
       },
       "deviceLimit": {
         "question": "Na ilu urządzeniach mogę używać swojego klucza konta?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Kto to stworzył?",
         "answer": "To zostało stworzone przez YouTubera [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Czy moje kredyty Cloud wygasają?",
+        "answer": "Tak — kredyty wygasają 12 miesięcy po zakupie. To standardowe zabezpieczenie księgowe i odpowiedzialnościowe, identyczne z 12-miesięczną polityką stosowaną przez dostawców takich jak OpenAI, Google, Anthropic czy OpenRouter. Podczas transkrypcji najpierw zawsze wydawane są Twoje najstarsze kredyty, więc te najbliższe wygaśnięcia są wykorzystywane przed nowszymi doładowaniami."
+      },
+      "dataStorage": {
+        "question": "Czy przechowujecie moje audio lub transkrypcje?",
+        "answer": "Nie. W HyperWhisper Cloud Twoje audio jest przetwarzane w pamięci i odrzucane w chwili, gdy wraca transkrypcja — nigdy nie zapisujemy Twojego audio ani transkrypcji na dysku i nic nie zostaje zachowane po zakończeniu żądania. Jedyne, co zapisujemy, to anonimowe metadane użycia (jak długie było audio, koszt, język oraz który model je obsłużył), abyśmy mogli odliczyć właściwą liczbę kredytów. Nie wierz nam na słowo: backend Cloud jest otwartoźródłowy, więc możesz [przeczytać kod samodzielnie](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Jaka jest Wasza polityka zwrotów?",
+        "answer": "Oferujemy 14-dniową gwarancję zwrotu pieniędzy bez zadawania pytań. Po upływie tego okresu wszelkie niewykorzystane kredyty, które nie wygasły, mogą zostać zwrócone na życzenie — wystarczy, że napiszesz do nas e-mail, a my załatwimy to w miarę możliwości. Kredyty, które już wydałeś lub które wygasły, nie podlegają zwrotowi, a opłata za obsługę płatności w wysokości 6% jest bezzwrotna, ponieważ pokrywa koszty obsługi płatności, które ponosimy przy zakupie. Pełne szczegóły znajdziesz w naszej [Polityce zwrotów](/legal/refund-policy) oraz [Regulaminie](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Jak HyperWhisper zarabia, skoro jest otwartoźródłowy?",
+        "answer": "HyperWhisper jest tworzony przez niezależnego twórcę Raya Amjada i jest w większości dotowany przez jego inne produkty — [AgentStack](https://agentstack.build) i [VidTempla](https://vidtempla.com) — co pozwala samej aplikacji pozostać darmową i otwartoźródłową. Na dodatek HyperWhisper Cloud dolicza niewielką opłatę za przetwarzanie przy zakupie kredytów. I to wszystko: żadnych reklam, żadnej sprzedaży Twoich danych, żadnych pułapek subskrypcyjnych."
+      },
+      "selfHost": {
+        "question": "Czy mogę hostować backend Cloud samodzielnie?",
+        "answer": "Tak. Backend transkrypcji Cloud jest otwartoźródłowy na licencji Apache-2.0, więc możesz uruchomić własną kopię, jeśli wolisz nie polegać na naszej. Mimo to większość osób po prostu korzysta z HyperWhisper Cloud i płaci niewielką opłatę za przetwarzanie — to opcja bez żadnej konfiguracji. Wszystko, czego potrzebujesz, jest [na GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Niestandardowa",
     "customSub": "Twoja kwota",
     "topUp": "Doładuj"
+  },
+  "openSource": {
+    "heading": "Otwarty kod. Nie mamy nic do ukrycia.",
+    "body": "HyperWhisper jest w pełni otwartoźródłowy na licencji Apache-2.0 — zarówno aplikacje desktopowe, jak i backend Cloud. Aplikacja, która słucha Twojego mikrofonu, powinna być czymś, co możesz zweryfikować, a nie tylko czemu musisz ufać: przeczytaj każdą linię kodu, sprawdź dokładnie, dokąd trafia Twoje audio, i miej pewność, że nigdy nie zostaniesz uzależniony od dostawcy — kod jest Twój, by go sforkować i hostować samodzielnie na zawsze. Tworzony otwarcie przez niezależnego twórcę Raya Amjada.",
+    "cta": "Zobacz na GitHub"
   }
 }

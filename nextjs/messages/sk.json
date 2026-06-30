@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Zmeniť jazyk"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Zobraziť HyperWhisper na GitHub"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -83,6 +84,10 @@
       "medical": "Medicínsky",
       "presetModes": "Prednastavené režimy",
       "customModes": "Vlastné režimy"
+    },
+    "openSource": {
+      "title": "Otvorený zdrojový kód",
+      "description": "Licencované pod Apache-2.0. Preskúmajte každý riadok, urobte si fork alebo si ho hosťujte sami. Žiadne čierne skrinky, žiadna závislosť od dodávateľa."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Čo je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vstavaný cloudový prepis určený pre menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe pay as you go. Kúpou kľúča k účtu získate $5 v kreditoch na prepis. Neskôr môžete pridať ďalšie kredity.\n    \nPonúkame tri úrovne presnosti: Medium (najrýchlejšie, poháňané Groq), High (odporúčané, poháňané Deepgram) a Highest (najlepšia kvalita, poháňané xAI Grok STT). Následné spracovanie je automatické. Neukladáme nič okrem toho, koľko kreditov ste minuli.\n\nPlatíte presne to, čo platíme týmto poskytovateľom aj my. Neúčtujeme žiadnu prirážku.\n\nPre pokoj na duši si môžete pozrieť zdrojový kód HyperWhisper Cloud [tu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud je vstavaná cloudová transkripcia zameraná na menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe kreditov platených podľa spotreby. Dobíjate už od $5 (1 000 kreditov za $1) a míňate ich len pri transkripcii. Váš prvý nákup kreditov automaticky vytvorí váš Account Key, takže nič ďalšie už nemusíte kupovať.\n    \nPonúkame štyri úrovne presnosti: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) a Highest (Grok STT, predvolená pre nové inštalácie a poháňaná xAI Grok STT). Následné spracovanie je automatické a predvolene používa Grok 4.1 Fast bez uvažovania. Neukladáme nič okrem toho, koľko kreditov ste spotrebovali, a u každého poskytovateľa, ktorého používame, sme vás odhlásili z trénovania modelov. Podrobnosti nájdete v našom [sprievodcovi ochranou súkromia údajov](https://hyperwhisper.com/docs/data-privacy).\n\nKredity sa míňajú za vlastnú cenu spracovania poskytovateľov — bez prirážky na transkripciu. Pri platbe sa pripočíta pevný 6% poplatok za spracovanie platby, zobrazený ako samostatná položka. Nevyužité kredity vypršia po 12 mesiacoch (pozri nižšie).\n\nPre váš pokoj je celá aplikácia open-source pod licenciou Apache-2.0 — vrátane backendu Cloud. Každý riadok kódu, ktorý beží medzi vašou aplikáciou a poskytovateľmi, ku ktorým prepájame, si môžete prečítať [na GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Budú moje hlasové údaje použité na trénovanie modelov AI?",
         "answer": "HyperWhisper Cloud vás odhlási z trénovania modelov u každého poskytovateľa, ktorého používame. Pri použití vlastného API kľúča je odhlásenie vašou zodpovednosťou — pozrite si nášho [sprievodcu ochranou súkromia údajov](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Prečo doživotná cena namiesto predplatného?",
-        "answer": "Veríme v jednoduché a férové ceny. Zaplaťte raz $39 a používajte HyperWhisper navždy. Žiadne mesačné poplatky, žiadne prekvapenia. Bezplatná verzia vám umožní vyskúšať kľúčové funkcie s 3 minútami prepisu denne."
+        "question": "Existuje predplatné?",
+        "answer": "Nie — nikdy. HyperWhisper je open-source aplikácia, ktorú vlastníte, nie predplatné, ktoré si prenajímate. Stiahnite si ju zadarmo a používajte lokálnu, offline transkripciu bez akýchkoľvek nákladov navždy; bezplatná úroveň zahŕňa aj 5 minút cloudovej transkripcie denne. Keď budete chcieť cloudovú transkripciu bez nastavovania nad rámec toho, HyperWhisper Cloud sú jednoduché kredity platené podľa spotreby — dobíjate len vtedy, keď to potrebujete, bez mesačných poplatkov a bez čohokoľvek, čo by ste museli rušiť."
       },
       "deviceLimit": {
         "question": "Na koľkých zariadeniach môžem používať svoj kľúč k účtu?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Kto to vytvoril?",
         "answer": "Vytvoril to YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Vypršia moje kredity Cloud?",
+        "answer": "Áno — kredity vypršia 12 mesiacov po nákupe. Ide o štandardné účtovné a zodpovednostné opatrenie a je to tá istá 12-mesačná politika, akú používajú poskytovatelia ako OpenAI, Google, Anthropic a OpenRouter. Pri transkripcii sa vždy najprv minú vaše najstaršie kredity, takže tie, ktorým najskôr vyprší platnosť, sa použijú pred akýmikoľvek novšími dobitiami."
+      },
+      "dataStorage": {
+        "question": "Ukladáte moje audio alebo prepisy?",
+        "answer": "Nie. Pri HyperWhisper Cloud sa vaše audio spracúva v pamäti a zahodí sa v okamihu, keď sa vráti transkripcia — vaše audio ani prepisy nikdy nezapisujeme na disk a po dokončení požiadavky sa nič neuchováva. Jediné, čo zaznamenávame, sú anonymné metadáta o používaní (ako dlhé bolo audio, cena, jazyk a ktorý model ho spracoval), aby sme mohli odpočítať správny počet kreditov. Neverte nám len na slovo: backend Cloud je open-source, takže si [kód môžete prečítať sami](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Aké sú vaše pravidlá vrátenia peňazí?",
+        "answer": "Ponúkame 14-dňovú záruku vrátenia peňazí bez otázok. Po uplynutí tohto obdobia možno akékoľvek nevyužité kredity, ktorým ešte nevypršala platnosť, vrátiť na požiadanie — stačí nám napísať e-mail a vyriešime to v rámci možností. Kredity, ktoré ste už minuli alebo ktorým vypršala platnosť, sa nevracajú a 6% poplatok za spracovanie je nevratný, pretože pokrýva náklady na spracovanie platby, ktoré nám vznikajú pri nákupe. Všetky podrobnosti nájdete v našich [Pravidlách vrátenia peňazí](/legal/refund-policy) a [Podmienkach používania](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Ako HyperWhisper zarába, keď je open-source?",
+        "answer": "HyperWhisper vytvára nezávislý tvorca Ray Amjad a je z veľkej časti dotovaný jeho inými produktmi — [AgentStack](https://agentstack.build) a [VidTempla](https://vidtempla.com) — vďaka čomu môže samotná aplikácia zostať bezplatná a open-source. Okrem toho HyperWhisper Cloud pridáva malý poplatok za spracovanie pri nákupe kreditov. To je všetko: žiadne reklamy, žiadny predaj vašich údajov, žiadne pasce predplatného."
+      },
+      "selfHost": {
+        "question": "Môžem si backend Cloud hosťovať sám?",
+        "answer": "Áno. Backend cloudovej transkripcie je open-source pod licenciou Apache-2.0, takže si môžete slobodne spustiť vlastnú kópiu, ak sa nechcete spoliehať na tú našu. Väčšina ľudí však jednoducho používa HyperWhisper Cloud a platí malý poplatok za spracovanie — je to možnosť bez akéhokoľvek nastavovania. Všetko, čo potrebujete, je [na GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Vlastná",
     "customSub": "vaša suma",
     "topUp": "Dobiť"
+  },
+  "openSource": {
+    "heading": "Otvorený kód. Nič na skrývanie.",
+    "body": "HyperWhisper je úplne open-source pod licenciou Apache-2.0 — desktopové aplikácie aj backend Cloud. Aplikácia, ktorá počúva váš mikrofón, by mala byť niečím, čo si môžete overiť, nielen niečím, čomu len dôverujete: prečítajte si každý riadok, skontrolujte presne, kam smeruje vaše audio, a majte istotu, že nikdy nebudete uviaznutí u jedného dodávateľa — kód je váš, môžete si urobiť fork a hosťovať ho sami navždy. Vytvárané otvorene nezávislým tvorcom Rayom Amjadom.",
+    "cta": "Zobraziť na GitHub"
   }
 }

@@ -14,6 +14,7 @@ import {
   FileAudio,
   Eye,
   Plug,
+  Github,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -44,6 +45,12 @@ export default function FeaturesGrid() {
       titleKey: "privacy.title",
       descriptionKey: "privacy.description",
       gradient: "from-green-600 to-emerald-600",
+    },
+    {
+      icon: <Github className="w-6 h-6" />,
+      titleKey: "openSource.title",
+      descriptionKey: "openSource.description",
+      gradient: "from-slate-600 to-gray-500",
     },
     {
       icon: <Cloud className="w-6 h-6" />,

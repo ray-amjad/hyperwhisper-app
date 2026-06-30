@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Mainīt valodu"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Skatīt HyperWhisper vietnē GitHub"
   },
   "hero": {
     "logoAlt": "HyperWhisper logotips",
@@ -83,6 +84,10 @@
       "medical": "Medicīniskais",
       "presetModes": "Iepriekš iestatīti režīmi",
       "customModes": "Pielāgoti režīmi"
+    },
+    "openSource": {
+      "title": "Atvērtais kods",
+      "description": "Licencēts saskaņā ar Apache-2.0. Pārbaudiet katru rindu, dakšojiet to vai mitiniet pats. Nekādu melno kastu, nekādas piesaistes."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Kas ir HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ir iebūvēta cloud transkripcija, kas paredzēta mazāk tehniskiem lietotājiem, kuri vēlas ātri sākt.\n\nTas darbojas pēc pay as you go principa. Iegādājoties konta atslēgu, saņemat $5 transkripcijas kredītos. Vēlāk varat pievienot vairāk kredītu.\n    \nPiedāvājam trīs precizitātes līmeņus: Medium (ātrākais, ar Groq), High (ieteicams, ar Deepgram) un Highest (labākā kvalitāte, ar xAI Grok STT). Pēcapstrāde notiek automātiski. Mēs neglabājam neko citu kā tikai informāciju par izlietotajiem kredītiem.\n\nJūs maksājat tieši tik, cik maksājam mēs šiem pakalpojumu sniedzējiem. Mēs nepiemērojam uzcenojumu.\n\nSirdsmieram HyperWhisper Cloud pirmkodu varat apskatīt [šeit](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud ir iebūvēta mākoņa transkripcija, kas paredzēta mazāk tehniski zinošiem lietotājiem, kuri vēlas ātri sākt.\n\nTie ir kredīti, par kuriem maksā lietošanas laikā. Jūs papildināt sākot jau no $5 (1000 kredīti par $1) un tērējat tos tikai tad, kad transkribējat. Pirmais kredītu pirkums automātiski izveido jūsu Account Key, tāpēc nekas cits nav jāpērk.\n    \nMēs piedāvājam četrus precizitātes līmeņus: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) un Highest (Grok STT, noklusējums jaunām instalācijām un darbināts ar xAI Grok STT). Pēcapstrāde notiek automātiski, un pēc noklusējuma tiek izmantots Grok 4.1 Fast non-reasoning. Mēs neko neglabājam, izņemot to, cik kredītu patērējāt, un mēs esam jūs atteikuši no modeļu apmācības pie katra augšuptošā pakalpojumu sniedzēja, ko izmantojam. Sīkāku informāciju skatiet mūsu [Datu privātuma rokasgrāmatā](https://hyperwhisper.com/docs/data-privacy).\n\nKredīti tiek tērēti pēc pakalpojumu sniedzēju pašu apstrādes izmaksām — bez uzcenojuma transkripcijai. Norēķinoties tiek pievienota fiksēta 6% maksājumu apstrādes maksa, kas norādīta kā atsevišķa pozīcija. Neizmantotie kredīti zaudē spēku pēc 12 mēnešiem (skatiet zemāk).\n\nLai jūs būtu mierīgs, visa lietotne ir atvērtā koda risinājums saskaņā ar Apache-2.0 — ieskaitot Cloud aizmugursistēmu. Jūs varat izlasīt katru koda rindu, kas darbojas starp jūsu lietotni un pakalpojumu sniedzējiem, kuriem mēs novirzām pieprasījumus, [vietnē GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Vai mani balss dati tiks izmantoti MI modeļu apmācībai?",
         "answer": "HyperWhisper Cloud atsaka jūsu datu izmantošanu modeļu apmācībai pie katra pakalpojumu sniedzēja, ko izmantojam. Izmantojot savu API atslēgu, atteikšanās ir jūsu atbildība — skatiet mūsu [datu privātuma rokasgrāmatu](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Kāpēc mūža cena, nevis abonēšana?",
-        "answer": "Mēs ticam vienkāršai un godīgai cenu politikai. Samaksājiet vienreiz $39 un izmantojiet HyperWhisper uz visiem laikiem. Bez ikmēneša maksām, bez pārsteigumiem. Bezmaksas versija ļauj izmēģināt galvenās funkcijas ar 3 minūtēm transkripcijas dienā."
+        "question": "Vai ir abonements?",
+        "answer": "Nē — nekad. HyperWhisper ir atvērtā koda lietotne, kas pieder jums, nevis abonements, ko īrējat. Lejupielādējiet to bez maksas un izmantojiet vietējo bezsaistes transkripciju bez maksas mūžīgi; bezmaksas līmenis ietver arī 5 minūtes mākoņa transkripcijas dienā. Kad vēlaties mākoņa transkripciju bez konfigurēšanas papildus tam, HyperWhisper Cloud ir vienkārši kredīti, par kuriem maksā lietošanas laikā — papildiniet tikai tad, kad nepieciešams, bez ikmēneša maksām un bez kā atcelšanas."
       },
       "deviceLimit": {
         "question": "Cik ierīcēs varu izmantot savu konta atslēgu?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Kas to izveidoja?",
         "answer": "To izveidoja YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Vai mani Cloud kredīti zaudē spēku?",
+        "answer": "Jā — kredīti zaudē spēku 12 mēnešus pēc pirkuma. Tas ir standarta grāmatvedības un atbildības drošības pasākums, un tā ir tā pati 12 mēnešu politika, ko izmanto tādi pakalpojumu sniedzēji kā OpenAI, Google, Anthropic un OpenRouter. Kad transkribējat, vispirms vienmēr tiek tērēti jūsu vecākie kredīti, tāpēc tie, kuriem spēka termiņš beidzas vistuvāk, tiek izmantoti pirms jebkādiem jaunākiem papildinājumiem."
+      },
+      "dataStorage": {
+        "question": "Vai jūs glabājat manu audio vai transkriptus?",
+        "answer": "Nē. Izmantojot HyperWhisper Cloud, jūsu audio tiek apstrādāts atmiņā un atmests brīdī, kad atgriežas transkripcija — mēs nekad nerakstām jūsu audio vai transkriptus diskā, un pēc pieprasījuma pabeigšanas nekas netiek saglabāts. Vienīgais, ko mēs reģistrējam, ir anonīmi lietošanas metadati (cik garš bija audio, izmaksas, valoda un kurš modelis to apstrādāja), lai mēs varētu atskaitīt pareizo kredītu skaitu. Neticiet mums uz vārda: Cloud aizmugursistēma ir atvērtā koda risinājums, tāpēc jūs varat [izlasīt kodu pats](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Kāda ir jūsu atmaksas politika?",
+        "answer": "Mēs piedāvājam 14 dienu naudas atmaksas garantiju bez jautājumiem. Pēc šī perioda jebkurus neizmantotus kredītus, kuriem nav beidzies spēka termiņš, var atmaksāt pēc pieprasījuma — vienkārši rakstiet mums e-pastu, un mēs to nokārtosim, cenšoties pēc iespējas labāk. Kredīti, kurus jau esat iztērējis vai kuriem ir beidzies spēka termiņš, nav atmaksājami, un 6% apstrādes maksa nav atmaksājama, jo tā sedz maksājumu apstrādes izmaksas, kas mums rodas pirkuma brīdī. Pilna informācija ir mūsu [Atmaksas politikā](/legal/refund-policy) un [Pakalpojumu lietošanas noteikumos](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Kā HyperWhisper pelna naudu, ja tas ir atvērtā koda risinājums?",
+        "answer": "HyperWhisper ir veidojis indie izstrādātājs Ray Amjad, un to lielākoties subsidē viņa citi produkti — [AgentStack](https://agentstack.build) un [VidTempla](https://vidtempla.com) — kas ir tas, kas ļauj pašai lietotnei palikt bezmaksas un atvērtā koda. Turklāt HyperWhisper Cloud pievieno nelielu apstrādes maksu par kredītu pirkumiem. Tas arī viss: nav reklāmu, netiek pārdoti jūsu dati, nav abonementu slazdu."
+      },
+      "selfHost": {
+        "question": "Vai es varu pats mitināt Cloud aizmugursistēmu?",
+        "answer": "Jā. Cloud transkripcijas aizmugursistēma ir atvērtā koda risinājums saskaņā ar Apache-2.0, tāpēc jūs varat brīvi palaist savu kopiju, ja nevēlaties paļauties uz mūsu. Tomēr lielākā daļa cilvēku vienkārši izmanto HyperWhisper Cloud un maksā nelielo apstrādes maksu — tā ir iespēja bez konfigurēšanas. Viss, kas jums nepieciešams, ir [vietnē GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Pielāgota",
     "customSub": "jūsu summa",
     "topUp": "Papildināt"
+  },
+  "openSource": {
+    "heading": "Atvērtais kods. Nav ko slēpt.",
+    "body": "HyperWhisper ir pilnībā atvērtā koda risinājums saskaņā ar Apache-2.0 — gan darbvirsmas lietotnes, gan Cloud aizmugursistēma. Lietotnei, kas klausās jūsu mikrofonu, vajadzētu būt kaut kam, ko varat pārbaudīt, nevis tikai uzticēties: izlasiet katru rindu, pārbaudiet tieši to, kurp nonāk jūsu audio, un esiet drošs, ka nekad netiksiet piesaistīts — kods pieder jums, lai to dakšotu un mitinātu pašam mūžīgi. Veidots atklāti, to radījis indie izstrādātājs Ray Amjad.",
+    "cta": "Skatīt vietnē GitHub"
   }
 }
