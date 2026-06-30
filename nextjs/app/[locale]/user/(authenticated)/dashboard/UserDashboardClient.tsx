@@ -1,6 +1,6 @@
 "use client";
 
-import { LicenseKeysCard, CloudCreditsCard, BillingCard } from "@/components/customer/dashboard";
+import { LicenseKeysCard, CloudCreditsCard, CreditHistoryCard, BillingCard } from "@/components/customer/dashboard";
 import { api } from "@/lib/trpc/client";
 
 interface UserDashboardClientProps {
@@ -61,6 +61,7 @@ export default function UserDashboardClient({
             creditsPerMinute={data.creditsPerMinute}
             activeLicenseKey={activeLicenseKey}
           />
+          <CreditHistoryCard />
         </>
       ) : (
         <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">

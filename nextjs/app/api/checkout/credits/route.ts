@@ -2,146 +2,156 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { stripe } from "@/lib/clients/stripe";
 import { findLicenseByKey, updateLicenseKey } from "@/src/lib/db-layer";
+import {
+  validateCreditPurchaseAmount,
+  computeCreditPurchase,
+} from "./validation";
 
 /**
  * Stripe Checkout API Route for Credit Purchases
  *
- * Creates a Stripe Checkout Session for HyperWhisper credit purchases.
- * Requires a valid license key to purchase credits.
+ * Creates a Stripe Checkout Session for HyperWhisper credit purchases. The
+ * license key IS the wallet, so this is the only way to obtain a key: a guest
+ * can buy credits with no key and the webhook mints + emails one. Topping up an
+ * existing key is the other path.
  *
- * FLOW:
- * 1. Validate license key exists in database
- * 2. Get customer email from license key record
- * 3. Find or create Stripe customer
- * 4. Create Stripe Checkout Session with:
- *    - Default price fetched from Stripe product
- *    - Customer linked to license for meter tracking
- *    - Metadata with license key and credit amount
- * 5. Return checkout URL for client redirect
+ * REQUEST BODY:
+ * - amount: whole dollars, 5..500 (1000 credits per $1)
+ * - licenseKey (optional): when present, top up that key instead of minting
  *
- * STRIPE METADATA:
- * - purchase_type: "credits" (for webhook to identify)
- * - license_key: The license key for this purchase
- * - credit_amount: Amount of credits to add
+ * PRICING (two non-bundled line items):
+ * - Credits: amount * 100 cents -> amount * 1000 credits
+ * - Processing fee (6%): round(amount * 100 * 0.06) cents — revenue, never
+ *   granted as credits, and non-refundable.
+ *
+ * STRIPE METADATA (read by the webhook):
+ * - purchase_type: "credits"
+ * - credit_amount: credits to grant
+ * - fee_cents: the processing fee charged
+ * - license_key: present ONLY when topping up an existing key (absent => mint)
  */
-
-const CREDIT_TIERS = {
-  5: { credits: 5000, envKey: "STRIPE_CREDITS_PRODUCT_5" },
-  10: { credits: 10000, envKey: "STRIPE_CREDITS_PRODUCT_10" },
-  20: { credits: 20000, envKey: "STRIPE_CREDITS_PRODUCT_20" },
-} as const;
-
-type TierAmount = keyof typeof CREDIT_TIERS;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { licenseKey, amount } = body;
+    const { licenseKey, amount } = body as {
+      licenseKey?: unknown;
+      amount?: unknown;
+    };
 
-    // Validate license key is provided
-    if (!licenseKey || typeof licenseKey !== "string") {
-      return NextResponse.json(
-        { error: "License key is required" },
-        { status: 400 }
-      );
+    // Validate amount: whole dollars within [MIN, MAX].
+    const amountError = validateCreditPurchaseAmount(amount);
+    if (amountError !== null) {
+      return NextResponse.json({ error: amountError }, { status: 400 });
     }
 
-    // Validate and default tier amount
-    const tierAmount: TierAmount =
-      amount === 5 || amount === 10 || amount === 20 ? amount : 5;
-    const tier = CREDIT_TIERS[tierAmount];
+    const { creditAmount, creditCents, feeCents } = computeCreditPurchase(
+      amount as number
+    );
 
-    // Look up license in database
-    const license = await findLicenseByKey(licenseKey);
-
-    if (!license) {
-      console.error("License lookup failed for key:", licenseKey.substring(0, 7));
-      return NextResponse.json(
-        { error: "Invalid license key" },
-        { status: 400 }
-      );
-    }
-
-    // Reject non-granted (e.g. revoked) licenses: credits added to them would be
-    // unusable because /api/license/credits refuses to validate or deduct them.
-    if (license.status !== "granted") {
-      return NextResponse.json(
-        { error: `License is ${license.status}` },
-        { status: 400 }
-      );
-    }
-
-    const email = license.email;
-    if (!email) {
-      return NextResponse.json(
-        { error: "License has no email associated" },
-        { status: 400 }
-      );
-    }
-
-    const productId = process.env[tier.envKey];
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://hyperwhisper.com";
 
-    if (!productId) {
-      console.error(`${tier.envKey} not configured`);
-      return NextResponse.json(
-        { error: "Credits checkout not configured" },
-        { status: 500 }
-      );
-    }
+    // Optional license key: when supplied, this is a top-up of an existing
+    // wallet; when absent, the webhook mints a brand-new key on payment.
+    const hasLicenseKey = typeof licenseKey === "string" && licenseKey.length > 0;
 
-    // Fetch the product to get its default price
-    const product = await stripe.products.retrieve(productId);
+    const metadata: Record<string, string> = {
+      purchase_type: "credits",
+      credit_amount: creditAmount.toString(),
+      fee_cents: feeCents.toString(),
+    };
 
-    if (!product.default_price) {
-      console.error("Product has no default price:", productId);
-      return NextResponse.json(
-        { error: "Product has no default price configured" },
-        { status: 500 }
-      );
-    }
+    // Resolve the Stripe customer for the top-up path so credits attach to the
+    // same customer/email. The mint path lets Stripe collect the email itself.
+    let stripeCustomerId: string | undefined;
 
-    const priceId =
-      typeof product.default_price === "string"
-        ? product.default_price
-        : product.default_price.id;
+    if (hasLicenseKey) {
+      const license = await findLicenseByKey(licenseKey);
 
-    // Find or create Stripe customer by email
-    let stripeCustomerId = license.stripeCustomerId;
-
-    if (!stripeCustomerId) {
-      // Check if customer already exists in Stripe
-      const existingCustomers = await stripe.customers.list({
-        email: email,
-        limit: 1,
-      });
-
-      if (existingCustomers.data.length > 0) {
-        stripeCustomerId = existingCustomers.data[0].id;
-      } else {
-        // Create new Stripe customer
-        const newCustomer = await stripe.customers.create({
-          email: email,
-          metadata: {
-            license_key: licenseKey,
-          },
-        });
-        stripeCustomerId = newCustomer.id;
+      if (!license) {
+        console.error(
+          "License lookup failed for key:",
+          licenseKey.substring(0, 7)
+        );
+        return NextResponse.json(
+          { error: "Invalid license key" },
+          { status: 400 }
+        );
       }
 
-      // Update license with Stripe customer ID
-      await updateLicenseKey(license.id, { stripeCustomerId });
+      // Reject non-granted (e.g. revoked) licenses: credits added to them would
+      // be unusable because /api/license/credits refuses to validate or deduct
+      // them.
+      if (license.status !== "granted") {
+        return NextResponse.json(
+          { error: `License is ${license.status}` },
+          { status: 400 }
+        );
+      }
+
+      const email = license.email;
+      if (!email) {
+        return NextResponse.json(
+          { error: "License has no email associated" },
+          { status: 400 }
+        );
+      }
+
+      metadata.license_key = licenseKey;
+
+      // Find or create the Stripe customer by email and cache it on the license.
+      stripeCustomerId = license.stripeCustomerId ?? undefined;
+      if (!stripeCustomerId) {
+        const existingCustomers = await stripe.customers.list({
+          email,
+          limit: 1,
+        });
+
+        if (existingCustomers.data.length > 0) {
+          stripeCustomerId = existingCustomers.data[0].id;
+        } else {
+          const newCustomer = await stripe.customers.create({
+            email,
+            metadata: { license_key: licenseKey },
+          });
+          stripeCustomerId = newCustomer.id;
+        }
+
+        await updateLicenseKey(license.id, { stripeCustomerId });
+      }
     }
 
     // Create Stripe Checkout Session
     // @ts-expect-error - managed_payments is in private preview
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer: stripeCustomerId,
+      // Top-up: attach to the resolved customer. Mint: let Stripe collect the
+      // email by always creating a customer during checkout.
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId }
+        : { customer_creation: "always" }),
       line_items: [
         {
-          price: priceId,
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "HyperWhisper Cloud credits",
+              description: `${creditAmount.toLocaleString()} credits`,
+            },
+            unit_amount: creditCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Processing fee (6%)",
+              description: "Non-refundable payment processing fee",
+            },
+            unit_amount: feeCents,
+          },
           quantity: 1,
         },
       ],
@@ -150,11 +160,7 @@ export async function POST(req: NextRequest) {
       allow_promotion_codes: true,
 
       // Metadata for webhook processing
-      metadata: {
-        purchase_type: "credits",
-        license_key: licenseKey,
-        credit_amount: tier.credits.toString(),
-      },
+      metadata,
 
       // Managed Payments: Stripe handles tax, invoicing, and compliance
       managed_payments: { enabled: true },

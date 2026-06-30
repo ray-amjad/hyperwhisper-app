@@ -9,6 +9,16 @@ import {
   welcomeEmailText,
   type WelcomeEmailData,
 } from "@/lib/templates/welcome-email";
+import {
+  creditMintEmailHtml,
+  creditMintEmailText,
+  type CreditMintEmailData,
+} from "@/lib/templates/credit-mint-email";
+import {
+  creditTopUpEmailHtml,
+  creditTopUpEmailText,
+  type CreditTopUpEmailData,
+} from "@/lib/templates/credit-topup-email";
 
 export interface EmailResult {
   success: boolean;
@@ -105,6 +115,37 @@ export class EmailService {
   }
 
   /**
+   * Send the mint email: a guest bought credits with no key, so we created one.
+   * Delivers the new key and its starting balance.
+   */
+  async sendCreditMint(data: CreditMintEmailData): Promise<EmailResult> {
+    return this.sendWithRetry("credit-mint", data.customerEmail, () =>
+      resend.emails.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject: `Your ${data.productName} key and credits`,
+        html: creditMintEmailHtml(data),
+        text: creditMintEmailText(data),
+      }),
+    );
+  }
+
+  /**
+   * Send the top-up receipt: credits were added to an existing license key.
+   */
+  async sendCreditTopUp(data: CreditTopUpEmailData): Promise<EmailResult> {
+    return this.sendWithRetry("credit-topup", data.customerEmail, () =>
+      resend.emails.send({
+        from: DEFAULT_FROM_EMAIL,
+        to: data.customerEmail,
+        subject: `${data.creditAmount.toLocaleString()} credits added`,
+        html: creditTopUpEmailHtml(data),
+        text: creditTopUpEmailText(data),
+      }),
+    );
+  }
+
+  /**
    * Shared send-with-retry loop.
    *
    * Treats a resolved `{ error }` object from the Resend SDK as a failure (the
@@ -114,7 +155,7 @@ export class EmailService {
    * caller's request thread is not blocked on backoff sleeps.
    */
   private async sendWithRetry(
-    kind: "license" | "welcome",
+    kind: "license" | "welcome" | "credit-mint" | "credit-topup",
     customerEmail: string,
     send: () => Promise<{ data: unknown; error: unknown }>,
   ): Promise<EmailResult> {
