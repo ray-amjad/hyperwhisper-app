@@ -1,0 +1,161 @@
+---
+title: Fixing Transcription Hallucinations
+description: Why speech-to-text models sometimes invent words, and what you can do about it.
+---
+
+Transcription hallucinations are words or phrases the model produces that were never spoken. You might see filler text appear after a pause, a sentence end up in the wrong language, or a product name get replaced with something plausible but wrong.
+
+This page explains why this happens and gives you concrete steps to reduce it.
+
+## Why hallucinations happen
+
+Speech-to-text models are trained to predict text from audio. When the audio signal is unclear — because of silence, noise, or too little speech — the model still produces output, defaulting to statistically likely words rather than returning nothing.
+
+Three situations make this especially likely:
+
+- **Silence or long pauses** — Some models, particularly local ones, fill silence with filler text rather than stopping.
+- **Background noise** — Noise masks your voice and lowers the model's confidence in every word.
+- **Short recordings with too little acoustic context** — Auto-detect language needs enough speech to make a reliable guess; short clips may produce gibberish or the wrong language entirely.
+
+## How to reduce hallucinations
+
+### 1. Enable Voice Activity Detection (VAD)
+
+VAD is the most direct fix for silence-induced hallucinations. It analyzes your audio after you stop recording, strips leading and trailing silence, and passes only the speech-containing portion to the transcription provider.
+
+<Tabs>
+  <Tab title="macOS">
+    Go to **Settings → Sound** and turn on **Remove silence before transcription**.
+
+    **What happens when it's on:**
+    - HyperWhisper runs the Silero VAD model on the recorded audio.
+    - Leading and trailing silence is detected and stripped from the file.
+    - The trimmed audio is sent to the transcription provider instead of the original.
+    - For large WAV recordings (≥ 25 MB), the trimmed file is also converted to M4A before upload to reduce transfer time and API costs.
+
+    **When VAD runs and when it skips:**
+    - Only applies to recordings of 30 seconds or longer. Shorter recordings have minimal silence and the processing overhead isn't worth it.
+    - Skips M4A conversion if your original file was already a compressed format (M4A, MP3) to avoid re-encoding artifacts.
+    - Falls back silently to the original audio if the trimmed result is too short (under 0.3 s of speech remaining) or too small (under 5 KB), or if less than 0.5 s of silence was found.
+
+    **"No speech detected":** If VAD determines the entire recording is noise, it returns the original file for transcription, which will likely produce an empty or garbled result. This means the audio was all noise — record in a quieter environment or raise your microphone input level.
+  </Tab>
+  <Tab title="Windows">
+    When you use the local Parakeet model on Windows, voice activity detection is applied automatically. There is no separate toggle in Sound settings.
+  </Tab>
+</Tabs>
+
+### 2. Specify your language — don't rely on auto-detect for short recordings
+
+When language is set to auto-detect, the model needs enough speech to identify which language you're speaking. For recordings under about 10–15 seconds, it may not have enough signal, and the result can be gibberish, a different language entirely, or empty output.
+
+**Fix:** Create a dedicated mode for each language you use regularly, and select it before recording. All providers support per-language selection and produce more accurate results with an explicit setting.
+
+See [Transcription Modes](/transcription-modes) for how to set up and switch between modes quickly.
+
+### 3. Add custom vocabulary
+
+When you speak uncommon terms — product names, technical jargon, acronyms, colleague names — the model may substitute something phonetically similar but wrong. Vocabulary entries tell the model what terms to expect.
+
+How entries are applied depends on the provider:
+
+- **Deepgram** — sent as keyword boosting parameters (up to 100 terms; a warning appears if you exceed this limit).
+- **ElevenLabs Scribe v2** — sent as keyterms (up to 100 terms; terms longer than 50 characters are dropped).
+- **OpenAI Whisper, HyperWhisper Cloud** — sent as prompt vocabulary.
+- **Soniox** — sent as context vocabulary (terms joined into a single comma-separated string).
+- **AssemblyAI, Gemini** — sent as key-term context.
+- **Local models on macOS (Parakeet, Nemotron) and local Parakeet on Windows** — matched phonetically using the Beider-Morse algorithm. Terms of two characters or fewer are excluded to avoid false positives.
+- **All providers** — all vocabulary entries are injected into the AI post-processing system prompt, which helps clean up errors the raw transcript missed.
+
+Good entries to add:
+
+- Brand names and product names with unusual spellings
+- Colleague and client names
+- Technical terms, abbreviations, and domain jargon (e.g., Kubernetes, ETA, SCRUM)
+
+See [Custom Vocabulary](/vocabulary) to get started.
+
+### 4. Use a dedicated microphone
+
+Every transcription provider — cloud and local — degrades with background noise. Built-in laptop microphones pick up keyboard typing, fans, and ambient sound, all of which reduce the clarity of your voice signal and increase hallucination risk.
+
+Practical improvements:
+
+- Position the microphone 6–12 inches from your mouth.
+- Use a USB microphone (such as a Blue Yeti or Audio-Technica ATR2100x) or a headset microphone.
+- Check your system input level: it should reach roughly 50–75% on normal speech without clipping.
+
+<Tabs>
+  <Tab title="macOS">
+    Turn on **Automatically increase microphone volume** in **Settings → Sound** to set the microphone input volume to 90% automatically when recording starts.
+
+    Turn on **Keep microphone warm between recordings** in **Settings → Sound** if you use Bluetooth microphones — it keeps the audio session open to reduce connection lag on each push-to-talk press.
+  </Tab>
+  <Tab title="Windows">
+    Check your input level in **Windows Settings → System → Sound → Input**. Adjust the microphone volume slider so your voice reaches a healthy level without clipping.
+  </Tab>
+</Tabs>
+
+### 5. Choose the right model for noisy conditions
+
+Some models handle noise and accents better than others:
+
+- **Cloud models (ElevenLabs Scribe v2, Deepgram Nova-3, Grok STT)** — generally more robust to background noise and accents than local models.
+- **Local models (Parakeet, Nemotron, Whisper)** — faster and private, but more sensitive to noise. Nemotron supports 40+ languages offline and tends to outperform the Whisper family for multilingual use.
+- **Larger models** — within any family, larger models produce fewer errors but require more processing time and memory.
+
+If you're in a noisy environment and accuracy matters more than speed, switch to a cloud model for that session.
+
+See [Models](/models) and [Choosing a Provider](/choosing-a-provider) for a full comparison.
+
+### 6. Optimize your recording environment
+
+Even small environment changes help:
+
+- Close windows to reduce wind noise.
+- Turn off fans and air conditioning during dictation.
+- Avoid typing while recording.
+- Record in rooms with carpet or soft furnishings to reduce echo.
+- Mute system notifications and media playback before you start.
+
+<Tabs>
+  <Tab title="macOS">
+    **Settings → Sound → Media control while recording** can pause or mute system audio automatically when you start recording, which prevents music or video from bleeding into your dictation.
+  </Tab>
+  <Tab title="Windows">
+    Manually pause any media playback before recording to avoid audio bleed-through.
+  </Tab>
+</Tabs>
+
+## Validation and fallback behavior
+
+HyperWhisper's VAD processing is designed to never make things worse. If any step of the process fails or produces a result that doesn't meet quality thresholds, it silently falls back to the original audio:
+
+| Check | Threshold | What happens if it fails |
+|---|---|---|
+| Silence removed | > 0.5 s | Falls back to original (trimming wasn't worth it) |
+| Trimmed duration | ≥ 0.3 s | Falls back to original (VAD over-trimmed) |
+| Trimmed file size | > 5 KB | Falls back to original (file has no usable content) |
+
+All VAD failures are logged internally for diagnostics. If error logging is enabled, failures are also sent to the crash reporter as breadcrumbs.
+
+## Testing your setup
+
+<Steps>
+  <Step title="Record in a quiet environment">
+    Record at least 30 seconds of natural speech in a quiet room. Include a few seconds of silence at the start and end.
+  </Step>
+  <Step title="Enable VAD and transcribe">
+    On macOS, make sure **Remove silence before transcription** is on in **Settings → Sound**, then transcribe the recording.
+  </Step>
+  <Step title="Check the result">
+    If the transcript is clean, VAD is working. If you still see hallucinated filler text, compare the transcript timing against your recording to identify whether it appears at the silence points.
+  </Step>
+  <Step title="Adjust if needed">
+    If hallucinations persist, try switching to an explicit language selection, adding vocabulary entries for problem terms, or moving to a cloud model with better noise tolerance.
+  </Step>
+</Steps>
+
+<Note>
+  If you consistently see "No speech detected" after enabling VAD, the audio contains too much noise relative to speech. Improve the recording environment or raise your microphone input level before trying again.
+</Note>

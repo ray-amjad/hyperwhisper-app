@@ -1,0 +1,122 @@
+---
+title: Providers
+description: Pick a transcription model by language accuracy and cost. Covers HyperWhisper Cloud tiers, silence-free billing, and BYOK alternatives.
+---
+
+HyperWhisper supports four transcription tiers out of the box via HyperWhisper Cloud, plus bring-your-own-key (BYOK) for direct provider access and fully offline local models.
+
+## HyperWhisper Cloud at a glance
+
+HyperWhisper Cloud is built-in — no API key, no separate account. Pick a tier based on whether you care more about speed, balance, or accuracy. All four are pay-as-you-go with no markup; you pay what the underlying provider charges.
+
+<Card title="Highest — ElevenLabs Scribe v2" icon="sparkles" horizontal>
+  Our top-accuracy tier. Best results on accents, noisy environments, and technical vocabulary.
+
+  **~\$0.59 / hour** · *9.83 credits/min*
+</Card>
+
+<CardGroup cols={3}>
+  <Card title="High" icon="scale-balanced">
+    **Deepgram Nova-3**
+
+    ~\$0.33 / hour
+    *5.5 credits/min*
+
+    Strong English accuracy, low latency, custom vocabulary.
+  </Card>
+  <Card title="Medium" icon="gauge">
+    **Grok STT (xAI)**
+
+    \$0.10 / hour
+    *1.67 credits/min*
+
+    Solid multilingual accuracy at a low per-minute cost.
+  </Card>
+  <Card title="Fast" icon="bolt">
+    **Groq Whisper Large v3**
+
+    ~\$0.11 / hour
+    *1.85 credits/min*
+
+    Sub-second latency. Great for English and major European languages.
+  </Card>
+</CardGroup>
+
+<Note>
+  Credits are billed at **1 credit = \$0.001 USD**. A Pro license includes 5,000 credits up front, and top-ups are available in \$5 / \$10 / \$20 bundles.
+</Note>
+
+## You only pay for actual speech
+
+HyperWhisper Cloud detects silence and blank audio automatically. If a recording contains no detectable speech, **you are charged 0 credits** — we don't bill for dead air at the start of a clip, pauses between thoughts, or an accidentally-triggered empty recording.
+
+In practice, across a typical working day of push-to-talk dictation, you're only billed for the minutes you actually spoke.
+
+## Accuracy by language
+
+For English, any tier works. For the best HyperWhisper Cloud quality, use **Highest (ElevenLabs Scribe v2)** — the top accuracy tier, especially on accents, noisy audio, and technical vocabulary. Most users find **High (Deepgram Nova-3)** is plenty for everyday dictation, and the **Medium / Fast** tiers (xAI Grok, Groq Whisper) are great when cost and latency matter more than the last few percent of accuracy.
+
+<Note>
+  xAI does not publish a per-language WER table for Grok STT. We avoid mixing older third-party benchmark numbers with this tier because they do not measure the same provider.
+</Note>
+
+## Cost examples
+
+At 1 credit = \$0.001 USD, here's what each tier costs at typical usage levels. Remember: **only actual speech is billed**, so "30 min/day" means 30 minutes of talking, not 30 minutes of the app being open.
+
+| Daily speech | Highest (ElevenLabs) | High (Deepgram) | Medium (Grok) | Fast (Groq) |
+|---|---|---|---|---|
+| 15 min | ~\$0.15 | ~\$0.08 | ~\$0.03 | ~\$0.03 |
+| 30 min | ~\$0.30 | ~\$0.17 | ~\$0.05 | ~\$0.06 |
+| 1 hour | ~\$0.59 | ~\$0.33 | ~\$0.10 | ~\$0.11 |
+| 2 hours | ~\$1.18 | ~\$0.66 | ~\$0.20 | ~\$0.22 |
+| 8 hours | ~\$4.72 | ~\$2.64 | ~\$0.80 | ~\$0.89 |
+
+Monthly at 30 min/day: **~\$9 Highest / ~\$5 High / ~\$1.50 Medium / ~\$1.80 Fast.** A one-time \$5 top-up covers roughly 8 hours of speech on the Highest tier or ~50 hours on the Medium tier.
+
+## Alternatives
+
+<Tabs>
+  <Tab title="Bring Your Own Key">
+    If you already have API credits or want to use your own free tier (Deepgram \$200, AssemblyAI \$50), plug in a key via [API Keys](/api-keys). You pay the provider directly at their published rate.
+
+    | Provider | Model | \$/min |
+    |---|---|---|
+    | Groq | Whisper Large v3 Turbo | \$0.00067 |
+    | xAI | Grok STT | \$0.00167 |
+    | Deepgram | Nova-3 (batch) | \$0.0043 |
+    | AssemblyAI | Universal | \$0.0037 |
+    | OpenAI | whisper-1 / gpt-4o-transcribe | \$0.006 |
+    | ElevenLabs | Scribe v2 | ~\$0.008 |
+
+    HyperWhisper also supports Mistral and Google Gemini for BYOK. See [API Keys](/api-keys) for setup.
+
+    <Note>
+      When you bring your own key, opting your audio out of model training is your responsibility — every provider has its own dashboard setting. See [Data Privacy & Model Training](/data-privacy) for a copy-pasteable LLM prompt that finds the current opt-out for any provider.
+    </Note>
+  </Tab>
+  <Tab title="Local / offline">
+    Fully offline models (Whisper, Parakeet, Nemotron) run on-device with no network and no cost. Accuracy is slightly lower than the best cloud tier, but perfectly usable for English and larger European languages. See [Models](/models).
+  </Tab>
+</Tabs>
+
+## Boost accuracy on any provider
+
+- **[Custom vocabulary](/vocabulary)** — add domain terms (product names, frameworks, jargon, colleagues' names). Biggest single improvement for technical or professional use.
+- **Low-noise environment** — every model degrades with background noise. See [Best Practices](/best-practices).
+- **Natural pace** — overly fast or overly slow speech both hurt accuracy.
+
+<Note>
+  When using Deepgram Nova-3 with custom vocabulary, set the language explicitly (not `auto`) — the `keyterm` parameter is only active in monolingual mode on Nova-3.
+</Note>
+
+## FAQ
+
+**Does HyperWhisper Cloud mark up the underlying provider cost?**
+No. You pay the same per-minute rate as if you held the provider's API key directly.
+
+**What happens if my chosen tier is temporarily unavailable?**
+HyperWhisper Cloud automatically falls back to another provider in the chain, so transcription still succeeds. You're billed at the actual provider that handled the request.
+
+**Which tier should I use for the highest quality?**
+Highest (ElevenLabs Scribe v2) is the top HyperWhisper Cloud tier — best accuracy on accents, noisy audio, and technical vocabulary. High (Deepgram Nova-3) is a strong, lower-cost default for most everyday dictation.

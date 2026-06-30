@@ -1,0 +1,15 @@
+# Rust build output
+/target
+/crates/**/target
+
+# Generated bindings are NOT committed in general (regenerated at build time).
+# Milestone 0 pilot outputs that ARE checked in (so the apps build without the
+# bindgen tools installed) are force-added in .gitkeep'd subdirs below.
+/bindings/**
+!/bindings/
+!/bindings/swift/
+!/bindings/swift/**
+!/bindings/csharp/
+!/bindings/csharp/**
+!/bindings/kotlin/
+!/bindings/.gitkeep

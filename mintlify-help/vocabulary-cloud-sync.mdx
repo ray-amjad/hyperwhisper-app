@@ -1,0 +1,79 @@
+---
+title: Cloud Sync Vocabulary Across Devices
+description: Keep your custom vocabulary in sync across all your Apple devices using iCloud.
+---
+
+HyperWhisper can sync your [custom vocabulary](/vocabulary) to iCloud so the same words, names, and replacements are available on every Mac and iPhone signed into your Apple account. Only your vocabulary list travels over iCloud — transcripts, recordings, and other settings stay on each device.
+
+Cloud sync is **off by default**. You turn it on per device.
+
+## Enabling iCloud Sync
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open Settings">
+        Click the HyperWhisper menu bar icon, then choose **Settings**.
+      </Step>
+      <Step title="Go to the Vocabulary section">
+        Select **Vocabulary** in the Settings sidebar.
+      </Step>
+      <Step title="Turn on iCloud Sync">
+        Enable the **iCloud Sync** toggle. HyperWhisper will show an alert titled **Quit HyperWhisper to apply** with a **Quit HyperWhisper** button and a **Later** button. The change takes effect the next time you open the app — the app does not relaunch automatically.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="iOS">
+    <Steps>
+      <Step title="Open Settings">
+        Tap the gear icon to open HyperWhisper Settings.
+      </Step>
+      <Step title="Find iCloud Sync">
+        Scroll to the **iCloud Sync** section and enable **Sync vocabulary with iCloud**.
+      </Step>
+      <Step title="Relaunch">
+        A notice appears confirming the change takes effect the next time you open HyperWhisper. Close and reopen the app.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+Repeat these steps on every device you want to keep in sync.
+
+<Note>
+  The toggle must be enabled independently on each device. Turning it on for your Mac does not automatically enable it on your iPhone, or vice versa.
+</Note>
+
+## How Sync Works
+
+Once enabled, HyperWhisper stores your vocabulary in a CloudKit container (`iCloud.com.hyperwhisper.hyperwhisper`) backed by `NSPersistentCloudKitContainer`. Apple's CloudKit infrastructure handles propagating changes across your devices in the background.
+
+- **What syncs:** Your custom vocabulary entries — the phrase, replacement text, and sort order.
+- **What does not sync:** Transcripts, recordings, modes, and all other settings. These remain local to each device.
+- **When sync happens:** Changes you make on one device propagate as soon as the device has an internet connection and your iCloud account is active.
+
+## Offline Behavior
+
+You can add, edit, and delete vocabulary entries while offline. HyperWhisper saves changes locally and uploads them to iCloud the next time a connection is available.
+
+If you add the same word on two different devices while both are offline, CloudKit delivers both records after reconnecting. HyperWhisper automatically detects and removes the duplicate — keeping one copy of the word and deleting the extra record. On macOS, this deduplication pass runs the first time you open the Vocabulary view in a session, so open it once after reconnecting to trigger the cleanup.
+
+## Turning Off iCloud Sync
+
+Toggle **iCloud Sync** off in the same settings location. After relaunching, the app switches to a local-only store. Your existing vocabulary remains on the device; it is no longer updated from or pushed to iCloud.
+
+## Troubleshooting
+
+**Vocabulary is not appearing on another device.**
+
+- Confirm iCloud Sync is enabled on both devices (see [Enabling iCloud Sync](#enabling-icloud-sync) above).
+- Make sure both devices are signed into the same Apple ID and iCloud is enabled in System Settings (macOS) or Settings → \[your name\] (iOS).
+- Allow a minute or two after relaunching — initial sync can take a moment on a fresh install.
+
+**I see duplicate entries after syncing.**
+
+This can happen if the same word was added on two devices while offline. On macOS, HyperWhisper runs a deduplication pass the first time you open the Vocabulary view in a session and removes the extras automatically — open that view once after reconnecting. If duplicates remain, delete one manually from the [Vocabulary](/vocabulary) list.
+
+**iCloud Sync is enabled but the app is using local storage.**
+
+If CloudKit fails to initialize (for example, because iCloud is unavailable or the account is not configured), HyperWhisper falls back to a local-only store automatically rather than blocking you from using vocabulary. Check that iCloud is signed in and has available storage, then relaunch the app.

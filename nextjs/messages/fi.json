@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI-äänitranskriptio macOS:lle ja Windowsille",
+    "description": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla. HyperWhisper litteroi puheesi huipputarkasti macOS:ssä ja Windowsissa. Puhu luonnollisesti ja katso, miten sanat ilmestyvät heti."
+  },
+  "navbar": {
+    "features": "Ominaisuudet",
+    "pricing": "Hinnoittelu",
+    "faq": "UKK",
+    "support": "Tuki",
+    "download": "Lataa",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Vaihda kieli"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper-logo",
+    "headline": "Kirjoita, sommittele ja luo",
+    "headlineAccent": "5x nopeammin AI:n avulla",
+    "subheadline": "HyperWhisper litteroi puheesi uskomattomalla tarkkuudella. Puhu luonnollisesti ja näe sanojesi ilmestyvän heti.",
+    "downloadCta": "Lataa nyt",
+    "demoCta": "Katso demo",
+    "availableOn": "Saatavilla",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Rakennettu ammattilaisille",
+    "subtitle": "Jokainen ominaisuus on suunniteltu auttamaan sinua työskentelemään nopeammin ja tehokkaammin",
+    "customVocabulary": {
+      "title": "Mukautettu sanasto",
+      "description": "Lisää nimiä, lyhenteitä ja erikoistermejä, jotta saat parhaan mahdollisen tarkkuuden joka kerta."
+    },
+    "languages": {
+      "title": "Yli 100 kieltä",
+      "description": "Litteroi yli 100 kielellä automaattisen kielentunnistuksen avulla."
+    },
+    "offline": {
+      "title": "Offline-tuki",
+      "description": "Toimii täysin offline-tilassa. Tietosi eivät koskaan poistu laitteeltasi."
+    },
+    "privacy": {
+      "title": "Tietosuoja edellä",
+      "description": "Ei tilivaatimusta. Ei seurantaa. Puhedatasi pysyy Macillasi tai PC:lläsi."
+    },
+    "hybridProcessing": {
+      "title": "Hybridikäsittely",
+      "description": "Valitse paikalliset mallit tietosuojan vuoksi tai pilvi-API:t nopeuden vuoksi. Molempien maailmojen parhaat puolet."
+    },
+    "customizable": {
+      "title": "Erittäin muokattava",
+      "description": "Valitse yli 9 API-palveluntarjoajasta ja yli 30 transkriptiomallista."
+    },
+    "realTime": {
+      "title": "Reaaliaikainen suoratoisto",
+      "description": "Näe sanasi heti puhuessasi. Alan johtava tarkkuus alle 700 ms viiveellä."
+    },
+    "fileImport": {
+      "title": "Tiedostojen tuonti",
+      "description": "Tuo ääni- tai videotiedostoja litterointiin. Tukee yleisimmät tiedostomuodot automaattisella hiljaisuuden tunnistuksella."
+    },
+    "screenOcr": {
+      "title": "Näytön OCR",
+      "description": "Salli HyperWhisperin nähdä näyttösi, jotta se osaa kirjoittaa kaiken oikein."
+    },
+    "mcpServer": {
+      "title": "Paikallinen API ja MCP-palvelin",
+      "description": "Sisäänrakennettu MCP-palvelin antaa Clauden, Cursorin ja muiden tekoälyagenttien ohjata HyperWhisperiä. Vain paikallinen HTTP-API bearer-todennuksella skripteille ja automaatioille."
+    },
+    "modes": {
+      "title": "Tilat joka tilanteeseen",
+      "description": "Vaihda eri litterointitilojen välillä, jotka on optimoitu kokouksiin, muistiinpanoihin, sähköposteihin, koodaukseen ja muuhun. Jokainen tila käyttää mukautettuja prompteja muotoillakseen tekstisi täydellisesti.",
+      "meeting": "Kokous",
+      "email": "Sähköposti",
+      "note": "Muistiinpano",
+      "code": "Koodi",
+      "legal": "Juridinen",
+      "medical": "Lääketieteellinen",
+      "presetModes": "Esiasetetut tilat",
+      "customModes": "Mukautetut tilat"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Nopeampi kuin kirjoittaminen",
+    "accuracyRate": "Tarkkuus",
+    "languagesSupported": "Tuetut kielet",
+    "providersSupported": "Tuetut palveluntarjoajat"
+  },
+  "pricing": {
+    "title": "Ei tilauksia. Koskaan.",
+    "subtitle": "Maksa kerran, käytä ikuisesti. Me vihaamme tilauksia myös.",
+    "guarantee": "14 päivän rahat takaisin -takuu",
+    "guaranteeExtended": "jos et ole täysin tyytyväinen.",
+    "learnMore": "Lue lisää",
+    "free": {
+      "name": "Ilmainen",
+      "price": "$0",
+      "period": "ikuisesti",
+      "description": "Täydellinen HyperWhisperin kokeiluun",
+      "cta": "Lataa ilmaiseksi",
+      "features": {
+        "transcriptionLimit": "5 minuuttia litterointia päivässä",
+        "basicModes": "Peruslitterointitilat",
+        "offlineTranscription": "Offline-litterointi",
+        "apiTranscription": "API-litterointi (käytä omia avaimia)",
+        "postProcessing": "Tekstin jälkikäsittely",
+        "providers": "Yli 9 palveluntarjoajaa valittavana",
+        "lifetimeUpdates": "Elinikäiset päivitykset",
+        "cloudLimited": "HyperWhisper Cloud (rajoitettu käyttö)",
+        "customVocabulary": "Mukautettu sanasto",
+        "prioritySupport": "Prioriteettituki"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "elinikäinen",
+      "description": "Kertamaksu, rajaton teho ikuisesti",
+      "cta": "Osta nyt - Elinikäinen käyttöoikeus",
+      "mostPopular": "Suosituin",
+      "features": {
+        "unlimitedTranscription": "Rajaton litterointi",
+        "allModes": "Kaikki litterointitilat",
+        "offlineTranscription": "Offline-litterointi",
+        "apiTranscription": "API-litterointi (käytä omia avaimia)",
+        "postProcessing": "Tekstin jälkikäsittely",
+        "providers": "Yli 9 palveluntarjoajaa valittavana",
+        "lifetimeUpdates": "Elinikäiset päivitykset",
+        "cloudCredits": "HyperWhisper Cloud ($5 krediittejä)",
+        "customVocabulary": "Mukautettu sanasto",
+        "prioritySupport": "Prioriteettituki"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise ja räätälöity hinnoittelu",
+      "description": "Volyymialennukset, SSO, prioriteettituki, sisäinen isännöinti ja räätälöidyt integraatiot",
+      "cta": "Ota yhteyttä myyntiin"
+    }
+  },
+  "faq": {
+    "title": "Usein kysytyt kysymykset",
+    "subtitle": "Kaikki mitä sinun tarvitsee tietää HyperWhisperistä",
+    "contactPrompt": "Onko vielä kysyttävää? Lähetä meille sähköpostia osoitteeseen",
+    "questions": {
+      "accuracy": {
+        "question": "Kuinka tarkka litterointi on?",
+        "answer": "Saavutamme alan huipputason 99% tarkkuuden uusimman sukupolven AI-malleilla. Voit parantaa tarkkuutta entisestään lisäämällä oman mukautetun sanastosi teknisille termeille, nimille ja erikoisjargonille."
+      },
+      "offline": {
+        "question": "Voinko käyttää sitä ilman internetiä?",
+        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
+      },
+      "apiKey": {
+        "question": "Täytyykö API-käytöstä maksaa?",
+        "answer": "Käytät omaa API-avaintasi seuraaville palveluntarjoajille: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ja Google Gemini. Osa palveluntarjoajista tarjoaa uusille käyttäjille ilmaisia krediittejä; Deepgram tarjoaa $200 ja AssemblyAI tarjoaa $50. Pitkällä aikavälillä tämä tulee huomattavasti halvemmaksi kuin mikään tilaus. \n\nVoit käyttää myös sisäänrakennettua HyperWhisper Cloudia, joka ei vaadi API-avainta ja toimii käyttöperusteisesti.\n\nMuista: paikallinen offline-tila toimii ilman API-avainta ja on täysin ilmainen."
+      },
+      "languages": {
+        "question": "Mitä kieliä se tukee?",
+        "answer": "Yli 100 kieltä on tuettuna valmiiksi, englannista ja espanjasta mandariiniin ja arabiaan. Useimmat mallit tunnistavat puhumasi kielen automaattisesti ja vaihtavat saumattomasti."
+      },
+      "offlineModels": {
+        "question": "Mitä offline-malleja on saatavilla?",
+        "answer": "Offline-litterointiin tarjoamme useita kokoja Whisper-mallista (OpenAI:n tekemä, tukee 99+ kieltä). Tarjoamme myös NVidia's Parakeet -malleja (tukee 25+ kieltä).\n      \n      Offline-jälkikäsittelyyn tarjoamme useita kokoja Gemma 3 -mallista (Googlen tekemä)."
+      },
+      "compatibility": {
+        "question": "Toimiiko se kaikissa Mac- ja Windows-sovelluksissa?",
+        "answer": "Kyllä, se toimii kaikkialla missä voit kirjoittaa. Olitpa kirjoittamassa sähköposteja, asiakirjoja, koodia tai chattaamassa. Paina pikanäppäintä, puhu ja näe sanojesi ilmestyvän heti."
+      },
+      "privacy": {
+        "question": "Miten yksityisyyteni suojataan?",
+        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs tai Mistral).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), tai verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Mikä on HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvilitterointi vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe toimii käyttöperusteisesti. Lisenssin ostaminen antaa sinulle $5 litterointikrediittejä. Voit lisätä krediittejä myöhemmin.\n    \nTarjoamme kolme tarkkuustasoa: Medium (nopein, toimii Groqin avulla), High (suositus, toimii Deepgramin avulla) ja Highest (paras laatu, toimii xAI Grok STTin avulla). Jälkikäsittely on automaattinen. Emme tallenna mitään muuta kuin kuluttamiesi krediittien määrän.\n\nMaksat täsmälleen sen, mitä me maksamme näille palveluntarjoajille. Emme lisää hintaan katetta.\n\nMielenrauhan vuoksi voit tarkastella HyperWhisper Cloudin lähdekoodia [täällä](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Käytetäänkö äänidataani tekoälymallien kouluttamiseen?",
+        "answer": "HyperWhisper Cloud poistaa sinut mallien koulutuksesta jokaisen käyttämämme palveluntarjoajan osalta. Omalla API-avaimellasi koulutuksesta poistuminen on sinun vastuullasi — katso [tietosuojaopas](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Miksi elinikäinen hinta eikä tilaus?",
+        "answer": "Uskomme yksinkertaiseen ja reiluun hinnoitteluun. Maksa kerran $39 ja käytä HyperWhisperiä ikuisesti. Ei kuukausimaksuja, ei yllätyksiä. Ilmaisversiossa pääset käyttämään avainominaisuuksia 3 minuutin päivittäisellä litteroinnilla."
+      },
+      "deviceLimit": {
+        "question": "Kuinka monella laitteella voin käyttää lisenssiäni?",
+        "answer": "Voit käyttää lisenssiäsi niin monella laitteella kuin haluat, Fair Usage Policy -käytäntömme puitteissa, kuten [Palveluehdoissamme](/legal/terms-of-service) on kuvattu. Käytäntö on suunniteltu joustavaksi lailliseen henkilökohtaiseen ja yrityskäyttöön, samalla estäen väärinkäytökset."
+      },
+      "requirements": {
+        "question": "Mitkä ovat järjestelmävaatimukset?",
+        "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
+      },
+      "windowsStatus": {
+        "question": "Onko Windows-versiossa kaikki samat ominaisuudet kuin macOS-versiossa?",
+        "answer": "Windows-versio julkaistiin hiljattain, joten siinä ei välttämättä ole vielä kaikkia macOS-version ominaisuuksia. Työskentelemme aktiivisesti täyden ominaisuuspariteetin saavuttamiseksi molemmille alustoille."
+      },
+      "madeBy": {
+        "question": "Kuka tämän teki?",
+        "answer": "Tämän teki YouTubettaja [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Tukikeskus",
+    "subtitle": "Autamme sinua saamaan HyperWhisperistä kaiken irti",
+    "getInTouch": "Ota yhteyttä",
+    "description": "Teknisen tuen, lisenssiongelmien tai muiden HyperWhisper-kysymysten osalta tiimimme auttaa sinua mielellään.",
+    "emailUsAt": "Lähetä meille sähköpostia:",
+    "openInClient": "Avaa sähköpostiohjelmassa:",
+    "defaultClient": "Oletussähköpostiohjelma",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Vastaamme yleensä 24 tunnin kuluessa arkipäivinä.",
+    "emailTemplate": {
+      "subject": "HyperWhisper tukipyyntö",
+      "body": "Hei,\n\nVersio: \n[voit tarkistaa sen kohdasta Asetukset > Tietoja]\n\nOngelma: \n[Kuvaile ongelmasi]\n\nYksityiskohdat: \n[Anna olennaiset tiedot, mitä olit tekemässä ennen kaatumista]\n\n[Viestisi tähän]\n\nYstävällisin terveisin,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper-logo",
+    "title": "Lataa HyperWhisper",
+    "emailPlaceholder": "Sähköposti",
+    "description": "Lähetämme sähköpostiisi latauslinkin ja lyhyen opastusvideon alkuun pääsemiseksi. Ei roskapostia.",
+    "downloadButton": "Lataa HyperWhisper",
+    "errorGeneric": "Jotain meni pieleen. Yritä uudelleen.",
+    "errorNetwork": "Verkkovirhe. Tarkista yhteytesi ja yritä uudelleen.",
+    "thankYouTitle": "Kiitos!",
+    "downloadStarted": "Latauksen pitäisi käynnistyä automaattisesti.",
+    "manualDownload": "Eikö lataus käynnistynyt? Klikkaa tästä",
+    "skipAndDownloadButton": "Ohita ja lataa"
+  },
+  "downloadPage": {
+    "title": "Lataa HyperWhisper",
+    "countdownText": "Käynnistyy {seconds} kuluttua...",
+    "downloadStarted": "Tarkista Lataukset-kansio",
+    "downloadNow": "Lataa nyt",
+    "downloadAgain": "Lataa uudelleen",
+    "selectArchitecture": "Valitse arkkitehtuuri",
+    "downloadX64": "Lataa x64:lle",
+    "downloadArm64": "Lataa ARM64:lle",
+    "orDivider": "TAI",
+    "homebrewTitle": "Asenna Homebrew'lla",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopioi",
+    "copied": "Kopioitu!"
+  },
+  "purchaseSuccess": {
+    "title": "Osto onnistui!",
+    "subtitle": "Tervetuloa HyperWhisper Prohon! Elinikäinen lisenssisi on valmis.",
+    "checkEmail": {
+      "title": "Tarkista sähköpostisi",
+      "description": "Lähetimme lisenssiavaimesi ja latausohjeet sähköpostiosoitteeseesi. Viestin pitäisi saapua muutaman minuutin sisällä."
+    },
+    "whatsNext": {
+      "title": "Mitä seuraavaksi?",
+      "step1": {
+        "title": "Tarkista saapuneet",
+        "description": "Etsi HyperWhisperiltä tullut sähköposti"
+      },
+      "step2": {
+        "title": "Kopioi lisenssiavaimesi",
+        "description": "Tarvitset sen sovelluksen aktivointiin"
+      },
+      "step3": {
+        "title": "Lataa HyperWhisper",
+        "description": "Asenna sovellus ja syötä lisenssiavaimesi"
+      }
+    },
+    "downloadButton": "Lataa HyperWhisper",
+    "returnHome": "Palaa etusivulle",
+    "noEmail": "Etkö saanut sähköpostia? Tarkista roskapostikansio tai",
+    "contactSupport": "ota yhteyttä tukeen",
+    "loading": "Ladataan..."
+  },
+  "footer": {
+    "tagline": "Kirjoita 5x nopeammin AI-pohjaisella äänitranskriptiolla macOS:lle ja Windowsille.",
+    "product": "Tuote",
+    "resources": "Resurssit",
+    "company": "Yritys",
+    "legal": "Juridinen",
+    "links": {
+      "features": "Ominaisuudet",
+      "pricing": "Hinnoittelu",
+      "download": "Lataa",
+      "roadmap": "Roadmap",
+      "helpCenter": "Ohjekeskus",
+      "manageBilling": "Hallitse laskutusta",
+      "customerPortal": "Asiakasportaali",
+      "olderVersions": "Vanhemmat versiot",
+      "blog": "Blogi",
+      "about": "Tietoa",
+      "support": "Tuki",
+      "privacyPolicy": "Tietosuojakäytäntö",
+      "termsOfService": "Käyttöehdot",
+      "refundPolicy": "Palautuskäytäntö",
+      "dataTraining": "Tietosuoja"
+    },
+    "copyright": "© 2026 HyperWhisper. Kaikki oikeudet pidätetään.",
+    "linkedinAria": "LinkedIn"
+  }
+}

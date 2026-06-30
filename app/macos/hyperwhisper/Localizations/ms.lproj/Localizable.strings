@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Perbendaharaan Kata";
+"vocabulary.description" = "Ini membantu perisian mengenali nama, akronim, slanga, atau perkataan dari bahasa lain semasa mencampur bahasa.";
+"vocabulary.input.title" = "Input";
+"vocabulary.new.word.placeholder" = "Perkataan atau frasa baharu";
+"vocabulary.replacement.placeholder" = "Ganti dengan...";
+"vocabulary.add.button" = "Tambah ke perbendaharaan kata";
+"vocabulary.edit.title" = "Edit catatan kosa kata";
+"vocabulary.update.button" = "Kemas kini";
+"vocabulary.cancel.button" = "Batal";
+"vocabulary.word.column" = "Perkataan/Frasa";
+"vocabulary.replacement.column" = "Penggantian";
+"vocabulary.empty.title" = "Tiada perbendaharaan kata lagi";
+"vocabulary.empty.subtitle" = "Tambah perkataan tersuai untuk meningkatkan ketepatan transkripsi";
+"vocabulary.duplicate.title" = "Entri Pendua";
+"vocabulary.duplicate.message" = "%@ sudah wujud dalam perbendaharaan kata anda. Setiap perkataan hanya boleh ditambah sekali.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Had Kata Kunci Melebihi";
+"vocabulary.limit.message" = "Anda mempunyai %d perkataan, tetapi hanya %d yang pertama akan digunakan untuk peningkatan transkripsi.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streaming (Beta)";
+"streaming.description" = "Transkripsi masa nyata semasa anda bercakap. Teks ditaip terus ke dalam aplikasi yang difokuskan.";
+"streaming.enable.title" = "Dayakan Streaming";
+"streaming.provider.picker.title" = "Pembekal";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Pemformatan Pantas";
+"streaming.fastFormatting.description" = "Mengurangkan kelewatan pemformatan pintar untuk penaipan yang lebih pantas";
+"streaming.warning.vocabAutoDetect" = "Perbendaharaan kata tersuai dilumpuhkan dalam mod auto-detect";
+"streaming.warning.vocabUnsupported" = "Perbendaharaan kata tersuai tidak disokong dengan streaming %@";
+"streaming.warning.apiKeyRequired" = "Kunci API %@ diperlukan";
+"streaming.warning.apiKeyRequired.action" = "Konfigurasi";
+"streaming.warning.apiKeyInvalid" = "Kunci API %@ tidak berfungsi. Kemaskini di Tetapan > Kunci API.";
+"streaming.warning.apiKeyInvalid.action" = "Kemaskini Kunci";
+"streaming.language.title" = "Bahasa";
+"streaming.shortcut.title" = "Pintasan";
+
+// MARK: - Home View
+"home.get.started" = "Mulakan";
+"home.open.system.settings" = "Buka Tetapan Sistem";
+
+// MARK: - API Keys
+"api.key.required" = "Kunci API Diperlukan";
+"api.keys.required" = "Kunci API Diperlukan";
+"api.key.configure.message" = "Konfigurasi kunci API anda untuk mendayakan transkripsi.";
+"api.key.internet.required" = "Sambungan Internet Diperlukan";
+"api.key.internet.message" = "Transkripsi awan memerlukan sambungan internet.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Batal";
+"common.delete" = "Padam";
+"common.edit" = "Edit";
+"common.done" = "Selesai";
+"common.copy" = "Salin";
+"common.back" = "Kembali";
+"common.skip" = "Langkau";
+"common.settings" = "Tetapan";
+"common.error" = "Ralat";
+"common.retry" = "Cuba Semula";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Utama";
+"sidebar.statistics" = "Statistik";
+"sidebar.modes" = "Mod";
+"sidebar.vocabulary" = "Perbendaharaan Kata";
+"sidebar.streaming" = "Streaming";
+"sidebar.history" = "Sejarah";
+"sidebar.settings" = "Tetapan";
+
+// MARK: - App Messages
+"app.unknown.error" = "Ralat tidak diketahui berlaku";
+"app.microphone.permission.message" = "HyperWhisper memerlukan akses ke mikrofon anda untuk mentranskrip audio.\n\nSila pergi ke Tetapan Sistem > Privasi & Keselamatan > Mikrofon dan dayakan akses untuk HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper menyimpan rakaman ke folder dalam Dokumen anda supaya mudah dijumpai: Documents/hyperwhisper/recordings. macOS mungkin meminta kebenaran kali pertama kami cuba menyimpan di sana. Jika anda tidak mahu memberikan akses, kami boleh menyimpan rakaman dalam folder aplikasi peribadi sebaliknya.";
+"app.upgrade.to.pro" = "Naik Taraf ke Pro";
+"app.enter.license.key" = "Masukkan Kunci Lesen";
+"accessibility.upgrade.pro" = "Naik Taraf ke HyperWhisper Pro";
+"accessibility.enter.license" = "Masukkan Kunci Lesen";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Tambah kunci API %@ anda untuk mendayakan mod yang dipilih.";
+"home.api.keys.missing.single" = "Tambah kunci API %@ anda untuk mendayakan mod yang dipilih.";
+"home.getting.started.recording.title" = "Mula rakam";
+"home.getting.started.recording.description" = "Tukar suara anda kepada teks dengan satu klik.";
+"home.getting.started.shortcuts.title" = "Sesuaikan pintasan anda";
+"home.getting.started.shortcuts.description" = "Ubah pintasan papan kekunci untuk HyperWhisper.";
+"home.getting.started.mode.title" = "Cipta mod";
+"home.getting.started.mode.description" = "Bina mod sempurna untuk aliran kerja anda.";
+"home.getting.started.vocabulary.title" = "Tambah perbendaharaan kata";
+"home.getting.started.vocabulary.description" = "Ajar HyperWhisper perkataan tersuai, nama, atau istilah industri.";
+"home.add.api.key" = "Tambah Kunci API";
+"home.accessibility.enable.title" = "Dayakan Kebolehcapaian";
+"home.accessibility.enable.description" = "Benarkan HyperWhisper untuk auto-tampal ke dalam aplikasi yang anda gunakan.";
+"home.accessibility.waiting" = "Menunggu...";
+"home.accessibility.open.settings" = "Buka Tetapan";
+"home.accessibility.restart.after.permission" = "Mula semula aplikasi selepas memberikan kebenaran";
+"home.getting.started.completed" = "✓ Selesai";
+"home.whatsnew.badge" = "BAHARU";
+"home.whatsnew.title" = "Apa yang baharu?";
+"home.whatsnew.update1.date" = "3 Jul";
+"home.whatsnew.update1.title" = "Parakeet kini tersedia";
+"home.whatsnew.update1.description" = "Muat turunnya terus dari senarai Model Bahasa dalam penciptaan Mod untuk mencubanya hari ini.";
+"home.whatsnew.update2.date" = "5 Jun";
+"home.whatsnew.update2.title" = "Sokongan untuk setiap model tersuai yang serasi dengan OpenAI";
+"home.whatsnew.update2.description" = "Anda kini boleh menambah mana-mana API yang serasi dengan OpenAI ke senarai model anda.";
+"home.whatsnew.update3.date" = "27 Mei";
+"home.whatsnew.update3.title" = "Tetingkap rakaman mini yang serba baharu";
+"home.whatsnew.update3.description" = "Antara muka rakaman yang halus dan minimal yang tidak menghalang anda.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Kemas Kini Terkini";
+"home.recent.updates.error" = "Gagal memuatkan kemas kini";
+"home.recent.updates.retry" = "Cuba Semula";
+"home.recent.updates.empty" = "Tiada kemas kini terkini tersedia";
+"home.recent.updates.version" = "Versi %@";
+"home.recent.updates.new.badge" = "BAHARU";
+"home.recent.updates.no.notes" = "Tiada nota keluaran tersedia";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Akses Mikrofon Diperlukan";
+"common.open.settings" = "Buka Tetapan";
+"alerts.api.local.mode" = "Guna Mod Tempatan";
+"alerts.documents.permission.title" = "Simpan ke Dokumen?";
+"common.continue" = "Teruskan";
+"alerts.documents.permission.use.another" = "Guna lokasi lain";
+"alerts.api.configure.generic" = "Sila konfigurasi kunci API anda dalam Tetapan.";
+"alerts.api.internet.offline" = "Transkripsi awan memerlukan sambungan internet. Sila periksa tetapan rangkaian anda atau pilih mod transkripsi tempatan.";
+"alerts.api.configure.header.multiple" = "Untuk menggunakan mod yang dipilih, sila konfigurasi kunci API berikut dalam Tetapan:";
+"alerts.api.configure.header.single" = "Untuk menggunakan mod yang dipilih, sila konfigurasi kunci API berikut dalam Tetapan:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Selepas menambah kunci yang hilang, cuba lagi.";
+"alerts.export.failed.title" = "Eksport Gagal";
+"alerts.export.logs.failed.message" = "Tidak dapat mengeksport log kemas kini. Sila cuba lagi.";
+"alerts.export.logs.success.title" = "Log Dieksport";
+"alerts.export.logs.success.message" = "Log kemas kini telah berjaya dieksport.";
+"alerts.export.logs.saveFailed.message" = "Tidak dapat menyimpan log ke lokasi yang dipilih: %@";
+"alerts.export.diagnostics.failed.message" = "Tidak dapat mengeksport diagnostik. Sila cuba lagi.";
+"alerts.export.diagnostics.success.title" = "Diagnostik Dieksport";
+"alerts.export.diagnostics.success.message" = "Semua log diagnostik telah berjaya dieksport.";
+"alerts.export.diagnostics.saveFailed.message" = "Tidak dapat menyimpan diagnostik ke lokasi yang dipilih: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Eksport log kemas kini untuk sokongan";
+"panels.export.diagnostics.message" = "Eksport semua log diagnostik";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Mulakan dengan HyperWhisper";
+"sidebar.statistics.help" = "Lihat statistik penggunaan dan analitik";
+"sidebar.modes.help" = "Urus mod transkripsi untuk konteks berbeza";
+"sidebar.vocabulary.help" = "Tambah perkataan dan frasa tersuai untuk pengiktirafan yang lebih baik";
+"sidebar.streaming.help" = "Tetapan transkripsi streaming masa nyata (memerlukan Internet)";
+"sidebar.history.help" = "Lihat dan cari sejarah transkripsi anda";
+"sidebar.settings.help" = "Konfigurasi tetapan dan keutamaan aplikasi";
+
+// MARK: - Recording State
+"recording.state.ready" = "Bersedia untuk rakam";
+"recording.state.recording" = "Merakam...";
+"recording.state.processing" = "Memproses audio...";
+"recording.state.transcribing" = "Mentranskrip...";
+"recording.state.postprocessing" = "Pasca-pemprosesan dengan AI...";
+"recording.state.complete" = "Transkripsi selesai: %@";
+"recording.state.error" = "Ralat: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Mula atau henti rakam";
+"menu.recording.stop" = "Henti Rakam";
+"menu.recording.toggle" = "Mula/Henti Rakam";
+"menu.history" = "Sejarah...";
+"menu.settings" = "Tetapan...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Pilih Mod";
+"menu.transcribe.file" = "Transkrip Fail";
+"menu.mode.unnamed" = "Tanpa Nama";
+"menu.version.label" = "Versi %@";
+"common.quit" = "Keluar";
+"menu.microphone.default" = "Lalai";
+"menu.microphone.system.default" = "Lalai";
+"menu.bar.state.recording" = "Merakam";
+"menu.bar.state.processing" = "Memproses";
+"menu.bar.state.idle" = "Menganggur";
+"menu.command.check.updates" = "Semak Kemas Kini…";
+"menu.debug.title" = "Debug";
+"menu.command.export.logs" = "Eksport Log Kemas Kini…";
+"menu.command.export.diagnostics" = "Eksport Diagnostik…";
+"menu.command.help.website" = "Laman Web Bantuan";
+"menu.command.contact.support" = "Hubungi Sokongan";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Umum";
+"settings.section.sound" = "Bunyi";
+"settings.section.license" = "Lesen";
+"settings.section.credits" = "Kredit";
+"settings.section.storage" = "Penyimpanan";
+"settings.section.models" = "Model";
+"settings.section.api.keys" = "Kunci API";
+"settings.section.shortcuts" = "Pintasan Papan Kekunci";
+"settings.section.output" = "Output Teks";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Bahasa Inggeris)";
+"onboarding.model.pro.multilingual" = "Pro (Pelbagai Bahasa)";
+"onboarding.model.downloading.progress" = "Memuat turun... %d%%";
+"onboarding.accessibility.title" = "Dayakan Kebolehcapaian untuk Tampal Automatik";
+"onboarding.accessibility.subtitle" = "Benarkan HyperWhisper untuk menampal teks yang ditranskrip secara automatik ke dalam aplikasi anda.";
+"onboarding.accessibility.instructions" = "Tetapan Sistem → Privasi & Keselamatan → Kebolehcapaian";
+"onboarding.accessibility.status.granted" = "Kebenaran kebolehcapaian diberikan";
+"onboarding.accessibility.status.pending" = "Kebenaran kebolehcapaian belum diberikan";
+"onboarding.accessibility.waiting" = "Menunggu kebenaran...";
+"onboarding.accessibility.open.preferences" = "Buka Keutamaan Kebolehcapaian";
+"onboarding.accessibility.restart" = "Selepas memberikan kebenaran, mula semula HyperWhisper.";
+"onboarding.model.recommendation.title" = "Kami mengesyorkan model Pro";
+"onboarding.model.recommendation.subtitle" = "Berdasarkan bahasa sistem anda dan keupayaan Mac anda.";
+"onboarding.model.recommendation.note" = "Muat turun dengan mengklik butang di bawah.";
+"onboarding.model.downloaded" = "Dimuat turun";
+"onboarding.model.metric.speed" = "Kelajuan";
+"onboarding.model.metric.accuracy" = "Ketepatan";
+"onboarding.model.metric.size" = "Saiz";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "Atau, pilih model suara yang berbeza";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (Bahasa Inggeris)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Muat Turun Model";
+"onboarding.audio.title" = "Peranti rakaman audio mana yang anda ingin gunakan?";
+"onboarding.audio.subtitle" = "Pastikan kelantangan input audio anda dinaikkan dan mendaftar kelantangan.";
+"onboarding.audio.input.label" = "Peranti Input";
+"onboarding.audio.picker.label" = "Peranti";
+"onboarding.audio.use.system.default" = "Guna peranti lalai sistem";
+"onboarding.audio.level" = "Aras Audio";
+"onboarding.audio.open.sound" = "Buka Keutamaan Bunyi";
+"onboarding.microphone.title" = "Kebenaran Rakaman Diperlukan";
+"onboarding.microphone.subtitle" = "Untuk merakam audio, kami perlu mengakses mikrofon anda.";
+"onboarding.microphone.status.granted" = "Kebenaran mikrofon diberikan";
+"onboarding.microphone.status.pending" = "Kebenaran mikrofon belum diberikan";
+"onboarding.microphone.grant" = "Berikan Kebenaran";
+"onboarding.test.title" = "Semua sudah sedia, mari mulakan rakaman pertama anda";
+"onboarding.test.press.prefix" = "Tekan";
+"onboarding.test.press.suffix" = "untuk mula";
+"onboarding.test.status.recording" = "Merakam...";
+"onboarding.test.status.speak" = "Bercakap sekarang...";
+"onboarding.test.stop" = "Henti Rakam";
+"onboarding.test.success.title" = "Bagus! Rakaman anda berjaya.";
+"onboarding.test.success.subtitle" = "Transkripsi anda akan muncul dalam aplikasi.";
+"onboarding.test.start.cta" = "Klik untuk Mula Rakam";
+"onboarding.test.start.shortcut" = "Atau tekan pintasan papan kekunci anda";
+"onboarding.settings.title" = "Bagus sekali! Sekarang, mari buka Tetapan";
+"onboarding.settings.subtitle" = "Klik kanan pada ikon HyperWhisper & pilih Tetapan...";
+"onboarding.settings.menu.startStop" = "Mula/Henti Rakam";
+"onboarding.settings.menu.history" = "Sejarah...";
+"onboarding.settings.menu.settings" = "Tetapan...";
+"onboarding.settings.menu.quit" = "Keluar";
+"onboarding.settings.info" = "Dalam Tetapan, anda boleh menyesuaikan pintasan, mengurus kunci API, dan mengkonfigurasi HyperWhisper mengikut kehendak anda.";
+"onboarding.completion.title" = "Anda sudah selesai!";
+"onboarding.completion.subtitle" = "Jika anda menghadapi masalah atau soalan, hubungi melalui e-mel atau Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-mel";
+"onboarding.completion.resources.title" = "Sumber Tambahan";
+"onboarding.completion.resources.documentation" = "Dokumentasi";
+"onboarding.completion.resources.videos" = "Tutorial Video";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Selesai Penyediaan Awal";
+"onboarding.error.model.notFound" = "Model tidak dijumpai dalam katalog.";
+"onboarding.error.microphone.denied" = "Kebenaran mikrofon ditolak. Sila berikan kebenaran dalam Tetapan Sistem.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Lancarkan semasa log masuk";
+"settings.general.launchAtLogin.info" = "Mulakan HyperWhisper secara automatik apabila anda log masuk.";
+"settings.general.launchMinimized.title" = "Lancarkan diminimumkan";
+"settings.general.launchMinimized.info" = "Mulakan HyperWhisper dengan tetingkap utama tersembunyi. Aplikasi akan boleh diakses melalui bar menu.";
+"settings.general.showInDock.title" = "Tunjuk dalam Dok";
+"settings.general.showInDock.info" = "Tunjuk ikon aplikasi dalam Dok.";
+"settings.general.showRecordingWindow.title" = "Tunjuk tetingkap rakaman";
+"settings.general.showRecordingWindow.info" = "Paparkan tetingkap bentuk gelombang terapung semasa merakam dan memproses.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Mati";
+"settings.general.mediaControl.mode.mute" = "Bisukan Audio";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Pengelogan ralat";
+"settings.general.errorLogging.info" = "Tangkap dan hantar laporan ralat secara automatik untuk membantu meningkatkan aplikasi.";
+"settings.general.autoUpdate.title" = "Kemas kini automatik";
+"settings.general.autoUpdate.info" = "Semak dan muat turun versi baharu HyperWhisper secara automatik.";
+"settings.general.support.title" = "Perlukan bantuan?";
+"settings.version.detail" = "Versi %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Mainkan kesan bunyi";
+"settings.sound.soundEffects.info" = "Mainkan isyarat audio apabila rakaman bermula dan berhenti.";
+"settings.sound.mediaControl.title" = "Kawalan media semasa merakam";
+"settings.sound.mediaControl.info" = "Pilih cara HyperWhisper mengendalikan audio lain semasa anda merakam. 'Mati' meninggalkan audio tidak berubah, 'Bisukan Audio' membisukan output sistem semasa merakam dan memulihkannya selepas itu.";
+"settings.sound.autoIncreaseMicVolume.title" = "Tingkatkan kelantangan mikrofon secara automatik";
+"settings.sound.autoIncreaseMicVolume.info" = "Secara automatik menetapkan kelantangan input mikrofon ke maksimum apabila rakaman bermula, kemudian memulihkan aras asal apabila rakaman berhenti. Hanya terpakai apabila menggunakan peranti input lalai sistem.";
+"settings.sound.vad.title" = "Alih keluar senyap sebelum transkripsi";
+"settings.sound.vad.info" = "Secara automatik mengesan dan mengeluarkan senyap di awal dan akhir menggunakan pengesanan suara AI. Ini boleh meningkatkan ketepatan transkripsi dan mengurangkan masa pemprosesan.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Folder Rakaman";
+"settings.storage.showFolder.title" = "Tunjuk folder rakaman";
+"settings.storage.showFolder.button" = "Tunjuk dalam Finder";
+"settings.storage.notice" = "Menukar folder rakaman hanya mempengaruhi rakaman baharu. Rakaman sedia ada kekal di lokasi asal mereka.";
+"settings.storage.choose.button" = "Pilih...";
+"settings.storage.dialog.select" = "Pilih Folder";
+"settings.storage.dialog.message" = "Pilih folder untuk menyimpan rakaman";
+"settings.storage.storeAsM4A.title" = "Mampat rakaman ke M4A";
+"settings.storage.storeAsM4A.subtitle" = "Menukar rakaman WAV kepada fail yang lebih kecil selepas transkripsi. Matikan untuk menyimpan fail WAV asal (lebih besar tetapi tanpa kerugian).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Tampal hasil secara automatik";
+"settings.output.paste.subtitle" = "Tampal teks yang ditranskrip secara automatik ke aplikasi aktif";
+"settings.output.paste.info" = "Jika didayakan, teks ditampal ke dalam aplikasi paling depan.";
+"settings.output.restoreClipboard.title" = "Pulihkan papan klip selepas tampal";
+"settings.output.restoreClipboard.subtitle" = "Pulihkan kandungan papan klip sebelumnya selepas menampal";
+"settings.output.restoreClipboard.info" = "Memulihkan kandungan papan klip sebelumnya selepas aplikasi menampal transkripsi.";
+"settings.output.restore.after" = "Pulihkan selepas";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Kelewatan pemulihan papan klip";
+"settings.output.hideClipboardHistory.title" = "Sembunyikan daripada sejarah papan klip";
+"settings.output.hideClipboardHistory.subtitle" = "Elakkan transkripsi daripada muncul dalam aplikasi sejarah papan klip";
+"settings.output.hideClipboardHistory.info" = "Apabila didayakan, teks yang ditranskrip tidak akan disimpan oleh pengurus papan klip seperti Paste, Maccy, atau Alfred.";
+"settings.output.clipboard.header" = "Papan keratan";
+"settings.output.removeFillers.title" = "Buang kata pengisi";
+"settings.output.removeFillers.subtitle" = "Membuang 'uh', 'um' dan 'er' daripada transkrip mentah.";
+"settings.output.removeFillers.info" = "Apabila dihidupkan, HyperWhisper membuang kata pengisi lazim daripada transkrip mentah sebelum output.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Togol Rakaman";
+"settings.shortcuts.toggleRecording.subtitle" = "Mulakan dan hentikan rakaman";
+"settings.shortcuts.cancelRecording.title" = "Batal Rakaman";
+"settings.shortcuts.cancelRecording.subtitle" = "Buang rakaman aktif";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Tahan kekunci untuk rakam, lepaskan apabila selesai";
+"settings.shortcuts.pushToTalk.enable.info" = "Dayakan mod Push to Talk untuk rakaman pantas dengan satu tekanan kekunci.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Mod Rakaman";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Pilih kekunci mana untuk digunakan";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Dilumpuhkan";
+"settings.shortcuts.pushToTalk.mode.fn" = "Kekunci FN";
+"settings.shortcuts.pushToTalk.mode.control" = "Kekunci Control";
+"settings.shortcuts.pushToTalk.mode.custom" = "Pintasan Tersuai";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Tekan dua kali untuk kunci rakaman";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Tekan dua kali dengan cepat untuk terus merakam tanpa menahan";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Pintasan Tersuai";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Tekan kombinasi kekunci untuk digunakan";
+
+
+"settings.shortcuts.changeMode.title" = "Tukar Mod";
+"settings.shortcuts.changeMode.subtitle" = "Hanya berfungsi semasa merakam";
+
+"settings.shortcuts.reset.button" = "Tetapkan Semula ke Lalai";
+"settings.shortcuts.reset.dialog.title" = "Tetapkan Semula Pintasan Papan Kekunci";
+"settings.shortcuts.reset.confirm" = "Tetapkan Semula";
+"settings.shortcuts.reset.dialog.message" = "Ini akan menetapkan semula semua pintasan papan kekunci kepada nilai lalai mereka.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "Kunci API disimpan dengan selamat pada peranti anda dan hanya dihantar kepada pembekal apabila diperlukan.";
+"settings.api.help.link" = "Bantuan dengan Kunci API";
+"settings.api.transcription.title" = "Transkripsi";
+"settings.api.transcription.subtitle" = "Kunci API untuk perkhidmatan ucapan-ke-teks berasaskan awan.";
+"settings.api.postProcessing.title" = "Pasca-pemprosesan";
+"settings.api.postProcessing.subtitle" = "Kunci API untuk peningkatan teks berkuasa AI dan pemformatan.";
+"settings.api.placeholder" = "Masukkan kunci API %@ anda";
+"settings.api.openLink" = "Buka halaman kunci API %@";
+"settings.api.status.accessibility" = "Status %@: %@";
+"settings.api.status.unknown" = "Status pembekal tidak diketahui";
+"settings.api.status.checking" = "Pemeriksaan kesihatan sedang berjalan";
+"settings.api.status.unauthorized" = "Kunci API ditolak oleh pembekal";
+"settings.api.status.unreachable" = "Pembekal pada masa ini tidak boleh dicapai";
+"settings.api.status.notInstalled" = "SDK pembekal tidak dipasang";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Tidak Diketahui";
+"provider.status.checking" = "Menyemak…";
+"provider.status.healthy" = "Bersedia";
+"provider.status.unauthorized" = "Kunci tidak sah";
+"provider.status.unreachable" = "Luar Talian";
+"provider.status.notInstalled" = "Tidak dipasang";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Lesen Diaktifkan";
+"alerts.license.deactivated.title" = "Lesen Dinyahaktifkan";
+"alerts.license.activated.message" = "Lesen anda telah berjaya diaktifkan. Nikmati akses tanpa had kepada semua ciri!";
+"alerts.license.deactivated.message" = "Lesen anda telah dinyahaktifkan pada peranti ini. Anda kini boleh mengaktifkannya di tempat lain.";
+"alerts.license.failed.title" = "Operasi Gagal";
+"alerts.license.failed.message" = "Operasi gagal. Sila cuba lagi.";
+"license.button.deactivate" = "Nyahaktifkan Peranti";
+"license.button.deactivating" = "Menyahaktifkan...";
+"license.button.manageBilling" = "Urus Pembilan";
+"license.button.activate" = "Aktifkan";
+"license.button.activating" = "Mengaktifkan...";
+"license.status.label" = "Status: %@";
+"license.status.trial.title" = "Percubaan";
+"license.status.active.title" = "Aktif";
+"license.status.expired.title" = "Tamat Tempoh";
+"license.status.invalid.title" = "Tidak Sah";
+"license.status.trial.description" = "Percubaan Percuma (5 min/hari, %d model)";
+"license.status.active.description" = "Berlesen – Akses Penuh";
+"license.status.expired.description" = "Lesen Tamat Tempoh";
+"license.status.invalid.description" = "Lesen Tidak Sah";
+"settings.license.key.title" = "Kunci Lesen";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Tampal dari Papan Klip";
+"settings.license.clearInput" = "Kosongkan";
+"settings.license.recovery.prompt" = "Lupa kunci lesen anda?";
+"settings.license.recovery.button" = "Pergi ke portal pelanggan";
+"settings.license.daily.title" = "Transkripsi Harian";
+"settings.license.daily.usage" = "%@ daripada %@ digunakan";
+"settings.license.limitReached" = "Had Dicapai";
+"settings.license.models.title" = "Model Luar Talian";
+"settings.license.models.progress" = "%d daripada %d model dimuat turun";
+"settings.license.models.progress.one" = "%d daripada %d model dimuat turun";
+"settings.license.upgrade.text" = "Naik taraf untuk transkripsi tanpa had dan muat turun model";
+"settings.license.upgrade.button" = "Naik Taraf";
+"license.error.invalidResponse" = "Format respons tidak sah";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Kredit HyperWhisper Cloud";
+"settings.credits.refresh" = "Muat Semula";
+"settings.credits.subtitle" = "Pantau kredit dan penggunaan transkripsi anda";
+"settings.credits.manage" = "Urus Kredit";
+"settings.credits.timeRemaining" = "Masa Transkripsi Berbaki";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minit";
+"settings.credits.creditsRemaining" = "%@ kredit berbaki";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Had Percuma Harian (100 kredit)";
+"settings.credits.resets" = "Tetap semula %@";
+"settings.credits.warning.low" = "Kredit semakin berkurangan. Pertimbangkan untuk membeli lesen untuk kredit tambahan.";
+"settings.credits.warning.exhausted.daily" = "Had harian habis. Beli lesen untuk penggunaan tanpa had atau tunggu tetap semula.";
+"settings.credits.warning.exhausted" = "Kredit habis. Beli lebih banyak kredit untuk terus menggunakan HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Maklumat Akaun";
+"settings.credits.stat.creditsRemaining" = "Kredit Berbaki";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minit Berbaki";
+"settings.credits.stat.accountType" = "Jenis Akaun";
+"settings.credits.accountType.licensed" = "Berlesen";
+"settings.credits.accountType.anonymous" = "Tanpa Nama";
+"settings.credits.accountType.trial" = "Percubaan";
+"settings.credits.stat.customerId" = "ID Pelanggan";
+"settings.credits.stat.dailyLimit" = "Had Harian";
+"settings.credits.dailyLimit.value" = "100 kredit";
+"settings.credits.loading" = "Memuatkan baki kredit...";
+"settings.credits.error.title" = "Tidak dapat memuatkan baki kredit";
+"settings.credits.error.retry" = "Cuba Semula";
+"settings.credits.empty.title" = "Tiada maklumat kredit tersedia";
+"settings.credits.empty.subtitle" = "Klik muat semula untuk memuatkan baki kredit anda";
+"settings.credits.empty.button" = "Muatkan Kredit";
+"settings.credits.error.insufficient" = "Kredit tidak mencukupi. Anda mempunyai %d kredit berbaki.";
+"settings.credits.error.network" = "Ralat rangkaian: %@";
+"settings.credits.error.invalidResponse" = "Respons tidak sah dari pelayan. Sila cuba lagi.";
+"settings.credits.error.server" = "Ralat pelayan: %@";
+"settings.models.alert.limit.title" = "Had muat turun model dicapai";
+"settings.models.alert.limit.message" = "Percubaan termasuk %d muat turun model. Naik taraf lesen anda untuk muat turun tanpa had.";
+"settings.models.alert.cannotDelete.title" = "Tidak Boleh Padam Model";
+"settings.models.parakeet.title" = "Model Parakeet";
+"settings.models.parakeet.subtitle" = "Disyorkan untuk kebanyakan pengguna. Model pelbagai bahasa menyokong 25 bahasa.";
+"settings.models.parakeet.empty" = "Tiada model Parakeet tersedia.";
+"settings.models.whisper.title" = "Model Whisper";
+"settings.models.whisper.subtitle" = "Model OpenAI Whisper. Model yang lebih besar lebih tepat. Menyokong 100+ bahasa.";
+"settings.models.whisper.empty" = "Tiada model Whisper tersedia.";
+"settings.models.help.cancelDownload" = "Batalkan muat turun";
+"settings.models.help.remove" = "Alih keluar model";
+"settings.models.downloaded" = "Dimuat turun";
+"settings.models.download" = "Muat Turun";
+"settings.models.downloading" = "Memuat turun…";
+"settings.models.localPostProcessing.title" = "Model pasca-pemprosesan tempatan";
+"settings.models.localPostProcessing.memoryWarning" = "Disyorkan untuk Mac dengan 24 GB memori bersepadu atau lebih. Kelajuan bergantung pada cip — lebih pantas pada M3/M4 Pro dan ke atas.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Perkataan tahun ini";
+"vocabulary.input.placeholder" = "Tambah perkataan atau buat petikan";
+"vocabulary.action.addWord" = "Tambah perkataan";
+"vocabulary.action.replaceWith" = "Ganti dengan…";
+"vocabulary.action.replace" = "Ganti";
+"vocabulary.replacement.field.placeholder" = "Teks gantian…";
+"settings.output.autocapitalizeInsert.title" = "Huruf Besar Automatik Semasa Sisipan";
+"settings.output.autocapitalizeInsert.subtitle" = "Padankan konteks kursor semasa menyisipkan teks";
+"settings.output.autocapitalizeInsert.info" = "Jika diaktifkan, perkataan pertama teks transkrip yang disisipkan disesuaikan untuk memadankan konteks kursor (awal atau pertengahan ayat). Matikan untuk diktasi sentiasa huruf kecil.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper memerlukan kebenaran Kebolehcapaian untuk membaca konteks kursor yang diperlukan untuk permodalan besar automatik.\n\nKlik \"Buka Tetapan\", tekan togol di sebelah HyperWhisper, kemudian cuba lagi.";
+"settings.output.removeFillerWords.title" = "Buang kata pengisi";
+"settings.output.removeFillerWords.subtitle" = "Buang \"eh\", \"um\", dan \"er\" daripada transkrip mentah apabila pasca-pemprosesan AI dimatikan";
+"settings.output.removeFillerWords.info" = "Hanya digunakan apabila mod melangkau pasca-pemprosesan AI. Mod yang dipertingkat dengan AI mengendalikan pembersihan pertuturan dalam gesaan.";
+"sidebar.modelLibrary" = "Pustaka Model";
+"sidebar.modelLibrary.help" = "Semak imbas setiap model suara dan pasca-pemprosesan dalam satu tempat";
+"settings.shortcuts.quickCapture.enable.title" = "Tangkap Pantas";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Rakam dan hantar transkripsi ke Nota — tanpa perlu fokus ke aplikasi dahulu.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Pintasan";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Tekan di mana sahaja untuk merakam dan menghantar ke Nota.";
+"settings.shortcuts.quickCapture.mode.title" = "Mod";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Mod transkripsi yang digunakan — mengawal model, gesaan dan pemprosesan selepas.";
+"settings.shortcuts.quickCapture.mode.current" = "Mod semasa";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper memerlukan kebenaran untuk mengawal Nota. Berikannya di Tetapan Sistem → Privasi → Automasi.";
+"settings.section.vocabulary" = "Kosa Kata";
+"settings.vocabulary.icloudSync.title" = "Penyegerakan iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Selaraskan kosa kata tersuai anda merentas semua Mac yang log masuk ke akaun iCloud yang sama.";
+"settings.vocabulary.icloudSync.info" = "Dimatikan secara lalai. Hanya kosa kata tersuai anda yang diselaraskan — transkrip dan rakaman kekal pada Mac ini. Perubahan berkuat kuasa pada kali seterusnya anda membuka HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Tutup HyperWhisper untuk menggunakan perubahan";
+"vocabulary.icloudSync.restart.message" = "Perubahan penyegerakan kosa kata iCloud berkuat kuasa pada kali seterusnya anda membuka HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Tutup HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Kemudian";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Pastikan mikrofon tetap hangat antara rakaman";
+"settings.sound.keepWarmMicrophone.info" = "Mengurangkan kelewatan permulaan push-to-talk dengan mengekalkan sesi mikrofon terbuka semasa HyperWhisper melahu. macOS akan memaparkan penunjuk mikrofon oren secara berterusan, dan headset Bluetooth mungkin kekal dalam mod panggilan kualiti lebih rendah semasa ini diaktifkan.";
+"settings.models.local.inUse" = "Model tempatan ini sedang digunakan untuk pasca-pemprosesan oleh:
+
+%@
+
+Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
+"models.postProcessing.gemma4.e2b.description" = "Pantas dan tepat. Pilihan serba boleh yang hebat untuk pasca-pemprosesan.";
+"models.postProcessing.gemma4.e4b.description" = "Kualiti lebih tinggi dengan lebih terperinci. Baik untuk teks yang lebih panjang.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Inferens pantas dengan hanya 4B parameter aktif.";
+"models.postProcessing.gemma4.31b.description" = "Model padat 31B. Kualiti tertinggi, memerlukan 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Model ini tidak boleh dipadam kerana digunakan oleh:\n\n%@\n\nKemas kini mod ini untuk menggunakan model berbeza sebelum memadam.";
+"settings.models.parakeet.inUse" = "Model Parakeet ini tidak boleh dipadam kerana digunakan oleh:\n\n%@\n\nKemas kini mod ini untuk menggunakan model berbeza sebelum memadam.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Tidak Diketahui";
+"settings.models.directory.whisper" = "Folder model Whisper";
+"settings.models.directory.parakeet" = "Folder model Parakeet";
+"settings.models.directory.local" = "Folder model tempatan";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — pengecaman pertuturan pelbagai bahasa dioptimumkan untuk CoreML.";
+"settings.models.qwen3asr.languages" = "30 Bahasa";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Model Qwen3 ASR ini tidak boleh dipadamkan kerana ia digunakan oleh:\n\n%@\n\nKemaskini mod-mod ini untuk menggunakan model lain sebelum memadam.";
+"settings.models.directory.show" = "Tunjuk dalam Finder";
+"models.error.checksumFailed" = "Pengesahan checksum model gagal. Muat turun mungkin rosak.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistik";
+"statistics.header.title" = "Statistik Penggunaan Anda";
+"statistics.header.subtitle" = "Jejaki aktiviti dan prestasi transkripsi anda";
+"statistics.card.recordings" = "Jumlah Rakaman";
+"statistics.card.recordings.subtitle" = "Transkripsi yang selesai";
+"statistics.card.duration" = "Jumlah Masa";
+"statistics.card.duration.subtitle" = "Masa dihabiskan merakam";
+"statistics.card.words" = "Jumlah Perkataan";
+"statistics.card.words.subtitle" = "Perkataan yang ditranskrip";
+"statistics.card.average" = "Tempoh Purata";
+"statistics.card.average.subtitle" = "Setiap rakaman";
+"statistics.graph.title" = "Aktiviti Sepanjang Masa";
+"statistics.daily.empty" = "Belum ada rakaman lagi";
+"statistics.filter.week" = "Minggu Ini";
+"statistics.filter.month" = "Bulan Ini";
+"statistics.filter.alltime" = "Sepanjang Masa";
+
+// MARK: - History View
+"history.title" = "Sejarah";
+"history.search.placeholder" = "Cari";
+"history.filter.all" = "Semua";
+"history.filter.today" = "Hari Ini";
+"history.filter.week" = "Minggu Ini";
+"history.filter.month" = "Bulan Ini";
+"history.empty.title" = "Tiada rakaman dijumpai";
+"history.empty.subtitle" = "Cuba laraskan carian anda";
+"history.detail.empty" = "Pilih rakaman untuk melihat butiran";
+"history.multi.selected" = "%d rakaman dipilih";
+"history.multi.delete" = "Padam Yang Dipilih";
+"history.context.deleteSelected" = "Padam %d Rakaman";
+"history.context.retry" = "Cuba Semula Transkripsi";
+"history.context.retryWith" = "Cuba semula dengan...";
+"history.context.copy" = "Salin Teks";
+"history.retrying" = "Mencuba semula transkripsi...";
+"history.retry.help" = "Cuba semula transkripsi";
+"history.section.today" = "Hari Ini";
+"history.section.yesterday" = "Semalam";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Gagal";
+"history.status.transcription.failed.prefix" = "Transkripsi gagal:";
+"history.status.retry.failed.prefix" = "Cuba semula gagal:";
+"history.failure.reason" = "Sebab: %@";
+"history.mode.default" = "Lalai";
+"history.audio.showInFinder" = "Tunjuk dalam Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Padam mod?";
+"modes.delete.confirm.message" = "Ini akan mengeluarkan mod yang dipilih. Tindakan ini tidak boleh dibuat asal.";
+"modes.header.title" = "Mod";
+"modes.header.subtitle" = "Cipta profil tersuai untuk konteks dan aliran kerja yang berbeza";
+"modes.header.create" = "Cipta Mod";
+"modes.name.unnamed" = "Tanpa Nama";
+"modes.badge.offline" = "Luar Talian";
+"modes.context.select" = "Pilih";
+"modes.help.edit" = "Edit tetapan mod";
+"modes.help.preset" = "Ketahui lebih lanjut tentang praset ini";
+"modes.help.model" = "Ketahui lebih lanjut tentang model ini";
+"modes.preset.title" = "Praset";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Mesej";
+"modes.preset.mail.name" = "Mel";
+"modes.preset.note.name" = "Nota";
+"modes.preset.meeting.name" = "Mesyuarat";
+"modes.preset.code.name" = "Kod";
+"modes.preset.custom.name" = "Tersuai";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Mod mesej membersihkan mesej yang didiktekan anda, membetulkan tanda baca, menukar kepada perenggan dan membetulkan ralat tatabahasa.";
+"modes.preset.mail.tooltip" = "Mod e-mel memformat dikte anda ke dalam struktur e-mel profesional, dengan salam yang betul, perenggan, dan penutup.";
+"modes.preset.note.tooltip" = "Mod nota mengatur kandungan yang didiktekan anda ke dalam format nota yang jelas dengan pengepala, titik peluru, dan bahagian berstruktur.";
+"modes.preset.meeting.tooltip" = "Mod mesyuarat menyusun dikte anda ke dalam format minit mesyuarat dengan peserta, item tindakan, dan perkara perbincangan utama.";
+"modes.preset.code.tooltip" = "Mod kod menukar dikte pengaturcaraan yang diucapkan kepada sintaks kod. Sebut 'open bracket', 'backslash', 'camel case' dan banyak lagi untuk menulis kod dengan suara.";
+"modes.preset.custom.tooltip" = "Mod tersuai membolehkan anda menentukan peraturan pemformatan dan gesaan anda sendiri untuk kes penggunaan khusus.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Tentukan arahan pemformatan penuh untuk pratetap ini.";
+"modes.notice.vocabularyUnsupported" = "Perbendaharaan kata tersuai tidak disokong oleh pembekal ini untuk model ini. Ia akan diabaikan.";
+"modes.notice.deepgramNova3AutoDetect" = "Perbendaharaan kata tersuai tidak tersedia apabila menggunakan Deepgram Nova-3 dengan bahasa auto-detect. Untuk mendayakan peningkatan perbendaharaan kata, tetapkan bahasa khusus (cth. Bahasa Inggeris, Bahasa Sepanyol).";
+"modes.language.title" = "Bahasa";
+"modes.language.englishOnly" = "Bahasa Inggeris sahaja (model dioptimumkan)";
+"modes.postProcessing.sectionTitle" = "Pasca-Pemprosesan";
+"modes.postProcessing.modeLabel" = "Mod";
+"modes.postProcessing.modeTitle" = "Pasca-Pemprosesan";
+"modes.postProcessing.modeDescription" = "Pilih cara transkripsi diproses:\n\n• Mati: Tiada pasca-pemprosesan, transkripsi mentah\n• Awan (AI): Peningkatan berkuasa AI (memerlukan internet)\n• Tempatan: Menggunakan LLM pada peranti seperti Gemma melalui llama.cpp\n\nPemprosesan awan menghantar teks ke pembekal AI yang anda pilih. Mod tempatan kekal di mesin anda tetapi memerlukan pelayan tempatan berjalan.";
+"modes.postProcessing.providerLabel" = "Pembekal";
+"modes.postProcessing.apiKeyMissing" = "Kunci API %@ tidak dikonfigurasi. Tambahkan dalam Tetapan untuk mendayakan pasca-pemprosesan.";
+"modes.postProcessing.configure" = "Konfigurasi dalam Tetapan";
+"modes.postProcessing.modelRecommendation" = "Kami mengesyorkan menggunakan GPT-4.1 Nano untuk keseimbangan terbaik antara kelajuan dan kualiti.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Pasca-pemprosesan tempatan memerlukan model tempatan yang dimuat turun.";
+"modes.postProcessing.download" = "Muat turun dalam Tetapan";
+"modes.postProcessing.localInfo" = "Berjalan sepenuhnya pada peranti. HyperWhisper melancarkan pelayan llama.cpp yang digabungkan secara automatik apabila mod ini aktif.";
+"modes.postProcessing.userSystemPrompt.title" = "Arahan Tetap";
+"modes.postProcessing.userSystemPrompt.placeholder" = "cth., Sentiasa akhiri e-mel dengan 'Salam, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Kosongkan";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Arahan Tetap";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Tambahkan arahan yang sentiasa digunakan di atas pratetap yang dipilih.";
+"modes.toggle.punctuation.title" = "Tambah tanda baca";
+"modes.toggle.punctuation.subtitle" = "Tambah noktah dan koma secara automatik";
+"modes.toggle.capitalization.title" = "Huruf besar ayat";
+"modes.toggle.capitalization.subtitle" = "Huruf besar huruf pertama ayat";
+"modes.toggle.profanity.title" = "Tapis kata kesat";
+"modes.toggle.profanity.subtitle" = "Gantikan perkataan tidak sesuai";
+"modes.toggle.removeTrailingPeriod.title" = "Buang noktah akhir";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Membuang noktah terakhir daripada transkripsi";
+"modes.postProcessing.privacyNotice" = "Transkripsi anda HANYA dihantar ke %@ untuk pasca-pemprosesan. Tidak ke mana-mana lagi.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Model Bahasa";
+"modes.englishSpelling.title" = "Ejaan Bahasa Inggeris";
+"modes.englishSpelling.american" = "Amerika";
+"modes.englishSpelling.british" = "British";
+"modes.englishSpelling.australian" = "Australia";
+"modes.englishSpelling.canadian" = "Kanada";
+"modes.englishSpelling.american.description" = "Guna ejaan Bahasa Inggeris Amerika (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Guna ejaan Bahasa Inggeris British (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Guna ejaan Bahasa Inggeris Australia (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Guna ejaan Bahasa Inggeris Kanada (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Arahan Tersuai";
+"modes.gemini.customPrompt.helper" = "Pilihan. Cth. \"Format sebagai poin\", \"Gunakan bahasa formal\". Tetapan bahasa dan perbendaharaan kata anda disertakan secara automatik.";
+"modes.cloud.apiKeyMissing" = "Kunci API %@ tidak dikonfigurasi. Tambahkan dalam Tetapan untuk menggunakan transkripsi awan.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Ketepatan";
+"modes.cloudAccuracy.groqWhisper.label" = "Sederhana (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Sederhana (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Tinggi (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Pantas dan berpatutan. Terbaik untuk transkripsi pantas.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Kelajuan dan ketepatan seimbang. Disyorkan untuk kebanyakan pengguna.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
+"modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
+
+"modes.create.title" = "Cipta Mod Baharu";
+"modes.create.subtitle" = "Konfigurasi profil transkripsi tersuai";
+"modes.section.basic" = "Tetapan Asas";
+"modes.section.transcription" = "Model Transkripsi";
+"modes.section.punctuation" = "Tanda Baca";
+"modes.toggle.screenText.title" = "Teks Skrin";
+"modes.toggle.screenText.subtitle" = "Tangkap teks skrin yang dapat dilihat untuk meningkatkan ketepatan nama dan istilah. Memerlukan kebenaran Rakaman Skrin.";
+"modes.screenText.openSettings" = "Buka Tetapan Sistem";
+"modes.screenText.permissionGranted" = "Kebenaran Rakaman Skrin diberikan";
+"modes.screenText.permissionRequired" = "Kebenaran Rakaman Skrin diperlukan";
+"modes.field.name" = "Nama";
+"modes.field.name.placeholder" = "cth. Nota Mesyuarat";
+"modes.field.name.editPlaceholder" = "Nama mod";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Pembekal";
+"modes.provider.local" = "Tempatan";
+"modes.provider.cloud" = "Awan";
+"modes.notice.noLocalModels.title" = "Tiada model tempatan dipasang";
+"modes.notice.noLocalModels.subtitle" = "Pasang model dalam Tetapan dahulu";
+"modes.model.pricing" = "Harga: $%.6f / minit (dibilkan setiap saat)";
+"modes.button.create" = "Cipta Mod";
+"modes.button.delete" = "Padam Mod";
+"modes.button.save" = "Simpan Perubahan";
+"modes.edit.title" = "Edit Mod";
+"modes.edit.subtitle" = "Ubah tetapan profil transkripsi";
+"mode.editor.cloudModel.previewHint" = "Pratonton";
+"mode.editor.cloudModel.noVocabularyHint" = "Tiada perbendaharaan kata tersuai";
+"mode.editor.cloudDomain.medical" = "Perubatan";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ tambahan Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Tidak dapat cuba semula: Fail audio tidak dijumpai";
+"transcripts.error.invalidId" = "ID transkrip tidak sah";
+"transcripts.delete.single.title" = "Padam Rakaman?";
+"transcripts.delete.single.message" = "Ini akan memadam rakaman ini dan fail audionya secara kekal.";
+"transcripts.delete.multiple.title" = "Padam %d Rakaman?";
+"transcripts.delete.multiple.message" = "Ini akan memadam %d rakaman dan fail audio mereka secara kekal.\n\nTindakan ini tidak boleh dibuat asal.";
+"transcripts.delete.multiple.confirm" = "Padam Semua";
+"transcripts.retry.error.title" = "Cuba Semula Gagal";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Pilih Folder Rakaman";
+"storage.folder.choose.message" = "Pilih folder untuk menyimpan rakaman baharu.";
+"storage.folder.choose.prompt" = "Pilih";
+"storage.recovery.title" = "Tidak dapat mengakses folder rakaman";
+"storage.recovery.message" = "HyperWhisper tidak dapat mengakses folder rakaman yang dikonfigurasi. Anda boleh memilih folder berbeza untuk meneruskan.";
+"storage.recovery.choose" = "Pilih Folder…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Ketahui lebih lanjut";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkripsi Selesai";
+"recording.status.retrying" = "Mencuba Semula Transkripsi…";
+"recording.status.postprocessing" = "Pasca-pemprosesan dengan AI…";
+"recording.status.transcribing" = "Mentranskrip…";
+"recording.success.pasted" = "Ditampal!";
+"recording.loading.retrying" = "Mencuba semula…";
+"recording.loading.postprocessing" = "Memproses dengan AI…";
+"recording.loading.starting" = "Memulakan strim…";
+"recording.loading.transcribing" = "Mentranskrip…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Menyambung...";
+"streaming.status.ready" = "Bersedia - Mula Bercakap";
+"streaming.status.warming" = "Memanaskan...";
+"modes.badge.recommended" = "Disyorkan";
+"modes.source.label" = "Sumber";
+"modes.source.onDevice" = "Pada peranti";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "Kunci API";
+"modes.field.engine" = "Enjin";
+"settings.models.localASR.inUse" = "Model ini tidak boleh dipadamkan kerana ia digunakan oleh:
+
+%@
+
+Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
+"models.postProcessing.gemma4.12b.description" = "Model padat bersaiz sederhana. Mengimbangi kualiti dan kelajuan pada Mac 16 GB.";
+"recording.success.savedToNotes" = "Disimpan ke Nota!";
+"modes.provider.needsKey" = "%@ memerlukan kunci yang berfungsi.";
+"modes.provider.manageInLibrary" = "Urus dalam Pustaka →";
+"streaming.loading.warming" = "Memanaskan model tempatan...";
+"streaming.status.listening" = "Mendengar...";
+"streaming.status.streaming" = "Streaming...";
+"streaming.status.disconnecting" = "Menghentikan...";
+"streaming.loading.connecting" = "Menyambung ke pelayan...";
+"streaming.loading.ready" = "Memulakan audio...";
+"streaming.loading.streaming" = "Menunggu pertuturan...";
+"streaming.state.reconnecting" = "Menyambung semula...";
+"recording.stop.help" = "Henti Rakaman (%@)";
+"recording.postprocessing.unavailable" = "Pasca-pemprosesan tidak tersedia";
+"recording.postprocessing.missing.single" = "Kunci %@ hilang – merakam tanpa pasca-pemprosesan";
+"recording.postprocessing.missing.multiple" = "Kunci API hilang – merakam tanpa pasca-pemprosesan";
+"recording.postprocessing.addKey" = "Tambah Kunci";
+"recording.offline.banner" = "Tiada sambungan internet. Transkripsi awan akan gagal sehingga anda dalam talian.";
+"recording.offline.title" = "Tiada sambungan internet";
+"recording.offline.subtitle" = "Sambung semula untuk meneruskan atau tukar ke mod luar talian.";
+"recording.error.network" = "Periksa sambungan internet anda dan cuba lagi.";
+"recording.error.timeout" = "Permintaan tamat masa. Periksa kelajuan sambungan anda dan cuba semula.";
+"recording.error.rateLimit" = "Anda telah membuat terlalu banyak permintaan. Tunggu sebentar dan cuba semula.";
+"recording.error.credits" = "Kredit tidak mencukupi. Tambah lebih banyak kredit dalam Tetapan.";
+"recording.error.apiKey" = "Tambah kunci API %@ anda dalam Tetapan.";
+"recording.error.server" = "Perkhidmatan transkripsi mengalami masalah. Sila cuba lagi sebentar lagi.";
+"recording.retry" = "Cuba Semula";
+"recording.retry.inProgress" = "Mencuba Semula…";
+"recording.retry.count" = "Cuba Semula (%d)";
+"recording.retry.failed.missing" = "Cuba semula gagal: Fail audio tidak dijumpai";
+"recording.retry.failed.error" = "Cuba semula gagal: %@";
+"recording.retry.pending" = "Bersedia untuk cuba semula – klik untuk mentranskrip";
+"recording.provider.unknown" = "pembekal awan";
+"recording.cancel.dialog.title" = "Batal Rakaman?";
+"recording.cancel.dialog.message" = "Ini akan membuang rakaman semasa.";
+"recording.cancel.dialog.confirm" = "Batal Rakaman";
+"recording.cancel.dialog.resume" = "Sambung Semula";
+"recording.error.overlay.title" = "Ralat sambungan rangkaian";
+"recording.error.overlay.message" = "Tekan 'Cuba Semula' di bawah atau tukar ke mod luar talian untuk meneruskan.";
+"recording.mode.default" = "Lalai";
+"recording.dialog.window.title" = "Dialog Rakaman";
+"recording.button.start" = "Mula Rakam";
+"recording.button.stop" = "Henti Rakam";
+"recording.button.disable.checking" = "Memeriksa status %@...";
+"recording.button.disable.invalid" = "Kunci API %@ tidak sah. Kemaskini dalam Tetapan.";
+"recording.button.disable.unreachable" = "%@ tidak boleh dicapai. Periksa sambungan anda dan cuba lagi.";
+"recording.button.disable.missing" = "Tambah kunci API %@ anda dalam Tetapan.";
+"recording.button.disable.install.local" = "Muat turun model tempatan dalam Tetapan → Model sebelum menggunakan pasca-pemprosesan tempatan.";
+"modes.postProcessing.accuracy" = "Ketepatan";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Anda telah mencapai had transkripsi harian %@ minit anda. Naik taraf ke HyperWhisper Pro untuk transkripsi tanpa had.";
+"recording.error.documentsAccess" = "Tidak dapat mengakses folder rakaman. Pilih lokasi berbeza dalam Tetapan → Penyimpanan.";
+"recording.error.modeMissing" = "Mod yang dipilih tidak dijumpai. Sila pilih mod yang sah.";
+"recording.warning.oversizedWAV" = "Pemampatan audio gagal. Menggunakan fail %@ MB yang tidak dimampatkan - transkripsi mungkin lebih perlahan.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Mikrofon Lalai";
+"audio.error.permissionDenied" = "Akses mikrofon ditolak. Sila dayakan dalam Tetapan Sistem.";
+"audio.error.fileWatcher.open" = "Tidak dapat membuka deskriptor fail untuk memantau fail audio.";
+"audio.error.fileWatcher.timeout" = "Operasi tamat masa semasa menunggu fail audio ditulis.";
+"audio.error.fileWatcher.creation" = "Fail audio tidak dicipta dalam masa.";
+"audio.error.microphonePermission" = "Kebenaran mikrofon tidak diberikan";
+"audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon kerana aplikasi lain sedang menggunakannya. Jedakan aplikasi lain atau tukar input, kemudian cuba lagi.";
+"audio.error.createEngine" = "Gagal mencipta enjin audio";
+"audio.error.noInput" = "Tiada input audio tersedia";
+"audio.error.createFile" = "Gagal mencipta fail audio";
+"audio.error.managerUnavailable" = "Pengurus transkripsi tidak dikonfigurasi";
+"audio.error.invalidHardwareFormat" = "Format audio perkakasan tidak sah dikesan. Sila periksa peranti audio anda.";
+"audio.error.createFormat" = "Gagal mencipta format audio untuk rakaman";
+"audio.error.createConverter" = "Gagal mencipta penukar format audio";
+"audio.error.exportM4A" = "Gagal mengeksport audio ke format m4a";
+"audio.error.readFile" = "Fail audio tidak dapat dibaca selepas rakaman.";
+"audio.error.recordingTooShort" = "Rakaman terlalu pendek. Sila tahan butang lebih lama untuk menangkap audio.";
+"audio.error.noAudioTrack" = "Fail video ini tidak mengandungi trek audio.";
+"audio.alert.accessibility.title" = "Dayakan Akses Kebolehcapaian";
+"audio.alert.accessibility.message" = "HyperWhisper memerlukan kebenaran Kebolehcapaian untuk menampal teks yang ditranskrip ke dalam aplikasi lain.\n\nKlik \"Buka Tetapan\", tekan togol di sebelah HyperWhisper, kemudian cuba lagi.";
+"audio.alert.accessibility.open" = "Buka Tetapan";
+"audio.alert.pasteFailed.title" = "Tampal automatik gagal";
+"audio.alert.pasteFailed.message" = "Teks yang ditranskrip telah disalin ke papan klip anda.\n\nTekan ⌘V untuk menampalnya secara manual, atau pilih Edit → Tampal dari menu.";
+"accessibility.permission.location.debug" = "Binaan Debug Xcode";
+"accessibility.permission.location.installed" = "Aplikasi Dipasang";
+"accessibility.permission.info" = "HyperWhisper memerlukan kebenaran Kebolehcapaian untuk menampal teks yang ditranskrip ke dalam aplikasi lain.\n\nLokasi aplikasi semasa: %@\n\nDalam Tetapan Sistem:\n1. Cari 'hyperwhisper' atau 'HyperWhisper' dalam senarai\n2. Anda mungkin melihat beberapa entri jika anda telah menjalankan dari lokasi berbeza\n3. Dayakan kotak semak untuk entri yang sepadan:\n   %@";
+"accessibility.permission.xcodeNote" = "Nota: Menjalankan dari Xcode memerlukan kebenaran berbeza daripada aplikasi yang dipasang.";
+"accessibility.error.paste.commandFailed" = "Arahan tampal gagal";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Pembekal transkripsi tidak tersedia. Periksa tetapan anda dan cuba lagi.";
+"transcription.error.providerNotAvailable.provider" = "%@ tidak tersedia. Periksa tetapan anda dan cuba lagi.";
+"transcription.error.providerNotAvailable.detail" = "%@ tidak tersedia: %@";
+"transcription.error.modelNotDownloaded" = "Sila muat turun model dahulu";
+"transcription.error.modelProtected" = "Model ini tidak boleh dipadam";
+"transcription.error.audioFileNotFound" = "Fail audio tidak dijumpai";
+"transcription.error.network.detail" = "Ralat rangkaian: %@";
+"transcription.error.network.generic" = "Ralat sambungan rangkaian";
+"transcription.error.apiKeyMissing.provider" = "Kunci API %@ diperlukan untuk transkripsi";
+"transcription.error.apiKeyMissing.generic" = "Kunci API pembekal awan diperlukan untuk transkripsi";
+"transcription.error.maxRetriesExceeded" = "Cubaan semula maksimum melebihi";
+"transcription.error.unauthorized.provider" = "Tidak dibenarkan: kunci API %@ tidak sah atau kebenaran.\n\nBuka Tetapan → Kunci API untuk mengesahkan kelayakan anda.";
+"transcription.error.unauthorized.generic" = "Tidak dibenarkan: kunci API tidak sah atau kebenaran.\n\nBuka Tetapan → Kunci API untuk mengesahkan kelayakan anda.";
+"transcription.error.invalidRequest" = "Permintaan tidak sah: periksa fail audio atau tetapan";
+"transcription.error.streamingInterrupted" = "Streaming terganggu; teks separa ditunjukkan";
+"transcription.error.busy" = "Perkhidmatan transkripsi sedang sibuk";
+"transcription.error.invalidAudioFormat" = "Format audio tidak disokong";
+"transcription.error.audioConversionFailed" = "Gagal menukar audio ke format yang diperlukan";
+"transcription.error.audioFileTooLarge" = "Fail terlalu besar: %@ melebihi had %@ untuk %@";
+"transcription.error.serverError" = "Ralat pelayan (%d): %@";
+"transcription.error.rateLimited.seconds" = "Had kadar: Terlalu banyak permintaan. Sila tunggu %d saat dan cuba lagi.";
+"transcription.error.rateLimited.generic" = "Had kadar: Terlalu banyak permintaan. Sila tunggu sebentar dan cuba lagi.";
+"transcription.error.insufficientCredits" = "Kredit tidak mencukupi. Tambah lebih banyak kredit dalam Tetapan.";
+"transcription.error.quotaExceeded" = "Kuota %@ melebihi";
+"transcription.error.quotaExceeded.detail" = "Kuota %@ melebihi: %@";
+"transcription.error.timeout" = "Permintaan tamat masa semasa %@. Periksa sambungan internet anda dan cuba lagi.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Pastikan pembekal transkripsi anda dikonfigurasi dengan betul dalam Tetapan.";
+"transcription.guidance.providerNotAvailable.provider" = "Pastikan %@ dikonfigurasi dengan betul. Untuk model tempatan, muat turun model dahulu. Untuk pembekal awan, sahkan kunci API anda.";
+"transcription.guidance.apiKeyMissing.provider" = "Tambah kunci API %@ anda dalam Tetapan";
+"transcription.guidance.apiKeyMissing.generic" = "Tambah kunci API pembekal awan anda dalam Tetapan";
+"transcription.guidance.modelNotDownloaded" = "Muat turun model dari bahagian Model";
+"transcription.guidance.modelProtected" = "Model ini sedang digunakan";
+"transcription.guidance.audioFileNotFound" = "Fail audio telah dipadam atau dipindahkan";
+"transcription.guidance.networkError" = "Periksa sambungan internet anda dan cuba lagi";
+"transcription.guidance.unauthorized.provider" = "Periksa kunci API %@ atau kebenaran akaun anda dalam Tetapan";
+"transcription.guidance.unauthorized.generic" = "Periksa kunci API atau kebenaran akaun anda dalam Tetapan";
+"transcription.guidance.invalidRequest" = "Sahkan fail audio dan tetapan mod, kemudian cuba lagi";
+"transcription.guidance.invalidAudioFormat" = "Cuba tukar fail audio ke format MP3 atau WAV";
+"transcription.guidance.audioConversionFailed" = "Fail audio mungkin rosak. Cuba fail berbeza";
+"transcription.guidance.audioFileTooLarge" = "Guna fail audio yang lebih pendek atau bahagikan kepada segmen yang lebih kecil";
+"transcription.guidance.serverError" = "Perkhidmatan transkripsi mengalami masalah. Sila cuba lagi.";
+"transcription.guidance.rateLimited" = "Anda telah membuat terlalu banyak permintaan. Tunggu sebentar sebelum cuba lagi.";
+"transcription.guidance.insufficientCredits" = "Beli lebih banyak kredit dalam Tetapan untuk terus mentranskrip";
+"transcription.guidance.quotaExceeded" = "Tambah kredit ke akaun %@ anda atau kemaskini butiran pembilan anda";
+"transcription.guidance.timeout" = "Permintaan mengambil masa terlalu lama. Periksa kelajuan internet anda dan cuba lagi.";
+"transcription.error.noSpeechDetected" = "Tiada pertuturan dikesan dalam rakaman.";
+"transcription.guidance.noSpeechDetected" = "Petua:\n• Bercakap dengan jelas ke dalam mikrofon\n• Tahan kekunci lebih lama sebelum bercakap\n• Periksa bahawa mikrofon anda berfungsi\n• Pastikan peranti input yang betul dipilih";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambah lebih banyak kredit dalam Tetapan.";
+"hyperwhisperCloud.error.network" = "Ralat rangkaian: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Respons tidak sah dari HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Ralat pelayan: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Boleh laksana llama-server tidak dapat ditemui.";
+"llama.runtime.error.missingDependencies" = "Runtime kehilangan kebergantungan: %@";
+"llama.runtime.error.copyFailed" = "Gagal menyalin runtime: %@";
+"llama.runtime.error.copy.executable" = "Tidak dapat menyalin boleh laksana: %@";
+"llama.runtime.missing" = "Runtime Tempatan hilang dari pemasangan ini. Pasang semula HyperWhisper untuk memulihkan pasca-pemprosesan tempatan.";
+"llama.runtime.genericError" = "Ralat runtime Tempatan: %@";
+"runtime.error.llama.missingLib" = "Runtime Tempatan ditamatkan selepas kehilangan libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Runtime Tempatan melaporkan kehilangan libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Pasca-pemprosesan AI terbina dalam berjalan pada Cloudflare Workers. Tiada konfigurasi diperlukan.";
+"models.postProcessing.gpt4.1.nano.description" = "Ketepatan sederhana (92%), kelajuan sangat pantas (<1s). Sesuai untuk draf pantas dan nota tidak rasmi.";
+"models.postProcessing.gpt4.1.mini.description" = "Ketepatan tinggi (94%), kelajuan pantas (~1-2s). Baik untuk komunikasi perniagaan harian dan dokumen standard.";
+"models.postProcessing.gpt4.1.description" = "Ketepatan sangat tinggi (96%), kelajuan sederhana (~3-4s). Hebat untuk pemformatan kompleks dan kandungan teknikal.";
+"models.postProcessing.gpt5.nano.description" = "Ketepatan baik (95%), kelajuan terpantas (~1s). Sempurna untuk nota pantas, mesej, dan transkripsi kasual.";
+"models.postProcessing.gpt5.mini.description" = "Ketepatan cemerlang (97%), kelajuan sederhana (~2-3s). Keseimbangan ideal untuk e-mel profesional, laporan, dan nota mesyuarat.";
+"models.postProcessing.gpt5.description" = "Ketepatan tertinggi (99%+), kelajuan paling perlahan (~3-5s). Terbaik untuk dokumen kritikal, transkripsi undang-undang, perubatan di mana ketepatan adalah paling penting.";
+"models.postProcessing.gpt5.1.description" = "Ketepatan terkini (98%+), kelajuan sederhana (~2-3s). Cemerlang untuk tugasan kompleks, dokumen undang-undang, dan kandungan teknikal dengan penaakulan unggul.";
+"models.postProcessing.gpt5.2.description" = "Siri GPT-5 terkini dengan penaakulan dipertingkat dan inferens lebih pantas. Pilihan terbaik secara keseluruhan untuk pemprosesan teks berkualiti tinggi.";
+"models.postProcessing.claude4.5.haiku.description" = "Claude Haiku terkini dengan penaakulan yang dipertingkat sambil mengekalkan masa respons yang pantas.";
+"models.postProcessing.claude4.sonnet.description" = "Prestasi seimbang. Keupayaan penaakulan dan pemformatan yang unggul untuk dokumen profesional.";
+"models.postProcessing.gemini3.flash.description" = "Siri Gemini 3 dengan kecerdasan peringkat Pro pada kelajuan Flash. Penaakulan lanjutan dengan keupayaan pemikiran dinamik.";
+"models.postProcessing.gemini2.5.flash.description" = "Terbaik dari segi prestasi harga. Dioptimumkan untuk kelajuan sambil mengekalkan ketepatan yang baik untuk penggunaan harian.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Model ultra pantas dioptimumkan untuk keberkesanan kos dan throughput tinggi.";
+"models.postProcessing.groq.llama33.70b.description" = "Model 70B serba boleh dengan kualiti cemerlang. ~280 token/saat. Disyorkan.";
+"models.postProcessing.groq.llama31.8b.description" = "Model 8B ultra-pantas. ~560 token/saat untuk pemprosesan teks segera.";
+"models.postProcessing.groq.gptoss.120b.description" = "Model sumber terbuka 120B OpenAI. ~500 token/saat untuk pemprosesan berkualiti tinggi.";
+"models.postProcessing.groq.gptoss.20b.description" = "Model 20B ringan. ~1000 token/saat untuk pemprosesan terpantas.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B pada Cerebras. Model 120B ultra-pantas pada ~3000 token/saat. Disyorkan.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B pada Cerebras. Ringan dan ultra-pantas pada ~2200 token/saat.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B pada Cerebras. Model MoE 235B besar-besaran pada ~1400 token/saat. Pratonton sahaja.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 pada Cerebras. Model parameter 355B pada ~1000 token/saat. Pratonton sahaja.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Pusat Bantuan";
+"settings.resources.contact.support" = "Hubungi Sokongan";
+"settings.resources.feedback" = "Maklum Balas & Cadangan";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Sandaran";
+"settings.backup.export.title" = "Eksport Tetapan";
+"settings.backup.export.subtitle" = "Simpan tetapan, mod, dan perbendaharaan kata anda ke fail";
+"settings.backup.export.button" = "Eksport...";
+"settings.backup.export.panel.title" = "Eksport Tetapan";
+"settings.backup.export.panel.label" = "Fail Sandaran:";
+"settings.backup.export.success" = "Tetapan berjaya dieksport";
+"settings.backup.export.error.create" = "Gagal mencipta data sandaran";
+"settings.backup.export.error.encode" = "Gagal mengekod data sandaran";
+"settings.backup.export.error.write" = "Gagal menulis fail sandaran";
+"settings.backup.includeAPIKeys.title" = "Sertakan Kunci API";
+"settings.backup.includeAPIKeys.subtitle" = "Simpan kunci API dalam fail sandaran (tidak disyorkan untuk perkongsian)";
+"settings.backup.includeLicense.title" = "Sertakan Kunci Lesen";
+"settings.backup.import.title" = "Import Tetapan";
+"settings.backup.import.subtitle" = "Pulihkan tetapan dari fail sandaran";
+"settings.backup.import.button" = "Import...";
+"settings.backup.import.panel.title" = "Import Tetapan";
+"settings.backup.import.success" = "Import selesai: %d mod, %d item perbendaharaan kata diimport";
+"settings.backup.import.error.read" = "Gagal membaca fail sandaran";
+"settings.backup.import.error.decode" = "Format fail sandaran tidak sah";
+"settings.backup.import.error.decode.keyNotFound" = "Medan diperlukan tiada: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Jenis salah untuk medan: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Nilai tiada untuk medan: %@";
+"settings.backup.import.error.decode.corrupted" = "Data rosak: %@";
+"settings.backup.import.error.decode.corruptedField" = "Nilai rosak untuk medan: %@";
+"settings.backup.import.error.version" = "Fail sandaran adalah dari versi yang lebih baharu";
+"settings.backup.import.error.unknown" = "Import gagal";
+"settings.backup.import.confirm.title" = "Import Tetapan?";
+"settings.backup.import.confirm.message" = "Ini akan menggantikan mod dan perbendaharaan kata sedia ada anda dengan yang dari fail sandaran. Tetapan juga akan dikemas kini.";
+"settings.backup.import.confirm.button" = "Import";
+"settings.backup.conflict.skip" = "Langkau yang sedia ada";
+"settings.backup.conflict.replace" = "Ganti yang sedia ada";
+"settings.backup.conflict.keepBoth" = "Simpan kedua-duanya";
+"settings.backup.security.warning" = "Amaran: Fail yang dieksport akan mengandungi data sensitif. Simpan dengan selamat dan jangan kongsikannya.";
+"settings.backup.info.note" = "Sandaran termasuk tetapan, mod, dan perbendaharaan kata. Rakaman dan transkrip tidak disertakan.";
+"settings.backup.result.success.title" = "Berjaya";
+"settings.backup.result.error.title" = "Ralat";
+"settings.backup.export.choose.subtitle" = "Pilih apa yang hendak disertakan dalam fail sandaran";
+"settings.backup.export.section.settings" = "Tetapan";
+"settings.backup.export.section.modes" = "Mod";
+"settings.backup.export.section.vocabulary" = "Perbendaharaan kata";
+"settings.backup.import.importing" = "Mengimport %@";
+"settings.backup.import.contains" = "Fail ini mengandungi: %@";
+"settings.backup.import.contains.vocabulary" = "Perbendaharaan kata (%d patah perkataan)";
+"settings.backup.import.contains.none" = "tiada";
+"settings.backup.import.section.settings" = "Tetapan";
+"settings.backup.import.section.modes" = "Mod";
+"settings.backup.import.section.vocabulary" = "Perbendaharaan kata";
+"settings.backup.import.section.apiKeys" = "Kunci API";
+"settings.backup.import.section.license" = "Kunci lesen";
+"settings.backup.import.section.absent" = "— tiada dalam fail";
+"settings.backup.import.premerge.summary" = "Perbendaharaan kata: tambah %d baharu, %d sudah wujud";
+"settings.backup.import.premerge.conflictLabel" = "Bagi perkataan yang sudah wujud:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Pilih Fail Audio";
+"transcribe.file.error.title" = "Ralat Transkripsi";
+"transcribe.file.error.size.title" = "Fail Terlalu Besar";
+"transcribe.file.error.size.message" = "Fail yang dipilih (%@) melebihi had %@ untuk %@.";
+"transcribe.file.error.format.title" = "Format Tidak Disokong";
+"transcribe.file.error.format.message" = "Fail .%@ tidak disokong oleh %@. Format yang disokong: %@";
+"transcribe.file.error.read" = "Tidak dapat membaca fail yang dipilih.";
+"transcribe.file.error.copy" = "Gagal menyalin fail ke folder rakaman.";
+"transcribe.file.error.video.title" = "Tiada Audio dalam Video";
+"transcribe.file.error.video.noAudio" = "Fail video ini tidak mengandungi trek audio. Sila pilih video dengan audio atau fail audio.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Menyediakan...";
+"file.transcription.transcribing" = "Mentranskrip...";
+"file.transcription.finishing" = "Menyelesaikan...";
+"file.transcription.cancel" = "Batal";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Dayakan pemadaman automatik";
+"history.autoDelete.enable.subtitle" = "Rakaman lebih lama daripada tempoh yang ditentukan akan dipadam";
+"history.autoDelete.duration.prefix" = "Selepas";
+"history.autoDelete.unit.minutes" = "Minit";
+"history.autoDelete.unit.hours" = "Jam";
+"history.autoDelete.unit.days" = "Hari";
+"history.autoDelete.unit.minutes.plural" = "minit";
+"history.autoDelete.unit.hours.plural" = "jam";
+"history.autoDelete.unit.days.plural" = "hari";
+"history.autoDelete.status.disabled" = "Pemadaman automatik dilumpuhkan";
+"history.autoDelete.status.enabled" = "Padam rakaman lebih lama daripada %d %@";
+"history.autoDelete.cleanup.noItems" = "Tiada rakaman untuk dipadam";
+"history.autoDelete.cleanup.summary" = "Padam %d rakaman dan bebaskan %@";

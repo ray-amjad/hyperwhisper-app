@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Szókincs";
+"vocabulary.description" = "Ez segít a szoftvernek felismerni a neveket, mozaikszavakat, szlenget vagy más nyelvekből származó szavakat nyelvkeverés esetén.";
+"vocabulary.input.title" = "Bemenet";
+"vocabulary.new.word.placeholder" = "Új szó vagy kifejezés";
+"vocabulary.replacement.placeholder" = "Csere erre...";
+"vocabulary.add.button" = "Hozzáadás a szókincshez";
+"vocabulary.edit.title" = "Szókincs bejegyzés szerkesztése";
+"vocabulary.update.button" = "Frissítés";
+"vocabulary.cancel.button" = "Mégse";
+"vocabulary.word.column" = "Szó/Mondat";
+"vocabulary.replacement.column" = "Csere";
+"vocabulary.empty.title" = "Még nincsenek szókincs szavak";
+"vocabulary.empty.subtitle" = "Adj hozzá egyéni szavakat az átírási pontosság javításához";
+"vocabulary.duplicate.title" = "Duplikált bejegyzés";
+"vocabulary.duplicate.message" = "%@ már létezik a szókincsedben. Minden szó csak egyszer adható hozzá.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Kulcsszó limit túllépve";
+"vocabulary.limit.message" = "%d szavad van, de csak az első %d lesz használva az átírás fokozásához.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streamelés (Béta)";
+"streaming.description" = "Valós idejű átírás beszéd közben. A szöveg közvetlenül a fókuszált alkalmazásba kerül beírásra.";
+"streaming.enable.title" = "Streamelés engedélyezése";
+"streaming.provider.picker.title" = "Szolgáltató";
+"streaming.model.title" = "Modell";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Gyors formázás";
+"streaming.fastFormatting.description" = "Csökkenti az intelligens formázás késleltetését a gyorsabb gépelés érdekében";
+"streaming.warning.vocabAutoDetect" = "Az egyéni szókincs le van tiltva automatikus felismerési módban";
+"streaming.warning.vocabUnsupported" = "Az egyéni szókincs nem támogatott %@ streameléshez";
+"streaming.warning.apiKeyRequired" = "%@ API kulcs szükséges";
+"streaming.warning.apiKeyRequired.action" = "Konfigurálás";
+"streaming.warning.apiKeyInvalid" = "%@ API kulcs nem működik. Frissítsd a Beállítások > API kulcsok menüben.";
+"streaming.warning.apiKeyInvalid.action" = "Kulcs frissítése";
+"streaming.language.title" = "Nyelv";
+"streaming.shortcut.title" = "Billentyűparancs";
+
+// MARK: - Home View
+"home.get.started" = "Kezdjünk hozzá";
+"home.open.system.settings" = "Rendszerbeállítások megnyitása";
+
+// MARK: - API Keys
+"api.key.required" = "API kulcs szükséges";
+"api.keys.required" = "API kulcsok szükségesek";
+"api.key.configure.message" = "Konfiguráld az API kulcsaidat az átírás engedélyezéséhez.";
+"api.key.internet.required" = "Internetkapcsolat szükséges";
+"api.key.internet.message" = "A felhőalapú átíráshoz internetkapcsolat szükséges.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Mégsem";
+"common.delete" = "Törlés";
+"common.edit" = "Szerkesztés";
+"common.done" = "Kész";
+"common.copy" = "Másolás";
+"common.back" = "Vissza";
+"common.skip" = "Kihagyás";
+"common.settings" = "Beállítások";
+"common.error" = "Hiba";
+"common.retry" = "Újra";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Kezdőlap";
+"sidebar.statistics" = "Statisztikák";
+"sidebar.modes" = "Módok";
+"sidebar.vocabulary" = "Szókincs";
+"sidebar.streaming" = "Streamelés";
+"sidebar.history" = "Előzmények";
+"sidebar.settings" = "Beállítások";
+
+// MARK: - App Messages
+"app.unknown.error" = "Ismeretlen hiba történt";
+"app.microphone.permission.message" = "A HyperWhispernek szüksége van a mikrofon hozzáférésére az audio átírásához.\n\nKérlek menj a Rendszerbeállítások > Adatvédelem és Biztonság > Mikrofon menübe, és engedélyezd a hozzáférést a HyperWhisper számára.";
+"app.recordings.location.message" = "A HyperWhisper a felvételeket egy mappába menti a Dokumentumaidban, hogy könnyen megtalálhatók legyenek: Dokumentumok/hyperwhisper/recordings. A macOS engedélyt kérhet, amikor először próbálunk oda menteni. Ha nem szeretnél hozzáférést adni, privát alkalmazás mappában is tárolhatjuk a felvételeket.";
+"app.upgrade.to.pro" = "Frissítés Pro-ra";
+"app.enter.license.key" = "Licenckulcs megadása";
+"accessibility.upgrade.pro" = "Frissítés HyperWhisper Pro-ra";
+"accessibility.enter.license" = "Licenckulcs megadása";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Add hozzá a(z) %@ API kulcsaidat, hogy engedélyezd a kiválasztott módot.";
+"home.api.keys.missing.single" = "Add hozzá a(z) %@ API kulcsodat, hogy engedélyezd a kiválasztott módot.";
+"home.getting.started.recording.title" = "Felvétel indítása";
+"home.getting.started.recording.description" = "Változtasd hangodat szöveggé egyetlen kattintással.";
+"home.getting.started.shortcuts.title" = "Billentyűparancsok testreszabása";
+"home.getting.started.shortcuts.description" = "Módosítsd a HyperWhisper billentyűparancsait.";
+"home.getting.started.mode.title" = "Mód létrehozása";
+"home.getting.started.mode.description" = "Építsd fel a tökéletes módot a munkafolyamatodhoz.";
+"home.getting.started.vocabulary.title" = "Szókincs hozzáadása";
+"home.getting.started.vocabulary.description" = "Taníts meg a HyperWhispernek egyéni szavakat, neveket vagy szakmai kifejezéseket.";
+"home.add.api.key" = "API kulcs hozzáadása";
+"home.accessibility.enable.title" = "Akadálymentesítés engedélyezése";
+"home.accessibility.enable.description" = "Engedd meg a HyperWhispernek, hogy automatikusan beillesztse a szöveget az általad használt alkalmazásokba.";
+"home.accessibility.waiting" = "Várakozás...";
+"home.accessibility.open.settings" = "Beállítások megnyitása";
+"home.accessibility.restart.after.permission" = "Alkalmazás újraindítása az engedély megadása után";
+"home.getting.started.completed" = "✓ Kész";
+"home.whatsnew.badge" = "ÚJ";
+"home.whatsnew.title" = "Mi újság?";
+"home.whatsnew.update1.date" = "Júl 3";
+"home.whatsnew.update1.title" = "Parakeet már elérhető";
+"home.whatsnew.update1.description" = "Töltsd le közvetlenül a Nyelvi modellek listából a Mód létrehozása során, hogy még ma kipróbáld.";
+"home.whatsnew.update2.date" = "Jún 5";
+"home.whatsnew.update2.title" = "Támogatás minden OpenAI-kompatibilis egyéni modellhez";
+"home.whatsnew.update2.description" = "Most már hozzáadhatsz bármilyen OpenAI kompatibilis API-t a modelljeid listájához.";
+"home.whatsnew.update3.date" = "Máj 27";
+"home.whatsnew.update3.title" = "Teljesen új Mini-felvételi ablak";
+"home.whatsnew.update3.description" = "Egy elegáns, minimális felvételi felület, ami nem zavar.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Legutóbbi frissítések";
+"home.recent.updates.error" = "Nem sikerült a frissítések betöltése";
+"home.recent.updates.retry" = "Újra";
+"home.recent.updates.empty" = "Nincsenek elérhető legutóbbi frissítések";
+"home.recent.updates.version" = "Verzió %@";
+"home.recent.updates.new.badge" = "ÚJ";
+"home.recent.updates.no.notes" = "Nincsenek kiadási megjegyzések";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Szóköz";
+"keyboard.option.space" = "⌥Szóköz";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Mikrofon hozzáférés szükséges";
+"common.open.settings" = "Beállítások megnyitása";
+"alerts.api.local.mode" = "Helyi mód használata";
+"alerts.documents.permission.title" = "Mentés a Dokumentumokba?";
+"common.continue" = "Folytatás";
+"alerts.documents.permission.use.another" = "Másik hely használata";
+"alerts.api.configure.generic" = "Kérlek konfiguráld az API kulcsaidat a Beállításokban.";
+"alerts.api.internet.offline" = "A felhőalapú átíráshoz internetkapcsolat szükséges. Kérlek ellenőrizd a hálózati beállításaidat vagy válassz helyi átírási módot.";
+"alerts.api.configure.header.multiple" = "A kiválasztott mód használatához konfiguráld a következő API kulcsokat a Beállításokban:";
+"alerts.api.configure.header.single" = "A kiválasztott mód használatához konfiguráld a következő API kulcsot a Beállításokban:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "A hiányzó kulcsok hozzáadása után próbáld újra.";
+"alerts.export.failed.title" = "Exportálás sikertelen";
+"alerts.export.logs.failed.message" = "Nem sikerült a frissítési naplók exportálása. Kérlek próbáld újra.";
+"alerts.export.logs.success.title" = "Naplók exportálva";
+"alerts.export.logs.success.message" = "A frissítési naplók sikeresen exportálva lettek.";
+"alerts.export.logs.saveFailed.message" = "Nem sikerült a naplók mentése a kiválasztott helyre: %@";
+"alerts.export.diagnostics.failed.message" = "Nem sikerült a diagnosztika exportálása. Kérlek próbáld újra.";
+"alerts.export.diagnostics.success.title" = "Diagnosztika exportálva";
+"alerts.export.diagnostics.success.message" = "Minden diagnosztikai napló sikeresen exportálva lett.";
+"alerts.export.diagnostics.saveFailed.message" = "Nem sikerült a diagnosztika mentése a kiválasztott helyre: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Frissítési naplók exportálása támogatáshoz";
+"panels.export.diagnostics.message" = "Minden diagnosztikai napló exportálása";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Kezdj el a HyperWhisperrel";
+"sidebar.statistics.help" = "Használati statisztikák és elemzések megtekintése";
+"sidebar.modes.help" = "Átírási módok kezelése különböző kontextusokhoz";
+"sidebar.vocabulary.help" = "Egyéni szavak és kifejezések hozzáadása jobb felismerésért";
+"sidebar.streaming.help" = "Valós idejű streamelési átírás beállítások (Internet szükséges)";
+"sidebar.history.help" = "Átírási előzmények megtekintése és keresése";
+"sidebar.settings.help" = "Alkalmazás beállítások és preferenciák konfigurálása";
+
+// MARK: - Recording State
+"recording.state.ready" = "Kész a felvételre";
+"recording.state.recording" = "Felvétel...";
+"recording.state.processing" = "Audio feldolgozása...";
+"recording.state.transcribing" = "Átírás...";
+"recording.state.postprocessing" = "Utófeldolgozás AI-val...";
+"recording.state.complete" = "Átírás kész: %@";
+"recording.state.error" = "Hiba: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Felvétel indítása vagy leállítása";
+"menu.recording.stop" = "Felvétel leállítása";
+"menu.recording.toggle" = "Felvétel indítása/leállítása";
+"menu.history" = "Előzmények...";
+"menu.settings" = "Beállítások...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Mód kiválasztása";
+"menu.transcribe.file" = "Fájl átírása";
+"menu.mode.unnamed" = "Névtelen";
+"menu.version.label" = "Verzió %@";
+"common.quit" = "Kilépés";
+"menu.microphone.default" = "Alapértelmezett";
+"menu.microphone.system.default" = "Alapértelmezett";
+"menu.bar.state.recording" = "Felvétel";
+"menu.bar.state.processing" = "Feldolgozás";
+"menu.bar.state.idle" = "Inaktív";
+"menu.command.check.updates" = "Frissítések keresése…";
+"menu.debug.title" = "Hibakeresés";
+"menu.command.export.logs" = "Frissítési naplók exportálása…";
+"menu.command.export.diagnostics" = "Diagnosztika exportálása…";
+"menu.command.help.website" = "Súgó weboldal";
+"menu.command.contact.support" = "Támogatás kapcsolat";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Általános";
+"settings.section.sound" = "Hang";
+"settings.section.license" = "Licenc";
+"settings.section.credits" = "Kreditek";
+"settings.section.storage" = "Tárhely";
+"settings.section.models" = "Modellek";
+"settings.section.api.keys" = "API kulcsok";
+"settings.section.shortcuts" = "Billentyűparancsok";
+"settings.section.output" = "Szöveg kimenet";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Angol)";
+"onboarding.model.pro.multilingual" = "Pro (Többnyelvű)";
+"onboarding.model.downloading.progress" = "Letöltés... %d%%";
+"onboarding.accessibility.title" = "Akadálymentesítés engedélyezése az automatikus beillesztéshez";
+"onboarding.accessibility.subtitle" = "Engedd meg a HyperWhispernek, hogy automatikusan beilleszti az átírt szöveget az alkalmazásaidba.";
+"onboarding.accessibility.instructions" = "Rendszerbeállítások → Adatvédelem és Biztonság → Akadálymentesítés";
+"onboarding.accessibility.status.granted" = "Akadálymentesítési engedély megadva";
+"onboarding.accessibility.status.pending" = "Akadálymentesítési engedély még nem adva meg";
+"onboarding.accessibility.waiting" = "Várakozás az engedélyre...";
+"onboarding.accessibility.open.preferences" = "Akadálymentesítés beállítások megnyitása";
+"onboarding.accessibility.restart" = "Az engedély megadása után indítsd újra a HyperWhispert.";
+"onboarding.model.recommendation.title" = "A Pro modellt ajánljuk";
+"onboarding.model.recommendation.subtitle" = "A rendszer nyelve és a Mac képességei alapján.";
+"onboarding.model.recommendation.note" = "Töltsd le az alábbi gombra kattintva.";
+"onboarding.model.downloaded" = "Letöltve";
+"onboarding.model.metric.speed" = "Sebesség";
+"onboarding.model.metric.accuracy" = "Pontosság";
+"onboarding.model.metric.size" = "Méret";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "Vagy válassz másik hangmodellt";
+"onboarding.model.picker.title" = "Modell";
+"onboarding.model.option.proEnglish" = "Pro (Angol)";
+"onboarding.model.option.tiny" = "Pici";
+"onboarding.model.option.base" = "Alap";
+"onboarding.model.option.small" = "Kis";
+"onboarding.model.option.medium" = "Közepes";
+"onboarding.model.option.large" = "Nagy";
+"onboarding.model.download.button" = "Modell letöltése";
+"onboarding.audio.title" = "Melyik audio felvételi eszközt szeretnéd használni?";
+"onboarding.audio.subtitle" = "Győződj meg róla, hogy az audio bemenet hangereje fel van tekerve és regisztrálja a hangerőt.";
+"onboarding.audio.input.label" = "Bemeneti eszköz";
+"onboarding.audio.picker.label" = "Eszköz";
+"onboarding.audio.use.system.default" = "Rendszer alapértelmezett eszköz használata";
+"onboarding.audio.level" = "Audio szint";
+"onboarding.audio.open.sound" = "Hang beállítások megnyitása";
+"onboarding.microphone.title" = "Felvételi engedély szükséges";
+"onboarding.microphone.subtitle" = "Audio felvételhez szükségünk van a mikrofonodhoz való hozzáférésre.";
+"onboarding.microphone.status.granted" = "Mikrofon engedély megadva";
+"onboarding.microphone.status.pending" = "Mikrofon engedély még nem adva meg";
+"onboarding.microphone.grant" = "Engedély megadása";
+"onboarding.test.title" = "Minden kész, kezdjük az első felvételedet";
+"onboarding.test.press.prefix" = "Nyomd meg";
+"onboarding.test.press.suffix" = "az indításhoz";
+"onboarding.test.status.recording" = "Felvétel...";
+"onboarding.test.status.speak" = "Beszélj most...";
+"onboarding.test.stop" = "Felvétel leállítása";
+"onboarding.test.success.title" = "Remek! A felvétel sikeres volt.";
+"onboarding.test.success.subtitle" = "Az átírás megjelenik az alkalmazásban.";
+"onboarding.test.start.cta" = "Kattints a felvétel indításához";
+"onboarding.test.start.shortcut" = "Vagy nyomd meg a billentyűparancsot";
+"onboarding.settings.title" = "Remek! Most nyissuk meg a Beállításokat";
+"onboarding.settings.subtitle" = "Jobb klikk a HyperWhisper ikonra és válaszd ki a Beállítások... menüt";
+"onboarding.settings.menu.startStop" = "Felvétel indítása/leállítása";
+"onboarding.settings.menu.history" = "Előzmények...";
+"onboarding.settings.menu.settings" = "Beállítások...";
+"onboarding.settings.menu.quit" = "Kilépés";
+"onboarding.settings.info" = "A Beállításokban testreszabhatod a billentyűparancsokat, kezelheted az API kulcsokat és konfigurálhatod a HyperWhispert ízlésed szerint.";
+"onboarding.completion.title" = "Kész vagy!";
+"onboarding.completion.subtitle" = "Ha problémákba vagy kérdésekbe ütközöl, írj nekünk e-mailben vagy Discord-on.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-mail";
+"onboarding.completion.resources.title" = "További források";
+"onboarding.completion.resources.documentation" = "Dokumentáció";
+"onboarding.completion.resources.videos" = "Videós útmutatók";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Bevezetés befejezése";
+"onboarding.error.model.notFound" = "Modell nem található a katalógusban.";
+"onboarding.error.microphone.denied" = "Mikrofon engedély megtagadva. Kérlek add meg az engedélyt a Rendszerbeállításokban.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Indítás bejelentkezéskor";
+"settings.general.launchAtLogin.info" = "HyperWhisper automatikus indítása bejelentkezéskor.";
+"settings.general.launchMinimized.title" = "Indítás kis méretben";
+"settings.general.launchMinimized.info" = "HyperWhisper indítása elrejtett főablakkal. Az alkalmazás a menüsávon keresztül elérhető.";
+"settings.general.showInDock.title" = "Megjelenítés a Dockban";
+"settings.general.showInDock.info" = "Az alkalmazás ikon megjelenítése a Dockban.";
+"settings.general.showRecordingWindow.title" = "Felvételi ablak megjelenítése";
+"settings.general.showRecordingWindow.info" = "A lebegő hullámforma ablak megjelenítése felvétel és feldolgozás közben.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Ki";
+"settings.general.mediaControl.mode.mute" = "Audio némítás";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Hibanaplózás";
+"settings.general.errorLogging.info" = "Automatikus hibajelentések rögzítése és küldése az alkalmazás fejlesztésének segítésére.";
+"settings.general.autoUpdate.title" = "Automatikus frissítés";
+"settings.general.autoUpdate.info" = "Új HyperWhisper verziók automatikus keresése és letöltése.";
+"settings.general.support.title" = "Segítségre van szükséged?";
+"settings.version.detail" = "Verzió %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Hangeffektusok lejátszása";
+"settings.sound.soundEffects.info" = "Hangjelzések lejátszása a felvétel indításakor és leállításakor.";
+"settings.sound.mediaControl.title" = "Média vezérlés felvétel közben";
+"settings.sound.mediaControl.info" = "Válaszd ki, hogyan kezelje a HyperWhisper a többi audio-t felvétel közben. 'Ki' változatlanul hagyja az audio-t, 'Audio némítás' elnémítja a rendszer kimenetét felvétel közben és utána visszallítja.";
+"settings.sound.autoIncreaseMicVolume.title" = "Mikrofon hangerő automatikus növelése";
+"settings.sound.autoIncreaseMicVolume.info" = "Automatikusan maximumra állítja a mikrofon bemeneti hangerejét felvétel indításakor, majd visszaállítja az eredeti szintet felvétel leállásakor. Csak a rendszer alapértelmezett bemeneti eszköz használatakor érvényes.";
+"settings.sound.vad.title" = "Csend eltávolítása átírás előtt";
+"settings.sound.vad.info" = "Automatikusan érzékeli és eltávolítja a kezdő és záró csendet AI hang érzékelés használatával. Ez javíthatja az átírás pontosságát és csökkentheti a feldolgozási időt.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Felvételek mappa";
+"settings.storage.showFolder.title" = "Felvételek mappa megjelenítése";
+"settings.storage.showFolder.button" = "Megjelenítés Finderben";
+"settings.storage.notice" = "A felvételek mappa megváltoztatása csak az új felvételeket érinti. A meglévő felvételek az eredeti helyükön maradnak.";
+"settings.storage.choose.button" = "Választás...";
+"settings.storage.dialog.select" = "Mappa kiválasztása";
+"settings.storage.dialog.message" = "Válassz mappát a felvételek tárolásához";
+"settings.storage.storeAsM4A.title" = "Felvételek tömörítése M4A formátumba";
+"settings.storage.storeAsM4A.subtitle" = "WAV felvételeket kisebb fájlokká konvertálja átírás után. Kapcsold ki az eredeti WAV fájlok megtartásához (nagyobb, de veszteségmentes).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Eredmény automatikus beillesztése";
+"settings.output.paste.subtitle" = "Átírt szöveg automatikus beillesztése az aktív alkalmazásba";
+"settings.output.paste.info" = "Ha engedélyezve van, a szöveg beillesztésre kerül az előtérben lévő alkalmazásba.";
+"settings.output.restoreClipboard.title" = "Vágólap visszaállítása beillesztés után";
+"settings.output.restoreClipboard.subtitle" = "Előző vágólap tartalom visszaállítása beillesztés után";
+"settings.output.restoreClipboard.info" = "Visszaállítja az előző vágólap tartalmat, miután az alkalmazás beillesztette az átírást.";
+"settings.output.restore.after" = "Visszaállítás után";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Vágólap visszaállítás késleltetés";
+"settings.output.hideClipboardHistory.title" = "Elrejtés a vágólap előzményekből";
+"settings.output.hideClipboardHistory.subtitle" = "Átírások megjelenésének megakadályozása vágólap előzmény alkalmazásokban";
+"settings.output.hideClipboardHistory.info" = "Ha engedélyezve van, az átírt szöveg nem kerül mentésre vágólap kezelők által, mint Paste, Maccy vagy Alfred.";
+"settings.output.clipboard.header" = "Vágólap";
+"settings.output.removeFillers.title" = "Töltelékszavak eltávolítása";
+"settings.output.removeFillers.subtitle" = "Eltávolítja az 'uh', 'um' és 'er' szavakat a nyers átiratokból.";
+"settings.output.removeFillers.info" = "Ha engedélyezve van, a HyperWhisper a kimenet előtt eltávolítja a gyakori töltelékszavakat a nyers átiratokból.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Felvétel váltása";
+"settings.shortcuts.toggleRecording.subtitle" = "Felvétel indítása és leállítása";
+"settings.shortcuts.cancelRecording.title" = "Felvétel megszakítása";
+"settings.shortcuts.cancelRecording.subtitle" = "Aktív felvétel elvetése";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Tartsd lenyomva a billentyűt a felvételhez, engedd el, ha kész";
+"settings.shortcuts.pushToTalk.enable.info" = "Push to Talk mód engedélyezése gyors felvételhez egyetlen billentyű lenyomással.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Felvételi mód";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Válaszd ki, melyik billentyűt használd";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Letiltva";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN billentyű";
+"settings.shortcuts.pushToTalk.mode.control" = "Control billentyű";
+"settings.shortcuts.pushToTalk.mode.custom" = "Egyéni billentyűparancs";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Dupla lenyomás a felvétel rögzítéséhez";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Nyomd meg gyorsan kétszer a felvétel folytatásához nyomva tartás nélkül";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Egyéni billentyűparancs";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Nyomd meg a használni kívánt billentyűkombinációt";
+
+
+"settings.shortcuts.changeMode.title" = "Mód váltása";
+"settings.shortcuts.changeMode.subtitle" = "Csak felvétel közben működik";
+
+"settings.shortcuts.reset.button" = "Alaphelyzetbe állítás";
+"settings.shortcuts.reset.dialog.title" = "Billentyűparancsok alaphelyzetbe állítása";
+"settings.shortcuts.reset.confirm" = "Alaphelyzetbe állítás";
+"settings.shortcuts.reset.dialog.message" = "Ez az összes billentyűparancsot visszaállítja az alapértelmezett értékeikre.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "Az API kulcsok biztonságosan tárolódnak az eszközödön, és csak akkor kerülnek elküldésre a szolgáltatónak, amikor szükséges.";
+"settings.api.help.link" = "Segítség az API kulcsokkal";
+"settings.api.transcription.title" = "Átírás";
+"settings.api.transcription.subtitle" = "API kulcsok felhőalapú beszéd-szöveg szolgáltatásokhoz.";
+"settings.api.postProcessing.title" = "Utófeldolgozás";
+"settings.api.postProcessing.subtitle" = "API kulcsok AI-alapú szöveg javításhoz és formázáshoz.";
+"settings.api.placeholder" = "Add meg a(z) %@ API kulcsodat";
+"settings.api.openLink" = "%@ API kulcs oldal megnyitása";
+"settings.api.status.accessibility" = "%@ állapot: %@";
+"settings.api.status.unknown" = "Szolgáltató állapot ismeretlen";
+"settings.api.status.checking" = "Állapot ellenőrzése folyamatban";
+"settings.api.status.unauthorized" = "API kulcs elutasítva a szolgáltató által";
+"settings.api.status.unreachable" = "Szolgáltató jelenleg nem elérhető";
+"settings.api.status.notInstalled" = "Szolgáltató SDK nincs telepítve";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Ismeretlen";
+"provider.status.checking" = "Ellenőrzés…";
+"provider.status.healthy" = "Kész";
+"provider.status.unauthorized" = "Érvénytelen kulcs";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Nincs telepítve";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licenc aktiválva";
+"alerts.license.deactivated.title" = "Licenc deaktiválva";
+"alerts.license.activated.message" = "A licenced sikeresen aktiválva lett. Élvezd a korlátlan hozzáférést az összes funkcióhoz!";
+"alerts.license.deactivated.message" = "A licenced deaktiválva lett ezen az eszközön. Most már máshol aktiválhatod.";
+"alerts.license.failed.title" = "Művelet sikertelen";
+"alerts.license.failed.message" = "A művelet sikertelen. Kérlek próbáld újra.";
+"license.button.deactivate" = "Eszköz deaktiválása";
+"license.button.deactivating" = "Deaktiválás...";
+"license.button.manageBilling" = "Számlázás kezelése";
+"license.button.activate" = "Aktiválás";
+"license.button.activating" = "Aktiválás...";
+"license.status.label" = "Állapot: %@";
+"license.status.trial.title" = "Próba";
+"license.status.active.title" = "Aktív";
+"license.status.expired.title" = "Lejárt";
+"license.status.invalid.title" = "Érvénytelen";
+"license.status.trial.description" = "Ingyenes próba (5 perc/nap, %d modell)";
+"license.status.active.description" = "Licencelt – Teljes hozzáférés";
+"license.status.expired.description" = "Licenc lejárt";
+"license.status.invalid.description" = "Érvénytelen licenc";
+"settings.license.key.title" = "Licenckulcs";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Beillesztés vágólapról";
+"settings.license.clearInput" = "Törlés";
+"settings.license.recovery.prompt" = "Elfelejtetted a licenckulcsot?";
+"settings.license.recovery.button" = "Ugrás az ügyfél portálra";
+"settings.license.daily.title" = "Napi átírás";
+"settings.license.daily.usage" = "%@ / %@ használva";
+"settings.license.limitReached" = "Limit elérve";
+"settings.license.models.title" = "Offline modellek";
+"settings.license.models.progress" = "%d / %d modell letöltve";
+"settings.license.models.progress.one" = "%d / %d modell letöltve";
+"settings.license.upgrade.text" = "Frissítés korlátlan átíráshoz és modell letöltésekhez";
+"settings.license.upgrade.button" = "Frissítés";
+"license.error.invalidResponse" = "Érvénytelen válasz formátum";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud kreditek";
+"settings.credits.refresh" = "Frissítés";
+"settings.credits.subtitle" = "Átírási kreditek és használat figyelése";
+"settings.credits.manage" = "Kreditek kezelése";
+"settings.credits.timeRemaining" = "Hátralevő átírási idő";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "perc";
+"settings.credits.creditsRemaining" = "%@ kredit van hátra";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Ingyenes napi limit (100 kredit)";
+"settings.credits.resets" = "Visszaáll %@";
+"settings.credits.warning.low" = "Kevés kredit van hátra. Fontold meg licenc vásárlását további kreditekért.";
+"settings.credits.warning.exhausted.daily" = "Napi limit elfogyott. Vásárolj licencet korlátlan használatért vagy várj a visszaállításra.";
+"settings.credits.warning.exhausted" = "Kreditek elfogytak. Vásárolj több kreditet a HyperWhisper Cloud használatának folytatásához.";
+"settings.credits.accountInfo" = "Fiók információ";
+"settings.credits.stat.creditsRemaining" = "Hátralevő kreditek";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Hátralevő percek";
+"settings.credits.stat.accountType" = "Fiók típus";
+"settings.credits.accountType.licensed" = "Licencelt";
+"settings.credits.accountType.anonymous" = "Névtelen";
+"settings.credits.accountType.trial" = "Próba";
+"settings.credits.stat.customerId" = "Ügyfél azonosító";
+"settings.credits.stat.dailyLimit" = "Napi limit";
+"settings.credits.dailyLimit.value" = "100 kredit";
+"settings.credits.loading" = "Kredit egyenleg betöltése...";
+"settings.credits.error.title" = "Nem sikerült a kredit egyenleg betöltése";
+"settings.credits.error.retry" = "Újra";
+"settings.credits.empty.title" = "Nincs elérhető kredit információ";
+"settings.credits.empty.subtitle" = "Kattints a frissítésre a kredit egyenleg betöltéséhez";
+"settings.credits.empty.button" = "Kreditek betöltése";
+"settings.credits.error.insufficient" = "Nincs elég kredit. %d kredited van hátra.";
+"settings.credits.error.network" = "Hálózati hiba: %@";
+"settings.credits.error.invalidResponse" = "Érvénytelen válasz a szervertől. Kérlek próbáld újra.";
+"settings.credits.error.server" = "Szerver hiba: %@";
+"settings.models.alert.limit.title" = "Modell letöltési limit elérve";
+"settings.models.alert.limit.message" = "A próba %d modell letöltést tartalmaz. Frissítsd a licencedet korlátlan letöltésekhez.";
+"settings.models.alert.cannotDelete.title" = "Nem lehet törölni a modellt";
+"settings.models.parakeet.title" = "Parakeet modellek";
+"settings.models.parakeet.subtitle" = "Ajánlott a legtöbb felhasználónak. A többnyelvű modell 25 nyelvet támogat.";
+"settings.models.parakeet.empty" = "Nincsenek elérhető Parakeet modellek.";
+"settings.models.whisper.title" = "Whisper modellek";
+"settings.models.whisper.subtitle" = "OpenAI Whisper modellek. A nagyobb modellek pontosabbak. 100+ nyelvet támogat.";
+"settings.models.whisper.empty" = "Nincsenek elérhető Whisper modellek.";
+"settings.models.help.cancelDownload" = "Letöltés megszakítása";
+"settings.models.help.remove" = "Modell eltávolítása";
+"settings.models.downloaded" = "Letöltve";
+"settings.models.download" = "Letöltés";
+"settings.models.downloading" = "Letöltés…";
+"settings.models.localPostProcessing.title" = "Helyi utófeldolgozási modellek";
+"settings.models.localPostProcessing.memoryWarning" = "24 GB egységesített memóriával vagy többel rendelkező Mac számítógépekhez ajánlott. A sebesség a chiptől függ — gyorsabb M3/M4 Pro és újabb chipeken.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Szavak ebben az évben";
+"vocabulary.input.placeholder" = "Adjon hozzá egy szót vagy hozzon létre részletet";
+"vocabulary.action.addWord" = "Szó hozzáadása";
+"vocabulary.action.replaceWith" = "Csere erre…";
+"vocabulary.action.replace" = "Csere";
+"vocabulary.replacement.field.placeholder" = "Helyettesítő szöveg…";
+"settings.output.autocapitalizeInsert.title" = "Automatikus nagybetűsítés beillesztésnél";
+"settings.output.autocapitalizeInsert.subtitle" = "Kurzorkörnyezet egyeztetése szöveg beillesztésekor";
+"settings.output.autocapitalizeInsert.info" = "Ha be van kapcsolva, a beillesztett átirat szövegének első szava a kurzorkörnyezethez igazodik (mondat eleje vagy közepe). Kapcsolja ki az állandóan kisbetűs diktáláshoz.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "A HyperWhispernek hozzáférhetőségi engedélyre van szüksége az automatikus nagybetűsítéshez szükséges kurzorkörnyezet olvasásához.\n\nKattintson a \"Beállítások megnyitása\" gombra, nyomja meg a HyperWhisper melletti kapcsolót, majd próbálja újra.";
+"settings.output.removeFillerWords.title" = "Töltelékszavak eltávolítása";
+"settings.output.removeFillerWords.subtitle" = "Az \"ö\", \"hm\" és \"er\" eltávolítása a nyers átiratokból, ha az AI utófeldolgozás ki van kapcsolva";
+"settings.output.removeFillerWords.info" = "Csak akkor érvényes, ha egy mód kihagyja az AI utófeldolgozást. Az AI-val javított módok az utasításban kezelik a beszédmegtisztítást.";
+"sidebar.modelLibrary" = "Modellkönyvtár";
+"sidebar.modelLibrary.help" = "Böngésszen az összes hang- és utófeldolgozó modell között egy helyen";
+"settings.shortcuts.quickCapture.enable.title" = "Gyors rögzítés";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Rögzíts és küldj el átíratot a Notesba — anélkül, hogy előbb az appra kellene fókuszálnod.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Billentyűparancs";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Nyomj meg bárhol a rögzítéshez és a Notesba küldéshez.";
+"settings.shortcuts.quickCapture.mode.title" = "Mód";
+"settings.shortcuts.quickCapture.mode.subtitle" = "A használt átírási mód — szabályozza a modellt, a promptot és az utófeldolgozást.";
+"settings.shortcuts.quickCapture.mode.current" = "Jelenlegi mód";
+"settings.shortcuts.quickCapture.permission.banner" = "A HyperWhispernek engedélyre van szüksége a Notes irányításához. Add meg a Rendszerbeállítások → Adatvédelem → Automatizálás menüpontban.";
+"settings.section.vocabulary" = "Szójegyzék";
+"settings.vocabulary.icloudSync.title" = "iCloud-szinkronizálás";
+"settings.vocabulary.icloudSync.subtitle" = "Szinkronizálja egyéni szójegyzékét az ugyanazon iCloud-fiókba bejelentkezett Mac számítógépek között.";
+"settings.vocabulary.icloudSync.info" = "Alapértelmezés szerint kikapcsolva. Csak az egyéni szójegyzéke szinkronizálódik — az átiratok és felvételek ezen a Macen maradnak. A változások a HyperWhisper következő megnyitásakor lépnek életbe.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Zárja be a HyperWhispert a módosítások alkalmazásához";
+"vocabulary.icloudSync.restart.message" = "Az iCloud szójegyzék-szinkronizálás változásai a HyperWhisper következő megnyitásakor lépnek életbe.";
+"vocabulary.icloudSync.restart.quit" = "HyperWhisper bezárása";
+"vocabulary.icloudSync.restart.later" = "Később";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Mikrofon melegen tartása felvételek között";
+"settings.sound.keepWarmMicrophone.info" = "Csökkenti a push-to-talk indítási késleltetést azzal, hogy nyitva tartja a mikrofon munkamenetet, amíg a HyperWhisper tétlen. A macOS folyamatosan megjeleníti a narancsszínű mikrofon jelzőt, és a Bluetooth fejhallgatók alacsonyabb minőségű hívás módban maradhatnak, amíg ez engedélyezve van.";
+"settings.models.local.inUse" = "Ezt a helyi modellt jelenleg a következők használják utófeldolgozásra:
+
+%@
+
+Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.";
+"models.postProcessing.gemma4.e2b.description" = "Gyors és pontos. Kiváló általános választás az utófeldolgozáshoz.";
+"models.postProcessing.gemma4.e4b.description" = "Magasabb minőség több részlettel. Jó hosszabb szövegekhez.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B szakértők keveréke. Gyors következtetés mindössze 4B aktív paraméterrel.";
+"models.postProcessing.gemma4.31b.description" = "31B sűrű modell. Legmagasabb minőség, 18+ GB RAM szükséges.";
+"settings.models.whisper.inUse" = "Ez a modell nem törölhető, mert a következők használják:\n\n%@\n\nFrissítsd ezeket a módokat más modell használatához a törlés előtt.";
+"settings.models.parakeet.inUse" = "Ez a Parakeet modell nem törölhető, mert a következők használják:\n\n%@\n\nFrissítsd ezeket a módokat más modell használatához a törlés előtt.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Ismeretlen";
+"settings.models.directory.whisper" = "Whisper modellek mappa";
+"settings.models.directory.parakeet" = "Parakeet modellek mappa";
+"settings.models.directory.local" = "Helyi modellek mappa";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — CoreML-re optimalizált többnyelvű beszédfelismerés.";
+"settings.models.qwen3asr.languages" = "30 nyelv";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Ez a Qwen3 ASR modell nem törölhető, mert a következők használják:\n\n%@\n\nTörlés előtt frissítsd ezeket a módokat egy másik modell használatára.";
+"settings.models.directory.show" = "Megjelenítés Finderben";
+"models.error.checksumFailed" = "Modell ellenőrző összeg ellenőrzés sikertelen. A letöltés sérült lehet.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statisztikák";
+"statistics.header.title" = "Használati statisztikáid";
+"statistics.header.subtitle" = "Átírási aktivitás és teljesítmény követése";
+"statistics.card.recordings" = "Összes felvétel";
+"statistics.card.recordings.subtitle" = "Befejezett átírások";
+"statistics.card.duration" = "Összes idő";
+"statistics.card.duration.subtitle" = "Felvételre fordított idő";
+"statistics.card.words" = "Összes szó";
+"statistics.card.words.subtitle" = "Átírt szavak";
+"statistics.card.average" = "Átlagos időtartam";
+"statistics.card.average.subtitle" = "Felvételenként";
+"statistics.graph.title" = "Aktivitás idővel";
+"statistics.daily.empty" = "Még nincsenek felvételek";
+"statistics.filter.week" = "Ez a hét";
+"statistics.filter.month" = "Ez a hónap";
+"statistics.filter.alltime" = "Minden idők";
+
+// MARK: - History View
+"history.title" = "Előzmények";
+"history.search.placeholder" = "Keresés";
+"history.filter.all" = "Mind";
+"history.filter.today" = "Ma";
+"history.filter.week" = "Ez a hét";
+"history.filter.month" = "Ez a hónap";
+"history.empty.title" = "Nem találhatók felvételek";
+"history.empty.subtitle" = "Próbáld meg módosítani a keresést";
+"history.detail.empty" = "Válassz egy felvételt a részletek megtekintéséhez";
+"history.multi.selected" = "%d felvétel kiválasztva";
+"history.multi.delete" = "Kiválasztottak törlése";
+"history.context.deleteSelected" = "%d felvétel törlése";
+"history.context.retry" = "Átírás újrapróbálása";
+"history.context.retryWith" = "Újrapróbálás ezzel...";
+"history.context.copy" = "Szöveg másolása";
+"history.retrying" = "Átírás újrapróbálása...";
+"history.retry.help" = "Átírás újrapróbálása";
+"history.section.today" = "Ma";
+"history.section.yesterday" = "Tegnap";
+"history.duration.format" = "%dp %dmp";
+"history.status.failed" = "Sikertelen";
+"history.status.transcription.failed.prefix" = "Átírás sikertelen:";
+"history.status.retry.failed.prefix" = "Újrapróbálás sikertelen:";
+"history.failure.reason" = "Ok: %@";
+"history.mode.default" = "Alapértelmezett";
+"history.audio.showInFinder" = "Megjelenítés Finderben";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Mód törlése?";
+"modes.delete.confirm.message" = "Ez eltávolítja a kiválasztott módot. Ez a művelet nem vonható vissza.";
+"modes.header.title" = "Módok";
+"modes.header.subtitle" = "Egyéni profilok létrehozása különböző kontextusokhoz és munkafolyamatokhoz";
+"modes.header.create" = "Mód létrehozása";
+"modes.name.unnamed" = "Névtelen";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Kiválasztás";
+"modes.help.edit" = "Mód beállítások szerkesztése";
+"modes.help.preset" = "Többet tudj meg erről a formázási stílusról";
+"modes.help.model" = "Többet tudj meg erről a modellről";
+"modes.preset.title" = "Formázási stílus";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Üzenet";
+"modes.preset.mail.name" = "E-mail";
+"modes.preset.note.name" = "Jegyzet";
+"modes.preset.meeting.name" = "Találkozó";
+"modes.preset.code.name" = "Kód";
+"modes.preset.custom.name" = "Egyéni";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Az üzenet mód megtisztítja a diktált üzenetedet, javítja az írásjeleket, bekezdésekre osztja és rendezi a nyelvtani hibákat.";
+"modes.preset.mail.tooltip" = "Az e-mail mód a diktált szövegedet professzionális e-mail struktúrává formázza, megfelelő üdvözletekkel, bekezdésekkel és lezárással.";
+"modes.preset.note.tooltip" = "A jegyzet mód a diktált tartalmat tiszta jegyzet formátumba szervezi címsorokban, felsorolásokban és strukturált szekciókban.";
+"modes.preset.meeting.tooltip" = "A találkozó mód a diktált szöveget találkozó jegyzőkönyv formátumba strukturálja résztvevőkkel, feladatokkal és kulcs megbeszélési pontokkal.";
+"modes.preset.code.tooltip" = "A kód mód a kimondott programozási diktálást kód szintaxissá konvertálja. Mondj 'nyitó zárójel', 'visszaperjel', 'camel case' és több mást, hogy kóddal írj hangoddal.";
+"modes.preset.custom.tooltip" = "Az egyéni mód lehetővé teszi saját formázási szabályok és promptok definiálását specifikus használati esetekhez.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "Az MI átstrukturálja a diktálásodat egy tiszta üzenetté megfelelő bekezdésekkel, írásjelekkel és nyelvtani javításokkal.";
+"modes.preset.mail.preview" = "Az MI formázza a diktálásodat egy professzionális e-maillé megfelelő üdvözléssel, strukturált bekezdésekkel és aláírással.";
+"modes.preset.note.preview" = "Az MI a diktálásodat strukturált jegyzetekké szervezi címsorokkal, felsorolásokkal és áttekinthető szakaszokkal.";
+"modes.preset.meeting.preview" = "Az MI a diktálásodat értekezleti jegyzőkönyvvé alakítja résztvevőkkel, megbeszélési pontokkal és feladatokkal.";
+"modes.preset.code.preview" = "Az MI a kimondott programozási diktálást kódszintaxissá alakítja, értelmezve a parancsokat, mint 'nyitó zárójel' és 'camel case'.";
+"modes.preset.custom.preview" = "Az egyéni formázási utasításaidat használja az átírás feldolgozásához.";
+"modes.customInstructions" = "Határozza meg a teljes formázási utasításokat ehhez az előbeállításhoz.";
+"modes.notice.vocabularyUnsupported" = "Az egyéni szókincs nem támogatott ehhez a modellhez ezen szolgáltatónál. Figyelmen kívül marad.";
+"modes.notice.deepgramNova3AutoDetect" = "Az egyéni szókincs nem érhető el Deepgram Nova-3 használatakor automatikus nyelv felismerés esetén. A szókincs fokozás engedélyezéséhez állíts be egy specifikus nyelvet (pl. angol, spanyol).";
+"modes.language.title" = "Nyelv";
+"modes.language.englishOnly" = "Csak angol (optimalizált modell)";
+"modes.postProcessing.sectionTitle" = "Utófeldolgozás";
+"modes.postProcessing.modeLabel" = "Mód";
+"modes.postProcessing.modeTitle" = "Utófeldolgozás";
+"modes.postProcessing.modeDescription" = "Válaszd ki, hogyan legyenek feldolgozva az átírások:\n\n• Ki: Nincs utófeldolgozás, nyers átírás\n• Felhő (AI): AI-alapú javítás (Internet szükséges)\n• Helyi: Eszközön lévő LLM használata, mint Gemma llama.cpp-n keresztül\n\nA felhő feldolgozás szöveget küld a kiválasztott AI szolgáltatónak. A helyi mód a gépeden marad, de szüksége van a helyi szerver futtatására.";
+"modes.postProcessing.providerLabel" = "Szolgáltató";
+"modes.postProcessing.apiKeyMissing" = "%@ API kulcs nincs konfigurálva. Add hozzá a Beállításokban az utófeldolgozás engedélyezéséhez.";
+"modes.postProcessing.configure" = "Konfigurálás a Beállításokban";
+"modes.postProcessing.modelRecommendation" = "A GPT-4.1 Nano használatát ajánljuk a legjobb sebesség és minőség egyensúlyához.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "A helyi utófeldolgozáshoz letöltött helyi modell szükséges.";
+"modes.postProcessing.download" = "Letöltés a Beállításokban";
+"modes.postProcessing.localInfo" = "Teljesen eszközön fut. A HyperWhisper automatikusan elindítja a beépített llama.cpp szervert, amikor ez a mód aktív.";
+"modes.postProcessing.userSystemPrompt.title" = "Állandó utasítások";
+"modes.postProcessing.userSystemPrompt.placeholder" = "pl. Az e-maileket mindig 'Üdvözlettel, Ray' zárd";
+"modes.postProcessing.userSystemPrompt.clear" = "Törlés";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Állandó utasítások";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Adjon hozzá utasításokat, amelyek mindig érvényesek a kiválasztott előbeállításon felül.";
+"modes.toggle.punctuation.title" = "Írásjelek hozzáadása";
+"modes.toggle.punctuation.subtitle" = "Pontok és vesszők automatikus hozzáadása";
+"modes.toggle.capitalization.title" = "Mondatok nagybetűsítése";
+"modes.toggle.capitalization.subtitle" = "Mondatok első betűjének nagybetűvé alakítása";
+"modes.toggle.profanity.title" = "Trágárság szűrés";
+"modes.toggle.profanity.subtitle" = "Nem megfelelő szavak cseréje";
+"modes.toggle.removeTrailingPeriod.title" = "Záró pont eltávolítása";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Eltávolítja az utolsó pontot az átiratokból";
+"modes.postProcessing.privacyNotice" = "Az átírásod CSAK %@ részére kerül elküldésre utófeldolgozásra. Soha máshová.";
+"modes.postProcessing.localModel" = "Modell";
+"modes.postProcessing.languageModel" = "Nyelvi modell";
+"modes.englishSpelling.title" = "Angol helyesírás";
+"modes.englishSpelling.american" = "Amerikai";
+"modes.englishSpelling.british" = "Brit";
+"modes.englishSpelling.australian" = "Ausztrál";
+"modes.englishSpelling.canadian" = "Kanadai";
+"modes.englishSpelling.american.description" = "Amerikai angol helyesírás használata (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Brit angol helyesírás használata (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Ausztrál angol helyesírás használata (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Kanadai angol helyesírás használata (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Egyéni utasítások";
+"modes.gemini.customPrompt.helper" = "Opcionális. Pl. \"Formázás felsorolásként\", \"Formális nyelv használata\". A nyelvi és szókincs-beállítások automatikusan szerepelnek.";
+"modes.cloud.apiKeyMissing" = "%@ API kulcs nincs konfigurálva. Add hozzá a Beállításokban a felhő átírás használatához.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Pontosság";
+"modes.cloudAccuracy.groqWhisper.label" = "Közepes (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Közepes (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Magas (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Gyors és megfizethető. Legjobb gyors átírásokhoz.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Kiegyensúlyozott sebesség és pontosság. Ajánlott a legtöbb felhasználónak.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
+"modes.cloudAccuracy.grokStt.label" = "Legmagasabb (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
+
+"modes.create.title" = "Új mód létrehozása";
+"modes.create.subtitle" = "Egyéni átírási profil konfigurálása";
+"modes.section.basic" = "Alapbeállítások";
+"modes.section.transcription" = "Átírási modell";
+"modes.section.punctuation" = "Központozás";
+"modes.toggle.screenText.title" = "Képernyő szöveg";
+"modes.toggle.screenText.subtitle" = "Rögzítse a látható képernyő szöveget a nevek és kifejezések pontosságának javításához. Képernyőfelvétel engedély szükséges.";
+"modes.screenText.openSettings" = "Nyissa meg a Rendszerbeállításokat";
+"modes.screenText.permissionGranted" = "Képernyőfelvétel engedély megadva";
+"modes.screenText.permissionRequired" = "Képernyőfelvétel engedély szükséges";
+"modes.field.name" = "Név";
+"modes.field.name.placeholder" = "pl., Találkozó jegyzetek";
+"modes.field.name.editPlaceholder" = "Mód neve";
+"modes.field.model" = "Modell";
+"modes.field.provider" = "Szolgáltató";
+"modes.provider.local" = "Helyi";
+"modes.provider.cloud" = "Felhő";
+"modes.notice.noLocalModels.title" = "Nincs helyi modell telepítve";
+"modes.notice.noLocalModels.subtitle" = "Telepíts egy modellt először a Beállításokban";
+"modes.model.pricing" = "Árazás: $%.6f / perc (másodpercenként számlázva)";
+"modes.button.create" = "Mód létrehozása";
+"modes.button.delete" = "Mód törlése";
+"modes.button.save" = "Változások mentése";
+"modes.edit.title" = "Mód szerkesztése";
+"modes.edit.subtitle" = "Átírási profil beállítások módosítása";
+"mode.editor.cloudModel.previewHint" = "Előnézet";
+"mode.editor.cloudModel.noVocabularyHint" = "Nincs egyéni szókészlet";
+"mode.editor.cloudDomain.medical" = "Orvosi";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode kiegészítő";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Nem lehet újrapróbálni: Audio fájl nem található";
+"transcripts.error.invalidId" = "Érvénytelen átírás azonosító";
+"transcripts.delete.single.title" = "Felvétel törlése?";
+"transcripts.delete.single.message" = "Ez véglegesen törli ezt a felvételt és az audio fájlját.";
+"transcripts.delete.multiple.title" = "%d felvétel törlése?";
+"transcripts.delete.multiple.message" = "Ez véglegesen töröl %d felvételt és az audio fájljaikat.\n\nEz a művelet nem vonható vissza.";
+"transcripts.delete.multiple.confirm" = "Összes törlése";
+"transcripts.retry.error.title" = "Újrapróbálás sikertelen";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Felvételek mappa kiválasztása";
+"storage.folder.choose.message" = "Válassz mappát az új felvételek mentéséhez.";
+"storage.folder.choose.prompt" = "Választás";
+"storage.recovery.title" = "Nem lehet hozzáférni a felvételek mappához";
+"storage.recovery.message" = "A HyperWhisper nem tudta elérni a konfigurált felvételek mappát. Választhatsz másik mappát a folytatáshoz.";
+"storage.recovery.choose" = "Mappa választása…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Többet tudj meg";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Átírás kész";
+"recording.status.retrying" = "Átírás újrapróbálása…";
+"recording.status.postprocessing" = "Utófeldolgozás AI-val…";
+"recording.status.transcribing" = "Átírás…";
+"recording.success.pasted" = "Beillesztve!";
+"recording.loading.retrying" = "Újrapróbálás…";
+"recording.loading.postprocessing" = "Feldolgozás AI-val…";
+"recording.loading.starting" = "Stream indítása…";
+"recording.loading.transcribing" = "Átírás…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Csatlakozás...";
+"streaming.status.ready" = "Kész - Kezdj beszélni";
+"streaming.status.warming" = "Bemelegítés...";
+"modes.badge.recommended" = "Ajánlott";
+"modes.source.label" = "Forrás";
+"modes.source.onDevice" = "Az eszközön";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-kulcs";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Ez a modell nem törölhető, mert a következők használják:
+
+%@
+
+A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.";
+"models.postProcessing.gemma4.12b.description" = "Közepes méretű sűrű modell. Egyensúlyt teremt a minőség és a sebesség között 16 GB-os Maceken.";
+"recording.success.savedToNotes" = "Mentve a Notesbe!";
+"modes.provider.needsKey" = "A %@ működő kulcsot igényel.";
+"modes.provider.manageInLibrary" = "Kezelés a könyvtárban →";
+"streaming.loading.warming" = "Helyi modell bemelegítése...";
+"streaming.status.listening" = "Hallgat...";
+"streaming.status.streaming" = "Streamelés...";
+"streaming.status.disconnecting" = "Leállítás...";
+"streaming.loading.connecting" = "Csatlakozás a szerverhez...";
+"streaming.loading.ready" = "Audio inicializálása...";
+"streaming.loading.streaming" = "Várakozás beszédre...";
+"streaming.state.reconnecting" = "Újracsatlakozás...";
+"recording.stop.help" = "Felvétel leállítása (%@)";
+"recording.postprocessing.unavailable" = "Utófeldolgozás nem elérhető";
+"recording.postprocessing.missing.single" = "%@ kulcs hiányzik – felvétel utófeldolgozás nélkül";
+"recording.postprocessing.missing.multiple" = "API kulcsok hiányoznak – felvétel utófeldolgozás nélkül";
+"recording.postprocessing.addKey" = "Kulcs hozzáadása";
+"recording.offline.banner" = "Nincs internetkapcsolat. A felhő átírás sikertelen lesz, amíg online nem vagy.";
+"recording.offline.title" = "Nincs internetkapcsolat";
+"recording.offline.subtitle" = "Csatlakozz újra a folytatáshoz vagy válts offline módra.";
+"recording.error.network" = "Ellenőrizd az internetkapcsolatot és próbáld újra.";
+"recording.error.timeout" = "Időtúllépés. Ellenőrizd a kapcsolat sebességét és próbáld újra.";
+"recording.error.rateLimit" = "Túl sok kérést küldtél. Várj egy kicsit és próbáld újra.";
+"recording.error.credits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
+"recording.error.apiKey" = "Add hozzá a(z) %@ API kulcsodat a Beállításokban.";
+"recording.error.server" = "Az átírási szolgáltatás problémákat tapasztal. Kérlek próbáld újra egy pillanat múlva.";
+"recording.retry" = "Újra";
+"recording.retry.inProgress" = "Újrapróbálás…";
+"recording.retry.count" = "Újra (%d)";
+"recording.retry.failed.missing" = "Újrapróbálás sikertelen: Audio fájl nem található";
+"recording.retry.failed.error" = "Újrapróbálás sikertelen: %@";
+"recording.retry.pending" = "Kész az újrapróbálásra – kattints az átíráshoz";
+"recording.provider.unknown" = "felhő szolgáltató";
+"recording.cancel.dialog.title" = "Felvétel megszakítása?";
+"recording.cancel.dialog.message" = "Ez elveti a jelenlegi felvételt.";
+"recording.cancel.dialog.confirm" = "Felvétel megszakítása";
+"recording.cancel.dialog.resume" = "Folytatás";
+"recording.error.overlay.title" = "Hálózati kapcsolati hiba";
+"recording.error.overlay.message" = "Nyomd meg az 'Újra' gombot alul vagy válts offline módra a folytatáshoz.";
+"recording.mode.default" = "Alapértelmezett";
+"recording.dialog.window.title" = "Felvételi párbeszéd";
+"recording.button.start" = "Felvétel indítása";
+"recording.button.stop" = "Felvétel leállítása";
+"recording.button.disable.checking" = "%@ állapot ellenőrzése...";
+"recording.button.disable.invalid" = "Érvénytelen %@ API kulcs. Frissítsd a Beállításokban.";
+"recording.button.disable.unreachable" = "%@ nem elérhető. Ellenőrizd a kapcsolatot és próbáld újra.";
+"recording.button.disable.missing" = "Add hozzá a(z) %@ API kulcsodat a Beállításokban.";
+"recording.button.disable.install.local" = "Tölts le egy helyi modellt a Beállítások → Modellek menüpontban a helyi utófeldolgozás használata előtt.";
+"modes.postProcessing.accuracy" = "Pontosság";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Elérted a napi %@-perces átírási limitedet. Frissítsd HyperWhisper Pro-ra korlátlan átírásért.";
+"recording.error.documentsAccess" = "Nem lehet hozzáférni a felvételek mappához. Válassz másik helyet a Beállítások → Tárhely menüben.";
+"recording.error.modeMissing" = "Kiválasztott mód nem található. Kérlek válassz érvényes módot.";
+"recording.warning.oversizedWAV" = "Audio tömörítés sikertelen. Tömörítetlen %@ MB fájl használata - átírás lassabb lehet.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Alapértelmezett mikrofon";
+"audio.error.permissionDenied" = "Mikrofon hozzáférés megtagadva. Kérlek engedélyezd a Rendszerbeállításokban.";
+"audio.error.fileWatcher.open" = "Nem sikerült fájl leírót megnyitni az audio fájl figyeléséhez.";
+"audio.error.fileWatcher.timeout" = "A művelet időtúllépés miatt megszakadt az audio fájl írására várva.";
+"audio.error.fileWatcher.creation" = "Az audio fájl nem jött létre időben.";
+"audio.error.microphonePermission" = "Mikrofon engedély nincs megadva";
+"audio.error.microphoneInUse" = "A HyperWhisper nem fér hozzá a mikrofonhoz, mert egy másik alkalmazás használja. Szüneteltess a másik alkalmazást vagy válts bemenetet, majd próbáld újra.";
+"audio.error.createEngine" = "Nem sikerült az audio motor létrehozása";
+"audio.error.noInput" = "Nincs elérhető audio bemenet";
+"audio.error.createFile" = "Nem sikerült az audio fájl létrehozása";
+"audio.error.managerUnavailable" = "Átírás kezelő nincs konfigurálva";
+"audio.error.invalidHardwareFormat" = "Érvénytelen hardver audio formátum észlelve. Kérlek ellenőrizd az audio eszközödet.";
+"audio.error.createFormat" = "Nem sikerült az audio formátum létrehozása felvételhez";
+"audio.error.createConverter" = "Nem sikerült az audio formátum konverter létrehozása";
+"audio.error.exportM4A" = "Nem sikerült az audio exportálása m4a formátumba";
+"audio.error.readFile" = "Az audio fájl nem olvasható felvétel után.";
+"audio.error.recordingTooShort" = "A felvétel túl rövid volt. Kérlek tartsd lenyomva a gombot hosszabb ideig az audio rögzítéséhez.";
+"audio.error.noAudioTrack" = "Ez a videó fájl nem tartalmaz audio sávot.";
+"audio.alert.accessibility.title" = "Akadálymentesítési hozzáférés engedélyezése";
+"audio.alert.accessibility.message" = "A HyperWhispernek Akadálymentesítési engedélyre van szüksége az átírt szöveg más alkalmazásokba történő beillesztéséhez.\n\nKattints a \"Beállítások megnyitása\" gombra, kapcsold be a HyperWhisper melletti kapcsolót, majd próbáld újra.";
+"audio.alert.accessibility.open" = "Beállítások megnyitása";
+"audio.alert.pasteFailed.title" = "Automatikus beillesztés sikertelen";
+"audio.alert.pasteFailed.message" = "Az átírt szöveg vágólapra lett másolva.\n\nNyomd meg a ⌘V billentyűt a kézi beillesztéshez, vagy válaszd a Szerkesztés → Beillesztés menüt.";
+"accessibility.permission.location.debug" = "Xcode hibakereső build";
+"accessibility.permission.location.installed" = "Telepített alkalmazás";
+"accessibility.permission.info" = "A HyperWhispernek Akadálymentesítési engedélyre van szüksége az átírt szöveg más alkalmazásokba történő beillesztéséhez.\n\nJelenlegi alkalmazás helye: %@\n\nA Rendszerbeállításokban:\n1. Keresd az 'hyperwhisper' vagy 'HyperWhisper'-t a listában\n2. Több bejegyzést is láthatsz, ha különböző helyekről futtattad\n3. Engedélyezd a jelölőnégyzetet a következő bejegyzéshez:\n   %@";
+"accessibility.permission.xcodeNote" = "Megjegyzés: Xcode-ból történő futtatás más engedélyt igényel, mint a telepített alkalmazás.";
+"accessibility.error.paste.commandFailed" = "Beillesztés parancs sikertelen";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Átírási szolgáltató nem elérhető. Ellenőrizd a beállításokat és próbáld újra.";
+"transcription.error.providerNotAvailable.provider" = "%@ nem elérhető. Ellenőrizd a beállításokat és próbáld újra.";
+"transcription.error.providerNotAvailable.detail" = "%@ nem elérhető: %@";
+"transcription.error.modelNotDownloaded" = "Kérlek töltsd le először a modellt";
+"transcription.error.modelProtected" = "Ez a modell nem törölhető";
+"transcription.error.audioFileNotFound" = "Audio fájl nem található";
+"transcription.error.network.detail" = "Hálózati hiba: %@";
+"transcription.error.network.generic" = "Hálózati kapcsolati hiba";
+"transcription.error.apiKeyMissing.provider" = "%@ API kulcs szükséges az átíráshoz";
+"transcription.error.apiKeyMissing.generic" = "Felhő szolgáltató API kulcs szükséges az átíráshoz";
+"transcription.error.maxRetriesExceeded" = "Maximum újrapróbálási kísérletek túllépve";
+"transcription.error.unauthorized.provider" = "Jogosulatlan: érvénytelen %@ API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
+"transcription.error.unauthorized.generic" = "Jogosulatlan: érvénytelen API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
+"transcription.error.invalidRequest" = "Érvénytelen kérés: ellenőrizd az audio fájlt vagy beállításokat";
+"transcription.error.streamingInterrupted" = "Streamelés megszakítva; részleges szöveg megjelenítve";
+"transcription.error.busy" = "Az átírási szolgáltatás jelenleg foglalt";
+"transcription.error.invalidAudioFormat" = "Nem támogatott audio formátum";
+"transcription.error.audioConversionFailed" = "Nem sikerült az audio konvertálása a szükséges formátumra";
+"transcription.error.audioFileTooLarge" = "Túl nagy fájl: %@ meghaladja a(z) %@ limitet %@ esetén";
+"transcription.error.serverError" = "Szerver hiba (%d): %@";
+"transcription.error.rateLimited.seconds" = "Sebességkorlát: Túl sok kérés. Kérlek várj %d másodpercet és próbáld újra.";
+"transcription.error.rateLimited.generic" = "Sebességkorlát: Túl sok kérés. Kérlek várj egy kicsit és próbáld újra.";
+"transcription.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
+"transcription.error.quotaExceeded" = "%@ kvóta túllépve";
+"transcription.error.quotaExceeded.detail" = "%@ kvóta túllépve: %@";
+"transcription.error.timeout" = "Időtúllépés %@ közben. Ellenőrizd az internetkapcsolatot és próbáld újra.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Győződj meg róla, hogy az átírási szolgáltatód megfelelően van konfigurálva a Beállításokban.";
+"transcription.guidance.providerNotAvailable.provider" = "Győződj meg róla, hogy %@ megfelelően van konfigurálva. Helyi modelleknél töltsd le először a modellt. Felhő szolgáltatóknál ellenőrizd az API kulcsodat.";
+"transcription.guidance.apiKeyMissing.provider" = "Add hozzá a(z) %@ API kulcsodat a Beállításokban";
+"transcription.guidance.apiKeyMissing.generic" = "Add hozzá a felhő szolgáltató API kulcsodat a Beállításokban";
+"transcription.guidance.modelNotDownloaded" = "Töltsd le a modellt a Modellek szekcióból";
+"transcription.guidance.modelProtected" = "Ez a modell jelenleg használatban van";
+"transcription.guidance.audioFileNotFound" = "Az audio fájl törölve lett vagy áthelyezve";
+"transcription.guidance.networkError" = "Ellenőrizd az internetkapcsolatot és próbáld újra";
+"transcription.guidance.unauthorized.provider" = "Ellenőrizd a(z) %@ API kulcsodat vagy fiók engedélyeket a Beállításokban";
+"transcription.guidance.unauthorized.generic" = "Ellenőrizd az API kulcsodat vagy fiók engedélyeket a Beállításokban";
+"transcription.guidance.invalidRequest" = "Ellenőrizd az audio fájlt és mód beállításokat, majd próbáld újra";
+"transcription.guidance.invalidAudioFormat" = "Próbáld meg az audio fájlt MP3 vagy WAV formátumra konvertálni";
+"transcription.guidance.audioConversionFailed" = "Az audio fájl sérült lehet. Próbálj másik fájlt";
+"transcription.guidance.audioFileTooLarge" = "Használj rövidebb audio fájlt vagy osszd kisebb részekre";
+"transcription.guidance.serverError" = "Az átírási szolgáltatás problémákat tapasztal. Kérlek próbáld újra.";
+"transcription.guidance.rateLimited" = "Túl sok kérést küldtél. Várj egy kicsit újrapróbálás előtt.";
+"transcription.guidance.insufficientCredits" = "Vásárolj több kreditet a Beállításokban az átírás folytatásához";
+"transcription.guidance.quotaExceeded" = "Adj hozzá krediteket a(z) %@ fiókodhoz vagy frissítsd a számlázási adatokat";
+"transcription.guidance.timeout" = "A kérés túl sokáig tartott. Ellenőrizd az internet sebességet és próbáld újra.";
+"transcription.error.noSpeechDetected" = "Nem észlelhető beszéd a felvételben.";
+"transcription.guidance.noSpeechDetected" = "Tippek:\n• Beszélj tisztán a mikrofonba\n• Tartsd lenyomva a billentyűt hosszabb ideig beszélés előtt\n• Ellenőrizd, hogy a mikrofonod működik-e\n• Győződj meg róla, hogy a helyes bemeneti eszköz van kiválasztva";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
+"hyperwhisperCloud.error.network" = "Hálózati hiba: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Érvénytelen válasz a HyperWhisper Cloud-tól";
+"hyperwhisperCloud.error.server" = "Szerver hiba: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server futtatható fájl nem található.";
+"llama.runtime.error.missingDependencies" = "Futtatókörnyezet hiányzó függőségek: %@";
+"llama.runtime.error.copyFailed" = "Nem sikerült a futtatókörnyezet másolása: %@";
+"llama.runtime.error.copy.executable" = "Nem sikerült a futtatható fájl másolása: %@";
+"llama.runtime.missing" = "A Helyi futtatókörnyezet hiányzik ebből a telepítésből. Telepítsd újra a HyperWhispert a helyi utófeldolgozás visszaállításához.";
+"llama.runtime.genericError" = "Helyi futtatókörnyezet hiba: %@";
+"runtime.error.llama.missingLib" = "Helyi futtatókörnyezet leállt a hiányzó libmtmd.dylib miatt";
+"runtime.error.llama.reportedMissingLib" = "Helyi futtatókörnyezet jelentette a hiányzó libmtmd.dylib-et";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Beépített AI utófeldolgozás Cloudflare Workers-en futva. Nincs szükség konfigurációra.";
+"models.postProcessing.gpt4.1.nano.description" = "Közepes pontosság (92%), nagyon gyors sebesség (<1s). Alkalmas gyors vázlatokhoz és informális jegyzetekhez.";
+"models.postProcessing.gpt4.1.mini.description" = "Magas pontosság (94%), gyors sebesség (~1-2s). Jó mindennapi üzleti kommunikációhoz és standard dokumentumokhoz.";
+"models.postProcessing.gpt4.1.description" = "Nagyon magas pontosság (96%), közepes sebesség (~3-4s). Remek komplex formázáshoz és technikai tartalomhoz.";
+"models.postProcessing.gpt5.nano.description" = "Jó pontosság (95%), leggyorsabb sebesség (~1s). Tökéletes gyors jegyzetekhez, üzenetekhez és hétköznapi átírásokhoz.";
+"models.postProcessing.gpt5.mini.description" = "Kiváló pontosság (97%), közepes sebesség (~2-3s). Ideális egyensúly professzionális e-mailekhez, riportokhoz és találkozó jegyzetekhez.";
+"models.postProcessing.gpt5.description" = "Legmagasabb pontosság (99%+), leglassabb sebesség (~3-5s). Legjobb kritikus dokumentumokhoz, jogi, orvosi átírásokhoz, ahol a pontosság elsődleges.";
+"models.postProcessing.gpt5.1.description" = "Élvonalbeli pontosság (98%+), közepes sebesség (~2-3s). Kiváló komplex feladatokhoz, jogi dokumentumokhoz és technikai tartalomhoz kiváló érveléssel.";
+"models.postProcessing.gpt5.2.description" = "Legújabb GPT-5 sorozat fejlett érveléssel és gyorsabb következtetéssel. Legjobb általános választás kiváló minőségű szövegfeldolgozáshoz.";
+"models.postProcessing.claude4.5.haiku.description" = "Legújabb Claude Haiku fejlett érveléssel, miközben a válaszidők rövidek maradnak.";
+"models.postProcessing.claude4.sonnet.description" = "Kiegyensúlyozott teljesítmény. Kiváló érvelés és formázási képességek professzionális dokumentumokhoz.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 sorozat Pro szintű intelligenciával Flash sebességgel. Fejlett érvelés dinamikus gondolkodási képességekkel.";
+"models.postProcessing.gemini2.5.flash.description" = "Legjobb ár-érték arány. Sebességre optimalizált, miközben megtartja a jó pontosságot mindennapi használatra.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultra gyors modell költséghatékonyságra és nagy áteresztőképességre optimalizálva.";
+"models.postProcessing.groq.llama33.70b.description" = "Sokoldalú 70B modell kiváló minőséggel. ~280 token/másodperc. Ajánlott.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultra gyors 8B modell. ~560 token/másodperc azonnali szövegfeldolgozáshoz.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI nyílt forráskódú 120B modellje. ~500 token/másodperc kiváló minőségű feldolgozáshoz.";
+"models.postProcessing.groq.gptoss.20b.description" = "Könnyű 20B modell. ~1000 token/másodperc a leggyorsabb feldolgozáshoz.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B Cerebras-on. Ultra gyors 120B modell ~3000 token/másodperccel. Ajánlott.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B Cerebras-on. Könnyű és ultra gyors ~2200 token/másodperccel.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B Cerebras-on. Masszív 235B MoE modell ~1400 token/másodperccel. Csak előnézet.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 Cerebras-on. 355B paraméteres modell ~1000 token/másodperccel. Csak előnézet.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Súgó központ";
+"settings.resources.contact.support" = "Támogatás kapcsolat";
+"settings.resources.feedback" = "Visszajelzés és javaslatok";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Biztonsági mentés";
+"settings.backup.export.title" = "Beállítások exportálása";
+"settings.backup.export.subtitle" = "Mentsd el a beállításaidat, módokat és szókincset fájlba";
+"settings.backup.export.button" = "Exportálás...";
+"settings.backup.export.panel.title" = "Beállítások exportálása";
+"settings.backup.export.panel.label" = "Biztonsági mentés fájl:";
+"settings.backup.export.success" = "Beállítások sikeresen exportálva";
+"settings.backup.export.error.create" = "Nem sikerült a biztonsági mentés adatok létrehozása";
+"settings.backup.export.error.encode" = "Nem sikerült a biztonsági mentés adatok kódolása";
+"settings.backup.export.error.write" = "Nem sikerült a biztonsági mentés fájl írása";
+"settings.backup.includeAPIKeys.title" = "API kulcsok belefoglalása";
+"settings.backup.includeAPIKeys.subtitle" = "API kulcsok tárolása a biztonsági mentés fájlban (nem ajánlott megosztáshoz)";
+"settings.backup.includeLicense.title" = "Licenckulcs belefoglalása";
+"settings.backup.import.title" = "Beállítások importálása";
+"settings.backup.import.subtitle" = "Beállítások visszaállítása biztonsági mentés fájlból";
+"settings.backup.import.button" = "Importálás...";
+"settings.backup.import.panel.title" = "Beállítások importálása";
+"settings.backup.import.success" = "Importálás kész: %d mód, %d szókincs elem importálva";
+"settings.backup.import.error.read" = "Nem sikerült a biztonsági mentés fájl olvasása";
+"settings.backup.import.error.decode" = "Érvénytelen biztonsági mentés fájl formátum";
+"settings.backup.import.error.decode.keyNotFound" = "Hiányzó kötelező mező: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Hibás típus a mezőnél: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Hiányzó érték a mezőnél: %@";
+"settings.backup.import.error.decode.corrupted" = "Sérült adatok: %@";
+"settings.backup.import.error.decode.corruptedField" = "Sérült érték a mezőnél: %@";
+"settings.backup.import.error.version" = "A biztonsági mentés fájl újabb verzióból származik";
+"settings.backup.import.error.unknown" = "Importálás sikertelen";
+"settings.backup.import.confirm.title" = "Beállítások importálása?";
+"settings.backup.import.confirm.message" = "Ez lecseréli a meglévő módokat és szókincset a biztonsági mentés fájlból származókra. A beállítások szintén frissítésre kerülnek.";
+"settings.backup.import.confirm.button" = "Importálás";
+"settings.backup.conflict.skip" = "Meglévők kihagyása";
+"settings.backup.conflict.replace" = "Meglévők cseréje";
+"settings.backup.conflict.keepBoth" = "Mindkettő megtartása";
+"settings.backup.security.warning" = "Figyelmeztetés: Az exportált fájl érzékeny adatokat fog tartalmazni. Tartsd biztonságban és ne oszd meg.";
+"settings.backup.info.note" = "A biztonsági mentések beállításokat, módokat és szókincset tartalmaznak. Felvételek és átírások nem kerülnek bele.";
+"settings.backup.result.success.title" = "Sikeres";
+"settings.backup.result.error.title" = "Hiba";
+"settings.backup.export.choose.subtitle" = "Válassza ki, mit tartalmazzon a biztonsági mentési fájl";
+"settings.backup.export.section.settings" = "Beállítások";
+"settings.backup.export.section.modes" = "Módok";
+"settings.backup.export.section.vocabulary" = "Szótár";
+"settings.backup.import.importing" = "%@ importálása";
+"settings.backup.import.contains" = "Ez a fájl tartalmazza: %@";
+"settings.backup.import.contains.vocabulary" = "Szótár (%d szó)";
+"settings.backup.import.contains.none" = "semmi";
+"settings.backup.import.section.settings" = "Beállítások";
+"settings.backup.import.section.modes" = "Módok";
+"settings.backup.import.section.vocabulary" = "Szótár";
+"settings.backup.import.section.apiKeys" = "API-kulcsok";
+"settings.backup.import.section.license" = "Licenckulcs";
+"settings.backup.import.section.absent" = "— nincs a fájlban";
+"settings.backup.import.premerge.summary" = "Szótár: %d új hozzáadása, %d már létezik";
+"settings.backup.import.premerge.conflictLabel" = "A már meglévő szavak esetén:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Audio fájl kiválasztása";
+"transcribe.file.error.title" = "Átírási hiba";
+"transcribe.file.error.size.title" = "Túl nagy fájl";
+"transcribe.file.error.size.message" = "A kiválasztott fájl (%@) meghaladja a(z) %@ limitet %@ esetén.";
+"transcribe.file.error.format.title" = "Nem támogatott formátum";
+"transcribe.file.error.format.message" = ".%@ fájlok nem támogatottak %@ által. Támogatott formátumok: %@";
+"transcribe.file.error.read" = "Nem lehet olvasni a kiválasztott fájlt.";
+"transcribe.file.error.copy" = "Nem sikerült a fájl másolása a felvételek mappába.";
+"transcribe.file.error.video.title" = "Nincs audio a videóban";
+"transcribe.file.error.video.noAudio" = "Ez a videó fájl nem tartalmaz audio sávot. Kérlek válassz audio sávval rendelkező videót vagy audio fájlt.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Előkészítés...";
+"file.transcription.transcribing" = "Átírás...";
+"file.transcription.finishing" = "Befejezés...";
+"file.transcription.cancel" = "Mégsem";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Automatikus törlés engedélyezése";
+"history.autoDelete.enable.subtitle" = "A megadott időtartamnál régebbi felvételek törlésre kerülnek";
+"history.autoDelete.duration.prefix" = "Után";
+"history.autoDelete.unit.minutes" = "Perc";
+"history.autoDelete.unit.hours" = "Óra";
+"history.autoDelete.unit.days" = "Nap";
+"history.autoDelete.unit.minutes.plural" = "perc";
+"history.autoDelete.unit.hours.plural" = "óra";
+"history.autoDelete.unit.days.plural" = "nap";
+"history.autoDelete.status.disabled" = "Automatikus törlés letiltva";
+"history.autoDelete.status.enabled" = "Felvételek törlése %d %@ után";
+"history.autoDelete.cleanup.noItems" = "Nincs törlendő felvétel";
+"history.autoDelete.cleanup.summary" = "%d felvétel törölve és %@ felszabadítva";

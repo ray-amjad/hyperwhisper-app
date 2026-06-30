@@ -1,0 +1,3 @@
+-- Seed existing filesystem blog posts into blog_posts table.
+-- Intentionally left empty in the open-source repo: marketing comparison
+-- blog posts are not published here. Kept as a no-op to preserve migration order.

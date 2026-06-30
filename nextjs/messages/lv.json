@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI balss transkripcija macOS un Windows",
+    "description": "Rakstiet 5x ātrāk ar AI balss transkripciju. HyperWhisper transkribē jūsu balsi ar neticamu precizitāti macOS un Windows vidē. Runājiet dabiski un skatieties, kā vārdi parādās uzreiz."
+  },
+  "navbar": {
+    "features": "Iespējas",
+    "pricing": "Cenas",
+    "faq": "BUJ",
+    "support": "Atbalsts",
+    "download": "Lejupielādēt",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Mainīt valodu"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper logotips",
+    "headline": "Raksti, veido un radi",
+    "headlineAccent": "5x ātrāk ar AI",
+    "subheadline": "HyperWhisper transkribē jūsu balsi ar neticamu precizitāti. Vienkārši runājiet dabiski un skatieties, kā vārdi parādās uzreiz.",
+    "downloadCta": "Lejupielādēt tagad",
+    "demoCta": "Skatīties demo",
+    "availableOn": "Pieejams",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Radīts profesionāļiem",
+    "subtitle": "Katra funkcija ir izstrādāta, lai palīdzētu strādāt ātrāk un efektīvāk",
+    "customVocabulary": {
+      "title": "Pielāgots vārdu krājums",
+      "description": "Pievienojiet vārdus, saīsinājumus un īpašus terminus, lai katru reizi iegūtu perfektu precizitāti."
+    },
+    "languages": {
+      "title": "100+ valodas",
+      "description": "Transkribējiet vairāk nekā 100 valodās ar automātisku valodas noteikšanu."
+    },
+    "offline": {
+      "title": "Atbalsts bezsaistē",
+      "description": "Darbojas pilnībā bezsaistē. Jūsu dati nekad neatstāj jūsu ierīci."
+    },
+    "privacy": {
+      "title": "Privātums pirmajā vietā",
+      "description": "Nav nepieciešams konts. Nav izsekošanas. Jūsu balss dati paliek jūsu Mac vai PC."
+    },
+    "hybridProcessing": {
+      "title": "Hibrīda apstrāde",
+      "description": "Izvēlieties lokālos modeļus privātumam vai mākoņa API ātrumam. Labākais no abām pasaulēm."
+    },
+    "customizable": {
+      "title": "Ļoti pielāgojams",
+      "description": "Izvēlieties no 9+ API pakalpojumu sniedzējiem un 30+ transkripcijas modeļiem."
+    },
+    "realTime": {
+      "title": "Straumēšana reāllaikā",
+      "description": "Skatiet, kā jūsu vārdi parādās uzreiz runāšanas laikā. Nozares līmeņa precizitāte ar latentumu zem 700ms."
+    },
+    "fileImport": {
+      "title": "Failu imports",
+      "description": "Importējiet audio vai video failus transkripcijai. Atbalstīti visi populārie formāti ar automātisku klusuma noteikšanu."
+    },
+    "screenOcr": {
+      "title": "Ekrāna OCR",
+      "description": "Atļaujiet HyperWhisper redzēt jūsu ekrānu, lai tas visu varētu precīzi uzrakstīt."
+    },
+    "mcpServer": {
+      "title": "Vietējais API un MCP serveris",
+      "description": "Iebūvētais MCP serveris ļauj Claude, Cursor un citiem AI aģentiem vadīt HyperWhisper. Tikai vietējais HTTP API ar bearer autentifikāciju skriptiem un automatizācijai."
+    },
+    "modes": {
+      "title": "Režīmi jebkurai situācijai",
+      "description": "Pārslēdzieties starp dažādiem transkripcijas režīmiem, kas optimizēti sapulcēm, piezīmēm, e-pastiem, programmēšanai un citam. Katrs režīms izmanto pielāgotus promptus, lai perfekti formatētu tekstu.",
+      "meeting": "Sapulce",
+      "email": "E-pasts",
+      "note": "Piezīme",
+      "code": "Kods",
+      "legal": "Juridiskais",
+      "medical": "Medicīniskais",
+      "presetModes": "Iepriekš iestatīti režīmi",
+      "customModes": "Pielāgoti režīmi"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Ātrāk nekā rakstīt",
+    "accuracyRate": "Precizitātes līmenis",
+    "languagesSupported": "Atbalstītās valodas",
+    "providersSupported": "Atbalstītie pakalpojumu sniedzēji"
+  },
+  "pricing": {
+    "title": "Bez abonēšanas. Nekad.",
+    "subtitle": "Maksā vienreiz, lieto mūžīgi. Arī mēs neciešam abonēšanu.",
+    "guarantee": "14 dienu naudas atgriešanas garantija",
+    "guaranteeExtended": "ja neesat pilnībā apmierināts.",
+    "learnMore": "Uzzināt vairāk",
+    "free": {
+      "name": "Bezmaksas",
+      "price": "$0",
+      "period": "uz visiem laikiem",
+      "description": "Ideāli, lai izmēģinātu HyperWhisper",
+      "cta": "Lejupielādēt bez maksas",
+      "features": {
+        "transcriptionLimit": "5 minūtes transkripcijas dienā",
+        "basicModes": "Pamata transkripcijas režīmi",
+        "offlineTranscription": "Transkripcija bezsaistē",
+        "apiTranscription": "API transkripcija (izmantojiet savas atslēgas)",
+        "postProcessing": "Teksta pēcapstrāde",
+        "providers": "9+ pakalpojumu sniedzēji izvēlei",
+        "lifetimeUpdates": "Atjauninājumi uz mūžu",
+        "cloudLimited": "HyperWhisper Cloud (ierobežota lietošana)",
+        "customVocabulary": "Pielāgots vārdu krājums",
+        "prioritySupport": "Prioritārs atbalsts"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "uz mūžu",
+      "description": "Vienreizējs pirkums, neierobežota jauda uz visiem laikiem",
+      "cta": "Pirkt tagad - mūža piekļuve",
+      "mostPopular": "Populārākais",
+      "features": {
+        "unlimitedTranscription": "Neierobežota transkripcija",
+        "allModes": "Visi transkripcijas režīmi",
+        "offlineTranscription": "Transkripcija bezsaistē",
+        "apiTranscription": "API transkripcija (izmantojiet savas atslēgas)",
+        "postProcessing": "Teksta pēcapstrāde",
+        "providers": "9+ pakalpojumu sniedzēji izvēlei",
+        "lifetimeUpdates": "Atjauninājumi uz mūžu",
+        "cloudCredits": "HyperWhisper Cloud ($5 kredīti)",
+        "customVocabulary": "Pielāgots vārdu krājums",
+        "prioritySupport": "Prioritārs atbalsts"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise un pielāgota cenu politika",
+      "description": "Apjoma atlaides, SSO, prioritārs atbalsts, iekšējais hostings un pielāgotas integrācijas",
+      "cta": "Sazināties ar pārdošanu"
+    }
+  },
+  "faq": {
+    "title": "Biežāk uzdotie jautājumi",
+    "subtitle": "Viss, kas jums jāzina par HyperWhisper",
+    "contactPrompt": "Joprojām ir jautājumi? Rakstiet mums uz",
+    "questions": {
+      "accuracy": {
+        "question": "Cik precīza ir transkripcija?",
+        "answer": "Ar modernākajiem AI modeļiem sasniedzam nozarē vadošu 99% precizitāti. Precizitāti varat vēl vairāk uzlabot, pievienojot savu pielāgoto vārdu krājumu tehniskiem terminiem, vārdiem un specializētam žargonam."
+      },
+      "offline": {
+        "question": "Vai varu lietot bez interneta?",
+        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
+      },
+      "apiKey": {
+        "question": "Vai man jāmaksā par API piekļuvi?",
+        "answer": "Jūs izmantojat savu API atslēgu šiem pakalpojumu sniedzējiem: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral un Google Gemini. Daži pakalpojumu sniedzēji jaunajiem lietotājiem piedāvā bezmaksas kredītus; Deepgram piedāvā $200, AssemblyAI piedāvā $50. Ilgtermiņā tas ir ievērojami lētāk nekā jebkura abonēšana. \n\nVarat izmantot arī HyperWhisper Cloud (iebūvēts), kam nav vajadzīga API atslēga un kas darbojas pēc pay-as-you-go modeļa.\n\nAtcerieties, lokālais bezsaistes režīms darbojas bez jebkādas API atslēgas un ir pilnīgi bezmaksas."
+      },
+      "languages": {
+        "question": "Kādas valodas tas atbalsta?",
+        "answer": "Atbalstītas ir vairāk nekā 100 valodas uzreiz - no angļu un spāņu līdz mandarīnu un arābu. Vairums modeļu var automātiski noteikt, kurā valodā runājat, un nemanāmi pārslēgties."
+      },
+      "offlineModels": {
+        "question": "Kādi bezsaistes modeļi ir pieejami?",
+        "answer": "Bezsaistes transkripcijai piedāvājam vairākus Whisper modeļa izmērus (izstrādājis OpenAI, atbalsta 99+ valodas). Piedāvājam arī NVidia Parakeet modeļus (atbalsta 25+ valodas).\n      \n      Bezsaistes pēcapstrādei piedāvājam vairākus Gemma 3 modeļa izmērus (izstrādājis Google)."
+      },
+      "compatibility": {
+        "question": "Vai tas darbojas ar visām Mac un Windows lietotnēm?",
+        "answer": "Jā, tas darbojas visur, kur varat rakstīt. Neatkarīgi no tā, vai rakstāt e-pastus, dokumentus, kodu vai tērzējat. Vienkārši nospiediet saīsni, runājiet un skatieties, kā vārdi parādās uzreiz."
+      },
+      "privacy": {
+        "question": "Kā tiek aizsargāts mans privātums?",
+        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs vai Mistral).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), vai tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Kas ir HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud ir iebūvēta cloud transkripcija, kas paredzēta mazāk tehniskiem lietotājiem, kuri vēlas ātri sākt.\n\nTas darbojas pēc pay as you go principa. Iegādājoties licenci, saņemat $5 transkripcijas kredītos. Vēlāk varat pievienot vairāk kredītu.\n    \nPiedāvājam trīs precizitātes līmeņus: Medium (ātrākais, ar Groq), High (ieteicams, ar Deepgram) un Highest (labākā kvalitāte, ar xAI Grok STT). Pēcapstrāde notiek automātiski. Mēs neglabājam neko citu kā tikai informāciju par izlietotajiem kredītiem.\n\nJūs maksājat tieši tik, cik maksājam mēs šiem pakalpojumu sniedzējiem. Mēs nepiemērojam uzcenojumu.\n\nSirdsmieram HyperWhisper Cloud pirmkodu varat apskatīt [šeit](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Vai mani balss dati tiks izmantoti MI modeļu apmācībai?",
+        "answer": "HyperWhisper Cloud atsaka jūsu datu izmantošanu modeļu apmācībai pie katra pakalpojumu sniedzēja, ko izmantojam. Izmantojot savu API atslēgu, atteikšanās ir jūsu atbildība — skatiet mūsu [datu privātuma rokasgrāmatu](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Kāpēc mūža cena, nevis abonēšana?",
+        "answer": "Mēs ticam vienkāršai un godīgai cenu politikai. Samaksājiet vienreiz $39 un izmantojiet HyperWhisper uz visiem laikiem. Bez ikmēneša maksām, bez pārsteigumiem. Bezmaksas versija ļauj izmēģināt galvenās funkcijas ar 3 minūtēm transkripcijas dienā."
+      },
+      "deviceLimit": {
+        "question": "Cik ierīcēs varu izmantot savu licenci?",
+        "answer": "Jūs varat izmantot savu licenci tik ierīcēs, cik vēlaties, ievērojot mūsu Godīgas lietošanas politiku, kas aprakstīta [Pakalpojuma noteikumos](/legal/terms-of-service). Šī politika ir veidota elastīgi likumīgai personīgai un biznesa lietošanai, vienlaikus novēršot ļaunprātīgu izmantošanu."
+      },
+      "requirements": {
+        "question": "Kādas ir sistēmas prasības?",
+        "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Optimālai veiktspējai ieteicami 8GB RAM."
+      },
+      "windowsStatus": {
+        "question": "Vai Windows versijai ir visas tās pašas funkcijas kā macOS?",
+        "answer": "Windows versija tika izlaista nesen, tāpēc tajā vēl var nebūt visas funkcijas, kas pieejamas macOS. Mēs aktīvi strādājam pie pilnīgas funkciju paritātes abās platformās."
+      },
+      "madeBy": {
+        "question": "Kas to izveidoja?",
+        "answer": "To izveidoja YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Atbalsta centrs",
+    "subtitle": "Mēs esam šeit, lai palīdzētu jums izmantot HyperWhisper pilnā apjomā",
+    "getInTouch": "Sazinieties ar mums",
+    "description": "Tehniskam atbalstam, licenču jautājumiem vai jebkuriem jautājumiem par HyperWhisper mūsu komanda ir gatava palīdzēt.",
+    "emailUsAt": "Rakstiet mums uz:",
+    "openInClient": "Atvērt savā e-pasta klientā:",
+    "defaultClient": "Noklusējuma e-pasta klients",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Parasti atbildam 24 stundu laikā darba dienās.",
+    "emailTemplate": {
+      "subject": "HyperWhisper atbalsta pieprasījums",
+      "body": "Sveiki,\n\nVersija: \n[varat pārbaudīt sadaļā Iestatījumi > Par]\n\nProblēma: \n[Aprakstiet savu problēmu]\n\nDetaļas: \n[Norādiet svarīgas detaļas, ko darījāt pirms avārijas]\n\n[Jūsu ziņa šeit]\n\nAr cieņu,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper logotips",
+    "title": "Lejupielādēt HyperWhisper",
+    "emailPlaceholder": "E-pasts",
+    "description": "Mēs nosūtīsim jums lejupielādes saiti un īsu pamācības video, lai varētu ātri sākt. Bez spama.",
+    "downloadButton": "Lejupielādēt HyperWhisper",
+    "errorGeneric": "Kaut kas nogāja greizi. Lūdzu, mēģiniet vēlreiz.",
+    "errorNetwork": "Tīkla kļūda. Lūdzu, pārbaudiet savienojumu un mēģiniet vēlreiz.",
+    "thankYouTitle": "Paldies!",
+    "downloadStarted": "Lejupielādei vajadzētu sākties automātiski.",
+    "manualDownload": "Lejupielāde nesākās? Spiediet šeit",
+    "skipAndDownloadButton": "Izlaist un lejupielādēt"
+  },
+  "downloadPage": {
+    "title": "Lejupielādēt HyperWhisper",
+    "countdownText": "Sākas pēc {seconds}...",
+    "downloadStarted": "Pārbaudiet Downloads mapi",
+    "downloadNow": "Lejupielādēt tagad",
+    "downloadAgain": "Lejupielādēt vēlreiz",
+    "selectArchitecture": "Izvēlieties arhitektūru",
+    "downloadX64": "Lejupielādēt x64",
+    "downloadArm64": "Lejupielādēt ARM64",
+    "orDivider": "VAI",
+    "homebrewTitle": "Instalēt ar Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopēt",
+    "copied": "Nokopēts!"
+  },
+  "purchaseSuccess": {
+    "title": "Pirkums veiksmīgs!",
+    "subtitle": "Laipni lūdzam HyperWhisper Pro! Jūsu mūža licence ir gatava.",
+    "checkEmail": {
+      "title": "Pārbaudiet savu e-pastu",
+      "description": "Mēs nosūtījām jūsu licences atslēgu un lejupielādes instrukcijas uz jūsu e-pasta adresi. Tām vajadzētu pienākt dažu minūšu laikā."
+    },
+    "whatsNext": {
+      "title": "Kas tālāk?",
+      "step1": {
+        "title": "Pārbaudiet iesūtni",
+        "description": "Meklējiet e-pastu no HyperWhisper"
+      },
+      "step2": {
+        "title": "Nokopējiet licences atslēgu",
+        "description": "Tā būs vajadzīga, lai aktivizētu lietotni"
+      },
+      "step3": {
+        "title": "Lejupielādējiet HyperWhisper",
+        "description": "Instalējiet lietotni un ievadiet licences atslēgu"
+      }
+    },
+    "downloadButton": "Lejupielādēt HyperWhisper",
+    "returnHome": "Atgriezties sākumlapā",
+    "noEmail": "Nesaņēmāt e-pastu? Pārbaudiet spam mapi vai",
+    "contactSupport": "sazinieties ar atbalstu",
+    "loading": "Notiek ielāde..."
+  },
+  "footer": {
+    "tagline": "Rakstiet 5x ātrāk ar AI balss transkripciju macOS un Windows.",
+    "product": "Produkts",
+    "resources": "Resursi",
+    "company": "Uzņēmums",
+    "legal": "Juridiski",
+    "links": {
+      "features": "Iespējas",
+      "pricing": "Cenas",
+      "download": "Lejupielādēt",
+      "roadmap": "Ceļvedis",
+      "helpCenter": "Palīdzības centrs",
+      "manageBilling": "Pārvaldīt norēķinus",
+      "customerPortal": "Klientu portāls",
+      "olderVersions": "Vecākas versijas",
+      "blog": "Blogs",
+      "about": "Par mums",
+      "support": "Atbalsts",
+      "privacyPolicy": "Privātuma politika",
+      "termsOfService": "Lietošanas noteikumi",
+      "refundPolicy": "Naudas atgriešanas politika",
+      "dataTraining": "Datu privātums"
+    },
+    "copyright": "© 2026 HyperWhisper. Visas tiesības aizsargātas.",
+    "linkedinAria": "LinkedIn"
+  }
+}

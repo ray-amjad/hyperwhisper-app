@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "exportDate": "2026-06-17T11:24:00Z",
+  "appVersion": "2.28.0",
+  "platform": "macos",
+  "vocabulary": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440002",
+      "word": "HyperWhisper",
+      "sortOrder": 0,
+      "source": "manual"
+    },
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440003",
+      "word": "kubernetes",
+      "replacement": "Kubernetes",
+      "sortOrder": 1,
+      "source": "manual"
+    }
+  ]
+}

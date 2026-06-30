@@ -1,0 +1,82 @@
+---
+title: Select a Microphone or Audio Input Device
+description: Choose which microphone or audio input device HyperWhisper records from, and how it handles device changes at runtime.
+---
+
+HyperWhisper lets you pick any audio input device on your system — built-in mic, USB microphone, AirPods, Bluetooth headset, or a virtual audio cable — directly from the menu bar (macOS) or system tray (Windows). Your choice is remembered across restarts, and the list refreshes automatically when you plug or unplug hardware.
+
+## Changing the active input device
+
+<Tabs>
+  <Tab title="macOS">
+    1. Click the HyperWhisper icon in the menu bar.
+    2. Hover over **Microphone** to open the submenu.
+    3. Click the device you want to use. A checkmark appears next to the active device.
+
+    The system's default input device is labelled **(Default)** in the list. If no device is explicitly selected, HyperWhisper records from whichever device macOS considers the default at the time of each recording.
+  </Tab>
+  <Tab title="Windows">
+    1. Right-click the HyperWhisper icon in the system tray.
+    2. Hover over **Microphone** to open the submenu.
+    3. Click the device you want to use. A checkmark appears next to the active device.
+
+    On first launch HyperWhisper selects the first device Windows reports. If that device is later removed, HyperWhisper automatically falls back to the first available device (see [When a device disconnects](#when-a-device-disconnects) below).
+  </Tab>
+</Tabs>
+
+## Real-time device discovery
+
+You do not need to restart HyperWhisper after connecting new hardware.
+
+<Tabs>
+  <Tab title="macOS">
+    HyperWhisper registers CoreAudio property listeners for both the device roster and the default input device. When you plug in a USB microphone, pair AirPods, or change the system default in **System Settings → Sound**, the Microphone submenu updates automatically via an async main-actor dispatch.
+  </Tab>
+  <Tab title="Windows">
+    HyperWhisper subscribes to the Windows Core Audio API (`MMDeviceEnumerator`) for device-added, device-removed, device-state-changed, and default-device-changed events. Notifications are debounced by 250 ms so that USB hubs with multiple devices trigger a single refresh rather than one per device. The Microphone submenu updates automatically after the debounce window.
+  </Tab>
+</Tabs>
+
+## When a device disconnects
+
+<Tabs>
+  <Tab title="macOS">
+    If your selected microphone disappears (Bluetooth disconnect, USB unplug), HyperWhisper clears the selection and falls back to the macOS system default input device. Your persisted preference is also cleared so the app does not attempt to reconnect to a device that may no longer be available.
+  </Tab>
+  <Tab title="Windows">
+    If the selected device is removed, HyperWhisper tries to match the previous device by name when it returns. If the name is no longer in the list, HyperWhisper selects the first available device. The tray menu reflects the updated selection automatically.
+  </Tab>
+</Tabs>
+
+## Persistence
+
+<Tabs>
+  <Tab title="macOS">
+    Your selected device ID is stored in `UserDefaults` under the key `selectedMicrophoneId`. An empty value means "follow the macOS system default." The setting survives app restarts and macOS updates.
+  </Tab>
+  <Tab title="Windows">
+    The selected device name is stored in `%LOCALAPPDATA%\HyperWhisper\settings.json` under `LastSelectedMicrophone`.
+  </Tab>
+</Tabs>
+
+## Keep Microphone Warm
+
+Both platforms include a **Keep Microphone Warm** option that holds an idle capture stream open between recordings. This reduces the audio startup delay when you press your shortcut — particularly noticeable with Bluetooth devices that power down their microphone when idle.
+
+<Tabs>
+  <Tab title="macOS">
+    Enable it in **Settings → Sound → Keep Microphone Warm**. It is off by default.
+  </Tab>
+  <Tab title="Windows">
+    Enable it in **Settings → Sound → Keep Microphone Warm**. It is off by default.
+  </Tab>
+</Tabs>
+
+<Note>
+  Keep Microphone Warm increases background microphone permission usage. If your operating system shows HyperWhisper as "using the microphone" even when not recording, this setting is the reason.
+</Note>
+
+## Related
+
+- [Audio Input Volume](/audio-input) — check and adjust your microphone's input level
+- [Transcribing System Audio](/system-audio) — route system audio (meetings, videos) into HyperWhisper using a virtual audio cable

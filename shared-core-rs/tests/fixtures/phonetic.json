@@ -1,0 +1,324 @@
+[
+  {
+    "word": "smith",
+    "codes": [
+      "zmi",
+      "zmit"
+    ]
+  },
+  {
+    "word": "schwartz",
+    "codes": [
+      "stsvarts",
+      "stsvorts",
+      "svYrtS",
+      "svYrts",
+      "svart",
+      "svartS",
+      "svarts",
+      "svort",
+      "svortS",
+      "svorts",
+      "swartS",
+      "swarts",
+      "swortS",
+      "sworts"
+    ]
+  },
+  {
+    "word": "anthropic",
+    "codes": [
+      "YntrYpik",
+      "Yntropik",
+      "antrYpik",
+      "antropiS",
+      "antropik",
+      "antropits",
+      "ontrYpik",
+      "ontropiS",
+      "ontropik",
+      "ontropits"
+    ]
+  },
+  {
+    "word": "claude",
+    "codes": [
+      "klDd",
+      "klDdi",
+      "klad",
+      "kladi",
+      "klod",
+      "klodi",
+      "klud",
+      "kludi",
+      "tzlDdi",
+      "tzladi",
+      "tzludi",
+      "zlDdi",
+      "zladi",
+      "zludi"
+    ]
+  },
+  {
+    "word": "kubernetes",
+    "codes": [
+      "kQbYrnYtis",
+      "kQbYrnitis",
+      "kQbirnYtis",
+      "kQbirnitis",
+      "kubYrnYtis",
+      "kubYrnitis",
+      "kubirnYtis",
+      "kubirniti",
+      "kubirnitiS",
+      "kubirnitis",
+      "kuvirnitis"
+    ]
+  },
+  {
+    "word": "nginx",
+    "codes": [
+      "ggS",
+      "ggs",
+      "gngS",
+      "gngs",
+      "gnks",
+      "ngS",
+      "nggS",
+      "nggs",
+      "ngng",
+      "ngngS",
+      "ngngs",
+      "ngnk",
+      "ngnks",
+      "ngnz",
+      "ngs",
+      "ningS",
+      "nings",
+      "ninks",
+      "nngS",
+      "nngs",
+      "nnks",
+      "nxingS",
+      "nxings",
+      "nxinks",
+      "nxinz",
+      "nzng",
+      "nzngS",
+      "nzngs",
+      "nznk",
+      "nznks",
+      "nznz"
+    ]
+  },
+  {
+    "word": "github",
+    "codes": [
+      "gQtup",
+      "gituf",
+      "gitup",
+      "itup",
+      "xituf",
+      "xitup",
+      "zituf",
+      "zitup"
+    ]
+  },
+  {
+    "word": "naveen",
+    "codes": [
+      "nDvin",
+      "nYvin",
+      "nabin",
+      "navDn",
+      "navin",
+      "nobin",
+      "novDn",
+      "novin"
+    ]
+  },
+  {
+    "word": "siobhan",
+    "codes": [
+      "soban",
+      "sobon",
+      "sobxan",
+      "sobxon",
+      "sovan",
+      "sovon",
+      "sovxan",
+      "sovxon"
+    ]
+  },
+  {
+    "word": "jose",
+    "codes": [
+      "ios",
+      "iosi",
+      "ioz",
+      "iozi",
+      "iusi",
+      "xosi",
+      "zos",
+      "zosi",
+      "zoz",
+      "zozi"
+    ]
+  },
+  {
+    "word": "muller",
+    "codes": [
+      "mQlir",
+      "muli",
+      "mulir"
+    ]
+  },
+  {
+    "word": "wojciech",
+    "codes": [
+      "vDsi",
+      "vDsiS",
+      "vDsis",
+      "vDsix",
+      "vDtsYx",
+      "vDtsi",
+      "vDtsiS",
+      "vDtsis",
+      "vDtsitS",
+      "vDtsits",
+      "vDtsix",
+      "visi",
+      "visiS",
+      "visis",
+      "visix",
+      "vitsYx",
+      "vitsi",
+      "vitsiS",
+      "vitsis",
+      "vitsitS",
+      "vitsits",
+      "vitsix",
+      "vosi",
+      "vosiS",
+      "vosis",
+      "vosix",
+      "votsYx",
+      "votsi",
+      "votsiS",
+      "votsis",
+      "votsitS",
+      "votsits",
+      "votsix",
+      "voxtsitS",
+      "voxtsits",
+      "voxtsix",
+      "voztsi",
+      "voztsiS",
+      "voztsis",
+      "voztsix",
+      "wDtsitS",
+      "wDtsits",
+      "wDtsix",
+      "witsitS",
+      "witsits",
+      "witsix",
+      "wotsitS",
+      "wotsits",
+      "wotsix"
+    ]
+  },
+  {
+    "word": "katherine",
+    "codes": [
+      "kYtYrQni",
+      "kYtYrini",
+      "kYtirQni",
+      "kYtirini",
+      "katYrQni",
+      "katYrini",
+      "katirDni",
+      "katirQni",
+      "katirin",
+      "katirini",
+      "kotYrQni",
+      "kotYrini",
+      "kotirDni",
+      "kotirQni",
+      "kotirin",
+      "kotirini"
+    ]
+  },
+  {
+    "word": "stephen",
+    "codes": [
+      "stYfn",
+      "stYpin",
+      "stifn",
+      "stipin"
+    ]
+  },
+  {
+    "word": "macarthur",
+    "codes": [
+      "mYkYrtur",
+      "mYkartur",
+      "mYkortur",
+      "makYrtur",
+      "makartur",
+      "makortur",
+      "matsartur",
+      "matsortur",
+      "mazartur",
+      "mazortur",
+      "mokYrtur",
+      "mokartur",
+      "mokortur",
+      "motsartur",
+      "motsortur",
+      "mozartur",
+      "mozortur"
+    ]
+  },
+  {
+    "word": "deepgram",
+    "codes": [
+      "dDbgram",
+      "dDbgrom",
+      "dYbgram",
+      "dYbgrom",
+      "dibgram",
+      "dibgran",
+      "dibgrom",
+      "dibgron"
+    ]
+  },
+  {
+    "word": "elevenlabs",
+    "codes": [
+      "YlYvYnlYps",
+      "YlYvYnlaps",
+      "YlYvYnlops",
+      "YlYvinlYps",
+      "YlYvinlaps",
+      "YlYvinlops",
+      "YlivYnlYps",
+      "YlivYnlaps",
+      "YlivYnlops",
+      "YlivinlYps",
+      "Ylivinlaps",
+      "Ylivinlops",
+      "iilivinlaps",
+      "iilivinlops",
+      "ilYvYnlYps",
+      "ilYvYnlaps",
+      "ilYvYnlops",
+      "ilYvinlYps",
+      "ilYvinlaps",
+      "ilYvinlops",
+      "ilibinlafs",
+      "ilibinlaps",
+      "ilivinlapS",
+      "ilivinlopS"
+    ]
+  }
+]

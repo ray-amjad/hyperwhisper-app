@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Từ vựng";
+"vocabulary.description" = "Điều này giúp phần mềm nhận dạng tên, chữ viết tắt, tiếng lóng hoặc các từ từ các ngôn ngữ khác khi trộn các ngôn ngữ.";
+"vocabulary.input.title" = "Nhập";
+"vocabulary.new.word.placeholder" = "Từ hoặc cụm từ mới";
+"vocabulary.replacement.placeholder" = "Thay thế bằng...";
+"vocabulary.add.button" = "Thêm vào từ vựng";
+"vocabulary.edit.title" = "Chỉnh sửa mục từ vựng";
+"vocabulary.update.button" = "Cập nhật";
+"vocabulary.cancel.button" = "Hủy";
+"vocabulary.word.column" = "Từ/Cụm từ";
+"vocabulary.replacement.column" = "Thay thế";
+"vocabulary.empty.title" = "Chưa có từ vựng nào";
+"vocabulary.empty.subtitle" = "Thêm các từ tùy chỉnh để cải thiện độ chính xác của bản ghi âm";
+"vocabulary.duplicate.title" = "Mục nhập trùng lặp";
+"vocabulary.duplicate.message" = "%@ đã tồn tại trong từ vựng của bạn. Mỗi từ chỉ có thể được thêm một lần.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Vượt quá giới hạn từ khóa";
+"vocabulary.limit.message" = "Bạn có %d từ, nhưng chỉ %d từ đầu tiên sẽ được sử dụng để tăng cường bản ghi âm.";
+
+// MARK: - Streaming View
+"streaming.title" = "Luồng phát (Beta)";
+"streaming.description" = "Phiên bản chuyển đổi tức thì khi bạn nói. Văn bản được nhập trực tiếp vào ứng dụng đang tập trung.";
+"streaming.enable.title" = "Bật Luồng phát";
+"streaming.provider.picker.title" = "Nhà cung cấp";
+"streaming.model.title" = "Mô hình";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Định dạng nhanh";
+"streaming.fastFormatting.description" = "Giảm độ trễ định dạng thông minh để nhập nhanh hơn";
+"streaming.warning.vocabAutoDetect" = "Từ vựng tùy chỉnh được vô hiệu hóa ở chế độ tự động phát hiện";
+"streaming.warning.vocabUnsupported" = "Từ vựng tùy chỉnh không được hỗ trợ với %@ streaming";
+"streaming.warning.apiKeyRequired" = "Cần khóa API %@";
+"streaming.warning.apiKeyRequired.action" = "Cấu hình";
+"streaming.warning.apiKeyInvalid" = "Khóa API %@ không hoạt động. Cập nhật nó trong Cài đặt > Khóa API.";
+"streaming.warning.apiKeyInvalid.action" = "Cập nhật khóa";
+"streaming.language.title" = "Ngôn ngữ";
+"streaming.shortcut.title" = "Phím tắt";
+
+// MARK: - Home View
+"home.get.started" = "Bắt đầu";
+"home.open.system.settings" = "Mở Cài đặt Hệ thống";
+
+// MARK: - API Keys
+"api.key.required" = "Khóa API Bắt buộc";
+"api.keys.required" = "Khóa API Bắt buộc";
+"api.key.configure.message" = "Cấu hình khóa API của bạn để bật chuyển đổi.";
+"api.key.internet.required" = "Kết nối Internet Bắt buộc";
+"api.key.internet.message" = "Phiên bản chuyển đổi đám mây yêu cầu kết nối internet.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Hủy";
+"common.delete" = "Xóa";
+"common.edit" = "Chỉnh sửa";
+"common.done" = "Xong";
+"common.copy" = "Sao chép";
+"common.back" = "Quay lại";
+"common.skip" = "Bỏ qua";
+"common.settings" = "Cài đặt";
+"common.error" = "Lỗi";
+"common.retry" = "Thử lại";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Trang chủ";
+"sidebar.statistics" = "Thống kê";
+"sidebar.modes" = "Chế độ";
+"sidebar.vocabulary" = "Từ vựng";
+"sidebar.streaming" = "Luồng phát";
+"sidebar.history" = "Lịch sử";
+"sidebar.settings" = "Cài đặt";
+
+// MARK: - App Messages
+"app.unknown.error" = "Đã xảy ra lỗi không xác định";
+"app.microphone.permission.message" = "HyperWhisper cần quyền truy cập micrô của bạn để chuyển đổi âm thanh.\n\nVui lòng đi tới Cài đặt Hệ thống > Quyền riêng tư & Bảo mật > Micrô và bật quyền truy cập cho HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper lưu các bản ghi âm vào một thư mục trong Tài liệu của bạn để dễ tìm thấy: Documents/hyperwhisper/recordings. macOS có thể yêu cầu quyền lần đầu tiên chúng tôi cố gắng lưu ở đó. Nếu bạn không muốn cấp quyền truy cập, chúng tôi có thể lưu trữ các bản ghi âm trong một thư mục ứng dụng riêng thay thế.";
+"app.upgrade.to.pro" = "Nâng cấp lên Pro";
+"app.enter.license.key" = "Nhập Khóa Giấy phép";
+"accessibility.upgrade.pro" = "Nâng cấp lên HyperWhisper Pro";
+"accessibility.enter.license" = "Nhập Khóa Giấy phép";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Thêm khóa API %@ của bạn để bật chế độ được chọn.";
+"home.api.keys.missing.single" = "Thêm khóa API %@ của bạn để bật chế độ được chọn.";
+"home.getting.started.recording.title" = "Bắt đầu ghi âm";
+"home.getting.started.recording.description" = "Biến giọng nói của bạn thành văn bản bằng một cú nhấp.";
+"home.getting.started.shortcuts.title" = "Tùy chỉnh phím tắt của bạn";
+"home.getting.started.shortcuts.description" = "Thay đổi phím tắt bàn phím cho HyperWhisper.";
+"home.getting.started.mode.title" = "Tạo một chế độ";
+"home.getting.started.mode.description" = "Xây dựng chế độ hoàn hảo cho quy trình công việc của bạn.";
+"home.getting.started.vocabulary.title" = "Thêm từ vựng";
+"home.getting.started.vocabulary.description" = "Dạy HyperWhisper các từ tùy chỉnh, tên hoặc các thuật ngữ trong ngành.";
+"home.add.api.key" = "Thêm Khóa API";
+"home.accessibility.enable.title" = "Bật Khả năng tiếp cận";
+"home.accessibility.enable.description" = "Cho phép HyperWhisper tự động dán vào các ứng dụng bạn đang sử dụng.";
+"home.accessibility.waiting" = "Chờ đợi...";
+"home.accessibility.open.settings" = "Mở Cài đặt";
+"home.accessibility.restart.after.permission" = "Khởi động lại ứng dụng sau khi cấp quyền";
+"home.getting.started.completed" = "✓ Hoàn thành";
+"home.whatsnew.badge" = "MỚI";
+"home.whatsnew.title" = "Có gì mới?";
+"home.whatsnew.update1.date" = "3 Tháng 7";
+"home.whatsnew.update1.title" = "Parakeet hiện đã có sẵn";
+"home.whatsnew.update1.description" = "Tải xuống trực tiếp từ danh sách Mô hình Ngôn ngữ trong tạo Chế độ để thử nó ngay hôm nay.";
+"home.whatsnew.update2.date" = "5 Tháng 6";
+"home.whatsnew.update2.title" = "Hỗ trợ cho mọi mô hình tùy chỉnh tương thích với OpenAI";
+"home.whatsnew.update2.description" = "Bây giờ bạn có thể thêm bất kỳ API tương thích OpenAI nào vào danh sách mô hình của bạn.";
+"home.whatsnew.update3.date" = "27 Tháng 5";
+"home.whatsnew.update3.title" = "Cửa sổ ghi âm Mini hoàn toàn mới";
+"home.whatsnew.update3.description" = "Giao diện ghi âm gọn gàng, tối thiểu lại khỏi đường của bạn.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Cập nhật Gần đây";
+"home.recent.updates.error" = "Không thể tải cập nhật";
+"home.recent.updates.retry" = "Thử lại";
+"home.recent.updates.empty" = "Không có cập nhật gần đây";
+"home.recent.updates.version" = "Phiên bản %@";
+"home.recent.updates.new.badge" = "MỚI";
+"home.recent.updates.no.notes" = "Không có ghi chú phát hành";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Cần Quyền truy cập Micrô";
+"common.open.settings" = "Mở Cài đặt";
+"alerts.api.local.mode" = "Sử dụng Chế độ Cục bộ";
+"alerts.documents.permission.title" = "Lưu vào Tài liệu?";
+"common.continue" = "Tiếp tục";
+"alerts.documents.permission.use.another" = "Sử dụng vị trí khác";
+"alerts.api.configure.generic" = "Vui lòng cấu hình khóa API của bạn trong Cài đặt.";
+"alerts.api.internet.offline" = "Phiên bản chuyển đổi đám mây yêu cầu kết nối internet. Vui lòng kiểm tra cài đặt mạng hoặc chọn chế độ phiên bản chuyển đổi cục bộ.";
+"alerts.api.configure.header.multiple" = "Để sử dụng chế độ được chọn, vui lòng cấu hình các khóa API sau trong Cài đặt:";
+"alerts.api.configure.header.single" = "Để sử dụng chế độ được chọn, vui lòng cấu hình khóa API sau trong Cài đặt:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Sau khi thêm các khóa bị thiếu, hãy thử lại.";
+"alerts.export.failed.title" = "Xuất Thất bại";
+"alerts.export.logs.failed.message" = "Không thể xuất nhật ký cập nhật. Vui lòng thử lại.";
+"alerts.export.logs.success.title" = "Nhật ký Được xuất";
+"alerts.export.logs.success.message" = "Nhật ký cập nhật đã được xuất thành công.";
+"alerts.export.logs.saveFailed.message" = "Không thể lưu nhật ký vào vị trí được chọn: %@";
+"alerts.export.diagnostics.failed.message" = "Không thể xuất chẩn đoán. Vui lòng thử lại.";
+"alerts.export.diagnostics.success.title" = "Chẩn đoán Được xuất";
+"alerts.export.diagnostics.success.message" = "Tất cả nhật ký chẩn đoán đã được xuất thành công.";
+"alerts.export.diagnostics.saveFailed.message" = "Không thể lưu chẩn đoán vào vị trí được chọn: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Xuất nhật ký cập nhật để hỗ trợ";
+"panels.export.diagnostics.message" = "Xuất tất cả nhật ký chẩn đoán";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Bắt đầu với HyperWhisper";
+"sidebar.statistics.help" = "Xem thống kê sử dụng và phân tích";
+"sidebar.modes.help" = "Quản lý chế độ phiên bản chuyển đổi cho các bối cảnh khác nhau";
+"sidebar.vocabulary.help" = "Thêm các từ và cụm từ tùy chỉnh để nhận dạng tốt hơn";
+"sidebar.streaming.help" = "Cài đặt phiên bản chuyển đổi luồng phát thực tế (yêu cầu Internet)";
+"sidebar.history.help" = "Xem và tìm kiếm lịch sử phiên bản chuyển đổi của bạn";
+"sidebar.settings.help" = "Cấu hình cài đặt ứng dụng và tùy chọn";
+
+// MARK: - Recording State
+"recording.state.ready" = "Sẵn sàng để ghi âm";
+"recording.state.recording" = "Đang ghi âm...";
+"recording.state.processing" = "Đang xử lý âm thanh...";
+"recording.state.transcribing" = "Đang chuyển đổi...";
+"recording.state.postprocessing" = "Xử lý sau bằng AI...";
+"recording.state.complete" = "Chuyển đổi hoàn tất: %@";
+"recording.state.error" = "Lỗi: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Bắt đầu hoặc dừng ghi âm";
+"menu.recording.stop" = "Dừng Ghi âm";
+"menu.recording.toggle" = "Bắt đầu/Dừng Ghi âm";
+"menu.history" = "Lịch sử...";
+"menu.settings" = "Cài đặt...";
+"menu.microphone" = "Micrô";
+"menu.select.mode" = "Chọn Chế độ";
+"menu.transcribe.file" = "Tệp Chuyển đổi";
+"menu.mode.unnamed" = "Không đặt tên";
+"menu.version.label" = "Phiên bản %@";
+"common.quit" = "Thoát";
+"menu.microphone.default" = "Mặc định";
+"menu.microphone.system.default" = "Mặc định";
+"menu.bar.state.recording" = "Ghi âm";
+"menu.bar.state.processing" = "Đang xử lý";
+"menu.bar.state.idle" = "Không hoạt động";
+"menu.command.check.updates" = "Kiểm tra Cập nhật…";
+"menu.debug.title" = "Gỡ lỗi";
+"menu.command.export.logs" = "Xuất Nhật ký Cập nhật…";
+"menu.command.export.diagnostics" = "Xuất Chẩn đoán…";
+"menu.command.help.website" = "Trang web Trợ giúp";
+"menu.command.contact.support" = "Liên Hệ Hỗ Trợ";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Chung";
+"settings.section.sound" = "Âm thanh";
+"settings.section.license" = "Giấy phép";
+"settings.section.credits" = "Tín dụng";
+"settings.section.storage" = "Lưu trữ";
+"settings.section.models" = "Mô hình";
+"settings.section.api.keys" = "Khóa API";
+"settings.section.shortcuts" = "Phím tắt Bàn phím";
+"settings.section.output" = "Đầu ra Văn bản";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Tiếng Anh)";
+"onboarding.model.pro.multilingual" = "Pro (Đa ngôn ngữ)";
+"onboarding.model.downloading.progress" = "Đang tải xuống... %d%%";
+"onboarding.accessibility.title" = "Bật Khả năng tiếp cận để Dán Tự động";
+"onboarding.accessibility.subtitle" = "Cho phép HyperWhisper tự động dán văn bản chuyển đổi vào các ứng dụng của bạn.";
+"onboarding.accessibility.instructions" = "Cài đặt Hệ thống → Quyền riêng tư & Bảo mật → Khả năng tiếp cận";
+"onboarding.accessibility.status.granted" = "Quyền khả năng tiếp cận được cấp";
+"onboarding.accessibility.status.pending" = "Quyền khả năng tiếp cận chưa được cấp";
+"onboarding.accessibility.waiting" = "Chờ quyền...";
+"onboarding.accessibility.open.preferences" = "Mở Tùy chọn Khả năng tiếp cận";
+"onboarding.accessibility.restart" = "Sau khi cấp quyền, hãy khởi động lại HyperWhisper.";
+"onboarding.model.recommendation.title" = "Chúng tôi đề xuất mô hình Pro";
+"onboarding.model.recommendation.subtitle" = "Dựa trên ngôn ngữ hệ thống của bạn và khả năng của Mac của bạn.";
+"onboarding.model.recommendation.note" = "Tải xuống bằng cách nhấp nút bên dưới.";
+"onboarding.model.downloaded" = "Đã tải xuống";
+"onboarding.model.metric.speed" = "Tốc độ";
+"onboarding.model.metric.accuracy" = "Độ chính xác";
+"onboarding.model.metric.size" = "Kích thước";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "Hoặc chọn một mô hình thoại khác";
+"onboarding.model.picker.title" = "Mô hình";
+"onboarding.model.option.proEnglish" = "Pro (Tiếng Anh)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Tải xuống Mô hình";
+"onboarding.audio.title" = "Bạn muốn sử dụng thiết bị ghi âm nào?";
+"onboarding.audio.subtitle" = "Đảm bảo rằng âm lượng nhập âm thanh của bạn được bật và đang ghi nhận âm lượng.";
+"onboarding.audio.input.label" = "Thiết bị Nhập";
+"onboarding.audio.picker.label" = "Thiết bị";
+"onboarding.audio.use.system.default" = "Sử dụng thiết bị mặc định của hệ thống";
+"onboarding.audio.level" = "Mức Âm thanh";
+"onboarding.audio.open.sound" = "Mở Tùy chọn Âm thanh";
+"onboarding.microphone.title" = "Cần Quyền Ghi âm";
+"onboarding.microphone.subtitle" = "Để ghi âm, chúng tôi cần truy cập micrô của bạn.";
+"onboarding.microphone.status.granted" = "Quyền micrô được cấp";
+"onboarding.microphone.status.pending" = "Quyền micrô chưa được cấp";
+"onboarding.microphone.grant" = "Cấp Quyền";
+"onboarding.test.title" = "Tất cả đã sẵn sàng, hãy bắt đầu ghi âm đầu tiên của bạn";
+"onboarding.test.press.prefix" = "Nhấn";
+"onboarding.test.press.suffix" = "để bắt đầu";
+"onboarding.test.status.recording" = "Đang ghi âm...";
+"onboarding.test.status.speak" = "Nói bây giờ...";
+"onboarding.test.stop" = "Dừng Ghi âm";
+"onboarding.test.success.title" = "Tuyệt vời! Bản ghi âm của bạn thành công.";
+"onboarding.test.success.subtitle" = "Bản chuyển đổi của bạn sẽ xuất hiện trong ứng dụng.";
+"onboarding.test.start.cta" = "Nhấp để Bắt đầu Ghi âm";
+"onboarding.test.start.shortcut" = "Hoặc nhấn phím tắt bàn phím của bạn";
+"onboarding.settings.title" = "Làm tốt! Bây giờ, hãy mở Cài đặt";
+"onboarding.settings.subtitle" = "Nhấp chuột phải vào biểu tượng HyperWhisper và chọn Cài đặt...";
+"onboarding.settings.menu.startStop" = "Bắt đầu/Dừng Ghi âm";
+"onboarding.settings.menu.history" = "Lịch sử...";
+"onboarding.settings.menu.settings" = "Cài đặt...";
+"onboarding.settings.menu.quit" = "Thoát";
+"onboarding.settings.info" = "Trong Cài đặt, bạn có thể tùy chỉnh phím tắt, quản lý khóa API và cấu hình HyperWhisper theo ý thích của mình.";
+"onboarding.completion.title" = "Bạn đã hoàn thành!";
+"onboarding.completion.subtitle" = "Nếu bạn gặp sự cố hoặc có câu hỏi, hãy liên hệ qua email hoặc Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Email";
+"onboarding.completion.resources.title" = "Tài nguyên Bổ sung";
+"onboarding.completion.resources.documentation" = "Tài liệu";
+"onboarding.completion.resources.videos" = "Hướng dẫn Video";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Hoàn tất Onboarding";
+"onboarding.error.model.notFound" = "Không tìm thấy mô hình trong danh mục.";
+"onboarding.error.microphone.denied" = "Quyền micrô bị từ chối. Vui lòng cấp quyền trong Cài đặt Hệ thống.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Chạy khi đăng nhập";
+"settings.general.launchAtLogin.info" = "Khởi động HyperWhisper tự động khi bạn đăng nhập.";
+"settings.general.launchMinimized.title" = "Khởi động ở trạng thái tối thiểu";
+"settings.general.launchMinimized.info" = "Khởi động HyperWhisper với cửa sổ chính ẩn. Ứng dụng sẽ có thể truy cập được thông qua thanh menu.";
+"settings.general.showInDock.title" = "Hiển thị trong Dock";
+"settings.general.showInDock.info" = "Hiển thị biểu tượng ứng dụng trong Dock.";
+"settings.general.showRecordingWindow.title" = "Hiển thị cửa sổ ghi âm";
+"settings.general.showRecordingWindow.info" = "Hiển thị cửa sổ sóng nổi trong khi ghi âm và xử lý.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Tắt";
+"settings.general.mediaControl.mode.mute" = "Tắt tiếng Âm thanh";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Ghi lỗi";
+"settings.general.errorLogging.info" = "Tự động chụp và gửi báo cáo lỗi để giúp cải thiện ứng dụng.";
+"settings.general.autoUpdate.title" = "Cập nhật tự động";
+"settings.general.autoUpdate.info" = "Tự động kiểm tra và tải xuống các phiên bản mới của HyperWhisper.";
+"settings.general.support.title" = "Cần giúp đỡ?";
+"settings.version.detail" = "Phiên bản %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Phát hiệu ứng âm thanh";
+"settings.sound.soundEffects.info" = "Phát tín hiệu âm thanh khi bắt đầu và dừng ghi âm.";
+"settings.sound.mediaControl.title" = "Kiểm soát phương tiện trong khi ghi âm";
+"settings.sound.mediaControl.info" = "Chọn cách HyperWhisper xử lý âm thanh khác trong khi bạn ghi âm. 'Tắt' để giữ âm thanh không thay đổi, 'Tắt tiếng Âm thanh' để tắt tiếng đầu ra hệ thống khi ghi âm và khôi phục sau đó.";
+"settings.sound.autoIncreaseMicVolume.title" = "Tự động tăng âm lượng micrô";
+"settings.sound.autoIncreaseMicVolume.info" = "Tự động đặt âm lượng nhập liệu micrô ở mức tối đa khi ghi âm bắt đầu, sau đó khôi phục mức ban đầu khi ghi âm dừng. Chỉ áp dụng khi sử dụng thiết bị nhập liệu mặc định của hệ thống.";
+"settings.sound.vad.title" = "Loại bỏ Im lặng trước khi chuyển đổi";
+"settings.sound.vad.info" = "Tự động phát hiện và loại bỏ im lặng ở đầu và cuối bằng cách sử dụng phát hiện thoại AI. Điều này có thể cải thiện độ chính xác của bản chuyển đổi và giảm thời gian xử lý.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Thư mục Bản ghi âm";
+"settings.storage.showFolder.title" = "Hiển thị thư mục bản ghi âm";
+"settings.storage.showFolder.button" = "Hiển thị trong Finder";
+"settings.storage.notice" = "Thay đổi thư mục bản ghi âm chỉ ảnh hưởng đến các bản ghi âm mới. Các bản ghi âm hiện có vẫn ở vị trí ban đầu.";
+"settings.storage.choose.button" = "Chọn...";
+"settings.storage.dialog.select" = "Chọn Thư mục";
+"settings.storage.dialog.message" = "Chọn một thư mục để lưu trữ bản ghi âm";
+"settings.storage.storeAsM4A.title" = "Nén bản ghi âm thành M4A";
+"settings.storage.storeAsM4A.subtitle" = "Chuyển đổi các bản ghi âm WAV thành các tệp nhỏ hơn sau khi chuyển đổi. Tắt để giữ các tệp WAV gốc (lớn hơn nhưng không mất dữ liệu).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Dán kết quả tự động";
+"settings.output.paste.subtitle" = "Tự động dán văn bản chuyển đổi vào ứng dụng hoạt động";
+"settings.output.paste.info" = "Nếu được bật, văn bản sẽ được dán vào ứng dụng ở trước cùng.";
+"settings.output.restoreClipboard.title" = "Khôi phục bảng nhớ tạm sau khi dán";
+"settings.output.restoreClipboard.subtitle" = "Khôi phục nội dung bảng nhớ tạm trước đó sau khi dán";
+"settings.output.restoreClipboard.info" = "Khôi phục nội dung bảng nhớ tạm trước đó của bạn sau khi ứng dụng dán bản chuyển đổi.";
+"settings.output.restore.after" = "Khôi phục sau";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Độ trễ khôi phục bảng nhớ tạm";
+"settings.output.hideClipboardHistory.title" = "Ẩn khỏi lịch sử bảng nhớ tạm";
+"settings.output.hideClipboardHistory.subtitle" = "Ngăn chặn bản chuyển đổi xuất hiện trong các ứng dụng lịch sử bảng nhớ tạm";
+"settings.output.hideClipboardHistory.info" = "Khi được bật, văn bản chuyển đổi sẽ không được lưu bởi các trình quản lý bảng nhớ tạm như Paste, Maccy hoặc Alfred.";
+"settings.output.clipboard.header" = "Bảng nhớ tạm";
+"settings.output.removeFillers.title" = "Xóa từ đệm";
+"settings.output.removeFillers.subtitle" = "Xóa 'uh', 'um' và 'er' khỏi bản chép thô.";
+"settings.output.removeFillers.info" = "Khi bật, HyperWhisper sẽ xóa các từ đệm phổ biến khỏi bản chép thô trước khi xuất.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Bật/Tắt Ghi âm";
+"settings.shortcuts.toggleRecording.subtitle" = "Bắt đầu và dừng bản ghi âm";
+"settings.shortcuts.cancelRecording.title" = "Hủy Ghi âm";
+"settings.shortcuts.cancelRecording.subtitle" = "Loại bỏ bản ghi âm hoạt động";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Bấm để Nói";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Giữ một phím để ghi âm, nhả khi xong";
+"settings.shortcuts.pushToTalk.enable.info" = "Bật chế độ Bấm để Nói để ghi âm nhanh bằng một lần nhấn phím.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Chế độ Ghi âm";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Chọn phím nào để sử dụng";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Vô hiệu hóa";
+"settings.shortcuts.pushToTalk.mode.fn" = "Phím FN";
+"settings.shortcuts.pushToTalk.mode.control" = "Phím Control";
+"settings.shortcuts.pushToTalk.mode.custom" = "Phím tắt Tùy chỉnh";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Nhấn đôi để khóa ghi âm";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Nhấn nhanh hai lần để tiếp tục ghi âm mà không cần giữ";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Phím tắt Tùy chỉnh";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Nhấn tổ hợp phím để sử dụng";
+
+
+"settings.shortcuts.changeMode.title" = "Thay đổi Chế độ";
+"settings.shortcuts.changeMode.subtitle" = "Chỉ hoạt động khi ghi âm";
+
+"settings.shortcuts.reset.button" = "Đặt lại thành Mặc định";
+"settings.shortcuts.reset.dialog.title" = "Đặt lại Phím tắt Bàn phím";
+"settings.shortcuts.reset.confirm" = "Đặt lại";
+"settings.shortcuts.reset.dialog.message" = "Điều này sẽ đặt lại tất cả các phím tắt bàn phím về giá trị mặc định của chúng.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "Khóa API được lưu trữ an toàn trên thiết bị của bạn và chỉ được gửi đến nhà cung cấp khi cần.";
+"settings.api.help.link" = "Trợ giúp về Khóa API";
+"settings.api.transcription.title" = "Chuyển đổi";
+"settings.api.transcription.subtitle" = "Khóa API cho các dịch vụ chuyển đổi giọng nói thành văn bản dựa trên đám mây.";
+"settings.api.postProcessing.title" = "Xử lý sau";
+"settings.api.postProcessing.subtitle" = "Khóa API cho cải thiện văn bản và định dạng do AI cung cấp.";
+"settings.api.placeholder" = "Nhập khóa API %@ của bạn";
+"settings.api.openLink" = "Mở trang khóa API %@";
+"settings.api.status.accessibility" = "%@ trạng thái: %@";
+"settings.api.status.unknown" = "Trạng thái nhà cung cấp không xác định";
+"settings.api.status.checking" = "Kiểm tra sức khỏe đang diễn ra";
+"settings.api.status.unauthorized" = "Khóa API bị từ chối bởi nhà cung cấp";
+"settings.api.status.unreachable" = "Nhà cung cấp hiện không thể tiếp cận";
+"settings.api.status.notInstalled" = "SDK nhà cung cấp không được cài đặt";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Không xác định";
+"provider.status.checking" = "Đang kiểm tra…";
+"provider.status.healthy" = "Sẵn sàng";
+"provider.status.unauthorized" = "Khóa không hợp lệ";
+"provider.status.unreachable" = "Ngoại tuyến";
+"provider.status.notInstalled" = "Không cài đặt";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Giấy phép Được Kích hoạt";
+"alerts.license.deactivated.title" = "Giấy phép Bị Hủy kích hoạt";
+"alerts.license.activated.message" = "Giấy phép của bạn đã được kích hoạt thành công. Tận hưởng quyền truy cập không giới hạn vào tất cả các tính năng!";
+"alerts.license.deactivated.message" = "Giấy phép của bạn đã bị hủy kích hoạt trên thiết bị này. Bây giờ bạn có thể kích hoạt nó ở nơi khác.";
+"alerts.license.failed.title" = "Hoạt động Thất bại";
+"alerts.license.failed.message" = "Hoạt động thất bại. Vui lòng thử lại.";
+"license.button.deactivate" = "Hủy Kích hoạt Thiết bị";
+"license.button.deactivating" = "Đang Hủy kích hoạt...";
+"license.button.manageBilling" = "Quản lý Thanh toán";
+"license.button.activate" = "Kích hoạt";
+"license.button.activating" = "Đang Kích hoạt...";
+"license.status.label" = "Trạng thái: %@";
+"license.status.trial.title" = "Dùng thử";
+"license.status.active.title" = "Hoạt động";
+"license.status.expired.title" = "Đã hết hạn";
+"license.status.invalid.title" = "Không hợp lệ";
+"license.status.trial.description" = "Dùng thử Miễn phí (5 phút/ngày, %d mô hình)";
+"license.status.active.description" = "Được cấp phép – Quyền truy cập Đầy đủ";
+"license.status.expired.description" = "Giấy phép Đã hết hạn";
+"license.status.invalid.description" = "Giấy phép Không hợp lệ";
+"settings.license.key.title" = "Khóa Giấy phép";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Dán từ Bảng nhớ tạm";
+"settings.license.clearInput" = "Xóa";
+"settings.license.recovery.prompt" = "Quên khóa giấy phép của bạn?";
+"settings.license.recovery.button" = "Đi đến cổng thông tin khách hàng";
+"settings.license.daily.title" = "Chuyển đổi Hàng ngày";
+"settings.license.daily.usage" = "Đã sử dụng %@ trong %@";
+"settings.license.limitReached" = "Đã Đạt Giới hạn";
+"settings.license.models.title" = "Mô hình Ngoại tuyến";
+"settings.license.models.progress" = "Đã tải xuống %d trên %d mô hình";
+"settings.license.models.progress.one" = "Đã tải xuống %d trên %d mô hình";
+"settings.license.upgrade.text" = "Nâng cấp để chuyển đổi không giới hạn và tải xuống mô hình";
+"settings.license.upgrade.button" = "Nâng cấp";
+"license.error.invalidResponse" = "Định dạng phản hồi không hợp lệ";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Tín dụng HyperWhisper Cloud";
+"settings.credits.refresh" = "Làm mới";
+"settings.credits.subtitle" = "Theo dõi tín dụng chuyển đổi và sử dụng của bạn";
+"settings.credits.manage" = "Quản lý Tín dụng";
+"settings.credits.timeRemaining" = "Thời gian Chuyển đổi Còn lại";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "phút";
+"settings.credits.creditsRemaining" = "%@ tín dụ còn lại";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Giới hạn Miễn phí Hàng ngày (100 tín dụ)";
+"settings.credits.resets" = "Đặt lại %@";
+"settings.credits.warning.low" = "Tín dụ sắp hết. Cân nhắc mua giấy phép để có tín dụ bổ sung.";
+"settings.credits.warning.exhausted.daily" = "Giới hạn hàng ngày đã cạn kiệt. Mua giấy phép để sử dụng không giới hạn hoặc chờ để đặt lại.";
+"settings.credits.warning.exhausted" = "Tín dụ đã hết. Mua thêm tín dụ để tiếp tục sử dụng HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Thông tin Tài khoản";
+"settings.credits.stat.creditsRemaining" = "Tín dụ Còn lại";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Phút Còn lại";
+"settings.credits.stat.accountType" = "Loại Tài khoản";
+"settings.credits.accountType.licensed" = "Được cấp phép";
+"settings.credits.accountType.anonymous" = "Ẩn danh";
+"settings.credits.accountType.trial" = "Dùng thử";
+"settings.credits.stat.customerId" = "ID Khách hàng";
+"settings.credits.stat.dailyLimit" = "Giới hạn Hàng ngày";
+"settings.credits.dailyLimit.value" = "100 tín dụ";
+"settings.credits.loading" = "Đang tải số dư tín dụ...";
+"settings.credits.error.title" = "Không thể tải số dư tín dụ";
+"settings.credits.error.retry" = "Thử lại";
+"settings.credits.empty.title" = "Không có thông tin tín dụ";
+"settings.credits.empty.subtitle" = "Nhấp làm mới để tải số dư tín dụ của bạn";
+"settings.credits.empty.button" = "Tải Tín dụ";
+"settings.credits.error.insufficient" = "Tín dụ không đủ. Bạn có %d tín dụ còn lại.";
+"settings.credits.error.network" = "Lỗi mạng: %@";
+"settings.credits.error.invalidResponse" = "Phản hồi không hợp lệ từ máy chủ. Vui lòng thử lại.";
+"settings.credits.error.server" = "Lỗi máy chủ: %@";
+"settings.models.alert.limit.title" = "Giới hạn tải xuống mô hình đã đạt";
+"settings.models.alert.limit.message" = "Phiên bản dùng thử bao gồm %d lần tải xuống mô hình. Nâng cấp giấy phép của bạn để tải xuống không giới hạn.";
+"settings.models.alert.cannotDelete.title" = "Không thể Xóa Mô hình";
+"settings.models.parakeet.title" = "Mô hình Parakeet";
+"settings.models.parakeet.subtitle" = "Được đề xuất cho hầu hết người dùng. Mô hình đa ngôn ngữ hỗ trợ 25 ngôn ngữ.";
+"settings.models.parakeet.empty" = "Không có mô hình Parakeet nào có sẵn.";
+"settings.models.whisper.title" = "Mô hình Whisper";
+"settings.models.whisper.subtitle" = "Mô hình Whisper của OpenAI. Mô hình lớn hơn chính xác hơn. Hỗ trợ 100+ ngôn ngữ.";
+"settings.models.whisper.empty" = "Không có mô hình Whisper nào có sẵn.";
+"settings.models.help.cancelDownload" = "Hủy tải xuống";
+"settings.models.help.remove" = "Xóa mô hình";
+"settings.models.downloaded" = "Đã tải xuống";
+"settings.models.download" = "Tải xuống";
+"settings.models.downloading" = "Đang tải xuống…";
+"settings.models.localPostProcessing.title" = "Mô hình xử lý sau cục bộ";
+"settings.models.localPostProcessing.memoryWarning" = "Được khuyến nghị cho Mac có 24 GB bộ nhớ hợp nhất trở lên. Tốc độ phụ thuộc vào chip — nhanh hơn trên M3/M4 Pro trở lên.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Từ trong năm nay";
+"vocabulary.input.placeholder" = "Thêm từ hoặc tạo đoạn trích";
+"vocabulary.action.addWord" = "Thêm từ";
+"vocabulary.action.replaceWith" = "Thay thế bằng…";
+"vocabulary.action.replace" = "Thay thế";
+"vocabulary.replacement.field.placeholder" = "Văn bản thay thế…";
+"settings.output.autocapitalizeInsert.title" = "Tự động viết hoa khi chèn";
+"settings.output.autocapitalizeInsert.subtitle" = "Khớp ngữ cảnh con trỏ khi chèn văn bản";
+"settings.output.autocapitalizeInsert.info" = "Nếu được bật, từ đầu tiên của văn bản bản ghi được chèn sẽ được điều chỉnh để khớp với ngữ cảnh con trỏ (đầu câu hoặc giữa câu). Tắt tính năng này để đọc chính tả luôn dùng chữ thường.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper cần quyền Trợ năng để đọc ngữ cảnh con trỏ cần thiết cho viết hoa tự động.\n\nNhấp vào \"Mở Cài đặt\", nhấn nút chuyển đổi bên cạnh HyperWhisper, sau đó thử lại.";
+"settings.output.removeFillerWords.title" = "Xóa từ đệm";
+"settings.output.removeFillerWords.subtitle" = "Loại bỏ \"ừm\", \"à\" và \"ờ\" khỏi bản ghi thô khi tắt hậu xử lý AI";
+"settings.output.removeFillerWords.info" = "Chỉ áp dụng khi một chế độ bỏ qua hậu xử lý AI. Các chế độ được cải tiến bởi AI xử lý việc làm sạch giọng nói trong lời nhắc.";
+"sidebar.modelLibrary" = "Thư viện mô hình";
+"sidebar.modelLibrary.help" = "Duyệt qua mọi mô hình giọng nói và hậu xử lý trong một nơi";
+"settings.shortcuts.quickCapture.enable.title" = "Chụp nhanh";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Ghi âm và gửi bản ghi âm vào Ghi chú — không cần tập trung vào ứng dụng trước.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Phím tắt";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Nhấn bất cứ đâu để ghi âm và gửi vào Ghi chú.";
+"settings.shortcuts.quickCapture.mode.title" = "Chế độ";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Chế độ phiên âm được sử dụng — điều khiển mô hình, lời nhắc và xử lý hậu kỳ.";
+"settings.shortcuts.quickCapture.mode.current" = "Chế độ hiện tại";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper cần quyền kiểm soát Ghi chú. Cấp quyền tại Cài đặt hệ thống → Quyền riêng tư → Tự động hóa.";
+"settings.section.vocabulary" = "Từ điển";
+"settings.vocabulary.icloudSync.title" = "Đồng bộ iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Đồng bộ từ điển tùy chỉnh của bạn trên tất cả các Mac đã đăng nhập vào cùng một tài khoản iCloud.";
+"settings.vocabulary.icloudSync.info" = "Mặc định tắt. Chỉ từ điển tùy chỉnh của bạn được đồng bộ — bản ghi và bản ghi âm vẫn ở trên Mac này. Các thay đổi sẽ có hiệu lực vào lần tiếp theo bạn mở HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Đóng HyperWhisper để áp dụng thay đổi";
+"vocabulary.icloudSync.restart.message" = "Các thay đổi đồng bộ từ điển iCloud sẽ có hiệu lực vào lần tiếp theo bạn mở HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Đóng HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Sau";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Giữ micro ấm giữa các lần ghi âm";
+"settings.sound.keepWarmMicrophone.info" = "Giảm độ trễ khởi động push-to-talk bằng cách giữ phiên micro mở trong khi HyperWhisper ở chế độ chờ. macOS sẽ hiển thị liên tục chỉ báo micro màu cam, và tai nghe Bluetooth có thể ở lại chế độ cuộc gọi chất lượng thấp hơn khi tính năng này được bật.";
+"settings.models.local.inUse" = "Mô hình cục bộ này hiện đang được sử dụng cho hậu xử lý bởi:
+
+%@
+
+Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi xóa.";
+"models.postProcessing.gemma4.e2b.description" = "Nhanh và chính xác. Lựa chọn đa năng tuyệt vời cho hậu xử lý.";
+"models.postProcessing.gemma4.e4b.description" = "Chất lượng cao hơn với nhiều chi tiết hơn. Tốt cho văn bản dài.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Suy luận nhanh chỉ với 4B tham số hoạt động.";
+"models.postProcessing.gemma4.31b.description" = "Mô hình dày đặc 31B. Chất lượng cao nhất, yêu cầu 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Mô hình này không thể xóa vì nó được sử dụng bởi:\n\n%@\n\nCập nhật các chế độ này để sử dụng một mô hình khác trước khi xóa.";
+"settings.models.parakeet.inUse" = "Mô hình Parakeet này không thể xóa vì nó được sử dụng bởi:\n\n%@\n\nCập nhật các chế độ này để sử dụng một mô hình khác trước khi xóa.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Không xác định";
+"settings.models.directory.whisper" = "Thư mục mô hình Whisper";
+"settings.models.directory.parakeet" = "Thư mục mô hình Parakeet";
+"settings.models.directory.local" = "Thư mục mô hình cục bộ";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — nhận dạng giọng nói đa ngôn ngữ được tối ưu hóa cho CoreML.";
+"settings.models.qwen3asr.languages" = "30 ngôn ngữ";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Không thể xóa mô hình Qwen3 ASR này vì nó đang được sử dụng bởi:\n\n%@\n\nCập nhật các chế độ này để sử dụng mô hình khác trước khi xóa.";
+"settings.models.directory.show" = "Hiển thị trong Finder";
+"models.error.checksumFailed" = "Xác minh tổng kiểm tra mô hình không thành công. Bản tải xuống có thể bị hỏng.";
+
+// MARK: - Statistics View
+"statistics.title" = "Thống kê";
+"statistics.header.title" = "Thống kê Sử dụng của Bạn";
+"statistics.header.subtitle" = "Theo dõi hoạt động và hiệu suất chuyển đổi của bạn";
+"statistics.card.recordings" = "Tổng số Bản ghi âm";
+"statistics.card.recordings.subtitle" = "Bản chuyển đổi hoàn tất";
+"statistics.card.duration" = "Tổng Thời gian";
+"statistics.card.duration.subtitle" = "Thời gian dành cho ghi âm";
+"statistics.card.words" = "Tổng số Từ";
+"statistics.card.words.subtitle" = "Từ được chuyển đổi";
+"statistics.card.average" = "Thời lượng Trung bình";
+"statistics.card.average.subtitle" = "Mỗi bản ghi âm";
+"statistics.graph.title" = "Hoạt động Theo Thời gian";
+"statistics.daily.empty" = "Chưa có bản ghi âm nào";
+"statistics.filter.week" = "Tuần Này";
+"statistics.filter.month" = "Tháng Này";
+"statistics.filter.alltime" = "Toàn thời gian";
+
+// MARK: - History View
+"history.title" = "Lịch sử";
+"history.search.placeholder" = "Tìm kiếm";
+"history.filter.all" = "Tất cả";
+"history.filter.today" = "Hôm nay";
+"history.filter.week" = "Tuần Này";
+"history.filter.month" = "Tháng Này";
+"history.empty.title" = "Không tìm thấy bản ghi âm nào";
+"history.empty.subtitle" = "Thử điều chỉnh tìm kiếm của bạn";
+"history.detail.empty" = "Chọn một bản ghi âm để xem chi tiết";
+"history.multi.selected" = "%d bản ghi âm được chọn";
+"history.multi.delete" = "Xóa Đã chọn";
+"history.context.deleteSelected" = "Xóa %d Bản ghi âm";
+"history.context.retry" = "Thử lại Chuyển đổi";
+"history.context.retryWith" = "Thử lại với...";
+"history.context.copy" = "Sao chép Văn bản";
+"history.retrying" = "Đang thử lại chuyển đổi...";
+"history.retry.help" = "Thử lại chuyển đổi";
+"history.section.today" = "Hôm nay";
+"history.section.yesterday" = "Hôm qua";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Thất bại";
+"history.status.transcription.failed.prefix" = "Chuyển đổi không thành công:";
+"history.status.retry.failed.prefix" = "Thử lại không thành công:";
+"history.failure.reason" = "Lý do: %@";
+"history.mode.default" = "Mặc định";
+"history.audio.showInFinder" = "Hiển thị trong Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Xóa chế độ?";
+"modes.delete.confirm.message" = "Điều này sẽ xóa chế độ được chọn. Hành động này không thể được hoàn tác.";
+"modes.header.title" = "Chế độ";
+"modes.header.subtitle" = "Tạo hồ sơ tùy chỉnh cho các bối cảnh và quy trình công việc khác nhau";
+"modes.header.create" = "Tạo Chế độ";
+"modes.name.unnamed" = "Không đặt tên";
+"modes.badge.offline" = "Ngoại tuyến";
+"modes.context.select" = "Chọn";
+"modes.help.edit" = "Chỉnh sửa cài đặt chế độ";
+"modes.help.preset" = "Tìm hiểu thêm về cài đặt này";
+"modes.help.model" = "Tìm hiểu thêm về mô hình này";
+"modes.preset.title" = "Cài đặt";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Tin nhắn";
+"modes.preset.mail.name" = "Thư";
+"modes.preset.note.name" = "Ghi chú";
+"modes.preset.meeting.name" = "Cuộc họp";
+"modes.preset.code.name" = "Mã";
+"modes.preset.custom.name" = "Tùy chỉnh";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Chế độ Tin nhắn làm sạch tin nhắn được chính tả của bạn, sửa dấu câu, chuyển thành các đoạn văn và sắp xếp các lỗi ngữ pháp.";
+"modes.preset.mail.tooltip" = "Chế độ Email định dạng chính tả của bạn thành cấu trúc email chuyên nghiệp, với những lời chào thích hợp, chia đoạn và lời kết.";
+"modes.preset.note.tooltip" = "Chế độ Ghi chú sắp xếp nội dung được chính tả của bạn thành định dạng ghi chú rõ ràng với tiêu đề, dấu đầu dòng và các phần có cấu trúc.";
+"modes.preset.meeting.tooltip" = "Chế độ Cuộc họp sắp xếp chính tả của bạn theo định dạng phút họp với những người tham dự, các mục hành động và các điểm thảo luận chính.";
+"modes.preset.code.tooltip" = "Chế độ Mã chuyển đổi chính tả lập trình nói thành cú pháp mã. Nói 'ngoặc mở', 'dấu gạch chéo', 'trường hợp lạc đà' và hơn thế nữa để viết mã bằng giọng nói.";
+"modes.preset.custom.tooltip" = "Chế độ Tùy chỉnh cho phép bạn xác định quy tắc định dạng và lời nhắc riêng của mình cho các trường hợp sử dụng cụ thể.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Xác định đầy đủ hướng dẫn định dạng cho cài đặt sẵn này.";
+"modes.notice.vocabularyUnsupported" = "Từ vựng tùy chỉnh không được hỗ trợ bởi nhà cung cấp này cho mô hình này. Nó sẽ bị bỏ qua.";
+"modes.notice.deepgramNova3AutoDetect" = "Từ vựng tùy chỉnh không có sẵn khi sử dụng Deepgram Nova-3 với tự động phát hiện ngôn ngữ. Để bật tăng cường từ vựng, hãy đặt ngôn ngữ cụ thể (ví dụ: Tiếng Anh, Tiếng Tây Ban Nha).";
+"modes.language.title" = "Ngôn ngữ";
+"modes.language.englishOnly" = "Chỉ Tiếng Anh (mô hình được tối ưu hóa)";
+"modes.postProcessing.sectionTitle" = "Xử lý Sau";
+"modes.postProcessing.modeLabel" = "Chế độ";
+"modes.postProcessing.modeTitle" = "Xử lý Sau";
+"modes.postProcessing.modeDescription" = "Chọn cách bản chuyển đổi được xử lý:\n\n• Tắt: Không xử lý sau, bản chuyển đổi thô\n• Đám mây (AI): Cải tiến được hỗ trợ bởi AI (cần kết nối internet)\n• Cục bộ: Sử dụng LLM trên thiết bị chẳng hạn như Gemma qua llama.cpp\n\nXử lý đám mây gửi văn bản cho nhà cung cấp AI được chọn của bạn. Chế độ cục bộ ở trên máy của bạn nhưng cần máy chủ cục bộ chạy.";
+"modes.postProcessing.providerLabel" = "Nhà cung cấp";
+"modes.postProcessing.apiKeyMissing" = "Khóa API %@ không được cấu hình. Thêm nó trong Cài đặt để bật xử lý sau.";
+"modes.postProcessing.configure" = "Cấu hình trong Cài đặt";
+"modes.postProcessing.modelRecommendation" = "Chúng tôi đề xuất sử dụng GPT-4.1 Nano để có sự cân bằng tốt nhất giữa tốc độ và chất lượng.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Hậu xử lý cục bộ yêu cầu một mô hình cục bộ đã tải xuống.";
+"modes.postProcessing.download" = "Tải xuống trong Cài đặt";
+"modes.postProcessing.localInfo" = "Chạy hoàn toàn trên thiết bị. HyperWhisper tự động khởi động máy chủ llama.cpp đi kèm khi chế độ này hoạt động.";
+"modes.postProcessing.userSystemPrompt.title" = "Hướng dẫn cố định";
+"modes.postProcessing.userSystemPrompt.placeholder" = "VD: Luôn kết thúc email bằng 'Trân trọng, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Xóa";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Hướng dẫn cố định";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Thêm hướng dẫn luôn được áp dụng bên trên cài đặt sẵn đã chọn.";
+"modes.toggle.punctuation.title" = "Thêm dấu câu";
+"modes.toggle.punctuation.subtitle" = "Tự động thêm các dấu chấm và dấu phẩy";
+"modes.toggle.capitalization.title" = "Viết hoa câu";
+"modes.toggle.capitalization.subtitle" = "Chữ cái hoa đầu tiên của câu";
+"modes.toggle.profanity.title" = "Lọc những lời lăng mạ";
+"modes.toggle.profanity.subtitle" = "Thay thế những từ không phù hợp";
+"modes.toggle.removeTrailingPeriod.title" = "Xóa dấu chấm cuối";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Xóa dấu chấm cuối cùng trong bản phiên âm";
+"modes.postProcessing.privacyNotice" = "Bản chuyển đổi của bạn CHỈ được gửi đến %@ để xử lý sau. Không bao giờ ở nơi khác.";
+"modes.postProcessing.localModel" = "Mô hình";
+"modes.postProcessing.languageModel" = "Mô hình Ngôn ngữ";
+"modes.englishSpelling.title" = "Chính tả Tiếng Anh";
+"modes.englishSpelling.american" = "Mỹ";
+"modes.englishSpelling.british" = "Anh";
+"modes.englishSpelling.australian" = "Úc";
+"modes.englishSpelling.canadian" = "Canada";
+"modes.englishSpelling.american.description" = "Sử dụng chính tả Tiếng Anh Mỹ (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Sử dụng chính tả Tiếng Anh Anh (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Sử dụng chính tả Tiếng Anh Úc (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Sử dụng chính tả Tiếng Anh Canada (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Hướng dẫn tùy chỉnh";
+"modes.gemini.customPrompt.helper" = "Tùy chọn. VD: \"Định dạng dạng gạch đầu dòng\", \"Sử dụng ngôn ngữ trang trọng\". Cài đặt ngôn ngữ và từ vựng của bạn được tự động bao gồm.";
+"modes.cloud.apiKeyMissing" = "Khóa API %@ không được cấu hình. Thêm nó trong Cài đặt để sử dụng chuyển đổi đám mây.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Độ chính xác";
+"modes.cloudAccuracy.groqWhisper.label" = "Trung bình (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Trung bình (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Cao (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Nhanh và giá cả phải chăng. Tốt nhất cho chuyển đổi nhanh.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Cân bằng tốc độ và độ chính xác. Được đề xuất cho hầu hết người dùng.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
+"modes.cloudAccuracy.grokStt.label" = "Cao nhất (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
+
+"modes.create.title" = "Tạo Chế độ Mới";
+"modes.create.subtitle" = "Cấu hình hồ sơ chuyển đổi tùy chỉnh";
+"modes.section.basic" = "Cài đặt Cơ bản";
+"modes.section.transcription" = "Mô hình Chuyển đổi";
+"modes.section.punctuation" = "Dấu câu";
+"modes.toggle.screenText.title" = "Văn bản màn hình";
+"modes.toggle.screenText.subtitle" = "Chụp văn bản màn hình hiển thị để cải thiện độ chính xác của tên và điều khoản. Yêu cầu quyền Ghi lại màn hình.";
+"modes.screenText.openSettings" = "Mở Cài đặt Hệ thống";
+"modes.screenText.permissionGranted" = "Quyền Ghi lại màn hình đã được cấp";
+"modes.screenText.permissionRequired" = "Cần quyền Ghi lại màn hình";
+"modes.field.name" = "Tên";
+"modes.field.name.placeholder" = "ví dụ: Ghi chú Cuộc họp";
+"modes.field.name.editPlaceholder" = "Tên chế độ";
+"modes.field.model" = "Mô hình";
+"modes.field.provider" = "Nhà cung cấp";
+"modes.provider.local" = "Cục bộ";
+"modes.provider.cloud" = "Đám mây";
+"modes.notice.noLocalModels.title" = "Không có mô hình cục bộ nào được cài đặt";
+"modes.notice.noLocalModels.subtitle" = "Cài đặt một mô hình trong Cài đặt trước tiên";
+"modes.model.pricing" = "Giá: $%.6f / phút (tính phí theo giây)";
+"modes.button.create" = "Tạo Chế độ";
+"modes.button.delete" = "Xóa Chế độ";
+"modes.button.save" = "Lưu Thay đổi";
+"modes.edit.title" = "Chỉnh sửa Chế độ";
+"modes.edit.subtitle" = "Sửa đổi cài đặt hồ sơ chuyển đổi";
+"mode.editor.cloudModel.previewHint" = "Xem trước";
+"mode.editor.cloudModel.noVocabularyHint" = "Không có từ vựng tùy chỉnh";
+"mode.editor.cloudDomain.medical" = "Y tế";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ tiện ích bổ sung Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Không thể thử lại: Tệp âm thanh không tìm thấy";
+"transcripts.error.invalidId" = "ID bản chuyển đổi không hợp lệ";
+"transcripts.delete.single.title" = "Xóa Bản ghi âm?";
+"transcripts.delete.single.message" = "Điều này sẽ xóa vĩnh viễn bản ghi âm này và tệp âm thanh của nó.";
+"transcripts.delete.multiple.title" = "Xóa %d Bản ghi âm?";
+"transcripts.delete.multiple.message" = "Điều này sẽ xóa vĩnh viễn %d bản ghi âm và các tệp âm thanh của chúng.\n\nHành động này không thể được hoàn tác.";
+"transcripts.delete.multiple.confirm" = "Xóa Tất cả";
+"transcripts.retry.error.title" = "Thử lại Không thành công";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Chọn Thư mục Bản ghi âm";
+"storage.folder.choose.message" = "Chọn một thư mục để lưu các bản ghi âm mới.";
+"storage.folder.choose.prompt" = "Chọn";
+"storage.recovery.title" = "Không thể truy cập thư mục bản ghi âm";
+"storage.recovery.message" = "HyperWhisper không thể truy cập thư mục bản ghi âm được cấu hình. Bạn có thể chọn một thư mục khác để tiếp tục.";
+"storage.recovery.choose" = "Chọn Thư mục…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Tìm hiểu thêm";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Chuyển đổi Hoàn tất";
+"recording.status.retrying" = "Đang thử lại Chuyển đổi…";
+"recording.status.postprocessing" = "Đang xử lý sau bằng AI…";
+"recording.status.transcribing" = "Đang chuyển đổi…";
+"recording.success.pasted" = "Đã dán!";
+"recording.loading.retrying" = "Đang thử lại…";
+"recording.loading.postprocessing" = "Đang xử lý bằng AI…";
+"recording.loading.starting" = "Đang bắt đầu luồng phát…";
+"recording.loading.transcribing" = "Đang chuyển đổi…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Đang kết nối...";
+"streaming.status.ready" = "Sẵn sàng - Bắt đầu Nói";
+"streaming.status.warming" = "Đang khởi động...";
+"modes.badge.recommended" = "Được đề xuất";
+"modes.source.label" = "Nguồn";
+"modes.source.onDevice" = "Trên thiết bị";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "Khóa API";
+"modes.field.engine" = "Công cụ";
+"settings.models.localASR.inUse" = "Không thể xóa mô hình này vì nó đang được sử dụng bởi:
+
+%@
+
+Cập nhật các chế độ này để sử dụng mô hình khác trước khi xóa.";
+"models.postProcessing.gemma4.12b.description" = "Mô hình dày đặc cỡ trung. Cân bằng chất lượng và tốc độ trên Mac 16 GB.";
+"recording.success.savedToNotes" = "Đã lưu vào Ghi chú!";
+"modes.provider.needsKey" = "%@ cần một khóa hoạt động.";
+"modes.provider.manageInLibrary" = "Quản lý trong Thư viện →";
+"streaming.loading.warming" = "Đang khởi động mô hình cục bộ...";
+"streaming.status.listening" = "Đang nghe...";
+"streaming.status.streaming" = "Đang phát trực tiếp...";
+"streaming.status.disconnecting" = "Đang dừng...";
+"streaming.loading.connecting" = "Đang kết nối với máy chủ...";
+"streaming.loading.ready" = "Khởi tạo âm thanh...";
+"streaming.loading.streaming" = "Chờ đợi lời nói...";
+"streaming.state.reconnecting" = "Đang kết nối lại...";
+"recording.stop.help" = "Dừng Ghi âm (%@)";
+"recording.postprocessing.unavailable" = "Xử lý sau không có sẵn";
+"recording.postprocessing.missing.single" = "Khóa %@ bị thiếu – ghi âm mà không xử lý sau";
+"recording.postprocessing.missing.multiple" = "Khóa API bị thiếu – ghi âm mà không xử lý sau";
+"recording.postprocessing.addKey" = "Thêm Khóa";
+"recording.offline.banner" = "Không có kết nối internet. Chuyển đổi đám mây sẽ thất bại cho đến khi bạn trực tuyến.";
+"recording.offline.title" = "Không có kết nối internet";
+"recording.offline.subtitle" = "Kết nối lại để tiếp tục hoặc chuyển sang chế độ ngoại tuyến.";
+"recording.error.network" = "Kiểm tra kết nối internet của bạn và thử lại.";
+"recording.error.timeout" = "Yêu cầu hết thời gian chờ. Kiểm tra tốc độ kết nối của bạn và thử lại.";
+"recording.error.rateLimit" = "Bạn đã thực hiện quá nhiều yêu cầu. Chờ một lúc rồi thử lại.";
+"recording.error.credits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";
+"recording.error.apiKey" = "Thêm khóa API %@ của bạn trong Cài đặt.";
+"recording.error.server" = "Dịch vụ chuyển đổi đang gặp vấn đề. Vui lòng thử lại trong giây lát.";
+"recording.retry" = "Thử lại";
+"recording.retry.inProgress" = "Đang thử lại…";
+"recording.retry.count" = "Thử lại (%d)";
+"recording.retry.failed.missing" = "Thử lại không thành công: Tệp âm thanh không tìm thấy";
+"recording.retry.failed.error" = "Thử lại không thành công: %@";
+"recording.retry.pending" = "Sẵn sàng để thử lại – nhấp để chuyển đổi";
+"recording.provider.unknown" = "nhà cung cấp đám mây";
+"recording.cancel.dialog.title" = "Hủy Ghi âm?";
+"recording.cancel.dialog.message" = "Điều này sẽ loại bỏ bản ghi âm hiện tại.";
+"recording.cancel.dialog.confirm" = "Hủy Ghi âm";
+"recording.cancel.dialog.resume" = "Tiếp tục";
+"recording.error.overlay.title" = "Lỗi kết nối mạng";
+"recording.error.overlay.message" = "Nhấn 'Thử lại' dưới đây hoặc chuyển sang chế độ ngoại tuyến để tiếp tục.";
+"recording.mode.default" = "Mặc định";
+"recording.dialog.window.title" = "Hộp thoại Ghi âm";
+"recording.button.start" = "Bắt đầu Ghi âm";
+"recording.button.stop" = "Dừng Ghi âm";
+"recording.button.disable.checking" = "Kiểm tra trạng thái %@...";
+"recording.button.disable.invalid" = "Khóa API %@ không hợp lệ. Cập nhật nó trong Cài đặt.";
+"recording.button.disable.unreachable" = "%@ không thể tiếp cận. Kiểm tra kết nối của bạn và thử lại.";
+"recording.button.disable.missing" = "Thêm khóa API %@ của bạn trong Cài đặt.";
+"recording.button.disable.install.local" = "Tải xuống mô hình cục bộ trong Cài đặt → Mô hình trước khi sử dụng xử lý hậu kỳ cục bộ.";
+"modes.postProcessing.accuracy" = "Độ chính xác";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Bạn đã đạt giới hạn chuyển đổi %@-phút hàng ngày của mình. Nâng cấp lên HyperWhisper Pro để chuyển đổi không giới hạn.";
+"recording.error.documentsAccess" = "Không thể truy cập thư mục bản ghi âm. Chọn một vị trí khác trong Cài đặt → Lưu trữ.";
+"recording.error.modeMissing" = "Không tìm thấy chế độ được chọn. Vui lòng chọn một chế độ hợp lệ.";
+"recording.warning.oversizedWAV" = "Nén âm thanh không thành công. Sử dụng tệp chưa nén %@ MB - chuyển đổi có thể chậm hơn.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Micrô Mặc định";
+"audio.error.permissionDenied" = "Truy cập micrô bị từ chối. Vui lòng bật trong Cài đặt Hệ thống.";
+"audio.error.fileWatcher.open" = "Không thể mở bộ mô tả tệp để giám sát tệp âm thanh.";
+"audio.error.fileWatcher.timeout" = "Thao tác đã hết thời gian chờ trong khi chờ tệp âm thanh được viết.";
+"audio.error.fileWatcher.creation" = "Tệp âm thanh không được tạo trong thời gian.";
+"audio.error.microphonePermission" = "Quyền micrô không được cấp";
+"audio.error.microphoneInUse" = "HyperWhisper không thể truy cập micrô vì một ứng dụng khác hiện đang sử dụng nó. Tạm dừng ứng dụng khác hoặc chuyển đầu vào, sau đó thử lại.";
+"audio.error.createEngine" = "Không thể tạo động cơ âm thanh";
+"audio.error.noInput" = "Không có đầu vào âm thanh nào có sẵn";
+"audio.error.createFile" = "Không thể tạo tệp âm thanh";
+"audio.error.managerUnavailable" = "Trình quản lý chuyển đổi không được cấu hình";
+"audio.error.invalidHardwareFormat" = "Định dạng âm thanh phần cứng không hợp lệ được phát hiện. Vui lòng kiểm tra thiết bị âm thanh của bạn.";
+"audio.error.createFormat" = "Không thể tạo định dạng âm thanh để ghi âm";
+"audio.error.createConverter" = "Không thể tạo bộ chuyển đổi định dạng âm thanh";
+"audio.error.exportM4A" = "Không thể xuất âm thanh sang định dạng m4a";
+"audio.error.readFile" = "Không thể đọc tệp âm thanh sau ghi âm.";
+"audio.error.recordingTooShort" = "Bản ghi âm quá ngắn. Vui lòng giữ nút lâu hơn để nắm bắt âm thanh.";
+"audio.error.noAudioTrack" = "Tệp video này không chứa một bản nhạc âm thanh.";
+"audio.alert.accessibility.title" = "Bật Quyền truy cập Khả năng tiếp cận";
+"audio.alert.accessibility.message" = "HyperWhisper cần quyền Khả năng tiếp cận để dán văn bản chuyển đổi vào các ứng dụng khác.\n\nNhấp \"Mở Cài đặt\", nhấn nút bật/tắt bên cạnh HyperWhisper, sau đó thử lại.";
+"audio.alert.accessibility.open" = "Mở Cài đặt";
+"audio.alert.pasteFailed.title" = "Dán tự động không thành công";
+"audio.alert.pasteFailed.message" = "Văn bản chuyển đổi đã được sao chép vào bảng nhớ tạm của bạn.\n\nNhấn ⌘V để dán thủ công hoặc chọn Chỉnh sửa → Dán từ menu.";
+"accessibility.permission.location.debug" = "Bộ phát triển Xcode";
+"accessibility.permission.location.installed" = "Ứng dụng Được cài đặt";
+"accessibility.permission.info" = "HyperWhisper cần quyền Khả năng tiếp cận để dán văn bản chuyển đổi vào các ứng dụng khác.\n\nVị trí ứng dụng hiện tại: %@\n\nTrong Cài đặt Hệ thống:\n1. Tìm 'hyperwhisper' hoặc 'HyperWhisper' trong danh sách\n2. Bạn có thể thấy nhiều mục nếu bạn đã chạy từ các vị trí khác nhau\n3. Bật hộp kiểm cho mục phù hợp với:\n   %@";
+"accessibility.permission.xcodeNote" = "Lưu ý: Chạy từ Xcode yêu cầu quyền khác với ứng dụng được cài đặt.";
+"accessibility.error.paste.commandFailed" = "Lệnh dán không thành công";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Nhà cung cấp chuyển đổi không có sẵn. Kiểm tra cài đặt của bạn và thử lại.";
+"transcription.error.providerNotAvailable.provider" = "%@ không có sẵn. Kiểm tra cài đặt của bạn và thử lại.";
+"transcription.error.providerNotAvailable.detail" = "%@ không có sẵn: %@";
+"transcription.error.modelNotDownloaded" = "Vui lòng tải xuống một mô hình trước tiên";
+"transcription.error.modelProtected" = "Mô hình này không thể xóa được";
+"transcription.error.audioFileNotFound" = "Tệp âm thanh không tìm thấy";
+"transcription.error.network.detail" = "Lỗi mạng: %@";
+"transcription.error.network.generic" = "Lỗi kết nối mạng";
+"transcription.error.apiKeyMissing.provider" = "Khóa API %@ được yêu cầu để chuyển đổi";
+"transcription.error.apiKeyMissing.generic" = "Khóa API nhà cung cấp đám mây được yêu cầu để chuyển đổi";
+"transcription.error.maxRetriesExceeded" = "Vượt quá số lần thử lại tối đa";
+"transcription.error.unauthorized.provider" = "Không được phép: khóa API %@ không hợp lệ hoặc quyền.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
+"transcription.error.unauthorized.generic" = "Không được phép: khóa API hoặc quyền không hợp lệ.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
+"transcription.error.invalidRequest" = "Yêu cầu không hợp lệ: kiểm tra tệp âm thanh hoặc cài đặt";
+"transcription.error.streamingInterrupted" = "Luồng phát bị gián đoạn; văn bản một phần được hiển thị";
+"transcription.error.busy" = "Dịch vụ chuyển đổi hiện đang bận";
+"transcription.error.invalidAudioFormat" = "Định dạng âm thanh không được hỗ trợ";
+"transcription.error.audioConversionFailed" = "Không thể chuyển đổi âm thanh sang định dạng được yêu cầu";
+"transcription.error.audioFileTooLarge" = "Tệp quá lớn: %@ vượt quá giới hạn %@ cho %@";
+"transcription.error.serverError" = "Lỗi máy chủ (%d): %@";
+"transcription.error.rateLimited.seconds" = "Giới hạn tốc độ: Quá nhiều yêu cầu. Vui lòng chờ %d giây rồi thử lại.";
+"transcription.error.rateLimited.generic" = "Giới hạn tốc độ: Quá nhiều yêu cầu. Vui lòng chờ một lúc rồi thử lại.";
+"transcription.error.insufficientCredits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";
+"transcription.error.quotaExceeded" = "Vượt quá hạn ngạch %@";
+"transcription.error.quotaExceeded.detail" = "Vượt quá hạn ngạch %@: %@";
+"transcription.error.timeout" = "Yêu cầu hết thời gian chờ trong %@. Kiểm tra kết nối internet của bạn và thử lại.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Đảm bảo nhà cung cấp chuyển đổi của bạn được cấu hình đúng trong Cài đặt.";
+"transcription.guidance.providerNotAvailable.provider" = "Đảm bảo %@ được cấu hình đúng. Đối với mô hình cục bộ, tải xuống một mô hình trước tiên. Đối với nhà cung cấp đám mây, hãy xác minh khóa API của bạn.";
+"transcription.guidance.apiKeyMissing.provider" = "Thêm khóa API %@ của bạn trong Cài đặt";
+"transcription.guidance.apiKeyMissing.generic" = "Thêm khóa API nhà cung cấp đám mây của bạn trong Cài đặt";
+"transcription.guidance.modelNotDownloaded" = "Tải xuống một mô hình từ phần Mô hình";
+"transcription.guidance.modelProtected" = "Mô hình này hiện đang được sử dụng";
+"transcription.guidance.audioFileNotFound" = "Tệp âm thanh đã bị xóa hoặc di chuyển";
+"transcription.guidance.networkError" = "Kiểm tra kết nối internet của bạn và thử lại";
+"transcription.guidance.unauthorized.provider" = "Kiểm tra khóa API %@ hoặc quyền tài khoản của bạn trong Cài đặt";
+"transcription.guidance.unauthorized.generic" = "Kiểm tra khóa API hoặc quyền tài khoản của bạn trong Cài đặt";
+"transcription.guidance.invalidRequest" = "Xác minh tệp âm thanh và cài đặt chế độ, sau đó thử lại";
+"transcription.guidance.invalidAudioFormat" = "Thử chuyển đổi tệp âm thanh sang định dạng MP3 hoặc WAV";
+"transcription.guidance.audioConversionFailed" = "Tệp âm thanh có thể bị hỏng. Thử một tệp khác";
+"transcription.guidance.audioFileTooLarge" = "Sử dụng tệp âm thanh ngắn hơn hoặc chia thành các phân đoạn nhỏ hơn";
+"transcription.guidance.serverError" = "Dịch vụ chuyển đổi đang gặp vấn đề. Vui lòng thử lại.";
+"transcription.guidance.rateLimited" = "Bạn đã thực hiện quá nhiều yêu cầu. Chờ một lúc trước khi thử lại.";
+"transcription.guidance.insufficientCredits" = "Mua nhiều tín dụ hơn trong Cài đặt để tiếp tục chuyển đổi";
+"transcription.guidance.quotaExceeded" = "Thêm tín dụ vào tài khoản %@ của bạn hoặc cập nhật chi tiết thanh toán";
+"transcription.guidance.timeout" = "Yêu cầu mất quá lâu. Kiểm tra tốc độ internet của bạn và thử lại.";
+"transcription.error.noSpeechDetected" = "Không phát hiện lời nói trong bản ghi âm.";
+"transcription.guidance.noSpeechDetected" = "Mẹo:\n• Nói rõ ràng vào micrô\n• Giữ chìa khóa lâu hơn trước khi nói\n• Kiểm tra micrô của bạn đang hoạt động\n• Đảm bảo thiết bị đầu vào chính xác được chọn";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";
+"hyperwhisperCloud.error.network" = "Lỗi mạng: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Phản hồi không hợp lệ từ HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Lỗi máy chủ: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Không thể định vị tệp thực thi llama-server.";
+"llama.runtime.error.missingDependencies" = "Thời gian chạy bị thiếu phụ thuộc: %@";
+"llama.runtime.error.copyFailed" = "Không thể sao chép thời gian chạy: %@";
+"llama.runtime.error.copy.executable" = "Không thể sao chép tệp thực thi: %@";
+"llama.runtime.missing" = "Thời gian chạy Cục bộ bị thiếu từ lần cài đặt này. Cài đặt lại HyperWhisper để khôi phục xử lý sau cục bộ.";
+"llama.runtime.genericError" = "Lỗi thời gian chạy Cục bộ: %@";
+"runtime.error.llama.missingLib" = "Thời gian chạy Cục bộ bị chấm dứt sau khi thiếu libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Thời gian chạy Cục bộ báo cáo thiếu libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Xử lý sau AI tích hợp chạy trên Cloudflare Workers. Không cần cấu hình.";
+"models.postProcessing.gpt4.1.nano.description" = "Độ chính xác trung bình (92%), tốc độ rất nhanh (<1s). Phù hợp với bản nháp nhanh và ghi chú không chính thức.";
+"models.postProcessing.gpt4.1.mini.description" = "Độ chính xác cao (94%), tốc độ nhanh (~1-2s). Tốt cho các giao tiếp kinh doanh hàng ngày và tài liệu tiêu chuẩn.";
+"models.postProcessing.gpt4.1.description" = "Độ chính xác rất cao (96%), tốc độ trung bình (~3-4s). Tuyệt vời cho định dạng phức tạp và nội dung kỹ thuật.";
+"models.postProcessing.gpt5.nano.description" = "Độ chính xác tốt (95%), tốc độ nhanh nhất (~1s). Hoàn hảo cho ghi chú nhanh, tin nhắn và bản chuyển đổi bình thường.";
+"models.postProcessing.gpt5.mini.description" = "Độ chính xác xuất sắc (97%), tốc độ trung bình (~2-3s). Lý tưởng cho email chuyên nghiệp, báo cáo và ghi chú cuộc họp.";
+"models.postProcessing.gpt5.description" = "Độ chính xác cao nhất (99%+), tốc độ chậm nhất (~3-5s). Tốt nhất cho tài liệu quan trọng, pháp lý, bản chuyển đổi y tế nơi độ chính xác là tối quan trọng.";
+"models.postProcessing.gpt5.1.description" = "Độ chính xác tối tân (98%+), tốc độ trung bình (~2-3s). Xuất sắc cho các tác vụ phức tạp, tài liệu pháp lý và nội dung kỹ thuật với suy luận vượt trội.";
+"models.postProcessing.gpt5.2.description" = "Loạt GPT-5 mới nhất với suy luận nâng cao và suy luận nhanh hơn. Lựa chọn tốt nhất cho xử lý văn bản chất lượng cao.";
+"models.postProcessing.claude4.5.haiku.description" = "Claude Haiku mới nhất với suy luận được cải thiện trong khi giữ thời gian phản ứng nhanh.";
+"models.postProcessing.claude4.sonnet.description" = "Hiệu suất cân bằng. Khả năng suy luận vượt trội và định dạng cho các tài liệu chuyên nghiệp.";
+"models.postProcessing.gemini3.flash.description" = "Loạt Gemini 3 với trí thông minh cấp Pro ở tốc độ Flash. Suy luận nâng cao với khả năng tư duy động.";
+"models.postProcessing.gemini2.5.flash.description" = "Tốt nhất về mặt giá/hiệu suất. Được tối ưu hóa cho tốc độ trong khi duy trì độ chính xác tốt cho mục đích hàng ngày.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Mô hình siêu nhanh được tối ưu hóa cho hiệu quả chi phí và thông lượng cao.";
+"models.postProcessing.groq.llama33.70b.description" = "Mô hình đa năng 70B với chất lượng xuất sắc. ~280 token/giây. Được đề xuất.";
+"models.postProcessing.groq.llama31.8b.description" = "Mô hình 8B siêu nhanh. ~560 token/giây để xử lý văn bản tức thời.";
+"models.postProcessing.groq.gptoss.120b.description" = "Mô hình mã nguồn mở 120B của OpenAI. ~500 token/giây để xử lý chất lượng cao.";
+"models.postProcessing.groq.gptoss.20b.description" = "Mô hình nhẹ 20B. ~1000 token/giây để xử lý nhanh nhất.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B trên Cerebras. Mô hình 120B siêu nhanh ở ~3000 token/giây. Được đề xuất.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B trên Cerebras. Nhẹ và siêu nhanh ở ~2200 token/giây.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B trên Cerebras. Mô hình MoE 235B khổng lồ ở ~1400 token/giây. Chỉ xem trước.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 trên Cerebras. Mô hình 355B tham số ở ~1000 token/giây. Chỉ xem trước.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Trung tâm Trợ giúp";
+"settings.resources.contact.support" = "Liên Hệ Hỗ Trợ";
+"settings.resources.feedback" = "Phản hồi & Đề xuất";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Sao lưu";
+"settings.backup.export.title" = "Xuất Cài đặt";
+"settings.backup.export.subtitle" = "Lưu cài đặt, chế độ và từ vựng của bạn vào tệp";
+"settings.backup.export.button" = "Xuất...";
+"settings.backup.export.panel.title" = "Xuất Cài đặt";
+"settings.backup.export.panel.label" = "Tệp Sao lưu:";
+"settings.backup.export.success" = "Cài đặt được xuất thành công";
+"settings.backup.export.error.create" = "Không thể tạo dữ liệu sao lưu";
+"settings.backup.export.error.encode" = "Không thể mã hóa dữ liệu sao lưu";
+"settings.backup.export.error.write" = "Không thể viết tệp sao lưu";
+"settings.backup.includeAPIKeys.title" = "Bao gồm Khóa API";
+"settings.backup.includeAPIKeys.subtitle" = "Lưu trữ khóa API trong tệp sao lưu (không được đề xuất để chia sẻ)";
+"settings.backup.includeLicense.title" = "Bao gồm Khóa Giấy phép";
+"settings.backup.import.title" = "Nhập Cài đặt";
+"settings.backup.import.subtitle" = "Khôi phục cài đặt từ tệp sao lưu";
+"settings.backup.import.button" = "Nhập...";
+"settings.backup.import.panel.title" = "Nhập Cài đặt";
+"settings.backup.import.success" = "Nhập hoàn tất: %d chế độ, %d mục từ vựng được nhập";
+"settings.backup.import.error.read" = "Không thể đọc tệp sao lưu";
+"settings.backup.import.error.decode" = "Định dạng tệp sao lưu không hợp lệ";
+"settings.backup.import.error.decode.keyNotFound" = "Thiếu trường bắt buộc: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Sai kiểu cho trường: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Thiếu giá trị cho trường: %@";
+"settings.backup.import.error.decode.corrupted" = "Dữ liệu bị hỏng: %@";
+"settings.backup.import.error.decode.corruptedField" = "Giá trị bị hỏng cho trường: %@";
+"settings.backup.import.error.version" = "Tệp sao lưu từ một phiên bản mới hơn";
+"settings.backup.import.error.unknown" = "Nhập không thành công";
+"settings.backup.import.confirm.title" = "Nhập Cài đặt?";
+"settings.backup.import.confirm.message" = "Điều này sẽ thay thế các chế độ hiện có và từ vựng của bạn bằng những chế độ được nhập từ tệp sao lưu. Cài đặt cũng sẽ được cập nhật.";
+"settings.backup.import.confirm.button" = "Nhập";
+"settings.backup.conflict.skip" = "Bỏ qua hiện có";
+"settings.backup.conflict.replace" = "Thay thế hiện có";
+"settings.backup.conflict.keepBoth" = "Giữ cả hai";
+"settings.backup.security.warning" = "Cảnh báo: Tệp được xuất sẽ chứa dữ liệu nhạy cảm. Giữ nó an toàn và không chia sẻ.";
+"settings.backup.info.note" = "Bản sao lưu bao gồm cài đặt, chế độ và từ vựng. Các bản ghi âm và bản chuyển đổi không được bao gồm.";
+"settings.backup.result.success.title" = "Thành công";
+"settings.backup.result.error.title" = "Lỗi";
+"settings.backup.export.choose.subtitle" = "Chọn những gì cần đưa vào tệp sao lưu";
+"settings.backup.export.section.settings" = "Cài đặt";
+"settings.backup.export.section.modes" = "Chế độ";
+"settings.backup.export.section.vocabulary" = "Từ vựng";
+"settings.backup.import.importing" = "Đang nhập %@";
+"settings.backup.import.contains" = "Tệp này chứa: %@";
+"settings.backup.import.contains.vocabulary" = "Từ vựng (%d từ)";
+"settings.backup.import.contains.none" = "không có gì";
+"settings.backup.import.section.settings" = "Cài đặt";
+"settings.backup.import.section.modes" = "Chế độ";
+"settings.backup.import.section.vocabulary" = "Từ vựng";
+"settings.backup.import.section.apiKeys" = "Khóa API";
+"settings.backup.import.section.license" = "Khóa bản quyền";
+"settings.backup.import.section.absent" = "— không có trong tệp";
+"settings.backup.import.premerge.summary" = "Từ vựng: thêm %d từ mới, %d từ đã tồn tại";
+"settings.backup.import.premerge.conflictLabel" = "Đối với các từ đã tồn tại:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Chọn Tệp Âm thanh";
+"transcribe.file.error.title" = "Lỗi Chuyển đổi";
+"transcribe.file.error.size.title" = "Tệp Quá Lớn";
+"transcribe.file.error.size.message" = "Tệp được chọn (%@) vượt quá giới hạn %@ cho %@.";
+"transcribe.file.error.format.title" = "Định dạng Không được hỗ trợ";
+"transcribe.file.error.format.message" = "Tệp .%@ không được %@ hỗ trợ. Định dạng được hỗ trợ: %@";
+"transcribe.file.error.read" = "Không thể đọc tệp được chọn.";
+"transcribe.file.error.copy" = "Không thể sao chép tệp vào thư mục bản ghi âm.";
+"transcribe.file.error.video.title" = "Không có Âm thanh trong Video";
+"transcribe.file.error.video.noAudio" = "Tệp video này không chứa bản nhạc âm thanh. Vui lòng chọn video có âm thanh hoặc tệp âm thanh.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Đang chuẩn bị...";
+"file.transcription.transcribing" = "Đang chuyển đổi...";
+"file.transcription.finishing" = "Đang hoàn tất...";
+"file.transcription.cancel" = "Hủy";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Bật xóa tự động";
+"history.autoDelete.enable.subtitle" = "Các bản ghi âm cũ hơn thời lượng được chỉ định sẽ bị xóa";
+"history.autoDelete.duration.prefix" = "Sau";
+"history.autoDelete.unit.minutes" = "Phút";
+"history.autoDelete.unit.hours" = "Giờ";
+"history.autoDelete.unit.days" = "Ngày";
+"history.autoDelete.unit.minutes.plural" = "phút";
+"history.autoDelete.unit.hours.plural" = "giờ";
+"history.autoDelete.unit.days.plural" = "ngày";
+"history.autoDelete.status.disabled" = "Xóa tự động bị vô hiệu hóa";
+"history.autoDelete.status.enabled" = "Xóa các bản ghi âm cũ hơn %d %@";
+"history.autoDelete.cleanup.noItems" = "Không có bản ghi âm nào để xóa";
+"history.autoDelete.cleanup.summary" = "Đã xóa %d bản ghi âm và giải phóng %@";

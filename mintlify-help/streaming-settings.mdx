@@ -1,0 +1,113 @@
+---
+title: Streaming Transcription
+description: Configure HyperWhisper's real-time streaming mode — provider, language, keyboard shortcut, and Deepgram-specific options.
+---
+
+Streaming transcription converts your speech to text in real time, word by word, as you speak. It operates independently from the mode-based recording system: you trigger it with its own keyboard shortcut, and it uses its own provider and language settings.
+
+## Enabling Streaming
+
+Streaming is off by default. You must opt in before any streaming shortcut or setting becomes active.
+
+<Tabs>
+  <Tab title="macOS">
+    Open the **Streaming** section in the sidebar and turn on the **Enable Streaming** toggle.
+
+    Once enabled, the shortcut field and all other options appear below the toggle.
+  </Tab>
+  <Tab title="Windows">
+    Click **Streaming** in the main sidebar and tick **Enable Streaming**.
+
+    The Engine and Language sections appear only when streaming is enabled.
+  </Tab>
+</Tabs>
+
+## Keyboard Shortcut
+
+After enabling streaming, you set the shortcut that triggers it.
+
+<Tabs>
+  <Tab title="macOS">
+    The default shortcut is **⌥ ⇧ Space** (Option + Shift + Space). To change it, click the shortcut field in the **Streaming** sidebar section and press your preferred key combination. Press the shortcut again to start or stop streaming.
+
+    If the shortcut conflicts with another HyperWhisper shortcut, a warning appears and the new binding is not saved until the conflict is resolved.
+  </Tab>
+  <Tab title="Windows">
+    Click the shortcut field in **Streaming** (main sidebar) and press your preferred key combination. HyperWhisper validates the binding against your other shortcuts (Toggle, Cancel, Change Mode) and shows a conflict warning if there is a clash.
+  </Tab>
+</Tabs>
+
+## Choosing a Provider
+
+Open the **Engine** section (visible when streaming is enabled) and pick a provider.
+
+| Provider | API key required | Vocabulary boosting | Model selection |
+|---|---|---|---|
+| HyperWhisper Cloud | No | Yes | No |
+| Deepgram | Yes | Yes (explicit language only) | Yes — Nova 3 |
+| ElevenLabs | Yes | No | No |
+| OpenAI | Yes | No | No |
+| xAI | Yes | No | No |
+| Parakeet (On-Device) | No | No | V3 (Multilingual) / V2 (English) |
+| Nemotron 3.5 (On-Device) | No | No | Multilingual / Latin |
+
+**HyperWhisper Cloud** is the default and requires no configuration beyond your license. All other cloud providers require you to add an API key in **Settings → API Keys** (or **Model Library → API Keys** on macOS) before they will work. If a key is missing or invalid, a warning appears directly under the provider picker.
+
+**Parakeet** and **Nemotron 3.5** run fully on this device — no network connection is needed once the model is downloaded. They are available on macOS only; the Windows provider list includes HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, and xAI.
+
+<Note>
+  Vocabulary entries you have added in the [Vocabulary](/vocabulary) section are forwarded to HyperWhisper Cloud and Deepgram (when an explicit language is set). ElevenLabs, OpenAI, and xAI do not support vocabulary boosting via the streaming API — a warning appears if you have vocabulary entries and switch to one of those providers.
+</Note>
+
+## Deepgram Options
+
+When Deepgram is selected, two additional settings appear.
+
+### Model
+
+Choose between **Nova 3 General** (default) and **Nova 3 Medical**. The medical model is tuned for healthcare terminology and clinical language.
+
+### Fast Formatting
+
+When enabled (the default), Deepgram returns smart-formatted results immediately without waiting for additional surrounding context. This minimises the delay before words appear on screen. When disabled, Deepgram waits for more context before finalising punctuation and number formatting, which produces slightly more accurate formatting at the cost of extra latency.
+
+## On-Device Providers (macOS)
+
+### Parakeet
+
+Parakeet is NVIDIA's open-weight speech model, running locally via the integrated on-device engine.
+
+- **Parakeet V3 (Multilingual)** — supports 25 European languages; this is the default.
+- **Parakeet V2 (English)** — English only, highest recall.
+
+The model must be downloaded before first use. An **Install** button and download progress indicator appear in the Engine section when the model is not yet on disk. Once installed, use **Manage** to go to the Model Library.
+
+### Nemotron 3.5
+
+Nemotron 3.5 is NVIDIA's streaming ASR model family, also running fully on-device.
+
+- **Nemotron 3.5 (Multilingual)** — approximately 40 languages including Chinese, Japanese, Korean, and Arabic; this is the default variant.
+- **Nemotron 3.5 (Latin)** — approximately 6 Latin-script languages; faster.
+
+The same install flow applies: the variant you select must be downloaded before streaming can start.
+
+## Language
+
+The **Language** setting tells the provider which language to expect. Setting an explicit language generally improves accuracy and, for Deepgram, is required for vocabulary boosting to work.
+
+<Tabs>
+  <Tab title="macOS">
+    The language picker appears in the **Language** section below the Engine card. The available choices depend on the selected provider. For cloud providers, choosing **Automatic** lets the server detect the language from your audio — note that vocabulary boosting is disabled when Automatic is selected.
+
+    For Parakeet V2, the language is fixed to English and the picker is disabled. For Parakeet V3 and both Nemotron variants, only the languages supported by that specific model are shown.
+  </Tab>
+  <Tab title="Windows">
+    The language dropdown appears in the **Language** section, visible when streaming is enabled. Select any supported language from the list.
+  </Tab>
+</Tabs>
+
+## How Streaming Differs from Modes
+
+Regular recording in HyperWhisper uses your configured [transcription modes](/transcription-modes) — each mode can have its own provider, language, and post-processing settings. Streaming is a separate, always-available path with its own settings that are shared across every streaming session. It does not inherit mode settings and does not apply AI post-processing.
+
+Use streaming when you want words to appear on screen in real time as you speak. Use a mode when you want a complete, optionally post-processed transcript after you finish speaking.

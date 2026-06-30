@@ -1,0 +1,110 @@
+[
+  {
+    "id": "521a29cf3ccb",
+    "path": "recordings/recording_1772442736.wav",
+    "format": "wav",
+    "duration_s": 3.904,
+    "size_bytes": 129012,
+    "sha256": "521a29cf3ccb809f26a329a44d90e65765e05380c3732f84f52b624ac85e8646",
+    "bucket": "lt5s"
+  },
+  {
+    "id": "36c32da16434",
+    "path": "recordings/recording_1773039508.wav",
+    "format": "wav",
+    "duration_s": 4.032,
+    "size_bytes": 133108,
+    "sha256": "36c32da16434af5c9edee386969d97bad692e7e385254a4f66958ae366b979c6",
+    "bucket": "lt5s"
+  },
+  {
+    "id": "95e665d941f5",
+    "path": "recordings/recording_1773547609.wav",
+    "format": "wav",
+    "duration_s": 2.293,
+    "size_bytes": 77472,
+    "sha256": "95e665d941f5dd949269c841c714312dd8f587a58e3e52f711cfafbe11200a0b",
+    "bucket": "lt5s"
+  },
+  {
+    "id": "069538f2f06a",
+    "path": "recordings/recording_1777791808.wav",
+    "format": "wav",
+    "duration_s": 6.336,
+    "size_bytes": 206836,
+    "sha256": "069538f2f06aaaf37c854dffd6073c2e0a50bae4b118117d0104cea343e47d57",
+    "bucket": "5to20s"
+  },
+  {
+    "id": "7fa0c1f6633f",
+    "path": "recordings/recording_1772022665.wav",
+    "format": "wav",
+    "duration_s": 5.802,
+    "size_bytes": 189770,
+    "sha256": "7fa0c1f6633f79c0808e8e93c0fa54865f51a6f09ef422396ff379886c990dd3",
+    "bucket": "5to20s"
+  },
+  {
+    "id": "a883a4831dfd",
+    "path": "recordings/recording_1780055815_trimmed.wav",
+    "format": "wav",
+    "duration_s": 10.79,
+    "size_bytes": 349372,
+    "sha256": "a883a4831dfd35fe83ccc046b194e134274f5e27d41c59e0765c08281f85d9a1",
+    "bucket": "5to20s"
+  },
+  {
+    "id": "420c6e7a09cd",
+    "path": "recordings/recording_1771641257_trimmed.wav",
+    "format": "wav",
+    "duration_s": 28.187,
+    "size_bytes": 906078,
+    "sha256": "420c6e7a09cdbdeeb78c0e30b3241d0767f1fdedcf92f44e5bb2e96116bbd9a6",
+    "bucket": "20to60s"
+  },
+  {
+    "id": "d0036702401b",
+    "path": "recordings/recording_1777877010_trimmed.wav",
+    "format": "wav",
+    "duration_s": 32.388,
+    "size_bytes": 1040522,
+    "sha256": "d0036702401b6149db0e54ef43eca7bf1277746055044175a9e9c5ad14421ea1",
+    "bucket": "20to60s"
+  },
+  {
+    "id": "a1a5c3b61e2f",
+    "path": "recordings/recording_1780153323_trimmed.wav",
+    "format": "wav",
+    "duration_s": 28.85,
+    "size_bytes": 927292,
+    "sha256": "a1a5c3b61e2ff6e8845b3cdc4f4b0e4c6402d70f057dbf6ba2fbaf6627026c6b",
+    "bucket": "20to60s"
+  },
+  {
+    "id": "9806c316d1d0",
+    "path": "recordings/recording_1777870691_trimmed.wav",
+    "format": "wav",
+    "duration_s": 84.39,
+    "size_bytes": 2704580,
+    "sha256": "9806c316d1d054bf651214bb71eaa2e950166b52d5a6a21dca1a756e5d1118cb",
+    "bucket": "gt60s"
+  },
+  {
+    "id": "b4bd4fe156c2",
+    "path": "recordings/recording_1776232135_trimmed.wav",
+    "format": "wav",
+    "duration_s": 70.88,
+    "size_bytes": 2272258,
+    "sha256": "b4bd4fe156c2873740a4b69ac0b84a16d12497c666ec49a1a2a57e1b8371a6ae",
+    "bucket": "gt60s"
+  },
+  {
+    "id": "0ae608ebc7e7",
+    "path": "recordings/imported_1777558076_Audio, Post Auphonic.wav",
+    "format": "wav",
+    "duration_s": 744.833,
+    "size_bytes": 107256740,
+    "sha256": "0ae608ebc7e7e2b5add06df0b0b4ec3586bd2840c30294de3859addd37024aa9",
+    "bucket": "gt60s"
+  }
+]

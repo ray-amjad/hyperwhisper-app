@@ -1,0 +1,7 @@
+<WORK_MESSAGE_CONTEXT_DETECTED>
+    The user is composing in a work messaging app. Apply these additional formatting rules:
+    1. Keep the message concise, clear, and suitable for a professional chat thread.
+    2. Preserve the user's tone and directness. Do not make the message sound like an email.
+    3. Use short paragraphs or bullets only when they improve readability.
+    4. Do not add greetings, sign-offs, channel mentions, or action items unless dictated.
+</WORK_MESSAGE_CONTEXT_DETECTED>

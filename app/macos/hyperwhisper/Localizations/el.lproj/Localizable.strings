@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Λεξιλόγιο";
+"vocabulary.description" = "Αυτό βοηθά το λογισμικό να αναγνωρίζει ονόματα, ακρώνυμα, αργό ή λέξεις από άλλες γλώσσες κατά την ανάμειξη γλωσσών.";
+"vocabulary.input.title" = "Είσοδος";
+"vocabulary.new.word.placeholder" = "Νέα λέξη ή φράση";
+"vocabulary.replacement.placeholder" = "Αντικατάστασε με...";
+"vocabulary.add.button" = "Προσθήκη στο λεξιλόγιο";
+"vocabulary.edit.title" = "Επεξεργασία καταχώρησης λεξιλογίου";
+"vocabulary.update.button" = "Ενημέρωση";
+"vocabulary.cancel.button" = "Ακύρωση";
+"vocabulary.word.column" = "Λέξη/Φράση";
+"vocabulary.replacement.column" = "Αντικατάσταση";
+"vocabulary.empty.title" = "Καμία λέξη λεξιλογίου ακόμα";
+"vocabulary.empty.subtitle" = "Προσθέστε προσαρμοσμένες λέξεις για βελτίωση της ακρίβειας της μεταγραφής";
+"vocabulary.duplicate.title" = "Διπλή Καταχώρηση";
+"vocabulary.duplicate.message" = "Το %@ υπάρχει ήδη στο λεξιλόγιό σας. Κάθε λέξη μπορεί να προστεθεί μόνο μία φορά.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Λήφθηκε Ανώτατο Όριο Λέξεων-Κλειδιών";
+"vocabulary.limit.message" = "Έχετε %d λέξεις, αλλά μόνο οι πρώτες %d θα χρησιμοποιηθούν για ενίσχυση της μεταγραφής.";
+
+// MARK: - Streaming View
+"streaming.title" = "Ροή (Beta)";
+"streaming.description" = "Μεταγραφή σε πραγματικό χρόνο καθώς μιλάτε. Το κείμενο πληκτρολογείται απευθείας στην εστιασμένη εφαρμογή.";
+"streaming.enable.title" = "Ενεργοποίηση Ροής";
+"streaming.provider.picker.title" = "Πάροχος";
+"streaming.model.title" = "Μοντέλο";
+"streaming.model.nova3general" = "Nova 3 Γενικό";
+"streaming.model.nova3medical" = "Nova 3 Ιατρικό";
+"streaming.fastFormatting.title" = "Γρήγορη Μορφοποίηση";
+"streaming.fastFormatting.description" = "Μειώνει την καθυστέρηση της έξυπνης μορφοποίησης για ταχύτερη πληκτρολόγηση";
+"streaming.warning.vocabAutoDetect" = "Το προσαρμοσμένο λεξιλόγιο είναι απενεργοποιημένο στη λειτουργία αυτόματης ανίχνευσης";
+"streaming.warning.vocabUnsupported" = "Το προσαρμοσμένο λεξιλόγιο δεν υποστηρίζεται με ροή %@";
+"streaming.warning.apiKeyRequired" = "Απαιτείται κλειδί API %@";
+"streaming.warning.apiKeyRequired.action" = "Διαμόρφωση";
+"streaming.warning.apiKeyInvalid" = "Το κλειδί API %@ δεν λειτουργεί. Ενημερώστε το στο Ρυθμίσεις > Κλειδιά API.";
+"streaming.warning.apiKeyInvalid.action" = "Ενημέρωση Κλειδιού";
+"streaming.language.title" = "Γλώσσα";
+"streaming.shortcut.title" = "Συντόμευση";
+
+// MARK: - Home View
+"home.get.started" = "Ξεκινήστε";
+"home.open.system.settings" = "Ανοίξτε τις Ρυθμίσεις Συστήματος";
+
+// MARK: - API Keys
+"api.key.required" = "Απαιτείται Κλειδί API";
+"api.keys.required" = "Απαιτούνται Κλειδιά API";
+"api.key.configure.message" = "Διαμορφώστε τα κλειδιά API για να ενεργοποιήσετε τη μεταγραφή.";
+"api.key.internet.required" = "Απαιτείται Σύνδεση στο Διαδίκτυο";
+"api.key.internet.message" = "Η μεταγραφή στο cloud απαιτεί σύνδεση στο διαδίκτυο.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Ακύρωση";
+"common.delete" = "Διαγραφή";
+"common.edit" = "Επεξεργασία";
+"common.done" = "Έγινε";
+"common.copy" = "Αντιγραφή";
+"common.back" = "Πίσω";
+"common.skip" = "Παράλειψη";
+"common.settings" = "Ρυθμίσεις";
+"common.error" = "Σφάλμα";
+"common.retry" = "Επανάληψη";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Αρχική";
+"sidebar.statistics" = "Στατιστικά";
+"sidebar.modes" = "Λειτουργίες";
+"sidebar.vocabulary" = "Λεξιλόγιο";
+"sidebar.streaming" = "Ροή";
+"sidebar.history" = "Ιστορικό";
+"sidebar.settings" = "Ρυθμίσεις";
+
+// MARK: - App Messages
+"app.unknown.error" = "Προέκυψε ένα άγνωστο σφάλμα";
+"app.microphone.permission.message" = "Το HyperWhisper χρειάζεται πρόσβαση στο μικροφώνό σας για μεταγραφή ήχου.\n\nΠαρακαλώ πηγαίνετε στις Ρυθμίσεις Συστήματος > Ιδιωτικότητα & Ασφάλεια > Μικροφώνο και ενεργοποιήστε την πρόσβαση για το HyperWhisper.";
+"app.recordings.location.message" = "Το HyperWhisper αποθηκεύει τις εγγραφές σε ένα φάκελο στα Έγγραφά σας ώστε να είναι εύκολο να τις βρείτε: Documents/hyperwhisper/recordings. Το macOS μπορεί να ζητήσει άδεια την πρώτη φορά που προσπαθούμε να αποθηκεύσουμε εκεί. Αν προτιμάτε να μην δώσετε πρόσβαση, μπορούμε να αποθηκεύσουμε τις εγγραφές σε ένα ιδιωτικό φάκελο εφαρμογής.";
+"app.upgrade.to.pro" = "Αναβάθμιση σε Pro";
+"app.enter.license.key" = "Εισαγάγετε Κλειδί Άδειας";
+"accessibility.upgrade.pro" = "Αναβάθμιση σε HyperWhisper Pro";
+"accessibility.enter.license" = "Εισαγάγετε Κλειδί Άδειας";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Προσθέστε τα κλειδιά API %@ για να ενεργοποιήσετε τη λειτουργία που επιλέχθηκε.";
+"home.api.keys.missing.single" = "Προσθέστε το κλειδί API %@ για να ενεργοποιήσετε τη λειτουργία που επιλέχθηκε.";
+"home.getting.started.recording.title" = "Ξεκινήστε την εγγραφή";
+"home.getting.started.recording.description" = "Μετατρέψτε τη φωνή σας σε κείμενο με ένα μόνο κλικ.";
+"home.getting.started.shortcuts.title" = "Προσαρμόστε τις συντομεύσεις σας";
+"home.getting.started.shortcuts.description" = "Αλλάξτε τις συντομεύσεις πληκτρολογίου του HyperWhisper.";
+"home.getting.started.mode.title" = "Δημιουργήστε μια λειτουργία";
+"home.getting.started.mode.description" = "Δημιουργήστε την τέλεια λειτουργία για τη ροή εργασίας σας.";
+"home.getting.started.vocabulary.title" = "Προσθέστε λεξιλόγιο";
+"home.getting.started.vocabulary.description" = "Διδάξτε στο HyperWhisper προσαρμοσμένες λέξεις, ονόματα ή όρους του κλάδου.";
+"home.add.api.key" = "Προσθήκη Κλειδιού API";
+"home.accessibility.enable.title" = "Ενεργοποίηση Προσβασιμότητας";
+"home.accessibility.enable.description" = "Επιτρέψτε στο HyperWhisper να αυτο-επικολλά στις εφαρμογές που χρησιμοποιείτε.";
+"home.accessibility.waiting" = "Αναμονή...";
+"home.accessibility.open.settings" = "Ανοίξτε τις Ρυθμίσεις";
+"home.accessibility.restart.after.permission" = "Επανεκκίνηση εφαρμογής μετά την δέσμευση άδειας";
+"home.getting.started.completed" = "✓ Ολοκληρώθηκε";
+"home.whatsnew.badge" = "ΝΕΟ";
+"home.whatsnew.title" = "Τι νέο υπάρχει;";
+"home.whatsnew.update1.date" = "3 Ιουλ";
+"home.whatsnew.update1.title" = "Το Parakeet είναι πλέον διαθέσιμο";
+"home.whatsnew.update1.description" = "Κάντε λήψη απευθείας από τη λίστα Μοντέλων Γλώσσας κατά τη δημιουργία Λειτουργίας για να το δοκιμάσετε σήμερα.";
+"home.whatsnew.update2.date" = "5 Ιουν";
+"home.whatsnew.update2.title" = "Υποστήριξη για κάθε προσαρμοσμένο μοντέλο συμβατό με OpenAI";
+"home.whatsnew.update2.description" = "Μπορείτε τώρα να προσθέσετε οποιοδήποτε API συμβατό με OpenAI στη λίστα των μοντέλων σας.";
+"home.whatsnew.update3.date" = "27 Μαΐ";
+"home.whatsnew.update3.title" = "Zupełnie nowe okno Mini-nagrywania";
+"home.whatsnew.update3.description" = "Λεπτό, ελάχιστο περιβάλλον εγγραφής που παραμένει εκτός του δρόμου.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Πρόσφατες Ενημερώσεις";
+"home.recent.updates.error" = "Αποτυχία φόρτωσης ενημερώσεων";
+"home.recent.updates.retry" = "Επανάληψη";
+"home.recent.updates.empty" = "Καμία πρόσφατη ενημέρωση διαθέσιμη";
+"home.recent.updates.version" = "Έκδοση %@";
+"home.recent.updates.new.badge" = "ΝΕΟ";
+"home.recent.updates.no.notes" = "Καμία σημείωση κυκλοφορίας διαθέσιμη";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Απαιτείται Πρόσβαση Μικροφώνου";
+"common.open.settings" = "Ανοίξτε τις Ρυθμίσεις";
+"alerts.api.local.mode" = "Χρησιμοποιήστε Τοπική Λειτουργία";
+"alerts.documents.permission.title" = "Αποθήκευση στα Έγγραφα;";
+"common.continue" = "Συνέχεια";
+"alerts.documents.permission.use.another" = "Χρησιμοποιήστε άλλη τοποθεσία";
+"alerts.api.configure.generic" = "Παρακαλώ διαμορφώστε τα κλειδιά API σας στις Ρυθμίσεις.";
+"alerts.api.internet.offline" = "Η μεταγραφή στο cloud απαιτεί σύνδεση στο διαδίκτυο. Ελέγξτε τις ρυθμίσεις του δικτύου σας ή επιλέξτε μια τοπική λειτουργία μεταγραφής.";
+"alerts.api.configure.header.multiple" = "Για να χρησιμοποιήσετε τη λειτουργία που επιλέχθηκε, διαμορφώστε τα παρακάτω κλειδιά API στις Ρυθμίσεις:";
+"alerts.api.configure.header.single" = "Για να χρησιμοποιήσετε τη λειτουργία που επιλέχθηκε, διαμορφώστε το παρακάτω κλειδί API στις Ρυθμίσεις:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Μετά την προσθήκη των ελλιπών κλειδιών, δοκιμάστε ξανά.";
+"alerts.export.failed.title" = "Αποτυχία Εξαγωγής";
+"alerts.export.logs.failed.message" = "Δεν ήταν δυνατή η εξαγωγή του κατάλογου ενημερώσεων. Παρακαλώ δοκιμάστε ξανά.";
+"alerts.export.logs.success.title" = "Κατάλογος Εξαγωγής";
+"alerts.export.logs.success.message" = "Κατάλογος ενημερώσεων εξαγόμενη με επιτυχία.";
+"alerts.export.logs.saveFailed.message" = "Δεν ήταν δυνατή η αποθήκευση του καταλόγου στη θέση που επιλέχθηκε: %@";
+"alerts.export.diagnostics.failed.message" = "Δεν ήταν δυνατή η εξαγωγή διαγνωστικών. Παρακαλώ δοκιμάστε ξανά.";
+"alerts.export.diagnostics.success.title" = "Διαγνωστικά Εξαγωγή";
+"alerts.export.diagnostics.success.message" = "Όλα τα διαγνωστικά κούπη εξαγόμενη με επιτυχία.";
+"alerts.export.diagnostics.saveFailed.message" = "Δεν ήταν δυνατή η αποθήκευση διαγνωστικών στη θέση που επιλέχθηκε: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Εξαγωγή καταλόγου ενημερώσεων για υποστήριξη";
+"panels.export.diagnostics.message" = "Εξαγωγή όλα τα διαγνωστικά κούπη";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Ξεκινήστε με το HyperWhisper";
+"sidebar.statistics.help" = "Δείτε τα στατιστικά χρήσης και ανάλυση";
+"sidebar.modes.help" = "Διαχειρίστε τις λειτουργίες μεταγραφής για διαφορετικά πλαίσια";
+"sidebar.vocabulary.help" = "Προσθέστε προσαρμοσμένες λέξεις και φράσεις για καλύτερη αναγνώριση";
+"sidebar.streaming.help" = "Ρυθμίσεις ροής ρεμάτων σε πραγματικό χρόνο (απαιτείται Διαδίκτυο)";
+"sidebar.history.help" = "Δείτε και αναζητήστε το ιστορικό μεταγραφής σας";
+"sidebar.settings.help" = "Διαμορφώστε τις ρυθμίσεις και τις προτιμήσεις της εφαρμογής";
+
+// MARK: - Recording State
+"recording.state.ready" = "Έτοιμο για εγγραφή";
+"recording.state.recording" = "Εγγραφή...";
+"recording.state.processing" = "Επεξεργασία ήχου...";
+"recording.state.transcribing" = "Μεταγραφή...";
+"recording.state.postprocessing" = "Μετα-επεξεργασία με ΤΝ...";
+"recording.state.complete" = "Μεταγραφή ολοκληρωθείσα: %@";
+"recording.state.error" = "Σφάλμα: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Ξεκινήστε ή σταματήστε την εγγραφή";
+"menu.recording.stop" = "Διακοπή Εγγραφής";
+"menu.recording.toggle" = "Ξεκίνημα/Διακοπή Εγγραφής";
+"menu.history" = "Ιστορικό...";
+"menu.settings" = "Ρυθμίσεις...";
+"menu.microphone" = "Μικροφώνο";
+"menu.select.mode" = "Επιλέξτε Λειτουργία";
+"menu.transcribe.file" = "Μεταγράψτε Αρχείο";
+"menu.mode.unnamed" = "Χωρίς όνομα";
+"menu.version.label" = "Έκδοση %@";
+"common.quit" = "Έξοδος";
+"menu.microphone.default" = "Προεπιλογή";
+"menu.microphone.system.default" = "Προεπιλογή";
+"menu.bar.state.recording" = "Εγγραφή";
+"menu.bar.state.processing" = "Επεξεργασία";
+"menu.bar.state.idle" = "Αδρανής";
+"menu.command.check.updates" = "Έλεγχος Ενημερώσεων…";
+"menu.debug.title" = "Αποσφαλμάτωση";
+"menu.command.export.logs" = "Εξαγωγή Καταλόγου Ενημερώσεων…";
+"menu.command.export.diagnostics" = "Εξαγωγή Διαγνωστικών…";
+"menu.command.help.website" = "Ιστότοπος Βοήθειας";
+"menu.command.contact.support" = "Επικοινωνία Υποστήριξης";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Γενικά";
+"settings.section.sound" = "Ήχος";
+"settings.section.license" = "Άδεια";
+"settings.section.credits" = "Πιστώσεις";
+"settings.section.storage" = "Αποθήκευση";
+"settings.section.models" = "Μοντέλα";
+"settings.section.api.keys" = "Κλειδιά API";
+"settings.section.shortcuts" = "Συντομεύσεις Πληκτρολογίου";
+"settings.section.output" = "Έξοδος Κειμένου";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Αγγλικά)";
+"onboarding.model.pro.multilingual" = "Pro (Πολυγλωσσικό)";
+"onboarding.model.downloading.progress" = "Λήψη... %d%%";
+"onboarding.accessibility.title" = "Ενεργοποίηση Προσβασιμότητας για Αυτόματη Επικόλληση";
+"onboarding.accessibility.subtitle" = "Επιτρέψτε στο HyperWhisper να επικολλά αυτόματα το μεταγεγραμμένο κείμενο στις εφαρμογές σας.";
+"onboarding.accessibility.instructions" = "Ρυθμίσεις Συστήματος → Ιδιωτικότητα & Ασφάλεια → Προσβασιμότητα";
+"onboarding.accessibility.status.granted" = "Άδεια προσβασιμότητας δοθείσα";
+"onboarding.accessibility.status.pending" = "Άδεια προσβασιμότητας δεν έχει δοθεί ακόμα";
+"onboarding.accessibility.waiting" = "Αναμονή άδειας...";
+"onboarding.accessibility.open.preferences" = "Ανοίξτε τις Προτιμήσεις Προσβασιμότητας";
+"onboarding.accessibility.restart" = "Μετά την δέσμευση άδειας, επανεκκινήστε το HyperWhisper.";
+"onboarding.model.recommendation.title" = "Συνιστούμε το μοντέλο Pro";
+"onboarding.model.recommendation.subtitle" = "Με βάση τη γλώσσα του συστήματός σας και τις ικανότητες του Mac σας.";
+"onboarding.model.recommendation.note" = "Κάντε λήψη κάνοντας κλικ στο παρακάτω κουμπί.";
+"onboarding.model.downloaded" = "Ληφθέν";
+"onboarding.model.metric.speed" = "Ταχύτητα";
+"onboarding.model.metric.accuracy" = "Ακρίβεια";
+"onboarding.model.metric.size" = "Μέγεθος";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "Ή, επιλέξτε ένα διαφορετικό μοντέλο φωνής";
+"onboarding.model.picker.title" = "Μοντέλο";
+"onboarding.model.option.proEnglish" = "Pro (Αγγλικά)";
+"onboarding.model.option.tiny" = "Μικρό";
+"onboarding.model.option.base" = "Βάση";
+"onboarding.model.option.small" = "Μικρό";
+"onboarding.model.option.medium" = "Μεσαίο";
+"onboarding.model.option.large" = "Μεγάλο";
+"onboarding.model.download.button" = "Λήψη Μοντέλου";
+"onboarding.audio.title" = "Ποια συσκευή εγγραφής ήχου θα θέλατε να χρησιμοποιήσετε;";
+"onboarding.audio.subtitle" = "Βεβαιωθείτε ότι ο ήχος εισόδου είναι ενεργοποιημένος και καταγράφεται στοιχείο.";
+"onboarding.audio.input.label" = "Συσκευή Εισόδου";
+"onboarding.audio.picker.label" = "Συσκευή";
+"onboarding.audio.use.system.default" = "Χρησιμοποιήστε τη συσκευή προεπιλεγμένου συστήματος";
+"onboarding.audio.level" = "Επίπεδο Ήχου";
+"onboarding.audio.open.sound" = "Ανοίξτε τις Προτιμήσεις Ήχου";
+"onboarding.microphone.title" = "Άδεια Εγγραφής Απαιτείται";
+"onboarding.microphone.subtitle" = "Για να καταγράψουμε ήχο, πρέπει να έχουμε πρόσβαση στο μικροφώνό σας.";
+"onboarding.microphone.status.granted" = "Άδεια μικροφώνου δοθείσα";
+"onboarding.microphone.status.pending" = "Άδεια μικροφώνου δεν έχει δοθεί ακόμα";
+"onboarding.microphone.grant" = "Δέσμευση Άδειας";
+"onboarding.test.title" = "Όλα έτοιμα, ας ξεκινήσουμε την πρώτη εγγραφή σας";
+"onboarding.test.press.prefix" = "Πατήστε";
+"onboarding.test.press.suffix" = "για να ξεκινήσετε";
+"onboarding.test.status.recording" = "Εγγραφή...";
+"onboarding.test.status.speak" = "Μιλήστε τώρα...";
+"onboarding.test.stop" = "Διακοπή Εγγραφής";
+"onboarding.test.success.title" = "Υπέροχα! Η εγγραφή σας ήταν επιτυχής.";
+"onboarding.test.success.subtitle" = "Η μεταγραφή σας θα εμφανιστεί στην εφαρμογή.";
+"onboarding.test.start.cta" = "Κάντε κλικ για να ξεκινήσετε την εγγραφή";
+"onboarding.test.start.shortcut" = "Ή πατήστε τη συντόμευση πληκτρολογίου σας";
+"onboarding.settings.title" = "Μπράβο! Τώρα, ας ανοίξουμε τις Ρυθμίσεις";
+"onboarding.settings.subtitle" = "Κάντε δεξί κλικ στο εικονίδιο HyperWhisper και επιλέξτε Ρυθμίσεις...";
+"onboarding.settings.menu.startStop" = "Ξεκίνημα/Διακοπή Εγγραφής";
+"onboarding.settings.menu.history" = "Ιστορικό...";
+"onboarding.settings.menu.settings" = "Ρυθμίσεις...";
+"onboarding.settings.menu.quit" = "Έξοδος";
+"onboarding.settings.info" = "Στις Ρυθμίσεις, μπορείτε να προσαρμόσετε τις συντομεύσεις, να διαχειριστείτε τα κλειδιά API και να διαμορφώσετε το HyperWhisper κατά το δοκούν.";
+"onboarding.completion.title" = "Έχεις τελειώσει!";
+"onboarding.completion.subtitle" = "Εάν αντιμετωπίζετε προβλήματα ή ερωτήσεις, επικοινωνήστε μέσω ηλεκτρονικού ταχυδρομείου ή Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Ηλεκτρονικό ταχυδρομείο";
+"onboarding.completion.resources.title" = "Πρόσθετοι Πόροι";
+"onboarding.completion.resources.documentation" = "Τεκμηρίωση";
+"onboarding.completion.resources.videos" = "Σεμινάρια Βίντεο";
+"onboarding.completion.resources.blog" = "Ιστολόγιο";
+"onboarding.done.button" = "Ολοκληρώθηκε το Onboarding";
+"onboarding.error.model.notFound" = "Μοντέλο δεν βρέθηκε στον κατάλογο.";
+"onboarding.error.microphone.denied" = "Άδεια μικροφώνου αρνήθηκε. Παρακαλώ δώστε άδεια στις Ρυθμίσεις Συστήματος.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Εκκίνηση κατά τη σύνδεση";
+"settings.general.launchAtLogin.info" = "Ξεκινήστε το HyperWhisper αυτόματα όταν συνδέεστε.";
+"settings.general.launchMinimized.title" = "Εκκίνηση ελαχιστοποιημένη";
+"settings.general.launchMinimized.info" = "Ξεκινήστε το HyperWhisper με το κύριο παράθυρο κρυμμένο. Η εφαρμογή θα είναι προσβάσιμη μέσω της γραμμής μενού.";
+"settings.general.showInDock.title" = "Εμφάνιση στο Dock";
+"settings.general.showInDock.info" = "Εμφανίστε το εικονίδιο της εφαρμογής στο Dock.";
+"settings.general.showRecordingWindow.title" = "Εμφάνιση παραθύρου εγγραφής";
+"settings.general.showRecordingWindow.info" = "Εμφανίστε το παράθυρο κυμάτων αιωρούμενης κατά την εγγραφή και επεξεργασία.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Απενεργοποίηση";
+"settings.general.mediaControl.mode.mute" = "Σίγαση Ήχου";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Καταγραφή σφαλμάτων";
+"settings.general.errorLogging.info" = "Καταγράψτε και αποστείλετε αυτόματα αναφορές σφαλμάτων για βελτίωση της εφαρμογής.";
+"settings.general.autoUpdate.title" = "Αυτόματη ενημέρωση";
+"settings.general.autoUpdate.info" = "Ελέγξτε αυτόματα και κάντε λήψη των νέων εκδόσεων του HyperWhisper.";
+"settings.general.support.title" = "Χρειάζεστε βοήθεια;";
+"settings.version.detail" = "Έκδοση %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Αναπαραγωγή ηχητικών εφέ";
+"settings.sound.soundEffects.info" = "Αναπαραγωγή ηχητικών σημάτων κατά την έναρξη και τη διακοπή της εγγραφής.";
+"settings.sound.mediaControl.title" = "Έλεγχος μέσων κατά την εγγραφή";
+"settings.sound.mediaControl.info" = "Επιλέξτε πώς το HyperWhisper χειρίζεται άλλο ήχο κατά την εγγραφή. Το «Απενεργοποίηση» αφήνει τον ήχο αμετάβλητο, η «Σίγαση Ήχου» αποσιωπά την έξοδο συστήματος κατά την εγγραφή και την επαναφέρει στη συνέχεια.";
+"settings.sound.autoIncreaseMicVolume.title" = "Αυτόματη αύξηση του όγκου του μικροφώνου";
+"settings.sound.autoIncreaseMicVolume.info" = "Ορίστε αυτόματα την ένταση εισόδου του μικροφώνου στο μέγιστο όταν ξεκινά η εγγραφή και, στη συνέχεια, επαναφέρει το αρχικό επίπεδο όταν σταματά η εγγραφή. Ισχύει μόνο όταν χρησιμοποιείται η προεπιλεγμένη συσκευή εισόδου του συστήματος.";
+"settings.sound.vad.title" = "Αφαιρέστε τη σιγή πριν τη μεταγραφή";
+"settings.sound.vad.info" = "Αυτόματη ανίχνευση και αφαίρεση της κύριας και ουραίας σιγής χρησιμοποιώντας τεχνητή νοημοσύνη ανίχνευσης φωνής. Αυτό μπορεί να βελτιώσει την ακρίβεια της μεταγραφής και να μειώσει τον χρόνο επεξεργασίας.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Φάκελος Εγγραφών";
+"settings.storage.showFolder.title" = "Εμφάνιση φακέλου εγγραφών";
+"settings.storage.showFolder.button" = "Εμφάνιση στο Finder";
+"settings.storage.notice" = "Η αλλαγή του φακέλου εγγραφών επηρεάζει μόνο τις νέες εγγραφές. Οι υπάρχουσες εγγραφές παραμένουν στην αρχική τους θέση.";
+"settings.storage.choose.button" = "Επιλογή...";
+"settings.storage.dialog.select" = "Επιλέξτε Φάκελο";
+"settings.storage.dialog.message" = "Επιλέξτε έναν φάκελο για αποθήκευση εγγραφών";
+"settings.storage.storeAsM4A.title" = "Συμπίεση εγγραφών σε M4A";
+"settings.storage.storeAsM4A.subtitle" = "Μετατρέπει τις εγγραφές WAV σε μικρότερα αρχεία μετά τη μεταγραφή. Απενεργοποιήστε για να διατηρήσετε τα αρχικά αρχεία WAV (μεγαλύτερα αλλά χωρίς απώλεια).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Αυτόματη επικόλληση αποτελέσματος";
+"settings.output.paste.subtitle" = "Αυτόματη επικόλληση του μεταγεγραμμένου κειμένου στην ενεργή εφαρμογή";
+"settings.output.paste.info" = "Εάν ενεργοποιηθεί, το κείμενο επικολλάται στην εμπρόσθια εφαρμογή.";
+"settings.output.restoreClipboard.title" = "Επαναφορά του προχείρου μετά την επικόλληση";
+"settings.output.restoreClipboard.subtitle" = "Επαναφορά του προηγούμενου περιεχομένου του προχείρου μετά την επικόλληση";
+"settings.output.restoreClipboard.info" = "Επαναφέρει το προηγούμενο περιεχόμενο του προχείρου σας μετά την επικόλληση της μεταγραφής της εφαρμογής.";
+"settings.output.restore.after" = "Επαναφορά μετά";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Καθυστέρηση επαναφοράς προχείρου";
+"settings.output.hideClipboardHistory.title" = "Απόκρυψη από ιστορικό προχείρου";
+"settings.output.hideClipboardHistory.subtitle" = "Αποτρέψτε τις μεταγραφές από εμφάνιση σε εφαρμογές ιστορικού προχείρου";
+"settings.output.hideClipboardHistory.info" = "Όταν ενεργοποιηθεί, το μεταγεγραμμένο κείμενο δεν θα αποθηκευτεί από διαχειριστές προχείρου όπως το Paste, Maccy ή Alfred.";
+"settings.output.clipboard.header" = "Πρόχειρο";
+"settings.output.removeFillers.title" = "Αφαίρεση γεμιστικών λέξεων";
+"settings.output.removeFillers.subtitle" = "Αφαιρεί τα 'uh', 'um' και 'er' από ακατέργαστες απομαγνητοφωνήσεις.";
+"settings.output.removeFillers.info" = "Όταν είναι ενεργό, το HyperWhisper αφαιρεί κοινές γεμιστικές λέξεις από τις ακατέργαστες απομαγνητοφωνήσεις πριν από την έξοδο.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Εναλλαγή Εγγραφής";
+"settings.shortcuts.toggleRecording.subtitle" = "Ξεκινά και σταματά τις εγγραφές";
+"settings.shortcuts.cancelRecording.title" = "Ακύρωση Εγγραφής";
+"settings.shortcuts.cancelRecording.subtitle" = "Απορρίπτει τη δραστική εγγραφή";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Κρατήστε ένα πλήκτρο για να εγγράψετε, αφήστε όταν τελειώσετε";
+"settings.shortcuts.pushToTalk.enable.info" = "Ενεργοποιεί τη λειτουργία Push to Talk για γρήγορη εγγραφή με μία μόνο πίεση πλήκτρου.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Λειτουργία Εγγραφής";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Επιλέξτε ποιο πλήκτρο θα χρησιμοποιήσετε";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Απενεργοποιημένο";
+"settings.shortcuts.pushToTalk.mode.fn" = "Πλήκτρο FN";
+"settings.shortcuts.pushToTalk.mode.control" = "Πλήκτρο Ελέγχου";
+"settings.shortcuts.pushToTalk.mode.custom" = "Προσαρμοσμένη Συντόμευση";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Διπλό πάτημα για κλείδωμα εγγραφής";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Πατήστε δύο φορές γρήγορα για να διατηρήσετε την εγγραφή χωρίς να κρατάτε";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Προσαρμοσμένη Συντόμευση";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Πατήστε το συνδυασμό πλήκτρων για χρήση";
+
+
+"settings.shortcuts.changeMode.title" = "Αλλαγή Λειτουργίας";
+"settings.shortcuts.changeMode.subtitle" = "Λειτουργεί μόνο κατά την εγγραφή";
+
+"settings.shortcuts.reset.button" = "Επαναφορά σε Προεπιλογές";
+"settings.shortcuts.reset.dialog.title" = "Επαναφορά Συντομεύσεων Πληκτρολογίου";
+"settings.shortcuts.reset.confirm" = "Επαναφορά";
+"settings.shortcuts.reset.dialog.message" = "Αυτό θα επαναφέρει όλες τις συντομεύσεις πληκτρολογίου στις προεπιλεγμένες τιμές τους.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "Τα κλειδιά API αποθηκεύονται με ασφάλεια στη συσκευή σας και αποστέλλονται στον πάροχο μόνο όταν χρειάζονται.";
+"settings.api.help.link" = "Βοήθεια με Κλειδιά API";
+"settings.api.transcription.title" = "Μεταγραφή";
+"settings.api.transcription.subtitle" = "Κλειδιά API για υπηρεσίες μετατροπής ομιλίας σε κείμενο βασισμένες στο cloud.";
+"settings.api.postProcessing.title" = "Μετα-επεξεργασία";
+"settings.api.postProcessing.subtitle" = "Κλειδιά API για βελτίωση κειμένου με τεχνητή νοημοσύνη και μορφοποίηση.";
+"settings.api.placeholder" = "Εισάγετε το κλειδί API %@";
+"settings.api.openLink" = "Ανοίξτε τη σελίδα κλειδιού API %@";
+"settings.api.status.accessibility" = "Κατάσταση %@: %@";
+"settings.api.status.unknown" = "Κατάσταση παρόχου άγνωστη";
+"settings.api.status.checking" = "Έλεγχος υγείας σε εξέλιξη";
+"settings.api.status.unauthorized" = "Κλειδί API απορρίφθηκε από τον πάροχο";
+"settings.api.status.unreachable" = "Ο πάροχος είναι επί του παρόντος ανενεργός";
+"settings.api.status.notInstalled" = "SDK παρόχου δεν έχει εγκατασταθεί";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Άγνωστο";
+"provider.status.checking" = "Έλεγχος…";
+"provider.status.healthy" = "Έτοιμο";
+"provider.status.unauthorized" = "Μη έγκυρο κλειδί";
+"provider.status.unreachable" = "Χωρίς σύνδεση";
+"provider.status.notInstalled" = "Δεν έχει εγκατασταθεί";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Άδεια Ενεργοποιημένη";
+"alerts.license.deactivated.title" = "Άδεια Απενεργοποιημένη";
+"alerts.license.activated.message" = "Η άδεια σας έχει ενεργοποιηθεί με επιτυχία. Απολαύστε απεριόριστη πρόσβαση σε όλες τις λειτουργίες!";
+"alerts.license.deactivated.message" = "Η άδεια σας έχει απενεργοποιηθεί σε αυτήν τη συσκευή. Μπορείτε να την ενεργοποιήσετε αλλού.";
+"alerts.license.failed.title" = "Αποτυχία Λειτουργίας";
+"alerts.license.failed.message" = "Λειτουργία αποτυχία. Παρακαλώ δοκιμάστε ξανά.";
+"license.button.deactivate" = "Απενεργοποίηση Συσκευής";
+"license.button.deactivating" = "Απενεργοποίηση...";
+"license.button.manageBilling" = "Διαχείριση Τιμολόγησης";
+"license.button.activate" = "Ενεργοποίηση";
+"license.button.activating" = "Ενεργοποίηση...";
+"license.status.label" = "Κατάσταση: %@";
+"license.status.trial.title" = "Δοκιμή";
+"license.status.active.title" = "Ενεργό";
+"license.status.expired.title" = "Λήξη";
+"license.status.invalid.title" = "Μη έγκυρο";
+"license.status.trial.description" = "Δωρεάν Δοκιμή (5 λεπτά/ημέρα, %d μοντέλα)";
+"license.status.active.description" = "Αδειοδοτημένο – Πλήρης Πρόσβαση";
+"license.status.expired.description" = "Άδεια Λήξη";
+"license.status.invalid.description" = "Μη Έγκυρη Άδεια";
+"settings.license.key.title" = "Κλειδί Άδειας";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Επικόλληση από Πρόχειρο";
+"settings.license.clearInput" = "Σαφή";
+"settings.license.recovery.prompt" = "Ξεχάσατε το κλειδί άδειας σας;";
+"settings.license.recovery.button" = "Πηγαίνετε στην πύλη πελάτη";
+"settings.license.daily.title" = "Καθημερινή Μεταγραφή";
+"settings.license.daily.usage" = "%@ από %@ χρησιμοποιούμενο";
+"settings.license.limitReached" = "Ανώτατο όριο Φθάνει";
+"settings.license.models.title" = "Αυτόνομα Μοντέλα";
+"settings.license.models.progress" = "%d από %d μοντέλα ληφθέντα";
+"settings.license.models.progress.one" = "%d από %d μοντέλο ληφθέν";
+"settings.license.upgrade.text" = "Αναβάθμιση για απεριόριστη μεταγραφή και λήψη μοντέλων";
+"settings.license.upgrade.button" = "Αναβάθμιση";
+"license.error.invalidResponse" = "Μη έγκυρη μορφή απάντησης";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Πιστώσεις HyperWhisper Cloud";
+"settings.credits.refresh" = "Ανανέωση";
+"settings.credits.subtitle" = "Παρακολουθήστε τις πιστώσεις και τη χρήση της μεταγραφής";
+"settings.credits.manage" = "Διαχείριση Πιστώσεων";
+"settings.credits.timeRemaining" = "Χρόνος Μεταγραφής Απομένει";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "λεπτά";
+"settings.credits.creditsRemaining" = "%@ πιστώσεις απομένουν";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Δωρεάν Καθημερινό Όριο (100 πιστώσεις)";
+"settings.credits.resets" = "Εκκινήσεις %@";
+"settings.credits.warning.low" = "Πιστώσεις που τρέχουν χαμηλά. Σκεφτείτε να αγοράσετε μια άδεια για πρόσθετες πιστώσεις.";
+"settings.credits.warning.exhausted.daily" = "Καθημερινό όριο εξαντλημένο. Αγοράστε μια άδεια για απεριόριστη χρήση ή περιμένετε για επαναφορά.";
+"settings.credits.warning.exhausted" = "Πιστώσεις εξαντλημένες. Αγοράστε περισσότερες πιστώσεις για να συνεχίσετε τη χρήση του HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Πληροφορίες Λογαριασμού";
+"settings.credits.stat.creditsRemaining" = "Πιστώσεις Απομένουν";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Λεπτά Απομένουν";
+"settings.credits.stat.accountType" = "Τύπος Λογαριασμού";
+"settings.credits.accountType.licensed" = "Αδειοδοτημένο";
+"settings.credits.accountType.anonymous" = "Ανώνυμο";
+"settings.credits.accountType.trial" = "Δοκιμή";
+"settings.credits.stat.customerId" = "Αναγνωριστικό Πελάτη";
+"settings.credits.stat.dailyLimit" = "Καθημερινό Όριο";
+"settings.credits.dailyLimit.value" = "100 πιστώσεις";
+"settings.credits.loading" = "Φόρτωση υπολοίπου πιστώσεων...";
+"settings.credits.error.title" = "Δεν είναι δυνατή η φόρτωση του υπολοίπου πιστώσεων";
+"settings.credits.error.retry" = "Επανάληψη";
+"settings.credits.empty.title" = "Καμία πληροφορία πιστώσεων διαθέσιμη";
+"settings.credits.empty.subtitle" = "Κάντε κλικ ανανέωση για φόρτωση του υπολοίπου πιστώσεων";
+"settings.credits.empty.button" = "Φόρτωση Πιστώσεων";
+"settings.credits.error.insufficient" = "Ανεπαρκείς πιστώσεις. Έχετε %d πιστώσεις απομένουν.";
+"settings.credits.error.network" = "Σφάλμα δικτύου: %@";
+"settings.credits.error.invalidResponse" = "Μη έγκυρη απάντηση από το διακομιστή. Παρακαλώ δοκιμάστε ξανά.";
+"settings.credits.error.server" = "Σφάλμα διακομιστή: %@";
+"settings.models.alert.limit.title" = "Ανώτατο όριο λήψης μοντέλου φθάνει";
+"settings.models.alert.limit.message" = "Οι δοκιμές περιλαμβάνουν λήψεις μοντέλων %d. Αναβαθμίστε την άδειά σας για απεριόριστες λήψεις.";
+"settings.models.alert.cannotDelete.title" = "Δεν Είναι Δυνατή η Διαγραφή Μοντέλου";
+"settings.models.parakeet.title" = "Μοντέλα Parakeet";
+"settings.models.parakeet.subtitle" = "Συνιστάται για τους περισσότερους χρήστες. Το πολυγλωσσικό μοντέλο υποστηρίζει 25 γλώσσες.";
+"settings.models.parakeet.empty" = "Κανένα μοντέλο Parakeet διαθέσιμο.";
+"settings.models.whisper.title" = "Μοντέλα Whisper";
+"settings.models.whisper.subtitle" = "Μοντέλα Whisper της OpenAI. Τα μεγαλύτερα μοντέλα είναι πιο ακριβή. Υποστηρίζουν 100+ γλώσσες.";
+"settings.models.whisper.empty" = "Κανένα μοντέλο Whisper διαθέσιμο.";
+"settings.models.help.cancelDownload" = "Ακύρωση λήψης";
+"settings.models.help.remove" = "Αφαίρεση μοντέλου";
+"settings.models.downloaded" = "Λήφθηκε";
+"settings.models.download" = "Λήψη";
+"settings.models.downloading" = "Λήψη…";
+"settings.models.localPostProcessing.title" = "Τοπικά μοντέλα μετα-επεξεργασίας";
+"settings.models.localPostProcessing.memoryWarning" = "Συνιστάται για Mac με 24 GB ενοποιημένης μνήμης ή περισσότερο. Η ταχύτητα εξαρτάται από το chip — ταχύτερο σε M3/M4 Pro και άνω.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Λέξεις φέτος";
+"vocabulary.input.placeholder" = "Προσθέστε λέξη ή δημιουργήστε απόσπασμα";
+"vocabulary.action.addWord" = "Προσθήκη λέξης";
+"vocabulary.action.replaceWith" = "Αντικατάσταση με…";
+"vocabulary.action.replace" = "Αντικατάσταση";
+"vocabulary.replacement.field.placeholder" = "Κείμενο αντικατάστασης…";
+"settings.output.autocapitalizeInsert.title" = "Αυτόματα κεφαλαία κατά την εισαγωγή";
+"settings.output.autocapitalizeInsert.subtitle" = "Αντιστοίχιση πλαισίου κέρσορα κατά την εισαγωγή κειμένου";
+"settings.output.autocapitalizeInsert.info" = "Εάν ενεργοποιηθεί, η πρώτη λέξη του εισαγόμενου κειμένου μεταγραφής προσαρμόζεται ώστε να ταιριάζει με το πλαίσιο κέρσορα (αρχή ή μέση πρότασης). Απενεργοποιήστε το για υπαγόρευση πάντα με πεζά.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "Το HyperWhisper χρειάζεται άδεια προσβασιμότητας για να διαβάσει το πλαίσιο κέρσορα που απαιτείται για την αυτόματη χρήση κεφαλαίων.\n\nΚάντε κλικ στο \"Άνοιγμα ρυθμίσεων\", πατήστε την εναλλαγή δίπλα στο HyperWhisper και δοκιμάστε ξανά.";
+"settings.output.removeFillerWords.title" = "Αφαίρεση λέξεων πλήρωσης";
+"settings.output.removeFillerWords.subtitle" = "Αφαιρέστε τα \"ε\", \"μμ\" και \"ε\" από τα ακατέργαστα αντίγραφα όταν η μετεπεξεργασία AI είναι απενεργοποιημένη";
+"settings.output.removeFillerWords.info" = "Εφαρμόζεται μόνο όταν μια λειτουργία παραλείπει τη μετεπεξεργασία AI. Οι λειτουργίες βελτιωμένες από AI διαχειρίζονται τον καθαρισμό ομιλίας στην προτροπή.";
+"sidebar.modelLibrary" = "Βιβλιοθήκη μοντέλων";
+"sidebar.modelLibrary.help" = "Περιηγηθείτε σε όλα τα μοντέλα φωνής και μετεπεξεργασίας σε ένα μέρος";
+"settings.shortcuts.quickCapture.enable.title" = "Γρήγορη καταγραφή";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Εγγράψτε και στείλτε μεταγραφή στις Σημειώσεις — χωρίς να εστιάσετε πρώτα στην εφαρμογή.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Συντόμευση";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Πατήστε οπουδήποτε για εγγραφή και αποστολή στις Σημειώσεις.";
+"settings.shortcuts.quickCapture.mode.title" = "Λειτουργία";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Η λειτουργία μεταγραφής — ελέγχει το μοντέλο, το prompt και την μεταεπεξεργασία.";
+"settings.shortcuts.quickCapture.mode.current" = "Τρέχουσα λειτουργία";
+"settings.shortcuts.quickCapture.permission.banner" = "Το HyperWhisper χρειάζεται άδεια ελέγχου των Σημειώσεων. Παραχωρήστε την στις Ρυθμίσεις συστήματος → Απόρρητο → Αυτοματισμός.";
+"settings.section.vocabulary" = "Λεξιλόγιο";
+"settings.vocabulary.icloudSync.title" = "Συγχρονισμός iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Συγχρονίστε το προσαρμοσμένο λεξιλόγιό σας σε όλα τα Mac που έχουν συνδεθεί στον ίδιο λογαριασμό iCloud.";
+"settings.vocabulary.icloudSync.info" = "Απενεργοποιημένο από προεπιλογή. Συγχρονίζεται μόνο το προσαρμοσμένο λεξιλόγιό σας — τα αντίγραφα και οι εγγραφές παραμένουν σε αυτό το Mac. Οι αλλαγές τίθενται σε ισχύ την επόμενη φορά που θα ανοίξετε το HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Κλείστε το HyperWhisper για εφαρμογή";
+"vocabulary.icloudSync.restart.message" = "Οι αλλαγές στον συγχρονισμό λεξιλογίου iCloud τίθενται σε ισχύ την επόμενη φορά που θα ανοίξετε το HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Κλείσιμο HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Αργότερα";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Διατήρηση μικροφώνου ενεργού μεταξύ εγγραφών";
+"settings.sound.keepWarmMicrophone.info" = "Μειώνει την καθυστέρηση εκκίνησης push-to-talk διατηρώντας τη συνεδρία μικροφώνου ανοιχτή ενώ το HyperWhisper είναι σε αδράνεια. Το macOS θα εμφανίζει συνεχώς την πορτοκαλί ένδειξη μικροφώνου, και τα ακουστικά Bluetooth ενδέχεται να παραμένουν σε λειτουργία κλήσης χαμηλότερης ποιότητας ενώ αυτό είναι ενεργοποιημένο.";
+"settings.models.local.inUse" = "Αυτό το τοπικό μοντέλο χρησιμοποιείται αυτή τη στιγμή για μετεπεξεργασία από:
+
+%@
+
+Επεξεργαστείτε αυτές τις λειτουργίες για να επιλέξετε διαφορετικό μοντέλο πριν το αφαιρέσετε.";
+"models.postProcessing.gemma4.e2b.description" = "Γρήγορο και ακριβές. Εξαιρετική γενική επιλογή για μετεπεξεργασία.";
+"models.postProcessing.gemma4.e4b.description" = "Υψηλότερη ποιότητα με περισσότερες λεπτομέρειες. Καλό για μεγαλύτερα κείμενα.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Γρήγορη εξαγωγή συμπερασμάτων με μόνο 4B ενεργές παραμέτρους.";
+"models.postProcessing.gemma4.31b.description" = "Πυκνό μοντέλο 31B. Υψηλότερη ποιότητα, απαιτεί 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Αυτό το μοντέλο δεν μπορεί να διαγραφεί επειδή χρησιμοποιείται από:\n\n%@\n\nΕνημερώστε αυτές τις λειτουργίες για να χρησιμοποιήσουν ένα διαφορετικό μοντέλο πριν τη διαγραφή.";
+"settings.models.parakeet.inUse" = "Αυτό το μοντέλο Parakeet δεν μπορεί να διαγραφεί επειδή χρησιμοποιείται από:\n\n%@\n\nΕνημερώστε αυτές τις λειτουργίες για να χρησιμοποιήσουν ένα διαφορετικό μοντέλο πριν τη διαγραφή.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Άγνωστο";
+"settings.models.directory.whisper" = "Φάκελος μοντέλων Whisper";
+"settings.models.directory.parakeet" = "Φάκελος μοντέλων Parakeet";
+"settings.models.directory.local" = "Φάκελος τοπικών μοντέλων";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — πολύγλωσση αναγνώριση ομιλίας βελτιστοποιημένη για CoreML.";
+"settings.models.qwen3asr.languages" = "30 γλώσσες";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Αυτό το μοντέλο Qwen3 ASR δεν μπορεί να διαγραφεί επειδή χρησιμοποιείται από:\n\n%@\n\nΕνημερώστε αυτές τις λειτουργίες για να χρησιμοποιήσουν διαφορετικό μοντέλο πριν τη διαγραφή.";
+"settings.models.directory.show" = "Εμφάνιση στο Finder";
+"models.error.checksumFailed" = "Η επαλήθευση ελέγχου μοντέλου απέτυχε. Η λήψη μπορεί να είναι κατεστραμμένη.";
+
+// MARK: - Statistics View
+"statistics.title" = "Στατιστικά";
+"statistics.header.title" = "Τα Στατιστικά Χρήσης σας";
+"statistics.header.subtitle" = "Παρακολουθήστε τη δραστηριότητα μεταγραφής και την απόδοση";
+"statistics.card.recordings" = "Σύνολο Εγγραφών";
+"statistics.card.recordings.subtitle" = "Ολοκληρωμένες μεταγραφές";
+"statistics.card.duration" = "Συνολικός Χρόνος";
+"statistics.card.duration.subtitle" = "Χρόνος ξοδεμένος στην εγγραφή";
+"statistics.card.words" = "Σύνολο Λέξεων";
+"statistics.card.words.subtitle" = "Λέξεις μεταγραφείες";
+"statistics.card.average" = "Μέση Διάρκεια";
+"statistics.card.average.subtitle" = "Ανά εγγραφή";
+"statistics.graph.title" = "Δραστηριότητα Κατά τη Διάρκεια του Χρόνου";
+"statistics.daily.empty" = "Καμία εγγραφή ακόμα";
+"statistics.filter.week" = "Αυτή τη Εβδομάδα";
+"statistics.filter.month" = "Αυτό το Μήνα";
+"statistics.filter.alltime" = "Όλες τις Ώρες";
+
+// MARK: - History View
+"history.title" = "Ιστορικό";
+"history.search.placeholder" = "Αναζήτηση";
+"history.filter.all" = "Όλα";
+"history.filter.today" = "Σήμερα";
+"history.filter.week" = "Αυτή τη Εβδομάδα";
+"history.filter.month" = "Αυτό το Μήνα";
+"history.empty.title" = "Καμία εγγραφή δεν βρέθηκε";
+"history.empty.subtitle" = "Δοκιμάστε να προσαρμόσετε την αναζήτησή σας";
+"history.detail.empty" = "Επιλέξτε μια εγγραφή για προβολή λεπτομερειών";
+"history.multi.selected" = "%d εγγραφές επιλεγμένες";
+"history.multi.delete" = "Διαγραφή Επιλεγμένων";
+"history.context.deleteSelected" = "Διαγραφή %d Εγγραφών";
+"history.context.retry" = "Δοκιμάστε ξανά τη Μεταγραφή";
+"history.context.retryWith" = "Δοκιμάστε ξανά με...";
+"history.context.copy" = "Αντιγραφή Κειμένου";
+"history.retrying" = "Δοκιμή μεταγραφής ξανά...";
+"history.retry.help" = "Δοκιμάστε ξανά τη μεταγραφή";
+"history.section.today" = "Σήμερα";
+"history.section.yesterday" = "Χθες";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Αποτυχία";
+"history.status.transcription.failed.prefix" = "Μεταγραφή απέτυχε:";
+"history.status.retry.failed.prefix" = "Η δοκιμή απέτυχε:";
+"history.failure.reason" = "Λόγος: %@";
+"history.mode.default" = "Προεπιλεγμένο";
+"history.audio.showInFinder" = "Εμφάνιση στο Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Διαγραφή λειτουργίας;";
+"modes.delete.confirm.message" = "Αυτό θα αφαιρέσει την επιλεγμένη λειτουργία. Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.";
+"modes.header.title" = "Λειτουργίες";
+"modes.header.subtitle" = "Δημιουργήστε προσαρμοσμένα προφίλ για διαφορετικά πλαίσια και ροές εργασίας";
+"modes.header.create" = "Δημιουργία Λειτουργίας";
+"modes.name.unnamed" = "Χωρίς όνομα";
+"modes.badge.offline" = "Χωρίς σύνδεση";
+"modes.context.select" = "Επιλογή";
+"modes.help.edit" = "Επεξεργασία ρυθμίσεων λειτουργίας";
+"modes.help.preset" = "Μάθετε περισσότερα σχετικά με αυτό το στυλ μορφοποίησης";
+"modes.help.model" = "Μάθετε περισσότερα σχετικά με αυτό το μοντέλο";
+"modes.preset.title" = "Στυλ μορφοποίησης";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Μήνυμα";
+"modes.preset.mail.name" = "Ταχυδρομείο";
+"modes.preset.note.name" = "Σημείωση";
+"modes.preset.meeting.name" = "Συνάντηση";
+"modes.preset.code.name" = "Κώδικας";
+"modes.preset.custom.name" = "Προσαρμοσμένο";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Η λειτουργία Μήνυμα καθαρίζει το υπαγόρευσή σας, διορθώνοντας τη στίξη, σχηματίζοντας σε παραγράφους και ταξινομώντας τα γραμματικά σφάλματα.";
+"modes.preset.mail.tooltip" = "Η λειτουργία Ηλεκτρονικό ταχυδρομείο μορφοποιεί τη δική σας υπαγόρευση σε μια επαγγελματική δομή ηλεκτρονικού ταχυδρομείου, με σωστή χαιρετισμό, παράγραφο και υπογραφή.";
+"modes.preset.note.tooltip" = "Η λειτουργία σημείωσης οργανώνει το υπαγόρευσή σας σε μορφή σαφούς σημείωσης με κεφαλίδες, κουκκίδες και δομημένες ενότητες.";
+"modes.preset.meeting.tooltip" = "Η λειτουργία συνάντησης δομές την υπαγόρευσή σας σε μορφή πρακτικών συνάντησης με παρευρισκομένους, στοιχεία δράσης και σημεία βασικής συζήτησης.";
+"modes.preset.code.tooltip" = "Η λειτουργία κώδικα μετατρέπει την υπαγόρευση προγραμματισμού κατά φωνή σε σύνταξη κώδικα. Πείτε 'ανοίξτε αγκύλη', 'ανάστροφη κάθετος', 'σκηνή camel' και άλλα για να γράψετε κώδικα με φωνή.";
+"modes.preset.custom.tooltip" = "Η προσαρμοσμένη λειτουργία σας επιτρέπει να ορίσετε τους δικούς σας κανόνες μορφοποίησης και προτάσεις για συγκεκριμένες περιπτώσεις χρήσης.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "Η ΤΝ αναδιαρθρώνει την υπαγόρευσή σας σε ένα καθαρό μήνυμα με σωστές παραγράφους, σημεία στίξης και γραμματικές διορθώσεις.";
+"modes.preset.mail.preview" = "Η ΤΝ μορφοποιεί την υπαγόρευσή σας σε ένα επαγγελματικό email με χαιρετισμούς, δομημένες παραγράφους και υπογραφή.";
+"modes.preset.note.preview" = "Η ΤΝ οργανώνει την υπαγόρευσή σας σε δομημένες σημειώσεις με επικεφαλίδες, κουκκίδες και σαφή τμήματα.";
+"modes.preset.meeting.preview" = "Η ΤΝ δομεί την υπαγόρευσή σας σε πρακτικά συνάντησης με συμμετέχοντες, σημεία συζήτησης και εργασίες.";
+"modes.preset.code.preview" = "Η ΤΝ μετατρέπει την εκφωνημένη υπαγόρευση προγραμματισμού σε σύνταξη κώδικα, ερμηνεύοντας εντολές όπως 'άνοιγμα αγκύλης' και 'camel case'.";
+"modes.preset.custom.preview" = "Χρησιμοποιεί τις προσαρμοσμένες οδηγίες μορφοποίησής σας για την επεξεργασία της μεταγραφής.";
+"modes.customInstructions" = "Ορίστε τις πλήρεις οδηγίες μορφοποίησης για αυτό το προπρότυπο.";
+"modes.notice.vocabularyUnsupported" = "Το προσαρμοσμένο λεξιλόγιο δεν υποστηρίζεται από αυτόν τον πάροχο για αυτό το μοντέλο. Θα αγνοηθεί.";
+"modes.notice.deepgramNova3AutoDetect" = "Το προσαρμοσμένο λεξιλόγιο δεν είναι διαθέσιμο κατά τη χρήση του Deepgram Nova-3 με αυτόματη ανίχνευση γλώσσας. Για να ενεργοποιήσετε την αύξηση του λεξιλογίου, ορίστε μια συγκεκριμένη γλώσσα (π.χ. Αγγλικά, Ισπανικά).";
+"modes.language.title" = "Γλώσσα";
+"modes.language.englishOnly" = "Μόνο αγγλικά (βελτιστοποιημένο μοντέλο)";
+"modes.postProcessing.sectionTitle" = "Μετα-επεξεργασία";
+"modes.postProcessing.modeLabel" = "Λειτουργία";
+"modes.postProcessing.modeTitle" = "Μετα-επεξεργασία";
+"modes.postProcessing.modeDescription" = "Επιλέξτε τον τρόπο επεξεργασίας των μεταγραφών:\n\n• Κλειστή: Χωρίς μετα-επεξεργασία, ακατέργαστη μεταγραφή\n• Cloud (AI): Βελτίωση με τεχνητή νοημοσύνη (απαιτείται διαδίκτυο)\n• Τοπική: Χρησιμοποιεί ένα τοπικό LLM όπως το Gemma μέσω llama.cpp\n\nΗ επεξεργασία cloud αποστέλλει κείμενο στον επιλεγμένο πάροχο τεχνητής νοημοσύνης. Η τοπική λειτουργία παραμένει στη μηχανή σας αλλά χρειάζεται τον τοπικό διακομιστή να εκτελείται.";
+"modes.postProcessing.providerLabel" = "Πάροχος";
+"modes.postProcessing.apiKeyMissing" = "Το κλειδί API %@ δεν έχει διαμορφωθεί. Προσθέστε το στις Ρυθμίσεις για να ενεργοποιήσετε τη μετα-επεξεργασία.";
+"modes.postProcessing.configure" = "Διαμόρφωση στις Ρυθμίσεις";
+"modes.postProcessing.modelRecommendation" = "Συνιστούμε την χρήση GPT-4.1 Nano για την καλύτερη ισορροπία ταχύτητας και ποιότητας.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Η τοπική μετεπεξεργασία απαιτεί ένα ληφθέν τοπικό μοντέλο.";
+"modes.postProcessing.download" = "Λήψη στις Ρυθμίσεις";
+"modes.postProcessing.localInfo" = "Εκτελείται πλήρως στη συσκευή. Το HyperWhisper ξεκινά αυτόματα τον δεσμευμένο διακομιστή llama.cpp όταν αυτή η λειτουργία είναι ενεργή.";
+"modes.postProcessing.userSystemPrompt.title" = "Μόνιμες Οδηγίες";
+"modes.postProcessing.userSystemPrompt.placeholder" = "π.χ., Υπόγραφε πάντα τα email με 'Με εκτίμηση, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Σαφής";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Μόνιμες Οδηγίες";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Προσθέστε οδηγίες που ισχύουν πάντα πάνω από το επιλεγμένο προπρότυπο.";
+"modes.toggle.punctuation.title" = "Προσθήκη στίξης";
+"modes.toggle.punctuation.subtitle" = "Προσθέστε αυτόματα τελείες και κόμματα";
+"modes.toggle.capitalization.title" = "Κεφαλαιοποίηση προτάσεων";
+"modes.toggle.capitalization.subtitle" = "Κεφάλαιο πρώτο γράμμα προτάσεων";
+"modes.toggle.profanity.title" = "Φιλτράρισμα χυδαιότητας";
+"modes.toggle.profanity.subtitle" = "Αντικατάστασης ακατάλληλων λέξεων";
+"modes.toggle.removeTrailingPeriod.title" = "Αφαίρεση τελικής τελείας";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Αφαιρεί την τελεία στο τέλος των μεταγραφών";
+"modes.postProcessing.privacyNotice" = "Η μεταγραφή σας αποστέλλεται ΜΟΝΟ σε %@ για μετα-επεξεργασία. Ποτέ πουθενά αλλού.";
+"modes.postProcessing.localModel" = "Μοντέλο";
+"modes.postProcessing.languageModel" = "Μοντέλο Γλώσσας";
+"modes.englishSpelling.title" = "Αγγλική Ορθογραφία";
+"modes.englishSpelling.american" = "Αμερικανικά";
+"modes.englishSpelling.british" = "Βρετανικά";
+"modes.englishSpelling.australian" = "Αυστραλιανά";
+"modes.englishSpelling.canadian" = "Καναδική";
+"modes.englishSpelling.american.description" = "Χρησιμοποιήστε αμερικανική ορθογραφία (χρώμα, συνειδητοποιήστε, οργανισμό, κέντρο, ταξίδεψα)";
+"modes.englishSpelling.british.description" = "Χρησιμοποιήστε βρετανική ορθογραφία (χρώμα, συνειδητοποιήστε, οργανισμό, κέντρο, ταξίδεψα)";
+"modes.englishSpelling.australian.description" = "Χρησιμοποιήστε αυστραλιανή ορθογραφία (χρώμα, συνειδητοποιήστε, οργανισμό, κέντρο, ταξίδεψα)";
+"modes.englishSpelling.canadian.description" = "Χρησιμοποιήστε καναδική ορθογραφία (χρώμα, συνειδητοποιήστε, οργανισμό, κέντρο, ταξίδεψα)";
+"modes.gemini.customPrompt.title" = "Προσαρμοσμένες οδηγίες";
+"modes.gemini.customPrompt.helper" = "Προαιρετικό. Π.χ. \"Μορφοποίηση ως κουκκίδες\", \"Χρήση επίσημης γλώσσας\". Οι ρυθμίσεις γλώσσας και λεξιλογίου συμπεριλαμβάνονται αυτόματα.";
+"modes.cloud.apiKeyMissing" = "Το κλειδί API %@ δεν έχει διαμορφωθεί. Προσθέστε το στις Ρυθμίσεις για να χρησιμοποιήσετε τη μεταγραφή cloud.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Ακρίβεια";
+"modes.cloudAccuracy.groqWhisper.label" = "Μεσαίο (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Μεσαίο (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Ψηλό (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Γρήγορο και οικονομικό. Καλύτερο για γρήγορες μεταγραφές.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Ισορροπημένη ταχύτητα και ακρίβεια. Συνιστάται για τους περισσότερους χρήστες.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
+"modes.cloudAccuracy.grokStt.label" = "Υψηλότερο (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
+
+"modes.create.title" = "Δημιουργία Νέας Λειτουργίας";
+"modes.create.subtitle" = "Διαμόρφωση ενός προσαρμοσμένου προφίλ μεταγραφής";
+"modes.section.basic" = "Βασικές Ρυθμίσεις";
+"modes.section.transcription" = "Μοντέλο Μεταγραφής";
+"modes.section.punctuation" = "Στίξη";
+"modes.toggle.screenText.title" = "Κείμενο οθόνης";
+"modes.toggle.screenText.subtitle" = "Καταγράψτε το ορατό κείμενο της οθόνης για να βελτιώσετε την ακρίβεια των ονομάτων και των όρων. Απαιτεί άδεια εγγραφής οθόνης.";
+"modes.screenText.openSettings" = "Ανοίξτε τις Ρυθμίσεις συστήματος";
+"modes.screenText.permissionGranted" = "Παραχώρηση άδειας εγγραφής οθόνης";
+"modes.screenText.permissionRequired" = "Απαιτείται άδεια εγγραφής οθόνης";
+"modes.field.name" = "Όνομα";
+"modes.field.name.placeholder" = "π.χ., Σημειώσεις Συνάντησης";
+"modes.field.name.editPlaceholder" = "Όνομα λειτουργίας";
+"modes.field.model" = "Μοντέλο";
+"modes.field.provider" = "Πάροχος";
+"modes.provider.local" = "Τοπικό";
+"modes.provider.cloud" = "Cloud";
+"modes.notice.noLocalModels.title" = "Κανένα τοπικό μοντέλο δεν έχει εγκατασταθεί";
+"modes.notice.noLocalModels.subtitle" = "Εγκαταστήστε ένα μοντέλο στις Ρυθμίσεις πρώτα";
+"modes.model.pricing" = "Τιμολόγηση: $%.6f / λεπτό (χρεώνονται ανά δευτερόλεπτο)";
+"modes.button.create" = "Δημιουργία Λειτουργίας";
+"modes.button.delete" = "Διαγραφή Λειτουργίας";
+"modes.button.save" = "Αποθήκευση Αλλαγών";
+"modes.edit.title" = "Επεξεργασία Λειτουργίας";
+"modes.edit.subtitle" = "Τροποποίηση ρυθμίσεων προφίλ μεταγραφής";
+"mode.editor.cloudModel.previewHint" = "Προεπισκόπηση";
+"mode.editor.cloudModel.noVocabularyHint" = "Χωρίς προσαρμοσμένο λεξιλόγιο";
+"mode.editor.cloudDomain.medical" = "Ιατρικό";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ πρόσθετο Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Δεν μπορώ να δοκιμάσω ξανά: Το αρχείο ήχου δεν βρέθηκε";
+"transcripts.error.invalidId" = "Μη έγκυρο αναγνωριστικό μεταγραφής";
+"transcripts.delete.single.title" = "Διαγραφή Εγγραφής;";
+"transcripts.delete.single.message" = "Αυτό θα διαγράψει μόνιμα αυτήν την εγγραφή και το αρχείο ήχου της.";
+"transcripts.delete.multiple.title" = "Διαγραφή %d Εγγραφών;";
+"transcripts.delete.multiple.message" = "Αυτό θα διαγράψει μόνιμα %d εγγραφές και τα αρχεία ήχου τους.\n\nΑυτή η ενέργεια δεν μπορεί να αναιρεθεί.";
+"transcripts.delete.multiple.confirm" = "Διαγραφή Όλων";
+"transcripts.retry.error.title" = "Η Δοκιμή Απέτυχε";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Επιλέξτε Φάκελο Εγγραφών";
+"storage.folder.choose.message" = "Επιλέξτε ένα φάκελο για αποθήκευση νέων εγγραφών.";
+"storage.folder.choose.prompt" = "Επιλογή";
+"storage.recovery.title" = "Δεν είναι δυνατή η πρόσβαση στο φάκελο εγγραφών";
+"storage.recovery.message" = "Το HyperWhisper δεν μπορούσε να αποκτήσει πρόσβαση στο διαμορφωμένο φάκελο εγγραφών. Μπορείτε να επιλέξετε ένα διαφορετικό φάκελο για να συνεχίσετε.";
+"storage.recovery.choose" = "Επιλέξτε Φάκελο…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Μάθετε περισσότερα";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Μεταγραφή Ολοκληρωθείσα";
+"recording.status.retrying" = "Δοκιμή Μεταγραφής ξανά…";
+"recording.status.postprocessing" = "Μετα-επεξεργασία με AI…";
+"recording.status.transcribing" = "Μεταγραφή…";
+"recording.success.pasted" = "Επικολλημένη!";
+"recording.loading.retrying" = "Δοκιμή ξανά…";
+"recording.loading.postprocessing" = "Επεξεργασία με AI…";
+"recording.loading.starting" = "Έναρξη ρευστοποίησης…";
+"recording.loading.transcribing" = "Μεταγραφή…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Σύνδεση...";
+"streaming.status.ready" = "Έτοιμη - Ξεκινήστε να Μιλάτε";
+"streaming.status.warming" = "Προθέρμανση...";
+"modes.badge.recommended" = "Προτεινόμενο";
+"modes.source.label" = "Πηγή";
+"modes.source.onDevice" = "Στη συσκευή";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "Κλειδί API";
+"modes.field.engine" = "Κινητήρας";
+"settings.models.localASR.inUse" = "Αυτό το μοντέλο δεν μπορεί να διαγραφεί επειδή χρησιμοποιείται από:
+
+%@
+
+Ενημερώστε αυτές τις λειτουργίες για να χρησιμοποιούν διαφορετικό μοντέλο πριν τη διαγραφή.";
+"models.postProcessing.gemma4.12b.description" = "Μεσαίου μεγέθους πυκνό μοντέλο. Εξισορροπεί ποιότητα και ταχύτητα σε Mac 16 GB.";
+"recording.success.savedToNotes" = "Αποθηκεύτηκε στις Σημειώσεις!";
+"modes.provider.needsKey" = "Το %@ χρειάζεται ένα λειτουργικό κλειδί.";
+"modes.provider.manageInLibrary" = "Διαχείριση στη Βιβλιοθήκη →";
+"streaming.loading.warming" = "Προθέρμανση τοπικού μοντέλου...";
+"streaming.status.listening" = "Ακούω...";
+"streaming.status.streaming" = "Ρευστοποίηση...";
+"streaming.status.disconnecting" = "Διακοπή...";
+"streaming.loading.connecting" = "Σύνδεση με διακομιστή...";
+"streaming.loading.ready" = "Αρχικοποίηση ήχου...";
+"streaming.loading.streaming" = "Αναμονή για ομιλία...";
+"streaming.state.reconnecting" = "Σύνδεση ξανά...";
+"recording.stop.help" = "Διακοπή Εγγραφής (%@)";
+"recording.postprocessing.unavailable" = "Μετα-επεξεργασία δεν είναι διαθέσιμη";
+"recording.postprocessing.missing.single" = "%@ κλειδί που λείπει – εγγραφή χωρίς μετα-επεξεργασία";
+"recording.postprocessing.missing.multiple" = "Κλειδιά API που λείπουν – εγγραφή χωρίς μετα-επεξεργασία";
+"recording.postprocessing.addKey" = "Προσθήκη Κλειδιού";
+"recording.offline.banner" = "Δεν υπάρχει σύνδεση στο διαδίκτυο. Η μεταγραφή cloud θα αποτύχει έως ότου είστε σε σύνδεση.";
+"recording.offline.title" = "Δεν υπάρχει σύνδεση στο διαδίκτυο";
+"recording.offline.subtitle" = "Συνδεθείτε ξανά για να συνεχίσετε ή επιλέξτε μια τοπική λειτουργία.";
+"recording.error.network" = "Ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά.";
+"recording.error.timeout" = "Το αίτημα έληξε. Ελέγξτε την ταχύτητα της σύνδεσης σας και δοκιμάστε ξανά.";
+"recording.error.rateLimit" = "Έχετε κάνει πάρα πολλά αιτήματα. Περιμένετε λίγο και δοκιμάστε ξανά.";
+"recording.error.credits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";
+"recording.error.apiKey" = "Προσθέστε το κλειδί API %@ σας στις Ρυθμίσεις.";
+"recording.error.server" = "Η υπηρεσία μεταγραφής αντιμετωπίζει προβλήματα. Παρακαλώ δοκιμάστε ξανά σε λίγο.";
+"recording.retry" = "Δοκιμάστε ξανά";
+"recording.retry.inProgress" = "Δοκιμή ξανά…";
+"recording.retry.count" = "Δοκιμή (%d)";
+"recording.retry.failed.missing" = "Η δοκιμή απέτυχε: Το αρχείο ήχου δεν βρέθηκε";
+"recording.retry.failed.error" = "Η δοκιμή απέτυχε: %@";
+"recording.retry.pending" = "Έτοιμη για δοκιμή – κάντε κλικ για μεταγραφή";
+"recording.provider.unknown" = "πάροχος cloud";
+"recording.cancel.dialog.title" = "Ακύρωση Εγγραφής;";
+"recording.cancel.dialog.message" = "Αυτό θα απορρίψει την τρέχουσα εγγραφή.";
+"recording.cancel.dialog.confirm" = "Ακύρωση Εγγραφής";
+"recording.cancel.dialog.resume" = "Συνέχεια";
+"recording.error.overlay.title" = "Σφάλμα σύνδεσης δικτύου";
+"recording.error.overlay.message" = "Πατήστε 'Δοκιμάστε ξανά' παρακάτω ή επιλέξτε μια τοπική λειτουργία για να συνεχίσετε.";
+"recording.mode.default" = "Προεπιλεγμένο";
+"recording.dialog.window.title" = "Διάλογος Εγγραφής";
+"recording.button.start" = "Έναρξη Εγγραφής";
+"recording.button.stop" = "Διακοπή Εγγραφής";
+"recording.button.disable.checking" = "Έλεγχος κατάστασης %@...";
+"recording.button.disable.invalid" = "Μη έγκυρο κλειδί API %@. Ενημερώστε το στις Ρυθμίσεις.";
+"recording.button.disable.unreachable" = "Ο %@ δεν είναι προσβάσιμος. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.";
+"recording.button.disable.missing" = "Προσθέστε το κλειδί API %@ σας στις Ρυθμίσεις.";
+"recording.button.disable.install.local" = "Κατεβάστε ένα τοπικό μοντέλο στις Ρυθμίσεις → Μοντέλα πριν χρησιμοποιήσετε την τοπική μεταεπεξεργασία.";
+"modes.postProcessing.accuracy" = "Ακρίβεια";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Έχετε φτάσει το καθημερινό όριο μεταγραφής %@ λεπτών. Αναβαθμίστε σε HyperWhisper Pro για απεριόριστη μεταγραφή.";
+"recording.error.documentsAccess" = "Δεν είναι δυνατή η πρόσβαση στο φάκελο εγγραφών. Επιλέξτε διαφορετική θέση στις Ρυθμίσεις → Αποθήκευση.";
+"recording.error.modeMissing" = "Η επιλεγμένη λειτουργία δεν βρέθηκε. Παρακαλώ επιλέξτε μια έγκυρη λειτουργία.";
+"recording.warning.oversizedWAV" = "Η συμπίεση ήχου απέτυχε. Χρησιμοποιώντας ασυμπίεστο αρχείο %@ MB - η μεταγραφή μπορεί να είναι πιο αργή.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Προεπιλεγμένο Μικροφώνο";
+"audio.error.permissionDenied" = "Πρόσβαση μικροφώνου αρνήθηκε. Παρακαλώ ενεργοποιήστε στις Ρυθμίσεις Συστήματος.";
+"audio.error.fileWatcher.open" = "Δεν ήταν δυνατό το άνοιγμα ενός περιγραφέα αρχείου για παρακολούθηση του αρχείου ήχου.";
+"audio.error.fileWatcher.timeout" = "Η ενέργεια έληξε κατά την αναμονή για το αρχείο ήχου να γραφτεί.";
+"audio.error.fileWatcher.creation" = "Το αρχείο ήχου δεν δημιουργήθηκε εγκαίρως.";
+"audio.error.microphonePermission" = "Άδεια μικροφώνου δεν δoθείσα";
+"audio.error.microphoneInUse" = "Το HyperWhisper δεν μπορεί να αποκτήσει πρόσβαση στο μικροφώνο επειδή μια άλλη εφαρμογή το χρησιμοποιεί. Παύστε την άλλη εφαρμογή ή αλλάξτε τις εισόδους, στη συνέχεια δοκιμάστε ξανά.";
+"audio.error.createEngine" = "Αποτυχία δημιουργίας κινητήρα ήχου";
+"audio.error.noInput" = "Δεν υπάρχει διαθέσιμη είσοδος ήχου";
+"audio.error.createFile" = "Αποτυχία δημιουργίας αρχείου ήχου";
+"audio.error.managerUnavailable" = "Διαχειριστής μεταγραφής δεν έχει διαμορφωθεί";
+"audio.error.invalidHardwareFormat" = "Ανιχνεύθηκε μη έγκυρη μορφή ήχου υλικού. Παρακαλώ ελέγξτε τη συσκευή ήχου σας.";
+"audio.error.createFormat" = "Αποτυχία δημιουργίας μορφής ήχου για εγγραφή";
+"audio.error.createConverter" = "Αποτυχία δημιουργίας μετατροπέα μορφής ήχου";
+"audio.error.exportM4A" = "Αποτυχία εξαγωγής ήχου σε μορφή m4a";
+"audio.error.readFile" = "Το αρχείο ήχου δεν μπορούσε να διαβαστεί μετά την εγγραφή.";
+"audio.error.recordingTooShort" = "Η εγγραφή ήταν πολύ σύντομη. Παρακαλώ κρατήστε το κουμπί περισσότερο για να καταγράψετε ήχο.";
+"audio.error.noAudioTrack" = "Αυτό το αρχείο βίντεο δεν περιέχει κομμάτι ήχου.";
+"audio.alert.accessibility.title" = "Ενεργοποίηση Προσβασιμότητας";
+"audio.alert.accessibility.message" = "Το HyperWhisper χρειάζεται άδεια προσβασιμότητας για να επικολλά το μεταγεγραμμένο κείμενο σε άλλες εφαρμογές.\n\nΚάντε κλικ \"Ανοίξτε τις Ρυθμίσεις\", πατήστε το κουμπί ενεργοποίησης δίπλα στο HyperWhisper, στη συνέχεια δοκιμάστε ξανά.";
+"audio.alert.accessibility.open" = "Ανοίξτε τις Ρυθμίσεις";
+"audio.alert.pasteFailed.title" = "Αυτόματη επικόλληση απέτυχε";
+"audio.alert.pasteFailed.message" = "Το μεταγεγραμμένο κείμενο έχει αντιγραφεί στο πρόχειρό σας.\n\nΠατήστε ⌘V για επικόλληση με μη αυτόματο τρόπο, ή επιλέξτε Επεξεργασία → Επικόλληση από το μενού.";
+"accessibility.permission.location.debug" = "Xcode Debug Build";
+"accessibility.permission.location.installed" = "Εγκατεστημένη Εφαρμογή";
+"accessibility.permission.info" = "Το HyperWhisper χρειάζεται άδεια προσβασιμότητας για να επικολλά το μεταγεγραμμένο κείμενο σε άλλες εφαρμογές.\n\nΤρέχουσα θέση εφαρμογής: %@\n\nΣτις Ρυθμίσεις Συστήματος:\n1. Ψάξτε για 'hyperwhisper' ή 'HyperWhisper' στη λίστα\n2. Μπορεί να δείτε πολλαπλές καταχωρήσεις εάν έχετε τρέξει από διαφορετικές θέσεις\n3. Ενεργοποιήστε το πλαίσιο ελέγχου για την καταχώρηση που ταιριάζει:\n   %@";
+"accessibility.permission.xcodeNote" = "Σημείωση: Η εκτέλεση από το Xcode απαιτεί διαφορετική άδεια από την εγκατεστημένη εφαρμογή.";
+"accessibility.error.paste.commandFailed" = "Η εντολή επικόλλησης απέτυχε";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Ο πάροχος μεταγραφής δεν είναι διαθέσιμος. Ελέγξτε τις ρυθμίσεις σας και δοκιμάστε ξανά.";
+"transcription.error.providerNotAvailable.provider" = "Ο %@ δεν είναι διαθέσιμος. Ελέγξτε τις ρυθμίσεις σας και δοκιμάστε ξανά.";
+"transcription.error.providerNotAvailable.detail" = "Ο %@ δεν είναι διαθέσιμος: %@";
+"transcription.error.modelNotDownloaded" = "Παρακαλώ κάντε λήψη ενός μοντέλου πρώτα";
+"transcription.error.modelProtected" = "Αυτό το μοντέλο δεν μπορεί να διαγραφεί";
+"transcription.error.audioFileNotFound" = "Το αρχείο ήχου δεν βρέθηκε";
+"transcription.error.network.detail" = "Σφάλμα δικτύου: %@";
+"transcription.error.network.generic" = "Σφάλμα σύνδεσης δικτύου";
+"transcription.error.apiKeyMissing.provider" = "Το κλειδί API %@ απαιτείται για τη μεταγραφή";
+"transcription.error.apiKeyMissing.generic" = "Απαιτείται κλειδί API παρόχου cloud για τη μεταγραφή";
+"transcription.error.maxRetriesExceeded" = "Υπερβολή μέγιστης προσπάθειας δοκιμής";
+"transcription.error.unauthorized.provider" = "Μη εξουσιοδοτημένο: μη έγκυρο κλειδί API %@ ή δικαιώματα.\n\nΑνοίξτε Ρυθμίσεις → Κλειδιά API για επαλήθευση των διαπιστευτηρίων σας.";
+"transcription.error.unauthorized.generic" = "Μη εξουσιοδοτημένο: μη έγκυρο κλειδί API ή δικαιώματα.\n\nΑνοίξτε Ρυθμίσεις → Κλειδιά API για επαλήθευση των διαπιστευτηρίων σας.";
+"transcription.error.invalidRequest" = "Μη έγκυρο αίτημα: ελέγξτε το αρχείο ήχου ή τις ρυθμίσεις";
+"transcription.error.streamingInterrupted" = "Ρευστοποίηση διακοπή; μερικό κείμενο που εμφανίζεται";
+"transcription.error.busy" = "Η υπηρεσία μεταγραφής είναι επί του παρόντος απασχολημένη";
+"transcription.error.invalidAudioFormat" = "Μη υποστηριζόμενη μορφή ήχου";
+"transcription.error.audioConversionFailed" = "Αποτυχία μετατροπής ήχου σε απαιτούμενη μορφή";
+"transcription.error.audioFileTooLarge" = "Αρχείο πολύ μεγάλο: %@ υπερβαίνει το όριο %@ για %@";
+"transcription.error.serverError" = "Σφάλμα διακομιστή (%d): %@";
+"transcription.error.rateLimited.seconds" = "Περιορισμός ρυθμού: Πάρα πολλά αιτήματα. Παρακαλώ περιμένετε %d δευτερόλεπτα και δοκιμάστε ξανά.";
+"transcription.error.rateLimited.generic" = "Περιορισμός ρυθμού: Πάρα πολλά αιτήματα. Παρακαλώ περιμένετε λίγο και δοκιμάστε ξανά.";
+"transcription.error.insufficientCredits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";
+"transcription.error.quotaExceeded" = "Υπέρβαση ορίου %@";
+"transcription.error.quotaExceeded.detail" = "Υπέρβαση ορίου %@: %@";
+"transcription.error.timeout" = "Το αίτημα έληξε κατά τη διάρκεια %@. Ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Βεβαιωθείτε ότι ο πάροχος μεταγραφής σας έχει διαμορφωθεί σωστά στις Ρυθμίσεις.";
+"transcription.guidance.providerNotAvailable.provider" = "Βεβαιωθείτε ότι ο %@ έχει διαμορφωθεί σωστά. Για τοπικά μοντέλα, κάντε πρώτα λήψη ενός μοντέλου. Για παρόχους cloud, επαληθεύστε το κλειδί API σας.";
+"transcription.guidance.apiKeyMissing.provider" = "Προσθέστε το κλειδί API %@ σας στις Ρυθμίσεις";
+"transcription.guidance.apiKeyMissing.generic" = "Προσθέστε το κλειδί API παρόχου cloud σας στις Ρυθμίσεις";
+"transcription.guidance.modelNotDownloaded" = "Κάντε λήψη ενός μοντέλου από την ενότητα Μοντέλα";
+"transcription.guidance.modelProtected" = "Αυτό το μοντέλο χρησιμοποιείται επί του παρόντος";
+"transcription.guidance.audioFileNotFound" = "Το αρχείο ήχου διαγράφηκε ή μετακινήθηκε";
+"transcription.guidance.networkError" = "Ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά";
+"transcription.guidance.unauthorized.provider" = "Ελέγξτε το κλειδί API %@ ή τα δικαιώματα λογαριασμού σας στις Ρυθμίσεις";
+"transcription.guidance.unauthorized.generic" = "Ελέγξτε το κλειδί API ή τα δικαιώματα λογαριασμού σας στις Ρυθμίσεις";
+"transcription.guidance.invalidRequest" = "Επαληθεύστε το αρχείο ήχου και τις ρυθμίσεις λειτουργίας, στη συνέχεια δοκιμάστε ξανά";
+"transcription.guidance.invalidAudioFormat" = "Δοκιμάστε να μετατρέψετε το αρχείο ήχου σε μορφή MP3 ή WAV";
+"transcription.guidance.audioConversionFailed" = "Το αρχείο ήχου μπορεί να είναι κατεστραμμένο. Δοκιμάστε ένα διαφορετικό αρχείο";
+"transcription.guidance.audioFileTooLarge" = "Χρησιμοποιήστε ένα πιο σύντομο αρχείο ήχου ή χωρίστε το σε μικρότερα τμήματα";
+"transcription.guidance.serverError" = "Η υπηρεσία μεταγραφής αντιμετωπίζει προβλήματα. Παρακαλώ δοκιμάστε ξανά.";
+"transcription.guidance.rateLimited" = "Έχετε κάνει πάρα πολλά αιτήματα. Περιμένετε λίγο πριν δοκιμάσετε ξανά.";
+"transcription.guidance.insufficientCredits" = "Αγοράστε περισσότερες πιστώσεις στις Ρυθμίσεις για να συνεχίσετε τη μεταγραφή";
+"transcription.guidance.quotaExceeded" = "Προσθέστε πιστώσεις στο λογαριασμό %@ σας ή ενημερώστε τα στοιχεία χρέωσης";
+"transcription.guidance.timeout" = "Το αίτημα χρειάστηκε πολύ χρόνο. Ελέγξτε την ταχύτητα του διαδικτύου σας και δοκιμάστε ξανά.";
+"transcription.error.noSpeechDetected" = "Δεν ανιχνεύθηκε ομιλία στην εγγραφή.";
+"transcription.guidance.noSpeechDetected" = "Συμβουλές:\n• Μιλήστε καθαρά στο μικροφώνο\n• Κρατήστε το πλήκτρο περισσότερο πριν μιλήσετε\n• Ελέγξτε ότι το μικροφώνο σας λειτουργεί\n• Βεβαιωθείτε ότι είναι επιλεγμένη η σωστή συσκευή εισόδου";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";
+"hyperwhisperCloud.error.network" = "Σφάλμα δικτύου: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Μη έγκυρη απάντηση από HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Σφάλμα διακομιστή: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Το εκτελέσιμο llama-server δεν μπορούσε να εντοπιστεί.";
+"llama.runtime.error.missingDependencies" = "Εξαρτήσεις που λείπουν στο runtime: %@";
+"llama.runtime.error.copyFailed" = "Αποτυχία αντιγραφής runtime: %@";
+"llama.runtime.error.copy.executable" = "Δεν ήταν δυνατή η αντιγραφή του εκτελέσιμου: %@";
+"llama.runtime.missing" = "Το runtime Τοπικό λείπει από αυτήν την εγκατάσταση. Εγκαταστήστε ξανά το HyperWhisper για να επαναφέρετε την τοπική μετα-επεξεργασία.";
+"llama.runtime.genericError" = "Σφάλμα runtime Τοπικό: %@";
+"runtime.error.llama.missingLib" = "Το runtime Τοπικό τερματίστηκε μετά την απώλεια libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Το runtime Τοπικό ανέφερε απώλεια libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Ενσωματωμένη μετα-επεξεργασία τεχνητής νοημοσύνης που εκτελείται σε Cloudflare Workers. Δεν απαιτείται διαμόρφωση.";
+"models.postProcessing.gpt4.1.nano.description" = "Μεσαία ακρίβεια (92%), πολύ γρήγορη ταχύτητα (<1s). Κατάλληλο για γρήγορα προσχέδια και άτυπες σημειώσεις.";
+"models.postProcessing.gpt4.1.mini.description" = "Υψηλή ακρίβεια (94%), γρήγορη ταχύτητα (~1-2s). Καλό για επιχειρηματικές επικοινωνίες καθημερινής χρήσης και τυπικά έγγραφα.";
+"models.postProcessing.gpt4.1.description" = "Πολύ υψηλή ακρίβεια (96%), μέτρια ταχύτητα (~3-4s). Μεγάλο για σύνθετη μορφοποίηση και τεχνικό περιεχόμενο.";
+"models.postProcessing.gpt5.nano.description" = "Καλή ακρίβεια (95%), γρηγορότερη ταχύτητα (~1s). Τέλειο για γρήγορες σημειώσεις, μηνύματα και περιστασιακές μεταγραφές.";
+"models.postProcessing.gpt5.mini.description" = "Εξαιρετική ακρίβεια (97%), μέτρια ταχύτητα (~2-3s). Ιδανική ισορροπία για επαγγελματικά ηλεκτρονικά, αναφορές και σημειώσεις συνάντησης.";
+"models.postProcessing.gpt5.description" = "Υψηλότερη ακρίβεια (99%+), πιο αργή ταχύτητα (~3-5s). Καλύτερο για κρίσιμα έγγραφα, νομικές, ιατρικές μεταγραφές όπου η ακρίβεια είναι παραμούσια.";
+"models.postProcessing.gpt5.1.description" = "Σημερινή τέχνη ακρίβεια (98%+), μέτρια ταχύτητα (~2-3s). Εξαιρετικό για σύνθετα καθήκοντα, νομικά έγγραφα και τεχνικό περιεχόμενο με ανώτερη συλλογιστική.";
+"models.postProcessing.gpt5.2.description" = "Τελευταίες σειρές GPT-5 με ενισχυμένη συλλογιστική και ταχύτερη συμπερασματολογία. Καλύτερη συνολική επιλογή για υψηλής ποιότητας επεξεργασία κειμένου.";
+"models.postProcessing.claude4.5.haiku.description" = "Τελευταία Claude Haiku με βελτιωμένη συλλογιστική ενώ κρατά τους χρόνους απόκρισης ζωηρά.";
+"models.postProcessing.claude4.sonnet.description" = "Ισορροπημένη απόδοση. Ανώτερη συλλογιστική και δυνατότητες μορφοποίησης για επαγγελματικά έγγραφα.";
+"models.postProcessing.gemini3.flash.description" = "Σειρές Gemini 3 με νοημοσύνη επιπέδου Pro σε ταχύτητα Flash. Προηγμένη συλλογιστική με δυναμικές δυνατότητες σκέψης.";
+"models.postProcessing.gemini2.5.flash.description" = "Καλύτερο στην τιμή-απόδοση. Βελτιστοποιημένο για ταχύτητα ενώ διατηρεί καλή ακρίβεια για καθημερινή χρήση.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Υπερ-ταχύ μοντέλο βελτιστοποιημένο για αποτελεσματικότητα κόστους και υψηλή απόδοση.";
+"models.postProcessing.groq.llama33.70b.description" = "Ευέλικτο μοντέλο 70B με εξαιρετική ποιότητα. ~280 tokens/sec. Συνιστάται.";
+"models.postProcessing.groq.llama31.8b.description" = "Υπερ-ταχύ μοντέλο 8B. ~560 tokens/sec για στιγμιαία επεξεργασία κειμένου.";
+"models.postProcessing.groq.gptoss.120b.description" = "Ανοιχτό μοντέλο 120B της OpenAI. ~500 tokens/sec για επεξεργασία υψηλής ποιότητας.";
+"models.postProcessing.groq.gptoss.20b.description" = "Ελαφρύ μοντέλο 20B. ~1000 tokens/sec για γρηγορότερη επεξεργασία.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B στο Cerebras. Υπερ-ταχύ μοντέλο 120B σε ~3000 tokens/sec. Συνιστάται.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B στο Cerebras. Ελαφρύ και υπερ-ταχύ σε ~2200 tokens/sec.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B στο Cerebras. Ογριάδιο μοντέλο 235B MoE σε ~1400 tokens/sec. Μόνο προεπισκόπηση.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 στο Cerebras. Μοντέλο παραμέτρου 355B σε ~1000 tokens/sec. Μόνο προεπισκόπηση.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Κέντρο Βοήθειας";
+"settings.resources.contact.support" = "Επικοινωνία Υποστήριξης";
+"settings.resources.feedback" = "Σχόλια & Προτάσεις";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Αντίγραφο Ασφαλείας";
+"settings.backup.export.title" = "Εξαγωγή Ρυθμίσεων";
+"settings.backup.export.subtitle" = "Αποθηκεύστε τις ρυθμίσεις, τις λειτουργίες και το λεξιλόγιό σας σε ένα αρχείο";
+"settings.backup.export.button" = "Εξαγωγή...";
+"settings.backup.export.panel.title" = "Εξαγωγή Ρυθμίσεων";
+"settings.backup.export.panel.label" = "Αρχείο Αντίγραφης Ασφαλείας:";
+"settings.backup.export.success" = "Οι ρυθμίσεις εξήχθησαν με επιτυχία";
+"settings.backup.export.error.create" = "Αποτυχία δημιουργίας δεδομένων αντίγραφης ασφαλείας";
+"settings.backup.export.error.encode" = "Αποτυχία κωδικοποίησης δεδομένων αντίγραφης ασφαλείας";
+"settings.backup.export.error.write" = "Αποτυχία εγγραφής αρχείου αντίγραφης ασφαλείας";
+"settings.backup.includeAPIKeys.title" = "Συμπερίληψη Κλειδιών API";
+"settings.backup.includeAPIKeys.subtitle" = "Αποθηκεύστε τα κλειδιά API στο αρχείο αντίγραφης ασφαλείας (δεν συνιστάται για κοινή χρήση)";
+"settings.backup.includeLicense.title" = "Συμπερίληψη Κλειδιού Άδειας";
+"settings.backup.import.title" = "Εισαγωγή Ρυθμίσεων";
+"settings.backup.import.subtitle" = "Επαναφορά ρυθμίσεων από ένα αρχείο αντίγραφης ασφαλείας";
+"settings.backup.import.button" = "Εισαγωγή...";
+"settings.backup.import.panel.title" = "Εισαγωγή Ρυθμίσεων";
+"settings.backup.import.success" = "Ολοκλήρωση εισαγωγής: %d λειτουργίες, %d στοιχεία λεξιλογίου εισήχθησαν";
+"settings.backup.import.error.read" = "Αποτυχία ανάγνωσης αρχείου αντίγραφης ασφαλείας";
+"settings.backup.import.error.decode" = "Μη έγκυρη μορφή αρχείου αντίγραφης ασφαλείας";
+"settings.backup.import.error.decode.keyNotFound" = "Λείπει υποχρεωτικό πεδίο: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Λάθος τύπος για το πεδίο: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Λείπει τιμή για το πεδίο: %@";
+"settings.backup.import.error.decode.corrupted" = "Κατεστραμμένα δεδομένα: %@";
+"settings.backup.import.error.decode.corruptedField" = "Κατεστραμμένη τιμή για το πεδίο: %@";
+"settings.backup.import.error.version" = "Το αρχείο αντίγραφης ασφαλείας είναι από νεότερη έκδοση";
+"settings.backup.import.error.unknown" = "Αποτυχία εισαγωγής";
+"settings.backup.import.confirm.title" = "Εισαγωγή Ρυθμίσεων;";
+"settings.backup.import.confirm.message" = "Αυτό θα αντικαταστήσει τις υπάρχουσες λειτουργίες και το λεξιλόγιό σας με αυτές από το αρχείο αντίγραφης ασφαλείας. Οι ρυθμίσεις θα ενημερωθούν επίσης.";
+"settings.backup.import.confirm.button" = "Εισαγωγή";
+"settings.backup.conflict.skip" = "Παράλειψη υπάρχουσας";
+"settings.backup.conflict.replace" = "Αντικατάσταση υπάρχουσας";
+"settings.backup.conflict.keepBoth" = "Κρατήστε και τα δύο";
+"settings.backup.security.warning" = "Προειδοποίηση: Το εξαγόμενο αρχείο θα περιέχει ευαίσθητα δεδομένα. Διατηρήστε το ασφαλές και μην το μοιράζεστε.";
+"settings.backup.info.note" = "Τα αντίγραφα ασφαλείας περιλαμβάνουν ρυθμίσεις, λειτουργίες και λεξιλόγιο. Οι εγγραφές και οι μεταγραφές δεν περιλαμβάνονται.";
+"settings.backup.result.success.title" = "Επιτυχία";
+"settings.backup.result.error.title" = "Σφάλμα";
+"settings.backup.export.choose.subtitle" = "Επιλέξτε τι θα συμπεριλάβετε στο αρχείο αντιγράφου ασφαλείας";
+"settings.backup.export.section.settings" = "Ρυθμίσεις";
+"settings.backup.export.section.modes" = "Λειτουργίες";
+"settings.backup.export.section.vocabulary" = "Λεξιλόγιο";
+"settings.backup.import.importing" = "Εισαγωγή %@";
+"settings.backup.import.contains" = "Αυτό το αρχείο περιέχει: %@";
+"settings.backup.import.contains.vocabulary" = "Λεξιλόγιο (%d λέξεις)";
+"settings.backup.import.contains.none" = "τίποτα";
+"settings.backup.import.section.settings" = "Ρυθμίσεις";
+"settings.backup.import.section.modes" = "Λειτουργίες";
+"settings.backup.import.section.vocabulary" = "Λεξιλόγιο";
+"settings.backup.import.section.apiKeys" = "Κλειδιά API";
+"settings.backup.import.section.license" = "Κλειδί άδειας";
+"settings.backup.import.section.absent" = "— δεν υπάρχει στο αρχείο";
+"settings.backup.import.premerge.summary" = "Λεξιλόγιο: προσθήκη %d νέων, %d υπάρχουν ήδη";
+"settings.backup.import.premerge.conflictLabel" = "Για λέξεις που υπάρχουν ήδη:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Επιλέξτε Αρχείο Ήχου";
+"transcribe.file.error.title" = "Σφάλμα Μεταγραφής";
+"transcribe.file.error.size.title" = "Αρχείο Πολύ Μεγάλο";
+"transcribe.file.error.size.message" = "Το επιλεγμένο αρχείο (%@) υπερβαίνει το όριο %@ για %@.";
+"transcribe.file.error.format.title" = "Μη Υποστηριζόμενη Μορφή";
+"transcribe.file.error.format.message" = "Τα αρχεία .%@ δεν υποστηρίζονται από %@. Υποστηριζόμενες μορφές: %@";
+"transcribe.file.error.read" = "Δεν είναι δυνατή η ανάγνωση του επιλεγμένου αρχείου.";
+"transcribe.file.error.copy" = "Αποτυχία αντιγραφής αρχείου στο φάκελο εγγραφών.";
+"transcribe.file.error.video.title" = "Δεν υπάρχει Ήχος στο Βίντεο";
+"transcribe.file.error.video.noAudio" = "Αυτό το αρχείο βίντεο δεν περιέχει κομμάτι ήχου. Παρακαλώ επιλέξτε ένα βίντεο με ήχο ή ένα αρχείο ήχου.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Προετοιμασία...";
+"file.transcription.transcribing" = "Μεταγραφή...";
+"file.transcription.finishing" = "Ολοκλήρωση...";
+"file.transcription.cancel" = "Ακύρωση";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Ενεργοποίηση αυτόματης διαγραφής";
+"history.autoDelete.enable.subtitle" = "Οι εγγραφές που είναι παλιότερες από τη δευτερεύουσα διάρκεια θα διαγραφούν";
+"history.autoDelete.duration.prefix" = "Μετά";
+"history.autoDelete.unit.minutes" = "Λεπτά";
+"history.autoDelete.unit.hours" = "Ώρες";
+"history.autoDelete.unit.days" = "Ημέρες";
+"history.autoDelete.unit.minutes.plural" = "λεπτά";
+"history.autoDelete.unit.hours.plural" = "ώρες";
+"history.autoDelete.unit.days.plural" = "ημέρες";
+"history.autoDelete.status.disabled" = "Η αυτόματη διαγραφή είναι απενεργοποιημένη";
+"history.autoDelete.status.enabled" = "Διαγραφή εγγραφών παλιότερων από %d %@";
+"history.autoDelete.cleanup.noItems" = "Δεν υπάρχουν εγγραφές για διαγραφή";
+"history.autoDelete.cleanup.summary" = "Διαγράφηκε %d εγγραφή(έ) και ελευθερώθησε %@";

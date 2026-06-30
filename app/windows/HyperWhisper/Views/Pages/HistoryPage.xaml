@@ -1,0 +1,578 @@
+<Page x:Class="HyperWhisper.Views.Pages.HistoryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:vm="clr-namespace:HyperWhisper.ViewModels"
+      xmlns:converters="clr-namespace:HyperWhisper.Converters"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Title="{loc:Loc history.title}" Background="{DynamicResource ContentBackgroundBrush}">
+
+    <Page.Resources>
+        <!-- Converters -->
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:InverseBoolConverter x:Key="InverseBool"/>
+        <converters:TranscriptStatusToVisibilityConverter x:Key="StatusToVisibility"/>
+        <converters:TranscriptStatusToBrushConverter x:Key="StatusToBrush"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibility"/>
+        <converters:BoolToPlayPauseConverter x:Key="BoolToPlayPauseConverter"/>
+        <converters:BoolToRetryTextConverter x:Key="BoolToRetryTextConverter"/>
+        <converters:BoolToFontFamilyConverter x:Key="BoolToFontFamilyConverter"/>
+        <converters:ProviderNameDisplayConverter x:Key="ProviderNameDisplay"/>
+
+        <!-- Group Header Style for proper grouping display -->
+        <Style x:Key="GroupHeaderContainerStyle" TargetType="GroupItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupItem">
+                        <StackPanel>
+                            <!-- Group Header -->
+                            <TextBlock Text="{Binding Name}"
+                                       FontWeight="SemiBold"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Padding="12,12,12,6"/>
+                            <!-- Group Items -->
+                            <ItemsPresenter/>
+                        </StackPanel>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Page.InputBindings>
+        <KeyBinding Key="Delete" Command="{Binding DeleteSelectedCommand}"/>
+        <KeyBinding Key="C" Modifiers="Ctrl" Command="{Binding CopyTextCommand}"/>
+        <KeyBinding Key="R" Modifiers="Ctrl" Command="{Binding RetryTranscriptCommand}"/>
+    </Page.InputBindings>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="300"/>
+            <ColumnDefinition Width="1"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ============================================================ -->
+        <!-- LEFT PANEL: Search, Filter, and Transcript List -->
+        <!-- ============================================================ -->
+        <Grid Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Search and Filter Bar -->
+            <Border Grid.Row="0" Padding="16,8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Search Box -->
+                    <Border Grid.Column="0" Background="{DynamicResource InputBackgroundBrush}"
+                            CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- Search Icon -->
+                            <TextBlock Grid.Column="0" Text="&#x1F50D;" FontSize="12"
+                                       VerticalAlignment="Center" Margin="8,0,4,0"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBox Grid.Column="1"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     BorderThickness="0" Background="Transparent"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     VerticalAlignment="Center" Padding="4,6"
+                                     FontSize="13"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Date Filter ComboBox -->
+                    <ComboBox Grid.Column="1" Margin="12,0,0,0" Width="90"
+                              SelectedIndex="0" SelectionChanged="DateFilter_SelectionChanged"
+                              VerticalContentAlignment="Center">
+                        <ComboBoxItem Content="{loc:Loc history.filter.all}" Tag="All"/>
+                        <ComboBoxItem Content="{loc:Loc history.filter.today}" Tag="Today"/>
+                        <ComboBoxItem Content="{loc:Loc history.filter.week}" Tag="ThisWeek"/>
+                        <ComboBoxItem Content="{loc:Loc history.filter.month}" Tag="ThisMonth"/>
+                    </ComboBox>
+                </Grid>
+            </Border>
+
+            <!-- Transcript List -->
+            <!-- Bound to TranscriptsView (ICollectionView) on the VM, which owns the
+                 grouping (by GroupHeader), sort (Date desc), and filter predicate.
+                 Virtualization-with-grouping is opt-in: WPF silently disables
+                 virtualization when grouping is on unless IsVirtualizingWhenGrouping=True. -->
+            <ListBox x:Name="TranscriptList" Grid.Row="1"
+                     ItemsSource="{Binding TranscriptsView}"
+                     SelectionMode="Extended"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.CanContentScroll="True"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     VirtualizingPanel.ScrollUnit="Pixel"
+                     SelectionChanged="TranscriptList_SelectionChanged">
+
+                <!-- Group Style: Renders date headers above each group of transcripts -->
+                <ListBox.GroupStyle>
+                    <GroupStyle ContainerStyle="{StaticResource GroupHeaderContainerStyle}"/>
+                </ListBox.GroupStyle>
+
+                <!-- Item Container Style: Styling for individual transcript items -->
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="Bd" Background="Transparent">
+                                        <ContentPresenter/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+
+                <!-- Item Template: How each individual transcript is rendered -->
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border x:Name="ItemBorder" Padding="12,10" Background="Transparent" Cursor="Hand">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Preview Text (2 lines) -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                           Text="{Binding PreviewText}"
+                                           TextTrimming="CharacterEllipsis"
+                                           TextWrapping="Wrap"
+                                           MaxHeight="40"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontSize="13"/>
+
+                                <!-- Time and Duration Row -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock Text="{Binding FormattedTime}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"/>
+                                    <TextBlock Text=" · " Foreground="{DynamicResource TextTertiaryBrush}" FontSize="12"/>
+                                    <TextBlock Text="{Binding FormattedDuration}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"/>
+                                </StackPanel>
+
+                                <!-- Status Indicators -->
+                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- Processing Indicator -->
+                                    <Border Visibility="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter=Processing}"
+                                            Background="{DynamicResource ProcessingBrush}" CornerRadius="9" Padding="6,2" Margin="4,0,0,0">
+                                        <TextBlock Text="{loc:Loc recording.state.processing}" Foreground="{DynamicResource TextOnAccentBrush}" FontSize="10"/>
+                                    </Border>
+
+                                    <!-- Failed Indicator -->
+                                    <Border Visibility="{Binding Status, Converter={StaticResource StatusToVisibility}, ConverterParameter=Failed}"
+                                            Background="{DynamicResource ErrorBrush}" CornerRadius="9" Padding="6,2" Margin="4,0,0,0">
+                                        <TextBlock Text="{loc:Loc history.status.failed}" Foreground="{DynamicResource TextOnAccentBrush}" FontSize="10"/>
+                                    </Border>
+
+                                    <!-- Retrying Indicator -->
+                                    <Border Visibility="{Binding IsRetrying, Converter={StaticResource BoolToVisibility}}"
+                                            Background="{DynamicResource ProcessingBrush}" CornerRadius="9" Padding="6,2" Margin="4,0,0,0">
+                                        <TextBlock Text="{loc:Loc history.status.retrying}" Foreground="{DynamicResource TextOnAccentBrush}" FontSize="10"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsDeleting}" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Opacity" Value="0.5"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+
+                <!-- Context Menu -->
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{loc:Loc common.copy}" Command="{Binding CopyTextCommand}" InputGestureText="Ctrl+C"/>
+                        <Separator/>
+                        <MenuItem Header="{loc:Loc common.retry}" Command="{Binding RetryTranscriptCommand}" InputGestureText="Ctrl+R"/>
+                        <MenuItem Header="{loc:Loc history.context.retryWith}" ItemsSource="{Binding AvailableModes}">
+                            <MenuItem.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}"/>
+                                </DataTemplate>
+                            </MenuItem.ItemTemplate>
+                            <MenuItem.ItemContainerStyle>
+                                <Style TargetType="MenuItem">
+                                    <Setter Property="Command" Value="{Binding DataContext.RetryWithModeCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
+                                    <Setter Property="CommandParameter" Value="{Binding}"/>
+                                </Style>
+                            </MenuItem.ItemContainerStyle>
+                        </MenuItem>
+                        <Separator/>
+                        <MenuItem Header="{loc:Loc common.delete}" Command="{Binding DeleteSelectedCommand}" InputGestureText="Del"/>
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+            </ListBox>
+
+            <!-- Empty State: No Transcripts -->
+            <StackPanel Grid.Row="1"
+                        Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="&#x1F4DD;" FontSize="48" HorizontalAlignment="Center" Opacity="0.5"/>
+                <TextBlock Text="{loc:Loc history.empty.noRecordings}" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" Margin="0,12,0,4"/>
+                <TextBlock Text="{Binding HotkeyInstruction}" FontSize="13"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Empty State: No Search Results -->
+            <StackPanel Grid.Row="1"
+                        Visibility="{Binding IsFilteredEmpty, Converter={StaticResource BoolToVisibility}}"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="&#x1F50D;" FontSize="48" HorizontalAlignment="Center" Opacity="0.5"/>
+                <TextBlock Text="{loc:Loc history.empty.title}" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" Margin="0,12,0,4"/>
+                <TextBlock Text="{loc:Loc history.empty.subtitle}" FontSize="13"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Vertical Separator -->
+        <Border Grid.Column="1" Background="{DynamicResource BorderBrush}"/>
+
+        <!-- ============================================================ -->
+        <!-- RIGHT PANEL: Detail View -->
+        <!-- ============================================================ -->
+        <Grid Grid.Column="2">
+
+            <!-- Empty State: No Selection -->
+            <StackPanel Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}, ConverterParameter=Inverse}"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="&#x1F4C4;" FontSize="48" HorizontalAlignment="Center" Opacity="0.3"/>
+                <TextBlock Text="{loc:Loc history.detail.empty}" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center" Margin="0,16,0,0"/>
+            </StackPanel>
+
+            <!-- Multi-Selection View -->
+            <StackPanel Visibility="{Binding HasMultipleSelection, Converter={StaticResource BoolToVisibility}}"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="&#x2713;" FontSize="48" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <TextBlock FontSize="18" FontWeight="Medium"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           HorizontalAlignment="Center" Margin="0,16,0,8">
+                    <Run Text="{Binding SelectionCount, Mode=OneWay}"/> recordings selected
+                </TextBlock>
+                <Button Content="{loc:Loc history.action.deleteSelected}"
+                        Command="{Binding DeleteSelectedCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Background="{DynamicResource ErrorBrush}"/>
+            </StackPanel>
+
+            <!-- Single Transcript Detail View -->
+            <Grid Visibility="{Binding SelectedTranscript, Converter={StaticResource NullToVisibility}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header Section -->
+                <Border Grid.Row="0" Padding="24,20" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+                    <StackPanel>
+                        <!-- Date/Time -->
+                        <TextBlock Text="{Binding SelectedTranscript.FormattedDate}"
+                                   FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                        <!-- Metadata Row -->
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <!-- Duration -->
+                            <Border Background="{DynamicResource BadgeGrayBackgroundBrush}" CornerRadius="10" Padding="8,3">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#x23F1;" FontSize="12" Foreground="{DynamicResource BadgeGrayForegroundBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SelectedTranscript.FormattedDuration}"
+                                               FontSize="12" Foreground="{DynamicResource BadgeGrayForegroundBrush}"
+                                               Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Mode -->
+                            <Border Background="{DynamicResource BadgeGrayBackgroundBrush}" CornerRadius="10" Padding="8,3" Margin="8,0,0,0"
+                                    Visibility="{Binding SelectedTranscript.Mode, Converter={StaticResource NullToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#x2699;" FontSize="12" Foreground="{DynamicResource BadgeGrayForegroundBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding SelectedTranscript.Mode}"
+                                               FontSize="12" Foreground="{DynamicResource BadgeGrayForegroundBrush}"
+                                               Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Provider Badges -->
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <!-- Transcription Provider Badge -->
+                            <Border Visibility="{Binding SelectedTranscript.TranscriptionProvider, Converter={StaticResource NullToVisibility}}"
+                                    Background="{DynamicResource SuccessBackgroundBrush}" CornerRadius="10" Padding="8,3" Margin="0,0,8,0">
+                                <TextBlock Text="{Binding SelectedTranscript.TranscriptionProvider, Converter={StaticResource ProviderNameDisplay}}"
+                                           FontSize="11" Foreground="{DynamicResource SuccessForegroundBrush}"/>
+                            </Border>
+
+                            <!-- Post-Processing Provider Badge -->
+                            <Border Visibility="{Binding SelectedTranscript.PostProcessingProvider, Converter={StaticResource NullToVisibility}}"
+                                    Background="{DynamicResource InfoBackgroundBrush}" CornerRadius="10" Padding="8,3" Margin="0,0,8,0">
+                                <TextBlock Text="{Binding SelectedTranscript.PostProcessingProvider, Converter={StaticResource ProviderNameDisplay}}"
+                                           FontSize="11" Foreground="{DynamicResource InfoForegroundBrush}"/>
+                            </Border>
+
+                            <!-- Failed Badge -->
+                            <Border Visibility="{Binding SelectedTranscript.IsFailed, Converter={StaticResource BoolToVisibility}}"
+                                    Background="{DynamicResource ErrorBackgroundBrush}" CornerRadius="10" Padding="8,3" Margin="0,0,8,0">
+                                <TextBlock Text="{loc:Loc history.status.failed}" FontSize="11" Foreground="{DynamicResource ErrorForegroundBrush}"/>
+                            </Border>
+
+                            <!-- Raw Text Badge (when showing raw) -->
+                            <Border Visibility="{Binding ShowRawText, Converter={StaticResource BoolToVisibility}}"
+                                    Background="{DynamicResource BadgeGrayBackgroundBrush}" CornerRadius="10" Padding="8,3">
+                                <TextBlock Text="{loc:Loc history.badge.originalTranscript}" FontSize="11" Foreground="{DynamicResource BadgeGrayForegroundBrush}"/>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Transcript Text -->
+                <ScrollViewer Grid.Row="1" Padding="24,16" VerticalScrollBarVisibility="Auto">
+                    <TextBox Text="{Binding CurrentDisplayText, Mode=OneWay}"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             FontSize="14"
+                             FontFamily="{Binding ShowRawText, Converter={StaticResource BoolToFontFamilyConverter}, FallbackValue=Segoe UI}"
+                             Foreground="{DynamicResource TextPrimaryBrush}"
+                             VerticalAlignment="Top"/>
+                </ScrollViewer>
+
+                <!-- Audio Player Section -->
+                <Border Grid.Row="2" Padding="24,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                        Visibility="{Binding IsPlaybackAvailable, Converter={StaticResource BoolToVisibility}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Play/Pause Button -->
+                        <Button Grid.Column="0" Command="{Binding TogglePlaybackCommand}"
+                                Width="36" Height="36" Cursor="Hand"
+                                IsEnabled="{Binding IsPlaybackAvailable}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{DynamicResource AccentBrush}" CornerRadius="18">
+                                        <TextBlock Text="{Binding IsPlaying, Converter={StaticResource BoolToPlayPauseConverter}, FallbackValue=&#x25B6;}"
+                                                   Foreground="{DynamicResource TextOnAccentBrush}" FontSize="14"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+
+                        <!-- Seek Slider -->
+                        <Slider Grid.Column="1"
+                                Margin="16,0"
+                                Minimum="0"
+                                Maximum="{Binding PlaybackDurationSeconds, Mode=OneWay}"
+                                Value="{Binding PlaybackPositionSeconds, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                IsMoveToPointEnabled="True"
+                                VerticalAlignment="Center"
+                                Thumb.DragCompleted="SeekSlider_DragCompleted"
+                                PreviewMouseUp="SeekSlider_PreviewMouseUp"/>
+
+                        <!-- Duration -->
+                        <TextBlock Grid.Column="2" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12">
+                            <Run Text="{Binding FormattedPosition, Mode=OneWay}"/> / <Run Text="{Binding FormattedDuration, Mode=OneWay}"/>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+
+                <!-- Audio Missing Message -->
+                <Border Grid.Row="2" Padding="24,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                        Visibility="{Binding ShowAudioUnavailableMessage, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#x26A0;" Foreground="{DynamicResource WarningBrush}" FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding AudioUnavailableMessage}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   FontSize="13" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Actions Bar -->
+                <Border Grid.Row="3" Padding="24,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                        Background="{DynamicResource SidebarBackgroundBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left Actions -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <!-- Copy Button -->
+                            <Button Command="{Binding CopyTextCommand}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Padding="12,6" Margin="0,0,8,0" Cursor="Hand"
+                                    AutomationProperties.LiveSetting="Polite">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <!-- Default label: "Copy" -->
+                                        <Setter Property="Content" Value="{loc:Loc common.copy}"/>
+                                        <Style.Triggers>
+                                            <!-- Swap to "Copied!" for 1.5s after successful copy. -->
+                                            <DataTrigger Binding="{Binding IsCopiedRecently}" Value="True">
+                                                <Setter Property="Content" Value="{loc:Loc history.copy.copied}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                            TextElement.Foreground="{TemplateBinding Foreground}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Retry Button (for failed transcripts) -->
+                            <Button Content="{Binding SelectedTranscript.HasRetryInfo, Converter={StaticResource BoolToRetryTextConverter}, FallbackValue=Retry}"
+                                    Command="{Binding RetryTranscriptCommand}"
+                                    Visibility="{Binding SelectedTranscript.CanRetry, Converter={StaticResource BoolToVisibility}}"
+                                    IsEnabled="{Binding SelectedTranscript.IsRetrying, Converter={StaticResource InverseBool}}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Padding="12,6" Margin="0,0,8,0" Cursor="Hand">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                            TextElement.Foreground="{TemplateBinding Foreground}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter TargetName="Bd" Property="Opacity" Value="0.5"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <!-- Raw/Processed Toggle -->
+                            <Button Command="{Binding ToggleRawTextCommand}"
+                                    Visibility="{Binding SelectedTranscript.HasRawText, Converter={StaticResource BoolToVisibility}}"
+                                    Foreground="{DynamicResource TextPrimaryBrush}"
+                                    Padding="12,6" Margin="0,0,8,0" Cursor="Hand">
+                                <Button.Content>
+                                    <TextBlock>
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="{loc:Loc history.toggle.showOriginal}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShowRawText}" Value="True">
+                                                        <Setter Property="Text" Value="{loc:Loc history.toggle.showProcessed}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Button.Content>
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource BorderBrush}"
+                                                BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                            TextElement.Foreground="{TemplateBinding Foreground}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Delete Button (Right aligned) -->
+                        <Button Grid.Column="1" Content="{loc:Loc common.delete}"
+                                Command="{Binding DeleteTranscriptCommand}"
+                                CommandParameter="{Binding SelectedTranscript}"
+                                Foreground="{DynamicResource ErrorBrush}"
+                                Padding="12,6" Cursor="Hand">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="Transparent" BorderBrush="{DynamicResource ErrorBrush}"
+                                            BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource DeleteHoverBackgroundBrush}"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Page>

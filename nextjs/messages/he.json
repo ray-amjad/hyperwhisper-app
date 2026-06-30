@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - תמלול קולי מבוסס AI עבור macOS ו-Windows",
+    "description": "כתבו מהר יותר פי 5 עם תמלול קולי מבוסס AI. HyperWhisper מתמלל את הקול שלכם בדיוק מרשים ב-macOS וב-Windows. דברו באופן טבעי וראו את המילים מופיעות מיד."
+  },
+  "navbar": {
+    "features": "יכולות",
+    "pricing": "תמחור",
+    "faq": "שאלות נפוצות",
+    "support": "תמיכה",
+    "download": "הורדה",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "החלפת שפה"
+    }
+  },
+  "hero": {
+    "logoAlt": "הלוגו של HyperWhisper",
+    "headline": "כתבו, צרו וחברו",
+    "headlineAccent": "פי 5 מהר יותר עם AI",
+    "subheadline": "HyperWhisper מתמלל את הקול שלכם בדיוק מרשים. פשוט דברו באופן טבעי וראו את המילים מופיעות מיד.",
+    "downloadCta": "להוריד עכשיו",
+    "demoCta": "לצפות בדמו",
+    "availableOn": "זמין עבור",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "נבנה לאנשי מקצוע",
+    "subtitle": "כל יכולת תוכננה כדי לעזור לכם לעבוד מהר יותר וביעילות גבוהה יותר",
+    "customVocabulary": {
+      "title": "מילון מותאם אישית",
+      "description": "הוסיפו שמות, ראשי תיבות ומונחים מיוחדים כדי לקבל דיוק מעולה בכל פעם."
+    },
+    "languages": {
+      "title": "יותר מ-100 שפות",
+      "description": "תמלול ביותר מ-100 שפות עם זיהוי שפה אוטומטי."
+    },
+    "offline": {
+      "title": "תמיכה במצב לא מקוון",
+      "description": "עובד באופן מלא גם ללא אינטרנט. הנתונים שלכם לא עוזבים את המכשיר."
+    },
+    "privacy": {
+      "title": "פרטיות במקום הראשון",
+      "description": "ללא חשבון. ללא מעקב. נתוני הקול שלכם נשארים על ה-Mac או ה-PC שלכם."
+    },
+    "hybridProcessing": {
+      "title": "עיבוד היברידי",
+      "description": "בחרו בין מודלים מקומיים לפרטיות או APIs בענן למהירות. הטוב משני העולמות."
+    },
+    "customizable": {
+      "title": "ניתן להתאמה גבוהה",
+      "description": "בחרו מתוך יותר מ-9 ספקי API ו-30+ מודלים לתמלול."
+    },
+    "realTime": {
+      "title": "סטרימינג בזמן אמת",
+      "description": "ראו את המילים מופיעות מיד בזמן שאתם מדברים. דיוק מוביל בתעשייה עם שיהוי נמוך מ-700ms."
+    },
+    "fileImport": {
+      "title": "ייבוא קבצים",
+      "description": "ייבוא קבצי אודיו או וידאו לתמלול. תומך בכל הפורמטים המרכזיים עם זיהוי שקט אוטומטי."
+    },
+    "screenOcr": {
+      "title": "OCR למסך",
+      "description": "אפשרו ל‑HyperWhisper לראות את המסך שלכם כדי שיוכל לאיית הכול במדויק."
+    },
+    "mcpServer": {
+      "title": "API מקומי ושרת MCP",
+      "description": "שרת ה-MCP המובנה מאפשר ל-Claude, ל-Cursor ולסוכני AI אחרים להפעיל את HyperWhisper. API HTTP מקומי בלבד עם אימות bearer לסקריפטים ולאוטומציות."
+    },
+    "modes": {
+      "title": "מצבים לכל סיטואציה",
+      "description": "החליפו בין מצבי תמלול שונים שמותאמים לפגישות, סיכומים, אימיילים, קוד ועוד. כל מצב משתמש ב-prompts מותאמים כדי לעצב את הטקסט בצורה מושלמת.",
+      "meeting": "פגישה",
+      "email": "אימייל",
+      "note": "הערה",
+      "code": "קוד",
+      "legal": "משפטי",
+      "medical": "רפואי",
+      "presetModes": "מצבים מוכנים מראש",
+      "customModes": "מצבים מותאמים"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "מהיר יותר מהקלדה",
+    "accuracyRate": "רמת דיוק",
+    "languagesSupported": "שפות נתמכות",
+    "providersSupported": "ספקים נתמכים"
+  },
+  "pricing": {
+    "title": "ללא מנויים. אף פעם.",
+    "subtitle": "משלמים פעם אחת, משתמשים לנצח. גם אנחנו שונאים מנויים.",
+    "guarantee": "אחריות החזר כספי ל-14 יום",
+    "guaranteeExtended": "אם לא תהיו מרוצים לגמרי.",
+    "learnMore": "למידע נוסף",
+    "free": {
+      "name": "חינם",
+      "price": "$0",
+      "period": "לנצח",
+      "description": "מושלם להתנסות ב-HyperWhisper",
+      "cta": "הורדה בחינם",
+      "features": {
+        "transcriptionLimit": "5 דקות תמלול ביום",
+        "basicModes": "מצבי תמלול בסיסיים",
+        "offlineTranscription": "תמלול לא מקוון",
+        "apiTranscription": "תמלול דרך API (עם המפתחות שלכם)",
+        "postProcessing": "עיבוד טקסט לאחר תמלול",
+        "providers": "9+ ספקים לבחירה",
+        "lifetimeUpdates": "עדכונים לכל החיים",
+        "cloudLimited": "HyperWhisper Cloud (שימוש מוגבל)",
+        "customVocabulary": "מילון מותאם אישית",
+        "prioritySupport": "תמיכה מועדפת"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "לכל החיים",
+      "description": "תשלום חד-פעמי, עוצמה בלתי מוגבלת לתמיד",
+      "cta": "קנו עכשיו - גישה לכל החיים",
+      "mostPopular": "הכי פופולרי",
+      "features": {
+        "unlimitedTranscription": "תמלול ללא הגבלה",
+        "allModes": "כל מצבי התמלול",
+        "offlineTranscription": "תמלול לא מקוון",
+        "apiTranscription": "תמלול דרך API (עם המפתחות שלכם)",
+        "postProcessing": "עיבוד טקסט לאחר תמלול",
+        "providers": "9+ ספקים לבחירה",
+        "lifetimeUpdates": "עדכונים לכל החיים",
+        "cloudCredits": "HyperWhisper Cloud ($5 בקרדיטים)",
+        "customVocabulary": "מילון מותאם אישית",
+        "prioritySupport": "תמיכה מועדפת"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise ותמחור מותאם",
+      "description": "הנחות נפח, SSO, תמיכה מועדפת, אירוח פנימי ואינטגרציות מותאמות",
+      "cta": "יצירת קשר עם מכירות"
+    }
+  },
+  "faq": {
+    "title": "שאלות נפוצות",
+    "subtitle": "כל מה שצריך לדעת על HyperWhisper",
+    "contactPrompt": "עדיין יש שאלות? כתבו לנו ל",
+    "questions": {
+      "accuracy": {
+        "question": "כמה מדויק התמלול?",
+        "answer": "אנחנו מגיעים לדיוק מוביל בתעשייה של 99% בעזרת מודלי AI מתקדמים. אפשר לשפר את הדיוק עוד יותר על ידי הוספת מילון מותאם משלכם למונחים טכניים, שמות וז'רגון מקצועי."
+      },
+      "offline": {
+        "question": "אפשר להשתמש בלי אינטרנט?",
+        "answer": "בהחלט. HyperWhisper יכול לפעול לחלוטין במצב לא מקוון על ה-Mac שלכם עם מודלי AI מקומיים - ללא צורך באינטרנט. למי שרוצה דיוק ומהירות מקסימליים, אנחנו מציעים גם עיבוד ענן אופציונלי דרך ספקי ענן שונים."
+      },
+      "apiKey": {
+        "question": "האם צריך לשלם על גישת API?",
+        "answer": "אתם משתמשים במפתח ה-API שלכם עבור הספקים הבאים: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ו-Google Gemini. חלק מהספקים מציעים קרדיטים חינמיים למשתמשים חדשים; Deepgram מציעה $200 ו-AssemblyAI מציעה $50. בטווח הארוך זה יוצא זול משמעותית מכל מנוי. \n\nאפשר גם להשתמש ב-HyperWhisper Cloud (מובנה), שלא דורש מפתח API ופועל במודל pay-as-you-go.\n\nוזכרו: המצב המקומי הלא מקוון עובד בלי מפתח API והוא לגמרי חינם."
+      },
+      "languages": {
+        "question": "באילו שפות יש תמיכה?",
+        "answer": "יש תמיכה ביותר מ-100 שפות כברירת מחדל, מאנגלית וספרדית ועד מנדרינית וערבית. רוב המודלים יכולים לזהות אוטומטית את השפה שאתם מדברים ולעבור ביניהן בצורה חלקה."
+      },
+      "offlineModels": {
+        "question": "אילו מודלים לא מקוונים זמינים?",
+        "answer": "לתמלול לא מקוון אנחנו מציעים כמה גדלים של מודל Whisper (של OpenAI, עם תמיכה ב-99+ שפות). אנחנו מציעים גם את מודלי Parakeet של NVidia (עם תמיכה ב-25+ שפות).\n      \n      לעיבוד שלאחר תמלול במצב לא מקוון אנחנו מציעים כמה גדלים של מודל Gemma 3 (של Google)."
+      },
+      "compatibility": {
+        "question": "האם זה עובד עם כל האפליקציות ב-Mac וב-Windows?",
+        "answer": "כן, זה עובד בכל מקום שבו אפשר להקליד. בין אם אתם כותבים אימיילים, מסמכים, קוד או צ'אט. לחצו על הקיצור, דברו, וראו את המילים מופיעות מיד."
+      },
+      "privacy": {
+        "question": "איך נשמרת הפרטיות שלי?",
+        "answer": "כשמשתמשים במצב מקומי, שום נתון לא יוצא מה-Mac שלכם.\n\nכשמשתמשים בתמלול בענן, הנתונים שלכם נשלחים לספק הענן שתבחרו (למשל OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs או Mistral).\n\nאפשר לאמת זאת בעצמכם עם כלי בדיקת רשת כמו [Proxyman](https://proxyman.io) או כלי ניטור רשת כמו [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "מה זה HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud הוא שירות תמלול ענן מובנה שמיועד למשתמשים פחות טכניים שרוצים להתחיל מהר.\n\nזה עובד בתשלום לפי שימוש. רכישת רישיון מעניקה לכם $5 בקרדיטים לתמלול. אפשר להוסיף קרדיטים בהמשך.\n    \nאנחנו מציעים שלוש רמות דיוק: Medium (המהיר ביותר, מופעל על ידי Groq), High (מומלץ, מופעל על ידי Deepgram) ו-Highest (האיכות הגבוהה ביותר, מופעל על ידי xAI Grok STT). העיבוד שלאחר תמלול הוא אוטומטי. אנחנו לא שומרים דבר מלבד כמות הקרדיטים שצרכתם.\n\nאתם משלמים בדיוק את מה שאנחנו משלמים לספקים האלה. אין אצלנו שום תוספת מחיר.\n\nלשקט נפשי, אפשר לצפות בקוד המקור של HyperWhisper Cloud [כאן](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "האם נתוני הקול שלי ישמשו לאימון מודלים של בינה מלאכותית?",
+        "answer": "HyperWhisper Cloud מבטל עבורך את ההשתתפות באימון המודלים אצל כל ספק שאנו משתמשים בו. בעת שימוש במפתח API משלך, ביטול ההשתתפות הוא באחריותך — עיין ב[מדריך פרטיות הנתונים](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "למה תמחור לכל החיים במקום מנוי?",
+        "answer": "אנחנו מאמינים בתמחור פשוט והוגן. משלמים פעם אחת $39 ומשתמשים ב-HyperWhisper לתמיד. בלי תשלום חודשי ובלי הפתעות. הגרסה החינמית מאפשרת להשתמש ביכולות המרכזיות עם 3 דקות תמלול ביום."
+      },
+      "deviceLimit": {
+        "question": "בכמה מכשירים אפשר להשתמש ברישיון?",
+        "answer": "אפשר להשתמש ברישיון שלכם בכל כמות מכשירים שתרצו, בכפוף ל-Fair Usage Policy שלנו כמפורט ב-[תנאי השירות](/legal/terms-of-service). המדיניות נועדה להיות גמישה לשימוש אישי ועסקי לגיטימי, תוך מניעת ניצול לרעה."
+      },
+      "requirements": {
+        "question": "מה דרישות המערכת?",
+        "answer": "ל-Mac: macOS 14 ומעלה, תמיכה ב-Apple Silicon וב-Intel. ל-Windows: Windows 10/11, x64 או ARM64. מומלץ 8GB RAM לביצועים מיטביים."
+      },
+      "windowsStatus": {
+        "question": "האם לגרסת Windows יש את כל היכולות כמו ב-macOS?",
+        "answer": "גרסת Windows הושקה לאחרונה, ולכן ייתכן שעדיין חסרות בה יכולות שקיימות ב-macOS. אנחנו עובדים באופן רציף כדי להגיע לשוויון מלא בין הפלטפורמות."
+      },
+      "madeBy": {
+        "question": "מי יצר את זה?",
+        "answer": "זה נוצר על ידי היוטיובר [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "מרכז התמיכה",
+    "subtitle": "אנחנו כאן כדי לעזור לכם להפיק את המיטב מ-HyperWhisper",
+    "getInTouch": "צרו קשר",
+    "description": "לתמיכה טכנית, בעיות רישוי או כל שאלה על HyperWhisper, הצוות שלנו כאן בשבילכם.",
+    "emailUsAt": "כתבו לנו ל:",
+    "openInClient": "פתחו בלקוח הדוא\"ל שלכם:",
+    "defaultClient": "לקוח דוא\"ל ברירת מחדל",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "בדרך כלל אנחנו עונים בתוך 24 שעות בימי עסקים.",
+    "emailTemplate": {
+      "subject": "בקשת תמיכה של HyperWhisper",
+      "body": "היי,\n\nגרסה: \n[אפשר לבדוק בהגדרות > אודות]\n\nבעיה: \n[תארו את הבעיה]\n\nפרטים: \n[הוסיפו פרטים רלוונטיים, מה עשיתם לפני הקריסה]\n\n[ההודעה שלכם כאן]\n\nבברכה,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "הלוגו של HyperWhisper",
+    "title": "הורדת HyperWhisper",
+    "emailPlaceholder": "אימייל",
+    "description": "נשלח לכם למייל קישור הורדה וסרטון הדרכה קצר כדי להתחיל מהר. בלי ספאם.",
+    "downloadButton": "הורדת HyperWhisper",
+    "errorGeneric": "משהו השתבש. נסו שוב.",
+    "errorNetwork": "שגיאת רשת. בדקו את החיבור ונסו שוב.",
+    "thankYouTitle": "תודה!",
+    "downloadStarted": "ההורדה אמורה להתחיל אוטומטית.",
+    "manualDownload": "ההורדה לא התחילה? לחצו כאן",
+    "skipAndDownloadButton": "דלג והורד"
+  },
+  "downloadPage": {
+    "title": "הורדת HyperWhisper",
+    "countdownText": "מתחיל בעוד {seconds}...",
+    "downloadStarted": "בדקו את תיקיית ההורדות",
+    "downloadNow": "להוריד עכשיו",
+    "downloadAgain": "להוריד שוב",
+    "selectArchitecture": "בחרו ארכיטקטורה",
+    "downloadX64": "הורדה ל-x64",
+    "downloadArm64": "הורדה ל-ARM64",
+    "orDivider": "או",
+    "homebrewTitle": "התקנה דרך Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "העתקה",
+    "copied": "הועתק!"
+  },
+  "purchaseSuccess": {
+    "title": "הרכישה הושלמה בהצלחה!",
+    "subtitle": "ברוכים הבאים ל-HyperWhisper Pro! הרישיון לכל החיים שלכם מוכן.",
+    "checkEmail": {
+      "title": "בדקו את האימייל שלכם",
+      "description": "שלחנו את מפתח הרישיון והוראות ההורדה לכתובת המייל שלכם. זה אמור להגיע בתוך כמה דקות."
+    },
+    "whatsNext": {
+      "title": "מה הלאה?",
+      "step1": {
+        "title": "בדקו את תיבת הדואר הנכנס",
+        "description": "חפשו מייל מ-HyperWhisper"
+      },
+      "step2": {
+        "title": "העתיקו את מפתח הרישיון",
+        "description": "תצטרכו אותו כדי להפעיל את האפליקציה"
+      },
+      "step3": {
+        "title": "הורידו את HyperWhisper",
+        "description": "התקינו את האפליקציה והזינו את מפתח הרישיון"
+      }
+    },
+    "downloadButton": "הורדת HyperWhisper",
+    "returnHome": "חזרה לעמוד הבית",
+    "noEmail": "לא קיבלתם אימייל? בדקו את תיקיית הספאם או",
+    "contactSupport": "פנו לתמיכה",
+    "loading": "טוען..."
+  },
+  "footer": {
+    "tagline": "כתבו פי 5 מהר יותר עם תמלול קולי מבוסס AI עבור macOS ו-Windows.",
+    "product": "מוצר",
+    "resources": "משאבים",
+    "company": "חברה",
+    "legal": "משפטי",
+    "links": {
+      "features": "יכולות",
+      "pricing": "תמחור",
+      "download": "הורדה",
+      "roadmap": "מפת דרכים",
+      "helpCenter": "מרכז עזרה",
+      "manageBilling": "ניהול חיוב",
+      "customerPortal": "פורטל לקוחות",
+      "olderVersions": "גרסאות ישנות",
+      "blog": "בלוג",
+      "about": "אודות",
+      "support": "תמיכה",
+      "privacyPolicy": "מדיניות פרטיות",
+      "termsOfService": "תנאי שימוש",
+      "refundPolicy": "מדיניות החזר כספי",
+      "dataTraining": "פרטיות נתונים"
+    },
+    "copyright": "© 2026 HyperWhisper. כל הזכויות שמורות.",
+    "linkedinAria": "LinkedIn"
+  }
+}

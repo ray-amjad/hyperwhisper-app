@@ -1,0 +1,23 @@
+{
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "specification": {
+            "type": "string"
+        },
+        "use_cases": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+        "name",
+        "specification",
+        "use_cases"
+    ],
+    "additionalProperties": false
+}

@@ -1,0 +1,64 @@
+---
+title: Developer Mode
+description: Smart file tagging with @ mentions for coding with AI post-processing.
+---
+
+Developer Mode enhances HyperWhisper's AI post-processing by allowing you to reference specific files in your codebase using `@` mentions. When transcribing, you can say "at app.swift" or "at components/button" and HyperWhisper will automatically tag the correct file path in your transcript—perfect for giving context to AI coding assistants like Claude, ChatGPT, or Cursor.
+
+## How It Works
+
+When you record with AI post-processing enabled, HyperWhisper:
+
+1. **Detects your active developer tool** – Monitors which IDE/editor is frontmost (Xcode, VS Code, Cursor, IntelliJ, etc.)
+2. **Identifies the active project** – Determines which configured project directory you're working in
+3. **Indexes relevant files** – Scans and caches file paths for fast fuzzy matching
+4. **Resolves @ mentions** – Converts spoken file references like "at app swift" to proper tags like `@app.swift`
+
+The system remembers your last active project for 30 minutes and automatically switches context when you change projects or IDEs.
+
+## Setup
+
+1. Navigate to **Settings → Beta Features** and toggle **"Enable Developer Mode"**.
+2. Click **"+ Add Directory"** and select your project root folder(s). You can add multiple directories for monorepos or separate projects.
+3. HyperWhisper indexes files automatically. The status indicator shows which project is active and how many files are available for tagging.
+
+<Tip>
+  You can customize indexed file extensions in **Settings → Beta Features** if you need to include non-standard types like `.proto` or `.graphql`.
+</Tip>
+
+## Using @ Mentions
+
+With AI post-processing and Developer Mode active:
+
+- **Say "at [filename]"** during recording: "at main.swift, refactor the auth logic to use async await"
+- **Use path hints for nested files**: "at components/button, update the border radius"
+- **Multiple files**: "at app.swift and at utils.ts, check the date formatting"
+
+HyperWhisper uses fuzzy matching to resolve partial names and path fragments. It prioritizes exact substring matches and word boundaries for accuracy.
+
+**Example:**
+- Voice: "At components button and at components input, make the border radius consistent"
+- Output: `@components/button.tsx and @components/input.tsx, make the border radius consistent`
+
+## Status Indicators
+
+- **Blue checkmark + project name** – Developer tool is active and project detected
+- **"Files indexed: X"** – Number of files available for tagging
+- **"Recent Activity"** – Project detection based on last 30 minutes (lower confidence)
+- **"No tool detected"** – No supported IDE/editor is currently active
+
+## Supported Developer Tools
+
+Xcode, VS Code, Cursor, IntelliJ IDEA, PyCharm, WebStorm, Android Studio, Sublime Text, Nova, BBEdit, TextMate, and Zed.
+
+## Troubleshooting
+
+- **"No tool detected"** when IDE is open → Click back into your IDE window or wait 2 seconds for automatic refresh.
+- **File not found** during transcription → Click **"Reindex Files"** in Developer view, or verify the project directory is added.
+- **@ mentions not appearing** → Confirm Developer Mode is enabled, project is indexed, AI post-processing is on, and you're saying "at [filename]" clearly.
+
+## Privacy & Security
+
+- File paths are indexed locally and never leave your machine.
+- Only filenames and paths are scanned—no file content is read.
+- Indexing only runs when Developer Mode is enabled.

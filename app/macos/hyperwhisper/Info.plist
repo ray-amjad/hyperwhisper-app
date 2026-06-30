@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>SUFeedURL</key>
+	<string>https://www.hyperwhisper.com/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>bw+WKGOtnCqIDm0Q9FFlq1hSQnaw0RlIYcnY6uGp0e4=</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>HyperWhisper uses Apple Events to send your transcribed text to apps like Notes (Quick Capture) and to adjust audio routing while recording.</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>HyperWhisper needs Accessibility access to support bare modifier keys (Control, Command, FN) for Push to Talk recording.</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ja</string>
+		<string>es</string>
+		<string>zh-Hans</string>
+	</array>
+
+	<!-- Sentry Configuration (optional). Injected at build time from
+	     Configurations/*.xcconfig (see Configurations/Release.xcconfig.example).
+	     Empty by default — SentryService no-ops when the DSN is blank. -->
+	<key>SentryDSN</key>
+	<string>$(SENTRY_DSN)</string>
+	<key>SentryEnvironment</key>
+	<string>$(SENTRY_ENVIRONMENT)</string>
+</dict>
+</plist>

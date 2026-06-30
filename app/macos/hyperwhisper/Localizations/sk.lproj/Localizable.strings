@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Slovník";
+"vocabulary.description" = "Pomáha softvéru rozpoznávať mená, skratky, slang alebo slová z iných jazykov pri zmiešaní jazykov.";
+"vocabulary.input.title" = "Vstup";
+"vocabulary.new.word.placeholder" = "Nové slovo alebo fráza";
+"vocabulary.replacement.placeholder" = "Nahradiť s...";
+"vocabulary.add.button" = "Pridať do slovníka";
+"vocabulary.edit.title" = "Upraviť záznam slovníka";
+"vocabulary.update.button" = "Aktualizovať";
+"vocabulary.cancel.button" = "Zrušiť";
+"vocabulary.word.column" = "Slovo/Veta";
+"vocabulary.replacement.column" = "Náhrada";
+"vocabulary.empty.title" = "Zatiaľ žiadne slová v slovníku";
+"vocabulary.empty.subtitle" = "Pridajte vlastné slová na zlepšenie presnosti prepisu";
+"vocabulary.duplicate.title" = "Duplicitný záznam";
+"vocabulary.duplicate.message" = "%@ už existuje vo vašom slovníku. Každé slovo je možné pridať len raz.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Limit kľúčových slov je prekročený";
+"vocabulary.limit.message" = "Máte %d slov, ale pre zosilnenie prepisu sa použije len prvých %d.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streamovanie (Beta)";
+"streaming.description" = "Prepis v reálnom čase podľa vášho rozprávania. Text sa zadáva priamo do zameranej aplikácie.";
+"streaming.enable.title" = "Povoliť streamovanie";
+"streaming.provider.picker.title" = "Poskytovateľ";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 Všeobecný";
+"streaming.model.nova3medical" = "Nova 3 Medicína";
+"streaming.fastFormatting.title" = "Rýchle formátovanie";
+"streaming.fastFormatting.description" = "Znižuje oneskorenie inteligentného formátovania pre rýchlejšie písanie";
+"streaming.warning.vocabAutoDetect" = "Vlastný slovník je v režime automatickej detekcie zakázaný";
+"streaming.warning.vocabUnsupported" = "Vlastný slovník nie je podporovaný pri streamovaní %@";
+"streaming.warning.apiKeyRequired" = "Je vyžadovaný %@ API kľúč";
+"streaming.warning.apiKeyRequired.action" = "Konfigurovať";
+"streaming.warning.apiKeyInvalid" = "%@ API kľúč nefunguje. Aktualizujte ho v Nastavenia > API kľúče.";
+"streaming.warning.apiKeyInvalid.action" = "Aktualizovať kľúč";
+"streaming.language.title" = "Jazyk";
+"streaming.shortcut.title" = "Klávesová skratka";
+
+// MARK: - Home View
+"home.get.started" = "Začať";
+"home.open.system.settings" = "Otvoriť Nastavenia systému";
+
+// MARK: - API Keys
+"api.key.required" = "Je vyžadovaný API kľúč";
+"api.keys.required" = "Sú vyžadované API kľúče";
+"api.key.configure.message" = "Konfiguráciou API kľúčov povolíte prepis.";
+"api.key.internet.required" = "Je vyžadované internetové pripojenie";
+"api.key.internet.message" = "Cloudový prepis vyžaduje internetové pripojenie.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Zrušiť";
+"common.delete" = "Vymazať";
+"common.edit" = "Upraviť";
+"common.done" = "Hotovo";
+"common.copy" = "Kopírovať";
+"common.back" = "Späť";
+"common.skip" = "Preskočiť";
+"common.settings" = "Nastavenia";
+"common.error" = "Chyba";
+"common.retry" = "Skúsiť znova";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Domov";
+"sidebar.statistics" = "Štatistika";
+"sidebar.modes" = "Režimy";
+"sidebar.vocabulary" = "Slovník";
+"sidebar.streaming" = "Streamovanie";
+"sidebar.history" = "História";
+"sidebar.settings" = "Nastavenia";
+
+// MARK: - App Messages
+"app.unknown.error" = "Došlo k neznámej chybe";
+"app.microphone.permission.message" = "HyperWhisper potrebuje prístup k mikrofónu na prepis zvuku.\n\nPerejdite na Nastavenia systému > Súkromie a bezpečnosť > Mikrofón a povoľte prístup pre HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper ukladá nahrávky do zložky v Dokumentoch, aby ich boli ľahko nájsť: Dokumenty/hyperwhisper/recordings. macOS môže požiadať o povolenie pri prvom pokuse o uloženie. Ak nechcete udeliť prístup, môžeme nahrávky uložiť do súkromnej zložky aplikácie.";
+"app.upgrade.to.pro" = "Upgradovať na Pro";
+"app.enter.license.key" = "Zadať kľúč licencie";
+"accessibility.upgrade.pro" = "Upgradovať na HyperWhisper Pro";
+"accessibility.enter.license" = "Zadať kľúč licencie";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Ak chcete vybrať vybraný režim, pridajte svoje %@ API kľúče.";
+"home.api.keys.missing.single" = "Ak chcete vybrať vybraný režim, pridajte svoj %@ API kľúč.";
+"home.getting.started.recording.title" = "Začať nahrávanie";
+"home.getting.started.recording.description" = "Preveďte svoj hlas na text jedným kliknutím.";
+"home.getting.started.shortcuts.title" = "Prispôsobiť klávesové skratky";
+"home.getting.started.shortcuts.description" = "Zmeňte klávesové skratky pre HyperWhisper.";
+"home.getting.started.mode.title" = "Vytvoriť režim";
+"home.getting.started.mode.description" = "Vytvorte dokonalý režim pre vašu prácu.";
+"home.getting.started.vocabulary.title" = "Pridať slovník";
+"home.getting.started.vocabulary.description" = "Naučte HyperWhisper vlastné slová, mená alebo odborné termíny.";
+"home.add.api.key" = "Pridať API kľúč";
+"home.accessibility.enable.title" = "Aktivovať prístupnosť";
+"home.accessibility.enable.description" = "Umožňujú HyperWhisper automaticky vkladať text do aplikácií, ktoré používate.";
+"home.accessibility.waiting" = "Čakám...";
+"home.accessibility.open.settings" = "Otvoriť Nastavenia";
+"home.accessibility.restart.after.permission" = "Reštartovať aplikáciu po udelení povolenia";
+"home.getting.started.completed" = "✓ Dokončené";
+"home.whatsnew.badge" = "NOVÉ";
+"home.whatsnew.title" = "Čo je nové?";
+"home.whatsnew.update1.date" = "3. júl";
+"home.whatsnew.update1.title" = "Parakeet je teraz dostupný";
+"home.whatsnew.update1.description" = "Stiahnite si ho priamo zo zoznamu Jazykové modely v tvorbe režimu a vyskúšajte ho dnes.";
+"home.whatsnew.update2.date" = "5. jún";
+"home.whatsnew.update2.title" = "Podpora pre všetky vlastné modely kompatibilné s OpenAI";
+"home.whatsnew.update2.description" = "Do zoznamu modelov si teraz môžete pridať akékoľvek OpenAI kompatibilné API.";
+"home.whatsnew.update3.date" = "27. máj";
+"home.whatsnew.update3.title" = "Úplne nové Mini okno nahrávok";
+"home.whatsnew.update3.description" = "Elegantné, minimálne rozhranie na nahrávanie, ktoré sa vám nedostane do cesty.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Nedávne aktualizácie";
+"home.recent.updates.error" = "Nepodarilo sa načítať aktualizácie";
+"home.recent.updates.retry" = "Skúsiť znova";
+"home.recent.updates.empty" = "Žiadne nedávne aktualizácie dostupné";
+"home.recent.updates.version" = "Verzia %@";
+"home.recent.updates.new.badge" = "NOVÉ";
+"home.recent.updates.no.notes" = "Žiadne poznámky k vydaniu dostupné";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Medzerník";
+"keyboard.option.space" = "⌥Medzerník";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Je vyžadovaný prístup k mikrofónu";
+"common.open.settings" = "Otvoriť Nastavenia";
+"alerts.api.local.mode" = "Použiť lokálny režim";
+"alerts.documents.permission.title" = "Uložiť do Dokumentov?";
+"common.continue" = "Pokračovať";
+"alerts.documents.permission.use.another" = "Použiť ďalšie miesto";
+"alerts.api.configure.generic" = "Konfiguráciou API kľúčov v Nastaveniach.";
+"alerts.api.internet.offline" = "Cloudový prepis vyžaduje internetové pripojenie. Skontrolujte svoje nastavenia siete alebo vyberte režim s lokálnym prepisom.";
+"alerts.api.configure.header.multiple" = "Na použitie vybraného režimu konfigurujte v Nastaveniach nasledujúce API kľúče:";
+"alerts.api.configure.header.single" = "Na použitie vybraného režimu konfigurujte v Nastaveniach nasledujúci API kľúč:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Po pridaní chýbajúcich kľúčov skúste znova.";
+"alerts.export.failed.title" = "Vývoz zlyhal";
+"alerts.export.logs.failed.message" = "Nepodarilo sa vyviezť záznamy aktualizácií. Skúste znova.";
+"alerts.export.logs.success.title" = "Záznamy vyvezené";
+"alerts.export.logs.success.message" = "Záznamy aktualizácií boli úspešne vyvezené.";
+"alerts.export.logs.saveFailed.message" = "Nepodarilo sa uložiť záznamy na zvolené miesto: %@";
+"alerts.export.diagnostics.failed.message" = "Nepodarilo sa vyviezť diagnostiku. Skúste znova.";
+"alerts.export.diagnostics.success.title" = "Diagnostika vyvezená";
+"alerts.export.diagnostics.success.message" = "Všetky diagnostické záznamy boli úspešne vyvezené.";
+"alerts.export.diagnostics.saveFailed.message" = "Nepodarilo sa uložiť diagnostiku na zvolené miesto: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Vyviezť záznamy aktualizácií pre podporu";
+"panels.export.diagnostics.message" = "Vyviezť všetky diagnostické záznamy";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Začať s HyperWhisper";
+"sidebar.statistics.help" = "Zobraziť štatistiku použitia a analýzy";
+"sidebar.modes.help" = "Spravovať režimy prepisu pre rôzne kontexty";
+"sidebar.vocabulary.help" = "Pridať vlastné slová a frázy pre lepšie rozpoznávanie";
+"sidebar.streaming.help" = "Nastavenia streamovania prepisov v reálnom čase (vyžaduje Internet)";
+"sidebar.history.help" = "Zobraziť a vyhľadávať svoju históriu prepisov";
+"sidebar.settings.help" = "Konfigurujte nastavenia a preferencie aplikácie";
+
+// MARK: - Recording State
+"recording.state.ready" = "Pripravené na nahrávanie";
+"recording.state.recording" = "Nahrávam...";
+"recording.state.processing" = "Spracúvam zvuk...";
+"recording.state.transcribing" = "Prepisujem...";
+"recording.state.postprocessing" = "Následné spracovanie pomocou AI...";
+"recording.state.complete" = "Prepis ukončený: %@";
+"recording.state.error" = "Chyba: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Spustieť alebo zastaviť nahrávanie";
+"menu.recording.stop" = "Zastaviť nahrávanie";
+"menu.recording.toggle" = "Spustieť/Zastaviť nahrávanie";
+"menu.history" = "História...";
+"menu.settings" = "Nastavenia...";
+"menu.microphone" = "Mikrofón";
+"menu.select.mode" = "Vybrať režim";
+"menu.transcribe.file" = "Prepísať súbor";
+"menu.mode.unnamed" = "Nepomenovaný";
+"menu.version.label" = "Verzia %@";
+"common.quit" = "Ukončiť";
+"menu.microphone.default" = "Predvolené";
+"menu.microphone.system.default" = "Predvolené";
+"menu.bar.state.recording" = "Nahrávam";
+"menu.bar.state.processing" = "Spracúvam";
+"menu.bar.state.idle" = "Bez aktivity";
+"menu.command.check.updates" = "Skontrolovať aktualizácie…";
+"menu.debug.title" = "Debug";
+"menu.command.export.logs" = "Vyviezť záznamy aktualizácií…";
+"menu.command.export.diagnostics" = "Vyviezť diagnostiku…";
+"menu.command.help.website" = "Webová stránka Pomoc";
+"menu.command.contact.support" = "Kontaktovať podporu";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Všeobecné";
+"settings.section.sound" = "Zvuk";
+"settings.section.license" = "Licencia";
+"settings.section.credits" = "Kredity";
+"settings.section.storage" = "Úložisko";
+"settings.section.models" = "Modely";
+"settings.section.api.keys" = "API kľúče";
+"settings.section.shortcuts" = "Klávesové skratky";
+"settings.section.output" = "Výstup textu";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Angličtina)";
+"onboarding.model.pro.multilingual" = "Pro (Multijazyčný)";
+"onboarding.model.downloading.progress" = "Stahuje sa... %d%%";
+"onboarding.accessibility.title" = "Aktivovať prístupnosť pre automatické vkladanie";
+"onboarding.accessibility.subtitle" = "Umožniť HyperWhisper automaticky vkladať prepísaný text do vašich aplikácií.";
+"onboarding.accessibility.instructions" = "Nastavenia systému → Súkromie a bezpečnosť → Prístupnosť";
+"onboarding.accessibility.status.granted" = "Povolenie prístupnosti udeleného";
+"onboarding.accessibility.status.pending" = "Povolenie prístupnosti ešte neudelené";
+"onboarding.accessibility.waiting" = "Čakám na povolenie...";
+"onboarding.accessibility.open.preferences" = "Otvoriť predvoľby prístupnosti";
+"onboarding.accessibility.restart" = "Po udelení povolenia reštartujte HyperWhisper.";
+"onboarding.model.recommendation.title" = "Odporúčame model Pro";
+"onboarding.model.recommendation.subtitle" = "Na základe systémového jazyka a možností vášho Macu.";
+"onboarding.model.recommendation.note" = "Stiahnite ho kliknutím na tlačidlo nižšie.";
+"onboarding.model.downloaded" = "Stiahnutý";
+"onboarding.model.metric.speed" = "Rýchlosť";
+"onboarding.model.metric.accuracy" = "Presnosť";
+"onboarding.model.metric.size" = "Veľkosť";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Alebo si zvoľte iný hlasový model";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (Angličtina)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Malý";
+"onboarding.model.option.medium" = "Stredný";
+"onboarding.model.option.large" = "Veľký";
+"onboarding.model.download.button" = "Stiahnuť model";
+"onboarding.audio.title" = "Ktoré zvukové nahrávajúce zariadenie chcete používať?";
+"onboarding.audio.subtitle" = "Uistite sa, že je zvuková úroveň vstupu zapnutá a registrácia hlasitosti.";
+"onboarding.audio.input.label" = "Vstupné zariadenie";
+"onboarding.audio.picker.label" = "Zariadenie";
+"onboarding.audio.use.system.default" = "Použiť predvolené systémové zariadenie";
+"onboarding.audio.level" = "Úroveň zvuku";
+"onboarding.audio.open.sound" = "Otvoriť predvoľby zvuku";
+"onboarding.microphone.title" = "Je vyžadované povolenie na nahrávanie";
+"onboarding.microphone.subtitle" = "Na nahrávanie zvuku potrebujeme prístup k vášmu mikrofónu.";
+"onboarding.microphone.status.granted" = "Povolenie mikrofónu bolo udelené";
+"onboarding.microphone.status.pending" = "Povolenie mikrofónu ešte neudelené";
+"onboarding.microphone.grant" = "Udeliť povolenie";
+"onboarding.test.title" = "Všetko je nastavené, začneme vašim prvým nahrávaním";
+"onboarding.test.press.prefix" = "Stlačte";
+"onboarding.test.press.suffix" = "na spustenie";
+"onboarding.test.status.recording" = "Nahrávam...";
+"onboarding.test.status.speak" = "Teraz rozprávajtea...";
+"onboarding.test.stop" = "Zastaviť nahrávanie";
+"onboarding.test.success.title" = "Skvelé! Vaše nahrávanie bolo úspešné.";
+"onboarding.test.success.subtitle" = "Váš prepis sa objaví v aplikácii.";
+"onboarding.test.start.cta" = "Kliknite na Spustenie nahrávania";
+"onboarding.test.start.shortcut" = "Alebo stlačte svoju klávesovú skratku";
+"onboarding.settings.title" = "Vynikajúci! Teraz otvoríme Nastavenia";
+"onboarding.settings.subtitle" = "Kliknite pravým tlačidlom na ikonu HyperWhisper a vyberte Nastavenia...";
+"onboarding.settings.menu.startStop" = "Spustieť/Zastaviť nahrávanie";
+"onboarding.settings.menu.history" = "História...";
+"onboarding.settings.menu.settings" = "Nastavenia...";
+"onboarding.settings.menu.quit" = "Ukončiť";
+"onboarding.settings.info" = "V Nastaveniach môžete prispôsobiť skratky, spravovať API kľúče a konfigurujte HyperWhisper podľa vášho gustu.";
+"onboarding.completion.title" = "Ste hotový!";
+"onboarding.completion.subtitle" = "Ak narazíte na problémy alebo otázky, kontaktujte nás cez e-mail alebo Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-mail";
+"onboarding.completion.resources.title" = "Ďalšie zdroje";
+"onboarding.completion.resources.documentation" = "Dokumentácia";
+"onboarding.completion.resources.videos" = "Video návody";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Ukončiť onboarding";
+"onboarding.error.model.notFound" = "Model v katalógu nenájdený.";
+"onboarding.error.microphone.denied" = "Povolenie mikrofónu odmietnuté. Prosím, udeľte povolenie v Nastaveniach systému.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Spustiť pri prihlásení";
+"settings.general.launchAtLogin.info" = "Automaticky spusti HyperWhisper pri prihlásení.";
+"settings.general.launchMinimized.title" = "Spustiť minimalizované";
+"settings.general.launchMinimized.info" = "Spustite HyperWhisper s hlavným oknom skrytým. Aplikácia bude dostupná cez menu bar.";
+"settings.general.showInDock.title" = "Zobraziť v Docku";
+"settings.general.showInDock.info" = "Zobraziť ikonu aplikácie v Docku.";
+"settings.general.showRecordingWindow.title" = "Zobraziť okno nahrávok";
+"settings.general.showRecordingWindow.info" = "Zobrazite plávajúce okno vlnového priebežu počas nahrávok a spracúvania.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Vypnuté";
+"settings.general.mediaControl.mode.mute" = "Stíšiť zvuk";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Protokol chýb";
+"settings.general.errorLogging.info" = "Automaticky zachytávajte a odosielajte správy o chybách na zlepšenie aplikácie.";
+"settings.general.autoUpdate.title" = "Automatická aktualizácia";
+"settings.general.autoUpdate.info" = "Automaticky kontrolujte a stiahujte nové verzie HyperWhisper.";
+"settings.general.support.title" = "Potrebujete pomoc?";
+"settings.version.detail" = "Verzia %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Prehrávať zvukové efekty";
+"settings.sound.soundEffects.info" = "Prehrávať zvukové signály pri spustení a zastavení nahrávania.";
+"settings.sound.mediaControl.title" = "Kontrola médií počas nahrávania";
+"settings.sound.mediaControl.info" = "Zvolte, ako HyperWhisper spracúva iný zvuk počas nahravánia. \"Vypnuté\" zvuk nechá nezmenený, \"Stíšiť zvuk\" stíšuje systémový výstup počas nahravánia a potom ho obnoví.";
+"settings.sound.autoIncreaseMicVolume.title" = "Automaticky zvýšiť hlasitosť mikrofónu";
+"settings.sound.autoIncreaseMicVolume.info" = "Automaticky nastaví úroveň vstupu mikrofónu na maximum pri spustení nahrávania a potom obnoví pôvodnú úroveň pri zastavení nahrávania. Platí iba pri používaní predvoleného vstupného zariadenia systému.";
+"settings.sound.vad.title" = "Odstrániť ticho pred prepisom";
+"settings.sound.vad.info" = "Automaticky detekuje a odstraňuje vodúce a koncové ticho pomocou detekcie hlasu AI. Toto môže zlepšiť presnosť prepisu a skrátiť čas spracúvania.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Zložka nahrávok";
+"settings.storage.showFolder.title" = "Zobraziť zložku nahrávok";
+"settings.storage.showFolder.button" = "Zobraziť v Finderi";
+"settings.storage.notice" = "Zmena zložky nahrávok ovplyvňuje iba nové nahrávky. Existujúce nahrávky ostávajú v pôvodnom umiestnení.";
+"settings.storage.choose.button" = "Zvoľte...";
+"settings.storage.dialog.select" = "Vybrať zložku";
+"settings.storage.dialog.message" = "Vyberte zložku na uloženie nahrávok";
+"settings.storage.storeAsM4A.title" = "Skomprimovať nahrávky na M4A";
+"settings.storage.storeAsM4A.subtitle" = "Konvertuje WAV nahrávky na menšie súbory po prepise. Vypnutím si zachováte pôvodné WAV súbory (väčšie, ale bez straty.";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Automaticky vložiť výsledok";
+"settings.output.paste.subtitle" = "Automaticky vložiť prepísaný text do aktívnej aplikácie";
+"settings.output.paste.info" = "Ak je povolené, text sa vloží do aplikácie v popredí.";
+"settings.output.restoreClipboard.title" = "Obnoviť schránku po vložení";
+"settings.output.restoreClipboard.subtitle" = "Obnoviť predchádzajúci obsah schránky po vložení";
+"settings.output.restoreClipboard.info" = "Po vložení prepisuje aplikácia obnoví váš predchádzajúci obsah schránky.";
+"settings.output.restore.after" = "Obnoviť po";
+"settings.output.restore.seconds" = "%d s";
+"settings.output.restore.accessibility" = "Oneskorenie obnovenia schránky";
+"settings.output.hideClipboardHistory.title" = "Skryť z histórie schránky";
+"settings.output.hideClipboardHistory.subtitle" = "Zabraňte objaveniu prepisov v aplikáciách histórie schránky";
+"settings.output.hideClipboardHistory.info" = "Ak je povolené, prepísaný text sa neuloží správcami schránky ako Paste, Maccy alebo Alfred.";
+"settings.output.clipboard.header" = "Schránka";
+"settings.output.removeFillers.title" = "Odstrániť výplňové slová";
+"settings.output.removeFillers.subtitle" = "Odstraňuje z hrubých prepisov 'uh', 'um' a 'er'.";
+"settings.output.removeFillers.info" = "Keď je táto možnosť zapnutá, HyperWhisper pred výstupom odstráni z hrubých prepisov bežné výplňové slová.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Prepnúť nahrávanie";
+"settings.shortcuts.toggleRecording.subtitle" = "Spúšťa a zastavuje nahrávky";
+"settings.shortcuts.cancelRecording.title" = "Zrušiť nahrávanie";
+"settings.shortcuts.cancelRecording.subtitle" = "Zahodí aktívne nahrávanie";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Podržte kľúč na nahrávanie, uvoľnite keď ste hotový";
+"settings.shortcuts.pushToTalk.enable.info" = "Povoľuje režim Push to Talk na rýchle nahrávanie jedným stlačením kľúča.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Režim nahrávania";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Zvoľte, ktorý kľúč chcete používať";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Zakázané";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN kľúč";
+"settings.shortcuts.pushToTalk.mode.control" = "Control kľúč";
+"settings.shortcuts.pushToTalk.mode.custom" = "Vlastná skratka";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Dvojitá stlač na uzamknutie nahrávania";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Dvakrát rýchlo stlačte, aby ste pokračovali v nahrávaní bez podržiavania";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Vlastná skratka";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Stlačte kombináciu kláves na použitie";
+
+
+"settings.shortcuts.changeMode.title" = "Zmeniť režim";
+"settings.shortcuts.changeMode.subtitle" = "Funguje len počas nahrávania";
+
+"settings.shortcuts.reset.button" = "Obnoviť na predvolené";
+"settings.shortcuts.reset.dialog.title" = "Obnoviť klávesové skratky";
+"settings.shortcuts.reset.confirm" = "Obnoviť";
+"settings.shortcuts.reset.dialog.message" = "Toto obnoví všetky klávesové skratky na ich predvolené hodnoty.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API kľúče sú bezpečne uložené na vašom zariadení a poslané poskytovateľovi iba v prípade potreby.";
+"settings.api.help.link" = "Pomoc s API kľúčmi";
+"settings.api.transcription.title" = "Prepis";
+"settings.api.transcription.subtitle" = "API kľúče pre cloudové služby prevodu reči na text.";
+"settings.api.postProcessing.title" = "Následné spracovanie";
+"settings.api.postProcessing.subtitle" = "API kľúče pre zlepšovanie AI textu a formátovanie.";
+"settings.api.placeholder" = "Zadajte svoj %@ API kľúč";
+"settings.api.openLink" = "Otvoriť %@ stránku API kľúča";
+"settings.api.status.accessibility" = "%@ stav: %@";
+"settings.api.status.unknown" = "Stav poskytovateľa neznámy";
+"settings.api.status.checking" = "Kontrola stavu prebieha";
+"settings.api.status.unauthorized" = "Poskytovateľ odmietol API kľúč";
+"settings.api.status.unreachable" = "Poskytovateľ je momentálne nedostupný";
+"settings.api.status.notInstalled" = "SDK poskytovateľa nie je nainštalovaný";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Neznámy";
+"provider.status.checking" = "Kontrolujem…";
+"provider.status.healthy" = "Pripravené";
+"provider.status.unauthorized" = "Neplatný kľúč";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Nie je nainštalovaný";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licencia aktivovaná";
+"alerts.license.deactivated.title" = "Licencia deaktivovaná";
+"alerts.license.activated.message" = "Vaša licencia bola úspešne aktivovaná. Teší nás nový limitovaný prístup k všetkým funkciám!";
+"alerts.license.deactivated.message" = "Vaša licencia bola na tomto zariadení deaktivovaná. Teraz ju môžete aktivovať niekde inde.";
+"alerts.license.failed.title" = "Operácia zlyhala";
+"alerts.license.failed.message" = "Operácia zlyhala. Skúste znova.";
+"license.button.deactivate" = "Deaktivovať zariadenie";
+"license.button.deactivating" = "Deaktivácia...";
+"license.button.manageBilling" = "Spravovať fakturáciu";
+"license.button.activate" = "Aktivovať";
+"license.button.activating" = "Aktivácia...";
+"license.status.label" = "Stav: %@";
+"license.status.trial.title" = "Skúšobná verzia";
+"license.status.active.title" = "Aktívna";
+"license.status.expired.title" = "Vypršala";
+"license.status.invalid.title" = "Neplatná";
+"license.status.trial.description" = "Bezplatná skúšobná verzia (5 min/deň, %d modelov)";
+"license.status.active.description" = "Licencovaný – Úplný prístup";
+"license.status.expired.description" = "Licencia vypršala";
+"license.status.invalid.description" = "Neplatná licencia";
+"settings.license.key.title" = "Kľúč licencie";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Vložiť zo schránky";
+"settings.license.clearInput" = "Vyčistiť";
+"settings.license.recovery.prompt" = "Zabudli ste kľúč licencie?";
+"settings.license.recovery.button" = "Prejsť na zákaznícky portál";
+"settings.license.daily.title" = "Denný prepis";
+"settings.license.daily.usage" = "%@ z %@ použitých";
+"settings.license.limitReached" = "Limit dosiahnutý";
+"settings.license.models.title" = "Offline modely";
+"settings.license.models.progress" = "%d z %d modelov stiahnutých";
+"settings.license.models.progress.one" = "%d z %d model stiahnuutý";
+"settings.license.upgrade.text" = "Upgradujte na neobmedzenú prepis a stiahnutia modelov";
+"settings.license.upgrade.button" = "Upgradovať";
+"license.error.invalidResponse" = "Neplatný formát odpovede";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Kredity HyperWhisper Cloud";
+"settings.credits.refresh" = "Obnoviť";
+"settings.credits.subtitle" = "Monitorujte svoje kredity na prepis a použitie";
+"settings.credits.manage" = "Spravovať kredity";
+"settings.credits.timeRemaining" = "Zostávajúci čas prepisu";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minút";
+"settings.credits.creditsRemaining" = "%@ kreditov ostáva";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Bezplatný denný limit (100 kreditov)";
+"settings.credits.resets" = "Resetuje %@";
+"settings.credits.warning.low" = "Kredity sa končia. Zvážte nákup licencie na ďalšie kredity.";
+"settings.credits.warning.exhausted.daily" = "Denný limit je vyčaný. Kúpite si licenciu na neobmedzené používanie alebo čakajte na reset.";
+"settings.credits.warning.exhausted" = "Kredity sú vyčerpané. Kúpite si viac kreditov, aby ste pokračovali v používaní HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Informácie o účte";
+"settings.credits.stat.creditsRemaining" = "Ostávajúce kredity";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Zostávajúce minúty";
+"settings.credits.stat.accountType" = "Typ účtu";
+"settings.credits.accountType.licensed" = "Licencovaný";
+"settings.credits.accountType.anonymous" = "Anonymný";
+"settings.credits.accountType.trial" = "Skúšobná verzia";
+"settings.credits.stat.customerId" = "ID zákazníka";
+"settings.credits.stat.dailyLimit" = "Denný limit";
+"settings.credits.dailyLimit.value" = "100 kreditov";
+"settings.credits.loading" = "Načítavam zostatok kreditov...";
+"settings.credits.error.title" = "Nie je možné načítať zostatok kreditov";
+"settings.credits.error.retry" = "Skúsiť znova";
+"settings.credits.empty.title" = "Informácie o kreditoch nie sú dostupné";
+"settings.credits.empty.subtitle" = "Kliknite na obnovenie, aby ste načítali svoj zostatok kreditov";
+"settings.credits.empty.button" = "Načítať kredity";
+"settings.credits.error.insufficient" = "Nedostatočné kredity. Máte %d kreditov ostávajúcich.";
+"settings.credits.error.network" = "Chyba siete: %@";
+"settings.credits.error.invalidResponse" = "Neplatná odpoveď zo servera. Skúste znova.";
+"settings.credits.error.server" = "Chyba servera: %@";
+"settings.models.alert.limit.title" = "Limit stiahnutia modelov dosiahnutý";
+"settings.models.alert.limit.message" = "Skúšobné verzie zahŕňajú %d stahnutí modelov. Upgradujte svoju licenciu na neobmedzené stiahnutia.";
+"settings.models.alert.cannotDelete.title" = "Nie je možné vymazať model";
+"settings.models.parakeet.title" = "Parakeet modely";
+"settings.models.parakeet.subtitle" = "Odporúčané pre väčšinu používateľov. Multijazyčný model podporuje 25 jazykov.";
+"settings.models.parakeet.empty" = "Žiadne dostupné Parakeet modely.";
+"settings.models.whisper.title" = "Whisper modely";
+"settings.models.whisper.subtitle" = "OpenAI Whisper modely. Väčšie modely sú presnejšie. Podporuje 100+ jazykov.";
+"settings.models.whisper.empty" = "Žiadne dostupné Whisper modely.";
+"settings.models.help.cancelDownload" = "Zrušiť stiahnutie";
+"settings.models.help.remove" = "Odstrániť model";
+"settings.models.downloaded" = "Stiahnutý";
+"settings.models.download" = "Stiahnuť";
+"settings.models.downloading" = "Stahuje sa…";
+"settings.models.localPostProcessing.title" = "Lokálne modely následného spracovania";
+"settings.models.localPostProcessing.memoryWarning" = "Odporúčané pre Mac s 24 GB zjednotenej pamäte alebo viac. Rýchlosť závisí od čipu — rýchlejšie na M3/M4 Pro a vyšších.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Slová tento rok";
+"vocabulary.input.placeholder" = "Pridajte slovo alebo vytvorte úryvok";
+"vocabulary.action.addWord" = "Pridať slovo";
+"vocabulary.action.replaceWith" = "Nahradiť za…";
+"vocabulary.action.replace" = "Nahradiť";
+"vocabulary.replacement.field.placeholder" = "Náhradný text…";
+"settings.output.autocapitalizeInsert.title" = "Automatické veľké písmeno pri vkladaní";
+"settings.output.autocapitalizeInsert.subtitle" = "Prispôsobte kontext kurzora pri vkladaní textu";
+"settings.output.autocapitalizeInsert.info" = "Ak je zapnuté, prvé slovo vloženého textu transkripcie sa prispôsobí kontextu kurzora (začiatok alebo stred vety). Vypnite pre diktovanie vždy malými písmenami.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper potrebuje povolenie prístupnosti na čítanie kontextu kurzora potrebného pre automatické veľké písmená.\n\nKliknite na \"Otvoriť nastavenia\", stlačte prepínač vedľa HyperWhisper a skúste to znova.";
+"settings.output.removeFillerWords.title" = "Odstrániť výplňové slová";
+"settings.output.removeFillerWords.subtitle" = "Odstraňujte \"uh\", \"um\" a \"er\" z hrubých prepisov, keď je postprocessing AI vypnutý";
+"settings.output.removeFillerWords.info" = "Platí iba vtedy, keď režim preskočí postprocessing AI. Režimy vylepšené AI spracovávajú čistenie reči v výzve.";
+"sidebar.modelLibrary" = "Knižnica modelov";
+"sidebar.modelLibrary.help" = "Prechádzajte všetkými hlasovými modelmi a modelmi na spracovanie na jednom mieste";
+"settings.shortcuts.quickCapture.enable.title" = "Rýchle zachytenie";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Nahrajte a odošlite prepis do Poznámok — bez potreby najprv zamerať aplikáciu.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Klávesová skratka";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Stlačte kdekoľvek na nahranie a odoslanie do Poznámok.";
+"settings.shortcuts.quickCapture.mode.title" = "Režim";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Používaný režim prepisu — riadi model, výzvu a následné spracovanie.";
+"settings.shortcuts.quickCapture.mode.current" = "Aktuálny režim";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper potrebuje oprávnenie na ovládanie Poznámok. Udeľte ho v Nastavenia systému → Súkromie → Automatizácia.";
+"settings.section.vocabulary" = "Slovník";
+"settings.vocabulary.icloudSync.title" = "Synchronizácia iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Synchronizujte vlastný slovník na všetkých Macoch prihlásených na rovnaký účet iCloud.";
+"settings.vocabulary.icloudSync.info" = "Predvolene vypnuté. Synchronizuje sa iba váš vlastný slovník — prepisy a nahrávky zostávajú na tomto Macu. Zmeny sa prejavia pri nasledujúcom otvorení HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Zatvorte HyperWhisper pre aplikovanie zmien";
+"vocabulary.icloudSync.restart.message" = "Zmeny v synchronizácii slovníka iCloud sa prejavia pri nasledujúcom otvorení HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Zatvoriť HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Neskôr";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Udržiavaj mikrofón aktívny medzi nahrávkami";
+"settings.sound.keepWarmMicrophone.info" = "Znižuje oneskorenie spustenia push-to-talk tým, že udržuje reláciu mikrofónu otvorenú, keď je HyperWhisper nečinný. macOS bude nepretržite zobrazovať oranžový indikátor mikrofónu a Bluetooth slúchadlá môžu zostať v režime hovoru nižšej kvality, pokiaľ je táto funkcia aktívna.";
+"settings.models.local.inUse" = "Tento lokálny model sa v súčasnosti používa na následné spracovanie pre:
+
+%@
+
+Uprav tieto režimy a vyber iný model pred jeho odstránením.";
+"models.postProcessing.gemma4.e2b.description" = "Rýchly a presný. Vynikajúci univerzálny model na následné spracovanie.";
+"models.postProcessing.gemma4.e4b.description" = "Vyššia kvalita s viac detailmi. Vhodný na dlhšie texty.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B zmes expertov. Rýchle odvodzovanie len so 4B aktívnymi parametrami.";
+"models.postProcessing.gemma4.31b.description" = "31B hustý model. Najvyššia kvalita, vyžaduje 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Tento model sa nedá vymazať, pretože ho používajú:\n\n%@\n\nPred vymazaním aktualizujte tieto režimy na použitie iného modelu.";
+"settings.models.parakeet.inUse" = "Tento Parakeet model sa nedá vymazať, pretože ho používajú:\n\n%@\n\nPred vymazaním aktualizujte tieto režimy na použitie iného modelu.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Neznámy";
+"settings.models.directory.whisper" = "Zložka modelov Whisper";
+"settings.models.directory.parakeet" = "Zložka modelov Parakeet";
+"settings.models.directory.local" = "Priečinok lokálnych modelov";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — viacjazyčné rozpoznávanie reči optimalizované pre CoreML.";
+"settings.models.qwen3asr.languages" = "30 jazykov";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Tento model Qwen3 ASR nie je možné odstrániť, pretože ho používajú:\n\n%@\n\nPred odstránením aktualizujte tieto režimy, aby používali iný model.";
+"settings.models.directory.show" = "Zobraziť v Finderi";
+"models.error.checksumFailed" = "Overenie kontrolného súčtu modelu zlyhalo. Stiahnutie môže byť poškodené.";
+
+// MARK: - Statistics View
+"statistics.title" = "Štatistika";
+"statistics.header.title" = "Vaša štatistika použitia";
+"statistics.header.subtitle" = "Sledujte svoju aktivitu prepisu a výkon";
+"statistics.card.recordings" = "Spolu nahrávok";
+"statistics.card.recordings.subtitle" = "Dokončené prepisy";
+"statistics.card.duration" = "Celkový čas";
+"statistics.card.duration.subtitle" = "Čas strávený nahrávaním";
+"statistics.card.words" = "Celkem slov";
+"statistics.card.words.subtitle" = "Prepísaných slov";
+"statistics.card.average" = "Priemerné trvanie";
+"statistics.card.average.subtitle" = "Na nahrávku";
+"statistics.graph.title" = "Aktivita v čase";
+"statistics.daily.empty" = "Zatiaľ žiadne nahrávky";
+"statistics.filter.week" = "Tento týždeň";
+"statistics.filter.month" = "Tento mesiac";
+"statistics.filter.alltime" = "Všetky časy";
+
+// MARK: - History View
+"history.title" = "História";
+"history.search.placeholder" = "Hľadať";
+"history.filter.all" = "Všetko";
+"history.filter.today" = "Dnes";
+"history.filter.week" = "Tento týždeň";
+"history.filter.month" = "Tento mesiac";
+"history.empty.title" = "Nahrávky sa nenašli";
+"history.empty.subtitle" = "Skúste upraviť hľadanie";
+"history.detail.empty" = "Vyberte nahrávku na zobrazenie podrobností";
+"history.multi.selected" = "%d nahrávok vybraných";
+"history.multi.delete" = "Vymazať vybrané";
+"history.context.deleteSelected" = "Vymazať %d nahrávok";
+"history.context.retry" = "Znova sa pokúsiť o prepis";
+"history.context.retryWith" = "Skúsiť znova s...";
+"history.context.copy" = "Kopírovať text";
+"history.retrying" = "Pokúšam sa znova prepísať...";
+"history.retry.help" = "Pokúsiť sa znova o prepis";
+"history.section.today" = "Dnes";
+"history.section.yesterday" = "Včera";
+"history.duration.format" = "%d m %d s";
+"history.status.failed" = "Zlyhalo";
+"history.status.transcription.failed.prefix" = "Prepis zlyhal:";
+"history.status.retry.failed.prefix" = "Opakovný pokus zlyhal:";
+"history.failure.reason" = "Dôvod: %@";
+"history.mode.default" = "Predvolené";
+"history.audio.showInFinder" = "Zobraziť v Finderi";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Odstrániť režim?";
+"modes.delete.confirm.message" = "Toto odstráni vybraný režim. Túto akciu sa nedá vrátiť.";
+"modes.header.title" = "Režimy";
+"modes.header.subtitle" = "Vytvorte vlastné profily pre rôzne kontexty a pracovné postupy";
+"modes.header.create" = "Vytvoriť režim";
+"modes.name.unnamed" = "Nepomenovaný";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Vybrať";
+"modes.help.edit" = "Upraviť nastavenia režimu";
+"modes.help.preset" = "Naučiť sa viac o tejto predvoľbe";
+"modes.help.model" = "Naučiť sa viac o tomto modeli";
+"modes.preset.title" = "Predvolba";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Správa";
+"modes.preset.mail.name" = "Pošta";
+"modes.preset.note.name" = "Poznámka";
+"modes.preset.meeting.name" = "Stretnutie";
+"modes.preset.code.name" = "Kód";
+"modes.preset.custom.name" = "Vlastný";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Režim správy čisti nahrávané správy, opravuje interpunkciu, rozdelenie do odsekov a gramatické chyby.";
+"modes.preset.mail.tooltip" = "Režim e-mailu formátuje vašu interpretáciu na profesionálnu štruktúru e-mailu s vhodným pozdravom, rozdelením na odseky a podpisom.";
+"modes.preset.note.tooltip" = "Režim poznámok organizuje váš nahrávaný obsah do jasného formátu poznámky s nadpismi, odrážkami a štruktúrovanými časťami.";
+"modes.preset.meeting.tooltip" = "Režim stretnutia štruktúruje vašu nahrávku do formátu zápisnice spolu s účastníkmi, položkami na vykonanie a kľúčovými bodmi diskusie.";
+"modes.preset.code.tooltip" = "Režim kódu konvertuje hovorenú programáciu do syntaxe kódu. Povedzte \"otvorená zátvorka\", \"spätná lomítko\", \"camel case\" a ďalšie a napíšte kód hlasom.";
+"modes.preset.custom.tooltip" = "Vlastný režim umožňuje definovať vlastné pravidlá formátovania a výzvy pre konkrétne prípady použitia.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Definujte úplné pokyny na formátovanie pre túto predvoľbu.";
+"modes.notice.vocabularyUnsupported" = "Vlastný slovník nie je podporovaný týmto poskytovateľom pre tento model. Bude ignorovaný.";
+"modes.notice.deepgramNova3AutoDetect" = "Vlastný slovník nie je dostupný pri použití Deepgram Nova-3 s automatickou detekciou jazyka. Na umožnenie zosilnenia slovníka nastavte špecifický jazyk (napr. angličtina, španielčina).";
+"modes.language.title" = "Jazyk";
+"modes.language.englishOnly" = "Iba angličtina (optimalizovaný model)";
+"modes.postProcessing.sectionTitle" = "Následné spracovanie";
+"modes.postProcessing.modeLabel" = "Režim";
+"modes.postProcessing.modeTitle" = "Následné spracovanie";
+"modes.postProcessing.modeDescription" = "Vyberte spôsob spracúvania prepisov:\n\n• Vypnuté: Bez následného spracúvania, surový prepis\n• Cloud (AI): Zlepšovanie poháňané AI (vyžaduje internet)\n• Lokálne: Používa lokálne LLM ako Gemma cez llama.cpp\n\nCloudové spracovanie odosiela text do vybraného poskytovateľa AI. Lokálny režim ostáva na vašom počítači, ale potrebuje spustený lokálny server.";
+"modes.postProcessing.providerLabel" = "Poskytovateľ";
+"modes.postProcessing.apiKeyMissing" = "%@ API kľúč nie je nakonfigurovaný. Pridajte ho v Nastaveniach, aby ste umožnili následné spracovanie.";
+"modes.postProcessing.configure" = "Konfigurovať v Nastaveniach";
+"modes.postProcessing.modelRecommendation" = "Odporúčame používať GPT-4.1 Nano pre najlepší pomer rýchlosti a kvality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Lokálne následné spracovanie vyžaduje stiahnutý lokálny model.";
+"modes.postProcessing.download" = "Stiahnuť v Nastaveniach";
+"modes.postProcessing.localInfo" = "Beží výlučne na vašom zariadení. HyperWhisper automaticky spúšťa priložený server llama.cpp, keď je tento režim aktívny.";
+"modes.postProcessing.userSystemPrompt.title" = "Trvalé pokyny";
+"modes.postProcessing.userSystemPrompt.placeholder" = "napr. E-maily vždy končite slovami 'S pozdravom, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Vyčistiť";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Trvalé pokyny";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Pridajte pokyny, ktoré sa vždy uplatnia nad vybranou predvoľbou.";
+"modes.toggle.punctuation.title" = "Pridať interpunkciu";
+"modes.toggle.punctuation.subtitle" = "Automaticky pridajte bodky a čiarky";
+"modes.toggle.capitalization.title" = "Kapitalizovať vety";
+"modes.toggle.capitalization.subtitle" = "Veľké písmeno na začiatku viet";
+"modes.toggle.profanity.title" = "Filtrovať vulgárne výrazy";
+"modes.toggle.profanity.subtitle" = "Nahraďte nevhodné slová";
+"modes.toggle.removeTrailingPeriod.title" = "Odstrániť koncovú bodku";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Odstráni poslednú bodku z prepisov";
+"modes.postProcessing.privacyNotice" = "Váš prepis sa odosiela IBA do %@ na následné spracovanie. Nikdy nikam inde.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Jazykový model";
+"modes.englishSpelling.title" = "Anglické pravopisy";
+"modes.englishSpelling.american" = "Americké";
+"modes.englishSpelling.british" = "Britské";
+"modes.englishSpelling.australian" = "Austrálske";
+"modes.englishSpelling.canadian" = "Kanadské";
+"modes.englishSpelling.american.description" = "Používajte americké anglické pravopisy (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Používajte britské anglické pravopisy (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Používajte austrálske anglické pravopisy (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Používajte kanadské anglické pravopisy (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Vlastné inštrukcie";
+"modes.gemini.customPrompt.helper" = "Voliteľné. Napr. \"Formátovať ako odrážky\", \"Použiť formálny jazyk\". Nastavenia jazyka a slovníka sú automaticky zahrnuté.";
+"modes.cloud.apiKeyMissing" = "%@ API kľúč nie je nakonfigurovaný. Pridajte ho v Nastaveniach na použitie cloudového prepisu.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Presnosť";
+"modes.cloudAccuracy.groqWhisper.label" = "Stredná (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Stredná (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Vysoká (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Rýchla a dostupná. Najvhodnejšia na rýchle prepisy.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Vyvážená rýchlosť a presnosť. Odporúčané pre väčšinu používateľov.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
+"modes.cloudAccuracy.grokStt.label" = "Najvyššia (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
+
+"modes.create.title" = "Vytvoriť nový režim";
+"modes.create.subtitle" = "Konfigurovať vlastný profil prepisu";
+"modes.section.basic" = "Základné nastavenia";
+"modes.section.transcription" = "Prepisovací model";
+"modes.section.punctuation" = "Interpunkcia";
+"modes.toggle.screenText.title" = "Text na obrazovke";
+"modes.toggle.screenText.subtitle" = "Zachyťte viditeľný text na obrazovke, aby ste zlepšili presnosť mien a termínov. Vyžaduje povolenie na záznam obrazovky.";
+"modes.screenText.openSettings" = "Otvoriť Systémové nastavenia";
+"modes.screenText.permissionGranted" = "Povolenie na záznam obrazovky bolo udelené";
+"modes.screenText.permissionRequired" = "Povolenie na záznam obrazovky je potrebné";
+"modes.field.name" = "Meno";
+"modes.field.name.placeholder" = "napr. Záznamy zo stretnutí";
+"modes.field.name.editPlaceholder" = "Meno režimu";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Poskytovateľ";
+"modes.provider.local" = "Lokálne";
+"modes.provider.cloud" = "Cloud";
+"modes.notice.noLocalModels.title" = "Žiadne lokálne modely nainštalované";
+"modes.notice.noLocalModels.subtitle" = "Najprv nainštalujte model v Nastaveniach";
+"modes.model.pricing" = "Ceny: $%.6f / minútu (účtované za sekundu)";
+"modes.button.create" = "Vytvoriť režim";
+"modes.button.delete" = "Vymazať režim";
+"modes.button.save" = "Uložiť zmeny";
+"modes.edit.title" = "Upraviť režim";
+"modes.edit.subtitle" = "Zmeniť nastavenia profilu prepisu";
+"mode.editor.cloudModel.previewHint" = "Náhľad";
+"mode.editor.cloudModel.noVocabularyHint" = "Bez vlastného slovníka";
+"mode.editor.cloudDomain.medical" = "Lekársky";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ doplnok Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Nie je možné skúsiť znova: Zvukový súbor sa nenašiel";
+"transcripts.error.invalidId" = "Neplatné ID prepisu";
+"transcripts.delete.single.title" = "Vymazať nahrávku?";
+"transcripts.delete.single.message" = "Toto natrvalo vymaže túto nahrávku a jej zvukový súbor.";
+"transcripts.delete.multiple.title" = "Vymazať %d nahrávok?";
+"transcripts.delete.multiple.message" = "Toto natrvalo vymaže %d nahrávok a ich zvukové súbory.\n\nTúto akciu sa nedá vrátiť.";
+"transcripts.delete.multiple.confirm" = "Vymazať všetko";
+"transcripts.retry.error.title" = "Opakovný pokus zlyhal";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Zvoľte zložku nahrávok";
+"storage.folder.choose.message" = "Vyberte zložku na uloženie nových nahrávok.";
+"storage.folder.choose.prompt" = "Zvoľte";
+"storage.recovery.title" = "Nie je možné pristupovať k zložke nahrávok";
+"storage.recovery.message" = "HyperWhisper nemôže pristupovať k nakonfigurovanej zložke nahrávok. Pokračovať v práci si môžete zvoliť ďalšiu zložku.";
+"storage.recovery.choose" = "Zvoľte zložku…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Naučiť sa viac";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Prepis ukončený";
+"recording.status.retrying" = "Pokúšam sa znova prepísať…";
+"recording.status.postprocessing" = "Následné spracovanie pomocou AI…";
+"recording.status.transcribing" = "Prepisujem…";
+"recording.success.pasted" = "Vložené!";
+"recording.loading.retrying" = "Pokúšam sa znova…";
+"recording.loading.postprocessing" = "Spracúvam pomocou AI…";
+"recording.loading.starting" = "Spúšťam stream…";
+"recording.loading.transcribing" = "Prepisujem…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Pripájam sa...";
+"streaming.status.ready" = "Pripravené - Začať hovoriť";
+"streaming.status.warming" = "Zahrievanie...";
+"modes.badge.recommended" = "Odporúčané";
+"modes.source.label" = "Zdroj";
+"modes.source.onDevice" = "V zariadení";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API kľúč";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Tento model sa nedá odstrániť, pretože ho používajú:
+
+%@
+
+Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
+"models.postProcessing.gemma4.12b.description" = "Stredne veľký hustý model. Vyvažuje kvalitu a rýchlosť na Macoch s 16 GB.";
+"recording.success.savedToNotes" = "Uložené do Poznámok!";
+"modes.provider.needsKey" = "%@ vyžaduje funkčný kľúč.";
+"modes.provider.manageInLibrary" = "Spravovať v knižnici →";
+"streaming.loading.warming" = "Zahrievanie lokálneho modelu...";
+"streaming.status.listening" = "Počúvam...";
+"streaming.status.streaming" = "Streamujem...";
+"streaming.status.disconnecting" = "Zastavujem...";
+"streaming.loading.connecting" = "Pripájam sa na server...";
+"streaming.loading.ready" = "Inicializujem zvuk...";
+"streaming.loading.streaming" = "Čakám na reč...";
+"streaming.state.reconnecting" = "Opätovné pripojenie...";
+"recording.stop.help" = "Zastaviť nahrávanie (%@)";
+"recording.postprocessing.unavailable" = "Následné spracovanie nie je dostupné";
+"recording.postprocessing.missing.single" = "%@ kľúč chýba – nahrávanie bez následného spracúvania";
+"recording.postprocessing.missing.multiple" = "Chýbajú API kľúče – nahrávanie bez následného spracúvania";
+"recording.postprocessing.addKey" = "Pridať kľúč";
+"recording.offline.banner" = "Žiadne internetové pripojenie. Cloudový prepis zlyhá, kým nie ste online.";
+"recording.offline.title" = "Žiadne internetové pripojenie";
+"recording.offline.subtitle" = "Pripojte sa, aby ste pokračovali, alebo prepnite do offline režimu.";
+"recording.error.network" = "Skontrolujte internetové pripojenie a skúste znova.";
+"recording.error.timeout" = "Požiadavka vypršala. Skontrolujte rýchlosť spojenia a skúste znova.";
+"recording.error.rateLimit" = "Urobili ste príliš veľa požiadaviek. Počkajte chvíľu a skúste znova.";
+"recording.error.credits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";
+"recording.error.apiKey" = "Pridajte svoj %@ API kľúč v Nastaveniach.";
+"recording.error.server" = "Služba prepisu má problémy. Skúste to znova za chvíľu.";
+"recording.retry" = "Skúsiť znova";
+"recording.retry.inProgress" = "Pokúšam sa znova…";
+"recording.retry.count" = "Skúsiť znova (%d)";
+"recording.retry.failed.missing" = "Opakovný pokus zlyhal: Zvukový súbor sa nenašiel";
+"recording.retry.failed.error" = "Opakovný pokus zlyhal: %@";
+"recording.retry.pending" = "Pripravené na opakovný pokus – kliknite na prepis";
+"recording.provider.unknown" = "poskytovateľ cloudu";
+"recording.cancel.dialog.title" = "Zrušiť nahrávanie?";
+"recording.cancel.dialog.message" = "Toto zahodí aktuálne nahrávanie.";
+"recording.cancel.dialog.confirm" = "Zrušiť nahrávanie";
+"recording.cancel.dialog.resume" = "Pokračovať";
+"recording.error.overlay.title" = "Chyba sieťového spojenia";
+"recording.error.overlay.message" = "Stlačte \"Skúsiť znova\" nižšie alebo prepnite do offline režimu, aby ste pokračovali.";
+"recording.mode.default" = "Predvolené";
+"recording.dialog.window.title" = "Dialóg nahrávania";
+"recording.button.start" = "Spustieť nahrávanie";
+"recording.button.stop" = "Zastaviť nahrávanie";
+"recording.button.disable.checking" = "Kontrolujem %@ stav...";
+"recording.button.disable.invalid" = "Neplatný %@ API kľúč. Aktualizujte ho v Nastaveniach.";
+"recording.button.disable.unreachable" = "%@ je nedostupný. Skontrolujte spojenie a skúste znova.";
+"recording.button.disable.missing" = "Pridajte svoj %@ API kľúč v Nastaveniach.";
+"recording.button.disable.install.local" = "Pred použitím lokálneho post-spracovania si stiahnite lokálny model v Nastavenia → Modely.";
+"modes.postProcessing.accuracy" = "Presnosť";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Dosiahli ste svoj denný limit prepisu %@-minút. Upgradujte na HyperWhisper Pro na neobmedzený prepis.";
+"recording.error.documentsAccess" = "Nie je možné pristupovať k zložke nahrávok. Zvoľte si iné miesto v Nastavenia → Úložisko.";
+"recording.error.modeMissing" = "Vybraný režim sa nenašiel. Vyberte prosím platný režim.";
+"recording.warning.oversizedWAV" = "Kompresie zvuku zlyhala. Použitie nekomprimovaného súboru %@ MB - prepis môže byť pomalší.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Predvolený mikrofón";
+"audio.error.permissionDenied" = "Prístup k mikrofónu je odmietnutý. Povolte ho v Nastaveniach systému.";
+"audio.error.fileWatcher.open" = "Nepodarilo sa otvoriť deskriptor súboru na monitorovanie zvukového súboru.";
+"audio.error.fileWatcher.timeout" = "Operácia vypršala pri čakaní na zápis zvukového súboru.";
+"audio.error.fileWatcher.creation" = "Zvukový súbor bol vytvorený v čase.";
+"audio.error.microphonePermission" = "Povolenie mikrofónu neudelené";
+"audio.error.microphoneInUse" = "HyperWhisper nemôže pristupovať k mikrofónu, pretože ho v tejto chvíli používa ďalšia aplikácia. Pozastavte ďalšiu aplikáciu alebo prepnite vstupy a skúste znova.";
+"audio.error.createEngine" = "Nepodarilo sa vytvoriť zvukový stroj";
+"audio.error.noInput" = "Žiadny dostupný zvukový vstup";
+"audio.error.createFile" = "Nepodarilo sa vytvoriť zvukový súbor";
+"audio.error.managerUnavailable" = "Správca prepisov nie je nakonfigurovaný";
+"audio.error.invalidHardwareFormat" = "Zistený neplatný formát zvuku hardvéru. Skontrolujte svoje zvukové zariadenie.";
+"audio.error.createFormat" = "Nepodarilo sa vytvoriť formát zvuku na nahrávanie";
+"audio.error.createConverter" = "Nepodarilo sa vytvoriť konvertor formátu zvuku";
+"audio.error.exportM4A" = "Nepodarilo sa vyviezť zvuk na formát m4a";
+"audio.error.readFile" = "Zvukový súbor sa nedal čítať po nahrávaní.";
+"audio.error.recordingTooShort" = "Nahrávka bola príliš krátka. Držte tlačidlo dlhšie, aby ste zachytili zvuk.";
+"audio.error.noAudioTrack" = "Tento videosúbor neobsahuje zvukovú stopu.";
+"audio.alert.accessibility.title" = "Aktivovať prístup k prístupnosti";
+"audio.alert.accessibility.message" = "HyperWhisper potrebuje povolenie Prístupnosti na vloženie prepísaného textu do iných aplikácií.\n\nKliknite na \"Otvoriť Nastavenia\", stlačte prepínač vedľa HyperWhisper a skúste znova.";
+"audio.alert.accessibility.open" = "Otvoriť Nastavenia";
+"audio.alert.pasteFailed.title" = "Automatické vloženie zlyhalo";
+"audio.alert.pasteFailed.message" = "Prepísaný text bol skopírovaný do schránky.\n\nStlačte ⌘V na manuálne vloženie alebo vyberte Úpravy → Vložiť z menu.";
+"accessibility.permission.location.debug" = "Xcode Debug Build";
+"accessibility.permission.location.installed" = "Nainštalovaná aplikácia";
+"accessibility.permission.info" = "HyperWhisper potrebuje povolenie Prístupnosti na vloženie prepísaného textu do iných aplikácií.\n\nTieto aktuálne umiestnenie aplikácie: %@\n\nV Nastaveniach systému:\n1. Hľadajte „hyperwhisper\" alebo „HyperWhisper\" v zozname\n2. Môžete vidieť viacero záznamov, ak ste bežali z rôznych umiestnení\n3. Povolte zaškrtávacie pole pre položku zodpovedajúcu:\n   %@";
+"accessibility.permission.xcodeNote" = "Poznámka: Spustenie z Xcode vyžaduje iné povolenie ako nainštalovaná aplikácia.";
+"accessibility.error.paste.commandFailed" = "Príkaz vloženia zlyhal";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Poskytovateľ prepisu nie je dostupný. Skontrolujte nastavenia a skúste znova.";
+"transcription.error.providerNotAvailable.provider" = "%@ nie je dostupný. Skontrolujte nastavenia a skúste znova.";
+"transcription.error.providerNotAvailable.detail" = "%@ nie je dostupný: %@";
+"transcription.error.modelNotDownloaded" = "Najprv si stiahnite model";
+"transcription.error.modelProtected" = "Tento model sa nedá vymazať";
+"transcription.error.audioFileNotFound" = "Zvukový súbor sa nenašiel";
+"transcription.error.network.detail" = "Chyba siete: %@";
+"transcription.error.network.generic" = "Chyba sieťového pripojenia";
+"transcription.error.apiKeyMissing.provider" = "%@ API kľúč je vyžadovaný na prepis";
+"transcription.error.apiKeyMissing.generic" = "Na prepis je vyžadovaný cloudový poskytovateľ API kľúč";
+"transcription.error.maxRetriesExceeded" = "Maximum pokusov o opakovanie bolo prekročené";
+"transcription.error.unauthorized.provider" = "Neoprávnený: neplatný %@ API kľúč alebo oprávnenia.\n\nOtvorte Nastavenia → API kľúče na overenie vašich poveí.";
+"transcription.error.unauthorized.generic" = "Neoprávnený: neplatný API kľúč alebo oprávnenia.\n\nOtvorte Nastavenia → API kľúče na overenie vašich poveí.";
+"transcription.error.invalidRequest" = "Neplatná požiadavka: skontrolujte zvukový súbor alebo nastavenia";
+"transcription.error.streamingInterrupted" = "Streamovanie prerušené; zobrazený čiastočný text";
+"transcription.error.busy" = "Služba prepisu je momentálne zaneprázdnená";
+"transcription.error.invalidAudioFormat" = "Nepodporovaný zvukový formát";
+"transcription.error.audioConversionFailed" = "Nepodarilo sa previesť zvuk na požadovaný formát";
+"transcription.error.audioFileTooLarge" = "Súbor je príliš veľký: %@ prekračuje %@ limit pre %@";
+"transcription.error.serverError" = "Chyba servera (%d): %@";
+"transcription.error.rateLimited.seconds" = "Limitované rýchlosťou: Príliš veľa požiadaviek. Počkajte %d sekúnd a skúste znova.";
+"transcription.error.rateLimited.generic" = "Limitované rýchlosťou: Príliš veľa požiadaviek. Počkajte chvíľu a skúste znova.";
+"transcription.error.insufficientCredits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";
+"transcription.error.quotaExceeded" = "%@ kvóta prekročená";
+"transcription.error.quotaExceeded.detail" = "%@ kvóta prekročená: %@";
+"transcription.error.timeout" = "Požiadavka vypršala počas %@. Skontrolujte internetové pripojenie a skúste znova.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Uistite sa, že je váš poskytovateľ prepisov správne nakonfigurovaný v Nastaveniach.";
+"transcription.guidance.providerNotAvailable.provider" = "Uistite sa, že je %@ správne nakonfigurovaný. V prípade lokálnych modelov si najprv stiahnite model. Pre cloudových poskytovateľov overujte API kľúč.";
+"transcription.guidance.apiKeyMissing.provider" = "Pridajte svoj %@ API kľúč v Nastaveniach";
+"transcription.guidance.apiKeyMissing.generic" = "Pridajte cloudového poskytovateľa API kľúč v Nastaveniach";
+"transcription.guidance.modelNotDownloaded" = "Stiahnite model zo sekcie Modely";
+"transcription.guidance.modelProtected" = "Tento model je momentálne v používaní";
+"transcription.guidance.audioFileNotFound" = "Zvukový súbor bol vymazaný alebo presunutý";
+"transcription.guidance.networkError" = "Skontrolujte internetové pripojenie a skúste znova";
+"transcription.guidance.unauthorized.provider" = "Skontrolujte %@ API kľúč alebo oprávnenia konta v Nastaveniach";
+"transcription.guidance.unauthorized.generic" = "Skontrolujte API kľúč alebo oprávnenia konta v Nastaveniach";
+"transcription.guidance.invalidRequest" = "Overujte zvukový súbor a nastavenia režimu a skúste znova";
+"transcription.guidance.invalidAudioFormat" = "Skúste previesť zvukový súbor na formát MP3 alebo WAV";
+"transcription.guidance.audioConversionFailed" = "Zvukový súbor môže byť poškodený. Skúste iný súbor";
+"transcription.guidance.audioFileTooLarge" = "Používajte kratší zvukový súbor alebo ho rozdeľte na menšie segmenty";
+"transcription.guidance.serverError" = "Služba prepisu zažíva problémy. Prosím, skúste znova.";
+"transcription.guidance.rateLimited" = "Urobili ste príliš veľa požiadaviek. Počkajte chvíľu pred ďalším pokusom.";
+"transcription.guidance.insufficientCredits" = "Kúpite si ďalšie kredity v Nastaveniach, aby ste pokračovali v prepise";
+"transcription.guidance.quotaExceeded" = "Pridajte kredity do svojho %@ konta alebo aktualizujte podrobnosti fakturácie";
+"transcription.guidance.timeout" = "Požiadavka trvala príliš dlho. Skontrolujte rýchlosť internetu a skúste znova.";
+"transcription.error.noSpeechDetected" = "V nahrávke nebola detekovaná reč.";
+"transcription.guidance.noSpeechDetected" = "Tipy:\n• Jasne rozprávajtea do mikrofónu\n• Držte kľúč dlhšie pred rozprávaním\n• Skontrolujte, či mikrofón funguje\n• Uistite sa, že je vybrané správne vstupné zariadenie";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";
+"hyperwhisperCloud.error.network" = "Chyba siete: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Neplatná odpoveď z HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Chyba servera: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Spustiteľný súbor llama-server sa nepodarilo nájsť.";
+"llama.runtime.error.missingDependencies" = "Runtime chýbajúce závislosti: %@";
+"llama.runtime.error.copyFailed" = "Nepodarilo sa skopírovať runtime: %@";
+"llama.runtime.error.copy.executable" = "Nepodarilo sa skopírovať spustiteľný súbor: %@";
+"llama.runtime.missing" = "Runtime Lokálne chýba v tejto inštalácii. Znovunainštalujte HyperWhisper na obnovenie lokálneho následného spracúvania.";
+"llama.runtime.genericError" = "Chyba runtime Lokálne: %@";
+"runtime.error.llama.missingLib" = "Runtime Lokálne ukončený po chýbajúcej libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Runtime Lokálne ohlásil chýbajúcu libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Vstavané následné spracovanie AI spustené na Cloudflare Workers. Bez konfigurácie.";
+"models.postProcessing.gpt4.1.nano.description" = "Stredná presnosť (92%), veľmi rýchla rýchlosť (<1s). Vhodná pre rýchle koncepty a neformálne poznámky.";
+"models.postProcessing.gpt4.1.mini.description" = "Vysoká presnosť (94%), rýchla rýchlosť (~1-2s). Dobrá pre každodennú obchodnú komunikáciu a štandardné dokumenty.";
+"models.postProcessing.gpt4.1.description" = "Veľmi vysoká presnosť (96%), stredná rýchlosť (~3-4s). Skvelá pre zložité formátovanie a technický obsah.";
+"models.postProcessing.gpt5.nano.description" = "Dobrá presnosť (95%), najrýchlejšia rýchlosť (~1s). Perfektná pre rýchle poznámky, správy a neformálne prepisy.";
+"models.postProcessing.gpt5.mini.description" = "Vynikajúca presnosť (97%), stredná rýchlosť (~2-3s). Ideálny pomer pre profesionálne e-maily, správy a záznamy zo stretnutí.";
+"models.postProcessing.gpt5.description" = "Najvyššia presnosť (99%+), najpomalšia rýchlosť (~3-5s). Najlepší pre kritické dokumenty, právne, medicínske prepisy, kde je presnosť najprimárnejšia.";
+"models.postProcessing.gpt5.1.description" = "Najmodernejšia presnosť (98%+), stredná rýchlosť (~2-3s). Vynikajúca pre zložité úlohy, právne dokumenty a technický obsah s vyšším zdôvodňovaním.";
+"models.postProcessing.gpt5.2.description" = "Najnovšia séria GPT-5 s vylepšeným zdôvodňovaním a rýchlejším odvodzovaním. Celkovo najlepšia voľba na vysokokakovostné spracovanie textu.";
+"models.postProcessing.claude4.5.haiku.description" = "Najnovší Claude Haiku s vylepšeným zdôvodňovaním pri zachovaní rýchlych časov odozvy.";
+"models.postProcessing.claude4.sonnet.description" = "Vyvážený výkon. Vynikajúce zdôvodňovanie a možnosti formátovania pre profesionálne dokumenty.";
+"models.postProcessing.gemini3.flash.description" = "Séria Gemini 3 s inteligenciou na úrovni Pro s rýchlosťou Flash. Pokročilé zdôvodňovanie s dynamickými myšlienko.";
+"models.postProcessing.gemini2.5.flash.description" = "Najlepšie z hľadiska pomeru ceny a výkonu. Optimalizovaná na rýchlosť pri zachovaní dobrej presnosti na dennú prácu.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultra rýchly model optimalizovaný na efektívnosť nákladov a vysokú priepustnosť.";
+"models.postProcessing.groq.llama33.70b.description" = "Všestranný model 70B s vynikajúcou kvalitou. ~280 tokenov/s. Odporúčaný.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultra rýchly model 8B. ~560 tokenov/s na okamžitú spracovanie textu.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI open-source model 120B. ~500 tokenov/s na wysokiej spracovanie.";
+"models.postProcessing.groq.gptoss.20b.description" = "Ľahký model 20B. ~1000 tokenov/s na najrýchlejšie spracovanie.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B na Cerebras. Ultra rýchly model 120B s ~3000 tokenov/s. Odporúčaný.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B na Cerebras. Ľahký a ultra rýchly s ~2200 tokenov/s.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B na Cerebras. Obrovský model MoE 235B s ~1400 tokenov/s. Iba náhľad.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 na Cerebras. Model s 355 miliardami parametrov s ~1000 tokenov/s. Iba náhľad.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Centrum pomoci";
+"settings.resources.contact.support" = "Kontaktovať podporu";
+"settings.resources.feedback" = "Spätná väzba a návrhy";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Záloha";
+"settings.backup.export.title" = "Vyviezť nastavenia";
+"settings.backup.export.subtitle" = "Uložiť nastavenia, režimy a slovník do súboru";
+"settings.backup.export.button" = "Vyviezť...";
+"settings.backup.export.panel.title" = "Vyviezť nastavenia";
+"settings.backup.export.panel.label" = "Súbor zálohy:";
+"settings.backup.export.success" = "Nastavenia boli úspešne vyvezené";
+"settings.backup.export.error.create" = "Nepodarilo sa vytvoriť dáta zálohy";
+"settings.backup.export.error.encode" = "Nepodarilo sa zakódovať dáta zálohy";
+"settings.backup.export.error.write" = "Nepodarilo sa zapísať súbor zálohy";
+"settings.backup.includeAPIKeys.title" = "Zahrnúť API kľúče";
+"settings.backup.includeAPIKeys.subtitle" = "Uložiť API kľúče v súbore zálohy (nie je odporúčané na zdieľanie)";
+"settings.backup.includeLicense.title" = "Zahrnúť kľúč licencie";
+"settings.backup.import.title" = "Importovať nastavenia";
+"settings.backup.import.subtitle" = "Obnoviť nastavenia zo zálohovacieho súboru";
+"settings.backup.import.button" = "Importovať...";
+"settings.backup.import.panel.title" = "Importovať nastavenia";
+"settings.backup.import.success" = "Importovanie dokončené: %d režimy, %d položiek slovníka importované";
+"settings.backup.import.error.read" = "Nepodarilo sa prečítať súbor zálohy";
+"settings.backup.import.error.decode" = "Neplatný formát súboru zálohy";
+"settings.backup.import.error.decode.keyNotFound" = "Chýba povinné pole: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Nesprávny typ poľa: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Chýba hodnota poľa: %@";
+"settings.backup.import.error.decode.corrupted" = "Poškodené údaje: %@";
+"settings.backup.import.error.decode.corruptedField" = "Poškodená hodnota poľa: %@";
+"settings.backup.import.error.version" = "Súbor zálohy pochádza z novšej verzie";
+"settings.backup.import.error.unknown" = "Import zlyhal";
+"settings.backup.import.confirm.title" = "Importovať nastavenia?";
+"settings.backup.import.confirm.message" = "Toto nahradí vaše existujúce režimy a slovník tými zo súboru zálohy. Nastavenia budú tiež aktualizované.";
+"settings.backup.import.confirm.button" = "Importovať";
+"settings.backup.conflict.skip" = "Preskočiť existujúce";
+"settings.backup.conflict.replace" = "Nahradiť existujúce";
+"settings.backup.conflict.keepBoth" = "Ponechať obe";
+"settings.backup.security.warning" = "Upozornenie: Vyviezený súbor bude obsahovať citlivé údaje. Udržujte ho v bezpečnosti a nezdieľajte ho.";
+"settings.backup.info.note" = "Zálohy zahŕňajú nastavenia, režimy a slovník. Nahrávky a prepisy nie sú zahrnuté.";
+"settings.backup.result.success.title" = "Úspech";
+"settings.backup.result.error.title" = "Chyba";
+"settings.backup.export.choose.subtitle" = "Vyberte, čo zahrnúť do záložného súboru";
+"settings.backup.export.section.settings" = "Nastavenia";
+"settings.backup.export.section.modes" = "Režimy";
+"settings.backup.export.section.vocabulary" = "Slovník";
+"settings.backup.import.importing" = "Importovanie %@";
+"settings.backup.import.contains" = "Tento súbor obsahuje: %@";
+"settings.backup.import.contains.vocabulary" = "Slovník (%d slov)";
+"settings.backup.import.contains.none" = "nič";
+"settings.backup.import.section.settings" = "Nastavenia";
+"settings.backup.import.section.modes" = "Režimy";
+"settings.backup.import.section.vocabulary" = "Slovník";
+"settings.backup.import.section.apiKeys" = "Kľúče API";
+"settings.backup.import.section.license" = "Licenčný kľúč";
+"settings.backup.import.section.absent" = "— nie je v súbore";
+"settings.backup.import.premerge.summary" = "Slovník: pridať %d nových, %d už existuje";
+"settings.backup.import.premerge.conflictLabel" = "Pre slová, ktoré už existujú:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Vybrať zvukový súbor";
+"transcribe.file.error.title" = "Chyba prepisu";
+"transcribe.file.error.size.title" = "Súbor je príliš veľký";
+"transcribe.file.error.size.message" = "Vybraný súbor (%@) prekračuje %@ limit pre %@.";
+"transcribe.file.error.format.title" = "Nepodporovaný formát";
+"transcribe.file.error.format.message" = "Súbory .%@ nie sú podporované %@. Podporované formáty: %@";
+"transcribe.file.error.read" = "Vybraný súbor sa nedá prečítať.";
+"transcribe.file.error.copy" = "Nepodarilo sa skopírovať súbor do zložky nahrávok.";
+"transcribe.file.error.video.title" = "Žiadny zvuk vo videu";
+"transcribe.file.error.video.noAudio" = "Tento videosúbor neobsahuje zvukovú stopu. Vyberte si video so zvukom alebo zvukový súbor.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Príprava...";
+"file.transcription.transcribing" = "Prepisujem...";
+"file.transcription.finishing" = "Doužívam...";
+"file.transcription.cancel" = "Zrušiť";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Povoliť automatické vymazávanie";
+"history.autoDelete.enable.subtitle" = "Nahrávky staršie ako špecifikovaná doba budú vymazané";
+"history.autoDelete.duration.prefix" = "Po";
+"history.autoDelete.unit.minutes" = "Minúty";
+"history.autoDelete.unit.hours" = "Hodiny";
+"history.autoDelete.unit.days" = "Dni";
+"history.autoDelete.unit.minutes.plural" = "minút";
+"history.autoDelete.unit.hours.plural" = "hodín";
+"history.autoDelete.unit.days.plural" = "dní";
+"history.autoDelete.status.disabled" = "Automatické vymazávanie je zakázané";
+"history.autoDelete.status.enabled" = "Vymazať nahrávky staršie ako %d %@";
+"history.autoDelete.cleanup.noItems" = "Žiadne nahrávky na vymazanie";
+"history.autoDelete.cleanup.summary" = "Vymazaných %d nahrávok a uvoľnených %@";

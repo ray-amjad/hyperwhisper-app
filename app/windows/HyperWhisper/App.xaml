@@ -1,0 +1,22 @@
+<Application x:Class="HyperWhisper.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:HyperWhisper.Converters"
+             StartupUri="Views/Windows/MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Theme colors loaded dynamically by ThemeService -->
+                <ResourceDictionary Source="Themes/LightColors.xaml"/>
+                <ResourceDictionary Source="Themes/Brushes.xaml"/>
+                <ResourceDictionary Source="Themes/Generic.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <converters:EnumToBoolConverter x:Key="EnumToBoolConverter"/>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <converters:ModeToSubtitleConverter x:Key="ModeToSubtitleConverter"/>
+            <converters:LanguageCodeToDisplayNameConverter x:Key="LanguageCodeToDisplayNameConverter"/>
+            <converters:PostProcessingVisibilityConverter x:Key="PostProcessingVisibilityConverter"/>
+            <converters:PostProcessingDisplayConverter x:Key="PostProcessingDisplayConverter"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

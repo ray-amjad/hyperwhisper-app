@@ -1,0 +1,63 @@
+---
+title: System Requirements
+description: Supported operating systems, processor architectures, and hardware notes for HyperWhisper on macOS and Windows.
+---
+
+HyperWhisper runs natively on macOS and Windows. Pick your platform below for minimum versions, architecture support, and hardware notes that affect local model performance.
+
+<Tabs>
+  <Tab title="macOS">
+    ## Minimum requirements
+
+    - **macOS 14 (Sonoma) or later**
+    - Apple Silicon (M-series) **or** Intel — universal binary
+    - ~200 MB free disk for the app, plus space for any local models you download (78 MB to 3.1 GB each)
+
+    ## Apple Silicon vs Intel
+
+    | Feature | Apple Silicon (M1+) | Intel |
+    | --- | --- | --- |
+    | App | Native | Native (universal binary) |
+    | Local Whisper / Parakeet | GPU + Neural Engine accelerated | CPU only |
+    | HyperWhisper Cloud | Same | Same |
+
+    On **Apple Silicon**, local models run noticeably faster — the small Whisper model is comfortably realtime even on an M1 Air.
+
+    On **Intel Macs**, local models still work but use CPU only. For best results on Intel, pick a smaller local model (Whisper Tiny or Base) or use HyperWhisper Cloud.
+
+    ## Network
+
+    - **HyperWhisper Cloud** and BYOK providers require an internet connection.
+    - **Local models** transcribe entirely offline once downloaded.
+    - License activation requires a one-time network call.
+
+    See [Network Filtering](/network-filtering) if you're behind a corporate firewall.
+  </Tab>
+
+  <Tab title="Windows">
+    ## Minimum requirements
+
+    - **Windows 10 or later** (Windows 11 recommended)
+    - **.NET 10 Runtime** (installer prompts for it if missing)
+    - x64 **or** ARM64 (Snapdragon) — separate installers
+    - Visual C++ Redistributable 2015–2022 (auto-installed)
+    - DirectX 11 compatible GPU recommended for local model acceleration (any modern NVIDIA, AMD, or Intel GPU)
+    - ~300 MB free disk for the app, plus space for any local models (78 MB to 3.1 GB each)
+
+    ## x64 vs ARM64
+
+    | Feature | x64 | ARM64 |
+    | --- | --- | --- |
+    | App | Native | Native |
+    | Whisper local models | Yes (DirectCompute GPU) | **Not supported yet** |
+    | Parakeet local models | Yes (DirectML GPU) | Yes |
+    | Local Gemma post-processing | Yes (CUDA on NVIDIA, CPU fallback otherwise) | **Not supported yet** |
+    | HyperWhisper Cloud | Yes | Yes |
+
+    If you're on a **Snapdragon X / ARM64 Windows device** and want local transcription, use **Parakeet v2** (English) or **Parakeet v3** (multilingual). Whisper is x64-only at the moment.
+
+    ## GPU acceleration
+
+    Local transcription engines use your GPU automatically when available and **fall back to CPU** if you don't have a dedicated GPU or there's not enough VRAM. Local Gemma post-processing currently uses CUDA on NVIDIA GPUs only; AMD and Intel systems use CPU fallback for post-processing. See [Models](/models) for per-model VRAM recommendations.
+  </Tab>
+</Tabs>

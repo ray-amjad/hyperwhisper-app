@@ -1,0 +1,117 @@
+---
+title: Provider Health & Automatic Failover
+description: How HyperWhisper monitors cloud provider status, validates API keys, and automatically retries a backup provider when one fails.
+---
+
+HyperWhisper continuously monitors the cloud transcription and post-processing providers you've configured. It validates connectivity and API key validity before and during transcription so you find out about a problem before it interrupts a recording.
+
+## How health monitoring works
+
+When you add or change an API key, HyperWhisper waits 500 ms after you stop typing, then sends a lightweight HTTP request to the provider's endpoint (for example, `GET /v1/models` for OpenAI). This confirms both that the provider is reachable and that your key is accepted. The result is cached for 60 seconds to avoid hammering provider APIs on every keystroke.
+
+If a transcription is about to start and the cached result is stale, HyperWhisper runs one final check before sending your audio. The transcription pipeline waits for this probe to finish—your audio is never sent to a provider that fails the check.
+
+## Health status states
+
+<Tabs>
+  <Tab title="macOS">
+    The API Keys manager shows a colored pill next to each provider you've configured.
+
+    | Pill label | Color | Meaning |
+    |---|---|---|
+    | **Valid** | Green | Provider is reachable and your key is accepted |
+    | **Checking…** | Gray | Health probe is running |
+    | **Invalid** | Orange | Key was rejected (invalid, expired, or insufficient permissions) |
+    | **Unreachable** | Orange | Cannot reach the provider (network issue or provider down) |
+    | **Untested** | Gray | Key is present but no probe has run yet (both map to a single `.unknown` state, branched on whether a key is stored) |
+    | **No key** | Gray | No API key configured for this provider (same `.unknown` state as Untested, different branch) |
+
+    In the provider key sheet (opened by clicking **Add** or **Edit**), a status banner appears below the key input field with a short plain-English explanation of the current state.
+  </Tab>
+  <Tab title="Windows">
+    The API Keys settings page (Settings → API Keys) shows a status label next to each provider. A green label means the key is configured; a gray label means no key has been saved yet. The Models settings page shows health status for each provider entry. Health probes are managed independently by `CloudProviderHealthService`; saving or removing a key on the API Keys page updates the configured/not-configured label but does not trigger a new health probe.
+  </Tab>
+  <Tab title="iOS">
+    The iOS app reads provider health from the macOS app's Local API (`GET /health`). It caches the result for 60 seconds and refreshes as needed. iOS does not run its own probes—it relies on the macOS app being reachable on your local network.
+  </Tab>
+</Tabs>
+
+## How recording is blocked when a provider is unhealthy
+
+<Tabs>
+  <Tab title="macOS">
+    If the provider your current mode uses has a status of **Invalid**, **Unreachable**, or **No key**, the Record button is disabled. Hovering over it shows a tooltip indicating the provider is unhealthy. You can still open Settings and fix the key while the button is disabled.
+
+    The **Checking…** state does not block recording. HyperWhisper permits you to start—the pipeline waits for the probe to complete before sending audio, so you're never recorded against a failing provider even if you start quickly.
+  </Tab>
+  <Tab title="Windows">
+    On Windows, the transcription service checks provider health before processing audio. If the active provider is unhealthy, the operation surfaces an error message rather than sending audio.
+  </Tab>
+</Tabs>
+
+## Where to find provider health
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="API Keys manager">
+        Open the menu bar icon, then go to **Settings → API Keys**. Every provider you've added shows a status pill on the right side of its row. Click **Edit** next to a provider to see the detailed status banner inside the key sheet.
+      </Step>
+      <Step title="Provider key sheet">
+        The status banner below the key input field updates as your key is validated. It shows one of: a green checkmark ("Everything's good to go."), an orange triangle ("Provider rejected this key. Double-check it's still valid."), or an orange wifi icon ("Couldn't reach the provider. Check your internet, then test again.").
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    Open **Settings → API Keys**. Each provider row shows whether a key is configured. Open **Settings → Models** to see the health status alongside each provider entry in the model list.
+  </Tab>
+</Tabs>
+
+## Test connection button (macOS)
+
+Inside the provider key sheet, click **Test connection** to run an immediate health check without waiting for the 500 ms debounce or the background refresh cycle. The status banner updates to show the result. The button is disabled while a test is already in progress or while the key field is empty.
+
+## Automatic failover (HyperWhisper Cloud only)
+
+When you use a HyperWhisper Cloud tier, the cloud backend automatically tries the next provider in a fallback chain if your chosen provider fails mid-request. You're billed only for whichever provider actually completed the transcription.
+
+**Failover chains:**
+
+| Primary provider | Chain |
+|---|---|
+| ElevenLabs Scribe v2 | ElevenLabs → Deepgram → Groq |
+| Deepgram Nova-3 | Deepgram → Groq → ElevenLabs |
+| Grok STT | Grok → Deepgram → Groq → ElevenLabs |
+| Groq Whisper | Groq → Deepgram → ElevenLabs |
+
+Providers outside this set—including Azure MAI, Google Chirp, OpenAI, Gemini, AssemblyAI, Mistral, and Soniox—have no fallback. If one of those fails, you receive an error and must retry or switch to a different provider.
+
+**Bring-Your-Own-Key (BYOK) providers** do not benefit from automatic failover regardless of which provider you select. If your BYOK provider fails, you receive an error and must switch manually.
+
+## Troubleshooting
+
+**Orange "Invalid" badge or "Provider rejected this key" banner**
+
+Your API key is invalid, expired, or the account associated with it doesn't have the required permissions. Go to API Keys settings, click **Edit** for the affected provider, paste a fresh key from the provider's dashboard, and click **Test connection** to confirm.
+
+**Orange "Unreachable" badge or "Couldn't reach the provider" banner**
+
+HyperWhisper couldn't connect to the provider's API. Check your internet connection, then wait a moment and try again—health status is cached for 60 seconds, so the badge may lag behind a recovery. If the issue persists, the provider may be experiencing an outage.
+
+**Gray "Checking…" badge**
+
+The health probe is still in flight. You can start a recording—the pipeline waits for the result before sending audio. If "Checking…" persists for more than a few seconds, check your internet connection.
+
+**Gray "No key" or "Untested" badge**
+
+Either no API key has been added for this provider, or the key hasn't been validated yet. Add a key in API Keys settings and click **Test connection**, or choose a different provider for your mode.
+
+## Local API `/health` endpoint
+
+The macOS app exposes all provider statuses through its Local API at `GET /health`. This endpoint returns a snapshot of the cached health for every cloud and post-processing provider, along with installed local model information. It does not trigger a new probe—it reads the current cached state.
+
+See [Local API](/local-api) for setup and authentication details.
+
+<Note>
+  The `/health` endpoint is unauthenticated so it can be used as a liveness probe without a bearer token. All other Local API endpoints require authentication.
+</Note>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Sandbox is required for Mac App Store distribution
+	     This provides a secure environment by limiting what the app can access
+	     
+	     IMPORTANT NOTE: The Accessibility API for auto-paste functionality works
+	     best when the app is NOT sandboxed. According to Apple's documentation
+	     and best practices, apps that need to control other processes should
+	     disable sandboxing. However, this means the app cannot be distributed
+	     through the Mac App Store.
+	     
+	     Current status: ENABLED (for App Store compatibility)
+	     Trade-off: Auto-paste may be less reliable with sandbox enabled
+	     
+	     To fully enable auto-paste:
+	     1. Set this to <false/> or remove this key entirely
+	     2. OR add: com.apple.security.cs.disable-library-validation
+	     -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+
+	<!-- For Sparkle. See https://medium.com/@matteospada.m/how-to-integrate-the-sparkle-framework-into-a-swiftui-app-for-macos-98ca029f83f7 -->
+	<key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spks</string>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)-spki</string>
+	</array>
+	
+	<!-- MICROPHONE ACCESS
+	     Required for audio recording functionality
+	     The app will prompt the user for permission on first use
+	     This is essential for the core transcription feature -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	
+	<!-- NETWORK ACCESS
+	     Client: Allows the app to make outgoing network connections
+	     This is needed for:
+	     - OpenAI Whisper API calls
+	     - Downloading Whisper models
+	     - Checking for app updates -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+	
+	<!-- FILE SYSTEM ACCESS
+	     User-selected files: Allows reading files the user explicitly selects
+	     This maintains security while allowing model file imports -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	
+	<!-- DOWNLOADS FOLDER ACCESS
+	     Allows the app to save downloaded Whisper models
+	     and export transcription history -->
+	<key>com.apple.security.files.downloads.read-write</key>
+	<true/>
+	
+	<!-- AUTOMATION ACCESS
+	     Allows sending Apple Events to a few specific apps:
+	     - System volume read/write via the global "set volume" / "get volume settings"
+	       scripting calls in AudioSessionManager
+	     - Activating Console.app from the diagnostics menu in AppLogger
+	     The text-paste path NO LONGER uses Apple Events — it relies solely on
+	     CGEvent ⌘V via the cghidEventTap, which only requires Accessibility. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+
+	<!-- CALENDAR ACCESS (Optional)
+	     If you want to integrate with calendar for meeting modes -->
+	<!-- <key>com.apple.security.personal-information.calendars</key>
+	<true/> -->
+</dict>
+</plist>

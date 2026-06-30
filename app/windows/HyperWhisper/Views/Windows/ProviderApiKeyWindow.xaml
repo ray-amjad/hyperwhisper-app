@@ -1,0 +1,115 @@
+<Window x:Class="HyperWhisper.Views.Windows.ProviderApiKeyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:HyperWhisper.Localization"
+        Title="Connect Provider"
+        Height="360"
+        Width="460"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource ContentBackgroundBrush}">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,18">
+            <TextBlock x:Name="TitleText"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock x:Name="SubtitleText"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource CardBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource CardCornerRadius}"
+                Padding="16"
+                Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="40"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="28"
+                        Height="28"
+                        CornerRadius="7"
+                        Background="{DynamicResource HoverBackgroundBrush}"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Left">
+                    <TextBlock Text="&#xE72E;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="13"
+                               Foreground="{DynamicResource AccentBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="ProviderNameText"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock x:Name="CurrentStatusText"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <Button x:Name="GetKeyButton"
+                        Grid.Column="2"
+                        Content="{loc:Loc providerApiKey.getKey}"
+                        VerticalAlignment="Center"
+                        Click="GetKey_Click"/>
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="{loc:Loc providerApiKey.apiKeyLabel}"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Margin="0,0,0,12"/>
+            <PasswordBox x:Name="ApiKeyBox"/>
+            <TextBlock Text="{loc:Loc providerApiKey.secureStorage}"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Margin="0,12,0,0"/>
+        </StackPanel>
+
+        <Grid Grid.Row="3" Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="ClearButton"
+                    Content="{loc:Loc common.clear}"
+                    Click="Clear_Click"/>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Content="{loc:Loc common.cancel}"
+                        Margin="0,0,8,0"
+                        Click="Cancel_Click"/>
+
+                <Button x:Name="SaveButton"
+                        Content="{loc:Loc common.save}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        IsDefault="True"
+                        Click="Save_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

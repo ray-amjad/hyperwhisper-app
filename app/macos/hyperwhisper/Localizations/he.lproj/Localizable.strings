@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "אוצר מילים";
+"vocabulary.description" = "זה עוזר לתוכנה לזהות שמות, ראשי תיבות, סלנג או מילים משפות אחרות בעת ערבוב שפות.";
+"vocabulary.input.title" = "קלט";
+"vocabulary.new.word.placeholder" = "מילה או ביטוי חדשים";
+"vocabulary.replacement.placeholder" = "החלף עם...";
+"vocabulary.add.button" = "הוסף לאוצר המילים";
+"vocabulary.edit.title" = "ערוך ערך במילון";
+"vocabulary.update.button" = "עדכן";
+"vocabulary.cancel.button" = "ביטול";
+"vocabulary.word.column" = "מילה/ביטוי";
+"vocabulary.replacement.column" = "החלפה";
+"vocabulary.empty.title" = "אין עדיין מילים באוצר המילים";
+"vocabulary.empty.subtitle" = "הוסף מילים מותאמות לשיפור דיוק התמלול";
+"vocabulary.duplicate.title" = "ערך כפול";
+"vocabulary.duplicate.message" = "%@ כבר קיימת באוצר המילים שלך. ניתן להוסיף כל מילה רק פעם אחת.";
+"vocabulary.ok.button" = "אישור";
+"vocabulary.limit.title" = "חריגה ממגבלת מילות מפתח";
+"vocabulary.limit.message" = "יש לך %d מילים, אך רק %d הראשונות ישמשו לשיפור התמלול.";
+
+// MARK: - Streaming View
+"streaming.title" = "סטרימינג (בטא)";
+"streaming.description" = "תמלול בזמן אמת בזמן שאתה מדבר. הטקסט מוקלד ישירות לאפליקציה הפעילה.";
+"streaming.enable.title" = "הפעל סטרימינג";
+"streaming.provider.picker.title" = "ספק";
+"streaming.model.title" = "מודל";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "עיצוב מהיר";
+"streaming.fastFormatting.description" = "מקטין את עיכוב העיצוב החכם להקלדה מהירה יותר";
+"streaming.warning.vocabAutoDetect" = "אוצר מילים מותאם אישי מושבת במצב זיהוי אוטומטי";
+"streaming.warning.vocabUnsupported" = "אוצר מילים מותאם אישי אינו נתמך בסטרימינג של %@";
+"streaming.warning.apiKeyRequired" = "נדרש מפתח API של %@";
+"streaming.warning.apiKeyRequired.action" = "הגדר";
+"streaming.warning.apiKeyInvalid" = "מפתח ה-API של %@ אינו עובד. עדכן אותו בהגדרות > מפתחות API.";
+"streaming.warning.apiKeyInvalid.action" = "עדכן מפתח";
+"streaming.language.title" = "שפה";
+"streaming.shortcut.title" = "קיצור דרך";
+
+// MARK: - Home View
+"home.get.started" = "התחל";
+"home.open.system.settings" = "פתח הגדרות מערכת";
+
+// MARK: - API Keys
+"api.key.required" = "נדרש מפתח API";
+"api.keys.required" = "נדרשים מפתחות API";
+"api.key.configure.message" = "הגדר את מפתחות ה-API שלך כדי לאפשר תמלול.";
+"api.key.internet.required" = "נדרש חיבור לאינטרנט";
+"api.key.internet.message" = "תמלול בענן דורש חיבור לאינטרנט.";
+
+// MARK: - Common UI
+"common.ok" = "אישור";
+"common.cancel" = "ביטול";
+"common.delete" = "מחק";
+"common.edit" = "ערוך";
+"common.done" = "סיום";
+"common.copy" = "העתק";
+"common.back" = "חזור";
+"common.skip" = "דלג";
+"common.settings" = "הגדרות";
+"common.error" = "שגיאה";
+"common.retry" = "נסה שוב";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "בית";
+"sidebar.statistics" = "סטטיסטיקה";
+"sidebar.modes" = "מצבים";
+"sidebar.vocabulary" = "אוצר מילים";
+"sidebar.streaming" = "סטרימינג";
+"sidebar.history" = "היסטוריה";
+"sidebar.settings" = "הגדרות";
+
+// MARK: - App Messages
+"app.unknown.error" = "אירעה שגיאה לא ידועה";
+"app.microphone.permission.message" = "HyperWhisper זקוק לגישה למיקרופון כדי לתמלל אודיו.\n\nאנא עבור להגדרות מערכת > פרטיות ואבטחה > מיקרופון והפעל גישה עבור HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper שומר הקלטות בתיקייה במסמכים שלך כך שקל למצוא אותן: מסמכים/hyperwhisper/recordings. macOS עשוי לבקש הרשאה בפעם הראשונה שננסה לשמור שם. אם אינך רוצה להעניק גישה, נוכל לאחסן הקלטות בתיקיית אפליקציה פרטית במקום זאת.";
+"app.upgrade.to.pro" = "שדרג ל-Pro";
+"app.enter.license.key" = "הזן מפתח רישיון";
+"accessibility.upgrade.pro" = "שדרג ל-HyperWhisper Pro";
+"accessibility.enter.license" = "הזן מפתח רישיון";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "הוסף את מפתחות ה-API שלך ל-%@ כדי לאפשר את המצב הנבחר.";
+"home.api.keys.missing.single" = "הוסף את מפתח ה-API שלך ל-%@ כדי לאפשר את המצב הנבחר.";
+"home.getting.started.recording.title" = "התחל להקליט";
+"home.getting.started.recording.description" = "הפוך את הקול שלך לטקסט בלחיצה אחת.";
+"home.getting.started.shortcuts.title" = "התאם אישית קיצורי דרך";
+"home.getting.started.shortcuts.description" = "שנה את קיצורי המקלדת עבור HyperWhisper.";
+"home.getting.started.mode.title" = "צור מצב";
+"home.getting.started.mode.description" = "בנה את המצב המושלם עבור זרימת העבודה שלך.";
+"home.getting.started.vocabulary.title" = "הוסף אוצר מילים";
+"home.getting.started.vocabulary.description" = "למד את HyperWhisper מילים מותאמות, שמות או מונחים מקצועיים.";
+"home.add.api.key" = "הוסף מפתח API";
+"home.accessibility.enable.title" = "הפעל נגישות";
+"home.accessibility.enable.description" = "אפשר ל-HyperWhisper להדביק אוטומטית לאפליקציות בשימוש.";
+"home.accessibility.waiting" = "ממתין...";
+"home.accessibility.open.settings" = "פתח הגדרות";
+"home.accessibility.restart.after.permission" = "הפעל מחדש את האפליקציה לאחר מתן הרשאה";
+"home.getting.started.completed" = "✓ הושלם";
+"home.whatsnew.badge" = "חדש";
+"home.whatsnew.title" = "מה חדש?";
+"home.whatsnew.update1.date" = "יולי 3";
+"home.whatsnew.update1.title" = "Parakeet זמין כעת";
+"home.whatsnew.update1.description" = "הורד אותו ישירות מרשימת מודלי השפה ביצירת מצב כדי לנסות אותו היום.";
+"home.whatsnew.update2.date" = "יוני 5";
+"home.whatsnew.update2.title" = "תמיכה בכל מודל מותאם אישי תואם OpenAI";
+"home.whatsnew.update2.description" = "כעת תוכל להוסיף כל API תואם OpenAI לרשימת המודלים שלך.";
+"home.whatsnew.update3.date" = "מאי 27";
+"home.whatsnew.update3.title" = "חלון הקלטה מיני חדש לגמרי";
+"home.whatsnew.update3.description" = "ממשק הקלטה אלגנטי ומינימלי שלא מפריע לך.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "עדכונים אחרונים";
+"home.recent.updates.error" = "כשל בטעינת עדכונים";
+"home.recent.updates.retry" = "נסה שוב";
+"home.recent.updates.empty" = "אין עדכונים זמינים";
+"home.recent.updates.version" = "גרסה %@";
+"home.recent.updates.new.badge" = "חדש";
+"home.recent.updates.no.notes" = "אין הערות שחרור זמינות";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "נדרשת גישה למיקרופון";
+"common.open.settings" = "פתח הגדרות";
+"alerts.api.local.mode" = "השתמש במצב מקומי";
+"alerts.documents.permission.title" = "לשמור במסמכים?";
+"common.continue" = "המשך";
+"alerts.documents.permission.use.another" = "השתמש במיקום אחר";
+"alerts.api.configure.generic" = "אנא הגדר את מפתחות ה-API שלך בהגדרות.";
+"alerts.api.internet.offline" = "תמלול בענן דורש חיבור לאינטרנט. אנא בדוק את הגדרות הרשת או בחר מצב תמלול מקומי.";
+"alerts.api.configure.header.multiple" = "כדי להשתמש במצב הנבחר, אנא הגדר את מפתחות ה-API הבאים בהגדרות:";
+"alerts.api.configure.header.single" = "כדי להשתמש במצב הנבחר, אנא הגדר את מפתח ה-API הבא בהגדרות:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "לאחר הוספת המפתחות החסרים, נסה שוב.";
+"alerts.export.failed.title" = "היצוא נכשל";
+"alerts.export.logs.failed.message" = "לא ניתן לייצא יומני עדכון. אנא נסה שוב.";
+"alerts.export.logs.success.title" = "היומנים יוצאו";
+"alerts.export.logs.success.message" = "יומני עדכון יוצאו בהצלחה.";
+"alerts.export.logs.saveFailed.message" = "לא ניתן לשמור יומנים למיקום שנבחר: %@";
+"alerts.export.diagnostics.failed.message" = "לא ניתן לייצא אבחון. אנא נסה שוב.";
+"alerts.export.diagnostics.success.title" = "האבחון יוצא";
+"alerts.export.diagnostics.success.message" = "כל יומני האבחון יוצאו בהצלחה.";
+"alerts.export.diagnostics.saveFailed.message" = "לא ניתן לשמור אבחון למיקום שנבחר: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "ייצא יומני עדכון לתמיכה";
+"panels.export.diagnostics.message" = "ייצא את כל יומני האבחון";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "התחל עם HyperWhisper";
+"sidebar.statistics.help" = "הצג סטטיסטיקות שימוש וניתוח";
+"sidebar.modes.help" = "נהל מצבי תמלול להקשרים שונים";
+"sidebar.vocabulary.help" = "הוסף מילים וביטויים מותאמים אישית לזיהוי טוב יותר";
+"sidebar.streaming.help" = "הגדרות תמלול סטרימינג בזמן אמת (דורש אינטרנט)";
+"sidebar.history.help" = "הצג וחפש בהיסטוריית התמלול שלך";
+"sidebar.settings.help" = "הגדר הגדרות אפליקציה והעדפות";
+
+// MARK: - Recording State
+"recording.state.ready" = "מוכן להקליט";
+"recording.state.recording" = "מקליט...";
+"recording.state.processing" = "מעבד אודיו...";
+"recording.state.transcribing" = "מתמלל...";
+"recording.state.postprocessing" = "מעבד עם AI...";
+"recording.state.complete" = "התמלול הושלם: %@";
+"recording.state.error" = "שגיאה: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "התחל או עצור הקלטה";
+"menu.recording.stop" = "עצור הקלטה";
+"menu.recording.toggle" = "התחל/עצור הקלטה";
+"menu.history" = "היסטוריה...";
+"menu.settings" = "הגדרות...";
+"menu.microphone" = "מיקרופון";
+"menu.select.mode" = "בחר מצב";
+"menu.transcribe.file" = "תמלל קובץ";
+"menu.mode.unnamed" = "ללא שם";
+"menu.version.label" = "גרסה %@";
+"common.quit" = "צא";
+"menu.microphone.default" = "ברירת מחדל";
+"menu.microphone.system.default" = "ברירת מחדל";
+"menu.bar.state.recording" = "מקליט";
+"menu.bar.state.processing" = "מעבד";
+"menu.bar.state.idle" = "במנוחה";
+"menu.command.check.updates" = "בדוק עדכונים…";
+"menu.debug.title" = "ניפוי באגים";
+"menu.command.export.logs" = "ייצא יומני עדכון…";
+"menu.command.export.diagnostics" = "ייצא אבחון…";
+"menu.command.help.website" = "אתר עזרה";
+"menu.command.contact.support" = "צור קשר עם תמיכה";
+
+// MARK: - Settings Sections
+"settings.section.general" = "כללי";
+"settings.section.sound" = "צליל";
+"settings.section.license" = "רישיון";
+"settings.section.credits" = "נקודות זכות";
+"settings.section.storage" = "אחסון";
+"settings.section.models" = "מודלים";
+"settings.section.api.keys" = "מפתחות API";
+"settings.section.shortcuts" = "קיצורי מקלדת";
+"settings.section.output" = "פלט טקסט";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (אנגלית)";
+"onboarding.model.pro.multilingual" = "Pro (רב-לשוני)";
+"onboarding.model.downloading.progress" = "מוריד... %d%%";
+"onboarding.accessibility.title" = "הפעל נגישות להדבקה אוטומטית";
+"onboarding.accessibility.subtitle" = "אפשר ל-HyperWhisper להדביק אוטומטית טקסט מתומלל לאפליקציות שלך.";
+"onboarding.accessibility.instructions" = "הגדרות מערכת → פרטיות ואבטחה → נגישות";
+"onboarding.accessibility.status.granted" = "הרשאת נגישות ניתנה";
+"onboarding.accessibility.status.pending" = "הרשאת נגישות טרם ניתנה";
+"onboarding.accessibility.waiting" = "ממתין להרשאה...";
+"onboarding.accessibility.open.preferences" = "פתח העדפות נגישות";
+"onboarding.accessibility.restart" = "לאחר מתן הרשאה, הפעל מחדש את HyperWhisper.";
+"onboarding.model.recommendation.title" = "אנו ממליצים על מודל Pro";
+"onboarding.model.recommendation.subtitle" = "בהתבסס על שפת המערכת שלך ויכולות ה-Mac שלך.";
+"onboarding.model.recommendation.note" = "הורד על ידי לחיצה על הכפתור למטה.";
+"onboarding.model.downloaded" = "הורד";
+"onboarding.model.metric.speed" = "מהירות";
+"onboarding.model.metric.accuracy" = "דיוק";
+"onboarding.model.metric.size" = "גודל";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "או, בחר מודל קול אחר";
+"onboarding.model.picker.title" = "מודל";
+"onboarding.model.option.proEnglish" = "Pro (אנגלית)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "הורד מודל";
+"onboarding.audio.title" = "באיזה התקן הקלטת אודיו תרצה להשתמש?";
+"onboarding.audio.subtitle" = "ודא שעוצמת קלט האודיו שלך מוגברת ורושמת עוצמה.";
+"onboarding.audio.input.label" = "התקן קלט";
+"onboarding.audio.picker.label" = "התקן";
+"onboarding.audio.use.system.default" = "השתמש בהתקן ברירת מחדל של המערכת";
+"onboarding.audio.level" = "רמת אודיו";
+"onboarding.audio.open.sound" = "פתח העדפות צליל";
+"onboarding.microphone.title" = "נדרשת הרשאת הקלטה";
+"onboarding.microphone.subtitle" = "כדי להקליט אודיו, אנחנו צריכים גישה למיקרופון שלך.";
+"onboarding.microphone.status.granted" = "הרשאת מיקרופון ניתנה";
+"onboarding.microphone.status.pending" = "הרשאת מיקרופון טרם ניתנה";
+"onboarding.microphone.grant" = "תן הרשאה";
+"onboarding.test.title" = "הכל מוכן, בוא נתחיל את ההקלטה הראשונה שלך";
+"onboarding.test.press.prefix" = "לחץ";
+"onboarding.test.press.suffix" = "כדי להתחיל";
+"onboarding.test.status.recording" = "מקליט...";
+"onboarding.test.status.speak" = "דבר עכשיו...";
+"onboarding.test.stop" = "עצור הקלטה";
+"onboarding.test.success.title" = "נהדר! ההקלטה שלך הצליחה.";
+"onboarding.test.success.subtitle" = "התמלול שלך יופיע באפליקציה.";
+"onboarding.test.start.cta" = "לחץ כדי להתחיל הקלטה";
+"onboarding.test.start.shortcut" = "או לחץ על קיצור המקלדת שלך";
+"onboarding.settings.title" = "עבודה מצוינת! עכשיו, בוא נפתח את ההגדרות";
+"onboarding.settings.subtitle" = "לחץ לחיצה ימנית על סמל HyperWhisper ובחר הגדרות...";
+"onboarding.settings.menu.startStop" = "התחל/עצור הקלטה";
+"onboarding.settings.menu.history" = "היסטוריה...";
+"onboarding.settings.menu.settings" = "הגדרות...";
+"onboarding.settings.menu.quit" = "צא";
+"onboarding.settings.info" = "בהגדרות, תוכל להתאים אישית קיצורי דרך, לנהל מפתחות API ולהגדיר את HyperWhisper לפי רצונך.";
+"onboarding.completion.title" = "סיימת!";
+"onboarding.completion.subtitle" = "אם אתה נתקל בבעיות או שאלות, פנה דרך אימייל או Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "אימייל";
+"onboarding.completion.resources.title" = "משאבים נוספים";
+"onboarding.completion.resources.documentation" = "תיעוד";
+"onboarding.completion.resources.videos" = "מדריכי וידאו";
+"onboarding.completion.resources.blog" = "בלוג";
+"onboarding.done.button" = "סיים הכנה ראשונית";
+"onboarding.error.model.notFound" = "המודל לא נמצא בקטלוג.";
+"onboarding.error.microphone.denied" = "הרשאת מיקרופון נדחתה. אנא תן הרשאה בהגדרות המערכת.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "הפעל בהתחברות";
+"settings.general.launchAtLogin.info" = "התחל את HyperWhisper אוטומטית כשאתה מתחבר.";
+"settings.general.launchMinimized.title" = "הפעל ממוזער";
+"settings.general.launchMinimized.info" = "התחל את HyperWhisper עם החלון הראשי מוסתר. האפליקציה תהיה נגישה דרך סרגל התפריטים.";
+"settings.general.showInDock.title" = "הצג ב-Dock";
+"settings.general.showInDock.info" = "הצג את סמל האפליקציה ב-Dock.";
+"settings.general.showRecordingWindow.title" = "הצג חלון הקלטה";
+"settings.general.showRecordingWindow.info" = "הצג את חלון צורת הגל הצף בזמן הקלטה ועיבוד.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "כבוי";
+"settings.general.mediaControl.mode.mute" = "השתק אודיו";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "רישום שגיאות";
+"settings.general.errorLogging.info" = "לכידה ושליחה אוטומטית של דוחות שגיאות לסייע בשיפור האפליקציה.";
+"settings.general.autoUpdate.title" = "עדכון אוטומטי";
+"settings.general.autoUpdate.info" = "בדוק והורד אוטומטית גרסאות חדשות של HyperWhisper.";
+"settings.general.support.title" = "זקוק לעזרה?";
+"settings.version.detail" = "גרסה %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "השמעת אפקטים קוליים";
+"settings.sound.soundEffects.info" = "השמעת צלילים בעת תחילת ההקלטה ועצירתה.";
+"settings.sound.mediaControl.title" = "בקרת מדיה בזמן הקלטה";
+"settings.sound.mediaControl.info" = "בחר כיצד HyperWhisper מטפל באודיו אחר בזמן שאתה מקליט. 'כבוי' משאיר את האודיו ללא שינוי, 'השתק אודיו' משתיק את פלט המערכת בזמן ההקלטה ומשחזיר אותו לאחר מכן.";
+"settings.sound.autoIncreaseMicVolume.title" = "הגבר עוצמת מיקרופון אוטומטית";
+"settings.sound.autoIncreaseMicVolume.info" = "מגדיר אוטומטית את עוצמת קלט המיקרופון למקסימום כשההקלטה מתחילה, ואז משחזר את הרמה המקורית כשההקלטה מסתיימת. חל רק בעת שימוש בהתקן קלט ברירת מחדל של המערכת.";
+"settings.sound.vad.title" = "הסר שקט לפני תמלול";
+"settings.sound.vad.info" = "מזהה ומסיר אוטומטית שקט מוביל ומסיים באמצעות זיהוי קול AI. זה יכול לשפר את דיוק התמלול ולהפחית את זמן העיבוד.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "תיקיית הקלטות";
+"settings.storage.showFolder.title" = "הצג תיקיית הקלטות";
+"settings.storage.showFolder.button" = "הצג ב-Finder";
+"settings.storage.notice" = "שינוי תיקיית ההקלטות משפיע רק על הקלטות חדשות. הקלטות קיימות נשארות במיקום המקורי שלהן.";
+"settings.storage.choose.button" = "בחר...";
+"settings.storage.dialog.select" = "בחר תיקייה";
+"settings.storage.dialog.message" = "בחר תיקייה לאחסון הקלטות";
+"settings.storage.storeAsM4A.title" = "דחוס הקלטות ל-M4A";
+"settings.storage.storeAsM4A.subtitle" = "ממיר הקלטות WAV לקבצים קטנים יותר לאחר התמלול. כבה כדי לשמור קבצי WAV מקוריים (גדולים יותר אך ללא אובדן).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "הדבק תוצאה אוטומטית";
+"settings.output.paste.subtitle" = "הדבק אוטומטית טקסט מתומלל לאפליקציה הפעילה";
+"settings.output.paste.info" = "אם מופעל, הטקסט מודבק לאפליקציה הקדמית.";
+"settings.output.restoreClipboard.title" = "שחזר לוח אחרי הדבקה";
+"settings.output.restoreClipboard.subtitle" = "שחזר תוכן לוח קודם לאחר הדבקה";
+"settings.output.restoreClipboard.info" = "משחזר את תוכן הלוח הקודם שלך לאחר שהאפליקציה מדביקה את התמלול.";
+"settings.output.restore.after" = "שחזר אחרי";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "עיכוב שחזור לוח";
+"settings.output.hideClipboardHistory.title" = "הסתר מהיסטוריית לוח";
+"settings.output.hideClipboardHistory.subtitle" = "מנע מתמלולים להופיע באפליקציות היסטוריית לוח";
+"settings.output.hideClipboardHistory.info" = "כאשר מופעל, טקסט מתומלל לא יישמר על ידי מנהלי לוח כמו Paste, Maccy או Alfred.";
+"settings.output.clipboard.header" = "לוח";
+"settings.output.removeFillers.title" = "הסרת מילות מילוי";
+"settings.output.removeFillers.subtitle" = "מסיר את 'uh', 'um' ו-'er' מתמלילים גולמיים.";
+"settings.output.removeFillers.info" = "כאשר האפשרות מופעלת, HyperWhisper מסיר מילות מילוי נפוצות מתמלילים גולמיים לפני הפלט.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "החלף הקלטה";
+"settings.shortcuts.toggleRecording.subtitle" = "מתחיל ועוצר הקלטות";
+"settings.shortcuts.cancelRecording.title" = "בטל הקלטה";
+"settings.shortcuts.cancelRecording.subtitle" = "משליך את ההקלטה הפעילה";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "לחץ כדי לדבר";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "החזק מקש כדי להקליט, שחרר כאשר סיימת";
+"settings.shortcuts.pushToTalk.enable.info" = "מאפשר מצב לחץ כדי לדבר להקלטה מהירה בלחיצת מקש אחת.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "מצב הקלטה";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "בחר באיזה מקש להשתמש";
+"settings.shortcuts.pushToTalk.mode.disabled" = "מושבת";
+"settings.shortcuts.pushToTalk.mode.fn" = "מקש FN";
+"settings.shortcuts.pushToTalk.mode.control" = "מקש Control";
+"settings.shortcuts.pushToTalk.mode.custom" = "קיצור דרך מותאם אישית";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "לחץ פעמיים לנעילת הקלטה";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "לחץ פעמיים במהירות כדי להמשיך להקליט מבלי להחזיק";
+
+"settings.shortcuts.pushToTalk.custom.title" = "קיצור דרך מותאם אישית";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "לחץ על צירוף המקשים לשימוש";
+
+
+"settings.shortcuts.changeMode.title" = "שנה מצב";
+"settings.shortcuts.changeMode.subtitle" = "עובד רק בזמן הקלטה";
+
+"settings.shortcuts.reset.button" = "אפס לברירות מחדל";
+"settings.shortcuts.reset.dialog.title" = "אפס קיצורי מקלדת";
+"settings.shortcuts.reset.confirm" = "אפס";
+"settings.shortcuts.reset.dialog.message" = "זה יאפס את כל קיצורי המקלדת לערכי ברירת המחדל שלהם.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "מפתחות API נשמרים בצורה מאובטחת במכשיר שלך ונשלחים רק לספק כאשר נדרש.";
+"settings.api.help.link" = "עזרה עם מפתחות API";
+"settings.api.transcription.title" = "תמלול";
+"settings.api.transcription.subtitle" = "מפתחות API לשירותי דיבור-לטקסט בענן.";
+"settings.api.postProcessing.title" = "עיבוד לאחר";
+"settings.api.postProcessing.subtitle" = "מפתחות API לשיפור טקסט ועיצוב מופעל על ידי AI.";
+"settings.api.placeholder" = "הזן את מפתח ה-API שלך ל-%@";
+"settings.api.openLink" = "פתח דף מפתח API של %@";
+"settings.api.status.accessibility" = "מצב %@: %@";
+"settings.api.status.unknown" = "מצב ספק לא ידוע";
+"settings.api.status.checking" = "בדיקת תקינות בתהליך";
+"settings.api.status.unauthorized" = "מפתח API נדחה על ידי ספק";
+"settings.api.status.unreachable" = "הספק אינו זמין כרגע";
+"settings.api.status.notInstalled" = "SDK של ספק לא מותקן";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "לא ידוע";
+"provider.status.checking" = "בודק…";
+"provider.status.healthy" = "מוכן";
+"provider.status.unauthorized" = "מפתח לא תקין";
+"provider.status.unreachable" = "לא מקוון";
+"provider.status.notInstalled" = "לא מותקן";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "הרישיון הופעל";
+"alerts.license.deactivated.title" = "הרישיון הושבת";
+"alerts.license.activated.message" = "הרישיון שלך הופעל בהצלחה. תהנה מגישה בלתי מוגבלת לכל התכונות!";
+"alerts.license.deactivated.message" = "הרישיון שלך הושבת במכשיר זה. כעת תוכל להפעיל אותו במקום אחר.";
+"alerts.license.failed.title" = "הפעולה נכשלה";
+"alerts.license.failed.message" = "הפעולה נכשלה. אנא נסה שוב.";
+"license.button.deactivate" = "השבת התקן";
+"license.button.deactivating" = "משבית...";
+"license.button.manageBilling" = "נהל חיוב";
+"license.button.activate" = "הפעל";
+"license.button.activating" = "מפעיל...";
+"license.status.label" = "מצב: %@";
+"license.status.trial.title" = "ניסיון";
+"license.status.active.title" = "פעיל";
+"license.status.expired.title" = "פג תוקף";
+"license.status.invalid.title" = "לא תקין";
+"license.status.trial.description" = "ניסיון חינם (5 דק'/יום, %d מודלים)";
+"license.status.active.description" = "מורשה – גישה מלאה";
+"license.status.expired.description" = "רישיון פג תוקף";
+"license.status.invalid.description" = "רישיון לא תקין";
+"settings.license.key.title" = "מפתח רישיון";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "הדבק מהלוח";
+"settings.license.clearInput" = "נקה";
+"settings.license.recovery.prompt" = "שכחת את מפתח הרישיון שלך?";
+"settings.license.recovery.button" = "עבור לפורטל לקוחות";
+"settings.license.daily.title" = "תמלול יומי";
+"settings.license.daily.usage" = "%@ מתוך %@ בשימוש";
+"settings.license.limitReached" = "הגעת למגבלה";
+"settings.license.models.title" = "מודלים לא מקוונים";
+"settings.license.models.progress" = "%d מתוך %d מודלים הורדו";
+"settings.license.models.progress.one" = "%d מתוך %d מודל הורד";
+"settings.license.upgrade.text" = "שדרג לתמלול והורדות מודל בלתי מוגבלים";
+"settings.license.upgrade.button" = "שדרג";
+"license.error.invalidResponse" = "פורמט תגובה לא תקין";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "נקודות זכות של HyperWhisper Cloud";
+"settings.credits.refresh" = "רענן";
+"settings.credits.subtitle" = "עקוב אחר נקודות הזכות והשימוש שלך בתמלול";
+"settings.credits.manage" = "נהל נקודות זכות";
+"settings.credits.timeRemaining" = "זמן תמלול שנותר";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "דקות";
+"settings.credits.creditsRemaining" = "%@ נקודות זכות נותרו";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "מגבלה יומית חינמית (100 נקודות זכות)";
+"settings.credits.resets" = "מתאפס %@";
+"settings.credits.warning.low" = "נקודות הזכות אוזלות. שקול לרכוש רישיון לנקודות זכות נוספות.";
+"settings.credits.warning.exhausted.daily" = "המגבלה היומית אזלה. רכוש רישיון לשימוש בלתי מוגבל או המתן לאיפוס.";
+"settings.credits.warning.exhausted" = "נקודות הזכות אזלו. רכוש נקודות זכות נוספות כדי להמשיך להשתמש ב-HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "מידע על חשבון";
+"settings.credits.stat.creditsRemaining" = "נקודות זכות נותרות";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "דקות נותרות";
+"settings.credits.stat.accountType" = "סוג חשבון";
+"settings.credits.accountType.licensed" = "מורשה";
+"settings.credits.accountType.anonymous" = "אנונימי";
+"settings.credits.accountType.trial" = "ניסיון";
+"settings.credits.stat.customerId" = "מזהה לקוח";
+"settings.credits.stat.dailyLimit" = "מגבלה יומית";
+"settings.credits.dailyLimit.value" = "100 נקודות זכות";
+"settings.credits.loading" = "טוען יתרת נקודות זכות...";
+"settings.credits.error.title" = "לא ניתן לטעון יתרת נקודות זכות";
+"settings.credits.error.retry" = "נסה שוב";
+"settings.credits.empty.title" = "אין מידע זמין על נקודות זכות";
+"settings.credits.empty.subtitle" = "לחץ על רענן כדי לטעון את יתרת נקודות הזכות שלך";
+"settings.credits.empty.button" = "טען נקודות זכות";
+"settings.credits.error.insufficient" = "אין מספיק נקודות זכות. יש לך %d נקודות זכות נותרות.";
+"settings.credits.error.network" = "שגיאת רשת: %@";
+"settings.credits.error.invalidResponse" = "תגובה לא תקינה מהשרת. אנא נסה שוב.";
+"settings.credits.error.server" = "שגיאת שרת: %@";
+"settings.models.alert.limit.title" = "הגעת למגבלת הורדת מודלים";
+"settings.models.alert.limit.message" = "ניסיונות כוללים %d הורדות מודל. שדרג את הרישיון שלך להורדות בלתי מוגבלות.";
+"settings.models.alert.cannotDelete.title" = "לא ניתן למחוק מודל";
+"settings.models.parakeet.title" = "מודלי Parakeet";
+"settings.models.parakeet.subtitle" = "מומלץ לרוב המשתמשים. מודל רב-לשוני תומך ב-25 שפות.";
+"settings.models.parakeet.empty" = "אין מודלי Parakeet זמינים.";
+"settings.models.whisper.title" = "מודלי Whisper";
+"settings.models.whisper.subtitle" = "מודלי OpenAI Whisper. מודלים גדולים יותר מדויקים יותר. תומך ביותר מ-100 שפות.";
+"settings.models.whisper.empty" = "אין מודלי Whisper זמינים.";
+"settings.models.help.cancelDownload" = "בטל הורדה";
+"settings.models.help.remove" = "הסר מודל";
+"settings.models.downloaded" = "הורד";
+"settings.models.download" = "הורד";
+"settings.models.downloading" = "מוריד…";
+"settings.models.localPostProcessing.title" = "מודלי עיבוד לאחר מקומיים";
+"settings.models.localPostProcessing.memoryWarning" = "מומלץ עבור Mac עם 24 GB של זיכרון מאוחד או יותר. המהירות תלויה בשבב — מהיר יותר ב-M3/M4 Pro ומעלה.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "מילים השנה";
+"vocabulary.input.placeholder" = "הוסף מילה או צור קטע";
+"vocabulary.action.addWord" = "הוסף מילה";
+"vocabulary.action.replaceWith" = "החלף בـ…";
+"vocabulary.action.replace" = "החלף";
+"vocabulary.replacement.field.placeholder" = "טקסט חלופי…";
+"settings.output.autocapitalizeInsert.title" = "אות גדולה אוטומטית בהדבקה";
+"settings.output.autocapitalizeInsert.subtitle" = "התאם הקשר סמן בעת הוספת טקסט";
+"settings.output.autocapitalizeInsert.info" = "אם מופעל, המילה הראשונה של טקסט התמליל המוכנס מותאמת להקשר הסמן (תחילת משפט או אמצעו). כבה לתמלול תמיד באותיות קטנות.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper זקוק להרשאת נגישות לקריאת הקשר הסמן הנדרש לאות גדולה אוטומטית.\n\nלחץ על \"פתח הגדרות\", לחץ על המתג ליד HyperWhisper ונסה שוב.";
+"settings.output.removeFillerWords.title" = "הסרת מילות מילוי";
+"settings.output.removeFillerWords.subtitle" = "הסר \"אה\", \"אמ\" ו\"ר\" מתמלולים גולמיים כאשר עיבוד הנתונים של בינה מלאכותית מכובה";
+"settings.output.removeFillerWords.info" = "חל רק כאשר מצב מדלג על עיבוד בינה מלאכותית. מצבים משופרי בינה מלאכותית מטפלים בניקוי הדיבור בהנחיה.";
+"sidebar.modelLibrary" = "ספריית מודלים";
+"sidebar.modelLibrary.help" = "עיין בכל מודלי הקול ועיבוד הנתונים במקום אחד";
+"settings.shortcuts.quickCapture.enable.title" = "לכידה מהירה";
+"settings.shortcuts.quickCapture.enable.subtitle" = "הקלט ושלח תמלול לפתקים — ללא צורך להתמקד תחילה באפליקציה.";
+"settings.shortcuts.quickCapture.shortcut.title" = "קיצור דרך";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "לחץ בכל מקום כדי להקליט ולשלוח לפתקים.";
+"settings.shortcuts.quickCapture.mode.title" = "מצב";
+"settings.shortcuts.quickCapture.mode.subtitle" = "מצב התמלול בשימוש — שולט במודל, בהנחיה ובעיבוד הסיום.";
+"settings.shortcuts.quickCapture.mode.current" = "מצב נוכחי";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper זקוק לאישור לשלוט בפתקים. הענק אותו בהגדרות מערכת ← פרטיות ← אוטומציה.";
+"settings.section.vocabulary" = "אוצר מילים";
+"settings.vocabulary.icloudSync.title" = "סנכרון iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "סנכרן את אוצר המילים המותאם אישית שלך בכל Mac המחוברים לאותו חשבון iCloud.";
+"settings.vocabulary.icloudSync.info" = "כבוי כברירת מחדל. רק אוצר המילים המותאם אישית שלך מסונכרן — תמלולים והקלטות נשארים ב-Mac זה. שינויים ייכנסו לתוקף בפעם הבאה שתפתח את HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "סגור את HyperWhisper להחלת השינויים";
+"vocabulary.icloudSync.restart.message" = "שינויים בסנכרון אוצר המילים של iCloud ייכנסו לתוקף בפעם הבאה שתפתח את HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "סגור את HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "מאוחר יותר";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "שמור את המיקרופון פעיל בין הקלטות";
+"settings.sound.keepWarmMicrophone.info" = "מפחית את עיכוב ההפעלה של push-to-talk על ידי שמירת ההפעלה של המיקרופון פתוחה בזמן ש-HyperWhisper בסרק. macOS יציג את מחוון המיקרופון הכתום ברציפות, ואוזניות Bluetooth עשויות להישאר במצב שיחה באיכות נמוכה יותר בזמן שאפשרות זו מופעלת.";
+"settings.models.local.inUse" = "מודל מקומי זה נמצא כעת בשימוש לעיבוד מאוחר על ידי:
+
+%@
+
+ערוך את המצבים האלה כדי לבחור מודל שונה לפני הסרתו.";
+"models.postProcessing.gemma4.e2b.description" = "מהיר ומדויק. מצוין כמודל כללי לעיבוד מאוחר.";
+"models.postProcessing.gemma4.e4b.description" = "איכות גבוהה יותר עם יותר פרטים. טוב לטקסטים ארוכים.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B תערובת מומחים. הסקה מהירה עם 4B פרמטרים פעילים בלבד.";
+"models.postProcessing.gemma4.31b.description" = "מודל צפוף 31B. איכות גבוהה ביותר, דורש 18+ GB RAM.";
+"settings.models.whisper.inUse" = "לא ניתן למחוק מודל זה מכיוון שהוא משמש על ידי:\n\n%@\n\nעדכן את המצבים האלה כדי להשתמש במודל אחר לפני המחיקה.";
+"settings.models.parakeet.inUse" = "לא ניתן למחוק מודל Parakeet זה מכיוון שהוא משמש על ידי:\n\n%@\n\nעדכן את המצבים האלה כדי להשתמש במודל אחר לפני המחיקה.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "לא ידוע";
+"settings.models.directory.whisper" = "תיקיית מודלי Whisper";
+"settings.models.directory.parakeet" = "תיקיית מודלי Parakeet";
+"settings.models.directory.local" = "תיקיית מודלים מקומיים";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — זיהוי דיבור רב-לשוני מותאם ל-CoreML.";
+"settings.models.qwen3asr.languages" = "30 שפות";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "לא ניתן למחוק את מודל Qwen3 ASR הזה כי הוא בשימוש על ידי:\n\n%@\n\nעדכן את המצבים הללו להשתמש במודל שונה לפני המחיקה.";
+"settings.models.directory.show" = "הצג ב-Finder";
+"models.error.checksumFailed" = "אימות סכום ביקורת של המודל נכשל. ייתכן שההורדה פגומה.";
+
+// MARK: - Statistics View
+"statistics.title" = "סטטיסטיקה";
+"statistics.header.title" = "סטטיסטיקת השימוש שלך";
+"statistics.header.subtitle" = "עקוב אחר פעילות התמלול והביצועים שלך";
+"statistics.card.recordings" = "סה\"כ הקלטות";
+"statistics.card.recordings.subtitle" = "תמלולים שהושלמו";
+"statistics.card.duration" = "זמן כולל";
+"statistics.card.duration.subtitle" = "זמן שהוקדש להקלטה";
+"statistics.card.words" = "סה\"כ מילים";
+"statistics.card.words.subtitle" = "מילים שתומללו";
+"statistics.card.average" = "משך ממוצע";
+"statistics.card.average.subtitle" = "לכל הקלטה";
+"statistics.graph.title" = "פעילות לאורך זמן";
+"statistics.daily.empty" = "אין עדיין הקלטות";
+"statistics.filter.week" = "השבוע";
+"statistics.filter.month" = "החודש";
+"statistics.filter.alltime" = "כל הזמנים";
+
+// MARK: - History View
+"history.title" = "היסטוריה";
+"history.search.placeholder" = "חיפוש";
+"history.filter.all" = "הכל";
+"history.filter.today" = "היום";
+"history.filter.week" = "השבוע";
+"history.filter.month" = "החודש";
+"history.empty.title" = "לא נמצאו הקלטות";
+"history.empty.subtitle" = "נסה להתאים את החיפוש שלך";
+"history.detail.empty" = "בחר הקלטה כדי לראות פרטים";
+"history.multi.selected" = "%d הקלטות נבחרו";
+"history.multi.delete" = "מחק נבחרות";
+"history.context.deleteSelected" = "מחק %d הקלטות";
+"history.context.retry" = "נסה שוב תמלול";
+"history.context.retryWith" = "נסה שוב עם...";
+"history.context.copy" = "העתק טקסט";
+"history.retrying" = "מנסה שוב תמלול...";
+"history.retry.help" = "נסה שוב את התמלול";
+"history.section.today" = "היום";
+"history.section.yesterday" = "אתמול";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "נכשל";
+"history.status.transcription.failed.prefix" = "התמלול נכשל:";
+"history.status.retry.failed.prefix" = "הניסיון החוזר נכשל:";
+"history.failure.reason" = "סיבה: %@";
+"history.mode.default" = "ברירת מחדל";
+"history.audio.showInFinder" = "הצג ב-Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "למחוק מצב?";
+"modes.delete.confirm.message" = "זה יסיר את המצב שנבחר. לא ניתן לבטל פעולה זו.";
+"modes.header.title" = "מצבים";
+"modes.header.subtitle" = "צור פרופילים מותאמים אישית להקשרים וזרימות עבודה שונים";
+"modes.header.create" = "צור מצב";
+"modes.name.unnamed" = "ללא שם";
+"modes.badge.offline" = "לא מקוון";
+"modes.context.select" = "בחר";
+"modes.help.edit" = "ערוך הגדרות מצב";
+"modes.help.preset" = "למד עוד על סגנון עיצוב זה";
+"modes.help.model" = "למד עוד על מודל זה";
+"modes.preset.title" = "סגנון עיצוב";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "הודעה";
+"modes.preset.mail.name" = "מייל";
+"modes.preset.note.name" = "הערה";
+"modes.preset.meeting.name" = "פגישה";
+"modes.preset.code.name" = "קוד";
+"modes.preset.custom.name" = "מותאם אישית";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "מצב הודעה מנקה את ההודעה המוכתבת שלך, מתקן סימני פיסוק, הופך לפסקאות ומתקן שגיאות דקדוקיות.";
+"modes.preset.mail.tooltip" = "מצב מייל מעצב את ההכתבה שלך למבנה אימייל מקצועי, עם ברכות מתאימות, פסקאות וסיום.";
+"modes.preset.note.tooltip" = "מצב הערה מארגן את התוכן המוכתב שלך לפורמט הערה ברור עם כותרות, נקודות ומדורים מובנים.";
+"modes.preset.meeting.tooltip" = "מצב פגישה מבנה את ההכתבה שלך לפורמט פרוטוקול פגישה עם משתתפים, פריטי פעולה ונקודות דיון עיקריות.";
+"modes.preset.code.tooltip" = "מצב קוד ממיר הכתבה מדוברת של תכנות לתחביר קוד. אמור 'סוגר פתוח', 'לוכסן', 'camel case' ועוד כדי לכתוב קוד בקול.";
+"modes.preset.custom.tooltip" = "מצב מותאם אישית מאפשר לך להגדיר כללי עיצוב והנחיות משלך למקרים ספציפיים.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "הבינה המלאכותית מעצבת מחדש את ההכתבה שלך להודעה נקייה עם פסקאות, סימני פיסוק ותיקוני דקדוק מתאימים.";
+"modes.preset.mail.preview" = "הבינה המלאכותית מעצבת את ההכתבה שלך לאימייל מקצועי עם ברכות, פסקאות מובנות וחתימה.";
+"modes.preset.note.preview" = "הבינה המלאכותית מארגנת את ההכתבה שלך לפתקים מובנים עם כותרות, נקודות ומקטעים ברורים.";
+"modes.preset.meeting.preview" = "הבינה המלאכותית מעצבת את ההכתבה שלך לפרוטוקול פגישה עם משתתפים, נקודות דיון ופריטי פעולה.";
+"modes.preset.code.preview" = "הבינה המלאכותית ממירה הכתבת תכנות מדוברת לתחביר קוד, מפרשת פקודות כמו 'פתח סוגריים' ו-'camel case'.";
+"modes.preset.custom.preview" = "משתמש בהוראות העיצוב המותאמות אישית שלך לעיבוד התמלול.";
+"modes.customInstructions" = "הגדר את הוראות העיצוב המלאות עבור הגדרה מוגדרת מראש זו.";
+"modes.notice.vocabularyUnsupported" = "אוצר מילים מותאם אישי אינו נתמך על ידי ספק זה עבור מודל זה. זה יתעלם.";
+"modes.notice.deepgramNova3AutoDetect" = "אוצר מילים מותאם אישי אינו זמין בעת שימוש ב-Deepgram Nova-3 עם שפת זיהוי אוטומטי. כדי לאפשר שיפור אוצר מילים, הגדר שפה ספציפית (למשל, אנגלית, ספרדית).";
+"modes.language.title" = "שפה";
+"modes.language.englishOnly" = "אנגלית בלבד (מודל מותאם)";
+"modes.postProcessing.sectionTitle" = "עיבוד לאחר";
+"modes.postProcessing.modeLabel" = "מצב";
+"modes.postProcessing.modeTitle" = "עיבוד לאחר";
+"modes.postProcessing.modeDescription" = "בחר כיצד תמלולים מעובדים:\n\n• כבוי: ללא עיבוד לאחר, תמלול גולמי\n• ענן (AI): שיפור מופעל על ידי AI (דורש אינטרנט)\n• מקומי: משתמש ב-LLM במכשיר כגון Gemma דרך llama.cpp\n\nעיבוד ענן שולח טקסט לספק ה-AI שנבחר. מצב מקומי נשאר במכשיר שלך אך דורש שהשרת המקומי יפעל.";
+"modes.postProcessing.providerLabel" = "ספק";
+"modes.postProcessing.apiKeyMissing" = "מפתח API של %@ לא מוגדר. הוסף אותו בהגדרות כדי לאפשר עיבוד לאחר.";
+"modes.postProcessing.configure" = "הגדר בהגדרות";
+"modes.postProcessing.modelRecommendation" = "אנו ממליצים להשתמש ב-GPT-4.1 Nano לאיזון הטוב ביותר בין מהירות ואיכות.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "עיבוד מאוחר מקומי דורש מודל מקומי שהורד.";
+"modes.postProcessing.download" = "הורד בהגדרות";
+"modes.postProcessing.localInfo" = "רץ לחלוטין במכשיר. HyperWhisper מפעיל את שרת llama.cpp המצורף אוטומטית כאשר מצב זה פעיל.";
+"modes.postProcessing.userSystemPrompt.title" = "הוראות קבועות";
+"modes.postProcessing.userSystemPrompt.placeholder" = "למשל, תמיד סיים מיילים עם 'בברכה, ריי'";
+"modes.postProcessing.userSystemPrompt.clear" = "נקה";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "הוראות קבועות";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "הוסף הוראות שתמיד חלות מעל ההגדרה המוגדרת מראש שנבחרה.";
+"modes.toggle.punctuation.title" = "הוסף סימני פיסוק";
+"modes.toggle.punctuation.subtitle" = "הוסף אוטומטית נקודות ופסיקים";
+"modes.toggle.capitalization.title" = "השתמש באותיות רישיות במשפטים";
+"modes.toggle.capitalization.subtitle" = "אות ראשונה גדולה של משפטים";
+"modes.toggle.profanity.title" = "סנן גסויות";
+"modes.toggle.profanity.subtitle" = "החלף מילים לא הולמות";
+"modes.toggle.removeTrailingPeriod.title" = "הסרת נקודה סופית";
+"modes.toggle.removeTrailingPeriod.subtitle" = "הסרת הנקודה האחרונה מהתמלולים";
+"modes.postProcessing.privacyNotice" = "התמלול שלך נשלח רק ל-%@ לעיבוד לאחר. לעולם לא לשום מקום אחר.";
+"modes.postProcessing.localModel" = "מודל";
+"modes.postProcessing.languageModel" = "מודל שפה";
+"modes.englishSpelling.title" = "איות אנגלי";
+"modes.englishSpelling.american" = "אמריקאי";
+"modes.englishSpelling.british" = "בריטי";
+"modes.englishSpelling.australian" = "אוסטרלי";
+"modes.englishSpelling.canadian" = "קנדי";
+"modes.englishSpelling.american.description" = "השתמש באיות אנגלית אמריקאית (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "השתמש באיות אנגלית בריטית (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "השתמש באיות אנגלית אוסטרלית (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "השתמש באיות אנגלית קנדית (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "הוראות מותאמות אישית";
+"modes.gemini.customPrompt.helper" = "אופציונלי. לדוגמה: \"עצב כנקודות\", \"השתמש בשפה רשמית\". הגדרות השפה והמילון שלך נכללות אוטומטית.";
+"modes.cloud.apiKeyMissing" = "מפתח API של %@ לא מוגדר. הוסף אותו בהגדרות כדי להשתמש בתמלול ענן.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "דיוק";
+"modes.cloudAccuracy.groqWhisper.label" = "בינוני (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "בינוני (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "גבוה (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "מהיר ומשתלם. הטוב ביותר לתמלולים מהירים.";
+"modes.cloudAccuracy.deepgramNova3.description" = "מאוזן בין מהירות לדיוק. מומלץ לרוב המשתמשים.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
+"modes.cloudAccuracy.grokStt.label" = "הגבוה ביותר (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
+
+"modes.create.title" = "צור מצב חדש";
+"modes.create.subtitle" = "הגדר פרופיל תמלול מותאם אישית";
+"modes.section.basic" = "הגדרות בסיסיות";
+"modes.section.transcription" = "מודל תמלול";
+"modes.section.punctuation" = "פיסוק";
+"modes.toggle.screenText.title" = "טקסט מסך";
+"modes.toggle.screenText.subtitle" = "כמוס טקסט מסך גלוי כדי לשפר את דיוק השמות והמונחים. דורש הרשאת הקלטת מסך.";
+"modes.screenText.openSettings" = "פתח הגדרות מערכת";
+"modes.screenText.permissionGranted" = "ניתנה הרשאת הקלטת מסך";
+"modes.screenText.permissionRequired" = "נדרשת הרשאת הקלטת מסך";
+"modes.field.name" = "שם";
+"modes.field.name.placeholder" = "למשל, הערות פגישה";
+"modes.field.name.editPlaceholder" = "שם מצב";
+"modes.field.model" = "מודל";
+"modes.field.provider" = "ספק";
+"modes.provider.local" = "מקומי";
+"modes.provider.cloud" = "ענן";
+"modes.notice.noLocalModels.title" = "אין מודלים מקומיים מותקנים";
+"modes.notice.noLocalModels.subtitle" = "התקן מודל בהגדרות תחילה";
+"modes.model.pricing" = "תמחור: $%.6f / דקה (מחויב לפי שנייה)";
+"modes.button.create" = "צור מצב";
+"modes.button.delete" = "מחק מצב";
+"modes.button.save" = "שמור שינויים";
+"modes.edit.title" = "ערוך מצב";
+"modes.edit.subtitle" = "שנה הגדרות פרופיל תמלול";
+"mode.editor.cloudModel.previewHint" = "תצוגה מקדימה";
+"mode.editor.cloudModel.noVocabularyHint" = "ללא אוצר מילים מותאם אישית";
+"mode.editor.cloudDomain.medical" = "רפואי";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ תוסף Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "לא ניתן לנסות שוב: קובץ אודיו לא נמצא";
+"transcripts.error.invalidId" = "מזהה תמלול לא תקין";
+"transcripts.delete.single.title" = "למחוק הקלטה?";
+"transcripts.delete.single.message" = "זה ימחק לצמיתות הקלטה זו וקובץ האודיו שלה.";
+"transcripts.delete.multiple.title" = "למחוק %d הקלטות?";
+"transcripts.delete.multiple.message" = "זה ימחק לצמיתות %d הקלטות וקבצי האודיו שלהן.\n\nלא ניתן לבטל פעולה זו.";
+"transcripts.delete.multiple.confirm" = "מחק הכל";
+"transcripts.retry.error.title" = "הניסיון החוזר נכשל";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "בחר תיקיית הקלטות";
+"storage.folder.choose.message" = "בחר תיקייה לשמירת הקלטות חדשות.";
+"storage.folder.choose.prompt" = "בחר";
+"storage.recovery.title" = "לא ניתן לגשת לתיקיית ההקלטות";
+"storage.recovery.message" = "HyperWhisper לא יכול לגשת לתיקיית ההקלטות המוגדרת. אתה יכול לבחור תיקייה אחרת כדי להמשיך.";
+"storage.recovery.choose" = "בחר תיקייה…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "למד עוד";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "התמלול הושלם";
+"recording.status.retrying" = "מנסה שוב תמלול…";
+"recording.status.postprocessing" = "מעבד עם AI…";
+"recording.status.transcribing" = "מתמלל…";
+"recording.success.pasted" = "הודבק!";
+"recording.loading.retrying" = "מנסה שוב…";
+"recording.loading.postprocessing" = "מעבד עם AI…";
+"recording.loading.starting" = "מתחיל הזרמה…";
+"recording.loading.transcribing" = "מתמלל…";
+
+// Streaming connection states
+"streaming.status.connecting" = "מתחבר...";
+"streaming.status.ready" = "מוכן - התחל לדבר";
+"streaming.status.warming" = "מתחמם...";
+"modes.badge.recommended" = "מומלץ";
+"modes.source.label" = "מקור";
+"modes.source.onDevice" = "במכשיר";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "מפתח API";
+"modes.field.engine" = "מנוע";
+"settings.models.localASR.inUse" = "לא ניתן למחוק מודל זה כיוון שהוא בשימוש על ידי:
+
+%@
+
+עדכן את המצבים האלה לשימוש במודל אחר לפני המחיקה.";
+"models.postProcessing.gemma4.12b.description" = "מודל צפוף בינוני. מאזן בין איכות למהירות על Mac עם 16 GB.";
+"recording.success.savedToNotes" = "נשמר בהערות!";
+"modes.provider.needsKey" = "ל-%@ דרוש מפתח פעיל.";
+"modes.provider.manageInLibrary" = "נהל בספרייה →";
+"streaming.loading.warming" = "מחמם את המודל המקומי...";
+"streaming.status.listening" = "מאזין...";
+"streaming.status.streaming" = "מזרים...";
+"streaming.status.disconnecting" = "עוצר...";
+"streaming.loading.connecting" = "מתחבר לשרת...";
+"streaming.loading.ready" = "מאתחל אודיו...";
+"streaming.loading.streaming" = "ממתין לדיבור...";
+"streaming.state.reconnecting" = "מתחבר מחדש...";
+"recording.stop.help" = "עצור הקלטה (%@)";
+"recording.postprocessing.unavailable" = "עיבוד לאחר לא זמין";
+"recording.postprocessing.missing.single" = "מפתח %@ חסר – מקליט ללא עיבוד לאחר";
+"recording.postprocessing.missing.multiple" = "מפתחות API חסרים – מקליט ללא עיבוד לאחר";
+"recording.postprocessing.addKey" = "הוסף מפתח";
+"recording.offline.banner" = "אין חיבור לאינטרנט. תמלול ענן ייכשל עד שתהיה מקוון.";
+"recording.offline.title" = "אין חיבור לאינטרנט";
+"recording.offline.subtitle" = "התחבר מחדש כדי להמשיך או עבור למצב לא מקוון.";
+"recording.error.network" = "בדוק את חיבור האינטרנט שלך ונסה שוב.";
+"recording.error.timeout" = "תם זמן הבקשה. בדוק את מהירות החיבור שלך ונסה שוב.";
+"recording.error.rateLimit" = "ביצעת יותר מדי בקשות. המתן רגע ונסה שוב.";
+"recording.error.credits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";
+"recording.error.apiKey" = "הוסף את מפתח ה-API שלך ל-%@ בהגדרות.";
+"recording.error.server" = "שירות התמלול חווה בעיות. אנא נסה שוב בעוד רגע.";
+"recording.retry" = "נסה שוב";
+"recording.retry.inProgress" = "מנסה שוב…";
+"recording.retry.count" = "נסה שוב (%d)";
+"recording.retry.failed.missing" = "הניסיון החוזר נכשל: קובץ אודיו לא נמצא";
+"recording.retry.failed.error" = "הניסיון החוזר נכשל: %@";
+"recording.retry.pending" = "מוכן לנסות שוב – לחץ כדי לתמלל";
+"recording.provider.unknown" = "ספק ענן";
+"recording.cancel.dialog.title" = "לבטל הקלטה?";
+"recording.cancel.dialog.message" = "זה ישליך את ההקלטה הנוכחית.";
+"recording.cancel.dialog.confirm" = "בטל הקלטה";
+"recording.cancel.dialog.resume" = "המשך";
+"recording.error.overlay.title" = "שגיאת חיבור רשת";
+"recording.error.overlay.message" = "לחץ על 'נסה שוב' למטה או עבור למצב לא מקוון כדי להמשיך.";
+"recording.mode.default" = "ברירת מחדל";
+"recording.dialog.window.title" = "דיאלוג הקלטה";
+"recording.button.start" = "התחל הקלטה";
+"recording.button.stop" = "עצור הקלטה";
+"recording.button.disable.checking" = "בודק מצב %@...";
+"recording.button.disable.invalid" = "מפתח API לא תקין של %@. עדכן אותו בהגדרות.";
+"recording.button.disable.unreachable" = "%@ לא זמין. בדוק את החיבור שלך ונסה שוב.";
+"recording.button.disable.missing" = "הוסף את מפתח ה-API שלך ל-%@ בהגדרות.";
+"recording.button.disable.install.local" = "הורד מודל מקומי בהגדרות ← מודלים לפני שימוש בעיבוד מקומי לאחר.";
+"modes.postProcessing.accuracy" = "דיוק";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "הגעת למגבלת התמלול היומית של %@ דקות. שדרג ל-HyperWhisper Pro לתמלול בלתי מוגבל.";
+"recording.error.documentsAccess" = "לא ניתן לגשת לתיקיית ההקלטות. בחר מיקום אחר בהגדרות → אחסון.";
+"recording.error.modeMissing" = "המצב שנבחר לא נמצא. אנא בחר מצב תקין.";
+"recording.warning.oversizedWAV" = "דחיסת אודיו נכשלה. שימוש בקובץ %@ MB לא דחוס - התמלול עשוי להיות איטי יותר.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "מיקרופון ברירת מחדל";
+"audio.error.permissionDenied" = "גישה למיקרופון נדחתה. אנא אפשר בהגדרות מערכת.";
+"audio.error.fileWatcher.open" = "לא ניתן לפתוח מתאר קובץ לניטור קובץ האודיו.";
+"audio.error.fileWatcher.timeout" = "הפעולה תם זמנה בזמן המתנה לכתיבת קובץ האודיו.";
+"audio.error.fileWatcher.creation" = "קובץ האודיו לא נוצר בזמן.";
+"audio.error.microphonePermission" = "הרשאת מיקרופון לא ניתנה";
+"audio.error.microphoneInUse" = "HyperWhisper לא יכול לגשת למיקרופון מכיוון שאפליקציה אחרת משתמשת בו כרגע. השהה את האפליקציה האחרת או החלף קלטים, ואז נסה שוב.";
+"audio.error.createEngine" = "כשל ביצירת מנוע אודיו";
+"audio.error.noInput" = "אין קלט אודיו זמין";
+"audio.error.createFile" = "כשל ביצירת קובץ אודיו";
+"audio.error.managerUnavailable" = "מנהל תמלול לא מוגדר";
+"audio.error.invalidHardwareFormat" = "פורמט אודיו חומרה לא תקין זוהה. אנא בדוק את התקן האודיו שלך.";
+"audio.error.createFormat" = "כשל ביצירת פורמט אודיו להקלטה";
+"audio.error.createConverter" = "כשל ביצירת ממיר פורמט אודיו";
+"audio.error.exportM4A" = "כשל בייצוא אודיו לפורמט m4a";
+"audio.error.readFile" = "לא ניתן לקרוא קובץ אודיו לאחר ההקלטה.";
+"audio.error.recordingTooShort" = "ההקלטה הייתה קצרה מדי. אנא החזק את הכפתור זמן רב יותר כדי ללכוד אודיו.";
+"audio.error.noAudioTrack" = "קובץ הוידאו הזה לא מכיל רצועת אודיו.";
+"audio.alert.accessibility.title" = "הפעל גישה לנגישות";
+"audio.alert.accessibility.message" = "HyperWhisper זקוק להרשאת נגישות כדי להדביק טקסט מתומלל לאפליקציות אחרות.\n\nלחץ על \"פתח הגדרות\", הפעל את המתג ליד HyperWhisper, ואז נסה שוב.";
+"audio.alert.accessibility.open" = "פתח הגדרות";
+"audio.alert.pasteFailed.title" = "הדבקה אוטומטית נכשלה";
+"audio.alert.pasteFailed.message" = "הטקסט המתומלל הועתק ללוח שלך.\n\nלחץ ⌘V כדי להדביק אותו ידנית, או בחר ערוך → הדבק מהתפריט.";
+"accessibility.permission.location.debug" = "בנייה לניפוי באגים של Xcode";
+"accessibility.permission.location.installed" = "אפליקציה מותקנת";
+"accessibility.permission.info" = "HyperWhisper זקוק להרשאת נגישות כדי להדביק טקסט מתומלל לאפליקציות אחרות.\n\nמיקום אפליקציה נוכחי: %@\n\nבהגדרות מערכת:\n1. חפש 'hyperwhisper' או 'HyperWhisper' ברשימה\n2. אתה עשוי לראות ערכים מרובים אם הרצת ממיקומים שונים\n3. אפשר את תיבת הסימון עבור הערך התואם:\n   %@";
+"accessibility.permission.xcodeNote" = "הערה: הפעלה מ-Xcode דורשת הרשאה שונה מהאפליקציה המותקנת.";
+"accessibility.error.paste.commandFailed" = "פקודת הדבקה נכשלה";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "ספק תמלול אינו זמין. בדוק את ההגדרות שלך ונסה שוב.";
+"transcription.error.providerNotAvailable.provider" = "%@ אינו זמין. בדוק את ההגדרות שלך ונסה שוב.";
+"transcription.error.providerNotAvailable.detail" = "%@ אינו זמין: %@";
+"transcription.error.modelNotDownloaded" = "אנא הורד מודל תחילה";
+"transcription.error.modelProtected" = "לא ניתן למחוק מודל זה";
+"transcription.error.audioFileNotFound" = "קובץ אודיו לא נמצא";
+"transcription.error.network.detail" = "שגיאת רשת: %@";
+"transcription.error.network.generic" = "שגיאת חיבור רשת";
+"transcription.error.apiKeyMissing.provider" = "נדרש מפתח API של %@ לתמלול";
+"transcription.error.apiKeyMissing.generic" = "נדרש מפתח API של ספק ענן לתמלול";
+"transcription.error.maxRetriesExceeded" = "חריגה ממספר ניסיונות חוזרים מקסימליים";
+"transcription.error.unauthorized.provider" = "לא מורשה: מפתח API לא תקין של %@ או הרשאות.\n\nפתח הגדרות → מפתחות API כדי לאמת את האישורים שלך.";
+"transcription.error.unauthorized.generic" = "לא מורשה: מפתח API לא תקין או הרשאות.\n\nפתח הגדרות → מפתחות API כדי לאמת את האישורים שלך.";
+"transcription.error.invalidRequest" = "בקשה לא תקינה: בדוק קובץ אודיו או הגדרות";
+"transcription.error.streamingInterrupted" = "הזרמה הופרעה; טקסט חלקי מוצג";
+"transcription.error.busy" = "שירות התמלול עסוק כרגע";
+"transcription.error.invalidAudioFormat" = "פורמט אודיו לא נתמך";
+"transcription.error.audioConversionFailed" = "כשל בהמרת אודיו לפורמט הנדרש";
+"transcription.error.audioFileTooLarge" = "קובץ גדול מדי: %@ חורג ממגבלת %@ עבור %@";
+"transcription.error.serverError" = "שגיאת שרת (%d): %@";
+"transcription.error.rateLimited.seconds" = "מוגבל בקצב: יותר מדי בקשות. אנא המתן %d שניות ונסה שוב.";
+"transcription.error.rateLimited.generic" = "מוגבל בקצב: יותר מדי בקשות. אנא המתן רגע ונסה שוב.";
+"transcription.error.insufficientCredits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";
+"transcription.error.quotaExceeded" = "מכסת %@ חרגה";
+"transcription.error.quotaExceeded.detail" = "מכסת %@ חרגה: %@";
+"transcription.error.timeout" = "תם זמן בקשה במהלך %@. בדוק את חיבור האינטרנט שלך ונסה שוב.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "ודא שספק התמלול שלך מוגדר כראוי בהגדרות.";
+"transcription.guidance.providerNotAvailable.provider" = "ודא ש-%@ מוגדר כראוי. עבור מודלים מקומיים, הורד מודל תחילה. עבור ספקי ענן, אמת את מפתח ה-API שלך.";
+"transcription.guidance.apiKeyMissing.provider" = "הוסף את מפתח ה-API שלך ל-%@ בהגדרות";
+"transcription.guidance.apiKeyMissing.generic" = "הוסף את מפתח API של ספק הענן שלך בהגדרות";
+"transcription.guidance.modelNotDownloaded" = "הורד מודל מהמדור מודלים";
+"transcription.guidance.modelProtected" = "מודל זה כרגע בשימוש";
+"transcription.guidance.audioFileNotFound" = "קובץ האודיו נמחק או הועבר";
+"transcription.guidance.networkError" = "בדוק את חיבור האינטרנט שלך ונסה שוב";
+"transcription.guidance.unauthorized.provider" = "בדוק את מפתח ה-API שלך ל-%@ או הרשאות חשבון בהגדרות";
+"transcription.guidance.unauthorized.generic" = "בדוק את מפתח ה-API שלך או הרשאות חשבון בהגדרות";
+"transcription.guidance.invalidRequest" = "אמת את קובץ האודיו והגדרות המצב, ואז נסה שוב";
+"transcription.guidance.invalidAudioFormat" = "נסה להמיר את קובץ האודיו לפורמט MP3 או WAV";
+"transcription.guidance.audioConversionFailed" = "קובץ האודיו עשוי להיות פגום. נסה קובץ אחר";
+"transcription.guidance.audioFileTooLarge" = "השתמש בקובץ אודיו קצר יותר או פצל אותו לקטעים קטנים יותר";
+"transcription.guidance.serverError" = "שירות התמלול חווה בעיות. אנא נסה שוב.";
+"transcription.guidance.rateLimited" = "ביצעת יותר מדי בקשות. המתן רגע לפני שתנסה שוב.";
+"transcription.guidance.insufficientCredits" = "רכוש עוד נקודות זכות בהגדרות כדי להמשיך לתמלל";
+"transcription.guidance.quotaExceeded" = "הוסף נקודות זכות לחשבון %@ שלך או עדכן את פרטי החיוב";
+"transcription.guidance.timeout" = "הבקשה ארכה יותר מדי זמן. בדוק את מהירות האינטרנט שלך ונסה שוב.";
+"transcription.error.noSpeechDetected" = "לא זוהה דיבור בהקלטה.";
+"transcription.guidance.noSpeechDetected" = "טיפים:\n• דבר בבירור למיקרופון\n• החזק את המקש זמן רב יותר לפני הדיבור\n• בדוק שהמיקרופון שלך עובד\n• ודא שהתקן הקלט הנכון נבחר";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";
+"hyperwhisperCloud.error.network" = "שגיאת רשת: %@";
+"hyperwhisperCloud.error.invalidResponse" = "תגובה לא תקינה מ-HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "שגיאת שרת: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "לא ניתן לאתר קובץ הפעלה של llama-server.";
+"llama.runtime.error.missingDependencies" = "תלויות זמן ריצה חסרות: %@";
+"llama.runtime.error.copyFailed" = "כשל בהעתקת זמן ריצה: %@";
+"llama.runtime.error.copy.executable" = "לא ניתן להעתיק קובץ הפעלה: %@";
+"llama.runtime.missing" = "זמן ריצה של מקומי חסר מהתקנה זו. התקן מחדש את HyperWhisper כדי לשחזר עיבוד לאחר מקומי.";
+"llama.runtime.genericError" = "שגיאת זמן ריצה של מקומי: %@";
+"runtime.error.llama.missingLib" = "זמן ריצה של מקומי הסתיים לאחר libmtmd.dylib חסר";
+"runtime.error.llama.reportedMissingLib" = "זמן ריצה של מקומי דיווח על libmtmd.dylib חסר";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "עיבוד לאחר AI מובנה הרץ על Cloudflare Workers. אין צורך בהגדרה.";
+"models.postProcessing.gpt4.1.nano.description" = "דיוק בינוני (92%), מהירות מהירה מאוד (<1 שניות). מתאים לטיוטות מהירות והערות לא רשמיות.";
+"models.postProcessing.gpt4.1.mini.description" = "דיוק גבוה (94%), מהירות מהירה (~1-2 שניות). טוב לתקשורת עסקית יומיומית ומסמכים סטנדרטיים.";
+"models.postProcessing.gpt4.1.description" = "דיוק גבוה מאוד (96%), מהירות בינונית (~3-4 שניות). נהדר לעיצוב מורכב ותוכן טכני.";
+"models.postProcessing.gpt5.nano.description" = "דיוק טוב (95%), מהירות הכי מהירה (~1 שנייה). מושלם להערות מהירות, הודעות ותמלולים מזדמנים.";
+"models.postProcessing.gpt5.mini.description" = "דיוק מצוין (97%), מהירות בינונית (~2-3 שניות). איזון אידיאלי לאימיילים מקצועיים, דוחות והערות פגישה.";
+"models.postProcessing.gpt5.description" = "הדיוק הגבוה ביותר (99%+), מהירות הכי איטית (~3-5 שניות). הטוב ביותר למסמכים קריטיים, תמלולים משפטיים ורפואיים שבהם דיוק חיוני.";
+"models.postProcessing.gpt5.1.description" = "דיוק חדישי (98%+), מהירות בינונית (~2-3 שניות). מצוין למשימות מורכבות, מסמכים משפטיים ותוכן טכני עם היגיון מעולה.";
+"models.postProcessing.gpt5.2.description" = "סדרת GPT-5 אחרונה עם היגיון משופר והסקה מהירה יותר. הבחירה הכוללת הטובה ביותר לעיבוד טקסט באיכות גבוהה.";
+"models.postProcessing.claude4.5.haiku.description" = "Claude Haiku אחרון עם היגיון משופר תוך שמירה על זמני תגובה מהירים.";
+"models.postProcessing.claude4.sonnet.description" = "ביצועים מאוזנים. יכולות היגיון ועיצוב מעולות למסמכים מקצועיים.";
+"models.postProcessing.gemini3.flash.description" = "סדרת Gemini 3 עם אינטליגנציה ברמת Pro במהירות Flash. היגיון מתקדם עם יכולות חשיבה דינמיות.";
+"models.postProcessing.gemini2.5.flash.description" = "הטוב ביותר מבחינת יחס מחיר-ביצועים. מותאם למהירות תוך שמירה על דיוק טוב לשימוש יומיומי.";
+"models.postProcessing.gemini2.5.flashLite.description" = "מודל אולטרה מהיר מותאם ליעילות עלות ותפוקה גבוהה.";
+"models.postProcessing.groq.llama33.70b.description" = "מודל 70B רב-תכליתי עם איכות מצוינת. ~280 אסימונים/שניה. מומלץ.";
+"models.postProcessing.groq.llama31.8b.description" = "מודל 8B אולטרה מהיר. ~560 אסימונים/שניה לעיבוד טקסט מיידי.";
+"models.postProcessing.groq.gptoss.120b.description" = "מודל 120B קוד פתוח של OpenAI. ~500 אסימונים/שניה לעיבוד באיכות גבוהה.";
+"models.postProcessing.groq.gptoss.20b.description" = "מודל 20B קל משקל. ~1000 אסימונים/שניה לעיבוד הכי מהיר.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B על Cerebras. מודל 120B אולטרה מהיר ב-~3000 אסימונים/שניה. מומלץ.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B על Cerebras. קל משקל ואולטרה מהיר ב-~2200 אסימונים/שניה.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B על Cerebras. מודל MoE 235B ענק ב-~1400 אסימונים/שניה. תצוגה מקדימה בלבד.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 על Cerebras. מודל 355B פרמטרים ב-~1000 אסימונים/שניה. תצוגה מקדימה בלבד.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "מרכז עזרה";
+"settings.resources.contact.support" = "צור קשר עם תמיכה";
+"settings.resources.feedback" = "משוב והצעות";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "גיבוי";
+"settings.backup.export.title" = "ייצא הגדרות";
+"settings.backup.export.subtitle" = "שמור את ההגדרות, המצבים ואוצר המילים שלך לקובץ";
+"settings.backup.export.button" = "ייצא...";
+"settings.backup.export.panel.title" = "ייצא הגדרות";
+"settings.backup.export.panel.label" = "קובץ גיבוי:";
+"settings.backup.export.success" = "הגדרות יוצאו בהצלחה";
+"settings.backup.export.error.create" = "כשל ביצירת נתוני גיבוי";
+"settings.backup.export.error.encode" = "כשל בקידוד נתוני גיבוי";
+"settings.backup.export.error.write" = "כשל בכתיבת קובץ גיבוי";
+"settings.backup.includeAPIKeys.title" = "כלול מפתחות API";
+"settings.backup.includeAPIKeys.subtitle" = "אחסן מפתחות API בקובץ הגיבוי (לא מומלץ לשיתוף)";
+"settings.backup.includeLicense.title" = "כלול מפתח רישיון";
+"settings.backup.import.title" = "ייבא הגדרות";
+"settings.backup.import.subtitle" = "שחזר הגדרות מקובץ גיבוי";
+"settings.backup.import.button" = "ייבא...";
+"settings.backup.import.panel.title" = "ייבא הגדרות";
+"settings.backup.import.success" = "ייבוא הושלם: %d מצבים, %d פריטי אוצר מילים יובאו";
+"settings.backup.import.error.read" = "כשל בקריאת קובץ גיבוי";
+"settings.backup.import.error.decode" = "פורמט קובץ גיבוי לא תקין";
+"settings.backup.import.error.decode.keyNotFound" = "שדה חובה חסר: %@";
+"settings.backup.import.error.decode.typeMismatch" = "סוג שגוי לשדה: %@";
+"settings.backup.import.error.decode.valueNotFound" = "ערך חסר לשדה: %@";
+"settings.backup.import.error.decode.corrupted" = "נתונים פגומים: %@";
+"settings.backup.import.error.decode.corruptedField" = "ערך פגום לשדה: %@";
+"settings.backup.import.error.version" = "קובץ גיבוי הוא מגרסה חדשה יותר";
+"settings.backup.import.error.unknown" = "הייבוא נכשל";
+"settings.backup.import.confirm.title" = "לייבא הגדרות?";
+"settings.backup.import.confirm.message" = "זה יחליף את המצבים ואוצר המילים הקיימים שלך באלה מקובץ הגיבוי. ההגדרות גם יעודכנו.";
+"settings.backup.import.confirm.button" = "ייבא";
+"settings.backup.conflict.skip" = "דלג על קיים";
+"settings.backup.conflict.replace" = "החלף קיים";
+"settings.backup.conflict.keepBoth" = "שמור את שניהם";
+"settings.backup.security.warning" = "אזהרה: הקובץ המיוצא יכיל נתונים רגישים. שמור אותו מאובטח ואל תשתף אותו.";
+"settings.backup.info.note" = "גיבויים כוללים הגדרות, מצבים ואוצר מילים. הקלטות ותמלולים אינם כלולים.";
+"settings.backup.result.success.title" = "הצלחה";
+"settings.backup.result.error.title" = "שגיאה";
+"settings.backup.export.choose.subtitle" = "בחר מה לכלול בקובץ הגיבוי";
+"settings.backup.export.section.settings" = "הגדרות";
+"settings.backup.export.section.modes" = "מצבים";
+"settings.backup.export.section.vocabulary" = "אוצר מילים";
+"settings.backup.import.importing" = "מייבא %@";
+"settings.backup.import.contains" = "קובץ זה מכיל: %@";
+"settings.backup.import.contains.vocabulary" = "אוצר מילים (%d מילים)";
+"settings.backup.import.contains.none" = "כלום";
+"settings.backup.import.section.settings" = "הגדרות";
+"settings.backup.import.section.modes" = "מצבים";
+"settings.backup.import.section.vocabulary" = "אוצר מילים";
+"settings.backup.import.section.apiKeys" = "מפתחות API";
+"settings.backup.import.section.license" = "מפתח רישיון";
+"settings.backup.import.section.absent" = "— לא בקובץ";
+"settings.backup.import.premerge.summary" = "אוצר מילים: הוסף %d חדשים, %d כבר קיימים";
+"settings.backup.import.premerge.conflictLabel" = "עבור מילים שכבר קיימות:";
+
+// MARK: - File Transcription
+"select.audio.file" = "בחר קובץ אודיו";
+"transcribe.file.error.title" = "שגיאת תמלול";
+"transcribe.file.error.size.title" = "קובץ גדול מדי";
+"transcribe.file.error.size.message" = "הקובץ שנבחר (%@) חורג ממגבלת %@ עבור %@.";
+"transcribe.file.error.format.title" = "פורמט לא נתמך";
+"transcribe.file.error.format.message" = "קבצי .%@ אינם נתמכים על ידי %@. פורמטים נתמכים: %@";
+"transcribe.file.error.read" = "לא ניתן לקרוא את הקובץ שנבחר.";
+"transcribe.file.error.copy" = "כשל בהעתקת קובץ לתיקיית הקלטות.";
+"transcribe.file.error.video.title" = "אין אודיו בוידאו";
+"transcribe.file.error.video.noAudio" = "קובץ הוידאו הזה לא מכיל רצועת אודיו. אנא בחר וידאו עם אודיו או קובץ אודיו.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "מכין...";
+"file.transcription.transcribing" = "מתמלל...";
+"file.transcription.finishing" = "מסיים...";
+"file.transcription.cancel" = "ביטול";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "הפעל מחיקה אוטומטית";
+"history.autoDelete.enable.subtitle" = "הקלטות ישנות מהמשך שצוין יימחקו";
+"history.autoDelete.duration.prefix" = "אחרי";
+"history.autoDelete.unit.minutes" = "דקות";
+"history.autoDelete.unit.hours" = "שעות";
+"history.autoDelete.unit.days" = "ימים";
+"history.autoDelete.unit.minutes.plural" = "דקות";
+"history.autoDelete.unit.hours.plural" = "שעות";
+"history.autoDelete.unit.days.plural" = "ימים";
+"history.autoDelete.status.disabled" = "מחיקה אוטומטית מושבתת";
+"history.autoDelete.status.enabled" = "מחק הקלטות ישנות מ-%d %@";
+"history.autoDelete.cleanup.noItems" = "אין הקלטות למחיקה";
+"history.autoDelete.cleanup.summary" = "נמחקו %d הקלטה/ות ושוחררו %@";

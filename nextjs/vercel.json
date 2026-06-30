@@ -1,0 +1,47 @@
+{
+  "buildCommand": "npm run db:migrate && npm run validate-appcast && npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "rewrites": [
+    {
+      "source": "/_mintlify/:path*",
+      "destination": "https://rayamjadltd.mintlify.dev/_mintlify/:path*"
+    },
+    {
+      "source": "/api/request",
+      "destination": "https://rayamjadltd.mintlify.dev/_mintlify/api/request"
+    },
+    {
+      "source": "/docs",
+      "destination": "https://rayamjadltd.mintlify.dev/docs"
+    },
+    {
+      "source": "/docs/llms.txt",
+      "destination": "https://rayamjadltd.mintlify.dev/llms.txt"
+    },
+    {
+      "source": "/docs/llms-full.txt",
+      "destination": "https://rayamjadltd.mintlify.dev/llms-full.txt"
+    },
+    {
+      "source": "/docs/sitemap.xml",
+      "destination": "https://rayamjadltd.mintlify.dev/sitemap.xml"
+    },
+    {
+      "source": "/docs/robots.txt",
+      "destination": "https://rayamjadltd.mintlify.dev/robots.txt"
+    },
+    {
+      "source": "/docs/mcp",
+      "destination": "https://rayamjadltd.mintlify.dev/mcp"
+    },
+    {
+      "source": "/docs/:path*",
+      "destination": "https://rayamjadltd.mintlify.dev/docs/:path*"
+    },
+    {
+      "source": "/mintlify-assets/:path+",
+      "destination": "https://rayamjadltd.mintlify.dev/mintlify-assets/:path+"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+
+	<!-- Library validation stays ENABLED in release (no
+	     com.apple.security.cs.disable-library-validation). Every Mach-O the
+	     main binary loads — Sparkle, Sentry, MediaRemoteAdapter,
+	     whisper.framework, and the Runtime/ llama.cpp dylibs — is signed with
+	     our Team ID during archive ("Code Sign Runtime Binaries"
+	     phase + CodeSignOnCopy), so Hardened Runtime accepts them without the
+	     entitlement. Disabling it would let any unsigned/third-party dylib
+	     execute under our signed identity and TCC grants (microphone,
+	     Accessibility, Apple Events). llama-server runs as a separate process
+	     and is unaffected. Dev builds keep the entitlement for debug tooling.
+	     See issue #270. -->
+
+	<!-- Automation / Apple Events: required for the Quick Capture flow,
+	     which uses NSAppleScript to ask Notes.app to create a new note.
+	     Without this entitlement, NSAppleScript returns errAEEventNotPermitted
+	     (-1743) immediately instead of triggering the TCC prompt — and the
+	     user never gets a chance to grant Notes automation. The matching
+	     entitlement also lives in hyperwhisper-dev.entitlements. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+
+	<!-- iCloud / CloudKit for vocabulary sync across Macs.
+	     Only the vocabulary Core Data store syncs; transcripts stay local.
+	     No aps-environment: vocabulary rarely changes, so we skip silent
+	     push and let NSPersistentCloudKitContainer sync on app launch +
+	     periodic polling. This avoids requiring Push Notifications on
+	     the Developer ID provisioning profile.
+	     See tasks/macos/done/icloud-vocabulary-sync.md for details. -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.hyperwhisper.hyperwhisper</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+</dict>
+</plist>

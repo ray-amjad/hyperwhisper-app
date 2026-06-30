@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Kelime Hazinesi";
+"vocabulary.description" = "Bu, yazılımın adları, kısaltmalar, argo veya başka dillerdeki kelimeleri tanımasına ve dilleri karıştırması sırasında yardımcı olur.";
+"vocabulary.input.title" = "Giriş";
+"vocabulary.new.word.placeholder" = "Yeni kelime veya ifade";
+"vocabulary.replacement.placeholder" = "Bununla değiştir...";
+"vocabulary.add.button" = "Kelime Hazinesine Ekle";
+"vocabulary.edit.title" = "Kelime dağarcığı girişini düzenle";
+"vocabulary.update.button" = "Güncelle";
+"vocabulary.cancel.button" = "İptal";
+"vocabulary.word.column" = "Kelime/İfade";
+"vocabulary.replacement.column" = "Değiştirme";
+"vocabulary.empty.title" = "Henüz kelime hazinesi yok";
+"vocabulary.empty.subtitle" = "Transkripsiyon doğruluğunu iyileştirmek için özel kelimeler ekleyin";
+"vocabulary.duplicate.title" = "Yinelenen Giriş";
+"vocabulary.duplicate.message" = "%@ zaten kelime hazinenizdedir. Her kelime yalnızca bir kez eklenebilir.";
+"vocabulary.ok.button" = "Tamam";
+"vocabulary.limit.title" = "Anahtar Kelime Sınırı Aşıldı";
+"vocabulary.limit.message" = "%d kelimeye sahipsiniz, ancak transkripsiyon artırımı için yalnızca ilk %d kullanılacaktır.";
+
+// MARK: - Streaming View
+"streaming.title" = "Akış (Beta)";
+"streaming.description" = "Konuşurken gerçek zamanlı transkripsiyon. Metin doğrudan odaklanmış uygulamaya yazılır.";
+"streaming.enable.title" = "Akışı Etkinleştir";
+"streaming.provider.picker.title" = "Sağlayıcı";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 Genel";
+"streaming.model.nova3medical" = "Nova 3 Tıbbi";
+"streaming.fastFormatting.title" = "Hızlı Biçimlendirme";
+"streaming.fastFormatting.description" = "Daha hızlı yazma için akıllı biçimlendirme gecikmesini azaltır";
+"streaming.warning.vocabAutoDetect" = "Özel kelime hazinesi otomatik algılama modunda devre dışıdır";
+"streaming.warning.vocabUnsupported" = "Özel kelime hazinesi %@ akışında desteklenmez";
+"streaming.warning.apiKeyRequired" = "%@ API anahtarı gerekli";
+"streaming.warning.apiKeyRequired.action" = "Yapılandır";
+"streaming.warning.apiKeyInvalid" = "%@ API anahtarı çalışmıyor. Bunu Ayarlar > API Anahtarları'nda güncelleyin.";
+"streaming.warning.apiKeyInvalid.action" = "Anahtarı Güncelle";
+"streaming.language.title" = "Dil";
+"streaming.shortcut.title" = "Kısayol";
+
+// MARK: - Home View
+"home.get.started" = "Başlayın";
+"home.open.system.settings" = "Sistem Ayarları'nı Aç";
+
+// MARK: - API Keys
+"api.key.required" = "API Anahtarı Gerekli";
+"api.keys.required" = "API Anahtarları Gerekli";
+"api.key.configure.message" = "Transkripsiyon'u etkinleştirmek için API anahtarlarınızı yapılandırın.";
+"api.key.internet.required" = "İnternet Bağlantısı Gerekli";
+"api.key.internet.message" = "Bulut transkripsiyon bir internet bağlantısı gerektirir.";
+
+// MARK: - Common UI
+"common.ok" = "Tamam";
+"common.cancel" = "İptal";
+"common.delete" = "Sil";
+"common.edit" = "Düzenle";
+"common.done" = "Bitti";
+"common.copy" = "Kopyala";
+"common.back" = "Geri";
+"common.skip" = "Geç";
+"common.settings" = "Ayarlar";
+"common.error" = "Hata";
+"common.retry" = "Yeniden Dene";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Ana Sayfa";
+"sidebar.statistics" = "İstatistikler";
+"sidebar.modes" = "Modlar";
+"sidebar.vocabulary" = "Kelime Hazinesi";
+"sidebar.streaming" = "Akış";
+"sidebar.history" = "Geçmiş";
+"sidebar.settings" = "Ayarlar";
+
+// MARK: - App Messages
+"app.unknown.error" = "Bilinmeyen bir hata oluştu";
+"app.microphone.permission.message" = "HyperWhisper, sesi transkribe etmek için mikrofonunuza erişim gerektirir.\n\nLütfen Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon'a gidin ve HyperWhisper için erişimi etkinleştirin.";
+"app.recordings.location.message" = "HyperWhisper, kayıtları Belgeler klasöründeki bir klasöre kaydeder, böylece bulması kolay olur: Belgeler/hyperwhisper/recordings. ilk kez orada kaydetmeyi denediğimizde macOS izin isteyebilir. Erişim vermek istemiyorsanız, kayıtları bunun yerine özel bir uygulama klasöründe saklayabiliriz.";
+"app.upgrade.to.pro" = "Pro'ya Yükselt";
+"app.enter.license.key" = "Lisans Anahtarını Gir";
+"accessibility.upgrade.pro" = "HyperWhisper Pro'ya Yükselt";
+"accessibility.enter.license" = "Lisans Anahtarını Gir";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Seçilen modu etkinleştirmek için %@ API anahtarlarınızı ekleyin.";
+"home.api.keys.missing.single" = "Seçilen modu etkinleştirmek için %@ API anahtarınızı ekleyin.";
+"home.getting.started.recording.title" = "Kaydı Başlat";
+"home.getting.started.recording.description" = "Sesini tek tıklamayla metne dönüştür.";
+"home.getting.started.shortcuts.title" = "Kısayollarınızı Özelleştirin";
+"home.getting.started.shortcuts.description" = "HyperWhisper için klavye kısayollarını değiştir.";
+"home.getting.started.mode.title" = "Bir mod oluştur";
+"home.getting.started.mode.description" = "İş akışınız için mükemmel modu oluşturun.";
+"home.getting.started.vocabulary.title" = "Kelime Hazinesi Ekle";
+"home.getting.started.vocabulary.description" = "HyperWhisper'a özel kelimeler, adlar veya endüstri terimlerini öğret.";
+"home.add.api.key" = "API Anahtarı Ekle";
+"home.accessibility.enable.title" = "Erişilebilirliği Etkinleştir";
+"home.accessibility.enable.description" = "HyperWhisper'ın kullandığın uygulamalara otomatik olarak yapıştırmasına izin ver.";
+"home.accessibility.waiting" = "Bekleniyor...";
+"home.accessibility.open.settings" = "Ayarları Aç";
+"home.accessibility.restart.after.permission" = "İzin verdikten sonra uygulamayı yeniden başlat";
+"home.getting.started.completed" = "✓ Tamamlandı";
+"home.whatsnew.badge" = "YENİ";
+"home.whatsnew.title" = "Yeni Neler Var?";
+"home.whatsnew.update1.date" = "3 Tem";
+"home.whatsnew.update1.title" = "Parakeet artık kullanılabilir";
+"home.whatsnew.update1.description" = "Bugün denemek için Mod oluşturma'da Dil Modelleri listesinden doğrudan indir.";
+"home.whatsnew.update2.date" = "5 Haz";
+"home.whatsnew.update2.title" = "Tüm OpenAI uyumlu özel modeller için destek";
+"home.whatsnew.update2.description" = "Artık herhangi bir OpenAI uyumlu API'leri model listenize ekleyebilirsiniz.";
+"home.whatsnew.update3.date" = "27 May";
+"home.whatsnew.update3.title" = "Tamamen yeni Mini-kayıt penceresi";
+"home.whatsnew.update3.description" = "Yolundan çıkmayan şık, minimal bir kayıt arayüzü.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Son Güncellemeler";
+"home.recent.updates.error" = "Güncellemeler yüklenemedi";
+"home.recent.updates.retry" = "Yeniden Dene";
+"home.recent.updates.empty" = "Kullanılabilir son güncellemeler yok";
+"home.recent.updates.version" = "Sürüm %@";
+"home.recent.updates.new.badge" = "YENİ";
+"home.recent.updates.no.notes" = "Sürüm notları yok";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Boşluk";
+"keyboard.option.space" = "⌥Boşluk";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Mikrofon Erişimi Gerekli";
+"common.open.settings" = "Ayarları Aç";
+"alerts.api.local.mode" = "Yerel Modu Kullan";
+"alerts.documents.permission.title" = "Belgeler'e Kaydet?";
+"common.continue" = "Devam Et";
+"alerts.documents.permission.use.another" = "Başka bir konum kullan";
+"alerts.api.configure.generic" = "Lütfen API anahtarlarınızı Ayarlar'da yapılandırın.";
+"alerts.api.internet.offline" = "Bulut transkripsiyon bir internet bağlantısı gerektirir. Lütfen ağ ayarlarınızı kontrol edin veya yerel bir transkripsiyon modu seçin.";
+"alerts.api.configure.header.multiple" = "Seçilen modu kullanmak için lütfen Ayarlar'da aşağıdaki API anahtarlarını yapılandırın:";
+"alerts.api.configure.header.single" = "Seçilen modu kullanmak için lütfen Ayarlar'da aşağıdaki API anahtarını yapılandırın:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Eksik anahtarları ekledikten sonra tekrar deneyin.";
+"alerts.export.failed.title" = "Dışa Aktarma Başarısız";
+"alerts.export.logs.failed.message" = "Güncellemeler günlüğü dışa aktarılamadı. Lütfen tekrar deneyin.";
+"alerts.export.logs.success.title" = "Günlükler Dışa Aktarıldı";
+"alerts.export.logs.success.message" = "Güncellemeler günlüğü başarıyla dışa aktarıldı.";
+"alerts.export.logs.saveFailed.message" = "Günlükler seçilen konuma kaydedilemedi: %@";
+"alerts.export.diagnostics.failed.message" = "Tanılar dışa aktarılamadı. Lütfen tekrar deneyin.";
+"alerts.export.diagnostics.success.title" = "Tanılar Dışa Aktarıldı";
+"alerts.export.diagnostics.success.message" = "Tüm tanı günlükleri başarıyla dışa aktarıldı.";
+"alerts.export.diagnostics.saveFailed.message" = "Tanılar seçilen konuma kaydedilemedi: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Destek için güncellemeler günlüğünü dışa aktarın";
+"panels.export.diagnostics.message" = "Tüm tanı günlüklerini dışa aktarın";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "HyperWhisper'ı kullanmaya başlayın";
+"sidebar.statistics.help" = "Kullanım istatistiklerini ve analizlerini görüntüleyin";
+"sidebar.modes.help" = "Farklı bağlamlar için transkripsiyon modlarını yönet";
+"sidebar.vocabulary.help" = "Daha iyi tanıma için özel kelimeler ve ifadeler ekleyin";
+"sidebar.streaming.help" = "Gerçek zamanlı akış transkripsiyon ayarları (İnternet gerekir)";
+"sidebar.history.help" = "Transkripsiyon geçmişinizi görüntüleyin ve arayın";
+"sidebar.settings.help" = "Uygulama ayarlarını ve tercihlerini yapılandırın";
+
+// MARK: - Recording State
+"recording.state.ready" = "Kaydalmaya hazır";
+"recording.state.recording" = "Kaydediliyor...";
+"recording.state.processing" = "Ses işleniyor...";
+"recording.state.transcribing" = "Transkribe ediliyor...";
+"recording.state.postprocessing" = "Yapay zekâ ile işleniyor...";
+"recording.state.complete" = "Transkripsiyon tamamlandı: %@";
+"recording.state.error" = "Hata: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Kaydı başlat veya durdur";
+"menu.recording.stop" = "Kaydı Durdur";
+"menu.recording.toggle" = "Kaydı Başlat/Durdur";
+"menu.history" = "Geçmiş...";
+"menu.settings" = "Ayarlar...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Modu Seç";
+"menu.transcribe.file" = "Dosya Transkribe Et";
+"menu.mode.unnamed" = "Adsız";
+"menu.version.label" = "Sürüm %@";
+"common.quit" = "Çık";
+"menu.microphone.default" = "Varsayılan";
+"menu.microphone.system.default" = "Varsayılan";
+"menu.bar.state.recording" = "Kaydediliyor";
+"menu.bar.state.processing" = "İşleniyor";
+"menu.bar.state.idle" = "Boş";
+"menu.command.check.updates" = "Güncellemeleri Denetle…";
+"menu.debug.title" = "Hata Ayıkla";
+"menu.command.export.logs" = "Güncellemeler Günlüğünü Dışa Aktar…";
+"menu.command.export.diagnostics" = "Tanıları Dışa Aktar…";
+"menu.command.help.website" = "Yardım Web Sitesi";
+"menu.command.contact.support" = "Desteğe Başvur";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Genel";
+"settings.section.sound" = "Ses";
+"settings.section.license" = "Lisans";
+"settings.section.credits" = "Krediler";
+"settings.section.storage" = "Depolama";
+"settings.section.models" = "Modeller";
+"settings.section.api.keys" = "API Anahtarları";
+"settings.section.shortcuts" = "Klavye Kısayolları";
+"settings.section.output" = "Metin Çıkışı";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (İngilizce)";
+"onboarding.model.pro.multilingual" = "Pro (Çok Dillli)";
+"onboarding.model.downloading.progress" = "İndiriliyor... %d%%";
+"onboarding.accessibility.title" = "Otomatik Yapıştırma için Erişilebilirliği Etkinleştir";
+"onboarding.accessibility.subtitle" = "HyperWhisper'ın transkribe edilen metni uygulamalarınıza otomatik olarak yapıştırmasına izin ver.";
+"onboarding.accessibility.instructions" = "Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik";
+"onboarding.accessibility.status.granted" = "Erişilebilirlik izni verildi";
+"onboarding.accessibility.status.pending" = "Erişilebilirlik izni henüz verilmedi";
+"onboarding.accessibility.waiting" = "İzin bekleniyor...";
+"onboarding.accessibility.open.preferences" = "Erişilebilirlik Tercihleri'ni Aç";
+"onboarding.accessibility.restart" = "İzin verdikten sonra HyperWhisper'ı yeniden başlat.";
+"onboarding.model.recommendation.title" = "Pro modeli tavsiye ediyoruz";
+"onboarding.model.recommendation.subtitle" = "Sistem dilinize ve Mac'inizin yeteneklerine göre.";
+"onboarding.model.recommendation.note" = "Aşağıdaki düğmeyi tıklayarak indir.";
+"onboarding.model.downloaded" = "İndirildi";
+"onboarding.model.metric.speed" = "Hız";
+"onboarding.model.metric.accuracy" = "Doğruluk";
+"onboarding.model.metric.size" = "Boyut";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Veya farklı bir ses modeli seç";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (İngilizce)";
+"onboarding.model.option.tiny" = "Küçük";
+"onboarding.model.option.base" = "Temel";
+"onboarding.model.option.small" = "Küçük";
+"onboarding.model.option.medium" = "Orta";
+"onboarding.model.option.large" = "Büyük";
+"onboarding.model.download.button" = "Modeli İndir";
+"onboarding.audio.title" = "Hangi ses kaydı cihazını kullanmak istiyorsunuz?";
+"onboarding.audio.subtitle" = "Ses giriş seviyenizin açık olduğundan ve ses kaydettiğinden emin olun.";
+"onboarding.audio.input.label" = "Giriş Cihazı";
+"onboarding.audio.picker.label" = "Cihaz";
+"onboarding.audio.use.system.default" = "Sistem varsayılan cihazını kullan";
+"onboarding.audio.level" = "Ses Seviyesi";
+"onboarding.audio.open.sound" = "Ses Tercihleri'ni Aç";
+"onboarding.microphone.title" = "Kaydı Yapma İzni Gerekli";
+"onboarding.microphone.subtitle" = "Ses kaydı yapmak için mikrofonunuza erişim gerekir.";
+"onboarding.microphone.status.granted" = "Mikrofon izni verildi";
+"onboarding.microphone.status.pending" = "Mikrofon izni henüz verilmedi";
+"onboarding.microphone.grant" = "İzin Ver";
+"onboarding.test.title" = "Tamamdır, ilk kaydınızı başlayalım";
+"onboarding.test.press.prefix" = "Başlamak için";
+"onboarding.test.press.suffix" = "tuşuna basın";
+"onboarding.test.status.recording" = "Kaydediliyor...";
+"onboarding.test.status.speak" = "Şimdi konuş...";
+"onboarding.test.stop" = "Kaydı Durdur";
+"onboarding.test.success.title" = "Harika! Kaydınız başarılı oldu.";
+"onboarding.test.success.subtitle" = "Transkripsiniz uygulamada görünecektir.";
+"onboarding.test.start.cta" = "Kaydı Başlatmak için Tıkla";
+"onboarding.test.start.shortcut" = "Veya klavye kısayolunuza basın";
+"onboarding.settings.title" = "Tebrikler! Şimdi Ayarlar'ı açalım";
+"onboarding.settings.subtitle" = "HyperWhisper simgesine sağ tıklayın ve Ayarlar... seçeneğini seçin";
+"onboarding.settings.menu.startStop" = "Kaydı Başlat/Durdur";
+"onboarding.settings.menu.history" = "Geçmiş...";
+"onboarding.settings.menu.settings" = "Ayarlar...";
+"onboarding.settings.menu.quit" = "Çık";
+"onboarding.settings.info" = "Ayarlar'da kısayolları özelleştirebilir, API anahtarlarını yönetebilir ve HyperWhisper'ı zevkinize göre yapılandırabileceğiniz yer burasıdır.";
+"onboarding.completion.title" = "Bittiniz!";
+"onboarding.completion.subtitle" = "Sorun yaşarsanız veya sorularınız olursa, e-posta veya Discord aracılığıyla ulaşın.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-posta";
+"onboarding.completion.resources.title" = "Ek Kaynaklar";
+"onboarding.completion.resources.documentation" = "Dokümantasyon";
+"onboarding.completion.resources.videos" = "Video Öğreticileri";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Onboarding'i Tamamla";
+"onboarding.error.model.notFound" = "Katalogda model bulunamadı.";
+"onboarding.error.microphone.denied" = "Mikrofon izni reddedildi. Lütfen Sistem Ayarları'nda izin verin.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Giriş sırasında başlat";
+"settings.general.launchAtLogin.info" = "Giriş yapıldığında HyperWhisper'ı otomatik olarak başlat.";
+"settings.general.launchMinimized.title" = "Simge durumuna küçült olarak başlat";
+"settings.general.launchMinimized.info" = "Ana pencere gizli olarak HyperWhisper'ı başlat. Uygulama menü çubuğu aracılığıyla erişilebilir olacaktır.";
+"settings.general.showInDock.title" = "Dock'ta Göster";
+"settings.general.showInDock.info" = "Uygulama simgesini Dock'ta göster.";
+"settings.general.showRecordingWindow.title" = "Kayıt penceresini göster";
+"settings.general.showRecordingWindow.info" = "Kayıt ve işlenirken kayan dalga formu penceresini görüntüle.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Kapalı";
+"settings.general.mediaControl.mode.mute" = "Sesi Sustur";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Hata günlüğü";
+"settings.general.errorLogging.info" = "Uygulamayı iyileştirmeye yardımcı olmak için hata raporlarını otomatik olarak yakalayın ve gönderin.";
+"settings.general.autoUpdate.title" = "Otomatik güncelleme";
+"settings.general.autoUpdate.info" = "HyperWhisper'ın yeni sürümlerini otomatik olarak kontrol edin ve indirin.";
+"settings.general.support.title" = "Yardıma mı ihtiyacınız var?";
+"settings.version.detail" = "Sürüm %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Ses efektlerini çal";
+"settings.sound.soundEffects.info" = "Kayıt başladığında ve durduğunda sesli uyarılar çal.";
+"settings.sound.mediaControl.title" = "Kaydı sırasında ortam kontrolü";
+"settings.sound.mediaControl.info" = "Kayıt sırasında HyperWhisper'ın diğer sesleri nasıl yönettiğini seçin. 'Kapalı' sesi değişmez bırakır, 'Sesi Sustur' kayıt sırasında sistem sesini kapar ve sonrasında geri yükler.";
+"settings.sound.autoIncreaseMicVolume.title" = "Mikrofon sesini otomatik olarak artır";
+"settings.sound.autoIncreaseMicVolume.info" = "Kayıt başladığında mikrofon giriş sesini otomatik olarak maksimuma ayarlar, ardından kaydı durdurulduğunda orijinal seviyeye geri döndürür. Yalnızca sistem varsayılan giriş cihazı kullanıldığında geçerlidir.";
+"settings.sound.vad.title" = "Transkripsiyon öncesi sessizliği kaldır";
+"settings.sound.vad.info" = "Yapay zeka ses tespitini kullanarak öncü ve izleyen sessizliği otomatik olarak algılar ve kaldırır. Bu, transkripsiyon doğruluğunu iyileştirebilir ve işlem süresini azaltabilir.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Kayıtlar Klasörü";
+"settings.storage.showFolder.title" = "Kayıtlar klasörünü göster";
+"settings.storage.showFolder.button" = "Finder'de Göster";
+"settings.storage.notice" = "Kayıtlar klasörünü değiştirmek yalnızca yeni kayıtları etkiler. Mevcut kayıtlar orijinal konumlarında kalır.";
+"settings.storage.choose.button" = "Seç...";
+"settings.storage.dialog.select" = "Klasör Seç";
+"settings.storage.dialog.message" = "Kayıtları depolamak için bir klasör seçin";
+"settings.storage.storeAsM4A.title" = "Kayıtları M4A'ya sıkıştır";
+"settings.storage.storeAsM4A.subtitle" = "WAV kayıtlarını transkripsiyon sonrasında daha küçük dosyalara dönüştürür. Orijinal WAV dosyalarını (daha büyük ancak kayıpsız) tutmak için kapatın.";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Sonucu otomatik olarak yapıştır";
+"settings.output.paste.subtitle" = "Transkribe edilen metni aktif uygulamaya otomatik olarak yapıştır";
+"settings.output.paste.info" = "Etkinleştirilirse, metin en ön plana alındığı uygulamaya yapıştırılır.";
+"settings.output.restoreClipboard.title" = "Yapıştırdıktan sonra panoyu geri yükle";
+"settings.output.restoreClipboard.subtitle" = "Yapıştırdıktan sonra önceki pano içeriğini geri yükle";
+"settings.output.restoreClipboard.info" = "Uygulamayı yapıştırdıktan sonra önceki pano içeriğini geri yükler.";
+"settings.output.restore.after" = "Sonra geri yükle";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Pano geri yükleme gecikmes";
+"settings.output.hideClipboardHistory.title" = "Pano geçmişinden gizle";
+"settings.output.hideClipboardHistory.subtitle" = "Transkripsiyon metinlerinin pano geçmişi uygulamalarında görünmesini önle";
+"settings.output.hideClipboardHistory.info" = "Etkinleştirildiğinde, transkribe edilen metin Paste, Maccy veya Alfred gibi pano yöneticileri tarafından kaydedilmeyecektir.";
+"settings.output.clipboard.header" = "Pano";
+"settings.output.removeFillers.title" = "Doldurma kelimelerini kaldır";
+"settings.output.removeFillers.subtitle" = "Ham dökümlerden 'uh', 'um' ve 'er' ifadelerini kaldırır.";
+"settings.output.removeFillers.info" = "Etkinleştirildiğinde HyperWhisper, çıktıdan önce ham dökümlerden yaygın doldurma kelimelerini kaldırır.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Kaydı Aç/Kapat";
+"settings.shortcuts.toggleRecording.subtitle" = "Kayıtları başlatır ve durdurur";
+"settings.shortcuts.cancelRecording.title" = "Kaydı İptal Et";
+"settings.shortcuts.cancelRecording.subtitle" = "Etkin kaydı iptal et";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Konuş";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Bir tuşa basın, yapıldığında bırakın";
+"settings.shortcuts.pushToTalk.enable.info" = "Hızlı kayıt için Konuş modunu etkinleştir.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Kayıt Modu";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Hangi tuşu kullanacağını seç";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Devre Dışı";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN Tuşu";
+"settings.shortcuts.pushToTalk.mode.control" = "Control Tuşu";
+"settings.shortcuts.pushToTalk.mode.custom" = "Özel Kısayol";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Kaydı kilitlemek için iki kez basın";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Tutmadan kayıt yapmaya devam etmek için hızlı şekilde iki kez basın";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Özel Kısayol";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Kullanılacak tuş kombinasyonuna basın";
+
+
+"settings.shortcuts.changeMode.title" = "Modu Değiştir";
+"settings.shortcuts.changeMode.subtitle" = "Yalnızca kayıt sırasında çalışır";
+
+"settings.shortcuts.reset.button" = "Varsayılanlara Sıfırla";
+"settings.shortcuts.reset.dialog.title" = "Klavye Kısayollarını Sıfırla";
+"settings.shortcuts.reset.confirm" = "Sıfırla";
+"settings.shortcuts.reset.dialog.message" = "Bu, tüm klavye kısayollarını varsayılan değerlerine sıfırlayacaktır.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API anahtarları cihazınızda güvenli bir şekilde depolanır ve yalnızca gerektiğinde sağlayıcıya gönderilir.";
+"settings.api.help.link" = "API Anahtarları ile İlgili Yardım";
+"settings.api.transcription.title" = "Transkripsiyon";
+"settings.api.transcription.subtitle" = "Bulut tabanlı konuşma-metne dönüştürme hizmetleri için API anahtarları.";
+"settings.api.postProcessing.title" = "Son İşleme";
+"settings.api.postProcessing.subtitle" = "Yapay zeka destekli metin geliştirme ve biçimlendirme için API anahtarları.";
+"settings.api.placeholder" = "%@ API anahtarınızı girin";
+"settings.api.openLink" = "%@ API anahtarı sayfasını aç";
+"settings.api.status.accessibility" = "%@ durumu: %@";
+"settings.api.status.unknown" = "Sağlayıcı durumu bilinmiyor";
+"settings.api.status.checking" = "Sağlık denetimi devam ediyor";
+"settings.api.status.unauthorized" = "API anahtarı sağlayıcı tarafından reddedildi";
+"settings.api.status.unreachable" = "Sağlayıcı şu anda ulaşılamaz";
+"settings.api.status.notInstalled" = "Sağlayıcı SDK yüklenmedi";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Bilinmiyor";
+"provider.status.checking" = "Denetleniyor…";
+"provider.status.healthy" = "Hazır";
+"provider.status.unauthorized" = "Geçersiz anahtar";
+"provider.status.unreachable" = "Çevrimdışı";
+"provider.status.notInstalled" = "Yüklenmedi";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Lisans Etkinleştirildi";
+"alerts.license.deactivated.title" = "Lisans Devre Dışı Bırakıldı";
+"alerts.license.activated.message" = "Lisansınız başarıyla etkinleştirildi. Tüm özelliklere sınırsız erişim için keyfini çıkarın!";
+"alerts.license.deactivated.message" = "Lisansınız bu cihazda devre dışı bırakıldı. Artık başka yerde etkinleştirebilirsiniz.";
+"alerts.license.failed.title" = "İşlem Başarısız";
+"alerts.license.failed.message" = "İşlem başarısız. Lütfen tekrar deneyin.";
+"license.button.deactivate" = "Cihazı Devre Dışı Bırak";
+"license.button.deactivating" = "Devre Dışı Bırakılıyor...";
+"license.button.manageBilling" = "Faturalandırmayı Yönet";
+"license.button.activate" = "Etkinleştir";
+"license.button.activating" = "Etkinleştiriliyor...";
+"license.status.label" = "Durum: %@";
+"license.status.trial.title" = "Deneme";
+"license.status.active.title" = "Etkin";
+"license.status.expired.title" = "Süresi Doldu";
+"license.status.invalid.title" = "Geçersiz";
+"license.status.trial.description" = "Ücretsiz Deneme (gün başına 5 dakika, %d modeller)";
+"license.status.active.description" = "Lisanslı – Tam Erişim";
+"license.status.expired.description" = "Lisans Süresi Doldu";
+"license.status.invalid.description" = "Geçersiz Lisans";
+"settings.license.key.title" = "Lisans Anahtarı";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Panodan Yapıştır";
+"settings.license.clearInput" = "Temizle";
+"settings.license.recovery.prompt" = "Lisans anahtarınızı unuttunuz mu?";
+"settings.license.recovery.button" = "Müşteri portalına git";
+"settings.license.daily.title" = "Günlük Transkripsiyon";
+"settings.license.daily.usage" = "%@ / %@ kullanıldı";
+"settings.license.limitReached" = "Sınır Ulaşıldı";
+"settings.license.models.title" = "Çevrimdışı Modeller";
+"settings.license.models.progress" = "%d / %d modeller indirildi";
+"settings.license.models.progress.one" = "%d / %d model indirildi";
+"settings.license.upgrade.text" = "Sınırsız transkripsiyon ve model indirmeleri için yükseltin";
+"settings.license.upgrade.button" = "Yükseltin";
+"license.error.invalidResponse" = "Geçersiz yanıt biçimi";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud Kredileri";
+"settings.credits.refresh" = "Yenile";
+"settings.credits.subtitle" = "Transkripsiyon kredilerinizi ve kullanımınızı izleyin";
+"settings.credits.manage" = "Kredileri Yönet";
+"settings.credits.timeRemaining" = "Kalan Transkripsiyon Süresi";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "dakika";
+"settings.credits.creditsRemaining" = "%@ kredi kaldı";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Ücretsiz Günlük Sınır (100 kredi)";
+"settings.credits.resets" = "%@ tarihinde sıfırlanır";
+"settings.credits.warning.low" = "Krediler az kalıyor. Ek krediler için bir lisans satın almayı düşünün.";
+"settings.credits.warning.exhausted.daily" = "Günlük sınır tükenmiştir. Sınırsız kullanım için lisans satın alın veya sıfırlanmayı bekleyin.";
+"settings.credits.warning.exhausted" = "Krediler tükenmiştir. HyperWhisper Cloud'u kullanmaya devam etmek için daha fazla kredi satın alın.";
+"settings.credits.accountInfo" = "Hesap Bilgileri";
+"settings.credits.stat.creditsRemaining" = "Kalan Krediler";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Kalan Dakikalar";
+"settings.credits.stat.accountType" = "Hesap Türü";
+"settings.credits.accountType.licensed" = "Lisanslı";
+"settings.credits.accountType.anonymous" = "Anonim";
+"settings.credits.accountType.trial" = "Deneme";
+"settings.credits.stat.customerId" = "Müşteri Kimliği";
+"settings.credits.stat.dailyLimit" = "Günlük Sınır";
+"settings.credits.dailyLimit.value" = "100 kredi";
+"settings.credits.loading" = "Kredi bakiyesi yükleniyor...";
+"settings.credits.error.title" = "Kredi bakiyesi yüklenemiyor";
+"settings.credits.error.retry" = "Yeniden Dene";
+"settings.credits.empty.title" = "Kredi bilgisi yok";
+"settings.credits.empty.subtitle" = "Kredi bakiyenizi yüklemek için yenile'ye tıklayın";
+"settings.credits.empty.button" = "Kredileri Yükle";
+"settings.credits.error.insufficient" = "Yetersiz krediler. %d kredi kaydınız var.";
+"settings.credits.error.network" = "Ağ hatası: %@";
+"settings.credits.error.invalidResponse" = "Sunucudan geçersiz yanıt. Lütfen tekrar deneyin.";
+"settings.credits.error.server" = "Sunucu hatası: %@";
+"settings.models.alert.limit.title" = "Model indirme sınırına ulaşıldı";
+"settings.models.alert.limit.message" = "Denemeler %d model indirmeyi içerir. Sınırsız indirmeler için lisansınızı yükseltin.";
+"settings.models.alert.cannotDelete.title" = "Model Silinemez";
+"settings.models.parakeet.title" = "Parakeet Modelleri";
+"settings.models.parakeet.subtitle" = "Çoğu kullanıcı için önerilir. Çok dillli model 25 dili destekler.";
+"settings.models.parakeet.empty" = "Kullanılabilir Parakeet modelleri yok.";
+"settings.models.whisper.title" = "Whisper Modelleri";
+"settings.models.whisper.subtitle" = "OpenAI Whisper modelleri. Daha büyük modeller daha doğrudur. 100+ dili destekler.";
+"settings.models.whisper.empty" = "Kullanılabilir Whisper modelleri yok.";
+"settings.models.help.cancelDownload" = "İndirmeyi iptal et";
+"settings.models.help.remove" = "Modeli kaldır";
+"settings.models.downloaded" = "İndirildi";
+"settings.models.download" = "İndir";
+"settings.models.downloading" = "İndiriliyor…";
+"settings.models.localPostProcessing.title" = "Yerel son işleme modelleri";
+"settings.models.localPostProcessing.memoryWarning" = "24 GB birleşik belleğe veya daha fazlasına sahip Mac için önerilir. Hız çipe bağlıdır — M3/M4 Pro ve üstünde daha hızlı.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Bu yılki kelimeler";
+"vocabulary.input.placeholder" = "Bir kelime ekleyin veya kod parçası oluşturun";
+"vocabulary.action.addWord" = "Kelime ekle";
+"vocabulary.action.replaceWith" = "Şununla değiştir…";
+"vocabulary.action.replace" = "Değiştir";
+"vocabulary.replacement.field.placeholder" = "Değiştirme metni…";
+"settings.output.autocapitalizeInsert.title" = "Eklemede Otomatik Büyük Harf";
+"settings.output.autocapitalizeInsert.subtitle" = "Metin eklerken imleç bağlamını eşleştir";
+"settings.output.autocapitalizeInsert.info" = "Etkinleştirilirse, eklenen transkript metninin ilk kelimesi imleç bağlamına (cümle başı veya ortası) göre ayarlanır. Her zaman küçük harfli dikte için bunu kapatın.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper, otomatik büyük harf için gereken imleç bağlamını okumak için Erişilebilirlik iznine ihtiyaç duyar.\n\n\"Ayarları Aç\"a tıklayın, HyperWhisper'ın yanındaki düğmeye basın ve tekrar deneyin.";
+"settings.output.removeFillerWords.title" = "Dolgu kelimelerini kaldır";
+"settings.output.removeFillerWords.subtitle" = "AI son işleme kapalıyken ham transkriptlerden \"äh\", \"um\" ve \"er\"i kaldırın";
+"settings.output.removeFillerWords.info" = "Yalnızca bir mod AI son işlemeyi atladığında geçerlidir. AI ile geliştirilmiş modlar, istemde konuşma temizliğini yönetir.";
+"sidebar.modelLibrary" = "Model Kütüphanesi";
+"sidebar.modelLibrary.help" = "Tüm ses ve son işleme modellerini tek bir yerde göz atın";
+"settings.shortcuts.quickCapture.enable.title" = "Hızlı Yakalama";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Kaydedip metni Notlar'a gönderin — uygulamaya önce odaklanmanıza gerek yok.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Kısayol";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Kaydetmek ve Notlar'a göndermek için herhangi bir yere basın.";
+"settings.shortcuts.quickCapture.mode.title" = "Mod";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Kullanılan transkripsiyon modu — model, istem ve son işlemeyi kontrol eder.";
+"settings.shortcuts.quickCapture.mode.current" = "Mevcut mod";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper, Notlar'ı kontrol etmek için izin gerektirir. Sistem Ayarları → Gizlilik → Otomasyon'dan verin.";
+"settings.section.vocabulary" = "Kelime Hazinesi";
+"settings.vocabulary.icloudSync.title" = "iCloud Senkronizasyonu";
+"settings.vocabulary.icloudSync.subtitle" = "Özel kelime haznenizi aynı iCloud hesabına giriş yapmış tüm Mac'lerde senkronize edin.";
+"settings.vocabulary.icloudSync.info" = "Varsayılan olarak kapalı. Yalnızca özel kelime hazneniz senkronize edilir — dökümanlar ve kayıtlar bu Mac'te kalır. Değişiklikler, HyperWhisper'ı bir sonraki açışınızda geçerli olur.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Değişiklikleri uygulamak için HyperWhisper'ı kapatın";
+"vocabulary.icloudSync.restart.message" = "iCloud kelime hazinesi senkronizasyon değişiklikleri, HyperWhisper'ı bir sonraki açışınızda geçerli olur.";
+"vocabulary.icloudSync.restart.quit" = "HyperWhisper'ı Kapat";
+"vocabulary.icloudSync.restart.later" = "Daha Sonra";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Kayıtlar arasında mikrofonu sıcak tut";
+"settings.sound.keepWarmMicrophone.info" = "HyperWhisper boştayken mikrofon oturumunu açık tutarak push-to-talk başlatma gecikmesini azaltır. macOS turuncu mikrofon göstergesini sürekli gösterecek ve Bluetooth kulaklıklar bu etkinken daha düşük kaliteli arama modunda kalabilir.";
+"settings.models.local.inUse" = "Bu yerel model şu anda şunlar tarafından son işleme için kullanılıyor:
+
+%@
+
+Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
+"models.postProcessing.gemma4.e2b.description" = "Hızlı ve doğru. Son işleme için mükemmel bir genel seçenek.";
+"models.postProcessing.gemma4.e4b.description" = "Daha fazla ayrıntıyla daha yüksek kalite. Uzun metinler için iyi.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Uzman Karışımı. Yalnızca 4B aktif parametre ile hızlı çıkarım.";
+"models.postProcessing.gemma4.31b.description" = "31B yoğun model. En yüksek kalite, 18+ GB RAM gerektirir.";
+"settings.models.whisper.inUse" = "Bu model şu anda kullanıldığı için silinemez:\n\n%@\n\nSilmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
+"settings.models.parakeet.inUse" = "Bu Parakeet modeli şu anda kullanıldığı için silinemez:\n\n%@\n\nSilmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Bilinmiyor";
+"settings.models.directory.whisper" = "Whisper modelleri klasörü";
+"settings.models.directory.parakeet" = "Parakeet modelleri klasörü";
+"settings.models.directory.local" = "Yerel modeller klasörü";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — CoreML için optimize edilmiş çok dilli konuşma tanıma.";
+"settings.models.qwen3asr.languages" = "30 Dil";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Bu Qwen3 ASR modeli silinemiyor çünkü şunlar tarafından kullanılıyor:\n\n%@\n\nSilmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
+"settings.models.directory.show" = "Finder'de Göster";
+"models.error.checksumFailed" = "Model sağlama toplamı doğrulaması başarısız oldu. İndirme bozulmuş olabilir.";
+
+// MARK: - Statistics View
+"statistics.title" = "İstatistikler";
+"statistics.header.title" = "Kullanım İstatistikleriniz";
+"statistics.header.subtitle" = "Transkripsiyon aktivitenizi ve performansını izleyin";
+"statistics.card.recordings" = "Toplam Kayıtlar";
+"statistics.card.recordings.subtitle" = "Tamamlanan transkripsiyon";
+"statistics.card.duration" = "Toplam Zaman";
+"statistics.card.duration.subtitle" = "Kaydı yapılan zaman";
+"statistics.card.words" = "Toplam Kelimeler";
+"statistics.card.words.subtitle" = "Transkribe edilen kelimeler";
+"statistics.card.average" = "Ortalama Süre";
+"statistics.card.average.subtitle" = "Kayıt başına";
+"statistics.graph.title" = "Zaman İçinde Aktivite";
+"statistics.daily.empty" = "Henüz kayıt yok";
+"statistics.filter.week" = "Bu Hafta";
+"statistics.filter.month" = "Bu Ay";
+"statistics.filter.alltime" = "Tüm Zaman";
+
+// MARK: - History View
+"history.title" = "Geçmiş";
+"history.search.placeholder" = "Ara";
+"history.filter.all" = "Tümü";
+"history.filter.today" = "Bugün";
+"history.filter.week" = "Bu Hafta";
+"history.filter.month" = "Bu Ay";
+"history.empty.title" = "Kayıt bulunamadı";
+"history.empty.subtitle" = "Aramanızı düzeltmeyi deneyin";
+"history.detail.empty" = "Ayrıntıları görüntülemek için bir kayıt seçin";
+"history.multi.selected" = "%d kayıt seçildi";
+"history.multi.delete" = "Seçilenleri Sil";
+"history.context.deleteSelected" = "%d Kaydı Sil";
+"history.context.retry" = "Transkripsiyon Yeniden Dene";
+"history.context.retryWith" = "İle Yeniden Dene...";
+"history.context.copy" = "Metni Kopyala";
+"history.retrying" = "Transkripsiyon yeniden deneniyor...";
+"history.retry.help" = "Transkripsiyon'u yeniden dene";
+"history.section.today" = "Bugün";
+"history.section.yesterday" = "Dün";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Başarısız";
+"history.status.transcription.failed.prefix" = "Transkripsiyon başarısız:";
+"history.status.retry.failed.prefix" = "Yeniden deneme başarısız:";
+"history.failure.reason" = "Sebep: %@";
+"history.mode.default" = "Varsayılan";
+"history.audio.showInFinder" = "Finder'de Göster";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Modu sil?";
+"modes.delete.confirm.message" = "Bu, seçilen modu kaldıracaktır. Bu işlem geri alınamaz.";
+"modes.header.title" = "Modlar";
+"modes.header.subtitle" = "Farklı bağlamlar ve iş akışları için özel profiller oluşturun";
+"modes.header.create" = "Mod Oluştur";
+"modes.name.unnamed" = "Adsız";
+"modes.badge.offline" = "Çevrimdışı";
+"modes.context.select" = "Seç";
+"modes.help.edit" = "Mod ayarlarını düzenle";
+"modes.help.preset" = "Bu hazır ayar hakkında daha fazla bilgi öğren";
+"modes.help.model" = "Bu model hakkında daha fazla bilgi öğren";
+"modes.preset.title" = "Hazır Ayar";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "İleti";
+"modes.preset.mail.name" = "Posta";
+"modes.preset.note.name" = "Not";
+"modes.preset.meeting.name" = "Toplantı";
+"modes.preset.code.name" = "Kod";
+"modes.preset.custom.name" = "Özel";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "İleti modu, dikte edilen iletinizi temizler, noktalamayı düzeltir, paragraflara böler ve dilbilgisi hatalarını düzeltir.";
+"modes.preset.mail.tooltip" = "E-posta modu, dikte edilen metni uygun selamlar, paragraflar ve imza ile profesyonel e-posta yapısına biçimlendirer.";
+"modes.preset.note.tooltip" = "Not modu, dikte edilen içeriği başlıklar, madde işaretleri ve yapılandırılmış bölümler içeren açık not biçimine düzenler.";
+"modes.preset.meeting.tooltip" = "Toplantı modu, dikte edilen metni toplantı tutanakları biçimine, katılımcılarla, işlem öğeleri ve ana tartışma noktaları içinde yapılandırır.";
+"modes.preset.code.tooltip" = "Kod modu, sesli programlama dikte işini kod söz dizimine dönüştürür. Kod yazmak için 'Açık braket', 'Ters eğik çizgi', 'Deve büyüklüğü' vb. söyleyin.";
+"modes.preset.custom.tooltip" = "Özel mod, belirli kullanım durumları için kendi biçimlendirme kurallarınızı ve istemlerini tanımlamanıza olanak sağlar.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Bu ön ayar için tam biçimlendirme talimatlarını tanımlayın.";
+"modes.notice.vocabularyUnsupported" = "Özel kelime hazinesi bu sağlayıcı tarafından bu model için desteklenmez. Yoksayılacaktır.";
+"modes.notice.deepgramNova3AutoDetect" = "Deepgram Nova-3 ile otomatik algılama dili kullanırken özel kelime hazinesi kullanılamaz. Kelime artırımını etkinleştirmek için belirli bir dil ayarlayın (örneğin, İngilizce, İspanyolca).";
+"modes.language.title" = "Dil";
+"modes.language.englishOnly" = "Yalnızca İngilizce (optimize model)";
+"modes.postProcessing.sectionTitle" = "Son İşleme";
+"modes.postProcessing.modeLabel" = "Mod";
+"modes.postProcessing.modeTitle" = "Son İşleme";
+"modes.postProcessing.modeDescription" = "Transkripsiyon'ların nasıl işleneceğini seçin:\n\n• Kapalı: Son işleme yok, ham transkripsiyon\n• Bulut (Yapay Zekâ): Yapay zekâ destekli geliştirme (İnternet gerekir)\n• Yerel: llama.cpp aracılığıyla cihazda çalışan LLM kullanır\n\nBulut işlemesi metni seçili yapay zekâ sağlayıcısına gönderir. Yerel mod makinede kalır ancak yerel sunucunun çalıştırılmasını gerektirir.";
+"modes.postProcessing.providerLabel" = "Sağlayıcı";
+"modes.postProcessing.apiKeyMissing" = "%@ API anahtarı yapılandırılmamıştır. Son işlemeyi etkinleştirmek için bunu Ayarlar'da ekleyin.";
+"modes.postProcessing.configure" = "Ayarlar'da Yapılandır";
+"modes.postProcessing.modelRecommendation" = "Hız ve kalite açısından en iyi denge için GPT-4.1 Nano kullanmanızı tavsiye ederiz.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Yerel son işleme indirilmiş bir yerel model gerektirir.";
+"modes.postProcessing.download" = "Ayarlar'da İndir";
+"modes.postProcessing.localInfo" = "Tamamen cihazda çalışır. Bu mod etkin olduğunda HyperWhisper, paket llama.cpp sunucusunu otomatik olarak başlatır.";
+"modes.postProcessing.userSystemPrompt.title" = "Kalıcı Talimatlar";
+"modes.postProcessing.userSystemPrompt.placeholder" = "ör., E-postaları her zaman 'Saygılarımla, Ray' ile bitir";
+"modes.postProcessing.userSystemPrompt.clear" = "Temizle";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Kalıcı Talimatlar";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Seçilen ön ayarın üzerine her zaman uygulanan talimatlar ekleyin.";
+"modes.toggle.punctuation.title" = "Noktalama ekle";
+"modes.toggle.punctuation.subtitle" = "Otomatik olarak nokta ve virgül ekle";
+"modes.toggle.capitalization.title" = "Cümleleri Büyüt";
+"modes.toggle.capitalization.subtitle" = "Cümlelerin ilk harfini büyüt";
+"modes.toggle.profanity.title" = "Küfürü Filtrele";
+"modes.toggle.profanity.subtitle" = "Uygunsuz kelimeleri değiştir";
+"modes.toggle.removeTrailingPeriod.title" = "Sondaki noktayı kaldır";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Çevirilerden son noktayı kaldırır";
+"modes.postProcessing.privacyNotice" = "Transkripsiniz SON İŞLEME için YALNIZCA %@ için gönderilir. Başka hiçbir yere değil.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Dil Modeli";
+"modes.englishSpelling.title" = "İngilizce Yazım";
+"modes.englishSpelling.american" = "Amerikan";
+"modes.englishSpelling.british" = "İngiliz";
+"modes.englishSpelling.australian" = "Avustralya";
+"modes.englishSpelling.canadian" = "Kanada";
+"modes.englishSpelling.american.description" = "Amerikan İngilizcesi yazımını kullanın (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "İngiliz İngilizcesi yazımını kullanın (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Avustralya İngilizcesi yazımını kullanın (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Kanada İngilizcesi yazımını kullanın (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Özel Talimatlar";
+"modes.gemini.customPrompt.helper" = "İsteğe bağlı. Örn. \"Madde işaretleri olarak biçimlendir\", \"Resmi dil kullan\". Dil ve kelime dağarcığı ayarlarınız otomatik olarak dahil edilir.";
+"modes.cloud.apiKeyMissing" = "%@ API anahtarı yapılandırılmamıştır. Bulut transkripsiyon'u kullanmak için bunu Ayarlar'da ekleyin.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Doğruluk";
+"modes.cloudAccuracy.groqWhisper.label" = "Orta (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Orta (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Yüksek (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Hızlı ve uygun fiyatlı. Hızlı transkripsiyon için en iyisi.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Dengeli hız ve doğruluk. Çoğu kullanıcı için önerilir.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
+"modes.cloudAccuracy.grokStt.label" = "En Yüksek (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
+
+"modes.create.title" = "Yeni Mod Oluştur";
+"modes.create.subtitle" = "Özel transkripsiyon profilini yapılandır";
+"modes.section.basic" = "Temel Ayarlar";
+"modes.section.transcription" = "Transkripsiyon Modeli";
+"modes.section.punctuation" = "Noktalama";
+"modes.toggle.screenText.title" = "Ekran Metni";
+"modes.toggle.screenText.subtitle" = "Adlar ve terimlerin doğruluğunu artırmak için görünür ekran metni yakala. Ekran Kaydı izni gerekir.";
+"modes.screenText.openSettings" = "Sistem Ayarlarını Aç";
+"modes.screenText.permissionGranted" = "Ekran Kaydı izni verildi";
+"modes.screenText.permissionRequired" = "Ekran Kaydı izni gerekir";
+"modes.field.name" = "Ad";
+"modes.field.name.placeholder" = "örn., Toplantı Notları";
+"modes.field.name.editPlaceholder" = "Mod adı";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Sağlayıcı";
+"modes.provider.local" = "Yerel";
+"modes.provider.cloud" = "Bulut";
+"modes.notice.noLocalModels.title" = "Yerel modeller yüklenmedi";
+"modes.notice.noLocalModels.subtitle" = "Önce Ayarlar'da bir model yükleyin";
+"modes.model.pricing" = "Fiyatlandırma: $%.6f / dakika (saniye başına faturalandırılır)";
+"modes.button.create" = "Mod Oluştur";
+"modes.button.delete" = "Modu Sil";
+"modes.button.save" = "Değişiklikleri Kaydet";
+"modes.edit.title" = "Modu Düzenle";
+"modes.edit.subtitle" = "Transkripsiyon profili ayarlarını değiştir";
+"mode.editor.cloudModel.previewHint" = "Önizleme";
+"mode.editor.cloudModel.noVocabularyHint" = "Özel sözcük dağarcığı yok";
+"mode.editor.cloudDomain.medical" = "Tıbbi";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode eklentisi";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Yeniden denenemez: Ses dosyası bulunamadı";
+"transcripts.error.invalidId" = "Geçersiz transkripsiyon Kimliği";
+"transcripts.delete.single.title" = "Kaydı Sil?";
+"transcripts.delete.single.message" = "Bu, kaydı ve ses dosyasını kalıcı olarak siler.";
+"transcripts.delete.multiple.title" = "%d Kaydı Sil?";
+"transcripts.delete.multiple.message" = "Bu, %d kaydı ve ses dosyalarını kalıcı olarak siler.\n\nBu işlem geri alınamaz.";
+"transcripts.delete.multiple.confirm" = "Tümünü Sil";
+"transcripts.retry.error.title" = "Yeniden Deneme Başarısız";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Kayıtlar Klasörünü Seç";
+"storage.folder.choose.message" = "Yeni kayıtları kaydetmek için bir klasör seçin.";
+"storage.folder.choose.prompt" = "Seç";
+"storage.recovery.title" = "Kayıtlar klasörüne erişilemiyor";
+"storage.recovery.message" = "HyperWhisper, yapılandırılmış kayıtlar klasörüne erişenemedi. Devam etmek için farklı bir klasör seçebilirsiniz.";
+"storage.recovery.choose" = "Klasör Seç…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Daha fazla bilgi edinin";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkripsiyon Tamamlandı";
+"recording.status.retrying" = "Transkripsiyon Yeniden Deneniyor…";
+"recording.status.postprocessing" = "Yapay zekâ ile işleniyor…";
+"recording.status.transcribing" = "Transkribe ediliyor…";
+"recording.success.pasted" = "Yapıştırıldı!";
+"recording.loading.retrying" = "Yeniden deneniyor…";
+"recording.loading.postprocessing" = "Yapay zekâ ile işleniyor…";
+"recording.loading.starting" = "Akış başlatılıyor…";
+"recording.loading.transcribing" = "Transkribe ediliyor…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Bağlanıyor...";
+"streaming.status.ready" = "Hazır - Konuşmaya Başla";
+"streaming.status.warming" = "Isınıyor...";
+"modes.badge.recommended" = "Önerilen";
+"modes.source.label" = "Kaynak";
+"modes.source.onDevice" = "Cihazda";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API Anahtarı";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Bu model kullanımda olduğu için silinemez:
+
+%@
+
+Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
+"models.postProcessing.gemma4.12b.description" = "Orta boyutlu yoğun model. 16 GB Mac'lerde kalite ve hız dengesini sağlar.";
+"recording.success.savedToNotes" = "Notlara Kaydedildi!";
+"modes.provider.needsKey" = "%@ çalışan bir anahtar gerektiriyor.";
+"modes.provider.manageInLibrary" = "Kütüphanede Yönet →";
+"streaming.loading.warming" = "Yerel model ısınıyor...";
+"streaming.status.listening" = "Dinleniyor...";
+"streaming.status.streaming" = "Akış...";
+"streaming.status.disconnecting" = "Durduruluyor...";
+"streaming.loading.connecting" = "Sunucuya bağlanıyor...";
+"streaming.loading.ready" = "Ses başlatılıyor...";
+"streaming.loading.streaming" = "Konuşma bekleniyor...";
+"streaming.state.reconnecting" = "Yeniden bağlanıyor...";
+"recording.stop.help" = "Kaydı Durdur (%@)";
+"recording.postprocessing.unavailable" = "Son işleme kullanılamaz";
+"recording.postprocessing.missing.single" = "%@ anahtarı eksik – son işleme olmadan kaydediliyor";
+"recording.postprocessing.missing.multiple" = "API anahtarları eksik – son işleme olmadan kaydediliyor";
+"recording.postprocessing.addKey" = "Anahtar Ekle";
+"recording.offline.banner" = "İnternet bağlantısı yok. Bulut transkripsiyon çevrimiçi oluncaya kadar başarısız olacaktır.";
+"recording.offline.title" = "İnternet bağlantısı yok";
+"recording.offline.subtitle" = "Devam etmek için yeniden bağlanın veya çevrimdışı moda geçin.";
+"recording.error.network" = "İnternet bağlantınızı kontrol edin ve tekrar deneyin.";
+"recording.error.timeout" = "İstek zaman aşımına uğradı. Bağlantı hızınızı kontrol edin ve yeniden deneyin.";
+"recording.error.rateLimit" = "Çok fazla istek yaptınız. Bir an bekleyin ve yeniden deneyin.";
+"recording.error.credits" = "Yetersiz krediler. Ayarlar'dan daha fazla kredi ekleyin.";
+"recording.error.apiKey" = "Ayarlar'da %@ API anahtarınızı ekleyin.";
+"recording.error.server" = "Transkripsiyon hizmeti sorun yaşıyor. Lütfen bir an sonra tekrar deneyin.";
+"recording.retry" = "Yeniden Dene";
+"recording.retry.inProgress" = "Yeniden deneniyor…";
+"recording.retry.count" = "Yeniden Dene (%d)";
+"recording.retry.failed.missing" = "Yeniden deneme başarısız: Ses dosyası bulunamadı";
+"recording.retry.failed.error" = "Yeniden deneme başarısız: %@";
+"recording.retry.pending" = "Yeniden denemeye hazır – transkribe etmek için tıklayın";
+"recording.provider.unknown" = "bulut sağlayıcı";
+"recording.cancel.dialog.title" = "Kaydı İptal Et?";
+"recording.cancel.dialog.message" = "Bu, mevcut kaydı iptal edecektir.";
+"recording.cancel.dialog.confirm" = "Kaydı İptal Et";
+"recording.cancel.dialog.resume" = "Devam Et";
+"recording.error.overlay.title" = "Ağ bağlantısı hatası";
+"recording.error.overlay.message" = "Aşağıda 'Yeniden Dene' tuşuna basın veya çevrimdışı moda geçerek devam edin.";
+"recording.mode.default" = "Varsayılan";
+"recording.dialog.window.title" = "Kayıt İletişim Kutusu";
+"recording.button.start" = "Kaydı Başlat";
+"recording.button.stop" = "Kaydı Durdur";
+"recording.button.disable.checking" = "%@ durumu denetleniyor...";
+"recording.button.disable.invalid" = "Geçersiz %@ API anahtarı. Bunu Ayarlar'da güncelleyin.";
+"recording.button.disable.unreachable" = "%@ ulaşılamaz. Bağlantınızı kontrol edin ve tekrar deneyin.";
+"recording.button.disable.missing" = "Ayarlar'da %@ API anahtarınızı ekleyin.";
+"recording.button.disable.install.local" = "Yerel son işlemeyi kullanmadan önce Ayarlar → Modeller'den yerel bir model indirin.";
+"modes.postProcessing.accuracy" = "Doğruluk";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Günlük %@-dakikalık transkripsiyon sınırınızı ulaştınız. Sınırsız transkripsiyon için HyperWhisper Pro'ya yükseltin.";
+"recording.error.documentsAccess" = "Kayıtlar klasörüne erişilemiyor. Ayarlar → Depolama'da farklı bir konum seçin.";
+"recording.error.modeMissing" = "Seçilen mod bulunamadı. Lütfen geçerli bir mod seçin.";
+"recording.warning.oversizedWAV" = "Ses sıkıştırması başarısız oldu. Sıkıştırılmamış %@ MB dosyası kullanılıyor - transkripsiyon daha yavaş olabilir.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Varsayılan Mikrofon";
+"audio.error.permissionDenied" = "Mikrofon erişimi reddedildi. Lütfen Sistem Ayarları'nda etkinleştirin.";
+"audio.error.fileWatcher.open" = "Ses dosyasını izlemek için bir dosya tanımlayıcısı açılamadı.";
+"audio.error.fileWatcher.timeout" = "Ses dosyasının yazılmayı beklerken işlem zaman aşımına uğradı.";
+"audio.error.fileWatcher.creation" = "Ses dosyası zamanında oluşturulmadı.";
+"audio.error.microphonePermission" = "Mikrofon izni verilmedi";
+"audio.error.microphoneInUse" = "HyperWhisper, başka bir uygulama şu anda kullanıyor olduğu için mikrofonuna erişemez. Diğer uygulamayı duraklatın veya giriş değiştirin, ardından tekrar deneyin.";
+"audio.error.createEngine" = "Ses motoru oluşturulamadı";
+"audio.error.noInput" = "Ses girdisi yok";
+"audio.error.createFile" = "Ses dosyası oluşturulamadı";
+"audio.error.managerUnavailable" = "Transkripsiyon yöneticisi yapılandırılmadı";
+"audio.error.invalidHardwareFormat" = "Geçersiz donanım ses biçimi algılandı. Lütfen ses cihazınızı kontrol edin.";
+"audio.error.createFormat" = "Kayıt için ses biçimi oluşturulamadı";
+"audio.error.createConverter" = "Ses biçimi dönüştürücüsü oluşturulamadı";
+"audio.error.exportM4A" = "Sesi m4a biçimine dışa aktarma başarısız";
+"audio.error.readFile" = "Ses dosyası kaydedildikten sonra okunamadı.";
+"audio.error.recordingTooShort" = "Kayıt çok kısa. Sesi yakalamak için düğmeyi daha uzun basın.";
+"audio.error.noAudioTrack" = "Bu video dosyasında ses parçası yok.";
+"audio.alert.accessibility.title" = "Erişilebilirlik Erişimi Etkinleştir";
+"audio.alert.accessibility.message" = "HyperWhisper, transkribe edilen metni diğer uygulamalara yapıştırmak için Erişilebilirlik izni gerektirir.\n\n\"Ayarları Aç\" tuşuna tıklayın, HyperWhisper'ın yanındaki geçişi tuşlayın, ardından tekrar deneyin.";
+"audio.alert.accessibility.open" = "Ayarları Aç";
+"audio.alert.pasteFailed.title" = "Otomatik yapıştırma başarısız";
+"audio.alert.pasteFailed.message" = "Transkribe edilen metin panonuza kopyalanmıştır.\n\nEl ile yapıştırmak için ⌘V tuşuna basın veya menüden Düzenle → Yapıştır'ı seçin.";
+"accessibility.permission.location.debug" = "Xcode Hata Ayıklama Oluştur";
+"accessibility.permission.location.installed" = "Yüklü Uygulama";
+"accessibility.permission.info" = "HyperWhisper, transkribe edilen metni diğer uygulamalara yapıştırmak için Erişilebilirlik izni gerektirir.\n\nMevcut uygulama konumu: %@\n\nSistem Ayarları'nda:\n1. Listede 'hyperwhisper' veya 'HyperWhisper' arayın\n2. Farklı konumlardan çalıştırdıysanız birden fazla giriş görebilirsiniz\n3. Şu eşleşen giriş için onay kutusunu etkinleştirin:\n   %@";
+"accessibility.permission.xcodeNote" = "Not: Xcode'dan çalıştırma, yüklü uygulamadan farklı izin gerektirir.";
+"accessibility.error.paste.commandFailed" = "Yapıştırma komutu başarısız";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transkripsiyon sağlayıcısı kullanılamaz. Ayarlarınızı kontrol edin ve tekrar deneyin.";
+"transcription.error.providerNotAvailable.provider" = "%@ kullanılamaz. Ayarlarınızı kontrol edin ve tekrar deneyin.";
+"transcription.error.providerNotAvailable.detail" = "%@ kullanılamaz: %@";
+"transcription.error.modelNotDownloaded" = "Lütfen önce bir model indirin";
+"transcription.error.modelProtected" = "Bu model silinemez";
+"transcription.error.audioFileNotFound" = "Ses dosyası bulunamadı";
+"transcription.error.network.detail" = "Ağ hatası: %@";
+"transcription.error.network.generic" = "Ağ bağlantısı hatası";
+"transcription.error.apiKeyMissing.provider" = "Transkripsiyon için %@ API anahtarı gereklidir";
+"transcription.error.apiKeyMissing.generic" = "Transkripsiyon için bulut sağlayıcı API anahtarı gereklidir";
+"transcription.error.maxRetriesExceeded" = "Maksimum yeniden deneme girişimleri aşıldı";
+"transcription.error.unauthorized.provider" = "Yetkisiz: Geçersiz %@ API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
+"transcription.error.unauthorized.generic" = "Yetkisiz: Geçersiz API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
+"transcription.error.invalidRequest" = "Geçersiz istek: ses dosyasını veya ayarları kontrol edin";
+"transcription.error.streamingInterrupted" = "Akış kesildi; kısmi metin gösteriliyor";
+"transcription.error.busy" = "Transkripsiyon hizmeti şu anda meşgul";
+"transcription.error.invalidAudioFormat" = "Desteklenmeyen ses biçimi";
+"transcription.error.audioConversionFailed" = "Sesi gerekli biçime dönüştürme başarısız";
+"transcription.error.audioFileTooLarge" = "Dosya çok büyük: %@, %@ için %@ sınırını aşıyor";
+"transcription.error.serverError" = "Sunucu hatası (%d): %@";
+"transcription.error.rateLimited.seconds" = "Hız sınırlandırıldı: Çok fazla istek. Lütfen %d saniye bekleyin ve tekrar deneyin.";
+"transcription.error.rateLimited.generic" = "Hız sınırlandırıldı: Çok fazla istek. Lütfen bir an bekleyin ve tekrar deneyin.";
+"transcription.error.insufficientCredits" = "Yetersiz krediler. Ayarlar'dan daha fazla kredi ekleyin.";
+"transcription.error.quotaExceeded" = "%@ kotası aşıldı";
+"transcription.error.quotaExceeded.detail" = "%@ kotası aşıldı: %@";
+"transcription.error.timeout" = "%@ sırasında istek zaman aşımına uğradı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Transkripsiyon sağlayıcınızın Ayarlar'da düzgün şekilde yapılandırıldığından emin olun.";
+"transcription.guidance.providerNotAvailable.provider" = "%@'nin düzgün şekilde yapılandırıldığından emin olun. Yerel modeller için önce bir model indirin. Bulut sağlayıcıları için API anahtarınızı doğrulayın.";
+"transcription.guidance.apiKeyMissing.provider" = "Ayarlar'da %@ API anahtarınızı ekleyin";
+"transcription.guidance.apiKeyMissing.generic" = "Ayarlar'da bulut sağlayıcı API anahtarınızı ekleyin";
+"transcription.guidance.modelNotDownloaded" = "Modeller bölümünde bir model indirin";
+"transcription.guidance.modelProtected" = "Bu model şu anda kullanılıyor";
+"transcription.guidance.audioFileNotFound" = "Ses dosyası silindi veya taşındı";
+"transcription.guidance.networkError" = "İnternet bağlantınızı kontrol edin ve tekrar deneyin";
+"transcription.guidance.unauthorized.provider" = "Ayarlar'da %@ API anahtarınızı veya hesap izinlerinizi kontrol edin";
+"transcription.guidance.unauthorized.generic" = "Ayarlar'da API anahtarınızı veya hesap izinlerinizi kontrol edin";
+"transcription.guidance.invalidRequest" = "Ses dosyasını ve mod ayarlarını doğrulayın ve tekrar deneyin";
+"transcription.guidance.invalidAudioFormat" = "Ses dosyasını MP3 veya WAV biçimine dönüştürmeyi deneyin";
+"transcription.guidance.audioConversionFailed" = "Ses dosyası bozulmuş olabilir. Farklı bir dosya deneyin";
+"transcription.guidance.audioFileTooLarge" = "Daha kısa ses dosyası kullanın veya daha küçük parçalara bölün";
+"transcription.guidance.serverError" = "Transkripsiyon hizmeti sorun yaşıyor. Lütfen daha sonra tekrar deneyin.";
+"transcription.guidance.rateLimited" = "Çok fazla istek yaptınız. Tekrar denemeden önce bir an bekleyin.";
+"transcription.guidance.insufficientCredits" = "Transkripsiyon yapmaya devam etmek için Ayarlar'da daha fazla kredi satın alın";
+"transcription.guidance.quotaExceeded" = "%@ hesabınıza kredi ekleyin veya fatura bilgilerinizi güncelleyin";
+"transcription.guidance.timeout" = "İstek çok uzun sürdü. İnternet hızınızı kontrol edin ve tekrar deneyin.";
+"transcription.error.noSpeechDetected" = "Kayıtta konuşma algılanmadı.";
+"transcription.guidance.noSpeechDetected" = "İpuçları:\n• Mikrofonun içine açıkça konuş\n• Konuşmadan önce tuşu daha uzun basın\n• Mikrofonunuzun çalıştığını kontrol edin\n• Doğru giriş cihazının seçildiğinden emin olun";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Yetersiz krediler. Ayarlar'dan daha fazla kredi ekleyin.";
+"hyperwhisperCloud.error.network" = "Ağ hatası: %@";
+"hyperwhisperCloud.error.invalidResponse" = "HyperWhisper Cloud'dan geçersiz yanıt";
+"hyperwhisperCloud.error.server" = "Sunucu hatası: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server yürütülebilir dosyası bulunamadı.";
+"llama.runtime.error.missingDependencies" = "Çalışma süresi eksik bağımlılıkları: %@";
+"llama.runtime.error.copyFailed" = "Çalışma süresi kopyalanamadı: %@";
+"llama.runtime.error.copy.executable" = "Yürütülebilir dosya kopyalanamadı: %@";
+"llama.runtime.missing" = "Yerel çalışma süresi bu yüklemede eksik. Yerel son işlemeyi geri yüklemek için HyperWhisper'ı yeniden yükleyin.";
+"llama.runtime.genericError" = "Yerel çalışma süresi hatası: %@";
+"runtime.error.llama.missingLib" = "Yerel çalışma süresi, libmtmd.dylib eksikliğinden sonra sonlandırıldı";
+"runtime.error.llama.reportedMissingLib" = "Yerel çalışma süresi, libmtmd.dylib'in eksik olduğunu bildirdi";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Cloudflare Workers'da çalışan yerleşik yapay zekâ son işlemesi. Yapılandırma gerekli değildir.";
+"models.postProcessing.gpt4.1.nano.description" = "Orta doğruluk (%92), çok hızlı hız (<1s). Hızlı taslaklar ve resmi olmayan notlar için uygun.";
+"models.postProcessing.gpt4.1.mini.description" = "Yüksek doğruluk (%94), hızlı hız (~1-2s). Günlük iş iletişimi ve standart belgeler için iyi.";
+"models.postProcessing.gpt4.1.description" = "Çok yüksek doğruluk (%96), orta hız (~3-4s). Karmaşık biçimlendirme ve teknik içerik için harika.";
+"models.postProcessing.gpt5.nano.description" = "İyi doğruluk (%95), en hızlı hız (~1s). Hızlı notlar, iletiler ve rahat transkripsiyon'lar için mükemmel.";
+"models.postProcessing.gpt5.mini.description" = "Mükemmel doğruluk (%97), orta hız (~2-3s). Profesyonel e-postalar, raporlar ve toplantı notları için ideal denge.";
+"models.postProcessing.gpt5.description" = "En yüksek doğruluk (%99+), en yavaş hız (~3-5s). Kesinliğin çok önemli olduğu kritik belgeler, yasal, tıbbi transkripsiyon'lar için en iyi.";
+"models.postProcessing.gpt5.1.description" = "Son teknoloji doğruluğu (%98+), orta hız (~2-3s). Karmaşık görevler, yasal belgeler ve superior akıl yürütmesiyle teknik içerik için mükemmel.";
+"models.postProcessing.gpt5.2.description" = "Geliştirilmiş akıl yürütme ve daha hızlı çıkarımla en son GPT-5 serisi. Yüksek kaliteli metin işlemesi için en iyi genel seçim.";
+"models.postProcessing.claude4.5.haiku.description" = "İyileştirilmiş akıl yürütme ile en son Claude Haiku, yanıt sürelerini çevik tutuyor.";
+"models.postProcessing.claude4.sonnet.description" = "Dengeli performans. Profesyonel belgeler için superior akıl yürütme ve biçimlendirme yetenekleri.";
+"models.postProcessing.gemini3.flash.description" = "Flash hızında Pro düzeyi zeka ile Gemini 3 serisi. Dinamik düşünme yetenekleri ile advanced akıl yürütme.";
+"models.postProcessing.gemini2.5.flash.description" = "Fiyat-performans açısından en iyisi. Günlük kullanım için iyi doğruluk ile hız için optimize edilmiştir.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Maliyet verimliliği ve yüksek verim için optimize edilmiş ultra hızlı model.";
+"models.postProcessing.groq.llama33.70b.description" = "Mükemmel kalite ile çok yönlü 70B modeli. ~280 token/sn. Önerilir.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultra hızlı 8B modeli. Anında metin işlemesi için ~560 token/sn.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI'nin açık kaynaklı 120B modeli. Yüksek kaliteli işleme için ~500 token/sn.";
+"models.postProcessing.groq.gptoss.20b.description" = "Hafif 20B modeli. En hızlı işleme için ~1000 token/sn.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "Cerebras'ta GPT OSS 120B. ~3000 token/sn'de ultra hızlı 120B modeli. Önerilir.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Cerebras'ta Llama 3.1 8B. ~2200 token/sn'de hafif ve ultra hızlı.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Cerebras'ta Qwen 3 235B. ~1400 token/sn'de büyük 235B MoE modeli. Yalnızca ön izleme.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Cerebras'ta Z.ai GLM 4.7. ~1000 token/sn'de 355B parametreli modeli. Yalnızca ön izleme.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Yardım Merkezi";
+"settings.resources.contact.support" = "Desteğe Başvur";
+"settings.resources.feedback" = "Geri Bildirim ve Öneriler";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Yedekleme";
+"settings.backup.export.title" = "Ayarları Dışa Aktar";
+"settings.backup.export.subtitle" = "Ayarları, modları ve kelime hazinesini bir dosyaya kaydet";
+"settings.backup.export.button" = "Dışa Aktar...";
+"settings.backup.export.panel.title" = "Ayarları Dışa Aktar";
+"settings.backup.export.panel.label" = "Yedekleme Dosyası:";
+"settings.backup.export.success" = "Ayarlar başarıyla dışa aktarıldı";
+"settings.backup.export.error.create" = "Yedekleme verileri oluşturulamadı";
+"settings.backup.export.error.encode" = "Yedekleme verileri kodlanamadı";
+"settings.backup.export.error.write" = "Yedekleme dosyası yazılamadı";
+"settings.backup.includeAPIKeys.title" = "API Anahtarlarını Ekle";
+"settings.backup.includeAPIKeys.subtitle" = "API anahtarlarını yedekleme dosyasında saklayın (paylaşım için önerilmez)";
+"settings.backup.includeLicense.title" = "Lisans Anahtarını Ekle";
+"settings.backup.import.title" = "Ayarları İçe Aktar";
+"settings.backup.import.subtitle" = "Ayarları yedekleme dosyasından geri yükle";
+"settings.backup.import.button" = "İçe Aktar...";
+"settings.backup.import.panel.title" = "Ayarları İçe Aktar";
+"settings.backup.import.success" = "İçe aktarma tamamlandı: %d modlar, %d kelime hazinesi öğeleri içe aktarıldı";
+"settings.backup.import.error.read" = "Yedekleme dosyası okunamadı";
+"settings.backup.import.error.decode" = "Geçersiz yedekleme dosyası biçimi";
+"settings.backup.import.error.decode.keyNotFound" = "Zorunlu alan eksik: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Alan için yanlış tür: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Alan için değer eksik: %@";
+"settings.backup.import.error.decode.corrupted" = "Bozuk veri: %@";
+"settings.backup.import.error.decode.corruptedField" = "Alan için bozuk değer: %@";
+"settings.backup.import.error.version" = "Yedekleme dosyası daha yeni bir sürümdendir";
+"settings.backup.import.error.unknown" = "İçe aktarma başarısız";
+"settings.backup.import.confirm.title" = "Ayarları İçe Aktar?";
+"settings.backup.import.confirm.message" = "Bu, mevcut modları ve kelime hazinesini yedekleme dosyasından olanlarla değiştirecektir. Ayarlar da güncellenecektir.";
+"settings.backup.import.confirm.button" = "İçe Aktar";
+"settings.backup.conflict.skip" = "Mevcut olanları atla";
+"settings.backup.conflict.replace" = "Mevcut olanları değiştir";
+"settings.backup.conflict.keepBoth" = "İkisini de tut";
+"settings.backup.security.warning" = "Uyarı: Dışa aktarılan dosya hassas verileri içerecektir. Güvenli bir şekilde saklayın ve paylaşmayın.";
+"settings.backup.info.note" = "Yedeklemeler ayarları, modları ve kelime hazinesini içerir. Kayıtlar ve transkriptler dahil değildir.";
+"settings.backup.result.success.title" = "Başarı";
+"settings.backup.result.error.title" = "Hata";
+"settings.backup.export.choose.subtitle" = "Yedek dosyasına nelerin dahil edileceğini seçin";
+"settings.backup.export.section.settings" = "Ayarlar";
+"settings.backup.export.section.modes" = "Modlar";
+"settings.backup.export.section.vocabulary" = "Kelime Hazinesi";
+"settings.backup.import.importing" = "%@ içe aktarılıyor";
+"settings.backup.import.contains" = "Bu dosya şunları içeriyor: %@";
+"settings.backup.import.contains.vocabulary" = "Kelime Hazinesi (%d kelime)";
+"settings.backup.import.contains.none" = "hiçbir şey";
+"settings.backup.import.section.settings" = "Ayarlar";
+"settings.backup.import.section.modes" = "Modlar";
+"settings.backup.import.section.vocabulary" = "Kelime Hazinesi";
+"settings.backup.import.section.apiKeys" = "API anahtarları";
+"settings.backup.import.section.license" = "Lisans anahtarı";
+"settings.backup.import.section.absent" = "— dosyada yok";
+"settings.backup.import.premerge.summary" = "Kelime Hazinesi: %d yeni ekle, %d zaten mevcut";
+"settings.backup.import.premerge.conflictLabel" = "Zaten mevcut olan kelimeler için:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Ses Dosyasını Seç";
+"transcribe.file.error.title" = "Transkripsiyon Hatası";
+"transcribe.file.error.size.title" = "Dosya Çok Büyük";
+"transcribe.file.error.size.message" = "Seçilen dosya (%@), %@ için %@ sınırını aşıyor.";
+"transcribe.file.error.format.title" = "Desteklenmeyen Biçim";
+"transcribe.file.error.format.message" = ".%@ dosyaları %@ tarafından desteklenmez. Desteklenen biçimler: %@";
+"transcribe.file.error.read" = "Seçilen dosya okunamaz.";
+"transcribe.file.error.copy" = "Dosya kayıtlar klasörüne kopyalanamadı.";
+"transcribe.file.error.video.title" = "Videoda Ses Yok";
+"transcribe.file.error.video.noAudio" = "Bu video dosyasında ses parçası yok. Lütfen ses içeren bir video veya ses dosyası seçin.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Hazırlanıyor...";
+"file.transcription.transcribing" = "Transkribe ediliyor...";
+"file.transcription.finishing" = "Bitiriliyor...";
+"file.transcription.cancel" = "İptal";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Otomatik silmeyi etkinleştir";
+"history.autoDelete.enable.subtitle" = "Belirtilen süreden daha eski kayıtlar silinecektir";
+"history.autoDelete.duration.prefix" = "Sonra";
+"history.autoDelete.unit.minutes" = "Dakikalar";
+"history.autoDelete.unit.hours" = "Saatler";
+"history.autoDelete.unit.days" = "Günler";
+"history.autoDelete.unit.minutes.plural" = "dakika";
+"history.autoDelete.unit.hours.plural" = "saat";
+"history.autoDelete.unit.days.plural" = "gün";
+"history.autoDelete.status.disabled" = "Otomatik silme devre dışı";
+"history.autoDelete.status.enabled" = "%d %@'dan daha eski kayıtları sil";
+"history.autoDelete.cleanup.noItems" = "Silinecek kayıt yok";
+"history.autoDelete.cleanup.summary" = "%d kayıt silindi ve %@ boşa çıkarıldı";

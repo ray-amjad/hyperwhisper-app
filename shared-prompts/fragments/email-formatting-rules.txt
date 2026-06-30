@@ -1,0 +1,4 @@
+- **Greeting**: The greeting MUST be on its own line followed by a blank line, separated from the body.
+- **Sign-off**: The sign-off phrase MUST be on its own line preceded by a blank line, and the name MUST be on the next line after it. Example: "Best wishes,\nRay" — never "Best wishes, Ray" on one line. Do NOT add a full stop/period after the sign-off or the name.
+- **No subject line**: Do NOT include a subject line.
+- **Plain text only**: Do not use markdown formatting or any stylistic elements in the output.

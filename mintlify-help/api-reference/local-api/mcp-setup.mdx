@@ -1,0 +1,90 @@
+---
+title: MCP Setup
+description: Wire HyperWhisper's local API into Cursor, Claude Desktop, or Claude Code as an MCP server so any agent can transcribe and post-process through the running app.
+---
+
+The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) package is a Model Context Protocol bridge that wraps the [local API](./overview). Configure it once and any MCP-capable agent — Cursor, Claude Desktop, Claude Code, Zed, custom code — can call HyperWhisper as a tool.
+
+## Prerequisites
+
+1. HyperWhisper is installed and you have opened it at least once.
+2. **Settings → Local API** is turned **on**. This is what writes the discovery file the bridge reads.
+3. Node.js 18 or newer is on your `PATH`. `node --version` should print a version number — if it does not, install Node.js from [nodejs.org](https://nodejs.org). The `npx` command ships with Node.
+
+You do not need to install the bridge globally. `npx -y @hyperwhisper/mcp` fetches and runs it on demand, and every MCP client below uses that command directly.
+
+## Tools the bridge exposes
+
+| Tool | What the agent gets |
+|---|---|
+| `health` | Confirms HyperWhisper is running. No auth required. |
+| `list_models` | Catalog of voice and post-processing models. |
+| `list_modes` | Saved transcription Modes. |
+| `transcribe` | Transcribes an absolute path to an audio file. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`, `prompt`) or a free-form prompt. |
+| `search_recordings` | Substring search across past transcripts. |
+| `get_recording` | Single transcript row by ID. |
+
+## Cursor
+
+Edit `~/.cursor/mcp.json` and add the `hyperwhisper` entry:
+
+```json
+{
+  "mcpServers": {
+    "hyperwhisper": {
+      "command": "npx",
+      "args": ["-y", "@hyperwhisper/mcp"]
+    }
+  }
+}
+```
+
+Restart Cursor. The server should appear under **Settings → MCP**.
+
+## Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "hyperwhisper": {
+      "command": "npx",
+      "args": ["-y", "@hyperwhisper/mcp"]
+    }
+  }
+}
+```
+
+Quit and reopen Claude Desktop. The hammer icon in the composer should list `hyperwhisper`.
+
+## Claude Code
+
+Run the CLI helper:
+
+```bash
+claude mcp add hyperwhisper -- npx -y @hyperwhisper/mcp
+```
+
+In a new session, `/mcp` lists `hyperwhisper` with its tools.
+
+## Verify
+
+Open a fresh agent session and ask:
+
+```text
+Use hyperwhisper to transcribe /Users/me/Desktop/test.wav
+```
+
+The agent should call the `transcribe` tool and return the text inline. If you do not have a sample, `Ask hyperwhisper to run a health check` is enough — the agent should call `health` and report the app version.
+
+## Troubleshooting
+
+**`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper, then toggle **Settings → Local API** on. Re-run the agent prompt.
+
+**`UNAUTHORIZED`** — the bearer token in the discovery file no longer matches what the server expects. This usually happens after **Regenerate token** in Settings. The bridge re-reads the file on every request, so the next agent call should succeed.
+
+**Connection refused** — the port in the discovery file is stale (the app was force-killed before it could clean up). Toggle the **Local API** switch off and back on to write a fresh `local-api.json`.
+
+**`npx` hangs on first run** — `npx -y` downloads the package the first time. Subsequent runs are instant. If your network blocks the npm registry, install once with `npm i -g @hyperwhisper/mcp` and replace `npx -y @hyperwhisper/mcp` with `hyperwhisper-mcp` in the config above.

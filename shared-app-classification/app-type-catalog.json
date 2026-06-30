@@ -1,0 +1,417 @@
+{
+  "version": 1,
+  "types": {
+    "email": {
+      "macBundleIds": [
+        "com.apple.mail",
+        "com.microsoft.Outlook",
+        "com.google.Gmail",
+        "com.superhuman.electron",
+        "com.mimestream.Mimestream",
+        "org.mozilla.thunderbird",
+        "it.bloop.airmail2",
+        "com.postbox-inc.postbox",
+        "com.emclient.mail.client",
+        "com.readdle.SparkDesktop",
+        "com.readdle.smartemail",
+        "com.readdle.smartemail-Mac",
+        "com.mailspring.mailspring",
+        "com.edisonmail.edisonmail",
+        "com.frontapp.Front",
+        "com.hey.app.desktop",
+        "io.canarymail.mac"
+      ],
+      "windowsProcesses": [
+        "OUTLOOK",
+        "olk",
+        "thunderbird",
+        "mailspring",
+        "emclient",
+        "superhuman",
+        "SparkDesktop",
+        "front",
+        "canarymail",
+        "postbox",
+        "hiri",
+        "WunderMail",
+        "Mailbird",
+        "eM Client"
+      ],
+      "hosts": [
+        "mail.google.com",
+        "mail.superhuman.com",
+        "outlook.live.com",
+        "outlook.office.com",
+        "mail.yahoo.com",
+        "mail.proton.me",
+        "mail.zoho.com",
+        "mail.zoho.eu",
+        "app.hey.com",
+        "app.fastmail.com",
+        "app.tuta.com",
+        "mail.aol.com",
+        "paddle.kustomerapp.com",
+        "app.frontapp.com",
+        "mail.missiveapp.com",
+        "app.shortwave.com",
+        "m365.cloud.microsoft"
+      ],
+      "titleKeywords": [
+        "gmail",
+        "google mail",
+        "inbox",
+        "outlook",
+        "yahoo mail",
+        "proton mail",
+        "protonmail",
+        "fastmail",
+        "icloud mail",
+        "zoho mail",
+        "aol mail",
+        "tuta",
+        "missive",
+        "shortwave",
+        "superhuman"
+      ]
+    },
+    "ai": {
+      "macBundleIds": [
+        "com.openai.chat",
+        "com.anthropic.claudefordesktop",
+        "ai.perplexity.perplexity-mac"
+      ],
+      "windowsProcesses": [
+        "ChatGPT",
+        "Claude",
+        "Perplexity",
+        "lmstudio",
+        "ollama"
+      ],
+      "hosts": [
+        "chatgpt.com",
+        "chat.openai.com",
+        "gemini.google.com",
+        "claude.ai",
+        "perplexity.com",
+        "pi.ai",
+        "meta.ai",
+        "aistudio.google.com",
+        "bolt.new",
+        "v0.dev",
+        "v0.app",
+        "lovable.dev",
+        "replit.com",
+        "cursor.com",
+        "console.anthropic.com",
+        "platform.claude.com",
+        "platform.openai.com",
+        "t3.chat",
+        "app.devin.ai",
+        "openrouter.ai",
+        "chat.deepseek.com",
+        "kimi.com",
+        "app.dust.tt",
+        "dust.tt",
+        "notebooklm.google.com",
+        "gamma.app",
+        "genspark.ai",
+        "copilot.microsoft.com",
+        "app.hex.tech",
+        "studio.firebase.google.com",
+        "chat.qwen.ai",
+        "chat.lindy.ai"
+      ],
+      "titleKeywords": [
+        "chatgpt",
+        "claude",
+        "gemini",
+        "perplexity",
+        "copilot",
+        "notebooklm",
+        "deepseek",
+        "qwen",
+        "lovable",
+        "v0"
+      ]
+    },
+    "workMessaging": {
+      "macBundleIds": [
+        "com.microsoft.teams",
+        "com.slack.Slack",
+        "com.tinyspeck.slackmacgap"
+      ],
+      "windowsProcesses": [
+        "slack",
+        "Teams",
+        "msteams",
+        "zoom",
+        "Webex",
+        "CiscoCollabHost",
+        "RingCentral",
+        "Dialpad",
+        "Mattermost",
+        "Element"
+      ],
+      "hosts": [
+        "app.slack.com",
+        "teams.microsoft.com",
+        "linkedin.com",
+        "app.zoom.us",
+        "loom.com",
+        "chat.google.com",
+        "meet.google.com",
+        "fb.workplace.com",
+        "app.usepylon.com",
+        "app.intercom.com",
+        "app.eu.intercom.com",
+        "app.crisp.chat",
+        "secure.helpscout.net"
+      ],
+      "titleKeywords": [
+        "slack",
+        "teams",
+        "google meet",
+        "zoom",
+        "webex",
+        "ringcentral",
+        "dialpad",
+        "zulip",
+        "mattermost",
+        "rocket.chat",
+        "lark",
+        "intercom",
+        "helpscout"
+      ]
+    },
+    "personalMessaging": {
+      "macBundleIds": [
+        "com.apple.MobileSMS",
+        "net.whatsapp.WhatsApp",
+        "com.kishanbagaria.jack",
+        "com.facebook.archon",
+        "im.beeper",
+        "ru.keepcoder.Telegram",
+        "org.whispersystems.signal-desktop",
+        "com.discordapp.Discord",
+        "com.hnc.Discord",
+        "com.tencent.xinWeChat"
+      ],
+      "windowsProcesses": [
+        "WhatsApp",
+        "Telegram",
+        "Signal",
+        "Discord",
+        "Messenger",
+        "Beeper",
+        "WeChat",
+        "Texts",
+        "Viber",
+        "Zalo"
+      ],
+      "hosts": [
+        "web.whatsapp.com",
+        "messages.google.com",
+        "messages.android.com",
+        "chat.beeper.com",
+        "messenger.com",
+        "web.telegram.org",
+        "discord.com",
+        "instagram.com",
+        "x.com",
+        "facebook.com",
+        "reddit.com",
+        "voice.google.com"
+      ],
+      "titleKeywords": [
+        "whatsapp",
+        "telegram",
+        "signal",
+        "discord",
+        "messenger",
+        "beeper",
+        "wechat",
+        "messages",
+        "instagram"
+      ]
+    },
+    "document": {
+      "macBundleIds": [
+        "notion.id",
+        "com.microsoft.Word",
+        "com.apple.iWork.Pages",
+        "com.evernote.Evernote",
+        "com.bear-writer.bear",
+        "md.obsidian",
+        "com.dayoneapp.dayone",
+        "com.microsoft.Excel",
+        "com.microsoft.PowerPoint",
+        "com.microsoft.OneNote",
+        "com.apple.Notes"
+      ],
+      "windowsProcesses": [
+        "Notion",
+        "WINWORD",
+        "EXCEL",
+        "POWERPNT",
+        "ONENOTE",
+        "Obsidian",
+        "Evernote",
+        "Todoist",
+        "Figma",
+        "Canva",
+        "Miro",
+        "Trello",
+        "Airtable",
+        "notepad"
+      ],
+      "hosts": [
+        "notion.so",
+        "docs.google.com",
+        "todoist.com",
+        "asana.com",
+        "monday.com",
+        "clickup.com",
+        "coda.io",
+        "figma.com",
+        "canva.com",
+        "miro.com",
+        "trello.com",
+        "airtable.com"
+      ],
+      "titleKeywords": [
+        "notion",
+        "google docs",
+        "word",
+        "pages",
+        "obsidian",
+        "evernote",
+        "one note",
+        "onenote",
+        "figma",
+        "canva",
+        "miro"
+      ]
+    },
+    "code": {
+      "macBundleIds": [
+        "com.microsoft.VSCode",
+        "com.microsoft.VSCodeInsiders",
+        "com.visualstudio.code.oss",
+        "com.vscodium",
+        "com.vscodium.VSCodium",
+        "com.todesktop.230313mzl4w4u92",
+        "com.exafunction.windsurf",
+        "com.apple.dt.Xcode",
+        "com.jetbrains.intellij",
+        "com.jetbrains.pycharm",
+        "com.jetbrains.WebStorm",
+        "com.jetbrains.goland",
+        "dev.zed.Zed",
+        "dev.zed.Zed-Preview",
+        "com.github.atom",
+        "io.brackets.appshell"
+      ],
+      "windowsProcesses": [
+        "Code",
+        "Cursor",
+        "Windsurf",
+        "devenv",
+        "idea64",
+        "webstorm64",
+        "pycharm64",
+        "rider64",
+        "phpstorm64",
+        "goland64",
+        "clion64",
+        "rubymine64",
+        "datagrip64",
+        "zed",
+        "sublime_text",
+        "notepad++"
+      ],
+      "hosts": [
+        "github.dev",
+        "vscode.dev",
+        "codesandbox.io",
+        "stackblitz.com"
+      ],
+      "titleKeywords": [
+        "visual studio code",
+        "vs code",
+        "cursor",
+        "windsurf",
+        "xcode",
+        "pycharm",
+        "webstorm",
+        "intellij",
+        "github desktop",
+        "zed"
+      ]
+    },
+    "terminal": {
+      "macBundleIds": [
+        "com.apple.Terminal",
+        "com.googlecode.iterm2",
+        "dev.warp.Warp-Stable",
+        "dev.warp.WarpPreview",
+        "com.mitchellh.ghostty",
+        "net.kovidgoyal.kitty",
+        "io.alacritty",
+        "co.zeit.hyper",
+        "com.github.wez.wezterm"
+      ],
+      "windowsProcesses": [
+        "WindowsTerminal",
+        "cmd",
+        "powershell",
+        "pwsh",
+        "wt",
+        "warp",
+        "alacritty",
+        "hyper",
+        "kitty",
+        "wezterm",
+        "ghostty"
+      ],
+      "hosts": [],
+      "titleKeywords": [
+        "terminal",
+        "powershell",
+        "command prompt",
+        "warp",
+        "ghostty",
+        "wezterm"
+      ]
+    },
+    "sensitive": {
+      "macBundleIds": [
+        "com.1password.1password",
+        "com.agilebits.onepassword7",
+        "com.bitwarden.desktop",
+        "com.lastpass.LastPass",
+        "com.dashlane.dashlanephonefinal"
+      ],
+      "windowsProcesses": [
+        "1Password",
+        "Bitwarden",
+        "LastPass",
+        "Dashlane",
+        "KeePass",
+        "KeePassXC"
+      ],
+      "hosts": [
+        "my.1password.com",
+        "vault.bitwarden.com",
+        "lastpass.com",
+        "dashlane.com"
+      ],
+      "titleKeywords": [
+        "1password",
+        "bitwarden",
+        "lastpass",
+        "dashlane",
+        "keepass"
+      ]
+    }
+  }
+}

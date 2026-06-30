@@ -1,0 +1,39 @@
+---
+title: Windows FAQ
+description: Troubleshooting and answers for HyperWhisper on Windows.
+---
+
+## Common questions
+
+- **How do I transcribe an audio file I have on disk?** Right-click the tray icon and choose **Transcribe Audio File**. Supported formats are WAV, MP3, and M4A. Full walkthrough on the [Transcribe a File](/file-transcription) page (Windows tab).
+- **Do I need to set up an API key?** No. HyperWhisper Cloud works out of the box and a Pro license includes 5,000 credits. API keys are only needed if you want to BYOK — see [Providers](/choosing-a-provider) and [API Keys](/api-keys).
+- **Does HyperWhisper Cloud add a markup?** No, it's priced at face value over the underlying provider. See [Providers](/choosing-a-provider).
+- **Which local model should I download?** **Whisper Small** is the best balance for most users. If you're on ARM Windows or want maximum English speed, use **Parakeet v2**. Full hardware-by-hardware guidance on the [Models](/models) page.
+- **Do local models run offline?** Yes — once downloaded, audio never leaves your device.
+- **What if I don't have a dedicated GPU?** Both engines fall back to CPU automatically. Pick a Tiny or Base Whisper model for the best CPU experience.
+
+## A "No suggestions." popup appears after dictation
+
+This popup comes from **Windows**, not HyperWhisper or your editor. Windows 11 has a built-in hardware-keyboard text prediction feature that watches any text field and shows a small prediction bar above the cursor — including the "No suggestions." message when it has nothing to predict.
+
+It triggers whenever new text lands in a focused editable field, so it can appear after HyperWhisper pastes a transcript the same way it would after you type manually.
+
+### How to turn it off
+
+<Steps>
+  <Step title="Open Windows Settings">
+    Press `Windows + I`.
+  </Step>
+  <Step title="Go to Typing settings">
+    Navigate to **Time & language → Typing**.
+  </Step>
+  <Step title="Disable physical-keyboard suggestions">
+    Turn off **Show text suggestions when typing on the physical keyboard**.
+  </Step>
+</Steps>
+
+<Tip>
+  Prefer the registry? Set `HKEY_CURRENT_USER\Software\Microsoft\Input\Settings\EnableHwkbTextPrediction` to `0` and sign out / sign in.
+</Tip>
+
+This is a known quirk that affects VS Code and other editors regardless of how text is inserted — see [microsoft/vscode#212357](https://github.com/microsoft/vscode/issues/212357) for background.

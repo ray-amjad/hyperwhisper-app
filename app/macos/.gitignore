@@ -1,0 +1,8 @@
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+# Sentry config (real values — keep out of git; commit only the .example files)
+Configurations/Debug.xcconfig
+Configurations/Release.xcconfig

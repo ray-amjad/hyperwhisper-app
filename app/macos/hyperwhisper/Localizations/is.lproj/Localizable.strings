@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Orðaforði";
+"vocabulary.description" = "Þetta hjálpar hugbúnaðinum að þekkja nöfn, skammstafanir, slangur eða orð úr öðrum tungumálum þegar tungumál eru blenduð.";
+"vocabulary.input.title" = "Inntak";
+"vocabulary.new.word.placeholder" = "Nýtt orð eða orðasamband";
+"vocabulary.replacement.placeholder" = "Skipta út fyrir...";
+"vocabulary.add.button" = "Bæta við orðaforða";
+"vocabulary.edit.title" = "Breyta orðasafnsfærslunni";
+"vocabulary.update.button" = "Uppfæra";
+"vocabulary.cancel.button" = "Hætta við";
+"vocabulary.word.column" = "Orð/Setning";
+"vocabulary.replacement.column" = "Skipti";
+"vocabulary.empty.title" = "Engin orðaforðaorð ennþá";
+"vocabulary.empty.subtitle" = "Bættu við sérsniðnum orðum til að bæta nákvæmni afritunar";
+"vocabulary.duplicate.title" = "Tvítekin færsla";
+"vocabulary.duplicate.message" = "%@ er þegar til í orðaforðanum þínum. Hvert orð er aðeins hægt að bæta við einu sinni.";
+"vocabulary.ok.button" = "Í lagi";
+"vocabulary.limit.title" = "Leitarorðamörk náð";
+"vocabulary.limit.message" = "Þú ert með %d orð, en aðeins fyrstu %d verða notuð fyrir afritunaraukningu.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streymi (Beta)";
+"streaming.description" = "Rauntímaafritun þegar þú talar. Texti er sleginn beint inn í forritið sem er í fókus.";
+"streaming.enable.title" = "Virkja streymi";
+"streaming.provider.picker.title" = "Veitandi";
+"streaming.model.title" = "Líkan";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Hröð sniðsetning";
+"streaming.fastFormatting.description" = "Minnkar snjallsniðstöðvun fyrir hraðari innslátt";
+"streaming.warning.vocabAutoDetect" = "Sérsniðinn orðaforði er óvirkur í sjálfvirkri greiningu";
+"streaming.warning.vocabUnsupported" = "Sérsniðinn orðaforði er ekki studdur með %@ streymi";
+"streaming.warning.apiKeyRequired" = "%@ API lykill nauðsynlegur";
+"streaming.warning.apiKeyRequired.action" = "Stilla";
+"streaming.warning.apiKeyInvalid" = "%@ API lykillinn virkar ekki. Uppfærðu hann í Stillingar > API lyklar.";
+"streaming.warning.apiKeyInvalid.action" = "Uppfæra lykil";
+"streaming.language.title" = "Tungumál";
+"streaming.shortcut.title" = "Flýtileið";
+
+// MARK: - Home View
+"home.get.started" = "Byrja";
+"home.open.system.settings" = "Opna kerfisstillingar";
+
+// MARK: - API Keys
+"api.key.required" = "API lykill nauðsynlegur";
+"api.keys.required" = "API lyklar nauðsynlegir";
+"api.key.configure.message" = "Stilltu API lykilana þína til að virkja afritun.";
+"api.key.internet.required" = "Nettenging nauðsynleg";
+"api.key.internet.message" = "Skýjaafritun krefst nettenging.";
+
+// MARK: - Common UI
+"common.ok" = "Í lagi";
+"common.cancel" = "Hætta við";
+"common.delete" = "Eyða";
+"common.edit" = "Breyta";
+"common.done" = "Lokið";
+"common.copy" = "Afrita";
+"common.back" = "Til baka";
+"common.skip" = "Sleppa";
+"common.settings" = "Stillingar";
+"common.error" = "Villa";
+"common.retry" = "Reyna aftur";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Heim";
+"sidebar.statistics" = "Tölfræði";
+"sidebar.modes" = "Hamar";
+"sidebar.vocabulary" = "Orðaforði";
+"sidebar.streaming" = "Streymi";
+"sidebar.history" = "Saga";
+"sidebar.settings" = "Stillingar";
+
+// MARK: - App Messages
+"app.unknown.error" = "Óþekkt villa kom upp";
+"app.microphone.permission.message" = "HyperWhisper þarf aðgang að hljóðnemanum þínum til að afrituð hljóð.\n\nFarðu í Kerfisstillingar > Persónuvernd og öryggi > Hljóðnemi og virkjaðu aðgang fyrir HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper vistar upptökur í möppu í skjölunum þínum svo þær séu auðfinnanleg: Skjöl/hyperwhisper/recordings. macOS gæti spurt um leyfi í fyrsta skipti sem við reynum að vista þar. Ef þú vilt ekki veita aðgang, getum við geymt upptökur í einkamöppu forritsins í staðinn.";
+"app.upgrade.to.pro" = "Uppfæra í Pro";
+"app.enter.license.key" = "Slá inn leyfislykil";
+"accessibility.upgrade.pro" = "Uppfæra í HyperWhisper Pro";
+"accessibility.enter.license" = "Slá inn leyfislykil";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Bættu við %@ API lyklunum þínum til að virkja valinn ham.";
+"home.api.keys.missing.single" = "Bættu við %@ API lykilnum þínum til að virkja valinn ham.";
+"home.getting.started.recording.title" = "Byrja að taka upp";
+"home.getting.started.recording.description" = "Breyttu rödd þinni í texta með einum smelli.";
+"home.getting.started.shortcuts.title" = "Sérsníða flýtileiðir";
+"home.getting.started.shortcuts.description" = "Breyttu lyklaborðsflýtileiðum fyrir HyperWhisper.";
+"home.getting.started.mode.title" = "Búa til ham";
+"home.getting.started.mode.description" = "Smíðaðu fullkominn ham fyrir verkflæðið þitt.";
+"home.getting.started.vocabulary.title" = "Bæta við orðaforða";
+"home.getting.started.vocabulary.description" = "Kenndu HyperWhisper sérsniðin orð, nöfn eða faghugtök.";
+"home.add.api.key" = "Bæta við API lykli";
+"home.accessibility.enable.title" = "Virkja aðgengi";
+"home.accessibility.enable.description" = "Leyfa HyperWhisper að líma sjálfkrafa inn í forrit sem þú ert að nota.";
+"home.accessibility.waiting" = "Bíð...";
+"home.accessibility.open.settings" = "Opna stillingar";
+"home.accessibility.restart.after.permission" = "Endurræstu forrit eftir að hafa veitt leyfi";
+"home.getting.started.completed" = "✓ Lokið";
+"home.whatsnew.badge" = "NÝTT";
+"home.whatsnew.title" = "Hvað er nýtt?";
+"home.whatsnew.update1.date" = "3. júlí";
+"home.whatsnew.update1.title" = "Parakeet er nú tiltækt";
+"home.whatsnew.update1.description" = "Sæktu það beint úr tungumálalíkanalista í hamssköpun til að prófa það í dag.";
+"home.whatsnew.update2.date" = "5. júní";
+"home.whatsnew.update2.title" = "Stuðningur fyrir öll OpenAI-samhæf sérsniðin líkön";
+"home.whatsnew.update2.description" = "Þú getur nú bætt við hvaða OpenAI samhæfum API sem er við lista yfir líkönin þín.";
+"home.whatsnew.update3.date" = "27. maí";
+"home.whatsnew.update3.title" = "Glæný lítil upptökugluggi";
+"home.whatsnew.update3.description" = "Snyrtileg, lágmarks upptökuviðmót sem heldur sig frá.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Nýlegar uppfærslur";
+"home.recent.updates.error" = "Mistókst að hlaða uppfærslum";
+"home.recent.updates.retry" = "Reyna aftur";
+"home.recent.updates.empty" = "Engar nýlegar uppfærslur tiltækar";
+"home.recent.updates.version" = "Útgáfa %@";
+"home.recent.updates.new.badge" = "NÝTT";
+"home.recent.updates.no.notes" = "Engar útgáfuupplýsingar tiltækar";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Bilslá";
+"keyboard.option.space" = "⌥Bilslá";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Aðgangur að hljóðnema nauðsynlegur";
+"common.open.settings" = "Opna stillingar";
+"alerts.api.local.mode" = "Nota staðbundinn ham";
+"alerts.documents.permission.title" = "Vista í skjöl?";
+"common.continue" = "Halda áfram";
+"alerts.documents.permission.use.another" = "Nota aðra staðsetningu";
+"alerts.api.configure.generic" = "Vinsamlegast stilltu API lykilana þína í stillingum.";
+"alerts.api.internet.offline" = "Skýjaafritun krefst nettenging. Vinsamlegast athugaðu netstillingar þínar eða veldu staðbundinn afritunarham.";
+"alerts.api.configure.header.multiple" = "Til að nota valinn ham, vinsamlegast stilltu eftirfarandi API lykla í stillingum:";
+"alerts.api.configure.header.single" = "Til að nota valinn ham, vinsamlegast stilltu eftirfarandi API lykil í stillingum:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Eftir að hafa bætt við vanandi lyklum, reyndu aftur.";
+"alerts.export.failed.title" = "Útflutningur mistókst";
+"alerts.export.logs.failed.message" = "Gat ekki flutt út uppfærsluskrár. Vinsamlegast reyndu aftur.";
+"alerts.export.logs.success.title" = "Skrár fluttar út";
+"alerts.export.logs.success.message" = "Uppfærsluskrár hafa verið fluttar út með góðum árangri.";
+"alerts.export.logs.saveFailed.message" = "Gat ekki vistað skrár á valda staðsetningu: %@";
+"alerts.export.diagnostics.failed.message" = "Gat ekki flutt út greiningarskrár. Vinsamlegast reyndu aftur.";
+"alerts.export.diagnostics.success.title" = "Greiningarskrár fluttar út";
+"alerts.export.diagnostics.success.message" = "Allar greiningarskrár hafa verið fluttar út með góðum árangri.";
+"alerts.export.diagnostics.saveFailed.message" = "Gat ekki vistað greiningarskrár á valda staðsetningu: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Flytja út uppfærsluskrár fyrir aðstoð";
+"panels.export.diagnostics.message" = "Flytja út allar greiningarskrár";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Byrjaðu með HyperWhisper";
+"sidebar.statistics.help" = "Skoða notkunartölfræði og greiningar";
+"sidebar.modes.help" = "Stjórna afritunarhamum fyrir mismunandi samhengi";
+"sidebar.vocabulary.help" = "Bæta við sérsniðnum orðum og orðasamböndum fyrir betri þekkingu";
+"sidebar.streaming.help" = "Rauntímastraumsafritun stillingar (krefst internets)";
+"sidebar.history.help" = "Skoða og leita í afritunarferli þínum";
+"sidebar.settings.help" = "Stilla forritsstillingar og kjörstillingar";
+
+// MARK: - Recording State
+"recording.state.ready" = "Tilbúið að taka upp";
+"recording.state.recording" = "Tek upp...";
+"recording.state.processing" = "Vinnur hljóð...";
+"recording.state.transcribing" = "Afritar...";
+"recording.state.postprocessing" = "Eftirvinnsla með gervigreind...";
+"recording.state.complete" = "Afritun lokið: %@";
+"recording.state.error" = "Villa: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Byrja eða stöðva upptöku";
+"menu.recording.stop" = "Stöðva upptöku";
+"menu.recording.toggle" = "Byrja/Stöðva upptöku";
+"menu.history" = "Saga...";
+"menu.settings" = "Stillingar...";
+"menu.microphone" = "Hljóðnemi";
+"menu.select.mode" = "Velja ham";
+"menu.transcribe.file" = "Afrita skrá";
+"menu.mode.unnamed" = "Ónefnt";
+"menu.version.label" = "Útgáfa %@";
+"common.quit" = "Hætta";
+"menu.microphone.default" = "Sjálfgefið";
+"menu.microphone.system.default" = "Sjálfgefið";
+"menu.bar.state.recording" = "Tek upp";
+"menu.bar.state.processing" = "Vinnur";
+"menu.bar.state.idle" = "Aðgerðalaus";
+"menu.command.check.updates" = "Athuga uppfærslur…";
+"menu.debug.title" = "Kemba";
+"menu.command.export.logs" = "Flytja út uppfærsluskrár…";
+"menu.command.export.diagnostics" = "Flytja út greiningarskrár…";
+"menu.command.help.website" = "Hjálparvefur";
+"menu.command.contact.support" = "Hafa samband við aðstoð";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Almennt";
+"settings.section.sound" = "Hljóð";
+"settings.section.license" = "Leyfi";
+"settings.section.credits" = "Einingar";
+"settings.section.storage" = "Geymsla";
+"settings.section.models" = "Líkön";
+"settings.section.api.keys" = "API lyklar";
+"settings.section.shortcuts" = "Lyklaborðsflýtileiðir";
+"settings.section.output" = "Textaúttak";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (enska)";
+"onboarding.model.pro.multilingual" = "Pro (fjöltyngd)";
+"onboarding.model.downloading.progress" = "Sæki... %d%%";
+"onboarding.accessibility.title" = "Virkja aðgengi fyrir sjálfvirka límingu";
+"onboarding.accessibility.subtitle" = "Leyfa HyperWhisper að líma sjálfkrafa afritaðan texta inn í forritin þín.";
+"onboarding.accessibility.instructions" = "Kerfisstillingar → Persónuvernd og öryggi → Aðgengi";
+"onboarding.accessibility.status.granted" = "Aðgengileyfi veitt";
+"onboarding.accessibility.status.pending" = "Aðgengileyfi ekki enn veitt";
+"onboarding.accessibility.waiting" = "Bíð eftir leyfi...";
+"onboarding.accessibility.open.preferences" = "Opna aðgengiskjörstillingar";
+"onboarding.accessibility.restart" = "Eftir að hafa veitt leyfi, endurræstu HyperWhisper.";
+"onboarding.model.recommendation.title" = "Við mælum með Pro líkaninu";
+"onboarding.model.recommendation.subtitle" = "Byggt á kerfistungumáli þínu og getu Mac-vélarinnar þinnar.";
+"onboarding.model.recommendation.note" = "Sæktu með því að smella á hnappinn hér að neðan.";
+"onboarding.model.downloaded" = "Sótt";
+"onboarding.model.metric.speed" = "Hraði";
+"onboarding.model.metric.accuracy" = "Nákvæmni";
+"onboarding.model.metric.size" = "Stærð";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Eða, veldu annað raddlíkan";
+"onboarding.model.picker.title" = "Líkan";
+"onboarding.model.option.proEnglish" = "Pro (enska)";
+"onboarding.model.option.tiny" = "Örsmátt";
+"onboarding.model.option.base" = "Grunn";
+"onboarding.model.option.small" = "Lítið";
+"onboarding.model.option.medium" = "Miðlungs";
+"onboarding.model.option.large" = "Stórt";
+"onboarding.model.download.button" = "Sækja líkan";
+"onboarding.audio.title" = "Hvaða hljóðupptökutæki viltu nota?";
+"onboarding.audio.subtitle" = "Gakktu úr skugga um að hljóðinntakshljóðstyrkur þinn sé hækkaður og skráir hljóðstyrk.";
+"onboarding.audio.input.label" = "Inntakstæki";
+"onboarding.audio.picker.label" = "Tæki";
+"onboarding.audio.use.system.default" = "Nota sjálfgefið kerfi tæki";
+"onboarding.audio.level" = "Hljóðstyrkur";
+"onboarding.audio.open.sound" = "Opna hljóðkjörstillingar";
+"onboarding.microphone.title" = "Upptökuleyfi nauðsynlegt";
+"onboarding.microphone.subtitle" = "Til að taka upp hljóð, þurfum við að fá aðgang að hljóðnemanum þínum.";
+"onboarding.microphone.status.granted" = "Hljóðnemaleyfi veitt";
+"onboarding.microphone.status.pending" = "Hljóðnemaleyfi ekki enn veitt";
+"onboarding.microphone.grant" = "Veita leyfi";
+"onboarding.test.title" = "Allt til reiðu, byrjum fyrstu upptökuna þína";
+"onboarding.test.press.prefix" = "Ýttu á";
+"onboarding.test.press.suffix" = "til að byrja";
+"onboarding.test.status.recording" = "Tek upp...";
+"onboarding.test.status.speak" = "Talaðu núna...";
+"onboarding.test.stop" = "Stöðva upptöku";
+"onboarding.test.success.title" = "Frábært! Upptakan þín tókst.";
+"onboarding.test.success.subtitle" = "Afritin þín munu birtast í forritinu.";
+"onboarding.test.start.cta" = "Smelltu til að byrja upptöku";
+"onboarding.test.start.shortcut" = "Eða ýttu á lyklaborðsflýtileið þína";
+"onboarding.settings.title" = "Vel gert! Nú skulum við opna stillingar";
+"onboarding.settings.subtitle" = "Hægrismelltu á HyperWhisper táknið og veldu Stillingar...";
+"onboarding.settings.menu.startStop" = "Byrja/Stöðva upptöku";
+"onboarding.settings.menu.history" = "Saga...";
+"onboarding.settings.menu.settings" = "Stillingar...";
+"onboarding.settings.menu.quit" = "Hætta";
+"onboarding.settings.info" = "Í stillingum geturðu sérsniðið flýtileiðir, stjórnað API lyklum og stillt HyperWhisper að þínu höfði.";
+"onboarding.completion.title" = "Þú ert búinn!";
+"onboarding.completion.subtitle" = "Ef þú lendir í vandræðum eða spurningum, hafðu samband með tölvupósti eða Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Tölvupóstur";
+"onboarding.completion.resources.title" = "Viðbótarauðlindir";
+"onboarding.completion.resources.documentation" = "Skjölun";
+"onboarding.completion.resources.videos" = "Myndbandskennsla";
+"onboarding.completion.resources.blog" = "Blogg";
+"onboarding.done.button" = "Ljúka byrjunarferli";
+"onboarding.error.model.notFound" = "Líkan fannst ekki í skrá.";
+"onboarding.error.microphone.denied" = "Hljóðnemaleyfi hafnað. Vinsamlegast veittu leyfi í kerfisstillingum.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Ræsa við innskráningu";
+"settings.general.launchAtLogin.info" = "Byrjaðu HyperWhisper sjálfkrafa þegar þú skráir þig inn.";
+"settings.general.launchMinimized.title" = "Ræsa lágmarkað";
+"settings.general.launchMinimized.info" = "Byrjaðu HyperWhisper með aðalglugga falinn. Forritið verður aðgengilegt í gegnum valmyndarslána.";
+"settings.general.showInDock.title" = "Sýna í Dock";
+"settings.general.showInDock.info" = "Sýna forritstáknið í Dock.";
+"settings.general.showRecordingWindow.title" = "Sýna upptökuglugga";
+"settings.general.showRecordingWindow.info" = "Sýna fljótandi bylgjuformglugga á meðan á upptöku og vinnslu stendur.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Af";
+"settings.general.mediaControl.mode.mute" = "Þagga hljóð";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Villuskráning";
+"settings.general.errorLogging.info" = "Fangaðu sjálfkrafa og sendu villuskýrslur til að hjálpa til við að bæta forritið.";
+"settings.general.autoUpdate.title" = "Sjálfvirk uppfærsla";
+"settings.general.autoUpdate.info" = "Athugaðu sjálfkrafa og sæktu nýjar útgáfur af HyperWhisper.";
+"settings.general.support.title" = "Þarftu hjálp?";
+"settings.version.detail" = "Útgáfa %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Spila hljóðbrellur";
+"settings.sound.soundEffects.info" = "Spila hljóðmerki þegar upptaka hefst og hættir.";
+"settings.sound.mediaControl.title" = "Miðilstjórnun á meðan á upptöku stendur";
+"settings.sound.mediaControl.info" = "Veldu hvernig HyperWhisper meðhöndlar annað hljóð á meðan þu tekur upp. 'Af' lætur hljóð óbreytt, 'Þögga hljóð' þöggar niður kerfisúttaki meðan á upptokt stendur og endurheimtir þeð á eftir.";
+"settings.sound.autoIncreaseMicVolume.title" = "Hækka sjálfkrafa hljóðnemahljóðstyrk";
+"settings.sound.autoIncreaseMicVolume.info" = "Stillir sjálfkrafa hljóðnemainntakshljóðstyrk á hámark þegar upptaka byrjar, endurheimtir síðan upprunalegt stig þegar upptöku lýkur. Gildir aðeins þegar sjálfgefið kerfisinntak tæki er notað.";
+"settings.sound.vad.title" = "Fjarlægja þögn fyrir afritun";
+"settings.sound.vad.info" = "Greinir sjálfkrafa og fjarlægir fremsta og aftasta þögn með gervigreindar raddgreining. Þetta getur bætt afritunarárangur og minnkað vinnslutíma.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Upptökumappa";
+"settings.storage.showFolder.title" = "Sýna upptökumöppu";
+"settings.storage.showFolder.button" = "Sýna í Finder";
+"settings.storage.notice" = "Að breyta upptökumöppu hefur aðeins áhrif á nýjar upptökur. Núverandi upptökur eru áfram á upprunalegri staðsetningu.";
+"settings.storage.choose.button" = "Velja...";
+"settings.storage.dialog.select" = "Velja möppu";
+"settings.storage.dialog.message" = "Veldu möppu til að geyma upptökur";
+"settings.storage.storeAsM4A.title" = "Þjappa upptökum í M4A";
+"settings.storage.storeAsM4A.subtitle" = "Breytir WAV upptökum í minni skrár eftir afritun. Slökktu til að halda upprunalegum WAV skrám (stærri en taplausar).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Líma niðurstöðu sjálfkrafa";
+"settings.output.paste.subtitle" = "Límdu sjálfkrafa afritaðan texta í virka forritið";
+"settings.output.paste.info" = "Ef virkt er textinn límtur inn í fremsta forritið.";
+"settings.output.restoreClipboard.title" = "Endurheimta klippispjald eftir límingu";
+"settings.output.restoreClipboard.subtitle" = "Endurheimtu fyrra klippispjaldsinnihald eftir límingu";
+"settings.output.restoreClipboard.info" = "Endurheimtir fyrra klippispjaldsinnihald þitt eftir að forritið límir afritunina.";
+"settings.output.restore.after" = "Endurheimta eftir";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Töf klippispjaldsendurheimtu";
+"settings.output.hideClipboardHistory.title" = "Fela frá klippispjaldsögu";
+"settings.output.hideClipboardHistory.subtitle" = "Koma í veg fyrir að afritanir birtist í klippispjaldssöguforritum";
+"settings.output.hideClipboardHistory.info" = "Þegar virkt er afritaður texti ekki vistaður af klippispjaldsstjórnendum eins og Paste, Maccy eða Alfred.";
+"settings.output.clipboard.header" = "Klippiborð";
+"settings.output.removeFillers.title" = "Fjarlægja fylliorð";
+"settings.output.removeFillers.subtitle" = "Fjarlægir 'uh', 'um' og 'er' úr hráum afritum.";
+"settings.output.removeFillers.info" = "Þegar þetta er virkt fjarlægir HyperWhisper algeng fylliorð úr hráum afritum áður en úttak er búið til.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Skipta um upptöku";
+"settings.shortcuts.toggleRecording.subtitle" = "Byrjar og stöðvar upptökur";
+"settings.shortcuts.cancelRecording.title" = "Hætta við upptöku";
+"settings.shortcuts.cancelRecording.subtitle" = "Hendir virkri upptöku";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Ýta til að tala";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Haltu niðri lykli til að taka upp, slepptu þegar þú ert búinn";
+"settings.shortcuts.pushToTalk.enable.info" = "Virkjar ýta-til-að-tala ham fyrir skjóta upptöku með einu lyklapressu.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Upptökuhamur";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Veldu hvaða lykil á að nota";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Óvirkur";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN lykill";
+"settings.shortcuts.pushToTalk.mode.control" = "Control lykill";
+"settings.shortcuts.pushToTalk.mode.custom" = "Sérsniðin flýtileið";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Tvísmella til að læsa upptöku";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Ýttu tvisvar hratt til að halda upptöku áfram án þess að halda niðri";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Sérsniðin flýtileið";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Ýttu á lyklasamsetninguna til að nota";
+
+
+"settings.shortcuts.changeMode.title" = "Breyta ham";
+"settings.shortcuts.changeMode.subtitle" = "Virkar aðeins þegar upptaka er í gangi";
+
+"settings.shortcuts.reset.button" = "Endurstilla í sjálfgefin gildi";
+"settings.shortcuts.reset.dialog.title" = "Endurstilla lyklaborðsflýtileiðir";
+"settings.shortcuts.reset.confirm" = "Endurstilla";
+"settings.shortcuts.reset.dialog.message" = "Þetta mun endurstilla allar lyklaborðsflýtileiðir í sjálfgefin gildi þeirra.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API lyklar eru vistaðir á öruggan hátt í tækinu þínu og aðeins sendir til veitanda þegar þörf er á.";
+"settings.api.help.link" = "Hjálp með API lykla";
+"settings.api.transcription.title" = "Afritun";
+"settings.api.transcription.subtitle" = "API lyklar fyrir skýjatengda tal-til-texta þjónustu.";
+"settings.api.postProcessing.title" = "Eftirvinnsla";
+"settings.api.postProcessing.subtitle" = "API lyklar fyrir gervigreindar-knúna textaaukningu og sniðsetningu.";
+"settings.api.placeholder" = "Sláðu inn %@ API lykilinn þinn";
+"settings.api.openLink" = "Opna %@ API lykil síðu";
+"settings.api.status.accessibility" = "%@ staða: %@";
+"settings.api.status.unknown" = "Staða veitanda óþekkt";
+"settings.api.status.checking" = "Heilsuathugun í gangi";
+"settings.api.status.unauthorized" = "API lykill hafnað af veitanda";
+"settings.api.status.unreachable" = "Veitandi er ekki aðgengilegur eins og er";
+"settings.api.status.notInstalled" = "SDK veitanda ekki uppsett";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Óþekkt";
+"provider.status.checking" = "Athuga…";
+"provider.status.healthy" = "Tilbúið";
+"provider.status.unauthorized" = "Ógildur lykill";
+"provider.status.unreachable" = "Ónettengdur";
+"provider.status.notInstalled" = "Ekki uppsett";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Leyfi virkjað";
+"alerts.license.deactivated.title" = "Leyfi óvirkjað";
+"alerts.license.activated.message" = "Leyfið þitt hefur verið virkjað með góðum árangri. Njóttu ótakmarkaðs aðgangs að öllum eiginleikum!";
+"alerts.license.deactivated.message" = "Leyfið þitt hefur verið óvirkjað á þessu tæki. Þú getur nú virkjað það annars staðar.";
+"alerts.license.failed.title" = "Aðgerð mistókst";
+"alerts.license.failed.message" = "Aðgerð mistókst. Vinsamlegast reyndu aftur.";
+"license.button.deactivate" = "Óvirkja tæki";
+"license.button.deactivating" = "Óvirkja...";
+"license.button.manageBilling" = "Stjórna greiðslum";
+"license.button.activate" = "Virkja";
+"license.button.activating" = "Virkja...";
+"license.status.label" = "Staða: %@";
+"license.status.trial.title" = "Prufuútgáfa";
+"license.status.active.title" = "Virkt";
+"license.status.expired.title" = "Útrunnið";
+"license.status.invalid.title" = "Ógilt";
+"license.status.trial.description" = "Ókeypis prufuútgáfa (5 mín/dag, %d líkön)";
+"license.status.active.description" = "Leyfishafi – fullur aðgangur";
+"license.status.expired.description" = "Leyfi útrunnið";
+"license.status.invalid.description" = "Ógilt leyfi";
+"settings.license.key.title" = "Leyfislykill";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Líma frá klippispjaldi";
+"settings.license.clearInput" = "Hreinsa";
+"settings.license.recovery.prompt" = "Gleymdirðu leyfislyklinum þínum?";
+"settings.license.recovery.button" = "Fara í viðskiptavinasvæði";
+"settings.license.daily.title" = "Dagleg afritun";
+"settings.license.daily.usage" = "%@ af %@ notuð";
+"settings.license.limitReached" = "Mörk náð";
+"settings.license.models.title" = "Ónettengt líkön";
+"settings.license.models.progress" = "%d af %d líkön sótt";
+"settings.license.models.progress.one" = "%d af %d líkan sótt";
+"settings.license.upgrade.text" = "Uppfærðu fyrir ótakmarkaða afritun og sótt líkön";
+"settings.license.upgrade.button" = "Uppfæra";
+"license.error.invalidResponse" = "Ógilt svarform";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud einingar";
+"settings.credits.refresh" = "Endurhlaða";
+"settings.credits.subtitle" = "Fylgstu með afritunareiningunum þínum og notkun";
+"settings.credits.manage" = "Stjórna einingum";
+"settings.credits.timeRemaining" = "Afritunatími eftir";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "mínútur";
+"settings.credits.creditsRemaining" = "%@ einingar eftir";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Ókeypis dagleg mörk (100 einingar)";
+"settings.credits.resets" = "Endurstillir %@";
+"settings.credits.warning.low" = "Einingar að verða litlar. Íhugaðu að kaupa leyfi fyrir fleiri einingar.";
+"settings.credits.warning.exhausted.daily" = "Dagleg mörk tæmd. Keyptu leyfi fyrir ótakmarkaða notkun eða bíddu eftir endurstillingu.";
+"settings.credits.warning.exhausted" = "Einingar tæmdar. Keyptu fleiri einingar til að halda áfram að nota HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Reikningsupplýsingar";
+"settings.credits.stat.creditsRemaining" = "Einingar eftir";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Mínútur eftir";
+"settings.credits.stat.accountType" = "Reikningsgerð";
+"settings.credits.accountType.licensed" = "Leyfishafi";
+"settings.credits.accountType.anonymous" = "Nafnlaus";
+"settings.credits.accountType.trial" = "Prufuútgáfa";
+"settings.credits.stat.customerId" = "Viðskiptavinur auðkenni";
+"settings.credits.stat.dailyLimit" = "Dagleg mörk";
+"settings.credits.dailyLimit.value" = "100 einingar";
+"settings.credits.loading" = "Hleð einingastöðu...";
+"settings.credits.error.title" = "Ógat að hlaða einingastöðu";
+"settings.credits.error.retry" = "Reyna aftur";
+"settings.credits.empty.title" = "Engar einingaupplýsingar tiltækar";
+"settings.credits.empty.subtitle" = "Smelltu á endurhlaða til að hlaða einingastöðuna þína";
+"settings.credits.empty.button" = "Hlaða einingum";
+"settings.credits.error.insufficient" = "Ófullnægjandi einingar. Þú ert með %d einingar eftir.";
+"settings.credits.error.network" = "Netvilla: %@";
+"settings.credits.error.invalidResponse" = "Ógilt svar frá netþjóni. Vinsamlegast reyndu aftur.";
+"settings.credits.error.server" = "Netþjónavilla: %@";
+"settings.models.alert.limit.title" = "Líkanasóttarmörk náð";
+"settings.models.alert.limit.message" = "Prufuútgáfur innihalda %d líkanasóttir. Uppfærðu leyfið þitt fyrir ótakmarkaðar sóttir.";
+"settings.models.alert.cannotDelete.title" = "Get ekki eytt líkani";
+"settings.models.parakeet.title" = "Parakeet líkön";
+"settings.models.parakeet.subtitle" = "Mælt með fyrir flesta notendur. Fjöltungda líkan styður 25 tungumál.";
+"settings.models.parakeet.empty" = "Engin Parakeet líkön tiltæk.";
+"settings.models.whisper.title" = "Whisper líkön";
+"settings.models.whisper.subtitle" = "OpenAI Whisper líkön. Stærri líkön eru nákvæmari. Styður 100+ tungumál.";
+"settings.models.whisper.empty" = "Engin Whisper líkön tiltæk.";
+"settings.models.help.cancelDownload" = "Hætta við sótt";
+"settings.models.help.remove" = "Fjarlægja líkan";
+"settings.models.downloaded" = "Sótt";
+"settings.models.download" = "Sækja";
+"settings.models.downloading" = "Sæki…";
+"settings.models.localPostProcessing.title" = "Staðbundin eftirvinnslu líkön";
+"settings.models.localPostProcessing.memoryWarning" = "Mælt með fyrir Mac með 24 GB sameinað minni eða meira. Hraði fer eftir örgjörvanum — hraðari á M3/M4 Pro og nýrri.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Orð þetta ár";
+"vocabulary.input.placeholder" = "Bættu við orði eða búðu til brot";
+"vocabulary.action.addWord" = "Bæta við orði";
+"vocabulary.action.replaceWith" = "Skipta út með…";
+"vocabulary.action.replace" = "Skipta út";
+"vocabulary.replacement.field.placeholder" = "Staðgengill texti…";
+"settings.output.autocapitalizeInsert.title" = "Sjálfvirk hástafur við ísetningu";
+"settings.output.autocapitalizeInsert.subtitle" = "Passa bendilsamhengi við ísetningu texta";
+"settings.output.autocapitalizeInsert.info" = "Ef virkjað er, er fyrsta orð umrits texta sem er sett inn aðlagað að bendilsamhengi (upphafs eða miðja setningar). Slökktu á þessu til að nota alltaf lágstafi í mál.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper þarf aðgengisleyfi til að lesa bendilsamhengi sem krafist er fyrir sjálfvirka hástafi.\n\nSmelltu á \"Opna stillingar\", ýttu á víxlinn við hliðina á HyperWhisper og reyndu aftur.";
+"settings.output.removeFillerWords.title" = "Fjarlægja fyllingarorð";
+"settings.output.removeFillerWords.subtitle" = "Fjarlægja \"eð\", \"um\" og \"er\" úr hráum umritum þegar gervigreind eftirvinnsla er óvirk";
+"settings.output.removeFillerWords.info" = "Á aðeins við þegar stilling sleppir gervigreind eftirvinnslu. Stillingar sem gervigreind eykur um gæðin sjá um hreinlæti tals í fyrirmælum.";
+"sidebar.modelLibrary" = "Líkanaasafn";
+"sidebar.modelLibrary.help" = "Skoðaðu öll raddlíkön og eftirvinnsluíkön á einum stað";
+"settings.shortcuts.quickCapture.enable.title" = "Skyndiupptak";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Taktu upp og sendu umritun í Glósubók — án þess að þurfa að nota forritið fyrst.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Flýtilykill";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Ýttu hvar sem er til að taka upp og senda í Glósubók.";
+"settings.shortcuts.quickCapture.mode.title" = "Stilling";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Umritunarstiillingin sem notuð er — stjórnar líkani, vísbendingu og eftirvinnsl.";
+"settings.shortcuts.quickCapture.mode.current" = "Núverandi stilling";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper þarf heimild til að stjórna Glósubók. Veittu hana í Kerfisstillingar → Friðhelgi → Sjálfvirkni.";
+"settings.section.vocabulary" = "Orðaforði";
+"settings.vocabulary.icloudSync.title" = "iCloud-samstilling";
+"settings.vocabulary.icloudSync.subtitle" = "Samstilltu sérsniðna orðaforða þinn á öllum Mac tækjum sem eru skráð inn á sama iCloud reikning.";
+"settings.vocabulary.icloudSync.info" = "Sjálfgefið óvirkt. Aðeins sérsniðinn orðaforði þinn samstillist — umritanir og hljóðupptökur eru áfram á þessum Mac. Breytingar taka gildi næst þegar þú opnar HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Lokaðu HyperWhisper til að nota breytingar";
+"vocabulary.icloudSync.restart.message" = "Breytingar á iCloud orðabókarsamsæri taka gildi næst þegar þú opnar HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Loka HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Seinna";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Haltu hljóðnema heitum á milli upptaka";
+"settings.sound.keepWarmMicrophone.info" = "Dregur úr push-to-talk ræsingartafinu með því að halda hljóðnemasetunni opinni meðan HyperWhisper er aðgerðarlaus. macOS mun sýna appelsínugula hljóðnemavísa stöðugt, og Bluetooth heyrnartól gætu verið í lægri gæða símtalsham á meðan þetta er virkt.";
+"settings.models.local.inUse" = "Þetta staðbundna líkan er notað í aukavinnslu af:
+
+%@
+
+Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir það.";
+"models.postProcessing.gemma4.e2b.description" = "Hratt og nákvæmt. Frábær alhliða valkostur fyrir aukavinnslu.";
+"models.postProcessing.gemma4.e4b.description" = "Hærri gæði með meiri smáatriðum. Gott fyrir lengri texta.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B blanda sérfræðinga. Hröð ályktun með aðeins 4B virkum breytum.";
+"models.postProcessing.gemma4.31b.description" = "31B þétt líkan. Hæstu gæði, krefst 18+ GB vinnsluminnis.";
+"settings.models.whisper.inUse" = "Ekki er hægt að eyða þessu líkani vegna þess að það er notað af:\n\n%@\n\nUppfærðu þessa hama til að nota annað líkan áður en því er eytt.";
+"settings.models.parakeet.inUse" = "Ekki er hægt að eyða þessu Parakeet líkani vegna þess að það er notað af:\n\n%@\n\nUppfærðu þessa hama til að nota annað líkan áður en því er eytt.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Óþekkt";
+"settings.models.directory.whisper" = "Whisper líkanamappa";
+"settings.models.directory.parakeet" = "Parakeet líkanamappa";
+"settings.models.directory.local" = "Mappa staðbundinna líkana";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — fjöltyngd talgreining bætt fyrir CoreML.";
+"settings.models.qwen3asr.languages" = "30 tungumál";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Þessa Qwen3 ASR líkan er ekki hægt að eyða vegna þess að það er notað af:\n\n%@\n\nUpperfærðu þessa stillingar til að nota annað líkan áður en þú eyðir.";
+"settings.models.directory.show" = "Sýna í Finder";
+"models.error.checksumFailed" = "Líkans gátsumustaðfesting mistókst. Sóttin gæti verið skemmd.";
+
+// MARK: - Statistics View
+"statistics.title" = "Tölfræði";
+"statistics.header.title" = "Notkunartölfræði þín";
+"statistics.header.subtitle" = "Fylgstu með afritunarstarfsemi og frammistöðu";
+"statistics.card.recordings" = "Heildarupptökur";
+"statistics.card.recordings.subtitle" = "Loknar afritanir";
+"statistics.card.duration" = "Heildartími";
+"statistics.card.duration.subtitle" = "Tími í upptöku";
+"statistics.card.words" = "Heildarorð";
+"statistics.card.words.subtitle" = "Orð afrituð";
+"statistics.card.average" = "Meðallengd";
+"statistics.card.average.subtitle" = "Á hverja upptöku";
+"statistics.graph.title" = "Starfsemi með tímanum";
+"statistics.daily.empty" = "Engar upptökur ennþá";
+"statistics.filter.week" = "Þessi vika";
+"statistics.filter.month" = "Þessi mánuður";
+"statistics.filter.alltime" = "Allan tímann";
+
+// MARK: - History View
+"history.title" = "Saga";
+"history.search.placeholder" = "Leita";
+"history.filter.all" = "Allt";
+"history.filter.today" = "Í dag";
+"history.filter.week" = "Þessi vika";
+"history.filter.month" = "Þessi mánuður";
+"history.empty.title" = "Engar upptökur fundust";
+"history.empty.subtitle" = "Reyndu að stilla leitina þína";
+"history.detail.empty" = "Veldu upptöku til að sjá upplýsingar";
+"history.multi.selected" = "%d upptökur valdar";
+"history.multi.delete" = "Eyða völdum";
+"history.context.deleteSelected" = "Eyða %d upptökum";
+"history.context.retry" = "Reyna afritun aftur";
+"history.context.retryWith" = "Reyna aftur með...";
+"history.context.copy" = "Afrita texta";
+"history.retrying" = "Reyni afritun aftur...";
+"history.retry.help" = "Reyna afritunina aftur";
+"history.section.today" = "Í dag";
+"history.section.yesterday" = "Í gær";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Mistókst";
+"history.status.transcription.failed.prefix" = "Afritun mistókst:";
+"history.status.retry.failed.prefix" = "Endurtilraun mistókst:";
+"history.failure.reason" = "Ástæða: %@";
+"history.mode.default" = "Sjálfgefið";
+"history.audio.showInFinder" = "Sýna í Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Eyða hami?";
+"modes.delete.confirm.message" = "Þetta mun fjarlægja valinn ham. Þessa aðgerð er ekki hægt að afturkalla.";
+"modes.header.title" = "Hamar";
+"modes.header.subtitle" = "Búðu til sérsniðnar notendaupplýsingar fyrir mismunandi samhengi og verkflæði";
+"modes.header.create" = "Búa til ham";
+"modes.name.unnamed" = "Ónefnt";
+"modes.badge.offline" = "Ónettengdur";
+"modes.context.select" = "Velja";
+"modes.help.edit" = "Breyta hamstillingum";
+"modes.help.preset" = "Lærðu meira um þessa forstillingu";
+"modes.help.model" = "Lærðu meira um þetta líkan";
+"modes.preset.title" = "Forstilling";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Skilaboð";
+"modes.preset.mail.name" = "Póstur";
+"modes.preset.note.name" = "Athugasemd";
+"modes.preset.meeting.name" = "Fundur";
+"modes.preset.code.name" = "Kóði";
+"modes.preset.custom.name" = "Sérsniðið";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Skilaboðahamur hreinsar boðin þín sem þú talaðir, lagar greinarmerki, breytir í málsgreinar og lagar málfræðivillur.";
+"modes.preset.mail.tooltip" = "Tölvupóstshamur sníður íslenska þína í fagmannlegt tölvupóstssnið, með réttum heilsum, málsgreinum og undirskrift.";
+"modes.preset.note.tooltip" = "Athugasemdarhamur skipuleggur innihald sem þú talaðir í skýrt athugasemdaform með fyrirsögnum, punktalista og skipulögðum hlutum.";
+"modes.preset.meeting.tooltip" = "Fundarhamur skipuleggur íslenska þína í fundargerðarsnið með þátttakendum, aðgerðaatriðum og helstu umræðustöðum.";
+"modes.preset.code.tooltip" = "Kóðahamur breytir talfrjálsum forritunartali í kóðamálfræði. Segðu 'opna sviga', 'bakstrik', 'kamelhólf' og fleira til að skrifa kóða með rödd.";
+"modes.preset.custom.tooltip" = "Sérsniðinn hamur leyfir þér að skilgreina þínar eigin sniðsetningarreglur og kvaðningar fyrir tiltekin notkunartilvik.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Skilgreindu allar sniðsleiðbeiningar fyrir þetta forstillingu.";
+"modes.notice.vocabularyUnsupported" = "Sérsniðinn orðaforði er ekki studdur af þessum veitanda fyrir þetta líkan. Honum verður hunsað.";
+"modes.notice.deepgramNova3AutoDetect" = "Sérsniðinn orðaforði er ekki tiltækur þegar Deepgram Nova-3 með sjálfvirkri greiningu tungumáls er notað. Til að virkja orðaforðaaukningu, stilltu tiltekið tungumál (t.d. enska, spænska).";
+"modes.language.title" = "Tungumál";
+"modes.language.englishOnly" = "Eingöngu enska (hagrætt líkan)";
+"modes.postProcessing.sectionTitle" = "Eftirvinnsla";
+"modes.postProcessing.modeLabel" = "Hamur";
+"modes.postProcessing.modeTitle" = "Eftirvinnsla";
+"modes.postProcessing.modeDescription" = "Veldu hvernig afritanir eru unnar:\n\n• Af: Engin eftirvinnsla, hrá afritun\n• Skýið (gervigreind): Gervigreindarknúin aukning (krefst internets)\n• Staðbundið: Notar á-tæki LLM eins og Gemma í gegnum llama.cpp\n\nSkýjavinnsla sendir texta til valins gervigreindarveitanda þíns. Staðbundinn hamur heldur sig á vélinni þinni en þarf staðbundna netþjóninn í gangi.";
+"modes.postProcessing.providerLabel" = "Þjónustuaðili";
+"modes.postProcessing.apiKeyMissing" = "%@ API lykill ekki stilltur. Bættu honum við í stillingum til að virkja eftirvinnslu.";
+"modes.postProcessing.configure" = "Stilla í stillingum";
+"modes.postProcessing.modelRecommendation" = "Við mælum með að nota GPT-4.1 Nano fyrir besta jafnvægi hraða og gæða.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Staðbundin eftirvinnsla krefst niðurhalaðs staðbundins líkans.";
+"modes.postProcessing.download" = "Sækja í stillingum";
+"modes.postProcessing.localInfo" = "Keyrir algjörlega á tæki. HyperWhisper ræsir meðfylgjandi llama.cpp netþjón sjálfkrafa þegar þessi hamur er virkur.";
+"modes.postProcessing.userSystemPrompt.title" = "Varanlegar leiðbeiningar";
+"modes.postProcessing.userSystemPrompt.placeholder" = "t.d. Enda alltaf tölvupóst með 'Kveðja, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Hreinsa";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Varanlegar leiðbeiningar";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Bættu við leiðbeiningum sem gilda alltaf ofan á valda forstillingu.";
+"modes.toggle.punctuation.title" = "Bæta við greinarmerki";
+"modes.toggle.punctuation.subtitle" = "Bæta sjálfkrafa við punktum og kommum";
+"modes.toggle.capitalization.title" = "Hástafa málsgreinar";
+"modes.toggle.capitalization.subtitle" = "Stór stafur í fyrsta staf málsgreina";
+"modes.toggle.profanity.title" = "Sía blótsyrði";
+"modes.toggle.profanity.subtitle" = "Skipta út óviðeigandi orðum";
+"modes.toggle.removeTrailingPeriod.title" = "Fjarlægja punkt í lok";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Fjarlægir lokapunkt úr umritunum";
+"modes.postProcessing.privacyNotice" = "Afritin þín er EINGÖNGU sent til %@ fyrir eftirvinnslu. Aldrei annars staðar.";
+"modes.postProcessing.localModel" = "Líkan";
+"modes.postProcessing.languageModel" = "Tungumálalíkan";
+"modes.englishSpelling.title" = "Ensk stafsetning";
+"modes.englishSpelling.american" = "Amerísk";
+"modes.englishSpelling.british" = "Bresk";
+"modes.englishSpelling.australian" = "Áströlsk";
+"modes.englishSpelling.canadian" = "Kanadísk";
+"modes.englishSpelling.american.description" = "Nota ameríska enska stafsetningu (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Nota breska enska stafsetningu (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Nota ástralska enska stafsetningu (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Nota kanadíska enska stafsetningu (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Sérsniðnar leiðbeiningar";
+"modes.gemini.customPrompt.helper" = "Valfrjálst. T.d. \"Sníða sem punkta\", \"Nota formlegt tungumál\". Tungumáls- og orðaforðastillingar þínar eru sjálfkrafa innifaldar.";
+"modes.cloud.apiKeyMissing" = "%@ API lykill ekki stilltur. Bættu honum við í stillingum til að nota skýjaafritun.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Nákvæmni";
+"modes.cloudAccuracy.groqWhisper.label" = "Miðlungs (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Miðlungs (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Há (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Hratt og hagkvæmt. Best fyrir skjótar afritanir.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Jafnvægi hraða og nákvæmni. Mælt með fyrir flesta notendur.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+
+"modes.create.title" = "Búa til nýjan ham";
+"modes.create.subtitle" = "Stilltu sérsniðna afritunarnotendaupplýsingu";
+"modes.section.basic" = "Grunnstillingar";
+"modes.section.transcription" = "Afritunar líkan";
+"modes.section.punctuation" = "Greinarmerki";
+"modes.toggle.screenText.title" = "Skjátexti";
+"modes.toggle.screenText.subtitle" = "Taktu sýnilegan skjátexta til að bæta nákvæmni heita og hugtaka. Krefst heimild skjáupptöku.";
+"modes.screenText.openSettings" = "Opna Kerfisstillingar";
+"modes.screenText.permissionGranted" = "Heimild skjáupptöku veitt";
+"modes.screenText.permissionRequired" = "Heimild skjáupptöku nauðsynleg";
+"modes.field.name" = "Heiti";
+"modes.field.name.placeholder" = "t.d., Fundarathugasemdir";
+"modes.field.name.editPlaceholder" = "Heiti hams";
+"modes.field.model" = "Líkan";
+"modes.field.provider" = "Veitandi";
+"modes.provider.local" = "Staðbundinn";
+"modes.provider.cloud" = "Skýið";
+"modes.notice.noLocalModels.title" = "Engin staðbundin líkön uppsett";
+"modes.notice.noLocalModels.subtitle" = "Settu upp líkan í stillingum fyrst";
+"modes.model.pricing" = "Verðlagning: $%.6f / mínútu (reikningað á sekúndu)";
+"modes.button.create" = "Búa til ham";
+"modes.button.delete" = "Eyða hami";
+"modes.button.save" = "Vista breytingar";
+"modes.edit.title" = "Breyta hami";
+"modes.edit.subtitle" = "Breyta stillingum afritunarnotendaupplýsinga";
+"mode.editor.cloudModel.previewHint" = "Forskoðun";
+"mode.editor.cloudModel.noVocabularyHint" = "Enginn sérsniðinn orðaforði";
+"mode.editor.cloudDomain.medical" = "Læknisfræði";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode viðbót";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Get ekki reynt aftur: Hljóðskrá fannst ekki";
+"transcripts.error.invalidId" = "Ógilt afrits auðkenni";
+"transcripts.delete.single.title" = "Eyða upptöku?";
+"transcripts.delete.single.message" = "Þetta mun varanlega eyða þessari upptöku og hljóðskrá hennar.";
+"transcripts.delete.multiple.title" = "Eyða %d upptökum?";
+"transcripts.delete.multiple.message" = "Þetta mun varanlega eyða %d upptökum og hljóðskránum þeirra.\n\nÞessa aðgerð er ekki hægt að afturkalla.";
+"transcripts.delete.multiple.confirm" = "Eyða öllum";
+"transcripts.retry.error.title" = "Endurtilraun mistókst";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Velja upptökumöppu";
+"storage.folder.choose.message" = "Veldu möppu til að vista nýjar upptökur.";
+"storage.folder.choose.prompt" = "Velja";
+"storage.recovery.title" = "Get ekki nálgast upptökumöppuna";
+"storage.recovery.message" = "HyperWhisper gat ekki nálgast stillta upptökumöppuna. Þú getur valið aðra möppu til að halda áfram.";
+"storage.recovery.choose" = "Velja möppu…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Læra meira";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Afritun lokið";
+"recording.status.retrying" = "Reyni afritun aftur…";
+"recording.status.postprocessing" = "Eftirvinnsla með gervigreind…";
+"recording.status.transcribing" = "Afritar…";
+"recording.success.pasted" = "Límt!";
+"recording.loading.retrying" = "Reyni aftur…";
+"recording.loading.postprocessing" = "Vinnur með gervigreind…";
+"recording.loading.starting" = "Byrja straum…";
+"recording.loading.transcribing" = "Afritar…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Tengist...";
+"streaming.status.ready" = "Tilbúið - byrjaðu að tala";
+"streaming.status.warming" = "Hlýjar upp...";
+"modes.badge.recommended" = "Mælt með";
+"modes.source.label" = "Uppspretta";
+"modes.source.onDevice" = "Á tækinu";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-lykill";
+"modes.field.engine" = "Vél";
+"settings.models.localASR.inUse" = "Ekki er hægt að eyða þessu líkani vegna þess að það er notað af:
+
+%@
+
+Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir.";
+"models.postProcessing.gemma4.12b.description" = "Miðstætt þétt líkan. Jafnar gæði og hraða á 16 GB Macs.";
+"recording.success.savedToNotes" = "Vistað í Glósur!";
+"modes.provider.needsKey" = "%@ þarf virkan lykil.";
+"modes.provider.manageInLibrary" = "Stjórna í safninu →";
+"streaming.loading.warming" = "Hlýjar upp staðbundið líkan...";
+"streaming.status.listening" = "Hlusta...";
+"streaming.status.streaming" = "Strauma...";
+"streaming.status.disconnecting" = "Stöðva...";
+"streaming.loading.connecting" = "Tengist netþjóni...";
+"streaming.loading.ready" = "Frumstilli hljóð...";
+"streaming.loading.streaming" = "Bíð eftir máli...";
+"streaming.state.reconnecting" = "Endurtengist...";
+"recording.stop.help" = "Stöðva upptöku (%@)";
+"recording.postprocessing.unavailable" = "Eftirvinnsla ekki tiltæk";
+"recording.postprocessing.missing.single" = "%@ lykill vantar – tek upp án eftirvinnslunnar";
+"recording.postprocessing.missing.multiple" = "API lyklar vantar – tek upp án eftirvinnslunnar";
+"recording.postprocessing.addKey" = "Bæta við lykli";
+"recording.offline.banner" = "Engin nettenging. Skýjaafritun mun mistakast þar til þú ert tengdur.";
+"recording.offline.title" = "Engin nettenging";
+"recording.offline.subtitle" = "Endurtengdist til að halda áfram eða skiptu yfir í ónettengdan ham.";
+"recording.error.network" = "Athugaðu nettengingu þína og reyndu aftur.";
+"recording.error.timeout" = "Beiðni tímauppúr. Athugaðu tengihraða þinn og reyndu aftur.";
+"recording.error.rateLimit" = "Þú hefur gert of margar beiðnir. Bíddu augnablik og reyndu aftur.";
+"recording.error.credits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";
+"recording.error.apiKey" = "Bættu við %@ API lykilnum þínum í stillingum.";
+"recording.error.server" = "Afritunarþjónustan er að upplifa vandamál. Vinsamlegast reyndu aftur eftir augnablik.";
+"recording.retry" = "Reyna aftur";
+"recording.retry.inProgress" = "Reyni aftur…";
+"recording.retry.count" = "Reyna aftur (%d)";
+"recording.retry.failed.missing" = "Endurtilraun mistókst: Hljóðskrá fannst ekki";
+"recording.retry.failed.error" = "Endurtilraun mistókst: %@";
+"recording.retry.pending" = "Tilbúið að reyna aftur – smelltu til að afrita";
+"recording.provider.unknown" = "skýjaveitandi";
+"recording.cancel.dialog.title" = "Hætta við upptöku?";
+"recording.cancel.dialog.message" = "Þetta mun henda núverandi upptöku.";
+"recording.cancel.dialog.confirm" = "Hætta við upptöku";
+"recording.cancel.dialog.resume" = "Halda áfram";
+"recording.error.overlay.title" = "Netvilla";
+"recording.error.overlay.message" = "Ýttu á 'Reyna aftur' hér að neðan eða skiptu yfir í ónettengdan ham til að halda áfram.";
+"recording.mode.default" = "Sjálfgefið";
+"recording.dialog.window.title" = "Upptökugluggi";
+"recording.button.start" = "Byrja upptöku";
+"recording.button.stop" = "Stöðva upptöku";
+"recording.button.disable.checking" = "Athuga %@ stöðu...";
+"recording.button.disable.invalid" = "Ógildur %@ API lykill. Uppfærðu hann í stillingum.";
+"recording.button.disable.unreachable" = "%@ er óaðgengilegur. Athugaðu tengingu þína og reyndu aftur.";
+"recording.button.disable.missing" = "Bættu við %@ API lykilnum þínum í stillingum.";
+"recording.button.disable.install.local" = "Sæktu staðbundið líkan í Stillingar → Líkön áður en þú notar staðbundna aukavinnslu.";
+"modes.postProcessing.accuracy" = "Nákvæmni";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Þú hefur náð daglegu %@-mínútu afritunarmarkinu þínu. Uppfærðu í HyperWhisper Pro fyrir ótakmarkaða afritun.";
+"recording.error.documentsAccess" = "Get ekki nálgast upptökumöppuna. Veldu aðra staðsetningu í Stillingar → Geymsla.";
+"recording.error.modeMissing" = "Valinn hamur fannst ekki. Vinsamlegast veldu gildan ham.";
+"recording.warning.oversizedWAV" = "Hljóðþjöppun mistókst. Nota óþjappaða %@ MB skrá - afritun gæti verið hægari.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Sjálfgefinn hljóðnemi";
+"audio.error.permissionDenied" = "Aðgangur að hljóðnema hafnað. Vinsamlegast virkjaðu í kerfisstillingum.";
+"audio.error.fileWatcher.open" = "Gat ekki opnað skráarlýsing til að fylgjast með hljóðskránni.";
+"audio.error.fileWatcher.timeout" = "Aðgerðin tímafór á meðan beðið var eftir að hljóðskráin yrði skrifuð.";
+"audio.error.fileWatcher.creation" = "Hljóðskráin var ekki búin til í tíma.";
+"audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
+"audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
+"audio.error.createEngine" = "Mistókst að búa til hljóðvél";
+"audio.error.noInput" = "Ekkert hljóðinntak tiltækt";
+"audio.error.createFile" = "Mistókst að búa til hljóðskrá";
+"audio.error.managerUnavailable" = "Afritunarstjóri ekki stilltur";
+"audio.error.invalidHardwareFormat" = "Ógilt vélbúnaðar hljóðform greint. Vinsamlegast athugaðu hljóðtækið þitt.";
+"audio.error.createFormat" = "Mistókst að búa til hljóðform fyrir upptöku";
+"audio.error.createConverter" = "Mistókst að búa til hljóðformsbreytir";
+"audio.error.exportM4A" = "Mistókst að flytja út hljóð í m4a form";
+"audio.error.readFile" = "Hljóðskrá gat ekki verið lesin eftir upptöku.";
+"audio.error.recordingTooShort" = "Upptaka var of stutt. Vinsamlegast haltu hnappinum lengur til að fanga hljóð.";
+"audio.error.noAudioTrack" = "Þessi myndbandskrá inniheldur ekki hljóðlag.";
+"audio.alert.accessibility.title" = "Virkja aðgengileyi";
+"audio.alert.accessibility.message" = "HyperWhisper þarf aðgengileyfi til að líma afritaðan texta inn í önnur forrit.\n\nSmelltu á \"Opna stillingar\", ýttu á rofa við hliðina á HyperWhisper, reyndu síðan aftur.";
+"audio.alert.accessibility.open" = "Opna stillingar";
+"audio.alert.pasteFailed.title" = "Sjálfvirk líming mistókst";
+"audio.alert.pasteFailed.message" = "Afritaði textinn hefur verið afritaður á klippispjaldið þitt.\n\nÝttu ⌘V til að líma hann handvirkt, eða veldu Breyta → Líma úr valmyndinni.";
+"accessibility.permission.location.debug" = "Xcode kemba smíði";
+"accessibility.permission.location.installed" = "Uppsett forrit";
+"accessibility.permission.info" = "HyperWhisper þarf aðgengileyfi til að líma afritaðan texta inn í önnur forrit.\n\nNúverandi forristastaðsetning: %@\n\nÍ kerfisstillingum:\n1. Leitaðu að 'hyperwhisper' eða 'HyperWhisper' í listanum\n2. Þú gætir séð margar færslur ef þú hefur keyrt frá mismunandi stöðum\n3. Virkjaðu gátreitinn fyrir færsluna sem samsvarar:\n   %@";
+"accessibility.permission.xcodeNote" = "Athugið: Að keyra frá Xcode krefst annars leyfis en uppsetta forritið.";
+"accessibility.error.paste.commandFailed" = "Límuskipun mistókst";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Afritunar veitandi er ekki tiltækur. Athugaðu stillingarnar þínar og reyndu aftur.";
+"transcription.error.providerNotAvailable.provider" = "%@ er ekki tiltækt. Athugaðu stillingarnar þínar og reyndu aftur.";
+"transcription.error.providerNotAvailable.detail" = "%@ er ekki tiltækt: %@";
+"transcription.error.modelNotDownloaded" = "Vinsamlegast sæktu líkan fyrst";
+"transcription.error.modelProtected" = "Þessu líkani er ekki hægt að eyða";
+"transcription.error.audioFileNotFound" = "Hljóðskrá fannst ekki";
+"transcription.error.network.detail" = "Netvilla: %@";
+"transcription.error.network.generic" = "Netvilla";
+"transcription.error.apiKeyMissing.provider" = "%@ API lykill er nauðsynlegur fyrir afritun";
+"transcription.error.apiKeyMissing.generic" = "Skýjaveitandi API lykill er nauðsynlegur fyrir afritun";
+"transcription.error.maxRetriesExceeded" = "Hámarks endurtilraunatölur farið yfir";
+"transcription.error.unauthorized.provider" = "Óheimilt: ógildur %@ API lykill eða heimildir.\n\nOpnaðu Stillingar → API lyklar til að staðfesta skilríkin þín.";
+"transcription.error.unauthorized.generic" = "Óheimilt: ógildur API lykill eða heimildir.\n\nOpnaðu Stillingar → API lyklar til að staðfesta skilríkin þín.";
+"transcription.error.invalidRequest" = "Ógild beiðni: athugaðu hljóðskrá eða stillingar";
+"transcription.error.streamingInterrupted" = "Streymi truflað; hlutaðan texta sýndur";
+"transcription.error.busy" = "Afritunarþjónustan er upptekin eins og stendur";
+"transcription.error.invalidAudioFormat" = "Óstutt hljóðform";
+"transcription.error.audioConversionFailed" = "Mistókst að breyta hljóði í krafist form";
+"transcription.error.audioFileTooLarge" = "Skrá of stór: %@ fer yfir %@ mörk fyrir %@";
+"transcription.error.serverError" = "Netþjónavilla (%d): %@";
+"transcription.error.rateLimited.seconds" = "Hraðatakmörk: Of margar beiðnir. Vinsamlegast bíddu %d sekúndur og reyndu aftur.";
+"transcription.error.rateLimited.generic" = "Hraðatakmörk: Of margar beiðnir. Vinsamlegast bíddu augnablik og reyndu aftur.";
+"transcription.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";
+"transcription.error.quotaExceeded" = "%@ kvóti farið yfir";
+"transcription.error.quotaExceeded.detail" = "%@ kvóti farið yfir: %@";
+"transcription.error.timeout" = "Beiðni tímafór í %@. Athugaðu nettengingu þína og reyndu aftur.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Gakktu úr skugga um að afritunar veitandinn þinn sé rétt stilltur í stillingum.";
+"transcription.guidance.providerNotAvailable.provider" = "Gakktu úr skugga um að %@ sé rétt stillt. Fyrir staðbundin líkön, sæktu líkan fyrst. Fyrir skýjaveitendur, staðfestu API lykilinn þinn.";
+"transcription.guidance.apiKeyMissing.provider" = "Bættu við %@ API lykilnum þínum í stillingum";
+"transcription.guidance.apiKeyMissing.generic" = "Bættu við skýjaveitanda API lykilnum þínum í stillingum";
+"transcription.guidance.modelNotDownloaded" = "Sæktu líkan úr líkanahlutanum";
+"transcription.guidance.modelProtected" = "Þetta líkan er nú í notkun";
+"transcription.guidance.audioFileNotFound" = "Hljóðskráin var eytt eða færð";
+"transcription.guidance.networkError" = "Athugaðu nettengingu þína og reyndu aftur";
+"transcription.guidance.unauthorized.provider" = "Athugaðu %@ API lykilinn þinn eða reikningsheimildir í stillingum";
+"transcription.guidance.unauthorized.generic" = "Athugaðu API lykilinn þinn eða reikningsheimildir í stillingum";
+"transcription.guidance.invalidRequest" = "Staðfestu hljóðskrána og hamstillingar, reyndu síðan aftur";
+"transcription.guidance.invalidAudioFormat" = "Reyndu að breyta hljóðskránni í MP3 eða WAV form";
+"transcription.guidance.audioConversionFailed" = "Hljóðskráin gæti verið skemmd. Reyndu aðra skrá";
+"transcription.guidance.audioFileTooLarge" = "Notaðu styttri hljóðskrá eða skiptu henni í minni hluta";
+"transcription.guidance.serverError" = "Afritunarþjónustan er að upplifa vandamál. Vinsamlegast reyndu aftur.";
+"transcription.guidance.rateLimited" = "Þú hefur gert of margar beiðnir. Bíddu augnablik áður en þú reynir aftur.";
+"transcription.guidance.insufficientCredits" = "Keyptu fleiri einingar í stillingum til að halda áfram að afrita";
+"transcription.guidance.quotaExceeded" = "Bættu við einingum á %@ reikninginn þinn eða uppfærðu greiðsluupplýsingar þínar";
+"transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
+"transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
+"transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";
+"hyperwhisperCloud.error.network" = "Netvilla: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Ógilt svar frá HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Netþjónavilla: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server keyranlega skrá gat ekki verið staðsett.";
+"llama.runtime.error.missingDependencies" = "Keyrslutími vantar ósjálfstæði: %@";
+"llama.runtime.error.copyFailed" = "Mistókst að afrita keyrslutíma: %@";
+"llama.runtime.error.copy.executable" = "Ófær að afrita keyranleg skrá: %@";
+"llama.runtime.missing" = "Staðbundinn keyrslutími vantar úr þessari uppsetningu. Endursettu upp HyperWhisper til að endurheimta staðbundna eftirvinnslu.";
+"llama.runtime.genericError" = "Staðbundinn keyrslutímavilla: %@";
+"runtime.error.llama.missingLib" = "Staðbundinn keyrslutími endaði eftir vanandi libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Staðbundinn keyrslutími tilkynnti vanandi libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Innbyggð gervigreind eftirvinnsla keyrandi á Cloudflare Workers. Engin stilling þörf.";
+"models.postProcessing.gpt4.1.nano.description" = "Meðal nákvæmni (92%), mjög hraður hraði (<1s). Hæfa fyrir skjóta drög og óformlegar athugasemdir.";
+"models.postProcessing.gpt4.1.mini.description" = "Há nákvæmni (94%), hraður hraði (~1-2s). Gott fyrir daglegar viðskiptasamskipti og staðlaðar skjöl.";
+"models.postProcessing.gpt4.1.description" = "Mjög há nákvæmni (96%), miðlungs hraði (~3-4s). Frábært fyrir flókna sniðsetningu og tæknilegt innihald.";
+"models.postProcessing.gpt5.nano.description" = "Góð nákvæmni (95%), hraðastur hraði (~1s). Fullkomið fyrir skjótar athugasemdir, skilaboð og óformlegar afritanir.";
+"models.postProcessing.gpt5.mini.description" = "Framúrskarandi nákvæmni (97%), miðlungs hraði (~2-3s). Tilvalið jafnvægi fyrir fagmannlega tölvupósta, skýrslur og fundarathugasemdir.";
+"models.postProcessing.gpt5.description" = "Hæsta nákvæmni (99%+), hægastur hraði (~3-5s). Best fyrir mikilvæg skjöl, lögfræðilega, læknisfræðilegar afritanir þar sem nákvæmni er í fyrirrúmi.";
+"models.postProcessing.gpt5.1.description" = "Háþróuð nákvæmni (98%+), miðlungs hraði (~2-3s). Framúrskarandi fyrir flókin verkefni, lögfræðileg skjöl og tæknilegt innihald með betri röksemdafærslu.";
+"models.postProcessing.gpt5.2.description" = "Nýjasta GPT-5 röðin með aukinni röksemdafærslu og hraðari ályktun. Besti heildarvalinn fyrir hágæða textavinnslu.";
+"models.postProcessing.claude4.5.haiku.description" = "Nýjasta Claude Haiku með bættri röksemdafærslu á meðan viðbragðstími er haldið hratt.";
+"models.postProcessing.claude4.sonnet.description" = "Jafnvægisafköst. Betri röksemdafærsla og sniðsetningargeta fyrir fagmannleg skjöl.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 röð með Pro-stigs greind á Flash hraða. Ítarleg röksemdafærsla með breytilega hugsunargetu.";
+"models.postProcessing.gemini2.5.flash.description" = "Best hvað varðar verð-árangur. Hagrætt fyrir hraða á meðan góð nákvæmni er viðhaldið fyrir daglega notkun.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ofur hratt líkan hagrætt fyrir kostnaðarhagkvæmni og háa afköst.";
+"models.postProcessing.groq.llama33.70b.description" = "Fjölhæf 70B líkan með framúrskarandi gæðum. ~280 tákn/sek. Mælt með.";
+"models.postProcessing.groq.llama31.8b.description" = "Ofur-hratt 8B líkan. ~560 tákn/sek fyrir skyndileg textavinnslu.";
+"models.postProcessing.groq.gptoss.120b.description" = "Opinn uppspretta 120B líkan OpenAI. ~500 tákn/sek fyrir hágæða vinnslu.";
+"models.postProcessing.groq.gptoss.20b.description" = "Létt 20B líkan. ~1000 tákn/sek fyrir hraðasta vinnslu.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B á Cerebras. Ofur-hratt 120B líkan á ~3000 tákn/sek. Mælt með.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B á Cerebras. Létt og ofur-hratt við ~2200 tákn/sek.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B á Cerebras. Gríðarstórt 235B MoE líkan á ~1400 tákn/sek. Aðeins forskoðun.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 á Cerebras. 355B færibreyta líkan á ~1000 tákn/sek. Aðeins forskoðun.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Hjálparmiðstöð";
+"settings.resources.contact.support" = "Hafa samband við aðstoð";
+"settings.resources.feedback" = "Athugasemdir og tillögur";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Öryggisafrit";
+"settings.backup.export.title" = "Flytja út stillingar";
+"settings.backup.export.subtitle" = "Vistaðu stillingarnar þínar, hama og orðaforða í skrá";
+"settings.backup.export.button" = "Flytja út...";
+"settings.backup.export.panel.title" = "Flytja út stillingar";
+"settings.backup.export.panel.label" = "Öryggisafrit skrá:";
+"settings.backup.export.success" = "Stillingar fluttar út með góðum árangri";
+"settings.backup.export.error.create" = "Mistókst að búa til öryggisafritsgögn";
+"settings.backup.export.error.encode" = "Mistókst að kóða öryggisafritsgögn";
+"settings.backup.export.error.write" = "Mistókst að skrifa öryggisafritsskrá";
+"settings.backup.includeAPIKeys.title" = "Innihalda API lykla";
+"settings.backup.includeAPIKeys.subtitle" = "Geyma API lykla í öryggisafritsskránni (ekki mælt með fyrir deilingu)";
+"settings.backup.includeLicense.title" = "Innihalda leyfislykil";
+"settings.backup.import.title" = "Flytja inn stillingar";
+"settings.backup.import.subtitle" = "Endurheimta stillingar úr öryggisafritsskrá";
+"settings.backup.import.button" = "Flytja inn...";
+"settings.backup.import.panel.title" = "Flytja inn stillingar";
+"settings.backup.import.success" = "Innflutningur lokið: %d hamar, %d orðaforðaatriði flutt inn";
+"settings.backup.import.error.read" = "Mistókst að lesa öryggisafritsskrá";
+"settings.backup.import.error.decode" = "Ógilt öryggisafritsskráform";
+"settings.backup.import.error.decode.keyNotFound" = "Áskilinn reitur vantar: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Röng tegund fyrir reit: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Gildi vantar fyrir reit: %@";
+"settings.backup.import.error.decode.corrupted" = "Skemmd gögn: %@";
+"settings.backup.import.error.decode.corruptedField" = "Skemmt gildi fyrir reit: %@";
+"settings.backup.import.error.version" = "Öryggisafritsskrá er frá nýrri útgáfu";
+"settings.backup.import.error.unknown" = "Innflutningur mistókst";
+"settings.backup.import.confirm.title" = "Flytja inn stillingar?";
+"settings.backup.import.confirm.message" = "Þetta mun skipta út núverandi hömum og orðaforða með þeim úr öryggisafritsskránni. Stillingar verða einnig uppfærðar.";
+"settings.backup.import.confirm.button" = "Flytja inn";
+"settings.backup.conflict.skip" = "Sleppa núverandi";
+"settings.backup.conflict.replace" = "Skipta út núverandi";
+"settings.backup.conflict.keepBoth" = "Halda báðum";
+"settings.backup.security.warning" = "Viðvörun: Útflutt skrá mun innihalda viðkvæm gögn. Haltu henni öruggri og deildu henni ekki.";
+"settings.backup.info.note" = "Öryggisafrit innihalda stillingar, hama og orðaforða. Upptökur og afrit eru ekki innifalin.";
+"settings.backup.result.success.title" = "Árangur";
+"settings.backup.result.error.title" = "Villa";
+"settings.backup.export.choose.subtitle" = "Veldu hvað á að hafa með í öryggisafritunarskránni";
+"settings.backup.export.section.settings" = "Stillingar";
+"settings.backup.export.section.modes" = "Stillingar";
+"settings.backup.export.section.vocabulary" = "Orðaforði";
+"settings.backup.import.importing" = "Er að flytja inn %@";
+"settings.backup.import.contains" = "Þessi skrá inniheldur: %@";
+"settings.backup.import.contains.vocabulary" = "Orðaforði (%d orð)";
+"settings.backup.import.contains.none" = "ekkert";
+"settings.backup.import.section.settings" = "Stillingar";
+"settings.backup.import.section.modes" = "Stillingar";
+"settings.backup.import.section.vocabulary" = "Orðaforði";
+"settings.backup.import.section.apiKeys" = "API-lyklar";
+"settings.backup.import.section.license" = "Leyfislykill";
+"settings.backup.import.section.absent" = "— ekki í skránni";
+"settings.backup.import.premerge.summary" = "Orðaforði: bæta við %d nýjum, %d er þegar til";
+"settings.backup.import.premerge.conflictLabel" = "Fyrir orð sem þegar eru til:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Velja hljóðskrá";
+"transcribe.file.error.title" = "Afritunar villa";
+"transcribe.file.error.size.title" = "Skrá of stór";
+"transcribe.file.error.size.message" = "Valin skrá (%@) fer yfir %@ mörk fyrir %@.";
+"transcribe.file.error.format.title" = "Óstutt form";
+"transcribe.file.error.format.message" = ".%@ skrár eru ekki studdar af %@. Studd form: %@";
+"transcribe.file.error.read" = "Get ekki lesið valda skrá.";
+"transcribe.file.error.copy" = "Mistókst að afrita skrá í upptökumöppu.";
+"transcribe.file.error.video.title" = "Ekkert hljóð í myndskrá";
+"transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Undirbúa...";
+"file.transcription.transcribing" = "Afritar...";
+"file.transcription.finishing" = "Klára...";
+"file.transcription.cancel" = "Hætta við";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Virkja sjálfvirka eyðingu";
+"history.autoDelete.enable.subtitle" = "Upptökur eldri en tiltekið tímabil verður eytt";
+"history.autoDelete.duration.prefix" = "Eftir";
+"history.autoDelete.unit.minutes" = "Mínútur";
+"history.autoDelete.unit.hours" = "Klukkustundir";
+"history.autoDelete.unit.days" = "Dagar";
+"history.autoDelete.unit.minutes.plural" = "mínútur";
+"history.autoDelete.unit.hours.plural" = "klukkustundir";
+"history.autoDelete.unit.days.plural" = "dagar";
+"history.autoDelete.status.disabled" = "Sjálfvirk eyðing er óvirk";
+"history.autoDelete.status.enabled" = "Eyða upptökum eldri en %d %@";
+"history.autoDelete.cleanup.noItems" = "Engar upptökur til að eyða";
+"history.autoDelete.cleanup.summary" = "Eyddi %d upptöku(m) og losaði %@";

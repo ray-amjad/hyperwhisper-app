@@ -1,0 +1,120 @@
+---
+title: Pricing & Trial Limits
+description: Trial vs Pro tiers, what cloud credits are, how to purchase, and how to manage your billing.
+---
+
+HyperWhisper is free to download and try. A Pro license unlocks unlimited transcription, all local models, and your included HyperWhisper Cloud credits.
+
+## Trial vs Pro
+
+| | Trial (free) | Pro (paid) |
+| --- | --- | --- |
+| Daily transcription | **5 minutes / day** | Unlimited |
+| Local model downloads | Up to **3 models** (lifetime) | Unlimited |
+| HyperWhisper Cloud | Pay-as-you-go with **150 free credits** | **5,000 credits included** (~$5) plus pay-as-you-go top-ups |
+| BYOK providers (OpenAI, Groq, Deepgram, etc.) | ✓ | ✓ |
+| Auto-paste, custom modes, vocabulary | ✓ | ✓ |
+| Cost | Free | One-time purchase |
+
+## What are HyperWhisper Cloud credits?
+
+Credits are the currency for using HyperWhisper's hosted transcription service (HyperWhisper Cloud). When you transcribe audio through HyperWhisper Cloud, credits are deducted from your balance based on audio length — approximately 6.3 credits per minute of audio.
+
+At the rate of 5,000 credits for $5 ($0.001 per credit), and 6.3 credits consumed per minute, that works out to roughly **$0.006 per minute** of cloud transcription. You only spend credits when you choose a HyperWhisper Cloud provider; BYOK providers (where you supply your own API key) do not consume credits.
+
+**Trial users** start with 150 free credits — enough to try HyperWhisper Cloud for around 23 minutes before needing to top up.
+
+**Pro users** receive 5,000 credits (~$5 value) bundled with their license purchase. Additional credits can be purchased separately from your billing dashboard when your balance runs low.
+
+<Note>
+  Credits are tied to your account, not to a specific device. On trial, your credits are tracked by a device identifier assigned to your machine — rotating to a different device on trial does not grant a fresh credit balance.
+</Note>
+
+## Trial limits explained
+
+Trial limits are enforced in the app itself, not the server. Two limits apply:
+
+**Daily transcription time — 5 minutes per day.** The counter resets at local midnight. If you have reached the limit, your next recording attempt is blocked until the counter resets at midnight. You can see how much time you have left in **Settings → License**.
+
+**Local model downloads — 3 models, lifetime.** Each model you download counts against this limit. The limit is not per-day; it applies permanently to the trial. Once you reach 3 downloads, the download button is disabled until you activate a Pro license.
+
+When a limit is reached, the relevant section in **Settings → License** shows a warning badge. Activating a Pro license removes both limits immediately.
+
+<Note>
+  These limits are intentionally generous enough to evaluate whether HyperWhisper fits your workflow before you buy.
+</Note>
+
+## Purchasing a Pro license
+
+Trial users see an **Upgrade** button at the bottom of the **Settings → License** panel. Clicking it opens the checkout page in your browser.
+
+<Steps>
+  <Step title="Click Upgrade in Settings → License">
+    From the menu bar (macOS) or tray (Windows), open **Settings → License**. Click the **Upgrade** button at the bottom of the trial usage card.
+
+    Alternatively, visit [hyperwhisper.com/checkout](https://www.hyperwhisper.com/checkout) directly.
+  </Step>
+  <Step title="Complete checkout">
+    You'll be taken to a Stripe Checkout page. Enter your email and payment details. Promotion codes are supported — paste one in the discount field if you have one. The license is a one-time purchase (not a subscription).
+  </Step>
+  <Step title="Receive your license key">
+    After payment, HyperWhisper emails your license key to the address you entered. You'll also see a confirmation page.
+  </Step>
+</Steps>
+
+## Activating a Pro license
+
+<Steps>
+  <Step title="Open Settings → License">
+    From the menu bar (macOS) or tray (Windows), open **Settings → License**.
+  </Step>
+  <Step title="Paste your license key">
+    Paste the key from your purchase confirmation email into the license key field.
+  </Step>
+  <Step title="Click Activate">
+    HyperWhisper validates the key online and unlocks Pro features immediately. Your bundled 5,000 cloud credits are credited to your account at the same time.
+  </Step>
+</Steps>
+
+Activation requires a one-time internet connection. After it completes, you can keep using HyperWhisper offline (with local models).
+
+## Managing your billing
+
+Once your license is active, a **Manage Billing** button appears in **Settings → License** (on both macOS and Windows). Clicking it opens your billing dashboard at [hyperwhisper.com/user](https://www.hyperwhisper.com/user), where you can:
+
+- Check your remaining cloud credit balance
+- View purchase history
+- Buy additional cloud credits when your balance runs low
+- Update your payment method
+
+<Note>
+  The Manage Billing button is only visible when a Pro license is active. Trial users can visit [hyperwhisper.com/user](https://www.hyperwhisper.com/user) directly after creating an account.
+</Note>
+
+## Using your license on multiple machines
+
+A single license is intended for personal use across the machines you own — for example, a desktop and a laptop. There's no rigid per-device install limit, but the license is tied to your account and is not for redistribution.
+
+If you need to use HyperWhisper on a team or across many machines, contact [support@hyperwhisper.com](mailto:support@hyperwhisper.com) about volume licensing.
+
+## Moving to a new Mac or PC
+
+If you're replacing a device or selling an old one:
+
+<Steps>
+  <Step title="Deactivate on the old machine (recommended)">
+    Open **Settings → License → Deactivate** on the machine you're leaving. This frees the activation slot.
+  </Step>
+  <Step title="Install HyperWhisper on the new machine">
+    Download from [hyperwhisper.com](https://www.hyperwhisper.com).
+  </Step>
+  <Step title="Activate with the same key">
+    Paste your license key in **Settings → License** on the new machine.
+  </Step>
+</Steps>
+
+If you no longer have access to the old machine (lost, stolen, wiped), email [support@hyperwhisper.com](mailto:support@hyperwhisper.com) with your license key and we'll free the slot manually.
+
+## Lost your license key?
+
+License keys are sent by email at the time of purchase. If you can't find yours, search your inbox for "HyperWhisper" or "Stripe" (our payment processor). You can also retrieve your key by visiting [hyperwhisper.com/user](https://www.hyperwhisper.com/user) and signing in with the email you used to purchase. If you still can't find it, email [support@hyperwhisper.com](mailto:support@hyperwhisper.com) with your purchase email address.

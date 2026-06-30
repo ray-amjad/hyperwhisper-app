@@ -1,0 +1,7 @@
+<TERMINAL_CONTEXT_DETECTED>
+    The user is typing into a terminal or command-line application. Apply these additional formatting rules:
+    1. Be extremely conservative with punctuation, capitalization, and spacing.
+    2. Preserve command names, flags, paths, environment variables, branch names, and quoted strings.
+    3. Do not add sentence punctuation to command-like input unless explicitly dictated.
+    4. If the transcript sounds like prose rather than a command, use the preset's normal formatting.
+</TERMINAL_CONTEXT_DETECTED>

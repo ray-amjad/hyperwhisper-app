@@ -1,0 +1,91 @@
+.derived/
+.claude/settings.local.json
+
+# Windows / .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*_wpftmp.csproj
+
+# Rust build output
+shared-core-rs/target/
+target/
+.vs/
+*.DotSettings.user
+
+# NuGet packages (restored automatically)
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Rider IDE
+.idea/
+
+# Xcode
+.build/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+*.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# Build products
+build/
+DerivedData/
+
+# Swift Package Manager
+Packages/
+Package.resolved
+
+# macOS
+.DS_Store
+
+# Builds
+app/.build/
+macos-builds/
+build_test/
+
+.env
+*.env
+
+# Signing keys & code-signing credentials (never commit)
+*.priv
+.codex/skills/windows-release/NetSparkle_Ed25519.priv
+.codex/skills/windows-release/esigner.env
+
+# Sentry
+.sentryclirc
+
+# Claude
+.claude/skills/sync-models/.env
+
+# Windows installer outputs (too large for git)
+app/windows-installers/
+
+# Node
+node_modules/
+
+# Pi agent sessions and caches (ephemeral, per-machine)
+.pi/agent-sessions/
+.pi/mcp-cache.json
+
+# Internal-only — excluded from the public repo
+plans/
+notes/
+tasks/
+app/ios/
+# Local agent tooling & internal-only skills/worktrees — never part of the public repo
+.claude/
+.codex/
+.context/
+**/.vscode/
+**/.DS_Store
+*.env.local
+.env.local

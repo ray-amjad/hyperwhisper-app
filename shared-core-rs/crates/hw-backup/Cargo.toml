@@ -1,0 +1,18 @@
+[package]
+name = "hw-backup"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform backup core: validates and maps the shared backup JSON schema. Plain Rust; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

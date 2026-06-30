@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - Transcrição de voz com IA para macOS e Windows",
+    "description": "Escreva 5x mais rápido com transcrição de voz com IA. O HyperWhisper transcreve sua voz com precisão incrível no macOS e no Windows. Fale naturalmente e veja suas palavras aparecerem instantaneamente."
+  },
+  "navbar": {
+    "features": "Recursos",
+    "pricing": "Preços",
+    "faq": "FAQ",
+    "support": "Suporte",
+    "download": "Download",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Trocar idioma"
+    }
+  },
+  "hero": {
+    "logoAlt": "Logo do HyperWhisper",
+    "headline": "Escreva, componha e crie",
+    "headlineAccent": "5x mais rápido com IA",
+    "subheadline": "O HyperWhisper transcreve sua voz com precisão incrível. Basta falar naturalmente e ver suas palavras aparecerem na hora.",
+    "downloadCta": "Baixar agora",
+    "demoCta": "Ver demonstração",
+    "availableOn": "Disponível em",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Feito para profissionais",
+    "subtitle": "Cada recurso foi projetado para ajudar você a trabalhar com mais velocidade e eficiência",
+    "customVocabulary": {
+      "title": "Vocabulário personalizado",
+      "description": "Adicione nomes, siglas e termos especiais para obter máxima precisão sempre."
+    },
+    "languages": {
+      "title": "Mais de 100 idiomas",
+      "description": "Transcreva em mais de 100 idiomas com detecção automática de idioma."
+    },
+    "offline": {
+      "title": "Suporte offline",
+      "description": "Funciona totalmente offline. Seus dados nunca saem do seu dispositivo."
+    },
+    "privacy": {
+      "title": "Foco em privacidade",
+      "description": "Sem conta obrigatória. Sem rastreamento. Seus dados de voz ficam no seu Mac ou PC."
+    },
+    "hybridProcessing": {
+      "title": "Processamento híbrido",
+      "description": "Escolha entre modelos locais para privacidade ou APIs em nuvem para velocidade. O melhor dos dois mundos."
+    },
+    "customizable": {
+      "title": "Altamente personalizável",
+      "description": "Escolha entre mais de 9 provedores de API e mais de 30 modelos de transcrição."
+    },
+    "realTime": {
+      "title": "Streaming em tempo real",
+      "description": "Veja suas palavras aparecerem instantaneamente enquanto você fala. Precisão líder do setor com latência abaixo de 700 ms."
+    },
+    "fileImport": {
+      "title": "Importação de arquivos",
+      "description": "Importe arquivos de áudio ou vídeo para transcrever. Suporta os principais formatos com detecção automática de silêncio."
+    },
+    "screenOcr": {
+      "title": "OCR de tela",
+      "description": "Permita que o HyperWhisper veja sua tela para escrever tudo com precisão."
+    },
+    "mcpServer": {
+      "title": "API local e servidor MCP",
+      "description": "O servidor MCP integrado permite que o Claude, o Cursor e outros agentes de IA controlem o HyperWhisper. API HTTP apenas local com autenticação bearer para scripts e automações."
+    },
+    "modes": {
+      "title": "Modos para qualquer situação",
+      "description": "Alterne entre diferentes modos de transcrição otimizados para reuniões, anotações, e-mails, programação e muito mais. Cada modo usa prompts personalizados para formatar seu texto perfeitamente.",
+      "meeting": "Reunião",
+      "email": "E-mail",
+      "note": "Nota",
+      "code": "Código",
+      "legal": "Jurídico",
+      "medical": "Médico",
+      "presetModes": "Modos predefinidos",
+      "customModes": "Modos personalizados"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Mais rápido que digitar",
+    "accuracyRate": "Taxa de precisão",
+    "languagesSupported": "Idiomas suportados",
+    "providersSupported": "Provedores suportados"
+  },
+  "pricing": {
+    "title": "Sem assinaturas. Nunca.",
+    "subtitle": "Pague uma vez, use para sempre. Nós também odiamos assinaturas.",
+    "guarantee": "Garantia de reembolso de 14 dias",
+    "guaranteeExtended": "se você não ficar completamente satisfeito.",
+    "learnMore": "Saiba mais",
+    "free": {
+      "name": "Grátis",
+      "price": "$0",
+      "period": "para sempre",
+      "description": "Perfeito para testar o HyperWhisper",
+      "cta": "Baixar grátis",
+      "features": {
+        "transcriptionLimit": "5 minutos de transcrição por dia",
+        "basicModes": "Modos básicos de transcrição",
+        "offlineTranscription": "Transcrição offline",
+        "apiTranscription": "Transcrição por API (use suas próprias chaves)",
+        "postProcessing": "Pós-processamento de texto",
+        "providers": "Mais de 9 provedores para escolher",
+        "lifetimeUpdates": "Atualizações vitalícias",
+        "cloudLimited": "HyperWhisper Cloud (uso limitado)",
+        "customVocabulary": "Vocabulário personalizado",
+        "prioritySupport": "Suporte prioritário"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "vitalício",
+      "description": "Compra única, poder ilimitado para sempre",
+      "cta": "Comprar agora - Acesso vitalício",
+      "mostPopular": "Mais popular",
+      "features": {
+        "unlimitedTranscription": "Transcrição ilimitada",
+        "allModes": "Todos os modos de transcrição",
+        "offlineTranscription": "Transcrição offline",
+        "apiTranscription": "Transcrição por API (use suas próprias chaves)",
+        "postProcessing": "Pós-processamento de texto",
+        "providers": "Mais de 9 provedores para escolher",
+        "lifetimeUpdates": "Atualizações vitalícias",
+        "cloudCredits": "HyperWhisper Cloud ($5 em créditos)",
+        "customVocabulary": "Vocabulário personalizado",
+        "prioritySupport": "Suporte prioritário"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise e preços personalizados",
+      "description": "Descontos por volume, SSO, suporte prioritário, hospedagem interna e integrações personalizadas",
+      "cta": "Falar com vendas"
+    }
+  },
+  "faq": {
+    "title": "Perguntas frequentes",
+    "subtitle": "Tudo o que você precisa saber sobre o HyperWhisper",
+    "contactPrompt": "Ainda tem dúvidas? Envie um e-mail para",
+    "questions": {
+      "accuracy": {
+        "question": "Qual é a precisão da transcrição?",
+        "answer": "Alcançamos precisão de 99%, entre as melhores do setor, usando modelos de IA de última geração. Você pode melhorar ainda mais a precisão adicionando seu próprio vocabulário personalizado para termos técnicos, nomes e jargão especializado."
+      },
+      "offline": {
+        "question": "Posso usar sem internet?",
+        "answer": "Com certeza. O HyperWhisper pode ser usado totalmente offline no seu Mac com modelos locais de IA, sem necessidade de internet. Para quem busca máxima precisão e velocidade, também oferecemos processamento em nuvem opcional por vários provedores."
+      },
+      "apiKey": {
+        "question": "Preciso pagar pelo acesso à API?",
+        "answer": "Você usa sua própria chave de API para os seguintes provedores: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral e Google Gemini. Alguns provedores oferecem créditos grátis para novos usuários; a Deepgram oferece $200 e a AssemblyAI oferece $50. No longo prazo, isso sai muito mais barato do que qualquer assinatura. \n\nVocê também pode usar o HyperWhisper Cloud (embutido), que não exige chave de API e funciona no modelo pay-as-you-go.\n\nE lembre-se: o modo local offline funciona sem chave de API e é totalmente gratuito."
+      },
+      "languages": {
+        "question": "Quais idiomas são suportados?",
+        "answer": "Mais de 100 idiomas são suportados de fábrica, do inglês e espanhol ao mandarim e árabe. A maioria dos modelos consegue detectar automaticamente qual idioma você está falando e alternar sem interrupções."
+      },
+      "offlineModels": {
+        "question": "Quais modelos offline estão disponíveis?",
+        "answer": "Para transcrição offline, oferecemos vários tamanhos do modelo Whisper (feito pela OpenAI, com suporte a 99+ idiomas). Também oferecemos os modelos Parakeet da NVidia (com suporte a 25+ idiomas).\n      \n      Para pós-processamento offline, oferecemos vários tamanhos do modelo Gemma 3 (feito pelo Google)."
+      },
+      "compatibility": {
+        "question": "Funciona com todos os apps no Mac e no Windows?",
+        "answer": "Sim, funciona em qualquer lugar onde você possa digitar. Seja para e-mails, documentos, código ou chat. Aperte o atalho, fale e veja suas palavras aparecerem instantaneamente."
+      },
+      "privacy": {
+        "question": "Como minha privacidade é protegida?",
+        "answer": "Ao usar o modo local, nenhum dado sai do seu Mac.\n\nAo usar transcrição em nuvem, seus dados são enviados ao provedor de nuvem que você escolher (por exemplo, OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs ou Mistral).\n\nVocê pode verificar isso por conta própria com um inspetor de rede como o [Proxyman](https://proxyman.io) ou um monitor de rede como o [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "O que é o HyperWhisper Cloud?",
+        "answer": "O HyperWhisper Cloud é uma transcrição em nuvem embutida, voltada para usuários menos técnicos que querem começar rapidamente.\n\nÉ pay-as-you-go. Ao comprar uma licença, você recebe $5 em créditos de transcrição. Você pode adicionar mais créditos depois.\n    \nOferecemos três níveis de precisão: Medium (mais rápido, com Groq), High (recomendado, com Deepgram) e Highest (melhor qualidade, com xAI Grok STT). O pós-processamento é automático. Não armazenamos nada além de quantos créditos você consumiu.\n\nVocê paga exatamente o que nós pagamos a esses provedores. Não cobramos markup.\n\nPara sua tranquilidade, você pode ver o código-fonte do HyperWhisper Cloud [aqui](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Os meus dados de voz serão usados para treinar modelos de IA?",
+        "answer": "O HyperWhisper Cloud exclui-o do treino de modelos em todos os fornecedores que utilizamos. Com a sua própria chave de API, a exclusão é da sua responsabilidade — consulte o nosso [guia de privacidade de dados](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Por que preço vitalício em vez de assinatura?",
+        "answer": "Acreditamos em preços simples e justos. Pague uma vez $39 e use o HyperWhisper para sempre. Sem mensalidades, sem surpresas. A versão gratuita permite usar os principais recursos com 3 minutos de transcrição por dia."
+      },
+      "deviceLimit": {
+        "question": "Em quantos dispositivos posso usar minha licença?",
+        "answer": "Você pode usar sua licença em quantos dispositivos quiser, sujeito à nossa Política de Uso Justo descrita em nossos [Termos de Serviço](/legal/terms-of-service). Essa política foi criada para ser flexível para uso pessoal e empresarial legítimo, enquanto evita abusos."
+      },
+      "requirements": {
+        "question": "Quais são os requisitos do sistema?",
+        "answer": "Para Mac: macOS 14 ou mais recente, com suporte a Apple Silicon e Intel. Para Windows: Windows 10/11, x64 ou ARM64. Recomenda-se 8GB de RAM para desempenho ideal."
+      },
+      "windowsStatus": {
+        "question": "A versão para Windows tem os mesmos recursos da versão para macOS?",
+        "answer": "A versão para Windows foi lançada recentemente, então pode não ter ainda todos os recursos disponíveis no macOS. Estamos trabalhando ativamente para atingir paridade total entre as duas plataformas."
+      },
+      "madeBy": {
+        "question": "Quem criou isso?",
+        "answer": "Isso foi criado pelo YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Central de suporte",
+    "subtitle": "Estamos aqui para ajudar você a aproveitar ao máximo o HyperWhisper",
+    "getInTouch": "Entrar em contato",
+    "description": "Para suporte técnico, problemas de licença ou qualquer dúvida sobre o HyperWhisper, nossa equipe está pronta para ajudar.",
+    "emailUsAt": "Envie e-mail para:",
+    "openInClient": "Abrir no seu cliente de e-mail:",
+    "defaultClient": "Cliente de e-mail padrão",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Normalmente respondemos em até 24 horas em dias úteis.",
+    "emailTemplate": {
+      "subject": "Solicitação de suporte HyperWhisper",
+      "body": "Olá,\n\nVersão: \n[você pode verificar em Configurações > Sobre]\n\nProblema: \n[Descreva seu problema]\n\nDetalhes: \n[Forneça detalhes relevantes, o que você estava fazendo antes da falha]\n\n[Sua mensagem aqui]\n\nAtenciosamente,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "Logo do HyperWhisper",
+    "title": "Baixar HyperWhisper",
+    "emailPlaceholder": "E-mail",
+    "description": "Enviaremos por e-mail um link de download e um vídeo tutorial curto para você começar. Sem spam.",
+    "downloadButton": "Baixar HyperWhisper",
+    "errorGeneric": "Algo deu errado. Tente novamente.",
+    "errorNetwork": "Erro de rede. Verifique sua conexão e tente novamente.",
+    "thankYouTitle": "Obrigado!",
+    "downloadStarted": "Seu download deve começar automaticamente.",
+    "manualDownload": "O download não começou? Clique aqui",
+    "skipAndDownloadButton": "Pular e baixar"
+  },
+  "downloadPage": {
+    "title": "Baixar HyperWhisper",
+    "countdownText": "Iniciando em {seconds}...",
+    "downloadStarted": "Verifique sua pasta Downloads",
+    "downloadNow": "Baixar agora",
+    "downloadAgain": "Baixar novamente",
+    "selectArchitecture": "Selecione sua arquitetura",
+    "downloadX64": "Baixar para x64",
+    "downloadArm64": "Baixar para ARM64",
+    "orDivider": "OU",
+    "homebrewTitle": "Instalar via Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Copiar",
+    "copied": "Copiado!"
+  },
+  "purchaseSuccess": {
+    "title": "Compra concluída!",
+    "subtitle": "Bem-vindo ao HyperWhisper Pro! Sua licença vitalícia está pronta.",
+    "checkEmail": {
+      "title": "Verifique seu e-mail",
+      "description": "Enviamos sua chave de licença e as instruções de download para seu e-mail. Deve chegar nos próximos minutos."
+    },
+    "whatsNext": {
+      "title": "Próximos passos",
+      "step1": {
+        "title": "Verifique sua caixa de entrada",
+        "description": "Procure um e-mail do HyperWhisper"
+      },
+      "step2": {
+        "title": "Copie sua chave de licença",
+        "description": "Você vai precisar dela para ativar o app"
+      },
+      "step3": {
+        "title": "Baixe o HyperWhisper",
+        "description": "Instale o app e insira sua chave de licença"
+      }
+    },
+    "downloadButton": "Baixar HyperWhisper",
+    "returnHome": "Voltar para a página inicial",
+    "noEmail": "Não recebeu seu e-mail? Verifique a pasta de spam ou",
+    "contactSupport": "fale com o suporte",
+    "loading": "Carregando..."
+  },
+  "footer": {
+    "tagline": "Escreva 5x mais rápido com transcrição de voz com IA para macOS e Windows.",
+    "product": "Produto",
+    "resources": "Recursos",
+    "company": "Empresa",
+    "legal": "Legal",
+    "links": {
+      "features": "Recursos",
+      "pricing": "Preços",
+      "download": "Download",
+      "roadmap": "Roadmap",
+      "helpCenter": "Central de ajuda",
+      "manageBilling": "Gerenciar cobrança",
+      "customerPortal": "Portal do cliente",
+      "olderVersions": "Versões antigas",
+      "blog": "Blog",
+      "about": "Sobre",
+      "support": "Suporte",
+      "privacyPolicy": "Política de privacidade",
+      "termsOfService": "Termos de serviço",
+      "refundPolicy": "Política de reembolso",
+      "dataTraining": "Privacidade de dados"
+    },
+    "copyright": "© 2026 HyperWhisper. Todos os direitos reservados.",
+    "linkedinAria": "LinkedIn"
+  }
+}

@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Besednjak";
+"vocabulary.description" = "To pomaga programski opremi, da prepozna imena, kratico, slang ali besede drugih jezikov pri mešanju jezikov.";
+"vocabulary.input.title" = "Vnos";
+"vocabulary.new.word.placeholder" = "Nova beseda ali fraza";
+"vocabulary.replacement.placeholder" = "Zamenjaj z...";
+"vocabulary.add.button" = "Dodaj v besednjak";
+"vocabulary.edit.title" = "Uredi vnos besednjaka";
+"vocabulary.update.button" = "Posodobi";
+"vocabulary.cancel.button" = "Prekliči";
+"vocabulary.word.column" = "Beseda/Frazem";
+"vocabulary.replacement.column" = "Zamenjava";
+"vocabulary.empty.title" = "Še ni besed v besedniku";
+"vocabulary.empty.subtitle" = "Dodaj prilagojene besede za boljšo natančnost prepisa";
+"vocabulary.duplicate.title" = "Podvojena vnos";
+"vocabulary.duplicate.message" = "%@ že obstaja v vašem besedniku. Vsako besedo je mogoče dodati samo enkrat.";
+"vocabulary.ok.button" = "V redu";
+"vocabulary.limit.title" = "Presežena omejitev ključnih besed";
+"vocabulary.limit.message" = "Imate %d besed, vendar bodo za oblikovanje prepisa uporabljene samo prve %d.";
+
+// MARK: - Streaming View
+"streaming.title" = "Pretakanje (Beta)";
+"streaming.description" = "Prepis v realnem času, ko govorite. Besedilo se vnesa direktno v fokusirano aplikacijo.";
+"streaming.enable.title" = "Omogoči pretakanje";
+"streaming.provider.picker.title" = "Ponudnik";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Hitro oblikovanje";
+"streaming.fastFormatting.description" = "Zmanjšuje zakasnitev pametnega oblikovanja za hitrejši vnos";
+"streaming.warning.vocabAutoDetect" = "Prilagojeni besednjak je onemogočen v samodejnem načinu";
+"streaming.warning.vocabUnsupported" = "Prilagojeni besednjak ni podprt pri %@ pretakanju";
+"streaming.warning.apiKeyRequired" = "Potreben je %@ API ključ";
+"streaming.warning.apiKeyRequired.action" = "Nastavi";
+"streaming.warning.apiKeyInvalid" = "%@ API ključ ne deluje. Posodobi ga v Nastavitve > API ključi.";
+"streaming.warning.apiKeyInvalid.action" = "Posodobi ključ";
+"streaming.language.title" = "Jezik";
+"streaming.shortcut.title" = "Bližnjica";
+
+// MARK: - Home View
+"home.get.started" = "Začni";
+"home.open.system.settings" = "Odpri sistemske nastavitve";
+
+// MARK: - API Keys
+"api.key.required" = "Potreben je API ključ";
+"api.keys.required" = "Potrebni so API ključi";
+"api.key.configure.message" = "Nastavi svoje API ključe, da omogočiš prepis.";
+"api.key.internet.required" = "Potrebna je internetna povezava";
+"api.key.internet.message" = "Oblační prepis zahteva internetno povezavo.";
+
+// MARK: - Common UI
+"common.ok" = "V redu";
+"common.cancel" = "Prekliči";
+"common.delete" = "Izbriši";
+"common.edit" = "Uredi";
+"common.done" = "Končano";
+"common.copy" = "Kopiraj";
+"common.back" = "Nazaj";
+"common.skip" = "Preskoči";
+"common.settings" = "Nastavitve";
+"common.error" = "Napaka";
+"common.retry" = "Poskusi znova";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Domov";
+"sidebar.statistics" = "Statistika";
+"sidebar.modes" = "Načini";
+"sidebar.vocabulary" = "Besednjak";
+"sidebar.streaming" = "Pretakanje";
+"sidebar.history" = "Zgodovina";
+"sidebar.settings" = "Nastavitve";
+
+// MARK: - App Messages
+"app.unknown.error" = "Došlo je do neznane napake";
+"app.microphone.permission.message" = "HyperWhisper potrebuje dostop do mikrofonskega vhoda za prepis avdia.\n\nProsimo, pojdi na Sistemske nastavitve > Zasebnost in varnost > Mikrofon in omogoči dostop za HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper shranjuje posnetke v mapo v tvojih Dokumentih, da so enostavno dostopni: Dokumenti/hyperwhisper/recordings. macOS morda zaprosi za dovoljenje prvič, ko poskušamo shraniti tja. Če pa ne želiš odobriti dostopa, lahko shranjujemo posnetke v zasebno mapo aplikacije.";
+"app.upgrade.to.pro" = "Nadgradi na Pro";
+"app.enter.license.key" = "Vnesi ključ licence";
+"accessibility.upgrade.pro" = "Nadgradi na HyperWhisper Pro";
+"accessibility.enter.license" = "Vnesi ključ licence";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Dodaj svoje %@ API ključe za omogočanje izbranega načina.";
+"home.api.keys.missing.single" = "Dodaj svoj %@ API ključ za omogočanje izbranega načina.";
+"home.getting.started.recording.title" = "Začni s snemanjem";
+"home.getting.started.recording.description" = "Spremeni svoj glas v besedilo z enim klikam.";
+"home.getting.started.shortcuts.title" = "Prilagodi svoje bližnjice";
+"home.getting.started.shortcuts.description" = "Spremeni bližnjice tipkovnice za HyperWhisper.";
+"home.getting.started.mode.title" = "Ustvari način";
+"home.getting.started.mode.description" = "Oblikuj idealen način za svoj delovni tok.";
+"home.getting.started.vocabulary.title" = "Dodaj besednjak";
+"home.getting.started.vocabulary.description" = "Nauči HyperWhisper prilagojene besede, imena ali industrijskega izrazja.";
+"home.add.api.key" = "Dodaj API ključ";
+"home.accessibility.enable.title" = "Omogoči dostopnost";
+"home.accessibility.enable.description" = "Dovoli HyperWhisperu, da samodejno vlepi v aplikacije, ki jih uporabljam.";
+"home.accessibility.waiting" = "Čakam...";
+"home.accessibility.open.settings" = "Odpri nastavitve";
+"home.accessibility.restart.after.permission" = "Ponovno zaženi aplikacijo po odobritvi dovoljenja";
+"home.getting.started.completed" = "✓ Končano";
+"home.whatsnew.badge" = "NOVO";
+"home.whatsnew.title" = "Kaj je novo?";
+"home.whatsnew.update1.date" = "3. jul";
+"home.whatsnew.update1.title" = "Parakeet je sedaj dostopen";
+"home.whatsnew.update1.description" = "Prenesi ga direktno iz seznama jezikovnih modelov pri ustvarjanju načina in ga danes preizkusi.";
+"home.whatsnew.update2.date" = "5. jun";
+"home.whatsnew.update2.title" = "Podpora za vsak OpenAI-kompatibilen prilagojeni model";
+"home.whatsnew.update2.description" = "Sedaj lahko dodam katero koli OpenAI kompatibilno API-ja na svoj seznam modelov.";
+"home.whatsnew.update3.date" = "27. maj";
+"home.whatsnew.update3.title" = "Čisto novo Mini okno snemanja";
+"home.whatsnew.update3.description" = "Elegantna, minimalistična vmesnik za snemanje, ki se čuva po strani.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Nedavne posodobitve";
+"home.recent.updates.error" = "Napaka pri nalaganju posodobitev";
+"home.recent.updates.retry" = "Poskusi znova";
+"home.recent.updates.empty" = "Ni nedavnih posodobitev na voljo";
+"home.recent.updates.version" = "Različica %@";
+"home.recent.updates.new.badge" = "NOVO";
+"home.recent.updates.no.notes" = "Ni dostopnih opomb izdaje";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Presledek";
+"keyboard.option.space" = "⌥Presledek";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Potreben je dostop do mikrofonskega vhoda";
+"common.open.settings" = "Odpri nastavitve";
+"alerts.api.local.mode" = "Uporabi lokalni način";
+"alerts.documents.permission.title" = "Shrani v Dokumente?";
+"common.continue" = "Nadaljuj";
+"alerts.documents.permission.use.another" = "Uporabi drugo lokacijo";
+"alerts.api.configure.generic" = "Prosimo, nastavi svoje API ključe v Nastavitve.";
+"alerts.api.internet.offline" = "Oblační prepis zahteva internetno povezavo. Prosimo, preveri nastavitve omrežja ali izberi lokalni način prepisa.";
+"alerts.api.configure.header.multiple" = "Za uporabo izbranega načina prosimo nastavi naslednje API ključe v Nastavitve:";
+"alerts.api.configure.header.single" = "Za uporabo izbranega načina prosimo nastavi naslednji API ključ v Nastavitve:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Po dodajanju manjkajočih ključev poskusi znova.";
+"alerts.export.failed.title" = "Izvoz ni uspel";
+"alerts.export.logs.failed.message" = "Ni bilo mogoče izvoziti dnevnikov posodobitev. Prosimo, poskusi znova.";
+"alerts.export.logs.success.title" = "Dnevniki izvoženi";
+"alerts.export.logs.success.message" = "Dnevniki posodobitev so bili uspešno izvoženi.";
+"alerts.export.logs.saveFailed.message" = "Ni bilo mogoče shraniti dnevnikov na izbrano lokacijo: %@";
+"alerts.export.diagnostics.failed.message" = "Ni bilo mogoče izvoziti diagnostike. Prosimo, poskusi znova.";
+"alerts.export.diagnostics.success.title" = "Diagnostika izvožena";
+"alerts.export.diagnostics.success.message" = "Vsi diagnostični dnevniki so bili uspešno izvoženi.";
+"alerts.export.diagnostics.saveFailed.message" = "Ni bilo mogoče shraniti diagnostike na izbrano lokacijo: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Izvozi dnevnike posodobitev za podporo";
+"panels.export.diagnostics.message" = "Izvozi vse diagnostične dnevnike";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Začni s HyperWhisper";
+"sidebar.statistics.help" = "Ogled uporabniške statistike in analitike";
+"sidebar.modes.help" = "Upravljaj načine prepisa za različne kontekste";
+"sidebar.vocabulary.help" = "Dodaj prilagojene besede in fraze za boljše prepoznavanje";
+"sidebar.streaming.help" = "Nastavitve pretakanja v realnem času (zahteva internet)";
+"sidebar.history.help" = "Ogled in iskanje zgodovine prepisov";
+"sidebar.settings.help" = "Nastavi nastavitve in nastavitve aplikacije";
+
+// MARK: - Recording State
+"recording.state.ready" = "Pripravljen za snemanje";
+"recording.state.recording" = "Snemam...";
+"recording.state.processing" = "Obdelava zvoka...";
+"recording.state.transcribing" = "Prepis...";
+"recording.state.postprocessing" = "Obdelava s pomočjo AI...";
+"recording.state.complete" = "Prepis zaključen: %@";
+"recording.state.error" = "Napaka: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Začni ali ustavi snemanje";
+"menu.recording.stop" = "Ustavi snemanje";
+"menu.recording.toggle" = "Začni/Ustavi snemanje";
+"menu.history" = "Zgodovina...";
+"menu.settings" = "Nastavitve...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Izberi način";
+"menu.transcribe.file" = "Prepiši datoteko";
+"menu.mode.unnamed" = "Brez imena";
+"menu.version.label" = "Različica %@";
+"common.quit" = "Izhod";
+"menu.microphone.default" = "Privzeto";
+"menu.microphone.system.default" = "Privzeto";
+"menu.bar.state.recording" = "Snemam";
+"menu.bar.state.processing" = "Obdelava";
+"menu.bar.state.idle" = "Prost";
+"menu.command.check.updates" = "Preveri posodobitve…";
+"menu.debug.title" = "Razhroščevanje";
+"menu.command.export.logs" = "Izvozi dnevnike posodobitev…";
+"menu.command.export.diagnostics" = "Izvozi diagnostiko…";
+"menu.command.help.website" = "Spletna stran za pomoč";
+"menu.command.contact.support" = "Kontaktiraj podporo";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Splošno";
+"settings.section.sound" = "Zvok";
+"settings.section.license" = "Licenca";
+"settings.section.credits" = "Zasluge";
+"settings.section.storage" = "Shranjevanje";
+"settings.section.models" = "Modeli";
+"settings.section.api.keys" = "API ključi";
+"settings.section.shortcuts" = "Bližnjice na tipkovnici";
+"settings.section.output" = "Izpis besedila";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Angleščina)";
+"onboarding.model.pro.multilingual" = "Pro (Večjezični)";
+"onboarding.model.downloading.progress" = "Prenašam... %d%%";
+"onboarding.accessibility.title" = "Omogoči dostopnost za samodejno lepljenje";
+"onboarding.accessibility.subtitle" = "Dovoli HyperWhisperu, da samodejno zlepi prepisan besedilo v tvoje aplikacije.";
+"onboarding.accessibility.instructions" = "Sistemske nastavitve → Zasebnost in varnost → Dostopnost";
+"onboarding.accessibility.status.granted" = "Dozvoljeno je dostop do dostopnosti";
+"onboarding.accessibility.status.pending" = "Dostop do dostopnosti še ni odobren";
+"onboarding.accessibility.waiting" = "Čakam na dovoljenje...";
+"onboarding.accessibility.open.preferences" = "Odpri nastavitve dostopnosti";
+"onboarding.accessibility.restart" = "Po odobritvi dovoljenja ponovno zaženi HyperWhisper.";
+"onboarding.model.recommendation.title" = "Priporočamo Pro model";
+"onboarding.model.recommendation.subtitle" = "Glede na tvoj sistemski jezik in možnosti tvojega Mac-a.";
+"onboarding.model.recommendation.note" = "Prenesi z klikom na spodnji gumb.";
+"onboarding.model.downloaded" = "Presnesen";
+"onboarding.model.metric.speed" = "Hitrost";
+"onboarding.model.metric.accuracy" = "Natančnost";
+"onboarding.model.metric.size" = "Velikost";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Ali pa izberi drugačen model glasu";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (Angleščina)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Prenesi model";
+"onboarding.audio.title" = "Katero napravo za snemanje zvoka bi rad uporabil?";
+"onboarding.audio.subtitle" = "Prepričaj se, da je prostornina vhodnega zvoka povečana in da je registrirana.";
+"onboarding.audio.input.label" = "Vhodna naprava";
+"onboarding.audio.picker.label" = "Naprava";
+"onboarding.audio.use.system.default" = "Uporabi privzeto sistemsko napravo";
+"onboarding.audio.level" = "Nivo zvoka";
+"onboarding.audio.open.sound" = "Odpri nastavitve zvoka";
+"onboarding.microphone.title" = "Potrebno je dovoljenje za snemanje";
+"onboarding.microphone.subtitle" = "Za snemanje zvoka moramo dostopati do mikrofonskega vhoda.";
+"onboarding.microphone.status.granted" = "Dozvoljeno je dostop do mikrofonskega vhoda";
+"onboarding.microphone.status.pending" = "Dostop do mikrofonskega vhoda še ni odobren";
+"onboarding.microphone.grant" = "Odobri dovoljenje";
+"onboarding.test.title" = "Vse je pripravljeno, začnimo s tvojim prvim posnetkom";
+"onboarding.test.press.prefix" = "Pritisni";
+"onboarding.test.press.suffix" = "za začetek";
+"onboarding.test.status.recording" = "Snemam...";
+"onboarding.test.status.speak" = "Govori zdaj...";
+"onboarding.test.stop" = "Ustavi snemanje";
+"onboarding.test.success.title" = "Odlično! Tvoj posnetek je uspešen.";
+"onboarding.test.success.subtitle" = "Tvoj prepis se bo pojavil v aplikaciji.";
+"onboarding.test.start.cta" = "Klikni za začetek snemanja";
+"onboarding.test.start.shortcut" = "Ali pritisni svojo bližnjico na tipkovnici";
+"onboarding.settings.title" = "Odlično! Sedaj odpri Nastavitve";
+"onboarding.settings.subtitle" = "Desni klik na ikono HyperWhisper in izberi Nastavitve...";
+"onboarding.settings.menu.startStop" = "Začni/Ustavi snemanje";
+"onboarding.settings.menu.history" = "Zgodovina...";
+"onboarding.settings.menu.settings" = "Nastavitve...";
+"onboarding.settings.menu.quit" = "Izhod";
+"onboarding.settings.info" = "V Nastavitvah lahko prilagodim bližnjice, upravljam API ključe in nastavljam HyperWhisper po svojih željah.";
+"onboarding.completion.title" = "Končano!";
+"onboarding.completion.subtitle" = "Če imaš težave ali vprašanja, se javi prek e-pošte ali Discord-a.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-pošta";
+"onboarding.completion.resources.title" = "Dodatni viri";
+"onboarding.completion.resources.documentation" = "Dokumentacija";
+"onboarding.completion.resources.videos" = "Videovodniki";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Zaključi vpeljevanje";
+"onboarding.error.model.notFound" = "Model ni najden v katalogu.";
+"onboarding.error.microphone.denied" = "Dostop do mikrofonskega vhoda je zavrnjen. Odobri dostop v Sistemskih nastavitvah.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Zaženi ob prijavi";
+"settings.general.launchAtLogin.info" = "Samodejno zaženi HyperWhisper, ko se prijavam.";
+"settings.general.launchMinimized.title" = "Zaženi minimiziran";
+"settings.general.launchMinimized.info" = "Zaženi HyperWhisper z glavnim oknom skritim. Aplikacija bo dostopna prek menija ure.";
+"settings.general.showInDock.title" = "Prikaži v Docku";
+"settings.general.showInDock.info" = "Prikaži ikono aplikacije v Docku.";
+"settings.general.showRecordingWindow.title" = "Prikaži okno snemanja";
+"settings.general.showRecordingWindow.info" = "Prikaži plavajočo okno z valovno obliko med snemanjem in obdelavo.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Izključeno";
+"settings.general.mediaControl.mode.mute" = "Izklopi zvok";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Beleženje napak";
+"settings.general.errorLogging.info" = "Samodejno zajemi in pošlji poročila o napakah za pomoč pri izboljšanju aplikacije.";
+"settings.general.autoUpdate.title" = "Samodejni posodobitve";
+"settings.general.autoUpdate.info" = "Samodejno preveri in prenesi nove različice HyperWhisper.";
+"settings.general.support.title" = "Potrebuješ pomoč?";
+"settings.version.detail" = "Različica %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Predvajaj zvočne učinke";
+"settings.sound.soundEffects.info" = "Predvajaj zvočne signale ob začetku in koncu snemanja.";
+"settings.sound.mediaControl.title" = "Nadzor medijev med snemanjem";
+"settings.sound.mediaControl.info" = "Izberi, kako HyperWhisper rokuje s programom audio med snemanjem. 'Izključeno' pusti zvok nespremenjen, 'Izklopi zvok' izklopi sistemski izhod med snemanjem in ga po tem obnovi.";
+"settings.sound.autoIncreaseMicVolume.title" = "Samodejno povečaj glasnost mikrofonskega vhoda";
+"settings.sound.autoIncreaseMicVolume.info" = "Samodejno nastavi glasnost mikrofonskega vhoda na maksimum, ko se snemanje prične, nato pa obnovi prvotno raven, ko se snemanje zaključi. Velja samo za privzeto vhodno napravo.";
+"settings.sound.vad.title" = "Odstrani tišino pred prepisom";
+"settings.sound.vad.info" = "Samodejno zaznaj in odstrani tišino na začetku in koncu z AI zaznavo glasu. To lahko izboljša natančnost prepisa in zmanjša čas obdelave.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Mapa posnetkov";
+"settings.storage.showFolder.title" = "Prikaži mapo posnetkov";
+"settings.storage.showFolder.button" = "Prikaži v Finderju";
+"settings.storage.notice" = "Sprememba mape posnetkov vpliva le na nove posnetke. Obstoječi posnetki ostanejo na prvotni lokaciji.";
+"settings.storage.choose.button" = "Izberi...";
+"settings.storage.dialog.select" = "Izberi mapo";
+"settings.storage.dialog.message" = "Izberi mapo za shranjevanje posnetkov";
+"settings.storage.storeAsM4A.title" = "Stisni posnetke v M4A";
+"settings.storage.storeAsM4A.subtitle" = "Pretvori posnetke WAV v manjše datoteke po prepisu. Izključi za ohranitev prvotnih datotek WAV (večje vendar brez izgube).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Samodejno zlepi rezultat";
+"settings.output.paste.subtitle" = "Samodejno zlepi prepisan besedilo v aktivno aplikacijo";
+"settings.output.paste.info" = "Če je omogočeno, se besedilo zleti v prvo aplikacijo.";
+"settings.output.restoreClipboard.title" = "Obnovi odložišče po lepljenju";
+"settings.output.restoreClipboard.subtitle" = "Obnovi prejšnjo vsebino odložišča po lepljenju";
+"settings.output.restoreClipboard.info" = "Obnovi tvojo prejšnjo vsebino odložišča po lepljenju prepisa.";
+"settings.output.restore.after" = "Obnovi po";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Zamik obnovitve odložišča";
+"settings.output.hideClipboardHistory.title" = "Skrij iz zgodovine odložišča";
+"settings.output.hideClipboardHistory.subtitle" = "Prepreči, da se prepis pojavi v aplikacijah za zgodovino odložišča";
+"settings.output.hideClipboardHistory.info" = "Če je omogočeno, prepisan besedilo ne bo shranjen v upraviteljih odložišča, kot sta Paste, Maccy ali Alfred.";
+"settings.output.clipboard.header" = "Odložišče";
+"settings.output.removeFillers.title" = "Odstrani mašila";
+"settings.output.removeFillers.subtitle" = "Iz surovih prepisov odstrani 'uh', 'um' in 'er'.";
+"settings.output.removeFillers.info" = "Ko je vklopljeno, HyperWhisper pred izhodom iz surovih prepisov odstrani pogosta mašila.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Preklopi snemanje";
+"settings.shortcuts.toggleRecording.subtitle" = "Začni in ustavi snemanja";
+"settings.shortcuts.cancelRecording.title" = "Prekliči snemanje";
+"settings.shortcuts.cancelRecording.subtitle" = "Zavrzi aktivno snemanje";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Potisni in govori";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Drži tipko za snemanje, spusti, ko je končano";
+"settings.shortcuts.pushToTalk.enable.info" = "Omogoči način Potisni in govori za hitro snemanje s pritisnitvijo ene tipke.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Način snemanja";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Izberi, katero tipko uporabiti";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Onemogočeno";
+"settings.shortcuts.pushToTalk.mode.fn" = "Tipka FN";
+"settings.shortcuts.pushToTalk.mode.control" = "Tipka Control";
+"settings.shortcuts.pushToTalk.mode.custom" = "Prilagojenska bližnjica";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Dvakratni pritisk za zaklepanje snemanja";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Pritisni dvakrat hitro, da nadaljuješ snemanje brez držanja";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Prilagojenska bližnjica";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Pritisni kombinacijo tipk, ki jo želiš uporabiti";
+
+
+"settings.shortcuts.changeMode.title" = "Spremenj način";
+"settings.shortcuts.changeMode.subtitle" = "Deluje le med snemanjem";
+
+"settings.shortcuts.reset.button" = "Ponastavi privzete nastavitve";
+"settings.shortcuts.reset.dialog.title" = "Ponastavi bližnjice na tipkovnici";
+"settings.shortcuts.reset.confirm" = "Ponastavi";
+"settings.shortcuts.reset.dialog.message" = "To bo ponastavilo vse bližnjice na tipkovnici na privzete vrednosti.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API ključi so varno shranjeni na tvoji napravi in poslani ponudniku le, ko je potrebno.";
+"settings.api.help.link" = "Pomoč pri API ključih";
+"settings.api.transcription.title" = "Prepis";
+"settings.api.transcription.subtitle" = "API ključi za storitve oblačnega pretvarjanja govora v besedilo.";
+"settings.api.postProcessing.title" = "Obdelava po prepisu";
+"settings.api.postProcessing.subtitle" = "API ključi za izboljšavo besedila z AI in oblikovanje.";
+"settings.api.placeholder" = "Vnesi svoj %@ API ključ";
+"settings.api.openLink" = "Odpri %@ stran API ključa";
+"settings.api.status.accessibility" = "%@ status: %@";
+"settings.api.status.unknown" = "Status ponudnika ni znan";
+"settings.api.status.checking" = "Preverjam stanje";
+"settings.api.status.unauthorized" = "API ključ zavrnjen s strani ponudnika";
+"settings.api.status.unreachable" = "Ponudnik ni trenutno dosegljiv";
+"settings.api.status.notInstalled" = "SDK ponudnika ni nameščen";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Neznano";
+"provider.status.checking" = "Preverjam…";
+"provider.status.healthy" = "Pripravljen";
+"provider.status.unauthorized" = "Neveljaven ključ";
+"provider.status.unreachable" = "Brez povezave";
+"provider.status.notInstalled" = "Ni nameščeno";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licenca aktivirana";
+"alerts.license.deactivated.title" = "Licenca deaktivirana";
+"alerts.license.activated.message" = "Tvoja licenca je bila uspešno aktivirana. Uživaj v neomejenem dostopu do vseh funkcij!";
+"alerts.license.deactivated.message" = "Tvoja licenca je bila deaktivirana na tej napravi. Sedaj jo lahko aktiviraš drugje.";
+"alerts.license.failed.title" = "Operacija ni uspela";
+"alerts.license.failed.message" = "Operacija ni uspela. Prosimo, poskusi znova.";
+"license.button.deactivate" = "Deaktiviraj napravo";
+"license.button.deactivating" = "Deaktiviram...";
+"license.button.manageBilling" = "Upravljaj zaračunavanje";
+"license.button.activate" = "Aktiviraj";
+"license.button.activating" = "Aktuiram...";
+"license.status.label" = "Status: %@";
+"license.status.trial.title" = "Preizkus";
+"license.status.active.title" = "Aktivna";
+"license.status.expired.title" = "Potekla";
+"license.status.invalid.title" = "Neveljavna";
+"license.status.trial.description" = "Prosti preizkus (5 min/dan, %d modelov)";
+"license.status.active.description" = "Licencirana – Polni dostop";
+"license.status.expired.description" = "Licenca je potekla";
+"license.status.invalid.description" = "Neveljavna licenca";
+"settings.license.key.title" = "Ključ licence";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Zlepi iz odložišča";
+"settings.license.clearInput" = "Počisti";
+"settings.license.recovery.prompt" = "Pozabil si svoj ključ licence?";
+"settings.license.recovery.button" = "Pojdi na portal za stranke";
+"settings.license.daily.title" = "Dnevni prepis";
+"settings.license.daily.usage" = "%@ od %@ uporabljeno";
+"settings.license.limitReached" = "Omejitev dosežena";
+"settings.license.models.title" = "Modeli brez povezave";
+"settings.license.models.progress" = "%d od %d modelov prenesen";
+"settings.license.models.progress.one" = "%d od %d model presnesen";
+"settings.license.upgrade.text" = "Nadgradi za neomejene prepise in prenose modelov";
+"settings.license.upgrade.button" = "Nadgradi";
+"license.error.invalidResponse" = "Neveljaven format odgovora";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Krediti HyperWhisper Cloud";
+"settings.credits.refresh" = "Osveži";
+"settings.credits.subtitle" = "Spremljaj svoje kredite za prepis in uporabo";
+"settings.credits.manage" = "Upravljaj kredite";
+"settings.credits.timeRemaining" = "Čas prepisa, ki ostane";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minut";
+"settings.credits.creditsRemaining" = "%@ kreditov preostalo";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Brezplačna dnevna omejitev (100 kreditov)";
+"settings.credits.resets" = "Ponastavi se %@";
+"settings.credits.warning.low" = "Krediti se izčrpavajo. Razmisli o nakupu licence za dodatne kredite.";
+"settings.credits.warning.exhausted.daily" = "Dnevna omejitev je izčrpana. Nakupi licenco za neomejeno uporabo ali počakaj, da se ponastavi.";
+"settings.credits.warning.exhausted" = "Krediti so izčrpani. Kupi več kreditov za nadaljevanje uporabe HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Informacije o računu";
+"settings.credits.stat.creditsRemaining" = "Krediti, ki so preostali";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minut, ki ostanejo";
+"settings.credits.stat.accountType" = "Vrsta računa";
+"settings.credits.accountType.licensed" = "Licenciran";
+"settings.credits.accountType.anonymous" = "Anonimen";
+"settings.credits.accountType.trial" = "Preizkus";
+"settings.credits.stat.customerId" = "ID stranke";
+"settings.credits.stat.dailyLimit" = "Dnevna omejitev";
+"settings.credits.dailyLimit.value" = "100 kreditov";
+"settings.credits.loading" = "Nalagam stanje kreditov...";
+"settings.credits.error.title" = "Ni mogoče naložiti stanja kreditov";
+"settings.credits.error.retry" = "Poskusi znova";
+"settings.credits.empty.title" = "Ni podatkov o kreditih na voljo";
+"settings.credits.empty.subtitle" = "Klikni osveži za nalaganje stanja tvojih kreditov";
+"settings.credits.empty.button" = "Naloži kredite";
+"settings.credits.error.insufficient" = "Nezadostno število kreditov. Imaš %d kreditov preostalo.";
+"settings.credits.error.network" = "Napaka omrežja: %@";
+"settings.credits.error.invalidResponse" = "Neveljaven odgovor s strežnika. Prosimo, poskusi znova.";
+"settings.credits.error.server" = "Napaka strežnika: %@";
+"settings.models.alert.limit.title" = "Omejitev prenosa modelov dosežena";
+"settings.models.alert.limit.message" = "Preizkusi vključujejo %d prenosov modelov. Nadgradi svojo licenco za neomejene prenose.";
+"settings.models.alert.cannotDelete.title" = "Ne morem izbrisati modela";
+"settings.models.parakeet.title" = "Modeli Parakeet";
+"settings.models.parakeet.subtitle" = "Priporočeni za večino uporabnikov. Večjezični model podpira 25 jezikov.";
+"settings.models.parakeet.empty" = "Ni dostopnih modelov Parakeet.";
+"settings.models.whisper.title" = "Modeli Whisper";
+"settings.models.whisper.subtitle" = "OpenAI Whisper modeli. Večji modeli so natančnejši. Podpora za več kot 100 jezikov.";
+"settings.models.whisper.empty" = "Ni dostopnih modelov Whisper.";
+"settings.models.help.cancelDownload" = "Prekliči prenos";
+"settings.models.help.remove" = "Odstrani model";
+"settings.models.downloaded" = "Presnesen";
+"settings.models.download" = "Prenesi";
+"settings.models.downloading" = "Prenašam…";
+"settings.models.localPostProcessing.title" = "Lokalni modeli za obdelavo po prepisu";
+"settings.models.localPostProcessing.memoryWarning" = "Priporočeno za Mac z 24 GB poenotenega pomnilnika ali več. Hitrost je odvisna od čipa — hitrejše na M3/M4 Pro in novejših.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Besede letos";
+"vocabulary.input.placeholder" = "Dodajte besedo ali ustvarite odlomek";
+"vocabulary.action.addWord" = "Dodaj besedo";
+"vocabulary.action.replaceWith" = "Zamenjaj z…";
+"vocabulary.action.replace" = "Zamenjaj";
+"vocabulary.replacement.field.placeholder" = "Nadomestno besedilo…";
+"settings.output.autocapitalizeInsert.title" = "Samodejno z veliko začetnico pri vstavljanju";
+"settings.output.autocapitalizeInsert.subtitle" = "Uskladite kontekst kazalca pri vstavljanju besedila";
+"settings.output.autocapitalizeInsert.info" = "Če je omogočeno, se prva beseda vstavljenega besedila prepisa prilagodi kontekstu kazalca (začetek ali sredina stavka). Izklopite za narekovanje vedno z malimi črkami.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper potrebuje dovoljenje za dostopnost za branje konteksta kazalca, potrebnega za samodejno pisanje z veliko začetnico.\n\nKliknite \"Odpri nastavitve\", pritisnite stikalo poleg HyperWhisper in poskusite znova.";
+"settings.output.removeFillerWords.title" = "Odstrani zapolnilne besede";
+"settings.output.removeFillerWords.subtitle" = "Odstranite \"uh\", \"um\" in \"er\" iz surovih prepisov, ko je AI naknadna obdelava izklopljena";
+"settings.output.removeFillerWords.info" = "Velja le, ko način preskoči AI naknadno obdelavo. Načini, izboljšani z AI, obravnavajo čiščenje govora v pozivu.";
+"sidebar.modelLibrary" = "Knjižnica modelov";
+"sidebar.modelLibrary.help" = "Brskajte po vseh glasovnih modelih in modelih za naknadno obdelavo na enem mestu";
+"settings.shortcuts.quickCapture.enable.title" = "Hitro zajemanje";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Posnemite in pošljite prepis v Beležke — brez potrebe po predhodnem fokusu na aplikacijo.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Bližnjica";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Pritisnite kjerkoli za snemanje in pošiljanje v Beležke.";
+"settings.shortcuts.quickCapture.mode.title" = "Način";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Način prepisa, ki se uporablja — nadzoruje model, poziv in naknadno obdelavo.";
+"settings.shortcuts.quickCapture.mode.current" = "Trenutni način";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper potrebuje dovoljenje za nadzor Beležk. Podelite ga v Sistemske nastavitve → Zasebnost → Avtomatizacija.";
+"settings.section.vocabulary" = "Besedišče";
+"settings.vocabulary.icloudSync.title" = "Sinhronizacija iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Sinhronizirajte svoje besedišče po meri na vseh Macih, prijavljenih v isti račun iCloud.";
+"settings.vocabulary.icloudSync.info" = "Privzeto izklopljeno. Sinhronizirano je samo vaše besedišče po meri — prepisi in posnetki ostanejo na tem Macu. Spremembe začnejo veljati ob naslednjem odprtju HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Zaprite HyperWhisper za uveljavitev sprememb";
+"vocabulary.icloudSync.restart.message" = "Spremembe sinhronizacije besedišča iCloud začnejo veljati ob naslednjem odprtju HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Zapri HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Pozneje";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Ohrani mikrofon aktiven med posnetki";
+"settings.sound.keepWarmMicrophone.info" = "Zmanjša zakasnitev zagona push-to-talk z ohranjanjem seje mikrofona odprte, medtem ko je HyperWhisper v mirovanju. macOS bo neprekinjeno prikazoval oranžni indikator mikrofona, Bluetooth slušalke pa bodo morda ostale v načinu klica nižje kakovosti, ko je to omogočeno.";
+"settings.models.local.inUse" = "Ta lokalni model se trenutno uporablja za naknadno obdelavo s strani:
+
+%@
+
+Uredi te načine, da izbereš drug model pred odstranitvijo.";
+"models.postProcessing.gemma4.e2b.description" = "Hiter in natančen. Odličen vsestranski model za naknadno obdelavo.";
+"models.postProcessing.gemma4.e4b.description" = "Višja kakovost z več podrobnostmi. Dober za daljša besedila.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B mešanica strokovnjakov. Hitro sklepanje z le 4B aktivnimi parametri.";
+"models.postProcessing.gemma4.31b.description" = "31B gost model. Najvišja kakovost, zahteva 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Ta model ni mogoče izbrisati, ker ga uporabljajo:\n\n%@\n\nPosodobi te načine, da uporabijo drugačen model, preden ga izbrišeš.";
+"settings.models.parakeet.inUse" = "Ta model Parakeet ni mogoče izbrisati, ker ga uporabljajo:\n\n%@\n\nPosodobi te načine, da uporabijo drugačen model, preden ga izbrišeš.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Neznano";
+"settings.models.directory.whisper" = "Mapa modelov Whisper";
+"settings.models.directory.parakeet" = "Mapa modelov Parakeet";
+"settings.models.directory.local" = "Mapa lokalnih modelov";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — večjezično prepoznavanje govora, optimizirano za CoreML.";
+"settings.models.qwen3asr.languages" = "30 jezikov";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Tega modela Qwen3 ASR ni mogoče izbrisati, ker ga uporabljajo:\n\n%@\n\nPred brisanjem posodobite te načine, da bodo uporabljali drug model.";
+"settings.models.directory.show" = "Prikaži v Finderju";
+"models.error.checksumFailed" = "Neuspešna preverka vsote modela. Prenos je morda poškodovan.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistika";
+"statistics.header.title" = "Tvoja statistika uporabe";
+"statistics.header.subtitle" = "Spremljaj svojo aktivnost prepisa in delovanje";
+"statistics.card.recordings" = "Skupni posnetki";
+"statistics.card.recordings.subtitle" = "Zaključeni prepisi";
+"statistics.card.duration" = "Skupni čas";
+"statistics.card.duration.subtitle" = "Čas za snemanje";
+"statistics.card.words" = "Skupne besede";
+"statistics.card.words.subtitle" = "Prepisane besede";
+"statistics.card.average" = "Povprečna trajanja";
+"statistics.card.average.subtitle" = "Na posnetek";
+"statistics.graph.title" = "Aktivnost skozi čas";
+"statistics.daily.empty" = "Še ni posnetkov";
+"statistics.filter.week" = "To sedo";
+"statistics.filter.month" = "Ta mesec";
+"statistics.filter.alltime" = "Vse čase";
+
+// MARK: - History View
+"history.title" = "Zgodovina";
+"history.search.placeholder" = "Iskanje";
+"history.filter.all" = "Vse";
+"history.filter.today" = "Danes";
+"history.filter.week" = "To sedo";
+"history.filter.month" = "Ta mesec";
+"history.empty.title" = "Ni najdenih posnetkov";
+"history.empty.subtitle" = "Poskusi spremeniti svoje iskanje";
+"history.detail.empty" = "Izberi posnetek za prikaz podrobnosti";
+"history.multi.selected" = "%d posnetkov izbranih";
+"history.multi.delete" = "Izbriši izbrane";
+"history.context.deleteSelected" = "Izbriši %d posnetkov";
+"history.context.retry" = "Poskusi ponovno prepis";
+"history.context.retryWith" = "Poskusi znova z...";
+"history.context.copy" = "Kopiraj besedilo";
+"history.retrying" = "Ponovno prepis...";
+"history.retry.help" = "Ponovno prepis";
+"history.section.today" = "Danes";
+"history.section.yesterday" = "Včeraj";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Ni uspelo";
+"history.status.transcription.failed.prefix" = "Prepis ni uspel:";
+"history.status.retry.failed.prefix" = "Ponovno ni uspelo:";
+"history.failure.reason" = "Razlog: %@";
+"history.mode.default" = "Privzeto";
+"history.audio.showInFinder" = "Prikaži v Finderju";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Izbriši način?";
+"modes.delete.confirm.message" = "To bo odstranil izbrani način. Te akcije se ne da razveljaviti.";
+"modes.header.title" = "Načini";
+"modes.header.subtitle" = "Ustvari prilagojene profile za različne kontekste in delovne tokove";
+"modes.header.create" = "Ustvari način";
+"modes.name.unnamed" = "Brez imena";
+"modes.badge.offline" = "Brez povezave";
+"modes.context.select" = "Izberi";
+"modes.help.edit" = "Uredi nastavitve načina";
+"modes.help.preset" = "Izvedite več o tej predlogi";
+"modes.help.model" = "Izvedite več o tem modelu";
+"modes.preset.title" = "Predloga";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Sporočilo";
+"modes.preset.mail.name" = "Pošta";
+"modes.preset.note.name" = "Opomba";
+"modes.preset.meeting.name" = "Sestanak";
+"modes.preset.code.name" = "Koda";
+"modes.preset.custom.name" = "Prilagojeno";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Način sporočila počisti tvoje diktano sporočilo, popravi ločila, ga razdeli na odstavke in razbrsti slovnične napake.";
+"modes.preset.mail.tooltip" = "Način pošte oblikuje tvojo diktirano pošto v profesionalno strukturo pošte z ustreznimi pozdravki, razdelki in poslovilom.";
+"modes.preset.note.tooltip" = "Način opombe organizira tvojo diktano vsebino v jasno obliko opombe z naslovi, nabori in strukturirani oddelki.";
+"modes.preset.meeting.tooltip" = "Način sestanka strukturira tvojo diktirano vsebino v obliko zapisnika sestanka z udeleženci, akcijami in ključnimi točkami razprave.";
+"modes.preset.code.tooltip" = "Način kode pretvori diktano programiranje v sintakso kode. Reci 'open bracket', 'backslash', 'camel case' in več za pisanje kode z glasom.";
+"modes.preset.custom.tooltip" = "Prilagojeni način te omogoča, da definirate svoja lastna pravila oblikovanja in pozive za posebne primere.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Določite popolna navodila za oblikovanje za to prednastavitev.";
+"modes.notice.vocabularyUnsupported" = "Prilagojeni besednjak ni podprt s strani ponudnika za ta model. Bil bo ignoriran.";
+"modes.notice.deepgramNova3AutoDetect" = "Prilagojeni besednjak ni dostopen pri uporabi Deepgram Nova-3 s samodejnim odkrivanjem jezika. Če želiš omogočiti oblikovanje besednjaka, nastavi specifičen jezik (npr. angleščino, španščino).";
+"modes.language.title" = "Jezik";
+"modes.language.englishOnly" = "Samo angleščina (optimizirani model)";
+"modes.postProcessing.sectionTitle" = "Obdelava po prepisu";
+"modes.postProcessing.modeLabel" = "Način";
+"modes.postProcessing.modeTitle" = "Obdelava po prepisu";
+"modes.postProcessing.modeDescription" = "Izberi, kako se prepisi obdelujejo:\n\n• Izključeno: Brez obdelave, surovi prepis\n• Oblak (AI): Izboljšava s pomočjo AI (zahteva internet)\n• Lokalni: Uporabi lokalni jezikovni model, kot je Gemma prek llama.cpp\n\nOblajna obdelava pošlje besedilo izbranem ponudniku AI. Lokalni način ostane na tvoji napravi, vendar mora biti lokalni strežnik zagnan.";
+"modes.postProcessing.providerLabel" = "Ponudnik";
+"modes.postProcessing.apiKeyMissing" = "%@ API ključ ni konfiguriran. Dodaj ga v Nastavitve za omogočanje obdelave po prepisu.";
+"modes.postProcessing.configure" = "Nastavi v Nastavitvah";
+"modes.postProcessing.modelRecommendation" = "Priporočljivo je uporabiti GPT-4.1 Nano za najboljši ravnotežje med hitrostjo in kvaliteto.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Lokalna naknadna obdelava zahteva preneseni lokalni model.";
+"modes.postProcessing.download" = "Prenesi v Nastavitvah";
+"modes.postProcessing.localInfo" = "Deluje v celoti na napravi. HyperWhisper samodejno zažene vključeni strežnik llama.cpp, ko je ta način aktiven.";
+"modes.postProcessing.userSystemPrompt.title" = "Trajna navodila";
+"modes.postProcessing.userSystemPrompt.placeholder" = "npr. Vedno zaključi e-pošto z 'Lep pozdrav, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Počisti";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Trajna navodila";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Dodajte navodila, ki vedno veljajo poleg izbrane prednastavitve.";
+"modes.toggle.punctuation.title" = "Dodaj ločila";
+"modes.toggle.punctuation.subtitle" = "Samodejno dodaj pike in vejice";
+"modes.toggle.capitalization.title" = "Pismenka velika";
+"modes.toggle.capitalization.subtitle" = "Velika črka na začetku stavka";
+"modes.toggle.profanity.title" = "Filtriraj neprekladan jezik";
+"modes.toggle.profanity.subtitle" = "Zamenjaj neprimerne besede";
+"modes.toggle.removeTrailingPeriod.title" = "Odstrani končno piko";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Odstrani zadnjo piko iz prepisov";
+"modes.postProcessing.privacyNotice" = "Tvoj prepis se SAMO pošlje ponudniku %@ za obdelavo. Nikoli drugam.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Jezikovni model";
+"modes.englishSpelling.title" = "Angleška črkovanja";
+"modes.englishSpelling.american" = "Ameriška";
+"modes.englishSpelling.british" = "Britanska";
+"modes.englishSpelling.australian" = "Avstralska";
+"modes.englishSpelling.canadian" = "Kanadska";
+"modes.englishSpelling.american.description" = "Uporabi ameriško angleško črkovanje (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Uporabi britansko angleško črkovanje (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Uporabi avstralsko angleško črkovanje (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Uporabi kanadsko angleško črkovanje (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Prilagojene navodila";
+"modes.gemini.customPrompt.helper" = "Neobvezno. Npr. \"Oblikuj kot točke\", \"Uporabi formalni jezik\". Vaše nastavitve jezika in besedišča so samodejno vključene.";
+"modes.cloud.apiKeyMissing" = "%@ API ključ ni konfiguriran. Dodaj ga v Nastavitve za uporabo oblačnega prepisa.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Natančnost";
+"modes.cloudAccuracy.groqWhisper.label" = "Srednja (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Srednja (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Visoka (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Hitro in prihodljivo. Najbolje za hitre prepise.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Uravnotežena hitrost in natančnost. Priporočljivo za večino uporabnikov.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvišja natančnost s počasnejšo obdelavo. Najbolje za pomembne prepise.";
+"modes.cloudAccuracy.grokStt.label" = "Najvišja (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najvišja natančnost s počasnejšo obdelavo. Najbolje za pomembne prepise.";
+
+"modes.create.title" = "Ustvari novi način";
+"modes.create.subtitle" = "Nastavi prilagojeni profil prepisa";
+"modes.section.basic" = "Osnovne nastavitve";
+"modes.section.transcription" = "Model prepisa";
+"modes.section.punctuation" = "Ločila";
+"modes.toggle.screenText.title" = "Besedilo zaslona";
+"modes.toggle.screenText.subtitle" = "Zajemite vidno besedilo zaslona za izboljšanje natančnosti imen in izrazov. Zahteva dovoljenj za snemanje zaslona.";
+"modes.screenText.openSettings" = "Odpri sistemske nastavitve";
+"modes.screenText.permissionGranted" = "Dovoljenje za snemanje zaslona je bilo dano";
+"modes.screenText.permissionRequired" = "Dovoljenje za snemanje zaslona je obvezno";
+"modes.field.name" = "Ime";
+"modes.field.name.placeholder" = "npr. Zapiski sestanka";
+"modes.field.name.editPlaceholder" = "Ime načina";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Ponudnik";
+"modes.provider.local" = "Lokalni";
+"modes.provider.cloud" = "Oblak";
+"modes.notice.noLocalModels.title" = "Ni nameščenih lokalnih modelov";
+"modes.notice.noLocalModels.subtitle" = "Prvo instaliraj model v Nastavitvah";
+"modes.model.pricing" = "Cena: $%.6f / minuto (obračunano po sekundi)";
+"modes.button.create" = "Ustvari način";
+"modes.button.delete" = "Izbriši način";
+"modes.button.save" = "Shrani spremembe";
+"modes.edit.title" = "Uredi način";
+"modes.edit.subtitle" = "Spremeni nastavitve profila prepisa";
+"mode.editor.cloudModel.previewHint" = "Predogled";
+"mode.editor.cloudModel.noVocabularyHint" = "Brez besedišča po meri";
+"mode.editor.cloudDomain.medical" = "Medicinski";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ dodatek Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Ni mogoče ponovno: Zvočna datoteka ne obstaja";
+"transcripts.error.invalidId" = "Neveljavan ID prepisa";
+"transcripts.delete.single.title" = "Izbriši posnetek?";
+"transcripts.delete.single.message" = "To bo trajno izbrisalo ta posnetek in njegovo zvočno datoteko.";
+"transcripts.delete.multiple.title" = "Izbriši %d posnetkov?";
+"transcripts.delete.multiple.message" = "To bo trajno izbrisalo %d posnetkov in njihove zvočne datoteke.\n\nTe akcije se ne da razveljaviti.";
+"transcripts.delete.multiple.confirm" = "Izbriši vse";
+"transcripts.retry.error.title" = "Ponovno ni uspelo";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Izberi mapo za posnetke";
+"storage.folder.choose.message" = "Izberi mapo za shranjevanje novih posnetkov.";
+"storage.folder.choose.prompt" = "Izberi";
+"storage.recovery.title" = "Dostopa do mape s posnetki ni mogoče";
+"storage.recovery.message" = "HyperWhisper je ne more dostopati do konfigurirane mape s posnetki. Za nadaljevanje lahko izberem drugo mapo.";
+"storage.recovery.choose" = "Izberi mapo…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Izvedite več";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Prepis zaključen";
+"recording.status.retrying" = "Ponovno poskušam prepis…";
+"recording.status.postprocessing" = "Obdelava s pomočjo AI…";
+"recording.status.transcribing" = "Prepis…";
+"recording.success.pasted" = "Zlepljeno!";
+"recording.loading.retrying" = "Ponovno poskušam…";
+"recording.loading.postprocessing" = "Obdelava s pomočjo AI…";
+"recording.loading.starting" = "Začenjam pretakanje…";
+"recording.loading.transcribing" = "Prepis…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Povezujem...";
+"streaming.status.ready" = "Pripravljen - začni govoriti";
+"streaming.status.warming" = "Ogrevanje...";
+"modes.badge.recommended" = "Priporočeno";
+"modes.source.label" = "Vir";
+"modes.source.onDevice" = "Na napravi";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "Ključ API";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Tega modela ni mogoče izbrisati, ker ga uporabljajo:
+
+%@
+
+Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model.";
+"models.postProcessing.gemma4.12b.description" = "Srednje velik gost model. Uravnoteži kakovost in hitrost na Macih s 16 GB.";
+"recording.success.savedToNotes" = "Shranjeno v Zapiskih!";
+"modes.provider.needsKey" = "%@ potrebuje delujoč ključ.";
+"modes.provider.manageInLibrary" = "Upravljaj v knjižnici →";
+"streaming.loading.warming" = "Ogrevanje lokalnega modela...";
+"streaming.status.listening" = "Poslušam...";
+"streaming.status.streaming" = "Pretakam...";
+"streaming.status.disconnecting" = "Ustavljam...";
+"streaming.loading.connecting" = "Povezujem se s strežnikom...";
+"streaming.loading.ready" = "Inicializiram avdio...";
+"streaming.loading.streaming" = "Čakam na glas...";
+"streaming.state.reconnecting" = "Ponovno se povezujem...";
+"recording.stop.help" = "Ustavi snemanje (%@)";
+"recording.postprocessing.unavailable" = "Obdelava po prepisu je nedostopna";
+"recording.postprocessing.missing.single" = "%@ ključ manjka – snemanje brez obdelave po prepisu";
+"recording.postprocessing.missing.multiple" = "API ključi manjkajo – snemanje brez obdelave po prepisu";
+"recording.postprocessing.addKey" = "Dodaj ključ";
+"recording.offline.banner" = "Ni internetne povezave. Oblaški prepis bo neuspešen, dokler nisi na spletu.";
+"recording.offline.title" = "Ni internetne povezave";
+"recording.offline.subtitle" = "Ponovno se poveži in nadaljuj, ali se prebklopi v način brez povezave.";
+"recording.error.network" = "Preveri svojo internetno povezavo in poskusi znova.";
+"recording.error.timeout" = "Zahteva je potekla. Preveri hitrost svoje povezave in poskusi znova.";
+"recording.error.rateLimit" = "Naredil si premalo zahtev. Počakaj trenutek in poskusi znova.";
+"recording.error.credits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";
+"recording.error.apiKey" = "Dodaj svoj %@ API ključ v Nastavitve.";
+"recording.error.server" = "Prepis je naletela na težave. Prosimo, poskusi znova čez trenutek.";
+"recording.retry" = "Poskusi znova";
+"recording.retry.inProgress" = "Ponovno poskušam…";
+"recording.retry.count" = "Ponovno poskusi (%d)";
+"recording.retry.failed.missing" = "Ponovno ni uspelo: Zvočna datoteka ne obstaja";
+"recording.retry.failed.error" = "Ponovno ni uspelo: %@";
+"recording.retry.pending" = "Pripravljen za ponovno poskus – klikni za prepis";
+"recording.provider.unknown" = "ponudnik oblaka";
+"recording.cancel.dialog.title" = "Prekliči snemanje?";
+"recording.cancel.dialog.message" = "To bo zavrg trenutni posnetek.";
+"recording.cancel.dialog.confirm" = "Prekliči snemanje";
+"recording.cancel.dialog.resume" = "Nadaljuj";
+"recording.error.overlay.title" = "Napaka v povezavi z omrežjem";
+"recording.error.overlay.message" = "Pritisni 'Poskusi znova' spodaj ali se prebklopi na način brez povezave za nadaljevanje.";
+"recording.mode.default" = "Privzeto";
+"recording.dialog.window.title" = "Dialog snemanja";
+"recording.button.start" = "Začni snemanje";
+"recording.button.stop" = "Ustavi snemanje";
+"recording.button.disable.checking" = "Preverjam %@ status...";
+"recording.button.disable.invalid" = "Neveljaven %@ API ključ. Posodobi ga v Nastavitve.";
+"recording.button.disable.unreachable" = "%@ je nedosegljiv. Preveri svojo povezavo in poskusi znova.";
+"recording.button.disable.missing" = "Dodaj svoj %@ API ključ v Nastavitve.";
+"recording.button.disable.install.local" = "Prenesi lokalni model v Nastavitve → Modeli pred uporabo lokalnega nadaljnjega procesiranja.";
+"modes.postProcessing.accuracy" = "Natančnost";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Dosegel si svojo dnevno omejitev %@ minut prepisa. Nadgradi na HyperWhisper Pro za neomejeno prepise.";
+"recording.error.documentsAccess" = "Ne morem dostopati do mape s posnetki. Izberi drugačno lokacijo v Nastavitve → Shranjevanje.";
+"recording.error.modeMissing" = "Izbrani način ne obstaja. Prosimo, izberi veljaven način.";
+"recording.warning.oversizedWAV" = "Stiskanje zvoka ni uspelo. Uporablja se nekompresirana datoteka %@ MB - prepis je lahko počasnejši.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Privzeti mikrofon";
+"audio.error.permissionDenied" = "Dostop do mikrofonskega vhoda je zavrnjen. Prosimo, omogoči v Sistemskih nastavitvah.";
+"audio.error.fileWatcher.open" = "Ni bilo mogoče odpreti deskriptorja datoteke za spremljanje zvočne datoteke.";
+"audio.error.fileWatcher.timeout" = "Operacija je potekla, medtem ko se je čakalo na pisanje zvočne datoteke.";
+"audio.error.fileWatcher.creation" = "Zvočna datoteka ni bila pravočasno ustvarjena.";
+"audio.error.microphonePermission" = "Dozvoljenje za mikrofon ni odobreno";
+"audio.error.microphoneInUse" = "HyperWhisper ne more dostopati do mikrofonskega vhoda, ker ga trenutno uporabljam druga aplikacija. Prekini drugo aplikacijo ali zamenjaj vhode in poskusi znova.";
+"audio.error.createEngine" = "Napaka pri ustvarjanju audio motorja";
+"audio.error.noInput" = "Ni dostopnega zvočnega vhoda";
+"audio.error.createFile" = "Napaka pri ustvarjanju zvočne datoteke";
+"audio.error.managerUnavailable" = "Upravitelj prepisa ni konfiguriran";
+"audio.error.invalidHardwareFormat" = "Odkrit je bil neveljaven format zvoka strojne opreme. Prosimo, preveri svojo zvočno napravo.";
+"audio.error.createFormat" = "Napaka pri ustvarjanju oblike zvoka za snemanje";
+"audio.error.createConverter" = "Napaka pri ustvarjanju pretvornika oblike zvoka";
+"audio.error.exportM4A" = "Napaka pri izvvozu zvoka v obliko m4a";
+"audio.error.readFile" = "Zvočne datoteke ni bilo mogoče prebrati po snemanju.";
+"audio.error.recordingTooShort" = "Posnetek je prekratek. Prosimo, drži gumb dlje, da zajameš zvok.";
+"audio.error.noAudioTrack" = "Ta video datoteka ne vsebuje avdio steze.";
+"audio.alert.accessibility.title" = "Omogoči dostop do dostopnosti";
+"audio.alert.accessibility.message" = "HyperWhisper potrebuje dovoljenje za dostopnost, da zlepi prepisan besedilo v druge aplikacije.\n\nKlikni \"Odpri nastavitve\", pritisni preklopnik zraven HyperWhisper in poskusi znova.";
+"audio.alert.accessibility.open" = "Odpri nastavitve";
+"audio.alert.pasteFailed.title" = "Samodejno lepljenje je bilo neuspešno";
+"audio.alert.pasteFailed.message" = "Prepisan besedilo je bil kopiran v tvoje odložišče.\n\nPritisni ⌘V za ročno lepljenje ali izberi Uredi → Zlepi iz menija.";
+"accessibility.permission.location.debug" = "Xcode razhroščevalni gradnji";
+"accessibility.permission.location.installed" = "Instalirana aplikacija";
+"accessibility.permission.info" = "HyperWhisper potrebuje dovoljenje za dostopnost, da zlepi prepisan besedilo v druge aplikacije.\n\nTrenutna lokacija aplikacije: %@\n\nV Sistemskih nastavitvah:\n1. Poišči 'hyperwhisper' ali 'HyperWhisper' na seznamu\n2. Morda boš videl več vnosov, če si se zagnal iz različnih lokacij\n3. Omogoči polje za vnos, ki se ujema:\n   %@";
+"accessibility.permission.xcodeNote" = "Opomba: Zaganjanje iz Xcode zahteva drugačno dovoljenje kot instalirana aplikacija.";
+"accessibility.error.paste.commandFailed" = "Lepljenje ukaza je bilo neuspešno";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Ponudnik prepisa ni dostopen. Preveri nastavitve in poskusi znova.";
+"transcription.error.providerNotAvailable.provider" = "%@ ni dostopen. Preveri nastavitve in poskusi znova.";
+"transcription.error.providerNotAvailable.detail" = "%@ ni dostopen: %@";
+"transcription.error.modelNotDownloaded" = "Prosimo, najprej prenesi model";
+"transcription.error.modelProtected" = "Ta model ni mogoče izbrisati";
+"transcription.error.audioFileNotFound" = "Zvočna datoteka ne obstaja";
+"transcription.error.network.detail" = "Napaka omrežja: %@";
+"transcription.error.network.generic" = "Napaka v povezavi z omrežjem";
+"transcription.error.apiKeyMissing.provider" = "%@ API ključ je zahtavan za prepis";
+"transcription.error.apiKeyMissing.generic" = "Potreben je API ključ ponudnika oblaka za prepis";
+"transcription.error.maxRetriesExceeded" = "Presežen je bil največji število poskusov";
+"transcription.error.unauthorized.provider" = "Nepooblaščeno: neveljaven %@ API ključ ali dovoljenja.\n\nOdpri Nastavitve → API ključi za preverjanje svojih poverilnic.";
+"transcription.error.unauthorized.generic" = "Nepooblaščeno: neveljaven API ključ ali dovoljenja.\n\nOdpri Nastavitve → API ključi za preverjanje svojih poverilnic.";
+"transcription.error.invalidRequest" = "Neveljavna zahteva: preveri zvočno datoteko ali nastavitve";
+"transcription.error.streamingInterrupted" = "Pretakanje je bila prekinjena; prikazano je delno besedilo";
+"transcription.error.busy" = "Prepis je trenutno zasedena";
+"transcription.error.invalidAudioFormat" = "Nepodporani format zvoka";
+"transcription.error.audioConversionFailed" = "Napaka pri pretvarjanju zvoka v zahtevani oblik";
+"transcription.error.audioFileTooLarge" = "Datoteka je prevelika: %@ presega %@ omejitev za %@";
+"transcription.error.serverError" = "Napaka strežnika (%d): %@";
+"transcription.error.rateLimited.seconds" = "Omejeno po stopnji: Premalo zahtev. Prosimo, počakaj %d sekund in poskusi znova.";
+"transcription.error.rateLimited.generic" = "Omejeno po stopnji: Premalo zahtev. Prosimo, počakaj trenutek in poskusi znova.";
+"transcription.error.insufficientCredits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";
+"transcription.error.quotaExceeded" = "%@ kvota presežena";
+"transcription.error.quotaExceeded.detail" = "%@ kvota presežena: %@";
+"transcription.error.timeout" = "Zahteva je potekla med %@. Preveri svojo internetno povezavo in poskusi znova.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Prepričaj se, da je tvoj ponudnik prepisa pravilno konfiguriran v Nastavitvah.";
+"transcription.guidance.providerNotAvailable.provider" = "Prepričaj se, da je %@ pravilno konfiguriran. Za lokalne modele najprej prenesi model. Za ponudnike oblaka preveri svoj API ključ.";
+"transcription.guidance.apiKeyMissing.provider" = "Dodaj svoj %@ API ključ v Nastavitve";
+"transcription.guidance.apiKeyMissing.generic" = "Dodaj svoj API ključ ponudnika oblaka v Nastavitve";
+"transcription.guidance.modelNotDownloaded" = "Prenesi model iz oddelka Modeli";
+"transcription.guidance.modelProtected" = "Ta model je trenutno v uporabi";
+"transcription.guidance.audioFileNotFound" = "Zvočna datoteka je bila izbrisana ali premakljena";
+"transcription.guidance.networkError" = "Preveri svojo internetno povezavo in poskusi znova";
+"transcription.guidance.unauthorized.provider" = "Preveri svoj %@ API ključ ali dovoljenja računa v Nastavitvah";
+"transcription.guidance.unauthorized.generic" = "Preveri svoj API ključ ali dovoljenja računa v Nastavitvah";
+"transcription.guidance.invalidRequest" = "Preveri zvočno datoteko in nastavitve načina ter poskusi znova";
+"transcription.guidance.invalidAudioFormat" = "Poskusi pretvoriti zvočno datoteko v format MP3 ali WAV";
+"transcription.guidance.audioConversionFailed" = "Zvočna datoteka je morda poškodovana. Poskusi z drugo datoteko";
+"transcription.guidance.audioFileTooLarge" = "Uporabi krajšo zvočno datoteko ali jo razdeli na manjše segmente";
+"transcription.guidance.serverError" = "Prepis je naletela na težave. Prosimo, poskusi znova.";
+"transcription.guidance.rateLimited" = "Naredil si premalo zahtev. Počakaj trenutek, preden ponovno poskusiš.";
+"transcription.guidance.insufficientCredits" = "Kupi več kreditov v Nastavitvah za nadaljevanje prepisa";
+"transcription.guidance.quotaExceeded" = "Dodaj kredite svojemu %@ računu ali posodobi svoje podrobnosti zaračunavanja";
+"transcription.guidance.timeout" = "Zahteva je trajala predolgo. Preveri hitrost svojega interneta in poskusi znova.";
+"transcription.error.noSpeechDetected" = "V posnetku ni bil zaznan glas.";
+"transcription.guidance.noSpeechDetected" = "Namigi:\n• Jasno govori v mikrofon\n• Drži tipko dlje, preden govoriš\n• Preveri, da tvoj mikrofon deluje\n• Poskupi, da je izbrana pravilna vhodna naprava";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";
+"hyperwhisperCloud.error.network" = "Napaka omrežja: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Neveljaven odgovor od HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Napaka strežnika: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Ni bilo mogoče najti programa llama-server.";
+"llama.runtime.error.missingDependencies" = "Časa čakanja manjkajo odvisnosti: %@";
+"llama.runtime.error.copyFailed" = "Napaka pri kopiranju časa čakanja: %@";
+"llama.runtime.error.copy.executable" = "Ni bilo mogoče kopirati programa: %@";
+"llama.runtime.missing" = "Čas čakanja Lokalno je izgubljen iz te inštalacije. Ponovno instaliraj HyperWhisper, da obnoviš lokalno obdelavo po prepisu.";
+"llama.runtime.genericError" = "Napaka časa čakanja Lokalno: %@";
+"runtime.error.llama.missingLib" = "Čas čakanja Lokalno je prenehala po manjkajočih libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Čas čakanja Lokalno je poročal o manjkajočih libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Vgrajena obdelava AI na Cloudflare Workers. Nobena konfiguracija se ne zahteva.";
+"models.postProcessing.gpt4.1.nano.description" = "Zmerna natančnost (92%), zelo hitra hitrost (<1s). Primerna za hitre osnutke in neformalne opombe.";
+"models.postProcessing.gpt4.1.mini.description" = "Visoka natančnost (94%), hitra hitrost (~1-2s). Dobra za vsakdanje poslovne komunikacije in standardne dokumente.";
+"models.postProcessing.gpt4.1.description" = "Zelo visoka natančnost (96%), zmerna hitrost (~3-4s). Odličan za kompleksno oblikovanje in tehnično vsebino.";
+"models.postProcessing.gpt5.nano.description" = "Dobra natančnost (95%), najhitrejša hitrost (~1s). Idealna za hitre opombe, sporočila in neformalne prepise.";
+"models.postProcessing.gpt5.mini.description" = "Odlična natančnost (97%), zmerna hitrost (~2-3s). Idealno ravnotežje za profesionalne e-pošte, poročila in zapisnike sestanka.";
+"models.postProcessing.gpt5.description" = "Najvišja natančnost (99%+), najsporošija hitrost (~3-5s). Najbolje za kritične dokumente, pravne in medicinske prepise, kjer je natančnost temeljnega pomena.";
+"models.postProcessing.gpt5.1.description" = "Najsodobnejša natančnost (98%+), zmerna hitrost (~2-3s). Odličen za kompleksne naloge, pravne dokumente in tehnično vsebino s superiorno razmiš";
+"models.postProcessing.gpt5.2.description" = "Zadnja serija GPT-5 z izboljšano razmiš in hitrejšim sklepanjem. Najboljša splošna izbira za visokokakovostno obdelavo besedila.";
+"models.postProcessing.claude4.5.haiku.description" = "Najnovejši Claude Haiku s izboljšano razmiš, medtem ko ostane odzivnega časa hiter.";
+"models.postProcessing.claude4.sonnet.description" = "Uravnotežena delovanja. Vrhunska zmogljivost razmiš in oblikovanja za profesionalne dokumente.";
+"models.postProcessing.gemini3.flash.description" = "Serija Gemini 3 s Pro-ravni inteligenco z hitrostjo Flash. Napredna razmiš z zmožnostmi dinamičnega razmisleka.";
+"models.postProcessing.gemini2.5.flash.description" = "Najbolje v smislu cene-delovanja. Optimizirano za hitrost, medtem ko se ohranja dobra natančnost za vsakdanjo uporabo.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultrahiter model optimiziran za učinkovitost stroškov in visokozmogljivo prepuščnost.";
+"models.postProcessing.groq.llama33.70b.description" = "Všestranskega 70B modela z odlično kvaliteto. ~280 žetonov/sek. Priporočljivo.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultrahiter 8B model. ~560 žetonov/sek za takojšnjo obdelavo besedila.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI-jev odprtokodni model 120B. ~500 žetonov/sek za visokokakovostno obdelavo.";
+"models.postProcessing.groq.gptoss.20b.description" = "Lahek 20B model. ~1000 žetonov/sek za najhitrejšo obdelavo.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B na Cerebras. Ultrahiter model 120B pri ~3000 žetonov/sek. Priporočljivo.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B na Cerebras. Lahek in ultrahiter pri ~2200 žetonov/sek.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B na Cerebras. Masivni model MoE 235B pri ~1400 žetonov/sek. Samo predogled.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 na Cerebras. Model s 355B parametri pri ~1000 žetonov/sek. Samo predogled.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Pomoč";
+"settings.resources.contact.support" = "Kontaktiraj podporo";
+"settings.resources.feedback" = "Povratna informacija in predlogi";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Varnostna kopija";
+"settings.backup.export.title" = "Izvozi nastavitve";
+"settings.backup.export.subtitle" = "Shrani nastavitve, načine in besednjak v datoteko";
+"settings.backup.export.button" = "Izvozi...";
+"settings.backup.export.panel.title" = "Izvozi nastavitve";
+"settings.backup.export.panel.label" = "Varnostna kopija datoteke:";
+"settings.backup.export.success" = "Nastavitve so bile uspešno izvožene";
+"settings.backup.export.error.create" = "Napaka pri ustvarjanju varnostne kopije podatkov";
+"settings.backup.export.error.encode" = "Napaka pri kodiranju varnostne kopije podatkov";
+"settings.backup.export.error.write" = "Napaka pri pisanju varnostne kopije datoteke";
+"settings.backup.includeAPIKeys.title" = "Vključi API ključe";
+"settings.backup.includeAPIKeys.subtitle" = "Shrani API ključe v varnostno kopijo datoteke (ni priporočeno za deljenje)";
+"settings.backup.includeLicense.title" = "Vključi ključ licence";
+"settings.backup.import.title" = "Uvezi nastavitve";
+"settings.backup.import.subtitle" = "Obnovi nastavitve iz varnostne kopije datoteke";
+"settings.backup.import.button" = "Uvezi...";
+"settings.backup.import.panel.title" = "Uvezi nastavitve";
+"settings.backup.import.success" = "Uvoz zaključen: %d načinov, %d elementov besednjaka uvoženo";
+"settings.backup.import.error.read" = "Napaka pri branju varnostne kopije datoteke";
+"settings.backup.import.error.decode" = "Neveljavan oblika varnostne kopije datoteke";
+"settings.backup.import.error.decode.keyNotFound" = "Manjka obvezno polje: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Napačna vrsta polja: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Manjka vrednost polja: %@";
+"settings.backup.import.error.decode.corrupted" = "Poškodovani podatki: %@";
+"settings.backup.import.error.decode.corruptedField" = "Poškodovana vrednost polja: %@";
+"settings.backup.import.error.version" = "Varnostna kopija datoteke je iz novejše različice";
+"settings.backup.import.error.unknown" = "Uvoz ni uspel";
+"settings.backup.import.confirm.title" = "Uvozi nastavitve?";
+"settings.backup.import.confirm.message" = "To bo nadomestilo tvoje obstoječe načine in besednjak s tistimi iz varnostne kopije datoteke. Nastavitve se bodo tudi posodobljene.";
+"settings.backup.import.confirm.button" = "Uvozi";
+"settings.backup.conflict.skip" = "Preskoči obstoječe";
+"settings.backup.conflict.replace" = "Zamenjaj obstoječe";
+"settings.backup.conflict.keepBoth" = "Ohrani oba";
+"settings.backup.security.warning" = "Opozorilo: Izvožena datoteka bo vsebovala občutljive podatke. Ohrani ga varno in ga ne delj.";
+"settings.backup.info.note" = "Varnostne kopije vključujejo nastavitve, načine in besednjak. Posnetki in prepisi niso vključeni.";
+"settings.backup.result.success.title" = "Uspeh";
+"settings.backup.result.error.title" = "Napaka";
+"settings.backup.export.choose.subtitle" = "Izberite, kaj vključiti v datoteko varnostne kopije";
+"settings.backup.export.section.settings" = "Nastavitve";
+"settings.backup.export.section.modes" = "Načini";
+"settings.backup.export.section.vocabulary" = "Besednjak";
+"settings.backup.import.importing" = "Uvažanje %@";
+"settings.backup.import.contains" = "Ta datoteka vsebuje: %@";
+"settings.backup.import.contains.vocabulary" = "Besednjak (%d besed)";
+"settings.backup.import.contains.none" = "nič";
+"settings.backup.import.section.settings" = "Nastavitve";
+"settings.backup.import.section.modes" = "Načini";
+"settings.backup.import.section.vocabulary" = "Besednjak";
+"settings.backup.import.section.apiKeys" = "Ključi API";
+"settings.backup.import.section.license" = "Licenčni ključ";
+"settings.backup.import.section.absent" = "— ni v datoteki";
+"settings.backup.import.premerge.summary" = "Besednjak: dodaj %d novih, %d že obstaja";
+"settings.backup.import.premerge.conflictLabel" = "Za besede, ki že obstajajo:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Izberi zvočno datoteko";
+"transcribe.file.error.title" = "Napaka prepisa";
+"transcribe.file.error.size.title" = "Datoteka je prevelika";
+"transcribe.file.error.size.message" = "Izbrana datoteka (%@) presega %@ omejitev za %@.";
+"transcribe.file.error.format.title" = "Nepodporan oblika";
+"transcribe.file.error.format.message" = "Datoteke .%@ niso podprte s strani %@. Podprte oblike: %@";
+"transcribe.file.error.read" = "Izbrane datoteke ni mogoče prebrati.";
+"transcribe.file.error.copy" = "Napaka pri kopiranju datoteke v mapo posnetkov.";
+"transcribe.file.error.video.title" = "Brez zvoka v videu";
+"transcribe.file.error.video.noAudio" = "Ta video datoteka ne vsebuje avdio steze. Prosimo, izberi video s povkom ali zvočno datoteko.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Pripravljam...";
+"file.transcription.transcribing" = "Prepis...";
+"file.transcription.finishing" = "Zaključujem...";
+"file.transcription.cancel" = "Prekliči";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Omogoči samodejno brisanje";
+"history.autoDelete.enable.subtitle" = "Posnetki, starejši od navedene trajanja, bodo izbrisani";
+"history.autoDelete.duration.prefix" = "Po";
+"history.autoDelete.unit.minutes" = "Minut";
+"history.autoDelete.unit.hours" = "Ur";
+"history.autoDelete.unit.days" = "Dni";
+"history.autoDelete.unit.minutes.plural" = "minut";
+"history.autoDelete.unit.hours.plural" = "ur";
+"history.autoDelete.unit.days.plural" = "dni";
+"history.autoDelete.status.disabled" = "Samodejno brisanje je onemogočeno";
+"history.autoDelete.status.enabled" = "Izbriši posnetke, starejše od %d %@";
+"history.autoDelete.cleanup.noItems" = "Ni posnetkov za brisanje";
+"history.autoDelete.cleanup.summary" = "Izbrisano %d posnetek(ov) in sprošćeno %@";

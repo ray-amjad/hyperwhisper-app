@@ -1,0 +1,88 @@
+---
+title: Local API Overview
+description: HTTP API exposed by HyperWhisper.app on 127.0.0.1 when the user enables it. Off by default.
+---
+
+HyperWhisper ships with an in-app HTTP server you can opt into from
+**Settings → Local API**. When on, it listens on `127.0.0.1` only — never
+the LAN — and writes the bound port plus a bearer token to a discovery
+file on disk so MCP wrappers, benchmark scripts, and shell automation
+can find it without configuration.
+
+## Discovery file
+
+```
+~/Library/Application Support/HyperWhisper/local-api.json
+```
+
+`chmod 600`, JSON shape:
+
+```json
+{
+  "port": 39201,
+  "pid": 12345,
+  "started_at": "2026-06-02T13:57:46Z",
+  "api_version": 1,
+  "app_version": "2.36.0",
+  "token": "9YH8r0Z1u3Xl..."
+}
+```
+
+## Authentication
+
+Every endpoint except `/health` requires:
+
+```
+Authorization: Bearer <token>
+```
+
+The token is generated on first server start (32 random bytes,
+base64-url-encoded) and stored in the macOS Keychain. You can regenerate
+it from Settings → Local API; the previous token is invalidated immediately.
+
+## Response envelope
+
+Both shapes are returned with **HTTP 200**:
+
+```json
+{ "ok": true, "...": "..." }
+```
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "MODEL_NOT_INSTALLED",
+    "message": "Whisper large-v3 is not installed.",
+    "hint": "Use /models to list installed models, or install via the app."
+  }
+}
+```
+
+HTTP 4xx is reserved for protocol failures: 400 for malformed JSON, 401
+for missing or invalid bearer token. Everything else (including
+"transcription engine errored", "API key missing", "file not found")
+arrives as `ok:false` with a machine-readable code.
+
+## Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health` | Server identity, provider health snapshot, local-model inventory. **No auth.** |
+| GET | `/models?kind=&installed_only=` | Flat model catalog. |
+| GET | `/modes` | List saved Modes. |
+| POST | `/modes` | Create Mode. |
+| GET | `/modes/{id}` | Fetch one Mode. |
+| PATCH | `/modes/{id}` | Partial-field update. |
+| DELETE | `/modes/{id}` | Delete Mode (refuses to delete the last one). |
+| POST | `/transcribe` | File path or `audio_base64`. Drive by `mode_id`, by `engine`+`model`, or mix. |
+| POST | `/post-process` | Rewrite text via preset or free-form prompt. |
+| GET | `/recordings/search?q=&since=&until=&limit=` | Substring search across past transcripts. |
+| GET | `/recordings/{id}` | Single transcript row. |
+
+Full schema is in [`openapi.yaml`](./openapi.yaml).
+
+## Next: MCP
+
+To plug HyperWhisper into Cursor, Claude Desktop, or Claude Code as a tool an
+agent can call, follow the [MCP setup guide](./mcp-setup).

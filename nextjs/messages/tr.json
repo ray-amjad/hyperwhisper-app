@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - macOS ve Windows için Yapay Zeka Sesli Transkripsiyon",
+    "description": "Yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın. HyperWhisper, sesinizi macOS ve Windows'ta inanılmaz doğrulukla metne dönüştürür. Doğal konuşun ve kelimelerinizin anında ekrana geldiğini görün."
+  },
+  "navbar": {
+    "features": "Özellikler",
+    "pricing": "Fiyatlandırma",
+    "faq": "SSS",
+    "support": "Destek",
+    "download": "İndir",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Dili değiştir"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper Logosu",
+    "headline": "Yazın, üretin ve oluşturun",
+    "headlineAccent": "Yapay zeka ile 5x daha hızlı",
+    "subheadline": "HyperWhisper sesinizi inanılmaz doğrulukla metne dönüştürür. Sadece doğal konuşun ve kelimelerinizin anında göründüğünü izleyin.",
+    "downloadCta": "Şimdi indir",
+    "demoCta": "Demoyu izle",
+    "availableOn": "Kullanılabildiği platformlar",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Profesyoneller için geliştirildi",
+    "subtitle": "Her özellik daha hızlı ve verimli çalışmanıza yardımcı olmak için tasarlandı",
+    "customVocabulary": {
+      "title": "Özel Sözlük",
+      "description": "İsimler, kısaltmalar ve özel terimler ekleyerek her seferinde mükemmel doğruluk elde edin."
+    },
+    "languages": {
+      "title": "100+ Dil",
+      "description": "Otomatik dil algılama ile 100'den fazla dilde transkripsiyon yapın."
+    },
+    "offline": {
+      "title": "Çevrimdışı Destek",
+      "description": "Tamamen çevrimdışı çalışır. Verileriniz cihazınızdan asla çıkmaz."
+    },
+    "privacy": {
+      "title": "Gizlilik Odaklı",
+      "description": "Hesap gerektirmez. Takip yok. Ses verileriniz Mac veya PC'nizde kalır."
+    },
+    "hybridProcessing": {
+      "title": "Hibrit İşleme",
+      "description": "Gizlilik için yerel modelleri, hız için bulut API'lerini seçin. İki dünyanın en iyisi."
+    },
+    "customizable": {
+      "title": "Yüksek Özelleştirme",
+      "description": "9'den fazla API sağlayıcısı ve 30+ transkripsiyon modeli arasından seçim yapın."
+    },
+    "realTime": {
+      "title": "Gerçek Zamanlı Akış",
+      "description": "Konuşurken kelimelerinizin anında göründüğünü görün. 700 ms altı gecikmeyle sektör lideri doğruluk."
+    },
+    "fileImport": {
+      "title": "Dosya İçe Aktarma",
+      "description": "Transkripsiyon için ses veya video dosyaları içe aktarın. Otomatik sessizlik algılama ile tüm ana formatlar desteklenir."
+    },
+    "screenOcr": {
+      "title": "Ekran OCR",
+      "description": "HyperWhisper’ın ekranınızı görmesine izin verin, böylece her şeyi doğru şekilde yazabilir."
+    },
+    "mcpServer": {
+      "title": "Yerel API ve MCP Sunucusu",
+      "description": "Yerleşik MCP sunucusu Claude, Cursor ve diğer yapay zeka ajanlarının HyperWhisper'ı çalıştırmasına olanak tanır. Komut dosyaları ve otomasyonlar için bearer kimlik doğrulamalı, yalnızca yerel HTTP API."
+    },
+    "modes": {
+      "title": "Her durum için modlar",
+      "description": "Toplantılar, not alma, e-postalar, kodlama ve daha fazlası için optimize edilmiş farklı transkripsiyon modları arasında geçiş yapın. Her mod, metninizi mükemmel biçimlendirmek için özel prompt'lar kullanır.",
+      "meeting": "Toplantı",
+      "email": "E-posta",
+      "note": "Not",
+      "code": "Kod",
+      "legal": "Hukuk",
+      "medical": "Tıbbi",
+      "presetModes": "Hazır modlar",
+      "customModes": "Özel modlar"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Yazmaktan daha hızlı",
+    "accuracyRate": "Doğruluk oranı",
+    "languagesSupported": "Desteklenen diller",
+    "providersSupported": "Desteklenen sağlayıcılar"
+  },
+  "pricing": {
+    "title": "Abonelik yok. Asla.",
+    "subtitle": "Bir kez ödeyin, sonsuza dek kullanın. Biz de abonelikten hoşlanmıyoruz.",
+    "guarantee": "14 günlük para iade garantisi",
+    "guaranteeExtended": "tam memnun kalmazsanız.",
+    "learnMore": "Daha fazla bilgi",
+    "free": {
+      "name": "Free",
+      "price": "$0",
+      "period": "sonsuza dek",
+      "description": "HyperWhisper'ı denemek için ideal",
+      "cta": "Ücretsiz indir",
+      "features": {
+        "transcriptionLimit": "Günde 5 dakika transkripsiyon",
+        "basicModes": "Temel transkripsiyon modları",
+        "offlineTranscription": "Çevrimdışı transkripsiyon",
+        "apiTranscription": "API transkripsiyonu (kendi anahtarlarınızı getirin)",
+        "postProcessing": "Metin son işleme",
+        "providers": "Seçebileceğiniz 9+ sağlayıcı",
+        "lifetimeUpdates": "Ömür boyu güncellemeler",
+        "cloudLimited": "HyperWhisper Cloud (sınırlı kullanım)",
+        "customVocabulary": "Özel sözlük",
+        "prioritySupport": "Öncelikli destek"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "ömür boyu",
+      "description": "Tek seferlik satın alma, sonsuza dek sınırsız güç",
+      "cta": "Şimdi Satın Al - Ömür Boyu Erişim",
+      "mostPopular": "En Popüler",
+      "features": {
+        "unlimitedTranscription": "Sınırsız transkripsiyon",
+        "allModes": "Tüm transkripsiyon modları",
+        "offlineTranscription": "Çevrimdışı transkripsiyon",
+        "apiTranscription": "API transkripsiyonu (kendi anahtarlarınızı getirin)",
+        "postProcessing": "Metin son işleme",
+        "providers": "Seçebileceğiniz 9+ sağlayıcı",
+        "lifetimeUpdates": "Ömür boyu güncellemeler",
+        "cloudCredits": "HyperWhisper Cloud ($5 kredi)",
+        "customVocabulary": "Özel sözlük",
+        "prioritySupport": "Öncelikli destek"
+      }
+    },
+    "enterprise": {
+      "title": "Kurumsal ve Özel Fiyatlandırma",
+      "description": "Hacim indirimleri, SSO, öncelikli destek, kurum içi barındırma ve özel entegrasyonlar",
+      "cta": "Satışla İletişime Geç"
+    }
+  },
+  "faq": {
+    "title": "Sık sorulan sorular",
+    "subtitle": "HyperWhisper hakkında bilmeniz gereken her şey",
+    "contactPrompt": "Hâlâ sorularınız mı var? Bize e-posta gönderin:",
+    "questions": {
+      "accuracy": {
+        "question": "Transkripsiyon ne kadar doğru?",
+        "answer": "Son teknoloji yapay zeka modelleriyle sektör lideri %99 doğruluk sağlıyoruz. Teknik terimler, isimler ve uzmanlık jargonları için kendi özel sözlüğünüzü ekleyerek doğruluğu daha da artırabilirsiniz."
+      },
+      "offline": {
+        "question": "İnternetsiz kullanabilir miyim?",
+        "answer": "Kesinlikle. HyperWhisper, Mac'inizde yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
+      },
+      "apiKey": {
+        "question": "API erişimi için ödeme yapmam gerekiyor mu?",
+        "answer": "Şu sağlayıcılar için kendi API anahtarınızı kullanırsınız: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ve Google Gemini. Bazı sağlayıcılar yeni kullanıcılara ücretsiz kredi verir; Deepgram $200, AssemblyAI $50 sunar. Uzun vadede bu, herhangi bir abonelikten belirgin şekilde daha ucuzdur. \n\nAyrıca API anahtarı gerektirmeyen ve kullandıkça öde modeliyle çalışan HyperWhisper Cloud'u (yerleşik) da kullanabilirsiniz.\n\nUnutmayın, yerel çevrimdışı mod herhangi bir API anahtarı olmadan çalışır ve tamamen ücretsizdir."
+      },
+      "languages": {
+        "question": "Hangi dilleri destekliyor?",
+        "answer": "İngilizce ve İspanyolcadan Mandarin ve Arapçaya kadar 100'den fazla dil kutudan çıktığı gibi desteklenir. Çoğu model hangi dili konuştuğunuzu otomatik algılar ve sorunsuz şekilde geçiş yapar."
+      },
+      "offlineModels": {
+        "question": "Hangi çevrimdışı modeller mevcut?",
+        "answer": "Çevrimdışı transkripsiyon için Whisper modelinin birden fazla boyutunu sunuyoruz (OpenAI tarafından geliştirilmiştir, 99+ dili destekler). Ayrıca NVidia'nın Parakeet modellerini de sunuyoruz (25+ dili destekler).\n      \n      Çevrimdışı son işleme için Gemma 3 modelinin birden fazla boyutunu sunuyoruz (Google tarafından geliştirilmiştir)."
+      },
+      "compatibility": {
+        "question": "Tüm Mac ve Windows uygulamalarında çalışıyor mu?",
+        "answer": "Evet, yazabildiğiniz her yerde çalışır. E-posta yazarken, belge oluştururken, kod yazarken veya sohbet ederken. Kısayola basın, konuşun ve kelimelerinizin anında göründüğünü izleyin."
+      },
+      "privacy": {
+        "question": "Gizliliğim nasıl korunuyor?",
+        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs veya Mistral).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi veya [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile kendiniz doğrulayabilirsiniz."
+      },
+      "cloud": {
+        "question": "HyperWhisper Cloud nedir?",
+        "answer": "HyperWhisper Cloud, hızlı başlamak isteyen daha az teknik kullanıcılar için tasarlanmış yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde modelindedir. Lisans satın aldığınızda $5 transkripsiyon kredisi alırsınız. Daha sonra kredi ekleyebilirsiniz.\n    \nÜç doğruluk seviyesi sunuyoruz: Medium (en hızlı, Groq destekli), High (önerilen, Deepgram destekli) ve Highest (en iyi kalite, xAI Grok STT destekli). Son işleme otomatik yapılır. Tükettiğiniz kredi miktarı dışında hiçbir şey saklamıyoruz.\n\nBu sağlayıcılara ödediğimiz tutarın aynısını ödersiniz. Ek ücret koymuyoruz.\n\nİçinizin rahat olması için HyperWhisper Cloud kaynak kodunu [burada](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Ses verilerim yapay zekâ modellerini eğitmek için kullanılacak mı?",
+        "answer": "HyperWhisper Cloud, kullandığımız her sağlayıcıda sizi model eğitiminden çıkarır. Kendi API anahtarınızla, çıkış yapmak sizin sorumluluğunuzdadır — [veri gizliliği kılavuzumuza](https://hyperwhisper.com/docs/data-privacy) bakın."
+      },
+      "lifetime": {
+        "question": "Neden abonelik yerine ömür boyu fiyatlandırma?",
+        "answer": "Basit ve adil fiyatlandırmaya inanıyoruz. Bir kez $39 ödeyin ve HyperWhisper'ı sonsuza dek kullanın. Aylık ücret yok, sürpriz yok. Ücretsiz sürüm, günde 3 dakika transkripsiyonla temel özellikleri denemenizi sağlar."
+      },
+      "deviceLimit": {
+        "question": "Lisansımı kaç cihazda kullanabilirim?",
+        "answer": "Lisansınızı, [Hizmet Şartlarımızda](/legal/terms-of-service) belirtilen Adil Kullanım Politikamıza tabi olarak istediğiniz kadar cihazda kullanabilirsiniz. Bu politika, meşru kişisel ve kurumsal kullanımlar için esnek olacak şekilde tasarlanırken kötüye kullanımı engeller."
+      },
+      "requirements": {
+        "question": "Sistem gereksinimleri nelerdir?",
+        "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. En iyi performans için 8 GB RAM önerilir."
+      },
+      "windowsStatus": {
+        "question": "Windows sürümünde macOS'taki tüm özellikler var mı?",
+        "answer": "Windows sürümü yakın zamanda yayımlandı, bu yüzden macOS'ta bulunan tüm özelliklere henüz sahip olmayabilir. Her iki platformda tam özellik eşitliği sağlamak için aktif olarak çalışıyoruz."
+      },
+      "madeBy": {
+        "question": "Bunu kim yaptı?",
+        "answer": "Bu ürün YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Destek Merkezi",
+    "subtitle": "HyperWhisper'dan en iyi şekilde yararlanmanız için buradayız",
+    "getInTouch": "Bize Ulaşın",
+    "description": "Teknik destek, lisans sorunları veya HyperWhisper ile ilgili her türlü sorunuz için ekibimiz yardımcı olmaya hazır.",
+    "emailUsAt": "Bize e-posta gönderin:",
+    "openInClient": "E-posta istemcinizde açın:",
+    "defaultClient": "Varsayılan E-posta İstemcisi",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "İş günlerinde genellikle 24 saat içinde yanıt veriyoruz.",
+    "emailTemplate": {
+      "subject": "HyperWhisper Destek Talebi",
+      "body": "Merhaba,\n\nSürüm: \n[Ayarlar > Hakkında bölümünden kontrol edebilirsiniz]\n\nSorun: \n[Sorununuzu açıklayın]\n\nDetaylar: \n[İlgili detayları paylaşın, çökmeden önce ne yapıyordunuz]\n\n[Mesajınız buraya]\n\nSaygılarımla,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper Logosu",
+    "title": "HyperWhisper'ı İndir",
+    "emailPlaceholder": "E-posta",
+    "description": "Başlamanız için size bir indirme bağlantısı ve kısa bir eğitim videosu göndereceğiz. Spam yok.",
+    "downloadButton": "HyperWhisper'ı İndir",
+    "errorGeneric": "Bir şeyler ters gitti. Lütfen tekrar deneyin.",
+    "errorNetwork": "Ağ hatası. Lütfen bağlantınızı kontrol edip tekrar deneyin.",
+    "thankYouTitle": "Teşekkürler!",
+    "downloadStarted": "İndirmeniz otomatik olarak başlamalı.",
+    "manualDownload": "İndirme başlamadı mı? Buraya tıklayın",
+    "skipAndDownloadButton": "Atla ve indir"
+  },
+  "downloadPage": {
+    "title": "HyperWhisper'ı İndir",
+    "countdownText": "{seconds} içinde başlıyor...",
+    "downloadStarted": "İndirilenler klasörünü kontrol edin",
+    "downloadNow": "Şimdi İndir",
+    "downloadAgain": "Tekrar İndir",
+    "selectArchitecture": "Mimarinizi seçin",
+    "downloadX64": "x64 için indir",
+    "downloadArm64": "ARM64 için indir",
+    "orDivider": "VEYA",
+    "homebrewTitle": "Homebrew ile kur",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı!"
+  },
+  "purchaseSuccess": {
+    "title": "Satın Alma Başarılı!",
+    "subtitle": "HyperWhisper Pro'ya hoş geldiniz! Ömür boyu lisansınız hazır.",
+    "checkEmail": {
+      "title": "E-postanızı kontrol edin",
+      "description": "Lisans anahtarınızı ve indirme talimatlarını e-posta adresinize gönderdik. Birkaç dakika içinde ulaşmalıdır."
+    },
+    "whatsNext": {
+      "title": "Sırada ne var?",
+      "step1": {
+        "title": "Gelen kutunuzu kontrol edin",
+        "description": "HyperWhisper'dan gelen e-postayı bulun"
+      },
+      "step2": {
+        "title": "Lisans anahtarınızı kopyalayın",
+        "description": "Uygulamayı etkinleştirmek için buna ihtiyacınız olacak"
+      },
+      "step3": {
+        "title": "HyperWhisper'ı indirin",
+        "description": "Uygulamayı yükleyin ve lisans anahtarınızı girin"
+      }
+    },
+    "downloadButton": "HyperWhisper'ı İndir",
+    "returnHome": "Ana Sayfaya Dön",
+    "noEmail": "E-postanız gelmedi mi? Spam klasörünü kontrol edin veya",
+    "contactSupport": "destekle iletişime geçin",
+    "loading": "Yükleniyor..."
+  },
+  "footer": {
+    "tagline": "macOS ve Windows için yapay zeka destekli sesli transkripsiyonla 5x daha hızlı yazın.",
+    "product": "Ürün",
+    "resources": "Kaynaklar",
+    "company": "Şirket",
+    "legal": "Yasal",
+    "links": {
+      "features": "Özellikler",
+      "pricing": "Fiyatlandırma",
+      "download": "İndir",
+      "roadmap": "Yol haritası",
+      "helpCenter": "Yardım Merkezi",
+      "manageBilling": "Faturalandırmayı Yönet",
+      "customerPortal": "Müşteri Portalı",
+      "olderVersions": "Eski Sürümler",
+      "blog": "Blog",
+      "about": "Hakkımızda",
+      "support": "Destek",
+      "privacyPolicy": "Gizlilik Politikası",
+      "termsOfService": "Hizmet Şartları",
+      "refundPolicy": "İade Politikası",
+      "dataTraining": "Veri Gizliliği"
+    },
+    "copyright": "© 2026 HyperWhisper. Tüm hakları saklıdır.",
+    "linkedinAria": "LinkedIn"
+  }
+}

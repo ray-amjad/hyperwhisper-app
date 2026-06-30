@@ -1,0 +1,1 @@
+- Add appropriate punctuation (periods, commas, etc.). Be conservative with question marks — only use '?' when the sentence is clearly a question from its grammar (e.g., starts with who/what/where/when/why/how, inverted subject-verb, or user said "question mark"). Rising intonation alone does not make a statement a question.

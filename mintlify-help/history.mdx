@@ -1,0 +1,174 @@
+---
+title: Viewing Transcription History
+description: Browse, search, filter, and manage every transcription you've made — including playback, editing, and retrying failed jobs.
+---
+
+Every transcription HyperWhisper completes is saved automatically and appears in the History view. You can search across all your past transcriptions, filter by date, play back the original audio, copy or edit text, and retry any failed job.
+
+## Opening History
+
+<Tabs>
+  <Tab title="macOS">
+    Click the HyperWhisper menu bar icon and choose **History**. This opens the main app window with the History panel selected.
+  </Tab>
+  <Tab title="Windows">
+    Click **History** in the left sidebar of the main HyperWhisper window.
+  </Tab>
+</Tabs>
+
+## The History Layout
+
+The view is split into two panels:
+
+- **Left panel** — a scrollable, date-grouped list of all your transcriptions, with a search bar and date filter at the top.
+- **Right panel** — the detail view for the selected transcription, showing the full text, metadata badges, audio player, and action buttons.
+
+Each row in the list shows a preview of the transcript text (up to two lines), the recording time, and the recording duration. Status badges appear next to any entry that is still processing or that failed.
+
+## Searching
+
+Type in the search bar at the top of the list to filter transcriptions by content. The search is case-insensitive and matches against the raw transcribed text and the post-processed text, so results surface even if you search for a word that only appears after AI cleanup.
+
+<Tabs>
+  <Tab title="macOS">
+    The list updates as you type, with a short debounce to avoid per-keystroke flickering.
+  </Tab>
+  <Tab title="Windows">
+    The list updates after a brief pause when you stop typing (250 ms debounce).
+  </Tab>
+</Tabs>
+
+## Filtering by Date
+
+Use the date filter control next to the search bar to narrow results to a specific window:
+
+| Option | What it shows |
+|---|---|
+| All | Every transcription |
+| Today | Transcriptions made today |
+| This Week | Transcriptions from the current calendar week |
+| This Month | Transcriptions from the current calendar month |
+
+Combining the date filter with a search term applies both conditions at once.
+
+## Viewing a Transcription
+
+Select any row to open it in the detail panel. The header shows the full date and time of the recording, along with metadata badges:
+
+- **Duration** — how long the recording was.
+- **Mode** — the transcription mode (preset) used.
+- **Transcription provider** — the engine or service that produced the raw transcript (shown in green when available).
+- **Post-processing provider** — the AI model that cleaned up the text (shown in blue when available).
+
+### Processed vs. Original text
+
+When a transcription has been through AI post-processing, a toggle appears above the text area. Use it to switch between:
+
+- **Processed** — the AI-enhanced version with corrections and formatting applied.
+- **Original** — the raw transcript before any post-processing.
+
+<Tabs>
+  <Tab title="macOS">
+    The toggle appears as a labeled switch. Flip it to **Original** to see the unprocessed text; flip back to **Processed** to return to the cleaned version.
+  </Tab>
+  <Tab title="Windows">
+    A button labeled **Show Original** / **Show Processed** toggles between the two views. A badge in the header indicates when you are viewing the original transcript.
+  </Tab>
+</Tabs>
+
+### Editing text
+
+<Tabs>
+  <Tab title="macOS">
+    When viewing the processed text, click **Edit** in the toolbar above the text area. Make your changes in the text editor, then click **Done** to save. The raw original text is read-only and cannot be edited.
+  </Tab>
+  <Tab title="Windows">
+    The text area is read-only in the current release. Use the **Copy** button to paste into an editor outside the app.
+  </Tab>
+</Tabs>
+
+## Audio Playback
+
+If HyperWhisper saved the audio for a recording, an audio player appears in the detail panel below the transcript text.
+
+<Tabs>
+  <Tab title="macOS">
+    Click the **play/pause** button to start or pause playback. A waveform visualization and the recording duration are shown next to the controls.
+
+    If Voice Activity Detection (VAD) was active when the recording was made and a silence-trimmed version of the audio exists, a toggle labeled **Original / Trimmed** appears above the player. Select **Trimmed** to hear the version with silence removed, or **Original** to hear the full recording.
+
+    Click **Show in Finder** to reveal the audio file in the Finder.
+
+    If the audio file can no longer be found on disk, the player is replaced by an "Audio file missing" message, and retry is unavailable for that entry.
+  </Tab>
+  <Tab title="Windows">
+    Click the **play/pause** button to start or pause playback. A seek slider and a position / total-duration readout let you scrub to any point in the recording.
+
+    If the audio file has been deleted or moved, an "Audio file not available" message replaces the player.
+  </Tab>
+</Tabs>
+
+<Note>
+  Audio files are saved when you record. If you disabled audio saving in Settings, or deleted the file outside HyperWhisper, playback and retry will not be available for that entry.
+</Note>
+
+## Copying Text
+
+Click **Copy** in the actions bar to copy the currently displayed text (processed or original, depending on which view is active) to your clipboard.
+
+<Tabs>
+  <Tab title="macOS">
+    You can also press `⌘ C` with a transcription selected in the list to copy its text without opening the detail panel. The keyboard shortcut copies the same text that would appear in the detail view.
+  </Tab>
+  <Tab title="Windows">
+    Press `Ctrl C` to copy the selected transcription's text. The Copy button shows a brief **Copied!** confirmation after a successful copy.
+  </Tab>
+</Tabs>
+
+## Deleting Transcriptions
+
+<Tabs>
+  <Tab title="macOS">
+    **Single entry:** Select the row and press `Delete`, or right-click and choose **Delete** from the context menu, or click the **Delete** button in the detail panel's actions bar.
+
+    **Multiple entries:** Hold `⌘` or `Shift` to select more than one row, then press `Delete` or right-click and choose **Delete Selected**. The detail panel switches to a bulk-delete confirmation view showing the count of selected items.
+
+    Deleting a transcription also removes its associated audio file from disk.
+  </Tab>
+  <Tab title="Windows">
+    **Single entry:** Select the row and press `Delete`, or right-click and choose **Delete** from the context menu.
+
+    **Multiple entries:** Hold `Ctrl` or `Shift` to select more than one row, then press `Delete`. The detail panel shows a bulk-delete button with the count of selected items.
+
+    Deleting a transcription also removes its associated audio file from disk.
+  </Tab>
+</Tabs>
+
+## Retrying Failed Transcriptions
+
+If a transcription fails, the entry shows a **Failed** badge in the list and an error badge in the detail panel. When the original audio file is still on disk, you can retry the transcription.
+
+<Tabs>
+  <Tab title="macOS">
+    **Retry with the same mode:** Click **Retry** in the actions bar, or right-click the row and choose **Retry**. This option is only available for failed entries that still have their audio file on disk.
+
+    **Retry with a different mode:** Right-click any entry that has saved audio and choose **Retry with…**, then pick any mode from the submenu. This re-transcribes the original audio using that mode's settings and provider. Unlike plain **Retry**, this option is available for any transcript with saved audio — not only failed ones.
+
+    The row shows a "Retrying transcription..." spinner while the job is in progress. The button label also tracks retry attempts — after the first retry, it shows "Retry (N)".
+  </Tab>
+  <Tab title="Windows">
+    **Retry with the same mode:** Click **Retry** in the actions bar, or press `Ctrl R`, or right-click the row and choose **Retry**.
+
+    **Retry with a different mode:** Right-click the row and choose **Retry with…**, then pick a mode from the submenu.
+
+    The row shows a "Retrying..." badge while the job is in progress.
+  </Tab>
+</Tabs>
+
+<Note>
+  Retry requires the original audio file to still be present. If the file has been deleted or was never saved, the retry option is not available.
+</Note>
+
+## Automatic Deletion
+
+Both apps support an optional automatic-deletion setting that removes transcriptions older than a configured age. Configure this in **Settings** if you want the history to self-prune. Automatic deletion runs in the background and removes both the transcript record and the associated audio file. See [Advanced Settings](/advanced-settings) for configuration details.

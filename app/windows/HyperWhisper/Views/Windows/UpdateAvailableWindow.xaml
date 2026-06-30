@@ -1,0 +1,99 @@
+<Window x:Class="HyperWhisper.Views.Windows.UpdateAvailableWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:HyperWhisper.Localization"
+        Title="{loc:Loc update.available.title}"
+        Width="480" Height="520"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        Background="{DynamicResource ContentBackgroundBrush}">
+
+    <Grid Margin="32,28,32,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>   <!-- Header -->
+            <RowDefinition Height="*"/>      <!-- Release notes content -->
+            <RowDefinition Height="Auto"/>   <!-- Buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24">
+            <TextBlock Text="{loc:Loc update.available.subtitle}"
+                       FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock x:Name="CurrentVersionText"
+                       FontSize="13" Margin="0,6,0,0"
+                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+        </StackPanel>
+
+        <!-- Release notes content in themed card -->
+        <Border x:Name="ReleaseNotesCard"
+                Grid.Row="1"
+                Margin="0,0,0,24"
+                Padding="0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border Style="{StaticResource CardStyle}"
+                            Padding="16"
+                            Margin="0,0,0,12">
+                        <TextBlock x:Name="NewVersionText"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    </Border>
+
+                    <!-- Release notes header (hidden by default, can be shown via interface) -->
+                    <TextBlock x:Name="ReleaseNotesHeader"
+                               Text="{loc:Loc update.available.releaseNotes}"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               Margin="0,0,0,12"
+                               Visibility="Collapsed"/>
+
+                    <!-- Release notes content -->
+                    <StackPanel x:Name="ReleaseNotesPanel"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Action buttons -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Skip This Version -->
+            <Button x:Name="SkipButton"
+                    Grid.Column="0"
+                    Content="{loc:Loc update.available.skip}"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextSecondaryBrush}"
+                    BorderThickness="0"
+                    Padding="12,8"
+                    Cursor="Hand"
+                    Click="SkipButton_Click"/>
+
+            <!-- Remind Me Later -->
+            <Button x:Name="RemindLaterButton"
+                    Grid.Column="2"
+                    Content="{loc:Loc update.available.remindLater}"
+                    Background="Transparent"
+                    Foreground="{DynamicResource TextPrimaryBrush}"
+                    BorderThickness="0"
+                    Padding="16,8"
+                    Margin="0,0,8,0"
+                    Cursor="Hand"
+                    Click="RemindLaterButton_Click"/>
+
+            <!-- Download & Install -->
+            <Button x:Name="InstallButton"
+                    Grid.Column="3"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Content="{loc:Loc update.available.install}"
+                    Click="InstallButton_Click"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,82 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- LIGHT THEME COLORS
+         Light mode color palette for HyperWhisper Windows app.
+         Follows macOS HyperWhisper design language with bright backgrounds
+         and dark text for optimal readability in well-lit environments.
+    -->
+
+    <!-- Primary Accent Colors -->
+    <Color x:Key="AccentColor">#007AFF</Color>
+    <Color x:Key="AccentColorHover">#0A84FF</Color>
+    <Color x:Key="AccentColorPressed">#0066D6</Color>
+
+    <!-- Sidebar Icon Colors (consistent across themes for brand recognition) -->
+    <Color x:Key="HomeIconColor">#FF6B6B</Color>
+    <Color x:Key="HistoryIconColor">#4ECDC4</Color>
+    <Color x:Key="ModesIconColor">#45B7D1</Color>
+    <Color x:Key="VocabularyIconColor">#F9CA24</Color>
+    <Color x:Key="SettingsIconColor">#95A5A6</Color>
+
+    <!-- Status Colors (semantic colors, consistent across themes) -->
+    <Color x:Key="SuccessColor">#34C759</Color>
+    <Color x:Key="WarningColor">#FF9500</Color>
+    <Color x:Key="ErrorColor">#FF3B30</Color>
+    <Color x:Key="ProcessingColor">#5856D6</Color>
+    <Color x:Key="PostProcessingColor">#AF52DE</Color>
+
+    <!-- Light Theme Background Colors -->
+    <Color x:Key="SidebarBackground">#EDEDEEF1</Color>
+    <Color x:Key="ContentBackground">#F4F5F5F7</Color>
+    <Color x:Key="CardBackground">#FAFCFCFD</Color>
+    <Color x:Key="InputBackground">#F8FDFDFE</Color>
+    <Color x:Key="HoverBackground">#E4E6EA</Color>
+    <Color x:Key="SelectedBackground">#D9E9FF</Color>
+    <Color x:Key="BorderColor">#C9D8DAE0</Color>
+
+    <!-- Light Theme Text Colors -->
+    <Color x:Key="TextPrimary">#1D1D1F</Color>
+    <Color x:Key="TextSecondary">#6E6E73</Color>
+    <Color x:Key="TextTertiary">#A1A1A6</Color>
+    <Color x:Key="TextOnAccent">#FFFFFF</Color>
+
+    <!-- Semantic Alert Colors - Warning (Yellow/Amber) -->
+    <Color x:Key="WarningBackground">#FFF3CD</Color>
+    <Color x:Key="WarningForeground">#856404</Color>
+    <Color x:Key="WarningBorder">#FFEEBA</Color>
+
+    <!-- Semantic Alert Colors - Error (Red) -->
+    <Color x:Key="ErrorBackground">#F8D7DA</Color>
+    <Color x:Key="ErrorForeground">#721C24</Color>
+    <Color x:Key="ErrorBorder">#F5C6CB</Color>
+
+    <!-- Semantic Alert Colors - Info (Blue) -->
+    <Color x:Key="InfoBackground">#E8F4FD</Color>
+    <Color x:Key="InfoForeground">#0D6EFD</Color>
+    <Color x:Key="InfoBorder">#B8DAFF</Color>
+
+    <!-- Semantic Alert Colors - Success (Green) -->
+    <Color x:Key="SuccessBackground">#D4EDDA</Color>
+    <Color x:Key="SuccessForeground">#155724</Color>
+    <Color x:Key="SuccessBorder">#C3E6CB</Color>
+
+    <!-- Badge Colors -->
+    <Color x:Key="BadgeGrayBackground">#F5F5F5</Color>
+    <Color x:Key="BadgeGrayForeground">#616161</Color>
+
+    <!-- Progress Bar -->
+    <Color x:Key="ProgressBackground">#E0E0E0</Color>
+
+    <!-- Hover States -->
+    <Color x:Key="DeleteHoverBackground">#FFEBEE</Color>
+
+    <!-- Statistics Colors -->
+    <Color x:Key="StatisticsIconColor">#6366F1</Color>
+    <Color x:Key="StatisticsBlue">#3B82F6</Color>
+    <Color x:Key="StatisticsGreen">#22C55E</Color>
+    <Color x:Key="StatisticsPurple">#A855F7</Color>
+    <Color x:Key="StatisticsOrange">#F97316</Color>
+    <Color x:Key="StatisticsChartBar">#6366F1</Color>
+
+</ResourceDictionary>

@@ -1,0 +1,104 @@
+---
+title: Voice Activity Detection & Silence Trimming
+description: Automatically remove silence from your recordings before transcription to reduce costs and improve speed.
+---
+
+Voice Activity Detection (VAD) analyzes your recording and removes silence before sending audio to your transcription provider. Shorter audio means lower API costs, faster results, and — in many cases — better accuracy.
+
+## Overview
+
+When you finish recording, HyperWhisper can detect which portions of the audio contain speech. Silence is stripped out, producing a trimmed version of your audio that goes to the transcription provider instead of the full original.
+
+VAD is **disabled by default** on macOS. You opt in through Settings.
+
+## How It Works
+
+VAD uses the [Silero VAD](https://github.com/snakers4/silero-vad) model, bundled with the macOS app (~864 KB). Processing happens entirely on your device.
+
+**When VAD runs:**
+
+- VAD is enabled in Settings, and
+- The recording is at least 30 seconds long
+
+Recordings under 30 seconds are sent to the provider as-is — they're short enough that silence trimming offers little benefit.
+
+**Processing flow:**
+
+<Steps>
+  <Step title="Detect speech segments">
+    The Silero VAD model scans your audio and identifies which portions contain speech.
+  </Step>
+  <Step title="Remove silence">
+    All detected speech segments are extracted and concatenated into a trimmed audio file. Any gap between segments larger than 200 ms is removed — this includes leading and trailing silence as well as mid-recording pauses.
+  </Step>
+  <Step title="Validate the result">
+    HyperWhisper checks that the trimmed file meets minimum quality thresholds (see [Validation & Quality Checks](#validation-quality-checks) below). If it doesn't, the original audio is used instead.
+  </Step>
+  <Step title="Prepare for upload">
+    If the trimmed file is 25 MB or larger, it is converted to M4A to reduce upload size. Files under 25 MB are sent as WAV. Imported files that were already in a compressed format (M4A, MP3, etc.) skip re-encoding to avoid quality loss.
+  </Step>
+</Steps>
+
+The original audio is always kept on disk. The trimmed version is stored alongside it and used only for transcription and playback — the original is never overwritten.
+
+## Benefits
+
+- **Lower API costs** — you're billed for less audio when silence is removed.
+- **Faster transcription** — smaller files upload and process more quickly.
+- **Potentially better accuracy** — less background noise and silence for the model to work through.
+- **Useful for any recording with pauses** — interviews, dictation with thinking gaps, or recordings started early and stopped late.
+
+## Enabling VAD
+
+<Tabs>
+  <Tab title="macOS">
+    1. Open **Settings** (click the menu bar icon → **Settings**).
+    2. Go to the **Sound** section.
+    3. Turn on **Remove silence before transcription**.
+
+    The toggle takes effect immediately — your next recording will use VAD trimming if it meets the minimum duration.
+  </Tab>
+  <Tab title="Windows">
+    A user-facing VAD toggle is not yet available on Windows. Audio silence trimming is not currently performed on Windows.
+  </Tab>
+  <Tab title="iOS">
+    There is no VAD toggle on iOS. A lightweight amplitude-based silence trimmer runs automatically on every recording — it removes leading and trailing silence before upload when at least 0.5 seconds of silence is detected.
+  </Tab>
+</Tabs>
+
+## Viewing Original vs. Trimmed Audio
+
+<Tabs>
+  <Tab title="macOS">
+    When a recording was trimmed, the History detail view shows an **Original / Trimmed** toggle above the audio player. Select **Trimmed** to hear the version with silence removed, or **Original** to hear the full recording.
+
+    Both files are stored on disk. Switching the toggle changes only which one plays — nothing is deleted.
+
+    See [Viewing Transcription History](/history) for more about the audio player.
+  </Tab>
+  <Tab title="Windows">
+    Audio silence trimming is not performed on Windows, so no trimmed audio path is stored and no Original / Trimmed toggle is available.
+  </Tab>
+</Tabs>
+
+## Validation & Quality Checks
+
+After trimming, HyperWhisper validates the result before using it. If any check fails, the original audio is used for transcription automatically — you will not see an error.
+
+| Check | Threshold | Why |
+|---|---|---|
+| Silence removed | More than 0.5 seconds | Avoids unnecessary file duplication when there is almost no silence |
+| Trimmed duration | At least 0.3 seconds | Guards against over-aggressive trimming that would remove actual speech |
+| Trimmed file size | More than 5 KB | Ensures the output file contains real audio content, not just a WAV header |
+
+<Note>
+  Failures during VAD processing are logged as breadcrumbs to Sentry to help diagnose edge cases. The original audio is always the fallback, so a VAD failure never blocks transcription.
+</Note>
+
+## Platform Support
+
+| Platform | Status |
+|---|---|
+| macOS | Fully supported — enable in **Settings → Sound → Remove silence before transcription** |
+| Windows | No silence trimming; no user-facing toggle |
+| iOS | Amplitude-based leading/trailing silence trimming runs automatically on every recording |

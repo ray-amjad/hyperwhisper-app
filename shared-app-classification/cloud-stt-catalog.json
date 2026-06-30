@@ -1,0 +1,442 @@
+{
+  "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
+  "version": 6,
+  "updated": "2026-06-20",
+  "providers": [
+    {
+      "id": "groqWhisper",
+      "displayName": "Groq Whisper",
+      "displayModel": "whisper-large-v3-turbo",
+      "vendor": "groq",
+      "sttProvider": "groq",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "whisper-large-v3-turbo", "displayName": "Whisper Large v3 Turbo", "creditsPerMinute": 0.667, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "whisper-large-v3", "displayName": "Whisper Large v3", "creditsPerMinute": 1.85, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "cloudTier": { "accuracy": "medium", "creditsPerMinute": 0.667 },
+      "migrateFrom": ["medium", "groq", "groqwhisper", "fireworks"],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "prompt",
+        "maxTokens": 224,
+        "caveats": "Whisper-style free-text prompt that guides style and spelling context — NOT a structured keyterm list. Only the final 224 tokens are considered."
+      },
+      "languages": {
+        "count": 100,
+        "autoDetect": true,
+        "codeFormat": "ISO-639-1 (with 3-letter codes for `yue`, `haw`)",
+        "codes": ["en","zh","de","es","ru","ko","fr","ja","pt","tr","pl","ca","nl","ar","sv","it","id","hi","fi","vi","he","uk","el","ms","cs","ro","da","hu","ta","no","th","ur","hr","bg","lt","la","mi","ml","cy","sk","te","fa","lv","bn","sr","az","sl","kn","et","mk","br","eu","is","hy","ne","mn","bs","kk","sq","sw","gl","mr","pa","si","km","sn","yo","so","af","oc","ka","be","tg","sd","gu","am","yi","lo","uz","fo","ht","ps","tk","nn","mt","sa","lb","my","bo","tl","mg","as","tt","haw","ln","ha","ba","jw","su","yue"],
+        "notes": "Inherited from Whisper Large V3's tokenizer vocabulary (Whisper docs claim '99 languages' but the tokenizer has 100 entries — yue/zh/haw are split). Groq docs describe the model as multilingual without enumerating codes. Omit `language` for auto-detect."
+      },
+      "acceptedFormats": ["flac","mp3","mp4","mpeg","mpga","m4a","ogg","wav","webm"],
+      "maxFileSizeMb": 25,
+      "maxFileSizeMbCaveat": "25 MB on free tier, 100 MB on dev tier. For larger files use the `url` parameter.",
+      "maxDurationMinutes": "unverified",
+      "features": { "wordTimestamps": true, "diarization": false, "streaming": false },
+      "previewStatus": false,
+      "sources": [
+        "https://console.groq.com/docs/speech-to-text",
+        "https://github.com/openai/whisper/blob/main/whisper/tokenizer.py"
+      ]
+    },
+
+    {
+      "id": "deepgramNova3",
+      "displayName": "Deepgram Nova 3",
+      "displayModel": "nova-3",
+      "vendor": "deepgram",
+      "sttProvider": "deepgram",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "nova-3-general", "displayName": "Nova 3 General", "creditsPerMinute": 5.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "nova-3-medical", "displayName": "Nova 3 Medical", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "nova-2-general", "displayName": "Nova 2 General", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "nova-2-medical", "displayName": "Nova 2 Medical", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "cloudTier": { "accuracy": "medium", "creditsPerMinute": 5.5 },
+      "migrateFrom": ["high", "deepgram", "deepgramnova3"],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "keyterm",
+        "maxTokens": 500,
+        "caveats": "Hard 500-token total across all keyterms per request (400 error if exceeded). Keyterm prompting is Nova-3 / Flux exclusive; Nova-2 uses the separate `keywords` field. Best results with a specific `language` set — auto-detect drops some boosting in streaming mode."
+      },
+      "languages": {
+        "count": 64,
+        "autoDetect": true,
+        "autoDetectCaveat": "Pre-recorded only — `detect_language=true` is NOT supported on streaming. For streaming multilingual use `language=multi` (covers en/es/fr/de/hi/ru/pt/ja/it/nl).",
+        "codeFormat": "BCP-47 (mix of ISO-639-1 base codes + regional variants)",
+        "codes": ["multi","ar","ar-AE","ar-SA","ar-QA","ar-KW","ar-SY","ar-LB","ar-PS","ar-JO","ar-EG","ar-SD","ar-TD","ar-MA","ar-DZ","ar-TN","ar-IQ","ar-IR","be","bn","bs","bg","ca","zh-HK","zh","zh-CN","zh-Hans","zh-TW","zh-Hant","hr","cs","da","da-DK","nl","nl-BE","en","en-US","en-AU","en-GB","en-IN","en-NZ","et","fi","fr","fr-CA","de","de-CH","el","gu","gu-IN","he","hi","hu","id","it","ja","kn","ko","ko-KR","lv","lt","mk","ms","mr","no","fa","pl","pt","pt-BR","pt-PT","ro","ru","sr","sk","sl","es","es-419","sv","sv-SE","tl","ta","te","th","th-TH","tr","uk","ur","vi"],
+        "notes": "`count: 64` reflects unique base codes; the full matrix including regional variants is ~85 entries (all listed)."
+      },
+      "acceptedFormats": ["mp3","mp4","mp2","aac","wav","flac","pcm","m4a","ogg","opus","webm"],
+      "acceptedFormatsCaveat": "Deepgram docs claim 100+ formats; the explicit list above is verified. Other extensions: unverified.",
+      "maxFileSizeMb": 2048,
+      "maxDurationMinutes": 10,
+      "maxDurationMinutesCaveat": "Nova/Base/Enhanced cap at 10 min (504 Gateway Timeout if exceeded). Whisper models allow up to 20 min.",
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
+      "diarizationCaveat": "Batch supports both `diarize_model=latest` (v2) and `diarize=true` (v1). Streaming supports only `diarize=true`.",
+      "previewStatus": false,
+      "sources": [
+        "https://developers.deepgram.com/docs/models-languages-overview",
+        "https://developers.deepgram.com/docs/keyterm",
+        "https://developers.deepgram.com/docs/language-detection",
+        "https://developers.deepgram.com/docs/diarization",
+        "https://developers.deepgram.com/docs/supported-audio-formats",
+        "https://developers.deepgram.com/docs/getting-started-with-pre-recorded-audio"
+      ]
+    },
+
+    {
+      "id": "grokStt",
+      "displayName": "Grok STT",
+      "displayModel": "grok-stt",
+      "vendor": "xai",
+      "sttProvider": "grok",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "", "displayName": "Grok STT", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+      ],
+      "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
+      "migrateFrom": ["grok", "grokstt"],
+      "customVocabulary": {
+        "supported": false,
+        "fieldName": "keyterm",
+        "maxPhrases": 100,
+        "caveats": "xAI docs claim `keyterm` support (max 100 terms, 50 chars each), but the HyperWhisper backend (`xai-stt.ts:88`) does NOT forward `initial_prompt` to xAI. Flip to true if/when wired."
+      },
+      "languages": {
+        "count": 25,
+        "autoDetect": false,
+        "autoDetectCaveat": "No documented auto-detection parameter; the model transcribes the 25 listed languages directly.",
+        "codeFormat": "ISO-639-1 (with `fil` for Filipino)",
+        "codes": ["ar","cs","da","de","en","es","fa","fil","fr","hi","id","it","ja","ko","mk","ms","nl","pl","pt","ro","ru","sv","th","tr","vi"]
+      },
+      "acceptedFormats": ["wav","mp3","ogg","opus","flac","aac","mp4","m4a","mkv"],
+      "acceptedFormatsCaveat": "Raw PCM / µ-law / A-law also accepted with explicit `audio_format` + `sample_rate` parameters.",
+      "maxFileSizeMb": 500,
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
+      "regionalRouting": "Single global endpoint (`https://api.x.ai/v1/stt`); xAI hosts in `us-east-1` but no per-region routing exposed.",
+      "previewStatus": false,
+      "sources": [
+        "https://docs.x.ai/developers/model-capabilities/audio/speech-to-text",
+        "https://docs.x.ai/developers/models/speech-to-text",
+        "https://x.ai/news/grok-stt-and-tts-apis"
+      ]
+    },
+
+    {
+      "id": "azureMaiTranscribe",
+      "displayName": "Microsoft MAI-Transcribe 1.5",
+      "displayModel": "mai-transcribe-1.5",
+      "vendor": "azure",
+      "sttProvider": "azure-mai",
+      "access": { "cloudTierEligible": true, "byokEligible": false },
+      "models": [
+        { "id": "mai-transcribe-1.5", "displayName": "MAI-Transcribe 1.5", "creditsPerMinute": 6.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "cloudTier": { "accuracy": "high", "creditsPerMinute": 6.0 },
+      "migrateFrom": ["microsoftazurespeech", "microsoftAzureSpeech", "azure", "azure-mai", "azuremai", "azuremaitranscribe"],
+      "legacyCloudProviderAliases": ["microsoftazurespeech", "microsoftAzureSpeech"],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "definition.phraseList.phrases",
+        "maxPhrases": 500,
+        "caveats": "Phrase list is supported only on `mai-transcribe-1.5` (NOT `mai-transcribe-1`). General Azure Speech phrase-list ceiling is 500 phrases. No documented per-phrase character cap for this endpoint."
+      },
+      "languages": {
+        "count": 42,
+        "autoDetect": true,
+        "autoDetectCaveat": "Default is multi-lingual mode; pass `locales` to force a single language.",
+        "codeFormat": "ISO-639-1",
+        "codes": ["ar","as","bg","bn","ca","cs","da","de","el","en","es","et","fi","fr","gu","hi","hu","id","it","ja","kn","ko","lt","ml","mr","nb","nl","or","pa","pl","pt","ro","ru","sk","sl","sv","ta","te","th","tr","uk","vi"],
+        "notes": "Microsoft docs claim '43 languages' but the explicit table lists 42 codes — using the operational list."
+      },
+      "acceptedFormats": ["wav","mp3","flac"],
+      "acceptedFormatsCaveat": "HARD restriction — WAV/MP3/FLAC only. Anything else (m4a/mp4/webm/ogg/aac/opus/wma) is rejected with HTTP 415. Client must pre-convert.",
+      "maxFileSizeMb": 300,
+      "features": { "wordTimestamps": false, "diarization": false, "streaming": false },
+      "regionalRouting": "Resource-scoped endpoint format `https://{ResourceName}.cognitiveservices.azure.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15`. Our backend region-routes: APAC fly regions → Azure `southeastasia`; EU → `northeurope`; everything else → `eastus`.",
+      "previewStatus": true,
+      "sources": [
+        "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe",
+        "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/llm-speech",
+        "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/improve-accuracy-phrase-list",
+        "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions?tabs=llmspeech"
+      ]
+    },
+
+    {
+      "id": "googleChirp3",
+      "displayName": "Google Chirp 3",
+      "displayModel": "chirp_3",
+      "vendor": "google",
+      "sttProvider": "google-chirp",
+      "access": { "cloudTierEligible": true, "byokEligible": false },
+      "models": [
+        { "id": "chirp_3", "displayName": "Chirp 3", "creditsPerMinute": 16.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+      ],
+      "cloudTier": { "accuracy": "high", "creditsPerMinute": 16.0 },
+      "migrateFrom": ["googlespeech", "googleSpeech", "chirp", "google-chirp", "googlechirp", "googlechirp3"],
+      "legacyCloudProviderAliases": ["googlespeech", "googleSpeech"],
+      "customVocabulary": {
+        "supported": false,
+        "fieldName": "unverified",
+        "caveats": "Empirically confirmed: Speech V2 adaptation returns 404 NOT_FOUND on chirp_3 (`Requested entity was not found`). The Speech V2 adaptation doc doesn't explicitly list chirp_3 as supported — all examples use the `short` model. Treat as unsupported until Google formally documents chirp_3 adaptation. Fix shipped in backend PR #15."
+      },
+      "languages": {
+        "count": 111,
+        "autoDetect": true,
+        "autoDetectCaveat": "Pass `language_codes: ['auto']` for auto-detect.",
+        "codeFormat": "BCP-47 locale (e.g. `en-US`, `cmn-Hans-CN`)",
+        "codes": ["ca-ES","cmn-Hans-CN","hr-HR","da-DK","nl-NL","en-AU","en-IN","en-GB","en-US","fi-FI","fr-CA","fr-FR","de-DE","el-GR","hi-IN","it-IT","ja-JP","ko-KR","pl-PL","pt-BR","pt-PT","ro-RO","ru-RU","es-ES","es-US","sv-SE","tr-TR","uk-UA","vi-VN","af-ZA","sq-AL","am-ET","ar-DZ","ar-BH","ar-EG","ar-IQ","ar-IL","ar-JO","ar-KW","ar-LB","ar-MR","ar-MA","ar-OM","ar-QA","ar-SA","ar-PS","ar-SY","ar-TN","ar-AE","ar-YE","ar-XA","hy-AM","as-IN","ast-ES","az-AZ","eu-ES","bn-BD","bn-IN","bg-BG","my-MM","yue-Hant-HK","cmn-Hant-TW","cs-CZ","en-PH","et-EE","fil-PH","gl-ES","ka-GE","gu-IN","ha-NG","iw-IL","hu-HU","is-IS","id-ID","jv-ID","kn-IN","kk-KZ","km-KH","ky-KG","lo-LA","lv-LV","lt-LT","lb-LU","mk-MK","ms-MY","ml-IN","mt-MT","mi-NZ","mr-IN","mn-MN","ne-NP","nso-ZA","no-NO","or-IN","fa-IR","pa-Guru-IN","sr-RS","sk-SK","sl-SI","es-MX","sw-KE","sw","ta-IN","te-IN","th-TH","uz-UZ","cy-GB","wo-SN","xh-ZA","yo-NG","zu-ZA"],
+        "notes": "29 locales are GA; ~74 are Preview. Word timestamps in BatchRecognize cap files at 20 min with 'some transcription degradation expected.'"
+      },
+      "acceptedFormats": ["wav","flac","mp3","ogg","opus","webm","amr","awb"],
+      "acceptedFormatsCaveat": "Speech V2 auto-detects via `AutoDetectDecodingConfig`. The listed extensions are inherited from the V2 API.",
+      "maxFileSizeMb": 9.5,
+      "maxFileSizeMbCaveat": "Inline path only. Audio > 9.5 MB or > ~55 s routes through GCS + batchRecognize (no client-visible cap, but adds 5–30 s latency).",
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
+      "diarizationCaveat": "Supported in BatchRecognize/Recognize for 14 languages; NOT available in StreamingRecognize.",
+      "regionalRouting": "Hard-coded to `us` region in our backend after a Speech V2 global-region regression. Multi-regions available: `us` (GA), `eu` (GA).",
+      "previewStatus": false,
+      "sources": [
+        "https://docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model",
+        "https://docs.cloud.google.com/speech-to-text/v2/docs/adaptation-model"
+      ]
+    },
+
+    {
+      "id": "elevenLabsScribeV2",
+      "displayName": "ElevenLabs Scribe v2",
+      "displayModel": "scribe_v2",
+      "vendor": "elevenlabs",
+      "sttProvider": "elevenlabs",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "scribe_v2", "displayName": "Scribe v2", "creditsPerMinute": 9.83, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "scribe_v1", "displayName": "Scribe v1", "creditsPerMinute": 9.83, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": false }
+      ],
+      "cloudTier": { "accuracy": "highest", "creditsPerMinute": 9.83 },
+      "migrateFrom": ["highest", "elevenlabs", "elevenlabsscribev2"],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "keyterms",
+        "maxPhrases": 1000,
+        "maxCharsPerPhrase": 50,
+        "maxWordsPerPhrase": 5,
+        "caveats": "+20% billing surcharge when used. Minimum 20s billable per call when > 100 keyterms."
+      },
+      "languages": {
+        "count": 99,
+        "autoDetect": true,
+        "autoDetectCaveat": "Omit `language_code` to auto-detect.",
+        "codeFormat": "ISO-639-3 (also accepts ISO-639-1 inputs)",
+        "codes": ["bel","bos","bul","cat","hrv","ces","dan","nld","eng","est","fin","fra","glg","deu","ell","hun","isl","ind","ita","jpn","kan","lav","mkd","msa","mal","nor","pol","por","ron","rus","slk","spa","swe","tur","ukr","vie","hye","aze","ben","yue","fil","kat","guj","hin","kaz","lit","mlt","cmn","mar","nep","ori","fas","srp","slv","swa","tam","tel","afr","ara","asm","ast","mya","hau","heb","jav","kor","kir","ltz","mri","oci","pan","tgk","tha","uzb","cym","amh","ceb","nya","ful","lug","ibo","gle","kea","khm","kur","lao","lin","luo","mon","nso","pus","sna","snd","som","urd","wol","xho","yor","zul"],
+        "notes": "Listed in accuracy tiers (excellent ≤5% WER → moderate 20–50% WER). Realtime streaming covers 30 languages (separate endpoint, not in this catalog)."
+      },
+      "acceptedFormats": ["aac","aiff","flac","m4a","mp3","ogg","opus","wav","webm","3gpp","avi","flv","mkv","mov","mp4","mpeg","wmv"],
+      "maxFileSizeMb": 5000,
+      "maxFileSizeMbCaveat": "API docs say 5 GB direct upload (`cloud_storage_url` caps at 2 GB). Marketing page mentions 3 GB — API value used here.",
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": false },
+      "diarizationCaveat": "Up to 32 speakers via `diarize=true`. Optional `diarization_threshold` (default 0.22) and `num_speakers`.",
+      "regionalRouting": "Geo-blocked from Fly regions nrt (JP), bom (IN), maa (IN) — backend issues `fly-replay: region=iad` for requests ≤ 900 KB; larger requests fall back to Deepgram/Groq. Data-residency endpoints exist for US (`api.us.elevenlabs.io`), EU (`api.eu.residency.elevenlabs.io`), IN (`api.in.residency.elevenlabs.io`).",
+      "previewStatus": false,
+      "sources": [
+        "https://elevenlabs.io/docs/api-reference/speech-to-text/convert",
+        "https://elevenlabs.io/blog/introducing-scribe-v2",
+        "https://elevenlabs.io/docs/overview/capabilities/speech-to-text",
+        "https://elevenlabs.io/speech-to-text",
+        "https://help.elevenlabs.io/hc/en-us/articles/13313366263441"
+      ]
+    },
+
+    {
+      "id": "openaiWhisper",
+      "displayName": "OpenAI Whisper",
+      "displayModel": "whisper-1",
+      "vendor": "openai",
+      "sttProvider": "openai",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "gpt-4o-transcribe", "displayName": "GPT-4o Transcribe", "creditsPerMinute": 6.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gpt-4o-mini-transcribe", "displayName": "GPT-4o Mini Transcribe", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "prompt",
+        "maxTokens": 224,
+        "caveats": "Whisper uses a custom tokenizer; only the final 224 tokens of the prompt are considered. Not a keyterm list — functions as style/context priming."
+      },
+      "languages": {
+        "count": 100,
+        "autoDetect": true,
+        "codeFormat": "ISO-639-1 (with `yue`, `haw` ISO-639-3, and Whisper-specific `jw` for Javanese)",
+        "codes": ["af","sq","am","ar","hy","as","az","ba","eu","be","bn","bs","br","bg","yue","ca","zh","hr","cs","da","nl","en","et","fo","fi","fr","gl","ka","de","el","gu","ht","ha","haw","he","hi","hu","is","id","it","ja","jw","kn","kk","km","ko","lo","la","lv","ln","lt","lb","mk","mg","ms","ml","mt","mr","mn","my","mi","ne","no","nn","oc","ps","fa","pl","pt","pa","ro","ru","sa","sr","sn","sd","si","sk","sl","so","es","su","sw","sv","tl","tg","ta","tt","te","th","bo","tr","tk","uk","ur","uz","vi","cy","yi","yo"],
+        "notes": "OpenAI docs say '99 languages'; the canonical Whisper code list has 100 entries (yue/zh split)."
+      },
+      "acceptedFormats": ["flac","m4a","mp3","mp4","mpeg","mpga","ogg","wav","webm"],
+      "maxFileSizeMb": 25,
+      "features": { "wordTimestamps": true, "diarization": false, "streaming": false },
+      "diarizationCaveat": "whisper-1 has no diarization; gpt-4o-transcribe-diarize is a separate model.",
+      "streamingCaveat": "Streaming (`stream=true`) is gpt-4o-transcribe / gpt-4o-mini-transcribe only — not whisper-1.",
+      "regionalRouting": "Single global endpoint; no data-residency or per-region routing.",
+      "previewStatus": false,
+      "sources": [
+        "https://developers.openai.com/api/docs/guides/speech-to-text",
+        "https://developers.openai.com/api/docs/api-reference/audio/createTranscription",
+        "https://developers.openai.com/api/docs/models/whisper-1",
+        "https://openai-whisper.mintlify.app/concepts/languages"
+      ]
+    },
+
+    {
+      "id": "assemblyAI",
+      "displayName": "AssemblyAI",
+      "displayModel": "universal-2",
+      "vendor": "assemblyai",
+      "sttProvider": "assemblyai",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "universal-3-pro", "displayName": "Universal-3 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "keyterms_prompt",
+        "maxPhrases": 200,
+        "caveats": "200 for Universal-2; 1000 for Universal-3 Pro. Each phrase ≤ 6 words on Universal-3 Pro. Universal-2 ignores terms < 5 chars or > 50 chars."
+      },
+      "languages": {
+        "count": 98,
+        "autoDetect": true,
+        "codeFormat": "ISO-639-1 + a few regional variants (e.g. `en_au`, `en_uk`, `en_us`)",
+        "codes": ["af","am","ar","as","az","ba","be","bg","bn","bo","br","bs","ca","cs","cy","da","de","el","en","en_au","en_uk","en_us","es","et","eu","fa","fi","fo","fr","ga","gl","gu","ha","haw","he","hi","hr","hu","hy","id","is","it","ja","jw","ka","kk","km","kn","ko","la","lb","ln","lo","lt","lv","mk","ml","mn","mr","ms","mt","my","ne","nl","nn","no","oc","pa","pl","ps","pt","ro","ru","sa","sd","si","sk","sl","so","sq","sr","su","sv","sw","ta","te","tg","th","tl","tr","tt","uk","ur","uz","vi","yi","yo","zh"],
+        "notes": "AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3 Pro natively supports 6; falls back to Universal-2 for the others via `speech_models` array."
+      },
+      "acceptedFormats": ["3ga","8svx","aac","ac3","aif","aiff","alac","amr","ape","au","dss","flac","flv","m4a","m4b","m4p","m4r","mp3","mpga","ogg","oga","mogg","opus","qcp","tta","voc","wav","wma","wv","webm","mts","m2ts","ts","mov","mp2","mp4","m4v","mxf"],
+      "maxFileSizeMb": 5120,
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
+      "previewStatus": false,
+      "sources": [
+        "https://www.assemblyai.com/docs/pre-recorded-audio/keyterms-prompting",
+        "https://www.assemblyai.com/docs/pre-recorded-audio/language-detection#supported-languages",
+        "https://support.assemblyai.com/articles/2616970375-what-audio-and-video-file-types-are-supported-by-your-api",
+        "https://www.assemblyai.com/docs/api-reference/transcripts/submit",
+        "https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-pro"
+      ]
+    },
+
+    {
+      "id": "mistralVoxtral",
+      "displayName": "Mistral Voxtral",
+      "displayModel": "voxtral-mini-latest",
+      "vendor": "mistral",
+      "sttProvider": "mistral",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "voxtral-mini-latest", "displayName": "Voxtral Mini", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "context_bias",
+        "maxPhrases": 100,
+        "caveats": "Array of strings (words or phrases). Optimised for English — other languages experimental."
+      },
+      "languages": {
+        "count": 13,
+        "autoDetect": true,
+        "codeFormat": "ISO-639-1",
+        "codes": ["en","zh","hi","es","ar","fr","pt","ru","de","ja","ko","it","nl"],
+        "notes": "Explicit 13-language list from Mistral's Voxtral Transcribe 2 launch. `voxtral-small-latest` exists for chat/audio-understanding but the dedicated transcription endpoint only serves voxtral-mini variants."
+      },
+      "acceptedFormats": ["mp3","wav","m4a","flac","ogg"],
+      "maxFileSizeMb": 1024,
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
+      "previewStatus": false,
+      "sources": [
+        "https://mistral.ai/news/voxtral-transcribe-2/",
+        "https://docs.mistral.ai/studio-api/audio/speech_to_text/offline_transcription",
+        "https://docs.mistral.ai/api/endpoint/audio/transcriptions",
+        "https://huggingface.co/mistralai/Voxtral-Mini-3B-2507"
+      ]
+    },
+
+    {
+      "id": "soniox",
+      "displayName": "Soniox",
+      "displayModel": "soniox-async",
+      "vendor": "soniox",
+      "sttProvider": "soniox",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "stt-async-v4", "displayName": "Async v4", "creditsPerMinute": 1.67, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "stt-async-v5", "displayName": "Async v5", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+      ],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "context.terms",
+        "maxPhrases": "unverified",
+        "caveats": "Whole `context` object capped at 8,000 tokens (~10,000 chars) across all sections combined. No per-term length limit documented."
+      },
+      "languages": {
+        "count": 60,
+        "autoDetect": true,
+        "codeFormat": "ISO-639-1",
+        "codes": ["af","sq","ar","az","eu","be","bn","bs","bg","ca","zh","hr","cs","da","nl","en","et","fi","fr","gl","de","el","gu","he","hi","hu","id","it","ja","kn","kk","ko","lv","lt","mk","ms","ml","mr","no","fa","pl","pt","pa","ro","ru","sr","sk","sl","es","sw","sv","tl","ta","te","th","tr","uk","ur","vi","cy"]
+      },
+      "acceptedFormats": ["aac","aiff","amr","asf","flac","mp3","ogg","wav","webm","m4a","mp4"],
+      "maxFileSizeMb": "unverified",
+      "maxFileSizeMbCaveat": "Docs state max 300-minute duration and 10 GB total storage; no per-file byte cap published.",
+      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
+      "previewStatus": false,
+      "sources": [
+        "https://soniox.com/docs/speech-to-text/core-concepts/supported-languages",
+        "https://soniox.com/docs/stt/concepts/context",
+        "https://soniox.com/docs/stt/api-reference/websocket-api",
+        "https://soniox.com/docs/stt/async/async-transcription",
+        "https://soniox.com/docs/stt/async/limits-and-quotas",
+        "https://soniox.com/docs/speech-to-text/core-concepts/audio-formats"
+      ]
+    },
+
+    {
+      "id": "gemini",
+      "displayName": "Google Gemini",
+      "displayModel": "gemini-2.5-flash",
+      "vendor": "google",
+      "sttProvider": "gemini",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
+      "models": [
+        { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "creditsPerMinute": 0.8, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "creditsPerMinute": 7.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash (Preview)", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
+        { "id": "gemini-3.1-pro-preview", "displayName": "Gemini 3.1 Pro (Preview)", "creditsPerMinute": 10.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true }
+      ],
+      "customVocabulary": {
+        "supported": true,
+        "fieldName": "systemInstruction",
+        "caveats": "Multimodal LLM — vocabulary is encoded as a system-prompt instruction (e.g. `Always transcribe 'HyperWhisper' correctly`), not a structured phrase list. No dedicated vocabulary API field."
+      },
+      "languages": {
+        "count": "unverified",
+        "autoDetect": true,
+        "codes": "unverified",
+        "notes": "Gemini 1.5+ supports 100+ languages per Google, but no audio-specific code list is published for 2.5-flash/2.5-pro. Marked unverified to avoid guessing."
+      },
+      "acceptedFormats": ["wav","mp3","aiff","aac","ogg","flac"],
+      "maxFileSizeMb": 20,
+      "maxFileSizeMbCaveat": "Inline request cap. Files > 20 MB go through the Files API (up to 9.5 h total).",
+      "features": { "wordTimestamps": false, "diarization": false, "streaming": false },
+      "featuresCaveat": "Word timestamps and diarization are achievable only via prompt-engineering (unstructured text output), not structured API fields — marked false.",
+      "previewStatus": false,
+      "sources": [
+        "https://ai.google.dev/gemini-api/docs/audio",
+        "https://cloud.google.com/blog/products/ai-machine-learning/lower-costs-more-languages-for-gemini-on-vertex"
+      ]
+    }
+  ]
+}

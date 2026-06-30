@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 2,
+  "exportDate": "2026-03-23T10:30:00Z",
+  "appVersion": "2.28.0",
+  "platform": "macos",
+  "settings": {
+    "general": {
+      "launchMinimized": false,
+      "showRecordingWindow": true,
+      "checkForUpdatesAutomatically": true,
+      "enableErrorLogging": true,
+      "enableSoundEffects": true
+    },
+    "textOutput": {
+      "pasteResultText": true,
+      "removeFillerWords": true,
+      "restoreClipboardAfterPaste": true,
+      "hideFromClipboardHistory": true,
+      "clipboardRestoreDelaySeconds": 5.0,
+      "autocapitalizeInsert": true,
+      "storeWordTimestamps": true
+    },
+    "storage": {
+      "keepAudioFiles": true,
+      "storeAsM4A": true
+    },
+    "advanced": {
+      "maxRecordingDuration": 300
+    }
+  },
+  "modes": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Hyper",
+      "preset": "hyper",
+      "language": "en",
+      "model": "large-v3-turbo",
+      "isDefault": true,
+      "sortOrder": 0,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": false,
+      "englishSpelling": "american",
+      "cloudProvider": null,
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 1,
+      "postProcessingProvider": "openai",
+      "languageModel": "gpt-4.1-nano",
+      "userSystemPrompt": null,
+      "customInstructions": null,
+      "geminiCustomPrompt": null,
+      "platformExtensions": {}
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "name": "Meeting Notes",
+      "preset": "meeting",
+      "language": "en",
+      "model": "base",
+      "isDefault": false,
+      "sortOrder": 1,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": false,
+      "englishSpelling": null,
+      "cloudProvider": "hyperwhisper",
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 1,
+      "postProcessingProvider": "anthropic",
+      "languageModel": "claude-sonnet-4-6",
+      "userSystemPrompt": "Format as bullet-point meeting notes with action items.",
+      "customInstructions": null,
+      "geminiCustomPrompt": null,
+      "platformExtensions": {}
+    }
+  ],
+  "vocabulary": [
+    {
+      "id": "770e8400-e29b-41d4-a716-446655440002",
+      "word": "HyperWhisper",
+      "replacement": null,
+      "sortOrder": 0
+    },
+    {
+      "id": "880e8400-e29b-41d4-a716-446655440003",
+      "word": "Kubernetes",
+      "replacement": null,
+      "sortOrder": 1
+    }
+  ],
+  "apiKeys": {
+    "openai": "sk-proj-example123",
+    "anthropic": "sk-ant-example456"
+  },
+  "licenseKey": null,
+  "platformExtensions": {
+    "macos": {
+      "settings": {
+        "general": {
+          "launchAtLogin": true,
+          "showInDock": false
+        },
+        "audio": {
+          "autoIncreaseMicVolume": true,
+          "mediaControlMode": "pauseAndResume",
+          "soundTheme": "default",
+          "soundEffectsVolume": 0.8
+        },
+        "storage": {
+          "filesyncEnabled": false
+        },
+        "advanced": {
+          "audioSampleRate": 16000.0,
+          "historyRetentionDays": 30
+        },
+        "shortcuts": {
+          "pushToTalkMode": "disabled",
+          "pushToTalkDoublePressEnabled": false
+        },
+        "aiModel": {
+          "showExperimentalModels": false,
+          "defaultTranscriptionModel": "large-v3-turbo",
+          "defaultLanguage": "en"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,170 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.OutputSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.section.output}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <!-- Output Card (unlabeled) -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <!-- Auto-paste Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.output.paste.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.output.paste.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="AutoPasteCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="AutoPasteCheckbox_Checked"
+                                  Unchecked="AutoPasteCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Raw transcript cleanup -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.output.removeFillerWords.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.output.removeFillerWords.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="RemoveFillerWordsCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="RemoveFillerWordsCheckbox_Checked"
+                                  Unchecked="RemoveFillerWordsCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Autocapitalize Insert Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.output.autocapitalizeInsert.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.output.autocapitalizeInsert.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="AutocapitalizeInsertCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="AutocapitalizeInsertCheckbox_Checked"
+                                  Unchecked="AutocapitalizeInsertCheckbox_Unchecked"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{loc:Loc settings.output.clipboard.section}" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="4,0,0,20"/>
+
+            <!-- Clipboard Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <!-- Restore Clipboard Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.output.restoreClipboard.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.output.restoreClipboard.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="RestoreClipboardCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="RestoreClipboardCheckbox_Checked"
+                                  Unchecked="RestoreClipboardCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <!-- Restore Delay (shown only when restore is enabled) -->
+                    <StackPanel x:Name="RestoreDelayPanel">
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock Text="{loc:Loc settings.output.restoreDelay.title}" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{loc:Loc settings.output.restoreDelay.subtitle}"
+                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="RestoreDelayDecrease" Content="−" Width="32" Height="32"
+                                        Padding="0" FontWeight="Bold" FontSize="16"
+                                        Click="RestoreDelayDecrease_Click"/>
+                                <TextBlock x:Name="RestoreDelayText" Text="10 sec"
+                                           FontSize="13" FontWeight="Normal" MinWidth="50" TextAlignment="Center"
+                                           VerticalAlignment="Center" Margin="8,0"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <Button x:Name="RestoreDelayIncrease" Content="+" Width="32" Height="32"
+                                        Padding="0" FontWeight="Bold" FontSize="16"
+                                        Click="RestoreDelayIncrease_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Hide from Clipboard History Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.output.hideClipboardHistory.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.output.hideClipboardHistory.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="HideClipboardHistoryCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="HideClipboardHistoryCheckbox_Checked"
+                                  Unchecked="HideClipboardHistoryCheckbox_Unchecked"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

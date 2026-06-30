@@ -1,0 +1,173 @@
+---
+title: Local API Server
+description: Enable HyperWhisper's built-in HTTP server to drive transcription from MCP clients, Shortcuts, Raycast, or any shell script.
+---
+
+HyperWhisper includes an opt-in HTTP server that listens on `127.0.0.1` only — it is never reachable from the network. When enabled, it writes a discovery file containing the port and a bearer token so MCP wrappers, benchmark scripts, and Shortcuts can locate it without you copying credentials anywhere.
+
+The server is **off by default**. You turn it on once in Settings and it stays on across restarts.
+
+## Enabling the server
+
+<Tabs>
+  <Tab title="macOS">
+    1. Open **Settings → API Server**.
+    2. Flip the toggle to **on**. The status line updates to show the bound address and the last four characters of your bearer token.
+  </Tab>
+  <Tab title="Windows">
+    1. Open **Settings → API Server**.
+    2. Flip the toggle to **on**. The status line updates to show the bound address and the last four characters of your bearer token.
+  </Tab>
+</Tabs>
+
+Once the server is running you will see three tabs in the panel: **Connection**, **MCP setup**, and **cURL**.
+
+## Connection tab
+
+The Connection tab shows the live values you need to talk to the server.
+
+| Field | What it shows |
+|---|---|
+| **Port** | The port the server is listening on. A **Copy** button puts it on the clipboard. |
+| **Bearer token** | Hidden by default. Use **Reveal** to see the full value, **Copy** to copy it, or the regenerate button to rotate it (see below). |
+| **Port file** | Full path to the discovery file on disk. A **Show** button opens the file in Finder (macOS) or Explorer (Windows). |
+
+If the server encounters an error after starting (for example, the port is already in use), an orange warning appears below these fields.
+
+### Bearer token
+
+Every request except `GET /health` must include the bearer token:
+
+```
+Authorization: Bearer <token>
+```
+
+The token is generated the first time the server starts and stored securely (macOS Keychain on macOS; a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin` on Windows). It persists across restarts so you do not need to update your scripts each time.
+
+To rotate the token, click the regenerate button (the circular arrows icon on macOS, the rotate button on Windows). The previous token stops working immediately. Any MCP clients or scripts that cached the old token must be updated — they can read the new value from the discovery file.
+
+## MCP setup tab
+
+The MCP setup tab shows the configuration snippet to paste into your MCP client. The bridge reads the discovery file at startup so no port or token appears in the client config.
+
+```json
+{
+  "mcpServers": {
+    "hyperwhisper": {
+      "command": "npx",
+      "args": ["-y", "@hyperwhisper/mcp"]
+    }
+  }
+}
+```
+
+A **Copy** button copies the full block. For step-by-step instructions for Cursor, Claude Desktop, and Claude Code, see the [MCP setup guide](/api-reference/local-api/mcp-setup).
+
+## cURL tab
+
+The cURL tab shows pre-filled shell commands using your live port and token.
+
+<Tabs>
+  <Tab title="macOS">
+    When the server is running the snippet embeds your live values directly:
+
+    ```bash
+    PORT=<your port>
+    TOKEN=<your token>
+    curl -s http://127.0.0.1:$PORT/health | jq .
+    curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/models" | jq .
+    ```
+
+    If the server is not yet running the snippet falls back to reading from the discovery file:
+
+    ```bash
+    PORT=$(jq -r .port ~/Library/Application\ Support/HyperWhisper/local-api.json)
+    TOKEN=$(jq -r .token ~/Library/Application\ Support/HyperWhisper/local-api.json)
+    curl -s http://127.0.0.1:$PORT/health | jq .
+    curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/models" | jq .
+    ```
+  </Tab>
+  <Tab title="Windows">
+    When the server is running the snippet embeds your live values directly:
+
+    ```powershell
+    $PORT = <your port>
+    $TOKEN = "<your token>"
+    curl http://127.0.0.1:$PORT/health
+    curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/models
+    ```
+
+    If the server is not yet running the snippet falls back to reading from the discovery file:
+
+    ```powershell
+    $discovery = Get-Content "$env:LOCALAPPDATA\HyperWhisper\local-api.json" | ConvertFrom-Json
+    $PORT = $discovery.port
+    $TOKEN = $discovery.token
+    curl http://127.0.0.1:$PORT/health
+    curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/models
+    ```
+  </Tab>
+</Tabs>
+
+## Discovery file
+
+When the server starts it writes a JSON file that MCP wrappers and scripts read to learn the port and token without you hard-coding them anywhere.
+
+<Tabs>
+  <Tab title="macOS">
+    ```
+    ~/Library/Application Support/HyperWhisper/local-api.json
+    ```
+
+    The file is created with `chmod 600` — readable only by your user account.
+  </Tab>
+  <Tab title="Windows">
+    ```
+    %LOCALAPPDATA%\HyperWhisper\local-api.json
+    ```
+
+    The NTFS ACL is locked to your Windows user account (equivalent to `chmod 600`).
+  </Tab>
+</Tabs>
+
+File shape:
+
+```json
+{
+  "port": 39201,
+  "pid": 12345,
+  "started_at": "2026-06-02T13:57:46Z",
+  "api_version": 1,
+  "app_version": "2.36.0",
+  "token": "9YH8r0Z1u3Xl..."
+}
+```
+
+The file is deleted when the server stops cleanly. If HyperWhisper is force-quit it may survive until the next start, at which point it is overwritten with fresh values.
+
+<Note>
+  If you see **Connection refused** and the discovery file exists, the port it records is stale. Toggle the Local API switch off and back on to write a fresh file.
+</Note>
+
+## Available endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/health` | None | Server identity and status. |
+| GET | `/models` | Required | Model catalog. |
+| GET | `/modes` | Required | List saved Modes. |
+| POST | `/modes` | Required | Create a Mode. |
+| GET | `/modes/{id}` | Required | Fetch one Mode. |
+| PATCH | `/modes/{id}` | Required | Partial-field update. |
+| DELETE | `/modes/{id}` | Required | Delete a Mode. |
+| POST | `/transcribe` | Required | Transcribe an audio file. |
+| POST | `/post-process` | Required | Rewrite text via preset or custom prompt. |
+| GET | `/recordings/search` | Required | Substring search across past transcripts. |
+| GET | `/recordings/{id}` | Required | Single transcript row. |
+
+Full request and response schemas are in the [OpenAPI reference](/api-reference/local-api/openapi.yaml).
+
+## Next steps
+
+- [MCP setup guide](/api-reference/local-api/mcp-setup) — wire HyperWhisper into Cursor, Claude Desktop, or Claude Code as an agent tool.
+- [API overview](/api-reference/local-api/overview) — authentication, response envelope, and error codes.

@@ -1,0 +1,43 @@
+[package]
+name = "hw-core"
+version = "0.1.0"
+edition = "2021"
+description = "HyperWhisper shared core — the single UniFFI surface consumed by all platforms."
+publish = false
+
+[lib]
+# The artifact name drives the binary names the apps link against:
+#   libhyperwhisper_core.a (macOS/iOS), hyperwhisper_core.dll (Windows),
+#   libhyperwhisper_core.so (Android).
+name = "hyperwhisper_core"
+# staticlib -> macOS/iOS .a; cdylib -> Windows .dll / Android .so + the .dylib
+# used for UniFFI library-mode binding generation; lib -> in-workspace tests.
+crate-type = ["lib", "staticlib", "cdylib"]
+
+# Self-hosted bindgen so the generator version always matches the linked uniffi
+# version. Run with `--features cli` (see README). Swift/Kotlin go through this
+# binary; C# uses the external uniffi-bindgen-cs tool.
+[[bin]]
+name = "uniffi-bindgen"
+required-features = ["cli"]
+
+[dependencies]
+uniffi = { workspace = true }
+hw-phonetic = { path = "../hw-phonetic" }
+hw-text = { path = "../hw-text" }
+hw-net = { path = "../hw-net" }
+hw-license = { path = "../hw-license" }
+hw-backup = { path = "../hw-backup" }
+hw-catalog = { path = "../hw-catalog" }
+# JSON-string boundary marshalling for the backup surface (the record types are
+# serde_json::Value trees that can't cross UniFFI, so hw-core (de)serializes them).
+serde_json = { workspace = true }
+
+[features]
+# Pulls clap etc. into the bindgen binary only; kept out of the shipped lib.
+cli = ["uniffi/cli"]
+
+[dev-dependencies]
+# Golden parity-test harness only — never reaches the shipped artifact.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

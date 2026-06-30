@@ -1,0 +1,11 @@
+# Pinned toolchain for the shared core. Keep in sync with CI (Milestone 5).
+# Apple targets are listed for the macOS/iOS builds done in Milestone 0; the
+# Windows (x86_64/aarch64-pc-windows-msvc) and Android (cargo-ndk) targets are
+# added in their respective milestones to avoid forcing installs early.
+[toolchain]
+channel = "1.86.0"
+components = ["rustfmt", "clippy"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+]

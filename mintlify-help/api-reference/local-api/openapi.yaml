@@ -1,0 +1,466 @@
+openapi: 3.0.3
+info:
+  title: HyperWhisper Local API
+  description: |
+    HTTP API exposed by HyperWhisper.app on `127.0.0.1` when the user enables
+    Settings → API Server. Off by default. Used by MCP wrappers, benchmarking
+    scripts, and power-user automation.
+
+    **Port + token discovery.** The server writes
+    `~/Library/Application Support/HyperWhisper/local-api.json`
+    (chmod 600) on every start. Clients read that file to find the port
+    and bearer token — neither value is hard-coded.
+
+    **Response envelope.** Successful calls return `{"ok": true, ...}` with
+    HTTP 200. Expected business failures (model not installed, missing API
+    key, file not found, transcription engine errored, etc.) also return HTTP
+    200 with `{"ok": false, "error": {"code": "...", "message": "...", "hint": "..."}}`.
+    HTTP 4xx is reserved for protocol failures: malformed JSON (400), missing
+    or invalid bearer token (401).
+  version: "1.0.0"
+servers:
+  - url: http://127.0.0.1:{port}
+    description: Local-only loopback. The port is dynamic — read it from the discovery file.
+    variables:
+      port:
+        default: "39201"
+        description: Persisted port from `~/Library/Application Support/HyperWhisper/local-api.json`.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Server + provider snapshot
+      description: Unauthenticated. Returns server identity, the cached cloud-provider health snapshot, and the installed local-model inventory.
+      security: []
+      responses:
+        '200':
+          description: Health snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /models:
+    get:
+      summary: List models
+      parameters:
+        - in: query
+          name: kind
+          schema: { type: string, enum: [voice, text, all], default: all }
+        - in: query
+          name: installed_only
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Model list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsListResponse'
+
+  /modes:
+    get:
+      summary: List saved Modes
+      responses:
+        '200':
+          description: Modes list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModesListResponse'
+    post:
+      summary: Create a new Mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Mode'
+      responses:
+        '200':
+          description: Created mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+
+  /modes/{id}:
+    get:
+      summary: Fetch one Mode
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Mode payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+    patch:
+      summary: Partial-field update
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModePatch'
+      responses:
+        '200':
+          description: Updated mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+    delete:
+      summary: Delete a Mode
+      description: Refuses to delete the last remaining Mode (returns ok=false / INVALID_REQUEST).
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Ok wrapper
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkResponse'
+
+  /transcribe:
+    post:
+      summary: Transcribe audio
+      description: |
+        Accepts either an absolute `file` path OR an `audio_base64` + `mime_type`
+        pair. The engine + model can come from a saved `mode_id`, from explicit
+        `engine`/`model`/`language` fields, or a mix (mode supplies defaults
+        and per-call fields override).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranscribeRequest'
+      responses:
+        '200':
+          description: Transcript or business error envelope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscribeResponse'
+
+  /post-process:
+    post:
+      summary: Rewrite text with AI post-processing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostProcessRequest'
+      responses:
+        '200':
+          description: Rewritten text or business error envelope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostProcessResponse'
+
+  /recordings/search:
+    get:
+      summary: Search past transcripts
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+          description: Substring matched against text / postProcessedText / transcribedText.
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+        - in: query
+          name: until
+          schema: { type: string, format: date-time }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+      responses:
+        '200':
+          description: Matching recordings, newest first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingsListResponse'
+
+  /recordings/{id}:
+    get:
+      summary: Fetch one recording
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Recording payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: base64-url
+      description: Token from the discovery file. Required on every endpoint except /health.
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          enum: [false]
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - MODEL_NOT_INSTALLED
+                - MODEL_NOT_FOUND
+                - ENGINE_UNAVAILABLE
+                - MISSING_API_KEY
+                - FILE_NOT_FOUND
+                - FILE_ACCESS_DENIED
+                - FILE_NOT_ALLOWED
+                - AUDIO_DECODE_FAILED
+                - TRANSCRIPTION_FAILED
+                - MODE_NOT_FOUND
+                - MODE_NAME_TAKEN
+                - INVALID_REQUEST
+                - RATE_LIMITED
+                - TIMEOUT
+            message: { type: string }
+            hint: { type: string }
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+
+    HealthResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        app_version: { type: string }
+        api_version: { type: integer }
+        port: { type: integer }
+        pid: { type: integer }
+        providers:
+          type: array
+          items: { $ref: '#/components/schemas/HealthProvider' }
+        post_processing_providers:
+          type: array
+          items: { $ref: '#/components/schemas/HealthProvider' }
+        local_models:
+          $ref: '#/components/schemas/HealthLocalModels'
+
+    HealthProvider:
+      type: object
+      properties:
+        id: { type: string }
+        key_present: { type: boolean }
+        reachable: { type: boolean }
+        status: { type: string, enum: [unknown, checking, healthy, unauthorized, unreachable, notInstalled] }
+
+    HealthLocalModels:
+      type: object
+      properties:
+        whisper:        { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
+        parakeet:       { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
+        qwen3_asr:      { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
+        apple_speech:   { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
+        local_llm:      { type: array, items: { $ref: '#/components/schemas/HealthLocalModelEntry' } }
+
+    HealthLocalModelEntry:
+      type: object
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        installed: { type: boolean }
+
+    ModelEntry:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [voice, text] }
+        provider: { type: string }
+        displayName: { type: string }
+        installed: { type: boolean }
+        size_mb: { type: number, nullable: true }
+
+    ModelsListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        models:
+          type: array
+          items: { $ref: '#/components/schemas/ModelEntry' }
+
+    Mode:
+      type: object
+      required: [name, preset, language, model, punctuation, capitalization, profanityFilter]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        preset: { type: string, description: "hyper | note | email | commit | custom" }
+        language: { type: string }
+        model: { type: string }
+        punctuation: { type: boolean }
+        capitalization: { type: boolean }
+        profanityFilter: { type: boolean }
+        customInstructions: { type: string, nullable: true }
+        userSystemPrompt: { type: string, nullable: true }
+        isDefault: { type: boolean, nullable: true }
+        isSystemProvided: { type: boolean, nullable: true }
+        sortOrder: { type: integer, nullable: true }
+        createdDate: { type: string, format: date-time, nullable: true }
+        modifiedDate: { type: string, format: date-time, nullable: true }
+        languageModel: { type: string, nullable: true }
+        cloudTranscriptionModel: { type: string, nullable: true }
+        cloudProvider: { type: string, nullable: true }
+        postProcessingMode: { type: integer, description: "0 = off, 1 = cloud, 2 = local" }
+        postProcessingProvider: { type: string, nullable: true }
+        englishSpelling: { type: string, nullable: true }
+        useStreamingTranscription: { type: boolean, nullable: true }
+        cloudAccuracyTier: { type: string, nullable: true }
+        removeTrailingPeriod: { type: boolean, nullable: true }
+        enableScreenOCR: { type: boolean, nullable: true }
+        geminiCustomPrompt: { type: string, nullable: true }
+        cloudPostProcessingModel: { type: string, nullable: true }
+
+    ModePatch:
+      description: Partial Mode. Any field omitted is left untouched on the server.
+      allOf:
+        - $ref: '#/components/schemas/Mode'
+
+    ModeResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        mode: { $ref: '#/components/schemas/Mode' }
+
+    ModesListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        modes:
+          type: array
+          items: { $ref: '#/components/schemas/Mode' }
+
+    TranscribeRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          description: Absolute filesystem path. Mutually exclusive with audio_base64.
+        audio_base64:
+          type: string
+          description: base64-encoded audio bytes. Pair with mime_type.
+        mime_type:
+          type: string
+          description: e.g. audio/wav, audio/m4a, audio/mpeg, audio/flac
+        mode_id:
+          type: string
+          format: uuid
+          description: Saved Mode used as the baseline. May be combined with engine/model/language to override per-call.
+        engine:
+          type: string
+          description: "whisperLocal | parakeet | qwen3Asr | appleSpeech | <CloudProvider rawValue>"
+        model:
+          type: string
+        language:
+          type: string
+
+    TranscribeResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        text: { type: string }
+        engine: { type: string }
+        model: { type: string }
+        language: { type: string, nullable: true }
+        timings:
+          type: object
+          properties:
+            load_ms: { type: integer }
+            decode_ms: { type: integer }
+        latency_ms: { type: integer }
+
+    PostProcessRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
+        mode_id: { type: string, format: uuid }
+        preset: { type: string, description: "hyper | note | email | commit. Mutually exclusive with prompt." }
+        prompt: { type: string, description: "Free-form system prompt. Sets preset=custom." }
+        provider: { type: string }
+        model: { type: string }
+
+    PostProcessResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        text: { type: string }
+        provider: { type: string }
+        model: { type: string }
+        preset: { type: string }
+        latency_ms: { type: integer }
+        post_processed: { type: boolean, description: "true when an LLM actually ran and produced post-processed text; false when a failure path (bad key, model/network error, offline) returned the raw input unchanged. ok stays true for graceful degradation, so read this to know post-processing happened." }
+
+    RecordingDTO:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        text: { type: string }
+        postProcessedText: { type: string, nullable: true }
+        transcribedText: { type: string, nullable: true }
+        date: { type: string, format: date-time }
+        duration: { type: number }
+        mode: { type: string, nullable: true }
+        transcriptionProvider: { type: string, nullable: true }
+        postProcessingProvider: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        audioFilePath: { type: string, nullable: true }
+
+    RecordingsListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        total: { type: integer }
+        recordings:
+          type: array
+          items: { $ref: '#/components/schemas/RecordingDTO' }
+
+    RecordingResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        recording: { $ref: '#/components/schemas/RecordingDTO' }

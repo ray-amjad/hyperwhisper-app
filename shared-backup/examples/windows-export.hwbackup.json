@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 2,
+  "exportDate": "2026-03-23T14:00:00Z",
+  "appVersion": "1.5.0",
+  "platform": "windows",
+  "settings": {
+    "general": {
+      "launchMinimized": true,
+      "showRecordingWindow": true,
+      "checkForUpdatesAutomatically": true,
+      "enableErrorLogging": true,
+      "enableSoundEffects": true
+    },
+    "textOutput": {
+      "pasteResultText": true,
+      "removeFillerWords": true,
+      "restoreClipboardAfterPaste": true,
+      "hideFromClipboardHistory": true,
+      "clipboardRestoreDelaySeconds": 3.0,
+      "autocapitalizeInsert": true
+    },
+    "storage": {
+      "keepAudioFiles": false,
+      "storeAsM4A": true
+    },
+    "streaming": {
+      "enabled": true,
+      "provider": "openAI",
+      "language": "auto",
+      "deepgramModel": "nova-3-general",
+      "fastFormatting": true,
+      "shortcut": "Ctrl+Shift+S"
+    },
+    "advanced": {
+      "maxRecordingDuration": 300,
+      "typingSpeedWPM": 50
+    }
+  },
+  "modes": [
+    {
+      "id": "aa0e8400-e29b-41d4-a716-446655440010",
+      "name": "Hyper",
+      "preset": "hyper",
+      "language": "en",
+      "model": "large-v3-turbo",
+      "isDefault": true,
+      "sortOrder": 0,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": false,
+      "englishSpelling": "american",
+      "cloudProvider": null,
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 1,
+      "postProcessingProvider": "groq",
+      "languageModel": "llama-3.3-70b-versatile",
+      "localPostProcessingModel": null,
+      "userSystemPrompt": null,
+      "customInstructions": null,
+      "geminiCustomPrompt": null,
+      "cloudAccuracyTier": "deepgramNova3",
+      "cloudPostProcessingModel": "claudeHaiku",
+      "platformExtensions": {
+        "windows": {
+          "modelType": "large-v3-turbo",
+          "localEngine": "whisper",
+          "localParakeetModel": null,
+          "providerType": "local",
+          "cloudAccuracyTier": "deepgramNova3",
+          "cloudPostProcessingModel": "claudeHaiku",
+          "localPostProcessingModel": null,
+          "enableScreenOCR": true,
+          "customVocabulary": null,
+          "isSystemProvided": true,
+          "createdDate": "2026-01-10T08:00:00Z",
+          "modifiedDate": "2026-03-20T12:00:00Z"
+        }
+      }
+    },
+    {
+      "id": "bb0e8400-e29b-41d4-a716-446655440011",
+      "name": "Email",
+      "preset": "email",
+      "language": "en",
+      "model": "base",
+      "isDefault": false,
+      "sortOrder": 1,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": true,
+      "englishSpelling": null,
+      "cloudProvider": "hyperwhisper",
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 1,
+      "postProcessingProvider": "openai",
+      "languageModel": "gpt-4.1-nano",
+      "localPostProcessingModel": null,
+      "userSystemPrompt": null,
+      "customInstructions": null,
+      "geminiCustomPrompt": null,
+      "cloudAccuracyTier": "grokStt",
+      "cloudPostProcessingModel": "grokFast",
+      "platformExtensions": {
+        "windows": {
+          "modelType": "base",
+          "localEngine": "whisper",
+          "localParakeetModel": null,
+          "providerType": "cloud",
+          "cloudAccuracyTier": "grokStt",
+          "cloudPostProcessingModel": "grokFast",
+          "localPostProcessingModel": null,
+          "enableScreenOCR": false,
+          "customVocabulary": null,
+          "isSystemProvided": true,
+          "createdDate": "2026-01-10T08:00:00Z",
+          "modifiedDate": "2026-02-15T09:30:00Z"
+        }
+      }
+    },
+    {
+      "id": "ee0e8400-e29b-41d4-a716-446655440012",
+      "name": "Local Cleanup",
+      "preset": "custom",
+      "language": "auto",
+      "model": "small",
+      "isDefault": false,
+      "sortOrder": 2,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": null,
+      "englishSpelling": null,
+      "cloudProvider": "azureMaiTranscribe",
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 2,
+      "postProcessingProvider": "local",
+      "languageModel": null,
+      "localPostProcessingModel": "gemma-3-4b-it-q4_0",
+      "userSystemPrompt": "Clean up dictated notes without changing meaning.",
+      "customInstructions": "Keep headings short.",
+      "geminiCustomPrompt": null,
+      "cloudAccuracyTier": "azureMaiTranscribe",
+      "cloudPostProcessingModel": "cerebrasGptOss120B",
+      "platformExtensions": {
+        "windows": {
+          "modelType": "small",
+          "localEngine": "whisper",
+          "localParakeetModel": null,
+          "providerType": "cloud",
+          "cloudAccuracyTier": "azureMaiTranscribe",
+          "cloudPostProcessingModel": "cerebrasGptOss120B",
+          "localPostProcessingModel": "gemma-3-4b-it-q4_0",
+          "enableScreenOCR": false,
+          "customVocabulary": "HyperWhisper\nGrok STT",
+          "isSystemProvided": false,
+          "createdDate": "2026-05-12T08:00:00Z",
+          "modifiedDate": "2026-06-12T09:15:00Z"
+        }
+      }
+    }
+  ],
+  "vocabulary": [
+    {
+      "id": "cc0e8400-e29b-41d4-a716-446655440020",
+      "word": "HyperWhisper",
+      "replacement": null,
+      "sortOrder": 0,
+      "source": "manual"
+    },
+    {
+      "id": "dd0e8400-e29b-41d4-a716-446655440021",
+      "word": "gonna",
+      "replacement": "going to",
+      "sortOrder": 1,
+      "source": "auto-learn"
+    }
+  ],
+  "apiKeys": {
+    "openai": "sk-proj-example789",
+    "groq": "gsk_example012"
+  },
+  "licenseKey": null,
+  "platformExtensions": {
+    "windows": {
+      "settings": {
+        "minimizeToTray": true,
+        "hideFromClipboardHistory": true,
+        "themeMode": 0,
+        "autoDeleteEnabled": true,
+        "autoDeleteDaysOld": 30,
+        "parakeetEnabled": true,
+        "keepMicrophoneWarm": true,
+        "mediaControlMode": "muteAudio",
+        "toggleShortcut": "Ctrl+Shift+Space",
+        "cancelShortcut": "Escape",
+        "changeModeShortcut": "Ctrl+Shift+M",
+        "streamingShortcut": "Ctrl+Shift+S",
+        "streamingEnabled": true,
+        "streamingProvider": "openAI",
+        "streamingLanguage": "auto",
+        "streamingDeepgramModel": "nova-3-general",
+        "streamingFastFormatting": true,
+        "autoIncreaseMicVolume": true,
+        "autocapitalizeInsert": true,
+        "customEndpoints": [
+          {
+            "id": "c0ffee00-0000-4000-8000-000000000001",
+            "name": "My Ollama Server",
+            "endpointURL": "http://localhost:11434/v1/chat/completions",
+            "modelName": "llama3.2",
+            "createdAt": "2026-01-01T00:00:00Z",
+            "lastTestedAt": "2026-01-01T00:00:00Z",
+            "lastTestSuccess": true
+          }
+        ]
+      }
+    }
+  }
+}

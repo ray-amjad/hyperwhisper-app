@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI-stemmetransskription til macOS og Windows",
+    "description": "Skriv 5x hurtigere med AI-drevet stemmetransskription. HyperWhisper transskriberer din stemme med imponerende præcision på macOS og Windows. Tal naturligt og se dine ord vises med det samme."
+  },
+  "navbar": {
+    "features": "Funktioner",
+    "pricing": "Priser",
+    "faq": "FAQ",
+    "support": "Support",
+    "download": "Download",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Skift sprog"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper-logo",
+    "headline": "Skriv, komponer og skab",
+    "headlineAccent": "5x hurtigere med AI",
+    "subheadline": "HyperWhisper transskriberer din stemme med imponerende præcision. Tal naturligt og se dine ord vises med det samme.",
+    "downloadCta": "Download nu",
+    "demoCta": "Se demo",
+    "availableOn": "Tilgængelig på",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Bygget til professionelle",
+    "subtitle": "Hver funktion er designet til at hjælpe dig med at arbejde hurtigere og mere effektivt",
+    "customVocabulary": {
+      "title": "Brugerdefineret ordforråd",
+      "description": "Tilføj navne, forkortelser og særlige termer for maksimal præcision hver gang."
+    },
+    "languages": {
+      "title": "100+ sprog",
+      "description": "Transskriber på over 100 sprog med automatisk sprogregistrering."
+    },
+    "offline": {
+      "title": "Offline-understøttelse",
+      "description": "Virker helt offline. Dine data forlader aldrig din enhed."
+    },
+    "privacy": {
+      "title": "Fokus på privatliv",
+      "description": "Ingen konto påkrævet. Ingen sporing. Dine stemmedata bliver på din Mac eller PC."
+    },
+    "hybridProcessing": {
+      "title": "Hybridbehandling",
+      "description": "Vælg mellem lokale modeller for privatliv eller cloud-API'er for hastighed. Det bedste fra begge verdener."
+    },
+    "customizable": {
+      "title": "Meget tilpasningsvenlig",
+      "description": "Vælg mellem over 9 API-udbydere og 30+ transskriptionsmodeller."
+    },
+    "realTime": {
+      "title": "Streaming i realtid",
+      "description": "Se dine ord vises med det samme, mens du taler. Brancheførende præcision med under 700 ms latenstid."
+    },
+    "fileImport": {
+      "title": "Filimport",
+      "description": "Importer lyd- eller videofiler til transskription. Understøtter alle større formater med automatisk registrering af stilhed."
+    },
+    "screenOcr": {
+      "title": "Skærm-OCR",
+      "description": "Giv HyperWhisper tilladelse til at se din skærm, så den kan stave alt korrekt."
+    },
+    "mcpServer": {
+      "title": "Lokal API og MCP-server",
+      "description": "Den indbyggede MCP-server lader Claude, Cursor og andre AI-agenter styre HyperWhisper. Lokal HTTP-API med bearer-godkendelse til scripts og automatiseringer."
+    },
+    "modes": {
+      "title": "Tilstande til enhver situation",
+      "description": "Skift mellem forskellige transskriptionstilstande optimeret til møder, noter, e-mails, kodning og mere. Hver tilstand bruger brugerdefinerede prompts til at formatere din tekst perfekt.",
+      "meeting": "Møde",
+      "email": "E-mail",
+      "note": "Note",
+      "code": "Kode",
+      "legal": "Juridisk",
+      "medical": "Medicinsk",
+      "presetModes": "Forudindstillede tilstande",
+      "customModes": "Brugerdefinerede tilstande"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Hurtigere end at skrive",
+    "accuracyRate": "Nøjagtighed",
+    "languagesSupported": "Understøttede sprog",
+    "providersSupported": "Understøttede udbydere"
+  },
+  "pricing": {
+    "title": "Ingen abonnementer. Nogensinde.",
+    "subtitle": "Betal én gang, brug for altid. Vi hader også abonnementer.",
+    "guarantee": "14 dages pengene-tilbage-garanti",
+    "guaranteeExtended": "hvis du ikke er helt tilfreds.",
+    "learnMore": "Læs mere",
+    "free": {
+      "name": "Gratis",
+      "price": "$0",
+      "period": "for altid",
+      "description": "Perfekt til at prøve HyperWhisper",
+      "cta": "Download gratis",
+      "features": {
+        "transcriptionLimit": "5 minutters transskription pr. dag",
+        "basicModes": "Grundlæggende transskriptionstilstande",
+        "offlineTranscription": "Offline-transskription",
+        "apiTranscription": "API-transskription (brug dine egne nøgler)",
+        "postProcessing": "Tekst-efterbehandling",
+        "providers": "9+ udbydere at vælge imellem",
+        "lifetimeUpdates": "Livstidsopdateringer",
+        "cloudLimited": "HyperWhisper Cloud (begrænset brug)",
+        "customVocabulary": "Brugerdefineret ordforråd",
+        "prioritySupport": "Prioriteret support"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "livstid",
+      "description": "Engangskøb, ubegrænset kraft for altid",
+      "cta": "Køb nu - Livstidsadgang",
+      "mostPopular": "Mest populær",
+      "features": {
+        "unlimitedTranscription": "Ubegrænset transskription",
+        "allModes": "Alle transskriptionstilstande",
+        "offlineTranscription": "Offline-transskription",
+        "apiTranscription": "API-transskription (brug dine egne nøgler)",
+        "postProcessing": "Tekst-efterbehandling",
+        "providers": "9+ udbydere at vælge imellem",
+        "lifetimeUpdates": "Livstidsopdateringer",
+        "cloudCredits": "HyperWhisper Cloud ($5 i credits)",
+        "customVocabulary": "Brugerdefineret ordforråd",
+        "prioritySupport": "Prioriteret support"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise og tilpasset pris",
+      "description": "Mængderabatter, SSO, prioriteret support, intern hosting og tilpassede integrationer",
+      "cta": "Kontakt salg"
+    }
+  },
+  "faq": {
+    "title": "Ofte stillede spørgsmål",
+    "subtitle": "Alt, du skal vide om HyperWhisper",
+    "contactPrompt": "Har du stadig spørgsmål? Skriv til os på",
+    "questions": {
+      "accuracy": {
+        "question": "Hvor præcis er transskriptionen?",
+        "answer": "Vi opnår brancheførende 99% nøjagtighed med state-of-the-art AI-modeller. Du kan øge nøjagtigheden yderligere ved at tilføje dit eget brugerdefinerede ordforråd til tekniske termer, navne og specialiseret jargon."
+      },
+      "offline": {
+        "question": "Kan jeg bruge det uden internet?",
+        "answer": "Absolut. HyperWhisper kan bruges helt offline på din Mac med lokale AI-modeller - ingen internetforbindelse nødvendig. For brugere, der ønsker maksimal nøjagtighed og hastighed, tilbyder vi også valgfri cloudbehandling via forskellige cloududbydere."
+      },
+      "apiKey": {
+        "question": "Skal jeg betale for API-adgang?",
+        "answer": "Du bruger din egen API-nøgle til følgende udbydere: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral og Google Gemini. Nogle udbydere tilbyder gratis credits til nye brugere; Deepgram tilbyder $200, og AssemblyAI tilbyder $50. På lang sigt er det betydeligt billigere end ethvert abonnement. \n\nDu kan også bruge HyperWhisper Cloud (indbygget), som ikke kræver API-nøgle og kører med pay-as-you-go.\n\nHusk: lokal offlinetilstand fungerer uden API-nøgle og er helt gratis."
+      },
+      "languages": {
+        "question": "Hvilke sprog understøttes?",
+        "answer": "Over 100 sprog understøttes direkte, fra engelsk og spansk til mandarin og arabisk. De fleste modeller kan automatisk registrere, hvilket sprog du taler, og skifte sømløst."
+      },
+      "offlineModels": {
+        "question": "Hvilke offline-modeller er tilgængelige?",
+        "answer": "Til offline-transskription tilbyder vi flere størrelser af Whisper-modellen (lavet af OpenAI, understøtter 99+ sprog). Vi tilbyder også NVidia's Parakeet-modeller (understøtter 25+ sprog).\n      \n      Til offline-efterbehandling tilbyder vi flere størrelser af Gemma 3-modellen (lavet af Google)."
+      },
+      "compatibility": {
+        "question": "Virker det med alle Mac- og Windows-apps?",
+        "answer": "Ja, det virker overalt, hvor du kan skrive. Uanset om du skriver e-mails, dokumenter, kode eller chatter. Tryk på genvejen, tal, og se dine ord vises med det samme."
+      },
+      "privacy": {
+        "question": "Hvordan beskyttes mit privatliv?",
+        "answer": "Når du bruger lokal tilstand, forlader ingen data din Mac.\n\nNår du bruger cloudtransskription, sendes dine data til den cloududbyder, du vælger (f.eks. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs eller Mistral).\n\nDu kan selv verificere dette med et netværksinspektionsværktøj som [Proxyman](https://proxyman.io) eller en netværksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Hvad er HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud er indbygget cloudtransskription målrettet mindre tekniske brugere, der vil hurtigt i gang.\n\nDet er pay-as-you-go. Når du køber en licens, får du $5 i transskriptionscredits. Du kan tilføje flere credits senere.\n    \nVi tilbyder tre nøjagtighedsniveauer: Medium (hurtigst, drevet af Groq), High (anbefalet, drevet af Deepgram) og Highest (bedste kvalitet, drevet af xAI Grok STT). Efterbehandling er automatisk. Vi gemmer ikke andet end, hvor mange credits du har brugt.\n\nDu betaler præcis det, vi betaler disse udbydere. Vi lægger ikke noget på.\n\nFor ekstra tryghed kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Vil mine stemmedata blive brugt til at træne AI-modeller?",
+        "answer": "HyperWhisper Cloud fravælger træning af modeller hos alle de udbydere, vi bruger. Med din egen API-nøgle er fravalget dit eget ansvar — se vores [guide til databeskyttelse](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Hvorfor livstidspris i stedet for abonnement?",
+        "answer": "Vi tror på enkel og fair prissætning. Betal én gang $39 og brug HyperWhisper for altid. Ingen månedlige gebyrer, ingen overraskelser. Gratisversionen lader dig bruge nøglefunktionerne med 3 minutters transskription pr. dag."
+      },
+      "deviceLimit": {
+        "question": "Hvor mange enheder kan jeg bruge min licens på?",
+        "answer": "Du kan bruge din licens på så mange enheder, du vil, underlagt vores Fair Usage Policy som beskrevet i vores [Servicevilkår](/legal/terms-of-service). Denne politik er designet til at være fleksibel for legitim personlig og erhvervsmæssig brug, samtidig med at misbrug forhindres."
+      },
+      "requirements": {
+        "question": "Hvad er systemkravene?",
+        "answer": "Til Mac: macOS 14 eller nyere, med støtte til både Apple Silicon og Intel. Til Windows: Windows 10/11, x64 eller ARM64. 8GB RAM anbefales for optimal ydeevne."
+      },
+      "windowsStatus": {
+        "question": "Har Windows-versionen alle de samme funktioner som macOS?",
+        "answer": "Windows-versionen er udgivet for nylig, så den har muligvis ikke alle funktioner fra macOS endnu. Vi arbejder aktivt på fuld funktionsparitet på begge platforme."
+      },
+      "madeBy": {
+        "question": "Hvem har lavet dette?",
+        "answer": "Dette er lavet af YouTuberen [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Supportcenter",
+    "subtitle": "Vi er her for at hjælpe dig med at få mest muligt ud af HyperWhisper",
+    "getInTouch": "Kontakt os",
+    "description": "Ved teknisk support, licensproblemer eller spørgsmål om HyperWhisper står vores team klar til at hjælpe.",
+    "emailUsAt": "Skriv til os på:",
+    "openInClient": "Åbn i din e-mailklient:",
+    "defaultClient": "Standard e-mailklient",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Vi svarer typisk inden for 24 timer på hverdage.",
+    "emailTemplate": {
+      "subject": "HyperWhisper supportanmodning",
+      "body": "Hej,\n\nVersion: \n[du kan tjekke i Indstillinger > Om]\n\nProblem: \n[Beskriv dit problem]\n\nDetaljer: \n[Angiv relevante detaljer, hvad lavede du før nedbruddet]\n\n[Din besked her]\n\nVenlig hilsen,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper-logo",
+    "title": "Download HyperWhisper",
+    "emailPlaceholder": "E-mail",
+    "description": "Vi sender dig et downloadlink og en kort introduktionsvideo via e-mail, så du hurtigt kommer i gang. Ingen spam.",
+    "downloadButton": "Download HyperWhisper",
+    "errorGeneric": "Noget gik galt. Prøv igen.",
+    "errorNetwork": "Netværksfejl. Tjek din forbindelse og prøv igen.",
+    "thankYouTitle": "Tak!",
+    "downloadStarted": "Din download bør starte automatisk.",
+    "manualDownload": "Startede download ikke? Klik her",
+    "skipAndDownloadButton": "Spring over og download"
+  },
+  "downloadPage": {
+    "title": "Download HyperWhisper",
+    "countdownText": "Starter om {seconds}...",
+    "downloadStarted": "Tjek din mappe Downloads",
+    "downloadNow": "Download nu",
+    "downloadAgain": "Download igen",
+    "selectArchitecture": "Vælg din arkitektur",
+    "downloadX64": "Download til x64",
+    "downloadArm64": "Download til ARM64",
+    "orDivider": "ELLER",
+    "homebrewTitle": "Installer via Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopiér",
+    "copied": "Kopieret!"
+  },
+  "purchaseSuccess": {
+    "title": "Køb gennemført!",
+    "subtitle": "Velkommen til HyperWhisper Pro! Din livstidslicens er klar.",
+    "checkEmail": {
+      "title": "Tjek din e-mail",
+      "description": "Vi har sendt din licensnøgle og downloadinstruktioner til din e-mailadresse. Den bør komme inden for de næste par minutter."
+    },
+    "whatsNext": {
+      "title": "Hvad nu?",
+      "step1": {
+        "title": "Tjek din indbakke",
+        "description": "Se efter en e-mail fra HyperWhisper"
+      },
+      "step2": {
+        "title": "Kopiér din licensnøgle",
+        "description": "Du skal bruge den for at aktivere appen"
+      },
+      "step3": {
+        "title": "Download HyperWhisper",
+        "description": "Installer appen og indtast din licensnøgle"
+      }
+    },
+    "downloadButton": "Download HyperWhisper",
+    "returnHome": "Tilbage til forsiden",
+    "noEmail": "Har du ikke modtaget e-mailen? Tjek din spammappe eller",
+    "contactSupport": "kontakt support",
+    "loading": "Indlæser..."
+  },
+  "footer": {
+    "tagline": "Skriv 5x hurtigere med AI-drevet stemmetransskription til macOS og Windows.",
+    "product": "Produkt",
+    "resources": "Ressourcer",
+    "company": "Virksomhed",
+    "legal": "Juridisk",
+    "links": {
+      "features": "Funktioner",
+      "pricing": "Priser",
+      "download": "Download",
+      "roadmap": "Roadmap",
+      "helpCenter": "Hjælpecenter",
+      "manageBilling": "Administrer betaling",
+      "customerPortal": "Kundeportal",
+      "olderVersions": "Ældre versioner",
+      "blog": "Blog",
+      "about": "Om",
+      "support": "Support",
+      "privacyPolicy": "Privatlivspolitik",
+      "termsOfService": "Servicevilkår",
+      "refundPolicy": "Refusionspolitik",
+      "dataTraining": "Databeskyttelse"
+    },
+    "copyright": "© 2026 HyperWhisper. Alle rettigheder forbeholdes.",
+    "linkedinAria": "LinkedIn"
+  }
+}

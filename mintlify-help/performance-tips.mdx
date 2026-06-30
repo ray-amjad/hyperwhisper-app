@@ -1,0 +1,214 @@
+---
+title: Performance Tips
+description: How to get the fastest transcriptions, lowest latency, and best resource use out of HyperWhisper — whether you're on cloud or local models.
+---
+
+Performance in HyperWhisper comes down to three choices: **where** the transcription runs (cloud vs. on-device), **which model** you pick for your hardware, and a handful of settings that affect startup time, audio processing, and storage. This page walks through each one.
+
+---
+
+## Choose your transcription strategy
+
+### Cloud — fastest results, highest accuracy
+
+HyperWhisper Cloud routes to best-in-class providers and requires no setup. Results come back from the server faster than most on-device models can load and process the same audio.
+
+| Tier | Powered by | Best for |
+| --- | --- | --- |
+| **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
+| **High** | Grok STT (xAI) | High-accuracy multilingual transcription |
+| **Medium** | Deepgram Nova-3 | English accuracy with low latency |
+| **Medium** | Groq Whisper Large v3 | Sub-second latency for English and major European languages |
+
+**Cost note:** HyperWhisper Cloud detects silence and empty audio automatically. If a recording contains no detectable speech you are charged 0 credits — pauses, dead air, and accidentally triggered empty recordings don't cost anything. Across a typical push-to-talk workday, you only pay for the minutes you actually spoke.
+
+### On-device — offline, private, no per-minute cost
+
+Local models run entirely on your machine. Audio never leaves your device, and there is no per-minute charge once the model is downloaded. The trade-off is slightly lower accuracy than the top cloud tiers, and a one-time download of 350 MB–3.1 GB depending on the model.
+
+<Note>
+  On-device streaming transcription is available on both macOS and Windows. Parakeet V2 and Parakeet V3 stream on both platforms; Nemotron 3.5 Streaming (Multilingual) also runs as a streaming transducer on Windows. See the [Models](/models) page for the full platform matrix.
+</Note>
+
+---
+
+## Pick the right model size for your hardware
+
+### Apple Silicon Macs (M1 and later)
+
+Local models run via Metal GPU + Neural Engine acceleration. The **Small Whisper** model (466 MB on macOS, ~2 GB VRAM) is comfortably realtime even on an M1 Air and is the recommended starting point for most users.
+
+For English-only work, **Parakeet V2** (474 MB) is typically faster than equivalent Whisper sizes. For the broadest offline language coverage (Chinese, Japanese, Korean, Arabic), **Nemotron 3.5 Multilingual** (~1.3 GB) is the only local model that reaches beyond European languages.
+
+### Intel Macs
+
+Local models work on Intel but use CPU only — no GPU or Neural Engine acceleration. Start with **Whisper Tiny** (~39 MB) or **Whisper Base** (148 MB). If those feel too slow or inaccurate, switch to HyperWhisper Cloud, which offloads all the compute to the server.
+
+### Windows x64
+
+Windows local transcription uses DirectCompute (Whisper) and DirectML (Parakeet) for GPU acceleration. Any modern NVIDIA, AMD, or Intel GPU with DirectX 11 support qualifies. If no compatible GPU is detected, the model falls back to CPU automatically — it still works, just slower.
+
+<Note>
+  On ARM64 / Snapdragon Windows devices, **Whisper is not supported yet**. Use **Parakeet V2** (English) or **Parakeet V3** (25 European languages) for local transcription on ARM64 — both run with DirectML acceleration.
+</Note>
+
+### Whisper size ladder
+
+| Model | Size | Recommended VRAM | Character |
+| --- | --- | --- | --- |
+| Tiny | ~39 MB (macOS) / ~78 MB (Windows) | ~1 GB | Lowest-end machines, quick drafts |
+| Base | 148 MB | ~1 GB | Light hardware, basic dictation |
+| **Small** | **466 MB (macOS) / 488 MB (Windows)** | **~2 GB** | **Best balance for most users** |
+| Medium | 1.5 GB | ~5 GB | Higher accuracy, mid-range GPUs |
+| Large v3 Turbo | 809 MB (macOS) / 1.5 GB (Windows) | ~6 GB | Near-Large accuracy, much faster |
+| Large v2 / Large v3 | 3.1 GB | ~10 GB | Highest Whisper accuracy |
+
+Smaller models are faster but less accurate; larger models are slower but handle difficult audio better. If your GPU doesn't have enough VRAM, the model falls back to CPU automatically.
+
+<Tip>
+  If you only ever dictate in one language, the English-only Whisper variants (`.en`) produce slightly better results at the same model size. You give up multilingual support in exchange.
+</Tip>
+
+---
+
+## Reduce push-to-talk startup latency
+
+### Enable "Keep Microphone Warm"
+
+The biggest source of push-to-talk delay is the microphone starting up cold — this is especially noticeable with Bluetooth headsets, which can take a second or more to switch into call mode.
+
+**Keep Microphone Warm** keeps a quiet idle audio session open between recordings so the microphone is ready the moment you press your shortcut.
+
+<Tabs>
+  <Tab title="macOS">
+    Enable it in **Settings → Sound → Keep Microphone Warm**.
+
+    <Note>
+      While this setting is on, macOS shows the orange microphone indicator in the menu bar at all times — even when you are not recording. Bluetooth headsets may also stay in their lower-quality call audio profile rather than switching back to stereo. Turn this off if either trade-off matters to you.
+    </Note>
+  </Tab>
+  <Tab title="Windows">
+    Enable it in **Settings → Sound → Keep Microphone Warm**. The same benefit applies for Bluetooth headsets.
+  </Tab>
+</Tabs>
+
+### Deepgram Fast Formatting (streaming)
+
+When using Deepgram for streaming transcription, **Fast Formatting** is on by default. It returns smart-formatted results immediately without waiting for surrounding context, which minimises the delay before words appear on screen. Turning it off produces slightly more accurate punctuation and number formatting at the cost of extra latency. Leave it on unless formatting precision matters more than speed for your workflow.
+
+---
+
+## Optimize file transcription
+
+### Enable VAD (Voice Activity Detection)
+
+<Tabs>
+  <Tab title="macOS">
+    **Remove silence before transcription** (in Settings → Sound) analyzes the clip after you stop recording and strips leading and trailing silence using an AI voice-detection model (Silero VAD) before sending audio to the provider.
+
+    Why it helps:
+    - Reduces the amount of audio sent to cloud providers, which can lower API costs.
+    - Speeds up transcription, especially for short clips with long pauses at the start or end.
+    - May improve accuracy by removing noise-only segments.
+
+    Leave it off if your recordings consistently start and end with speech — VAD adds a small processing step with no benefit in that case.
+  </Tab>
+  <Tab title="Windows">
+    Voice activity detection runs automatically when using the local Parakeet model. There is no separate toggle in settings for file transcription on Windows.
+  </Tab>
+</Tabs>
+
+### Sample rate
+
+The default audio sample rate for file transcription is **16 000 Hz**, which is the standard input rate for Whisper-family models and what most cloud providers expect. There is no benefit to raising it for transcription purposes — 16 kHz is the sweet spot.
+
+<Note>
+  This setting applies to macOS file/push-to-talk recordings. Streaming transcription uses a fixed rate set by the streaming provider, not this setting.
+</Note>
+
+---
+
+## Post-processing performance
+
+Post-processing is an optional second step that cleans up filler words, fixes punctuation, and applies formatting after transcription. It adds latency — keep that in mind when speed is the priority.
+
+### Local Gemma models (offline, no extra cost)
+
+<Tabs>
+  <Tab title="macOS">
+    Local Gemma post-processing runs via Metal GPU acceleration on **Apple Silicon Macs (M1 and later)**. Intel Macs do not support local LLM post-processing — use a cloud post-processing provider instead.
+
+    | Model | Size | Recommended RAM | Best for |
+    | --- | --- | --- | --- |
+    | **Gemma 4 E2B (Recommended)** | **3.1 GB** | **~4 GB** | Best balance of speed and quality for most Macs |
+    | Gemma 4 E4B | 5 GB | ~6 GB | Higher quality cleanup |
+    | Gemma 4 12B | 7.1 GB | ~10 GB | Mid-size dense model; good for 16 GB Macs |
+    | Gemma 4 26B MoE | 16.9 GB | ~18 GB | Mixture-of-experts for capable machines |
+    | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
+
+    Start with **Gemma 4 E2B** — it fits comfortably in 4 GB and handles most cleanup tasks well.
+  </Tab>
+  <Tab title="Windows">
+    Local Gemma post-processing is available on Windows x64. GPU acceleration uses NVIDIA CUDA when a compatible GPU is present; AMD and Intel GPU systems fall back to CPU.
+
+    | Model | Size | Recommended VRAM | Best for |
+    | --- | --- | --- | --- |
+    | **Gemma 4 E2B (Recommended)** | **3.1 GB** | **~4 GB** | Recommended starting point |
+    | Gemma 4 E4B | 5 GB | ~6 GB | Higher quality cleanup |
+    | Gemma 4 26B MoE | 16.9 GB | ~18 GB | High-memory workstations |
+    | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
+
+    <Note>
+      On AMD and Intel GPUs, local Gemma post-processing uses CPU fallback in the current Windows build. Transcription itself can still use GPU acceleration independently.
+    </Note>
+  </Tab>
+</Tabs>
+
+### Cloud post-processing
+
+If local Gemma is too large for your machine, every cloud post-processing provider (HyperWhisper Cloud, OpenAI, Claude, Gemini, Groq, and others) is available as an alternative with no local storage requirement. Each is labeled with a speed and accuracy rating in the Model Library.
+
+---
+
+## Storage and disk space
+
+| Item | Approximate size |
+| --- | --- |
+| App (macOS) | ~200 MB |
+| App (Windows) | ~300 MB |
+| Whisper Tiny | ~39 MB (macOS) / ~78 MB (Windows) |
+| Whisper Small | ~466 MB (macOS) / ~488 MB (Windows) |
+| Whisper Large v3 | ~3.1 GB |
+| Parakeet V2 | ~474 MB |
+| Nemotron 3.5 Multilingual | ~1.3 GB |
+| Gemma 4 E2B (post-processing) | ~3.1 GB |
+| Gemma 4 31B Dense (post-processing) | ~18.3 GB |
+
+**Keep audio files** is off by default — audio is discarded once transcription succeeds to save disk space. Turn it on only if you need playback from History or want to retry failed transcriptions.
+
+**Max recording duration** defaults to 300 seconds (5 minutes).
+
+---
+
+## Quick-pick guide
+
+Not sure where to start? Find your goal below.
+
+| Goal | Recommended setup |
+| --- | --- |
+| **Lowest latency (words appear as fast as possible)** | HyperWhisper Cloud Medium (Groq Whisper Large v3) — or on-device Parakeet V2 + Keep Microphone Warm |
+| **Best accuracy for difficult audio** | HyperWhisper Cloud Highest (ElevenLabs Scribe v2) |
+| **Fully offline, no network** | Nemotron 3.5 Multilingual or Whisper Small/Large (macOS + Windows) + on-device Gemma 4 E2B post-processing |
+| **Lowest cost** | HyperWhisper Cloud Medium (Groq Whisper Large v3, ~\$0.11/hr) or on-device models (free after download) |
+| **Older or low-end machine** | Whisper Tiny or Base locally, or HyperWhisper Cloud to offload compute |
+| **Best all-round on Apple Silicon** | Whisper Small + Gemma 4 E2B post-processing |
+| **ARM64 Windows device** | Parakeet V2 (English) or Parakeet V3 (multilingual) — Whisper is x64-only |
+
+---
+
+## Related pages
+
+- [Models](/models) — full model library, VRAM requirements, and speed/accuracy ratings
+- [System Requirements](/system-requirements) — platform-specific hardware specs
+- [Providers](/choosing-a-provider) — cloud tier pricing, silence-free billing, and cost examples
+- [Best Practices](/best-practices) — accuracy tips covering vocabulary, microphone hardware, and environment

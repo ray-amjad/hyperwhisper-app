@@ -1,0 +1,47 @@
+{
+  "presets": {
+    "hyper": {
+      "displayName": "Hyper",
+      "windowsDisplayName": "Hyper (Recommended)",
+      "tooltip": "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.",
+      "preview": "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app \u2014 automatically applies email structure when composing in a mail client.",
+      "description": "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps."
+    },
+    "message": {
+      "displayName": "Message",
+      "tooltip": "Message mode cleans up your dictated message, fixing punctuation, turning into paragraphs and sorting out grammatical errors.",
+      "preview": "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.",
+      "description": "Casual, conversational style for chat apps"
+    },
+    "mail": {
+      "displayName": "Mail",
+      "tooltip": "Email mode formats your dictation into a professional email structure, with proper salutations, paragraphing, and sign-off.",
+      "preview": "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.",
+      "description": "Professional formatting for emails"
+    },
+    "note": {
+      "displayName": "Note",
+      "tooltip": "Note mode organizes your dictated content into a clear note format with headers, bullet points, and structured sections.",
+      "preview": "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.",
+      "description": "Clean format for note-taking apps"
+    },
+    "meeting": {
+      "displayName": "Meeting",
+      "tooltip": "Meeting mode structures your dictation into meeting minutes format with attendees, action items, and key discussion points.",
+      "preview": "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.",
+      "description": "Detailed transcription for meetings"
+    },
+    "code": {
+      "displayName": "Code",
+      "tooltip": "Code mode converts spoken programming dictation into code syntax. Say 'open bracket', 'backslash', 'camel case' and more to write code by voice.",
+      "preview": "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.",
+      "description": "Voice-to-code dictation with symbol conversion"
+    },
+    "custom": {
+      "displayName": "Custom",
+      "tooltip": "Custom mode allows you to define your own formatting rules and prompts for specific use cases.",
+      "preview": "Uses your custom formatting instructions to process the transcription.",
+      "description": "Define your own custom instructions"
+    }
+  }
+}

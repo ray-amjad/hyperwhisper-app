@@ -1,0 +1,89 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- BRUSH DEFINITIONS
+         These brushes reference colors using DynamicResource so they update
+         automatically when the theme changes (light/dark mode switching).
+
+         The actual color values are defined in:
+         - LightColors.xaml (light theme)
+         - DarkColors.xaml (dark theme)
+
+         ThemeService swaps the color ResourceDictionary at runtime.
+    -->
+
+    <!-- Primary Accent Brushes -->
+    <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource AccentColor}"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="{DynamicResource AccentColorHover}"/>
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="{DynamicResource AccentColorPressed}"/>
+
+    <!-- Sidebar Icon Brushes -->
+    <SolidColorBrush x:Key="HomeIconBrush" Color="{DynamicResource HomeIconColor}"/>
+    <SolidColorBrush x:Key="HistoryIconBrush" Color="{DynamicResource HistoryIconColor}"/>
+    <SolidColorBrush x:Key="ModesIconBrush" Color="{DynamicResource ModesIconColor}"/>
+    <SolidColorBrush x:Key="VocabularyIconBrush" Color="{DynamicResource VocabularyIconColor}"/>
+    <SolidColorBrush x:Key="SettingsIconBrush" Color="{DynamicResource SettingsIconColor}"/>
+
+    <!-- Status Brushes -->
+    <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource SuccessColor}"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{DynamicResource WarningColor}"/>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{DynamicResource ErrorColor}"/>
+    <SolidColorBrush x:Key="ProcessingBrush" Color="{DynamicResource ProcessingColor}"/>
+    <SolidColorBrush x:Key="PostProcessingBrush" Color="{DynamicResource PostProcessingColor}"/>
+
+    <!-- Background Brushes -->
+    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="{DynamicResource SidebarBackground}"/>
+    <SolidColorBrush x:Key="ContentBackgroundBrush" Color="{DynamicResource ContentBackground}"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{DynamicResource CardBackground}"/>
+    <SolidColorBrush x:Key="HoverBackgroundBrush" Color="{DynamicResource HoverBackground}"/>
+    <SolidColorBrush x:Key="SelectedBackgroundBrush" Color="{DynamicResource SelectedBackground}"/>
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="{DynamicResource InputBackground}"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="{DynamicResource BorderColor}"/>
+
+    <!-- Text Brushes -->
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimary}"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondary}"/>
+    <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextTertiary}"/>
+    <SolidColorBrush x:Key="TextOnAccentBrush" Color="{DynamicResource TextOnAccent}"/>
+
+    <!-- Semantic Alert Brushes - Warning -->
+    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="{DynamicResource WarningBackground}"/>
+    <SolidColorBrush x:Key="WarningForegroundBrush" Color="{DynamicResource WarningForeground}"/>
+    <SolidColorBrush x:Key="WarningBorderBrush" Color="{DynamicResource WarningBorder}"/>
+
+    <!-- Semantic Alert Brushes - Error -->
+    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="{DynamicResource ErrorBackground}"/>
+    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="{DynamicResource ErrorForeground}"/>
+    <SolidColorBrush x:Key="ErrorBorderBrush" Color="{DynamicResource ErrorBorder}"/>
+
+    <!-- Semantic Alert Brushes - Info -->
+    <SolidColorBrush x:Key="InfoBackgroundBrush" Color="{DynamicResource InfoBackground}"/>
+    <SolidColorBrush x:Key="InfoForegroundBrush" Color="{DynamicResource InfoForeground}"/>
+    <SolidColorBrush x:Key="InfoBorderBrush" Color="{DynamicResource InfoBorder}"/>
+
+    <!-- Semantic Alert Brushes - Success -->
+    <SolidColorBrush x:Key="SuccessBackgroundBrush" Color="{DynamicResource SuccessBackground}"/>
+    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="{DynamicResource SuccessForeground}"/>
+    <SolidColorBrush x:Key="SuccessBorderBrush" Color="{DynamicResource SuccessBorder}"/>
+
+    <!-- Badge Brushes -->
+    <SolidColorBrush x:Key="BadgeGrayBackgroundBrush" Color="{DynamicResource BadgeGrayBackground}"/>
+    <SolidColorBrush x:Key="BadgeGrayForegroundBrush" Color="{DynamicResource BadgeGrayForeground}"/>
+
+    <!-- Progress Bar Brushes -->
+    <SolidColorBrush x:Key="ProgressBackgroundBrush" Color="{DynamicResource ProgressBackground}"/>
+
+    <!-- Hover State Brushes -->
+    <SolidColorBrush x:Key="DeleteHoverBackgroundBrush" Color="{DynamicResource DeleteHoverBackground}"/>
+
+    <!-- Sidebar Icon Brushes - Statistics -->
+    <SolidColorBrush x:Key="StatisticsIconBrush" Color="{DynamicResource StatisticsIconColor}"/>
+
+    <!-- Statistics Card Accent Brushes -->
+    <SolidColorBrush x:Key="StatisticsBlueBrush" Color="{DynamicResource StatisticsBlue}"/>
+    <SolidColorBrush x:Key="StatisticsGreenBrush" Color="{DynamicResource StatisticsGreen}"/>
+    <SolidColorBrush x:Key="StatisticsPurpleBrush" Color="{DynamicResource StatisticsPurple}"/>
+    <SolidColorBrush x:Key="StatisticsOrangeBrush" Color="{DynamicResource StatisticsOrange}"/>
+    <SolidColorBrush x:Key="StatisticsChartBarBrush" Color="{DynamicResource StatisticsChartBar}"/>
+
+</ResourceDictionary>

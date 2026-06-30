@@ -1,0 +1,13 @@
+[package]
+name = "hw-phonetic"
+version = "0.1.0"
+edition = "2021"
+description = "Beider-Morse phonetic encoding for vocabulary matching (was app/macos/rphonetic-ffi)."
+publish = false
+
+[lib]
+# Pure Rust library — no FFI here. The FFI surface lives in hw-core (UniFFI).
+crate-type = ["lib"]
+
+[dependencies]
+rphonetic = { version = "3", features = ["embedded_bm"] }

@@ -1,0 +1,618 @@
+<Window x:Class="HyperWhisper.Views.Windows.ModeEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:HyperWhisper.Localization"
+        Title="{loc:Loc mode.editor.title.edit}"
+        Height="700" Width="550"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <TextBlock Text="{loc:Loc mode.editor.section.settings}" FontSize="20" FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <!-- ARM64 Info Banner -->
+            <Border x:Name="Arm64InfoBanner" Visibility="Collapsed"
+                    Background="{DynamicResource InfoBackgroundBrush}"
+                    BorderBrush="{DynamicResource InfoBorderBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                               Foreground="{DynamicResource InfoForegroundBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14"/>
+                    <TextBlock Text="{loc:Loc mode.editor.arm64.info}"
+                               Foreground="{DynamicResource InfoForegroundBrush}"
+                               TextWrapping="Wrap" FontSize="12"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 CARD 1: Basic Settings
+                 ============================================================ -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                <StackPanel>
+                    <!-- Card Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14"/>
+                        <TextBlock Text="{loc:Loc mode.editor.section.basic}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Mode Name -->
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc mode.editor.field.name}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <TextBox x:Name="ModeNameBox"
+                                 Background="{DynamicResource InputBackgroundBrush}"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderBrush}"
+                                 Padding="10,8"
+                                 TextChanged="ModeNameBox_TextChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 CARD 2: Transcription
+                 ============================================================ -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                <StackPanel>
+                    <!-- Card Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <TextBlock Text="&#xE720;" FontFamily="Segoe MDL2 Assets"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14"/>
+                        <TextBlock Text="{loc:Loc mode.editor.section.transcription}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Source — 3-way segmented selector: On-device / HyperWhisper Cloud / Your provider.
+                         Drives which model controls below are shown. SourceOnDeviceSegment carries the
+                         legacy "local" ProviderType; the two cloud segments both map to "cloud" with the
+                         CloudProvider distinguishing HyperWhisper Cloud ("hyperwhisper") from BYOK. -->
+                    <StackPanel Margin="0,0,0,16">
+                        <TextBlock Text="{loc:Loc mode.editor.field.source}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <Border Style="{StaticResource SegmentedControlBorderStyle}">
+                            <UniformGrid Rows="1" Columns="3">
+                                <RadioButton x:Name="SourceOnDeviceSegment" GroupName="TranscriptionSource"
+                                             Style="{StaticResource SegmentedRadioButtonStyle}"
+                                             Tag="ondevice"
+                                             Content="{loc:Loc mode.editor.source.onDevice}"
+                                             Checked="SourceSegment_Checked"/>
+                                <RadioButton x:Name="SourceHwCloudSegment" GroupName="TranscriptionSource"
+                                             Style="{StaticResource SegmentedRadioButtonStyle}"
+                                             Tag="hwcloud"
+                                             Content="{loc:Loc mode.editor.source.hyperwhisperCloud}"
+                                             Checked="SourceSegment_Checked"/>
+                                <RadioButton x:Name="SourceYourProviderSegment" GroupName="TranscriptionSource"
+                                             Style="{StaticResource SegmentedRadioButtonStyle}"
+                                             Tag="yourprovider"
+                                             Content="{loc:Loc mode.editor.source.yourProvider}"
+                                             Checked="SourceSegment_Checked"/>
+                            </UniformGrid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Local Model Selection (shown when local selected) -->
+                    <StackPanel x:Name="LocalModelPanel" Margin="0,0,0,16">
+                        <TextBlock Text="{loc:Loc mode.editor.field.localModel}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="LocalModelCombo"
+                                  Background="{DynamicResource InputBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  Padding="10,8"
+                                  SelectionChanged="LocalModelCombo_SelectionChanged"/>
+                        <TextBlock x:Name="LocalModelStatusText" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <!-- Parakeet Language Warning -->
+                    <Border x:Name="ParakeetLanguageWarning" Visibility="Collapsed"
+                            Background="{DynamicResource WarningBackgroundBrush}"
+                            BorderBrush="{DynamicResource WarningBorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                        <TextBlock x:Name="ParakeetLanguageWarningText" TextWrapping="Wrap" FontSize="12"
+                                   Foreground="{DynamicResource WarningForegroundBrush}"/>
+                    </Border>
+
+                    <!-- Cloud Provider Selection (shown when cloud selected) -->
+                    <StackPanel x:Name="CloudProviderPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                        <TextBlock Text="{loc:Loc mode.editor.field.cloudProvider}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CloudProviderCombo"
+                                  Background="{DynamicResource InputBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  Padding="10,8"
+                                  SelectionChanged="CloudProviderCombo_SelectionChanged">
+                            <ComboBoxItem Content="{loc:Loc provider.hyperwhisper}" Tag="hyperwhisper"
+                                          ToolTip="{loc:Loc mode.editor.provider.hyperwhisper.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.openai}" Tag="openai"
+                                          ToolTip="{loc:Loc mode.editor.provider.openai.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.groq}" Tag="groq"
+                                          ToolTip="{loc:Loc mode.editor.provider.groq.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.deepgram}" Tag="deepgram"
+                                          ToolTip="{loc:Loc mode.editor.provider.deepgram.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.assemblyai}" Tag="assemblyai"
+                                          ToolTip="{loc:Loc mode.editor.provider.assemblyai.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.elevenlabs}" Tag="elevenlabs"
+                                          ToolTip="{loc:Loc mode.editor.provider.elevenlabs.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.mistral}" Tag="mistral"
+                                          ToolTip="{loc:Loc mode.editor.provider.mistral.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.soniox}" Tag="soniox"
+                                          ToolTip="{loc:Loc mode.editor.provider.soniox.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.gemini}" Tag="gemini"
+                                          ToolTip="{loc:Loc mode.editor.provider.gemini.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.grok}" Tag="grok"
+                                          ToolTip="{loc:Loc mode.editor.provider.grok.tooltip}"/>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- HyperWhisper Cloud Engine (the accuracy tier, relabeled "Engine") -->
+                    <StackPanel x:Name="CloudAccuracyPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                        <TextBlock Text="{loc:Loc mode.editor.field.provider}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="CloudAccuracyCombo"
+                                  Background="{DynamicResource InputBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  Padding="10,8"
+                                  SelectionChanged="CloudAccuracyCombo_SelectionChanged">
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.groqWhisper.label}" Tag="groqWhisper"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.deepgramNova3.label}" Tag="deepgramNova3"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.grokStt.label}" Tag="grokStt"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.azureMaiTranscribe.label}" Tag="azureMaiTranscribe"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.googleChirp3.label}" Tag="googleChirp3"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.elevenLabsScribeV2.label}" Tag="elevenLabsScribeV2"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.openaiWhisper.label}" Tag="openaiWhisper"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.gemini.label}" Tag="gemini"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.mistralVoxtral.label}" Tag="mistralVoxtral"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.assemblyAI.label}" Tag="assemblyAI"/>
+                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.soniox.label}" Tag="soniox"/>
+                        </ComboBox>
+                        <!-- Green-dot credits/min caption (matches macOS) -->
+                        <StackPanel x:Name="CloudAccuracyCreditsPanel" Orientation="Horizontal" Margin="0,4,0,0" Visibility="Collapsed">
+                            <Ellipse Width="4" Height="4" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="CloudAccuracyCreditsText" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CloudAccuracyDescText" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+
+                        <!-- Model picker for the selected HyperWhisper Cloud provider tier.
+                             Populated from the catalog's models[] for the chosen tier. -->
+                        <StackPanel x:Name="CloudTierModelPanel" Margin="0,12,0,0">
+                            <TextBlock Text="{loc:Loc mode.editor.field.cloudModel}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="CloudTierModelCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8"
+                                      SelectionChanged="CloudTierModelCombo_SelectionChanged"/>
+                            <TextBlock x:Name="CloudTierModelDescText" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Medical domain toggle — visible only for AssemblyAI (Deepgram
+                             medical is selected via the nova-3-medical model instead). -->
+                        <CheckBox x:Name="MedicalDomainCheck"
+                                  Content="{loc:Loc mode.editor.cloudDomain.medical}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  Margin="0,12,0,0"
+                                  Visibility="Collapsed"
+                                  Checked="MedicalDomainCheck_Changed"
+                                  Unchecked="MedicalDomainCheck_Changed"/>
+                    </StackPanel>
+
+                    <!-- Cloud Model Selection (shown when cloud selected) -->
+                    <StackPanel x:Name="CloudModelPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{loc:Loc mode.editor.field.cloudModel}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <CheckBox x:Name="CloudModelShowAllCheck"
+                                      Grid.Column="1"
+                                      Content="{loc:Loc mode.editor.cloudModel.showAll}"
+                                      FontSize="11"
+                                      Foreground="{DynamicResource TextSecondaryBrush}"
+                                      Checked="CloudModelShowAllCheck_Changed"
+                                      Unchecked="CloudModelShowAllCheck_Changed"/>
+                        </Grid>
+                        <ComboBox x:Name="CloudModelCombo"
+                                  Background="{DynamicResource InputBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  Padding="10,8"
+                                  SelectionChanged="CloudModelCombo_SelectionChanged"/>
+                        <TextBlock x:Name="CloudModelDescText" FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <!-- Gemini Custom Prompt (shown only for Gemini provider) -->
+                    <StackPanel x:Name="GeminiCustomPromptPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                        <TextBlock Text="{loc:Loc mode.editor.gemini.customPrompt.title}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <Grid>
+                            <TextBox x:Name="GeminiCustomPromptBox"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     Padding="6,8"
+                                     AcceptsReturn="True"
+                                     TextWrapping="Wrap"
+                                     Height="80"
+                                     VerticalScrollBarVisibility="Auto"
+                                     MaxLength="2000"
+                                     TextChanged="GeminiCustomPromptBox_TextChanged"/>
+                            <TextBlock x:Name="GeminiCustomPromptPlaceholder"
+                                       Text="{loc:Loc mode.editor.gemini.customPrompt.placeholder}"
+                                       Foreground="{DynamicResource TextTertiaryBrush}"
+                                       Margin="8,10,0,0" IsHitTestVisible="False"
+                                       Visibility="Visible"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="{loc:Loc mode.editor.gemini.customPrompt.helper}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock x:Name="GeminiCustomPromptCharCount" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Vocabulary Unsupported Warning -->
+                    <Border x:Name="VocabularyWarning" Visibility="Collapsed"
+                            Background="{DynamicResource InfoBackgroundBrush}"
+                            BorderBrush="{DynamicResource InfoBorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                                       Foreground="{DynamicResource InfoForegroundBrush}"
+                                       VerticalAlignment="Top" Margin="0,2,8,0" FontSize="14"/>
+                            <TextBlock x:Name="VocabularyWarningText"
+                                       Text="{loc:Loc mode.editor.warning.vocabularyUnsupported}"
+                                       Foreground="{DynamicResource InfoForegroundBrush}"
+                                       TextWrapping="Wrap" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Deepgram Nova-3 Auto-Detect Warning -->
+                    <Border x:Name="Nova3Warning" Visibility="Collapsed"
+                            Background="{DynamicResource InfoBackgroundBrush}"
+                            BorderBrush="{DynamicResource InfoBorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets"
+                                       Foreground="{DynamicResource InfoForegroundBrush}"
+                                       VerticalAlignment="Top" Margin="0,2,8,0" FontSize="14"/>
+                            <TextBlock Text="{loc:Loc mode.editor.warning.nova3AutoDetect}"
+                                       Foreground="{DynamicResource InfoForegroundBrush}"
+                                       TextWrapping="Wrap" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Language -->
+                    <StackPanel x:Name="LanguagePanel">
+                        <TextBlock Text="{loc:Loc mode.editor.field.language}" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                        <ComboBox x:Name="LanguageCombo"
+                                  Background="{DynamicResource InputBackgroundBrush}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  Padding="10,8"
+                                  SelectionChanged="LanguageCombo_SelectionChanged">
+                            <!-- Populated dynamically -->
+                        </ComboBox>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 CARD 3: Post-Processing
+                 ============================================================ -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                <StackPanel>
+                    <!-- Card Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <TextBlock Text="&#xE945;" FontFamily="Segoe MDL2 Assets"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14"/>
+                        <TextBlock Text="{loc:Loc mode.editor.section.postProcessing}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Enable/Disable Switch -->
+                    <CheckBox x:Name="PostProcessingCheck" Content="{loc:Loc mode.editor.postProcessing.enable}"
+                              Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"
+                              Checked="PostProcessingCheck_CheckedChanged"
+                              Unchecked="PostProcessingCheck_CheckedChanged"/>
+
+                    <StackPanel x:Name="PostProcessingSettingsPanel" Visibility="Collapsed">
+                        <!-- Preset Selection (moved here from top level) -->
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.field.preset}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="PresetCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8"
+                                      SelectionChanged="PresetCombo_SelectionChanged">
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.hyper}" Tag="hyper"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.message}" Tag="message"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.mail}" Tag="mail"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.note}" Tag="note"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.meeting}" Tag="meeting"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.code}" Tag="code"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.preset.custom}" Tag="custom"/>
+                            </ComboBox>
+                            <TextBlock x:Name="PresetDescText" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                            <TextBlock Text="{loc:Loc mode.editor.postProcessing.appAwareHint}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Custom Instructions (shown when preset=Custom) -->
+                        <StackPanel x:Name="CustomInstructionsPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.field.customInstructions}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <TextBox x:Name="CustomInstructionsBox"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     Padding="10,8"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     Height="80"
+                                     VerticalScrollBarVisibility="Auto"/>
+                            <TextBlock Text="{loc:Loc mode.editor.field.customInstructions.hint}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Source — 3-way segmented selector for post-processing:
+                             On-device / HyperWhisper Cloud / Your provider. Mirrors the
+                             transcription card. Drives the engine/model controls below. -->
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.field.source}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <Border Style="{StaticResource SegmentedControlBorderStyle}">
+                                <UniformGrid Rows="1" Columns="3">
+                                    <RadioButton x:Name="PpSourceOnDeviceSegment" GroupName="PostProcessingSource"
+                                                 Style="{StaticResource SegmentedRadioButtonStyle}"
+                                                 Tag="ondevice"
+                                                 Content="{loc:Loc mode.editor.source.onDevice}"
+                                                 Checked="PpSourceSegment_Checked"/>
+                                    <RadioButton x:Name="PpSourceHwCloudSegment" GroupName="PostProcessingSource"
+                                                 Style="{StaticResource SegmentedRadioButtonStyle}"
+                                                 Tag="hwcloud"
+                                                 Content="{loc:Loc mode.editor.source.hyperwhisperCloud}"
+                                                 Checked="PpSourceSegment_Checked"/>
+                                    <RadioButton x:Name="PpSourceYourProviderSegment" GroupName="PostProcessingSource"
+                                                 Style="{StaticResource SegmentedRadioButtonStyle}"
+                                                 Tag="yourprovider"
+                                                 Content="{loc:Loc mode.editor.source.yourProvider}"
+                                                 Checked="PpSourceSegment_Checked"/>
+                                </UniformGrid>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Provider (shown only for "Your provider" — BYOK LLMs.
+                             HyperWhisper Cloud and Local LLM are reached via the source
+                             segments above and are removed from this list in code-behind. -->
+                        <StackPanel x:Name="PostProcessingProviderPanel" Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.postProcessing.provider}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="PostProcessingProviderCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8"
+                                      SelectionChanged="PostProcessingProviderCombo_SelectionChanged">
+                                <ComboBoxItem Content="{loc:Loc provider.hyperwhisper}" Tag="hyperwhispercloud"/>
+                                <ComboBoxItem Content="{loc:Loc provider.openai}" Tag="openai"/>
+                                <ComboBoxItem Content="{loc:Loc provider.anthropic}" Tag="anthropic"/>
+                                <ComboBoxItem Content="{loc:Loc provider.gemini}" Tag="gemini"/>
+                                <ComboBoxItem Content="{loc:Loc provider.groq}" Tag="groq"/>
+                                <ComboBoxItem Content="{loc:Loc provider.grok}" Tag="grok"/>
+                                <ComboBoxItem Content="{loc:Loc provider.cerebras}" Tag="cerebras"/>
+                                <ComboBoxItem Content="{loc:Loc provider.mistral}" Tag="mistral"/>
+                                <ComboBoxItem Content="{loc:Loc provider.localLlm}" Tag="local_llm"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- HyperWhisper Cloud post-processing Engine + Model.
+                             Engine lists the catalog's enabled post-processing engines
+                             (CloudPpCatalog); Model lists the selected engine's enabled
+                             models. Persisted as the provider-qualified "<engineId>:<modelId>"
+                             storage key. Shown only for the HyperWhisper Cloud source. -->
+                        <StackPanel x:Name="CloudPostProcessingModelPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.field.provider}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="CloudPostProcessingEngineCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8"
+                                      SelectionChanged="CloudPostProcessingEngineCombo_SelectionChanged"/>
+                            <TextBlock Text="{loc:Loc mode.editor.field.cloudModel}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,12,0,4"/>
+                            <ComboBox x:Name="CloudPostProcessingModelCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8"/>
+                        </StackPanel>
+
+                        <!-- Model (hidden for HyperWhisper Cloud) -->
+                        <StackPanel x:Name="PostProcessingModelPanel" Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.postProcessing.model}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="PostProcessingModelCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8"
+                                      SelectionChanged="PostProcessingModelCombo_SelectionChanged"/>
+                            <TextBlock x:Name="PostProcessingModelDescText" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                            <Button x:Name="LocalLlmOpenModelsSettingsButton"
+                                    Content="{loc:Loc mode.editor.localLlm.openModelsSettings}"
+                                    Style="{StaticResource MacButtonStyle}"
+                                    Margin="0,8,0,0"
+                                    HorizontalAlignment="Left"
+                                    Visibility="Collapsed"
+                                    Click="LocalLlmOpenModelsSettingsButton_Click"/>
+                        </StackPanel>
+
+                        <!-- English Spelling (shown for English language) -->
+                        <StackPanel x:Name="EnglishSpellingPanel" Visibility="Collapsed" Margin="0,0,0,16">
+                            <TextBlock Text="{loc:Loc mode.editor.postProcessing.englishSpelling}" FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="EnglishSpellingCombo"
+                                      Background="{DynamicResource InputBackgroundBrush}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      BorderBrush="{DynamicResource BorderBrush}"
+                                      Padding="10,8">
+                                <ComboBoxItem Content="{loc:Loc mode.editor.spelling.american}" Tag="american"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.spelling.british}" Tag="british"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.spelling.australian}" Tag="australian"/>
+                                <ComboBoxItem Content="{loc:Loc mode.editor.spelling.canadian}" Tag="canadian"/>
+                            </ComboBox>
+                            <TextBlock Text="{loc:Loc mode.editor.spelling.hint}" FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <!-- Profanity Filter (stays in post-processing card) -->
+                        <CheckBox x:Name="ProfanityFilterCheck" Content="{loc:Loc mode.editor.postProcessing.profanityFilter}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+
+                        <!-- Screen Text OCR -->
+                        <CheckBox x:Name="ScreenOCRCheck" Content="{loc:Loc mode.editor.postProcessing.screenText}"
+                                  Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,2"/>
+                        <TextBlock Text="{loc:Loc mode.editor.postProcessing.screenText.hint}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap" FontSize="11" Margin="20,0,0,16"/>
+
+                        <!-- User System Prompt -->
+                        <StackPanel>
+                            <CheckBox x:Name="UserPromptCheck" Content="{loc:Loc mode.editor.postProcessing.customPrompt}"
+                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                      Checked="UserPromptCheck_CheckedChanged"
+                                      Unchecked="UserPromptCheck_CheckedChanged"/>
+                            <StackPanel x:Name="UserPromptPanel" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{loc:Loc mode.editor.postProcessing.customPrompt.hint}" FontSize="11"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <Button x:Name="ClearPromptButton" Grid.Column="1" Content="{loc:Loc settings.license.clearInput}"
+                                            Background="Transparent"
+                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            BorderThickness="0"
+                                            Padding="4,2"
+                                            FontSize="11"
+                                            Click="ClearPromptButton_Click"/>
+                                </Grid>
+                                <TextBox x:Name="UserPromptBox"
+                                         Background="{DynamicResource InputBackgroundBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
+                                         BorderBrush="{DynamicResource BorderBrush}"
+                                         Padding="10,8"
+                                         TextWrapping="Wrap"
+                                         AcceptsReturn="True"
+                                         VerticalScrollBarVisibility="Auto"
+                                         MaxLength="2000"
+                                         Height="100"
+                                         Margin="0,4,0,0"
+                                         TextChanged="UserPromptBox_TextChanged"/>
+                                <TextBlock x:Name="UserPromptCharCount" Text="0/2000" FontSize="11"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================
+                 CARD 4: Punctuation
+                 ============================================================ -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                <StackPanel>
+                    <!-- Card Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <TextBlock Text="&#xE8D2;" FontFamily="Segoe MDL2 Assets"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" FontSize="14"/>
+                        <TextBlock Text="{loc:Loc mode.editor.section.punctuation}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <CheckBox x:Name="PunctuationCheck" Content="{loc:Loc mode.editor.postProcessing.punctuation}"
+                              Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"
+                              Checked="PunctuationCheck_CheckedChanged" Unchecked="PunctuationCheck_CheckedChanged"/>
+                    <CheckBox x:Name="RemoveTrailingPeriodCheck" Content="{loc:Loc mode.editor.postProcessing.removeTrailingPeriod}"
+                              Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6"
+                              Visibility="Collapsed"/>
+                    <CheckBox x:Name="CapitalizationCheck" Content="{loc:Loc mode.editor.postProcessing.capitalization}"
+                              Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- API Key Warning -->
+            <Border x:Name="ApiKeyWarning" Visibility="Collapsed"
+                    Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="8"
+                    Padding="12" Margin="0,0,0,24">
+                <StackPanel>
+                    <TextBlock Text="{loc:Loc mode.editor.warning.apiKeyRequired}" FontWeight="Medium"
+                               Foreground="{DynamicResource WarningForegroundBrush}"/>
+                    <TextBlock x:Name="ApiKeyWarningText" FontSize="12"
+                               Foreground="{DynamicResource WarningForegroundBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Action Buttons -->
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="DeleteModeButton"
+                        Content="{loc:Loc modes.button.delete}"
+                        Style="{StaticResource MacButtonStyle}"
+                        Foreground="{DynamicResource ErrorForegroundBrush}"
+                        BorderBrush="{DynamicResource ErrorForegroundBrush}"
+                        Click="DeleteModeButton_Click"/>
+
+                <Button Grid.Column="2"
+                        Content="{loc:Loc common.cancel}"
+                        Style="{StaticResource MacButtonStyle}"
+                        Margin="0,0,8,0"
+                        IsCancel="True"/>
+
+                <Button Grid.Column="3"
+                        x:Name="SaveModeButton"
+                        Content="{loc:Loc modes.button.save}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Click="SaveModeButton_Click"
+                        IsDefault="True"/>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

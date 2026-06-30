@@ -1,0 +1,641 @@
+name: macOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (e.g. 2.25.0)"
+        required: true
+        type: string
+      build_number:
+        description: "Build number / sparkle:version (e.g. 84)"
+        required: true
+        type: string
+      release_notes:
+        description: "Release notes (HTML <li> items, optional)"
+        required: false
+        type: string
+      github_release_body:
+        description: "GitHub release body (markdown, optional). Falls back to release_notes if empty."
+        required: false
+        type: string
+      skip_upload:
+        description: "Skip R2 upload (for testing)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-push
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  build-sign-release:
+    name: Build, Sign & Release
+    runs-on: macos-26
+    environment: Production
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Checkout
+      # ----------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      # ----------------------------------------------------------------
+      # 2. Select Xcode version
+      # ----------------------------------------------------------------
+      - name: Select Xcode 26.3
+        run: |
+          # Pin to Xcode 26.3 — 26.4 has strict concurrency errors in FluidAudio
+          XCODE_PATH=$(ls -d /Applications/Xcode_26.3*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          fi
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)
+          fi
+          echo "Using Xcode at: $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+
+      # ----------------------------------------------------------------
+      # 3. Import Developer ID certificate
+      # ----------------------------------------------------------------
+      - name: Import Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          # Create temp keychain
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          P12_FILE="$RUNNER_TEMP/cert.p12"
+          echo "$P12_BASE64" | base64 --decode > "$P12_FILE"
+          security import "$P12_FILE" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productsign
+
+          # Allow codesign to access the keychain without UI prompt
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to search list (prepend so it takes priority)
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Verify
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          # Clean up p12
+          rm -f "$P12_FILE"
+
+      # ----------------------------------------------------------------
+      # 3b. Install provisioning profile (required for CloudKit entitlements)
+      # ----------------------------------------------------------------
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+          PROFILE_UUID: ${{ secrets.PROVISIONING_PROFILE_UUID }}
+        run: |
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          echo "$PROFILE_BASE64" | base64 --decode > "$PROFILES_DIR/$PROFILE_UUID.provisionprofile"
+
+          # Verify the profile parses and contains the expected App ID
+          security cms -D -i "$PROFILES_DIR/$PROFILE_UUID.provisionprofile" > "$RUNNER_TEMP/profile.plist"
+          /usr/libexec/PlistBuddy -c "Print :Name" "$RUNNER_TEMP/profile.plist"
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.icloud-container-identifiers" "$RUNNER_TEMP/profile.plist"
+          rm -f "$RUNNER_TEMP/profile.plist"
+
+      # ----------------------------------------------------------------
+      # 4. Bump version in project.pbxproj
+      # ----------------------------------------------------------------
+      - name: Bump version
+        env:
+          PBXPROJ: app/macos/hyperwhisper.xcodeproj/project.pbxproj
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          # Only rewrite MARKETING_VERSION / CURRENT_PROJECT_VERSION inside the
+          # app target's build configurations. Scoping by PRODUCT_BUNDLE_IDENTIFIER
+          # (instead of a blanket sed) prevents bumping test/UI-test or future
+          # extension targets, whose versions should stay independent. The app
+          # target has exactly two XCBuildConfiguration blocks (Debug + Release),
+          # so we fail loudly if the rewrite count ever changes.
+          python3 - "$PBXPROJ" "$VERSION" "$BUILD" <<'PY'
+          import re, sys
+
+          path, version, build = sys.argv[1], sys.argv[2], sys.argv[3]
+          app_bundle_id = "com.hyperwhisper.hyperwhisper"
+
+          with open(path) as f:
+              text = f.read()
+
+          block_re = re.compile(r"(buildSettings = \{)(.*?)(\n\t*\};)", re.DOTALL)
+          bundle_re = re.compile(
+              r"PRODUCT_BUNDLE_IDENTIFIER = " + re.escape(app_bundle_id) + r";"
+          )
+          counts = {"mv": 0, "cpv": 0}
+
+          def rewrite(match):
+              head, body, tail = match.group(1), match.group(2), match.group(3)
+              if bundle_re.search(body):
+                  body, n1 = re.subn(
+                      r"(MARKETING_VERSION = )[0-9]+\.[0-9]+\.[0-9]+;",
+                      r"\g<1>" + version + ";",
+                      body,
+                  )
+                  body, n2 = re.subn(
+                      r"(CURRENT_PROJECT_VERSION = )[0-9]+;",
+                      r"\g<1>" + build + ";",
+                      body,
+                  )
+                  counts["mv"] += n1
+                  counts["cpv"] += n2
+              return head + body + tail
+
+          text = block_re.sub(rewrite, text)
+
+          if counts["mv"] != 2 or counts["cpv"] != 2:
+              sys.exit(
+                  "ERROR: expected to rewrite 2 MARKETING_VERSION and 2 "
+                  "CURRENT_PROJECT_VERSION entries for the app target, but got "
+                  f"{counts['mv']} and {counts['cpv']}. Aborting so an unrelated "
+                  "target is not silently bumped (or the app target missed)."
+              )
+
+          with open(path, "w") as f:
+              f.write(text)
+          PY
+
+          echo "Version bumped to $VERSION (build $BUILD)"
+          grep -n "MARKETING_VERSION\|CURRENT_PROJECT_VERSION" "$PBXPROJ"
+
+      # ----------------------------------------------------------------
+      # 5. Strip whisper.xcframework signatures
+      # ----------------------------------------------------------------
+      - name: Strip whisper.xcframework signatures
+        run: |
+          chmod +x app/macos/strip_whisper_signatures.sh
+          app/macos/strip_whisper_signatures.sh
+
+      # ----------------------------------------------------------------
+      # 6. Build (xcodebuild archive)
+      # ----------------------------------------------------------------
+      - name: Archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          ARCHIVE_PATH="$RUNNER_TEMP/HyperWhisper.xcarchive"
+
+          # SENTRY_DSN is injected as a build setting → substituted into
+          # Info.plist's $(SENTRY_DSN). Empty when the secret is unset, so
+          # forks build cleanly with crash reporting simply disabled.
+          xcodebuild archive \
+            -project app/macos/hyperwhisper.xcodeproj \
+            -scheme hyperwhisper \
+            -configuration Release \
+            -archivePath "$ARCHIVE_PATH" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            SENTRY_DSN="$SENTRY_DSN" \
+            SENTRY_ENVIRONMENT="production" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime" \
+            | xcpretty || true
+
+          # Verify archive was created
+          if [ ! -d "$ARCHIVE_PATH" ]; then
+            echo "Archive failed - xcarchive not found"
+            exit 1
+          fi
+
+          echo "ARCHIVE_PATH=$ARCHIVE_PATH" >> "$GITHUB_ENV"
+          echo "Archive created at $ARCHIVE_PATH"
+          ls -la "$ARCHIVE_PATH/Products/Applications/"
+
+      # ----------------------------------------------------------------
+      # 6b. Upload dSYMs to Sentry
+      # ----------------------------------------------------------------
+      - name: Upload dSYMs to Sentry
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          # Install sentry-cli
+          brew install getsentry/tools/sentry-cli
+
+          DSYM_PATH="$ARCHIVE_PATH/dSYMs"
+          if [ ! -d "$DSYM_PATH" ]; then
+            echo "No dSYMs folder found, skipping"
+            exit 0
+          fi
+
+          sentry-cli --url https://de.sentry.io/ upload-dif \
+            --org ray-amjad \
+            --project hyperwhisper \
+            --include-sources \
+            "$DSYM_PATH"
+
+          echo "dSYM upload complete"
+
+      # ----------------------------------------------------------------
+      # 7. Export archive
+      # ----------------------------------------------------------------
+      - name: Export archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          EXPORT_PATH="$RUNNER_TEMP/export"
+
+          # ExportOptions.plist ships with a YOUR_TEAM_ID placeholder so the
+          # real Team ID stays out of source — inject it from the secret here.
+          /usr/libexec/PlistBuddy -c "Set :teamID $APPLE_TEAM_ID" app/macos/ExportOptions.plist
+
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist app/macos/ExportOptions.plist \
+            -exportPath "$EXPORT_PATH"
+
+          echo "EXPORT_PATH=$EXPORT_PATH" >> "$GITHUB_ENV"
+
+          # Verify the exported app
+          APP_PATH="$EXPORT_PATH/HyperWhisper.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Export failed - HyperWhisper.app not found"
+            ls -la "$EXPORT_PATH/"
+            exit 1
+          fi
+
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Exported app at $APP_PATH"
+
+          # Verify code signature
+          codesign -vvv --deep --strict "$APP_PATH"
+          echo "Code signature verification: PASSED"
+
+      # ----------------------------------------------------------------
+      # 8. Create DMG
+      # ----------------------------------------------------------------
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ inputs.version }}"
+          DMG_PATH="$RUNNER_TEMP/hyperwhisper-${VERSION}.dmg"
+          DMG_TEMP="$RUNNER_TEMP/dmg-staging"
+
+          # Build multi-resolution TIFF for Retina DMG background
+          BG_PNG="$GITHUB_WORKSPACE/.github/assets/dmg-background.png"
+          BG_TIFF="$RUNNER_TEMP/dmg-background.tiff"
+          sips -z 512 768 "$BG_PNG" --out "$RUNNER_TEMP/dmg-bg-1x.png"
+          cp "$BG_PNG" "$RUNNER_TEMP/dmg-bg-2x.png"
+          sips -s dpiWidth 144 -s dpiHeight 144 "$RUNNER_TEMP/dmg-bg-2x.png"
+          sips -s format tiff "$RUNNER_TEMP/dmg-bg-1x.png" --out "$RUNNER_TEMP/dmg-bg-1x.tiff"
+          sips -s format tiff "$RUNNER_TEMP/dmg-bg-2x.png" --out "$RUNNER_TEMP/dmg-bg-2x.tiff"
+          tiffutil -cat "$RUNNER_TEMP/dmg-bg-1x.tiff" "$RUNNER_TEMP/dmg-bg-2x.tiff" -out "$BG_TIFF"
+
+          # create-dmg returns 2 on "no icon set" which is fine
+          create-dmg \
+            --volname "HyperWhisper" \
+            --background "$BG_TIFF" \
+            --window-pos 200 120 \
+            --window-size 768 512 \
+            --icon-size 96 \
+            --icon "HyperWhisper.app" 170 240 \
+            --app-drop-link 600 240 \
+            --no-internet-enable \
+            "$DMG_PATH" \
+            "$APP_PATH" \
+            || test $? -eq 2
+
+          if [ ! -f "$DMG_PATH" ]; then
+            echo "DMG creation failed"
+            exit 1
+          fi
+
+          echo "DMG_PATH=$DMG_PATH" >> "$GITHUB_ENV"
+          echo "DMG created: $(du -h "$DMG_PATH" | cut -f1)"
+
+      # ----------------------------------------------------------------
+      # 9. Codesign the DMG
+      # ----------------------------------------------------------------
+      - name: Codesign DMG
+        run: |
+          codesign --force --sign "Developer ID Application" \
+            --timestamp "$DMG_PATH"
+          codesign -vvv "$DMG_PATH"
+          echo "DMG codesign: PASSED"
+
+      # ----------------------------------------------------------------
+      # 10. Notarize DMG
+      # ----------------------------------------------------------------
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APP_SPECIFIC_PASSWORD: ${{ secrets.APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "Submitting for notarization..."
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 30m
+
+          echo "Notarization complete"
+
+      # ----------------------------------------------------------------
+      # 11. Staple notarization ticket
+      # ----------------------------------------------------------------
+      - name: Staple notarization ticket
+        run: |
+          # Wait for Apple's CloudKit to propagate the notarization ticket
+          sleep 15
+          xcrun stapler staple "$DMG_PATH"
+          echo "Staple: PASSED"
+
+          # Final verification
+          spctl --assess --type open --context context:primary-signature "$DMG_PATH" && echo "spctl: PASSED" || echo "spctl: WARNING (may require network)"
+
+      # ----------------------------------------------------------------
+      # 12. Sparkle Ed25519 signature
+      # ----------------------------------------------------------------
+      - name: Sparkle Ed25519 sign DMG
+        id: sparkle_sign
+        env:
+          SPARKLE_KEY: ${{ secrets.SPARKLE_ED25519_PRIVATE_KEY }}
+        run: |
+          # Find generate_appcast from DerivedData or Sparkle package
+          # First try to find it in the archive's built products
+          SPARKLE_BIN=$(find ~/Library/Developer/Xcode/DerivedData -name "sign_update" -type f 2>/dev/null | head -1)
+
+          if [ -z "$SPARKLE_BIN" ]; then
+            # Fallback: build Sparkle's sign_update from the SPM checkout
+            SPARKLE_CHECKOUT=$(find ~/Library/Developer/Xcode/DerivedData -path "*/checkouts/Sparkle" -type d 2>/dev/null | head -1)
+            if [ -n "$SPARKLE_CHECKOUT" ]; then
+              echo "Building sign_update from Sparkle checkout..."
+              swift build --package-path "$SPARKLE_CHECKOUT" --product sign_update 2>/dev/null || true
+              SPARKLE_BIN=$(find "$SPARKLE_CHECKOUT" -name "sign_update" -type f 2>/dev/null | head -1)
+            fi
+          fi
+
+          if [ -n "$SPARKLE_BIN" ]; then
+            echo "Using Sparkle sign_update at: $SPARKLE_BIN"
+            SIGNATURE=$("$SPARKLE_BIN" --ed-key-file <(echo "$SPARKLE_KEY") "$DMG_PATH" 2>/dev/null | grep -oE 'sparkle:edSignature="[^"]*"' | sed 's/sparkle:edSignature="//;s/"//' || true)
+          fi
+
+          # Fallback: use Swift Ed25519 script
+          if [ -z "$SIGNATURE" ]; then
+            echo "Falling back to Swift Ed25519 script..."
+
+            cat > "$RUNNER_TEMP/sign_ed25519.swift" << 'SWIFT_SCRIPT'
+          import Foundation
+          import CryptoKit
+
+          // Read private key (base64 Ed25519 seed) from env
+          guard let keyBase64 = ProcessInfo.processInfo.environment["SPARKLE_KEY"],
+                let keyData = Data(base64Encoded: keyBase64) else {
+              fputs("Error: SPARKLE_KEY not set or invalid base64\n", stderr)
+              exit(1)
+          }
+
+          // Read file path from args
+          guard CommandLine.arguments.count > 1 else {
+              fputs("Usage: sign_ed25519 <file_path>\n", stderr)
+              exit(1)
+          }
+          let filePath = CommandLine.arguments[1]
+
+          guard let fileData = try? Data(contentsOf: URL(fileURLWithPath: filePath)) else {
+              fputs("Error: Cannot read file at \(filePath)\n", stderr)
+              exit(1)
+          }
+
+          // Sparkle uses the raw 32-byte seed as the Ed25519 private key
+          let privateKey = try! Curve25519.Signing.PrivateKey(rawRepresentation: keyData)
+          let signature = try! privateKey.signature(for: fileData)
+          print(signature.base64EncodedString())
+          SWIFT_SCRIPT
+
+            SIGNATURE=$(swift "$RUNNER_TEMP/sign_ed25519.swift" "$DMG_PATH")
+          fi
+
+          if [ -z "$SIGNATURE" ] || [ ${#SIGNATURE} -lt 10 ]; then
+            echo "Failed to generate Ed25519 signature"
+            exit 1
+          fi
+
+          echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
+          echo "Ed25519 signature: $SIGNATURE"
+
+      # ----------------------------------------------------------------
+      # 13. Get DMG file size
+      # ----------------------------------------------------------------
+      - name: Get DMG info
+        id: dmg_info
+        run: |
+          DMG_SIZE=$(stat -f%z "$DMG_PATH")
+          echo "size=$DMG_SIZE" >> "$GITHUB_OUTPUT"
+          echo "DMG size: $DMG_SIZE bytes"
+
+      # ----------------------------------------------------------------
+      # 14. Update appcast.xml
+      # ----------------------------------------------------------------
+      - name: Update appcast.xml
+        env:
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          BUILD="${{ inputs.build_number }}"
+          SIGNATURE="${{ steps.sparkle_sign.outputs.signature }}"
+          DMG_SIZE="${{ steps.dmg_info.outputs.size }}"
+          PUB_DATE=$(date -u "+%a, %d %b %Y %H:%M:%S %z")
+
+          RELEASE_NOTES="$INPUT_RELEASE_NOTES"
+          if [ -z "$RELEASE_NOTES" ]; then
+            RELEASE_NOTES="<li>See GitHub release for details</li>"
+          fi
+
+          APPCAST_FILE="nextjs/public/appcast.xml"
+
+          # Write new item XML to temp file
+          ITEM_FILE="$RUNNER_TEMP/new_item.xml"
+          printf '        <item>\n' > "$ITEM_FILE"
+          printf '            <title>%s</title>\n' "$VERSION" >> "$ITEM_FILE"
+          printf '            <pubDate>%s</pubDate>\n' "$PUB_DATE" >> "$ITEM_FILE"
+          printf '            <sparkle:version>%s</sparkle:version>\n' "$BUILD" >> "$ITEM_FILE"
+          printf '            <sparkle:shortVersionString>%s</sparkle:shortVersionString>\n' "$VERSION" >> "$ITEM_FILE"
+          printf '            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>\n' >> "$ITEM_FILE"
+          printf '            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-%s.dmg" length="%s" type="application/octet-stream" sparkle:edSignature="%s"/>\n' "$VERSION" "$DMG_SIZE" "$SIGNATURE" >> "$ITEM_FILE"
+          printf '            <description>\n' >> "$ITEM_FILE"
+          printf '                <![CDATA[\n' >> "$ITEM_FILE"
+          printf '                <ul>\n' >> "$ITEM_FILE"
+          printf '                    %s\n' "$RELEASE_NOTES" >> "$ITEM_FILE"
+          printf '                </ul>\n' >> "$ITEM_FILE"
+          printf '                ]]>\n' >> "$ITEM_FILE"
+          printf '            </description>\n' >> "$ITEM_FILE"
+          printf '        </item>\n' >> "$ITEM_FILE"
+
+          # Insert new item after <title>hyperwhisper</title> line
+          python3 -c "
+          import sys
+          appcast = open('$APPCAST_FILE').read()
+          new_item = open('$ITEM_FILE').read()
+          marker = '<title>hyperwhisper</title>'
+          idx = appcast.find(marker)
+          if idx == -1:
+              print('ERROR: Could not find channel title marker', file=sys.stderr)
+              sys.exit(1)
+          insert_pos = appcast.index('\n', idx) + 1
+          result = appcast[:insert_pos] + new_item + appcast[insert_pos:]
+          open('$APPCAST_FILE', 'w').write(result)
+          "
+
+          echo "Appcast updated for v$VERSION"
+
+      # ----------------------------------------------------------------
+      # 15. Validate appcast
+      # ----------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate appcast.xml
+        working-directory: nextjs
+        run: |
+          npm install xml2js 2>/dev/null
+          node scripts/validate-appcast.js
+
+      # ----------------------------------------------------------------
+      # 16. Upload DMG to Cloudflare R2
+      # ----------------------------------------------------------------
+      - name: Upload DMG to Cloudflare R2
+        if: ${{ inputs.skip_upload != true }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          VERSION="${{ inputs.version }}"
+          ENDPOINT="https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          BUCKET="${{ secrets.R2_BUCKET_NAME }}"
+          KEY="hyperwhisper-${VERSION}.dmg"
+
+          # Install AWS CLI if not available
+          which aws || brew install awscli
+
+          echo "Uploading $KEY to R2..."
+          aws s3 cp "$DMG_PATH" "s3://$BUCKET/$KEY" --endpoint-url "$ENDPOINT"
+          echo "Upload complete: https://builds.hyperwhisper.com/$KEY"
+
+      # ----------------------------------------------------------------
+      # 17. Commit and push version bump + appcast
+      # ----------------------------------------------------------------
+      - name: Commit and push changes
+        run: |
+          VERSION="${{ inputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/macos/hyperwhisper.xcodeproj/project.pbxproj
+          git add nextjs/public/appcast.xml
+          git commit -m "release: macOS v${VERSION} — bump version and update appcast"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push; then
+              break
+            fi
+
+            if [ "$i" = 5 ]; then
+              echo "git push failed after 5 attempts"
+              exit 1
+            fi
+
+            echo "push attempt $i failed, retrying after fetch/rebase..."
+            sleep 5
+          done
+
+      # ----------------------------------------------------------------
+      # 18. Create draft GitHub Release
+      # ----------------------------------------------------------------
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_GH_BODY: ${{ inputs.github_release_body }}
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          TAG="macos/v${VERSION}"
+
+          GH_BODY="$INPUT_GH_BODY"
+          RELEASE_NOTES="$INPUT_RELEASE_NOTES"
+          if [ -n "$GH_BODY" ]; then
+            BODY="$GH_BODY"
+          elif [ -n "$RELEASE_NOTES" ]; then
+            BODY="## What's New in ${VERSION}
+
+          ${RELEASE_NOTES}"
+          else
+            BODY="macOS release ${VERSION}"
+          fi
+
+          gh release create "$TAG" \
+            --title "macOS ${VERSION}" \
+            --notes "$BODY" \
+            "$DMG_PATH#hyperwhisper-${VERSION}.dmg"
+
+          echo "Release created: $TAG"
+
+      # ----------------------------------------------------------------
+      # 19. Cleanup keychain
+      # ----------------------------------------------------------------
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+
+      # ----------------------------------------------------------------
+      # 20. Job summary
+      # ----------------------------------------------------------------
+      - name: Write job summary
+        if: always()
+        run: |
+          VERSION="${{ inputs.version }}"
+          BUILD="${{ inputs.build_number }}"
+          SIGNATURE="${{ steps.sparkle_sign.outputs.signature }}"
+          DMG_SIZE="${{ steps.dmg_info.outputs.size }}"
+
+          {
+            echo "## macOS Release ${VERSION} (Build ${BUILD})"
+            echo ""
+            echo "| Property | Value |"
+            echo "|----------|-------|"
+            echo "| **Version** | ${VERSION} |"
+            echo "| **Build** | ${BUILD} |"
+            echo "| **DMG Size** | ${DMG_SIZE} bytes |"
+            echo "| **Ed25519** | \`${SIGNATURE}\` |"
+            echo "| **R2 Upload** | ${{ inputs.skip_upload == true && 'Skipped' || 'Done' }} |"
+            echo "| **Appcast** | Updated |"
+            echo "| **GitHub Release** | Draft created |"
+          } >> "$GITHUB_STEP_SUMMARY"

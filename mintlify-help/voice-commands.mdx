@@ -1,0 +1,30 @@
+---
+title: Voice Commands
+description: Examples of phrasing that HyperWhisper's prompt builder understands while it cleans up your dictation.
+---
+
+HyperWhisper's post-processing for the Hyper present can help you steer your output without you touching the keyboard.
+
+## Quick Formatting Cues
+
+| Say this | Result |
+| --- | --- |
+| "New paragraph…" | Splits the text onto a fresh paragraph break. |
+| "Exclamation mark" / "question mark" | Replaces the spoken punctuation with `!` or `?`. |
+| "…at example dot com" | Converts spelled-out email/URL into the proper format. |
+| "…in capitals" | Switches the requested phrase to uppercase text. |
+| "Actually I mean…" | Applies your self-correction and keeps only the final version. |
+
+## Everyday Dictation Examples
+
+- "Let's meet at 8pm actually I mean 9pm" → `Let's meet at 9pm.`
+  *Source: Self-corrections rule.*
+- "Can you email john at google dot com about this issue?" → `Can you email john@google.com about this issue?`
+  *Source: URL/Email formatting guidance + Example 3.*
+- "That's pretty cool exclamation mark actually, that's awesome" produces:
+
+```text
+That's pretty cool.
+
+Actually, that's awesome!
+```

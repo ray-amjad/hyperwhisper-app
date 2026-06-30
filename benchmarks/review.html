@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HyperWhisper benchmark review</title>
+<style>
+  :root { color-scheme: light dark; --good: #2c7; --bad: #d44; --mid: #d80; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; max-width: 1200px; }
+  h1 { margin: 0 0 4px; font-size: 18px; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 16px; }
+  table.leaderboard { border-collapse: collapse; font-size: 12px; margin-bottom: 24px; width: 100%; }
+  table.leaderboard th, table.leaderboard td { padding: 4px 8px; text-align: left; border-bottom: 1px solid #ccc3; }
+  table.leaderboard td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.leaderboard tr.ref { background: #fffbe8; color: #884; }
+  table.leaderboard tr.ref td { font-style: italic; }
+  .barwrap { background: #ccc4; height: 10px; width: 100px; border-radius: 5px; overflow: hidden; display: inline-block; vertical-align: middle; }
+  .bar { height: 100%; background: var(--good); }
+  .bar.mid { background: var(--mid); } .bar.bad { background: var(--bad); }
+  .sample { border: 1px solid #ccc4; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+  .sample h2 { margin: 0; font-size: 14px; }
+  .sample .sub { color: #888; font-size: 11px; margin-bottom: 8px; }
+  audio { width: 100%; max-width: 480px; display: block; margin: 6px 0 12px; }
+  .ref-block { background: #eef6ff; border-left: 3px solid #28c; padding: 6px 10px; font-size: 13px; border-radius: 0 4px 4px 0; margin-bottom: 8px; position: relative; }
+  .ref-block .lbl { font-size: 10px; color: #28c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .ref-block.edited { border-left-color: #d80; background: #fff7e6; }
+  .ref-block.edited .lbl { color: #d80; }
+  .ref-block .editable { outline: none; padding: 4px 0; min-height: 18px; }
+  .ref-block .editable:focus { background: #fff; box-shadow: 0 0 0 2px #28c4; border-radius: 2px; }
+  .ref-block .revert { font-size: 10px; color: #888; cursor: pointer; text-decoration: underline; margin-left: auto; }
+  .ref-block .revert:hover { color: #d44; }
+  .ref-block .saving { font-size: 10px; color: #888; }
+  table.outputs { border-collapse: collapse; font-size: 12px; width: 100%; }
+  table.outputs th, table.outputs td { padding: 4px 8px; vertical-align: top; border-bottom: 1px dashed #ccc4; }
+  table.outputs td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.outputs td.text { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+  td.fail { color: var(--bad); }
+  .pill { display: inline-block; padding: 1px 6px; border-radius: 8px; background: #ccc4; font-size: 10px; margin-right: 4px; }
+  .controls { margin-bottom: 16px; }
+  .controls input, .controls select { font-size: 12px; padding: 2px 6px; margin-right: 8px; }
+  .bucket-pill { background: #28c2; color: #28c; }
+  .edited-pill { background: #d804; color: #d80; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1c1c1e; color: #eee; }
+    .ref-block { background: #1a3a5a; }
+    .ref-block.edited { background: #3a2a10; }
+    .ref-block .editable:focus { background: #2a2a2c; }
+    .sample { border-color: #444; }
+    table.leaderboard tr.ref { background: #3a3220; color: #fc8; }
+  }
+</style>
+</head>
+<body>
+<h1>HyperWhisper benchmark review</h1>
+<div class="meta" id="meta">loading…</div>
+
+<div class="controls">
+  <label>Sort engines: <select id="sortBy">
+    <option value="avg_wer">avg WER ↑</option>
+    <option value="p50_latency_ms">p50 latency ↑</option>
+    <option value="display">name</option>
+  </select></label>
+  <label>Filter bucket: <select id="bucket">
+    <option value="">all</option>
+    <option value="lt5s">lt5s</option>
+    <option value="5to20s">5to20s</option>
+    <option value="20to60s">20to60s</option>
+    <option value="gt60s">gt60s</option>
+  </select></label>
+  <label>Engine name contains: <input id="engineFilter" placeholder="e.g. whisper"></label>
+</div>
+
+<h2 style="font-size:14px;margin-bottom:8px">Engine leaderboard</h2>
+<table class="leaderboard" id="leaderboard"><thead><tr>
+  <th>engine</th><th>provider</th><th>model</th>
+  <th class="num">n ok</th>
+  <th class="num">avg WER</th><th>WER bar</th>
+  <th class="num">p50 ms</th><th class="num">mean ms</th>
+</tr></thead><tbody></tbody></table>
+
+<h2 style="font-size:14px;margin-bottom:8px">Per-sample outputs</h2>
+<div id="samples"></div>
+
+<script>
+// ---- WER algorithm (token-level Levenshtein, mirrors score_results.py) ----
+function normalize(text) {
+  return text.toLowerCase().replace(/[^a-z0-9'\s]/g, " ").trim().split(/\s+/).filter(Boolean);
+}
+function wer(refTokens, hypTokens) {
+  const n = refTokens.length, m = hypTokens.length;
+  if (n === 0) return { wer: m === 0 ? 0 : 1, S: 0, D: 0, I: m, N: 0 };
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  const bt = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(""));
+  for (let i = 0; i <= n; i++) { dp[i][0] = i; bt[i][0] = "D"; }
+  for (let j = 0; j <= m; j++) { dp[0][j] = j; bt[0][j] = "I"; }
+  bt[0][0] = "";
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (refTokens[i-1] === hypTokens[j-1]) { dp[i][j] = dp[i-1][j-1]; bt[i][j] = "M"; }
+      else {
+        const sub = dp[i-1][j-1] + 1, del = dp[i-1][j] + 1, ins = dp[i][j-1] + 1;
+        const best = Math.min(sub, del, ins);
+        dp[i][j] = best;
+        bt[i][j] = best === sub ? "S" : best === del ? "D" : "I";
+      }
+    }
+  }
+  let S = 0, D = 0, I = 0, i = n, j = m;
+  while (i > 0 || j > 0) {
+    const op = bt[i][j];
+    if (op === "M") { i--; j--; }
+    else if (op === "S") { S++; i--; j--; }
+    else if (op === "D") { D++; i--; }
+    else if (op === "I") { I++; j--; }
+    else break;
+  }
+  return { wer: (S + D + I) / n, S, D, I, N: n };
+}
+
+function fmtPct(v) { return v == null ? "—" : (v * 100).toFixed(1) + "%"; }
+function fmtMs(v) { return v == null ? "—" : Math.round(v); }
+function shortPath(p) { return p.split("/").slice(-1)[0]; }
+function barClass(w) { return w == null ? "" : (w < 0.10 ? "" : (w < 0.30 ? "mid" : "bad")); }
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
+}
+
+let data = null;
+let originalRefs = {}; // sample_id -> Scribe v2 original text
+let overrides = {};    // sample_id -> user-edited text
+let saveTimer = null;
+
+async function load() {
+  data = await fetch("/scored.json").then(r => r.json());
+  overrides = await fetch("/overrides.json").then(r => r.json()).catch(() => ({}));
+
+  const refEng = data.engines.find(e => e.engine_key === data.reference_engine_key);
+  if (refEng) for (const r of refEng.results) originalRefs[r.sample_id] = r.text || "";
+
+  document.getElementById("meta").textContent =
+    `run ${data.run_id} · reference: ${data.reference_engine_key} (editable — click to fix) · ${data.samples.length} samples · ${data.engines.length} engines`;
+  render();
+}
+
+function currentRef(sampleId) {
+  return overrides[sampleId] !== undefined ? overrides[sampleId] : (originalRefs[sampleId] || "");
+}
+
+// Re-compute every engine's WER stats using current (possibly edited) refs.
+function recomputeStats() {
+  for (const e of data.engines) {
+    if (e.engine_key === data.reference_engine_key) continue;
+    const wers = [];
+    let totS = 0, totD = 0, totI = 0, totN = 0;
+    const latencies = [];
+    for (const r of e.results) {
+      const ref = currentRef(r.sample_id);
+      if (r.ok && r.text != null && ref) {
+        const w = wer(normalize(ref), normalize(r.text));
+        r.wer = +w.wer.toFixed(4);
+        r._S = w.S; r._D = w.D; r._I = w.I; r._N = w.N;
+        wers.push(w.wer);
+        totS += w.S; totD += w.D; totI += w.I; totN += w.N;
+      } else {
+        r.wer = null;
+      }
+      if (r.ok && r.wall_ms != null) latencies.push(r.wall_ms);
+    }
+    e.avg_wer = wers.length ? +(wers.reduce((a,b)=>a+b,0) / wers.length).toFixed(4) : null;
+    e.agg_wer = totN > 0 ? +((totS+totD+totI)/totN).toFixed(4) : null;
+    latencies.sort((a,b)=>a-b);
+    e.p50_latency_ms = latencies.length ? latencies[Math.floor(latencies.length/2)] : null;
+    e.mean_latency_ms = latencies.length ? +(latencies.reduce((a,b)=>a+b,0)/latencies.length).toFixed(1) : null;
+  }
+}
+
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    document.querySelectorAll(".saving").forEach(el => el.textContent = "saving…");
+    try {
+      await fetch("/overrides.json", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(overrides),
+      });
+      document.querySelectorAll(".saving").forEach(el => el.textContent = "saved");
+      setTimeout(() => document.querySelectorAll(".saving").forEach(el => el.textContent = ""), 1500);
+    } catch (e) {
+      document.querySelectorAll(".saving").forEach(el => el.textContent = "save failed");
+    }
+  }, 400);
+}
+
+function render() {
+  recomputeStats();
+  const sortBy = document.getElementById("sortBy").value;
+  const bucket = document.getElementById("bucket").value;
+  const filter = document.getElementById("engineFilter").value.toLowerCase();
+
+  const engines = data.engines.filter(e =>
+    !filter || e.engine_key.toLowerCase().includes(filter) || e.display.toLowerCase().includes(filter));
+
+  // Leaderboard
+  const tbody = document.querySelector("#leaderboard tbody");
+  tbody.innerHTML = "";
+  const sorted = [...engines].sort((a, b) => {
+    const va = a[sortBy], vb = b[sortBy];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "string") return va.localeCompare(vb);
+    return va - vb;
+  });
+  for (const e of sorted) {
+    const tr = document.createElement("tr");
+    if (e.is_reference) tr.className = "ref";
+    const werBar = e.avg_wer == null ? "" :
+      `<div class="barwrap"><div class="bar ${barClass(e.avg_wer)}" style="width:${Math.min(100, e.avg_wer * 100).toFixed(0)}%"></div></div>`;
+    tr.innerHTML = `
+      <td>${e.display}${e.is_reference ? ' <span class="pill">ref</span>' : ''}</td>
+      <td>${e.provider}</td>
+      <td><code style="font-size:10px">${e.model}</code></td>
+      <td class="num">${e.n_ok}/${e.n_samples}</td>
+      <td class="num">${fmtPct(e.avg_wer)}</td>
+      <td>${werBar}</td>
+      <td class="num">${fmtMs(e.p50_latency_ms)}</td>
+      <td class="num">${fmtMs(e.mean_latency_ms)}</td>`;
+    tbody.appendChild(tr);
+  }
+
+  // Per-sample cards
+  const root = document.getElementById("samples");
+  root.innerHTML = "";
+  const samples = bucket ? data.samples.filter(s => s.bucket === bucket) : data.samples;
+  const refEng = data.engines.find(e => e.engine_key === data.reference_engine_key);
+  const refDisplay = refEng ? refEng.display : "?";
+
+  for (const s of samples) {
+    const card = document.createElement("div");
+    card.className = "sample";
+    const ref = currentRef(s.id);
+    const isEdited = overrides[s.id] !== undefined && overrides[s.id] !== (originalRefs[s.id] || "");
+
+    let rows = "";
+    const engineSorted = [...engines].sort((a, b) => {
+      const ra = (a.results.find(r => r.sample_id === s.id) || {}).wer;
+      const rb = (b.results.find(r => r.sample_id === s.id) || {}).wer;
+      if (ra == null && rb == null) return 0;
+      if (ra == null) return 1;
+      if (rb == null) return -1;
+      return ra - rb;
+    });
+    for (const e of engineSorted) {
+      if (e.is_reference) continue;
+      const r = e.results.find(rr => rr.sample_id === s.id);
+      if (!r) continue;
+      if (!r.ok) {
+        rows += `<tr><td>${e.display}</td><td class="num">—</td><td class="num">${fmtMs(r.wall_ms)}</td>
+                 <td class="text fail">${(r.error && r.error.code) || "fail"}: ${(r.error && r.error.message) || ""}</td></tr>`;
+      } else {
+        rows += `<tr>
+          <td>${e.display}</td>
+          <td class="num">${fmtPct(r.wer)}</td>
+          <td class="num">${fmtMs(r.wall_ms)}</td>
+          <td class="text">${escapeHtml(r.text || "")}</td>
+        </tr>`;
+      }
+    }
+
+    card.innerHTML = `
+      <h2>${shortPath(s.path)} <span class="pill bucket-pill">${s.bucket}</span>${isEdited ? ' <span class="pill edited-pill">edited</span>' : ''}</h2>
+      <div class="sub">id ${s.id} · ${s.duration_s.toFixed(1)}s · ${(s.size_bytes/1024).toFixed(0)} KB</div>
+      <audio controls preload="none" src="/audio/${s.id}"></audio>
+      <div class="ref-block ${isEdited ? 'edited' : ''}">
+        <div class="lbl">
+          <span>Reference (${refDisplay}${isEdited ? ' · corrected' : ''})</span>
+          ${isEdited ? `<span class="revert" data-sid="${s.id}">revert</span>` : ''}
+          <span class="saving" data-sid="${s.id}"></span>
+        </div>
+        <div class="editable" contenteditable="true" data-sid="${s.id}" spellcheck="true">${escapeHtml(ref)}</div>
+      </div>
+      <table class="outputs"><thead><tr>
+        <th>engine</th><th class="num">WER</th><th class="num">ms</th><th>text</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+    `;
+    root.appendChild(card);
+  }
+
+  // Wire edit handlers (after innerHTML is built)
+  for (const el of document.querySelectorAll(".editable")) {
+    el.addEventListener("blur", onEdit);
+    el.addEventListener("input", onEdit);
+  }
+  for (const el of document.querySelectorAll(".revert")) {
+    el.addEventListener("click", () => {
+      const sid = el.dataset.sid;
+      delete overrides[sid];
+      persist();
+      render();
+    });
+  }
+}
+
+let renderTimer = null;
+function onEdit(ev) {
+  const sid = ev.target.dataset.sid;
+  const newText = ev.target.innerText.replace(/\s+/g, " ").trim();
+  if (newText === (originalRefs[sid] || "")) {
+    delete overrides[sid];
+  } else {
+    overrides[sid] = newText;
+  }
+  persist();
+  // Debounce re-render so caret stays put while typing — only re-render on blur.
+  if (ev.type === "blur") {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(render, 50);
+  } else {
+    // While typing: recompute leaderboard numbers live, but don't rebuild DOM.
+    recomputeStats();
+    updateLeaderboardOnly();
+  }
+}
+
+function updateLeaderboardOnly() {
+  const sortBy = document.getElementById("sortBy").value;
+  const filter = document.getElementById("engineFilter").value.toLowerCase();
+  const engines = data.engines.filter(e =>
+    !filter || e.engine_key.toLowerCase().includes(filter) || e.display.toLowerCase().includes(filter));
+  const tbody = document.querySelector("#leaderboard tbody");
+  tbody.innerHTML = "";
+  const sorted = [...engines].sort((a, b) => {
+    const va = a[sortBy], vb = b[sortBy];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "string") return va.localeCompare(vb);
+    return va - vb;
+  });
+  for (const e of sorted) {
+    const tr = document.createElement("tr");
+    if (e.is_reference) tr.className = "ref";
+    const werBar = e.avg_wer == null ? "" :
+      `<div class="barwrap"><div class="bar ${barClass(e.avg_wer)}" style="width:${Math.min(100, e.avg_wer * 100).toFixed(0)}%"></div></div>`;
+    tr.innerHTML = `
+      <td>${e.display}${e.is_reference ? ' <span class="pill">ref</span>' : ''}</td>
+      <td>${e.provider}</td>
+      <td><code style="font-size:10px">${e.model}</code></td>
+      <td class="num">${e.n_ok}/${e.n_samples}</td>
+      <td class="num">${fmtPct(e.avg_wer)}</td>
+      <td>${werBar}</td>
+      <td class="num">${fmtMs(e.p50_latency_ms)}</td>
+      <td class="num">${fmtMs(e.mean_latency_ms)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+["sortBy", "bucket", "engineFilter"].forEach(id =>
+  document.getElementById(id).addEventListener("input", render));
+
+load();
+</script>
+</body>
+</html>

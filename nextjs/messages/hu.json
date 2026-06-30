@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI hangátírás macOS-re és Windowsra",
+    "description": "Írj 5x gyorsabban AI-alapú hangátírással. A HyperWhisper elképesztő pontossággal írja át a hangodat macOS-en és Windowson. Beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek."
+  },
+  "navbar": {
+    "features": "Funkciók",
+    "pricing": "Árazás",
+    "faq": "GYIK",
+    "support": "Támogatás",
+    "download": "Letöltés",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Nyelvváltás"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper logó",
+    "headline": "Írj, alkoss és hozz létre",
+    "headlineAccent": "5x gyorsabban AI-val",
+    "subheadline": "A HyperWhisper elképesztő pontossággal írja át a hangodat. Csak beszélj természetesen, és nézd, ahogy a szavaid azonnal megjelennek.",
+    "downloadCta": "Letöltés most",
+    "demoCta": "Demó megtekintése",
+    "availableOn": "Elérhető",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Profiknak tervezve",
+    "subtitle": "Minden funkciót azért terveztünk, hogy gyorsabban és hatékonyabban dolgozhass",
+    "customVocabulary": {
+      "title": "Egyéni szókincs",
+      "description": "Adj hozzá neveket, rövidítéseket és speciális kifejezéseket a tökéletes pontosságért minden alkalommal."
+    },
+    "languages": {
+      "title": "100+ nyelv",
+      "description": "Írj át több mint 100 nyelven automatikus nyelvfelismeréssel."
+    },
+    "offline": {
+      "title": "Offline támogatás",
+      "description": "Teljesen offline működik. Az adataid soha nem hagyják el az eszközödet."
+    },
+    "privacy": {
+      "title": "Adatvédelem-központú",
+      "description": "Nincs szükség fiókra. Nincs követés. A hangadataid a Maceden vagy PC-den maradnak."
+    },
+    "hybridProcessing": {
+      "title": "Hibrid feldolgozás",
+      "description": "Válassz helyi modelleket az adatvédelemhez vagy felhős API-kat a sebességhez. A legjobb mindkét világból."
+    },
+    "customizable": {
+      "title": "Erősen testreszabható",
+      "description": "Válassz 9+ API-szolgáltató és 30+ átírási modell közül."
+    },
+    "realTime": {
+      "title": "Valós idejű streamelés",
+      "description": "Lásd, ahogy a szavaid azonnal megjelennek beszéd közben. Iparágvezető pontosság 700 ms alatti késleltetéssel."
+    },
+    "fileImport": {
+      "title": "Fájlimport",
+      "description": "Importálj hang- vagy videófájlokat átíráshoz. Minden fő formátum támogatott automatikus csendérzékeléssel."
+    },
+    "screenOcr": {
+      "title": "Képernyő OCR",
+      "description": "Engedélyezd a HyperWhispernek, hogy lássa a képernyődet, így mindent pontosan tud leírni."
+    },
+    "mcpServer": {
+      "title": "Helyi API és MCP-kiszolgáló",
+      "description": "A beépített MCP-kiszolgáló lehetővé teszi a Claude, a Cursor és más AI-ügynökök számára a HyperWhisper vezérlését. Csak helyi HTTP API bearer-hitelesítéssel szkriptekhez és automatizáláshoz."
+    },
+    "modes": {
+      "title": "Módok minden helyzetre",
+      "description": "Válts különböző átírási módok között, amelyek meetingekhez, jegyzeteléshez, emailekhez, kódoláshoz és más feladatokhoz optimalizáltak. Minden mód egyedi promptokat használ, hogy tökéletesen formázza a szövegedet.",
+      "meeting": "Meeting",
+      "email": "Email",
+      "note": "Jegyzet",
+      "code": "Kód",
+      "legal": "Jogi",
+      "medical": "Orvosi",
+      "presetModes": "Előre beállított módok",
+      "customModes": "Egyéni módok"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Gyorsabb, mint a gépelés",
+    "accuracyRate": "Pontossági arány",
+    "languagesSupported": "Támogatott nyelvek",
+    "providersSupported": "Támogatott szolgáltatók"
+  },
+  "pricing": {
+    "title": "Nincs előfizetés. Soha.",
+    "subtitle": "Fizess egyszer, használd örökre. Mi is utáljuk az előfizetéseket.",
+    "guarantee": "14 napos pénzvisszafizetési garancia",
+    "guaranteeExtended": "ha nem vagy teljesen elégedett.",
+    "learnMore": "További információ",
+    "free": {
+      "name": "Ingyenes",
+      "price": "$0",
+      "period": "örökre",
+      "description": "Tökéletes a HyperWhisper kipróbálásához",
+      "cta": "Ingyenes letöltés",
+      "features": {
+        "transcriptionLimit": "Napi 5 perc átírás",
+        "basicModes": "Alap átírási módok",
+        "offlineTranscription": "Offline átírás",
+        "apiTranscription": "API átírás (saját kulcsokkal)",
+        "postProcessing": "Szöveg utófeldolgozás",
+        "providers": "9+ szolgáltató közül választhatsz",
+        "lifetimeUpdates": "Élethosszig tartó frissítések",
+        "cloudLimited": "HyperWhisper Cloud (korlátozott használat)",
+        "customVocabulary": "Egyéni szókincs",
+        "prioritySupport": "Elsőbbségi támogatás"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "élethosszig",
+      "description": "Egyszeri vásárlás, korlátlan erő örökre",
+      "cta": "Vásárlás most - Élethosszig tartó hozzáférés",
+      "mostPopular": "Legnépszerűbb",
+      "features": {
+        "unlimitedTranscription": "Korlátlan átírás",
+        "allModes": "Minden átírási mód",
+        "offlineTranscription": "Offline átírás",
+        "apiTranscription": "API átírás (saját kulcsokkal)",
+        "postProcessing": "Szöveg utófeldolgozás",
+        "providers": "9+ szolgáltató közül választhatsz",
+        "lifetimeUpdates": "Élethosszig tartó frissítések",
+        "cloudCredits": "HyperWhisper Cloud ($5 kredit)",
+        "customVocabulary": "Egyéni szókincs",
+        "prioritySupport": "Elsőbbségi támogatás"
+      }
+    },
+    "enterprise": {
+      "title": "Vállalati és egyedi árazás",
+      "description": "Mennyiségi kedvezmények, SSO, elsőbbségi támogatás, belső tárhely és egyedi integrációk",
+      "cta": "Kapcsolatfelvétel az értékesítéssel"
+    }
+  },
+  "faq": {
+    "title": "Gyakran ismételt kérdések",
+    "subtitle": "Minden, amit a HyperWhisperről tudnod kell",
+    "contactPrompt": "Még van kérdésed? Írj nekünk ide:",
+    "questions": {
+      "accuracy": {
+        "question": "Mennyire pontos az átírás?",
+        "answer": "Iparágvezető, 99%-os pontosságot érünk el a legmodernebb AI modellekkel. A pontosság tovább növelhető saját egyéni szókincs hozzáadásával technikai kifejezésekhez, nevekhez és speciális zsargonhoz."
+      },
+      "offline": {
+        "question": "Használhatom internet nélkül?",
+        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
+      },
+      "apiKey": {
+        "question": "Kell fizetnem az API-hozzáférésért?",
+        "answer": "A következő szolgáltatókhoz saját API-kulcsot használsz: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral és Google Gemini. Néhány szolgáltató ingyenes kreditet ad új felhasználóknak; a Deepgram $200-t, az AssemblyAI $50-t kínál. Hosszú távon ez jelentősen olcsóbb, mint bármilyen előfizetés. \n\nHasználhatod a beépített HyperWhisper Cloudot is, amely nem igényel API-kulcsot, és használat alapú elszámolással működik.\n\nNe feledd, a helyi offline mód API-kulcs nélkül is működik, és teljesen ingyenes."
+      },
+      "languages": {
+        "question": "Milyen nyelveket támogat?",
+        "answer": "Több mint 100 nyelv támogatott azonnal, az angoltól és spanyoltól a mandarinig és arabul. A legtöbb modell automatikusan felismeri, milyen nyelven beszélsz, és zökkenőmentesen vált."
+      },
+      "offlineModels": {
+        "question": "Milyen offline modellek érhetők el?",
+        "answer": "Offline átíráshoz a Whisper modell több méretét kínáljuk (OpenAI fejlesztés, 99+ nyelv támogatása). Emellett az NVidia Parakeet modelljeit is kínáljuk (25+ nyelv támogatása).\n      \n      Offline utófeldolgozáshoz a Gemma 3 modell több méretét kínáljuk (Google fejlesztés)."
+      },
+      "compatibility": {
+        "question": "Minden Mac és Windows alkalmazással működik?",
+        "answer": "Igen, bárhol működik, ahol gépelni tudsz. Akár emaileket írsz, dokumentumokat készítesz, kódolsz vagy csetelsz. Csak nyomd meg a gyorsbillentyűt, beszélj, és nézd, ahogy a szavaid azonnal megjelennek."
+      },
+      "privacy": {
+        "question": "Hogyan véditek az adataimat?",
+        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs vagy Mistral).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), vagy egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Mi az a HyperWhisper Cloud?",
+        "answer": "A HyperWhisper Cloud egy beépített felhős átírási szolgáltatás, amely kevésbé technikai felhasználóknak szól, akik gyorsan szeretnének elindulni.\n\nHasználat alapú elszámolással működik. Licenc vásárlásakor $5 átírási kreditet kapsz. Később további kreditet adhatsz hozzá.\n    \nHárom pontossági szintet kínálunk: Medium (leggyorsabb, Groq), High (ajánlott, Deepgram) és Highest (legjobb minőség, xAI Grok STT). Az utófeldolgozás automatikus. Nem tárolunk mást, csak a felhasznált kreditek mennyiségét.\n\nPontosan annyit fizetsz, amennyit mi fizetünk ezeknek a szolgáltatóknak. Nem számolunk fel felárat.\n\nA nyugalom kedvéért a HyperWhisper Cloud forráskódját [itt](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "A hangadataimat felhasználják AI-modellek betanítására?",
+        "answer": "A HyperWhisper Cloud minden általunk használt szolgáltatónál letiltja az adatainak modellbetanításra való felhasználását. Saját API-kulcs használata esetén a letiltás az Ön felelőssége — lásd az [adatvédelmi útmutatónkat](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Miért élethosszig tartó árazás előfizetés helyett?",
+        "answer": "Hiszünk az egyszerű és tisztességes árazásban. Fizess egyszer $39-t, és használd a HyperWhispert örökre. Nincs havi díj, nincs meglepetés. Az ingyenes verzió napi 3 perc átírással lehetővé teszi a fő funkciók kipróbálását."
+      },
+      "deviceLimit": {
+        "question": "Hány eszközön használhatom a licence-met?",
+        "answer": "A licencet tetszőleges számú eszközön használhatod, a [Felhasználási feltételekben](/legal/terms-of-service) leírt Méltányos Használati Szabályzatunk szerint. Ez a szabályzat rugalmas a legitim személyes és üzleti használathoz, miközben megelőzi a visszaéléseket."
+      },
+      "requirements": {
+        "question": "Mik a rendszerkövetelmények?",
+        "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Az optimális teljesítményhez 8GB RAM ajánlott."
+      },
+      "windowsStatus": {
+        "question": "A Windows-verzió tudja ugyanazokat a funkciókat, mint a macOS-verzió?",
+        "answer": "A Windows-verzió nemrég jelent meg, így lehet, hogy még nem tartalmaz minden, macOS-en elérhető funkciót. Aktívan dolgozunk a teljes funkcióparitás elérésén mindkét platformon."
+      },
+      "madeBy": {
+        "question": "Ki készítette ezt?",
+        "answer": "Ezt a YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Támogatási központ",
+    "subtitle": "Azért vagyunk itt, hogy a legtöbbet hozhasd ki a HyperWhisperből",
+    "getInTouch": "Lépj kapcsolatba velünk",
+    "description": "Technikai támogatás, licencproblémák vagy bármilyen HyperWhisperrel kapcsolatos kérdés esetén a csapatunk szívesen segít.",
+    "emailUsAt": "Írj nekünk ide:",
+    "openInClient": "Megnyitás az email kliensedben:",
+    "defaultClient": "Alapértelmezett Email Kliens",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Munkanapokon jellemzően 24 órán belül válaszolunk.",
+    "emailTemplate": {
+      "subject": "HyperWhisper támogatási kérés",
+      "body": "Szia,\n\nVerzió: \n[ezt a Beállítások > Névjegy menüben ellenőrizheted]\n\nHiba: \n[Írd le a problémát]\n\nRészletek: \n[Adj meg minden releváns részletet, mit csináltál a leállás előtt]\n\n[Ide írd az üzeneted]\n\nÜdv,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper logó",
+    "title": "HyperWhisper letöltése",
+    "emailPlaceholder": "Email",
+    "description": "Emailben küldünk letöltési linket és egy rövid oktatóvideót az induláshoz. Nincs spam.",
+    "downloadButton": "HyperWhisper letöltése",
+    "errorGeneric": "Valami hiba történt. Kérlek próbáld újra.",
+    "errorNetwork": "Hálózati hiba. Ellenőrizd a kapcsolatot, majd próbáld újra.",
+    "thankYouTitle": "Köszönjük!",
+    "downloadStarted": "A letöltésnek automatikusan el kell indulnia.",
+    "manualDownload": "Nem indult el a letöltés? Kattints ide",
+    "skipAndDownloadButton": "Kihagyás és letöltés"
+  },
+  "downloadPage": {
+    "title": "HyperWhisper letöltése",
+    "countdownText": "Indulás {seconds} múlva...",
+    "downloadStarted": "Ellenőrizd a Letöltések mappát",
+    "downloadNow": "Letöltés most",
+    "downloadAgain": "Letöltés újra",
+    "selectArchitecture": "Válaszd ki az architektúrát",
+    "downloadX64": "Letöltés x64-re",
+    "downloadArm64": "Letöltés ARM64-re",
+    "orDivider": "VAGY",
+    "homebrewTitle": "Telepítés Homebrew-val",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Másolás",
+    "copied": "Kimásolva!"
+  },
+  "purchaseSuccess": {
+    "title": "Sikeres vásárlás!",
+    "subtitle": "Üdv a HyperWhisper Pro-ban! Az élethosszig tartó licenced készen áll.",
+    "checkEmail": {
+      "title": "Ellenőrizd az emailed",
+      "description": "Elküldtük a licenckulcsot és a letöltési útmutatót az email címedre. Néhány percen belül meg kell érkeznie."
+    },
+    "whatsNext": {
+      "title": "Mi a következő lépés?",
+      "step1": {
+        "title": "Nézd meg a beérkező üzeneteket",
+        "description": "Keresd a HyperWhisper emailjét"
+      },
+      "step2": {
+        "title": "Másold ki a licenckulcsot",
+        "description": "Szükséged lesz rá az alkalmazás aktiválásához"
+      },
+      "step3": {
+        "title": "Töltsd le a HyperWhispert",
+        "description": "Telepítsd az alkalmazást és add meg a licenckulcsot"
+      }
+    },
+    "downloadButton": "HyperWhisper letöltése",
+    "returnHome": "Vissza a főoldalra",
+    "noEmail": "Nem kaptad meg az emailed? Ellenőrizd a spam mappát vagy",
+    "contactSupport": "lépj kapcsolatba a támogatással",
+    "loading": "Betöltés..."
+  },
+  "footer": {
+    "tagline": "Írj 5x gyorsabban AI-alapú hangátírással macOS-re és Windowsra.",
+    "product": "Termék",
+    "resources": "Erőforrások",
+    "company": "Cég",
+    "legal": "Jogi",
+    "links": {
+      "features": "Funkciók",
+      "pricing": "Árazás",
+      "download": "Letöltés",
+      "roadmap": "Ütemterv",
+      "helpCenter": "Súgóközpont",
+      "manageBilling": "Számlázás kezelése",
+      "customerPortal": "Ügyfélportál",
+      "olderVersions": "Korábbi verziók",
+      "blog": "Blog",
+      "about": "Rólunk",
+      "support": "Támogatás",
+      "privacyPolicy": "Adatvédelmi szabályzat",
+      "termsOfService": "Szolgáltatási feltételek",
+      "refundPolicy": "Visszatérítési szabályzat",
+      "dataTraining": "Adatvédelem"
+    },
+    "copyright": "© 2026 HyperWhisper. Minden jog fenntartva.",
+    "linkedinAria": "LinkedIn"
+  }
+}

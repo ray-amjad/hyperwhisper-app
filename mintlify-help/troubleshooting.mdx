@@ -1,0 +1,376 @@
+---
+title: Troubleshooting
+description: Fixes for common HyperWhisper problems — recording failures, blank transcripts, permission errors, cloud provider issues, and model downloads.
+---
+
+This page covers the most common problems and how to fix them. Jump to the symptom that matches what you're seeing.
+
+## Recording issues
+
+### App is not recording / recording won't start
+
+<AccordionGroup>
+  <Accordion title="Microphone permission not granted">
+    HyperWhisper needs Microphone permission before it can record anything. Without it, recording fails immediately.
+
+    <Tabs>
+      <Tab title="macOS">
+        Go to **System Settings → Privacy & Security → Microphone** and enable **HyperWhisper**. If you clicked "Don't Allow" during the initial prompt, the toggle may be off.
+
+        You can also reset the permission and re-grant it from scratch:
+
+        ```bash
+        tccutil reset Microphone com.hyperwhisper.hyperwhisper
+        ```
+
+        Then relaunch HyperWhisper and click **OK** when prompted.
+      </Tab>
+      <Tab title="Windows">
+        Go to **Settings → Privacy & Security → Microphone** and make sure microphone access is enabled for desktop apps.
+      </Tab>
+    </Tabs>
+
+    See [Permissions](/permissions) for the full grant flow.
+  </Accordion>
+
+  <Accordion title="No microphone available / device disconnected">
+    If no audio input device is present when you start recording, the recording cannot begin.
+
+    Common causes:
+    - USB microphone was unplugged
+    - Bluetooth headset disconnected or went to sleep
+    - All input devices disabled in system sound settings
+
+    **Fix:** Reconnect the device, then check that it appears in the microphone list:
+
+    <Tabs>
+      <Tab title="macOS">
+        Click the HyperWhisper icon in the menu bar, hover over **Microphone**, and confirm your device appears and is selected. Also check **System Settings → Sound → Input** to confirm the device is listed.
+      </Tab>
+      <Tab title="Windows">
+        Right-click the HyperWhisper tray icon, hover over **Microphone**, and select your device. Check **Settings → System → Sound** to confirm the device is enabled.
+      </Tab>
+    </Tabs>
+
+    See [Select a Microphone](/microphone-selection) for details on device selection and fallback behavior.
+  </Accordion>
+
+  <Accordion title="Microphone is in use by another app">
+    On macOS, two apps cannot always share the same microphone input simultaneously. If another app has an exclusive hold on the microphone, HyperWhisper shows an error when you try to start recording.
+
+    **Fix:** Quit competing apps that may be holding the microphone open — common culprits include Zoom, Microsoft Teams, FaceTime, and Voice Memos. Then try recording again.
+  </Accordion>
+
+  <Accordion title="Bare-modifier push-to-talk not working (macOS)">
+    Push-to-talk using a bare modifier key (Option or Control held alone, without another key) requires Accessibility permission. Standard combinations like **⌥ Space** do not require it.
+
+    macOS does not prompt for Accessibility automatically — you must grant it manually.
+
+    <Steps>
+      <Step title="Open Accessibility settings">
+        Go to **System Settings → Privacy & Security → Accessibility**.
+      </Step>
+      <Step title="Enable HyperWhisper">
+        Click the lock icon, authenticate, then enable **HyperWhisper** in the list.
+      </Step>
+      <Step title="Restart HyperWhisper">
+        Quit and reopen the app so the new permission takes effect.
+      </Step>
+    </Steps>
+
+    <Note>
+      If you are running a development build from Xcode, the entry in the Accessibility list will show the Xcode DerivedData path rather than `/Applications/HyperWhisper.app`. You may need to enable both entries if you switch between them. The entry must match the path of the currently running build.
+    </Note>
+
+    See [Permissions](/permissions) for more on the Accessibility grant flow.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Transcription output issues
+
+### No output / blank transcript
+
+<AccordionGroup>
+  <Accordion title="No speech detected in the recording">
+    The transcription provider analyzed the audio but found no recognizable speech. This is a real signal, not a silent failure.
+
+    Common causes:
+    - The recording captured silence (microphone muted, very low input volume)
+    - Background noise was louder than your voice
+    - You were too far from the microphone
+
+    **Fix:** Check your microphone input level in **System Settings → Sound → Input** (macOS) or **Sound Settings → Recording** (Windows), and speak closer to the microphone. See [Audio Input Volume](/audio-input) and [Best Practices](/best-practices) for guidance on environment and microphone positioning.
+  </Accordion>
+
+  <Accordion title="Wrong language — auto-detect on short recordings">
+    When language is set to Auto-detect, the provider needs enough audio to identify which language you are speaking. For recordings under 10–15 seconds, detection can fail or produce output in the wrong language.
+
+    **Fix:** Set an explicit language in your mode settings instead of relying on auto-detect. See [Best Practices](/best-practices) for why this matters.
+  </Accordion>
+
+  <Accordion title="Audio format not supported (file transcription)">
+    When transcribing a file, the provider may reject audio in an unsupported codec.
+
+    **Fix:** Convert the file to WAV, MP3, or M4A before importing. See [Transcribe a File](/file-transcription) for supported formats and provider-specific size limits.
+  </Accordion>
+
+  <Accordion title="Local model not downloaded or unavailable">
+    If you have selected a local model but it is not downloaded yet — or the download was corrupted — transcription cannot proceed.
+
+    <Tabs>
+      <Tab title="macOS">
+        Open **Model Library**, find the model you are using, and check its status. If it shows a **Download** button, click it. If it appears downloaded but transcription still fails, remove the model and re-download it.
+      </Tab>
+      <Tab title="Windows">
+        Open **Model Library** and look for the model you have configured. Re-download if the status indicates it is missing. If the Parakeet daemon repeatedly crashes or times out, restart the app — a crash during transcription can leave the daemon in a bad state.
+      </Tab>
+    </Tabs>
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Permission & access issues
+
+### "Accessibility permission required"
+
+Accessibility permission is needed for two features on macOS: **auto-paste** (pasting the transcript into the frontmost app) and **bare-modifier push-to-talk** (hold-to-record on a single modifier key).
+
+<Steps>
+  <Step title="Open Accessibility settings">
+    Go to **System Settings → Privacy & Security → Accessibility**.
+  </Step>
+  <Step title="Add HyperWhisper">
+    Click the lock icon and authenticate, then enable **HyperWhisper** in the list. macOS does not auto-prompt for this permission — you must add it manually.
+  </Step>
+  <Step title="Restart HyperWhisper">
+    Quit and reopen the app.
+  </Step>
+</Steps>
+
+<Note>
+  If you use HyperWhisper from Xcode DerivedData alongside the installed `/Applications/HyperWhisper.app`, you may need two separate entries in the Accessibility list — one for each path. Enable the entry that matches the build you are currently running.
+</Note>
+
+**Without Accessibility:** auto-paste does nothing (the transcript stays on the clipboard); bare-modifier push-to-talk does not activate. Standard hotkey combinations still work without it.
+
+See [Permissions](/permissions) for the full permission overview.
+
+### "Screen Recording permission needed"
+
+Screen Recording permission is only required for **Screen OCR mode**, which reads on-screen text into your transcript context. No other mode needs it.
+
+Grant it at **System Settings → Privacy & Security → Screen Recording**, then restart HyperWhisper. Without it, Screen OCR mode fails silently while all other modes continue to work normally.
+
+---
+
+## Network & cloud provider issues
+
+### Cloud transcription failing
+
+<AccordionGroup>
+  <Accordion title="Network connectivity lost">
+    HyperWhisper cannot reach the cloud provider.
+
+    Common symptoms: timeout errors, connection refused, DNS failures.
+
+    **Fix:** Check your internet connection and retry the transcription. If the problem persists, check the provider's status page or [HyperWhisper's LinkedIn](https://www.linkedin.com/company/hyperwhisper/) for outage announcements.
+  </Accordion>
+
+  <Accordion title="API key missing or invalid">
+    A missing or revoked API key causes 401 or 403 HTTP errors.
+
+    <Tabs>
+      <Tab title="macOS">
+        Go to **Model Library → API Keys** and verify the key for the provider you are using.
+      </Tab>
+      <Tab title="Windows">
+        Go to **Settings → API Keys** and verify the key.
+      </Tab>
+    </Tabs>
+
+    If the key was recently regenerated on the provider's dashboard, update it in HyperWhisper's settings. HyperWhisper Cloud does not require an API key — it uses your license.
+  </Accordion>
+
+  <Accordion title="Insufficient credits or quota exceeded">
+    Your account has run out of credits or exceeded the provider's usage quota.
+
+    **For HyperWhisper Cloud:** Top up credits from the billing dashboard (accessible via **Settings → Credits**). See [Pricing & Trial Limits](/licensing) for credit rates.
+
+    **For BYOK providers:** Log in to the provider's billing page and add credits or raise your quota limit. See [Providers](/choosing-a-provider) for links.
+  </Accordion>
+
+  <Accordion title="Provider temporarily unavailable (server errors)">
+    The provider's servers returned a 5xx error. This is transient and not caused by your configuration.
+
+    **Fix:** Wait a few minutes and retry. If the outage continues, switch to a local model or a different cloud provider. Check [HyperWhisper's LinkedIn](https://www.linkedin.com/company/hyperwhisper/) for status updates during widespread outages.
+  </Accordion>
+
+  <Accordion title="Rate limited (429 errors)">
+    You have sent requests faster than the provider allows.
+
+    When rate limited, HyperWhisper may display the suggested wait duration if the provider includes a Retry-After header.
+
+    **Fix:** Wait the indicated duration, then retry. If you hit rate limits consistently, consider upgrading your plan with the provider or switching to a provider with a higher limit. See [Providers](/choosing-a-provider).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Model download issues
+
+### Download stuck or won't complete
+
+<AccordionGroup>
+  <Accordion title="Network connection interrupted">
+    If your internet connection drops during a model download, the download may stall.
+
+    **Fix:** Check your connection and click **Cancel** in Model Library, then start the download again. If the partially downloaded file appears to be corrupted after multiple attempts, restart the app to clear any in-memory state before retrying.
+  </Accordion>
+
+  <Accordion title="Insufficient disk space">
+    Models range from about 39–78 MB (Whisper Tiny) to 2.9–3.1 GB (Whisper Large) depending on platform. If your disk is nearly full, the download will fail or stall near completion.
+
+    **Fix:** Free up disk space, then retry the download. Alternatively, choose a smaller model — Whisper Small (~466–488 MB depending on platform) gives a good balance of accuracy and size for most users.
+
+    Models are stored at:
+    - **macOS:** `~/Library/Application Support/hyperwhisper/models/`
+    - **Windows:** `%LOCALAPPDATA%\HyperWhisper\Models\`
+  </Accordion>
+
+  <Accordion title="Model protected / license required">
+    Some models are only available on a Pro license or require an active subscription.
+
+    **Fix:** Check your license status in **Settings → License**. If your license has expired or does not include the model tier, renew it or contact [support@hyperwhisper.com](mailto:support@hyperwhisper.com). See [Pricing & Trial Limits](/licensing).
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Streaming issues
+
+### Streaming not working or words not appearing
+
+<AccordionGroup>
+  <Accordion title="Streaming is not enabled">
+    Streaming is off by default and must be turned on before any streaming shortcut or setting becomes active.
+
+    <Tabs>
+      <Tab title="macOS">
+        Open the **Streaming** section in the sidebar and turn on **Enable Streaming**. The shortcut field and provider options appear once the toggle is on.
+      </Tab>
+      <Tab title="Windows">
+        Click **Streaming** in the main sidebar and tick **Enable Streaming**.
+      </Tab>
+    </Tabs>
+  </Accordion>
+
+  <Accordion title="On-device streaming model not downloaded">
+    The on-device streaming providers (Parakeet and Nemotron 3.5, macOS only) must be downloaded before first use.
+
+    **Fix:** In **Settings → Streaming → Engine**, find the model you want and click **Install**. Wait for the download to complete before triggering streaming.
+  </Accordion>
+
+  <Accordion title="Streaming interrupted or cut off mid-sentence">
+    Streaming can be interrupted by a network dropout (for cloud providers), a provider timeout, or the audio input being disconnected mid-session.
+
+    **Fix:** Check your internet connection and microphone. Restart streaming by pressing your shortcut again. If your microphone disconnected, reconnect it and try again.
+  </Accordion>
+
+  <Accordion title="Vocabulary not boosting in streaming">
+    Vocabulary boosting during streaming is only supported by **HyperWhisper Cloud** and **Deepgram** (when an explicit language is set — not Auto). ElevenLabs, OpenAI, and xAI do not support vocabulary boosting in the streaming API.
+
+    A warning appears in the streaming settings if you have vocabulary entries and switch to a provider that does not support them.
+
+    **Fix:** Switch to HyperWhisper Cloud or Deepgram, and set an explicit language (not Auto) when using Deepgram. See [Streaming Transcription](/streaming-settings).
+  </Accordion>
+
+  <Accordion title="Deepgram Fast Formatting not behaving as expected">
+    With **Fast Formatting** enabled (the default), Deepgram returns results immediately without waiting for additional surrounding context — words appear faster but punctuation and number formatting may be less accurate. With it disabled, Deepgram waits for more context before finalizing, producing slightly more accurate formatting at the cost of extra latency.
+
+    **Fix:** Adjust the **Fast Formatting** toggle in the **Streaming** section based on whether you prefer lower latency or more accurate formatting.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Audio input & device issues
+
+### Microphone input level too low or too high
+
+If your microphone is too quiet, the transcription provider receives audio that is too faint to transcribe reliably. If it is too loud, it may clip.
+
+**Fix:** Adjust the system input volume:
+
+<Tabs>
+  <Tab title="macOS">
+    Go to **System Settings → Sound → Input**, select your device, and raise the **Input volume** slider until speech at your normal dictation level moves the **Input level** meter to around the middle.
+  </Tab>
+  <Tab title="Windows">
+    Right-click the speaker icon in the taskbar → **Open Sound settings → Sound Control Panel → Recording**. Double-click your microphone, go to the **Levels** tab, and raise the slider.
+  </Tab>
+</Tabs>
+
+HyperWhisper also has an **Auto-Increase Microphone Volume** option in **Settings → Sound** that temporarily boosts the input level to 90% at the start of each recording. See [Audio Input Volume](/audio-input).
+
+### Keep Microphone Warm not behaving as expected
+
+**Keep Microphone Warm** holds an idle capture stream open between recordings to reduce push-to-talk startup delay. It is particularly useful for Bluetooth devices that power down their microphone when idle.
+
+Note that it does not guarantee zero startup delay — Bluetooth devices may still apply their own power-saving logic despite the stream being open. If this remains a problem, a USB microphone provides more consistent startup latency.
+
+Enable or disable it in **Settings → Sound → Keep Microphone Warm**.
+
+<Note>
+  While Keep Microphone Warm is on, macOS shows the orange microphone indicator in the menu bar continuously and Bluetooth headsets may remain in their lower-quality call audio profile rather than switching to stereo. Turn it off if those trade-offs matter to you.
+</Note>
+
+### Wrong audio input device selected
+
+<Tabs>
+  <Tab title="macOS">
+    Click the HyperWhisper icon in the menu bar, hover over **Microphone**, and select the correct device. A checkmark appears next to the active device.
+  </Tab>
+  <Tab title="Windows">
+    Right-click the HyperWhisper tray icon, hover over **Microphone**, and select the correct device.
+  </Tab>
+</Tabs>
+
+### Audio device disconnected mid-recording
+
+<Tabs>
+  <Tab title="macOS">
+    If your selected device disconnects during recording, HyperWhisper clears the selection and falls back to the macOS system default input device. The recording in progress may fail.
+  </Tab>
+  <Tab title="Windows">
+    If the selected device is removed, HyperWhisper tries to match it by name when it returns. If the name is no longer in the list, HyperWhisper selects the first available device automatically.
+  </Tab>
+</Tabs>
+
+Reconnect the device and verify the selection in the Microphone menu before recording again. See [Select a Microphone](/microphone-selection).
+
+---
+
+## When to contact support
+
+If none of the above resolves your issue, reach out at [support@hyperwhisper.com](mailto:support@hyperwhisper.com). To speed up diagnosis, include:
+
+- Your operating system and version
+- HyperWhisper version (visible in **Settings → General** on macOS, or **Settings → About** on Windows)
+- Whether you are using a local model, HyperWhisper Cloud, or a BYOK provider
+- A description of what happened and what you expected
+
+Attaching the app log makes diagnosis significantly faster:
+
+<Tabs>
+  <Tab title="macOS">
+    Use the **Debug** menu in the app's menu bar and select **Export Logs**. Attach the exported log file.
+  </Tab>
+  <Tab title="Windows">
+    Press `Win + R`, paste `%LOCALAPPDATA%\HyperWhisper\Logs`, and press Enter. Attach the most recent `hyperwhisper-YYYY-MM-DD.log` file.
+  </Tab>
+</Tabs>
+
+See [Support & Refunds](/support) for more detail on what to include and typical response times.

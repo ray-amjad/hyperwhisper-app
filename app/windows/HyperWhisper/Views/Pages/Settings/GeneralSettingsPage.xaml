@@ -1,0 +1,182 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.GeneralSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.general.title}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <!-- Application Behavior Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <!-- Launch at Startup -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.launchAtLogin.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.launchAtLogin.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="LaunchAtStartupCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="LaunchAtStartupCheckbox_Checked"
+                                  Unchecked="LaunchAtStartupCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Launch Minimized -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.launchMinimized.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.launchMinimized.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="LaunchMinimizedCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="LaunchMinimizedCheckbox_Checked"
+                                  Unchecked="LaunchMinimizedCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Minimize to Tray -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.minimizeToTray.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.minimizeToTray.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="MinimizeToTrayCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="MinimizeToTrayCheckbox_Checked"
+                                  Unchecked="MinimizeToTrayCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Show Recording Window -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.showRecordingWindow.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.showRecordingWindow.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="ShowRecordingWindowCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="ShowRecordingWindowCheckbox_Checked"
+                                  Unchecked="ShowRecordingWindowCheckbox_Unchecked"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Logging & Updates Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <!-- Error Logging Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.errorLogging.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.errorLogging.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="ErrorLoggingCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="ErrorLoggingCheckbox_Checked"
+                                  Unchecked="ErrorLoggingCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
+                    <!-- Auto Update Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.autoUpdate.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.autoUpdate.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="AutoUpdateCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="AutoUpdateCheckbox_Checked"
+                                  Unchecked="AutoUpdateCheckbox_Unchecked"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Support Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="{loc:Loc settings.general.support.title}"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"
+                               VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="1"
+                            Style="{StaticResource MacButtonStyle}"
+                            Content="{loc:Loc menu.command.contact.support}"
+                            Click="ContactSupport_Click"/>
+                </Grid>
+            </Border>
+
+            <TextBlock x:Name="VersionText"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Margin="4,0,0,0"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

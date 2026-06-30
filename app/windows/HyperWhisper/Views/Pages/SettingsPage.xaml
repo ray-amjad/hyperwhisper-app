@@ -1,0 +1,148 @@
+<Page x:Class="HyperWhisper.Views.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Title="{loc:Loc settings.title}" Background="{DynamicResource ContentBackgroundBrush}">
+
+    <!-- SETTINGS PAGE LAYOUT
+         Two-column layout matching macOS HyperWhisper:
+         - Left sidebar (200px): Section navigation list
+         - Right content area: Frame for section pages
+    -->
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar Navigation -->
+        <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+            <StackPanel>
+                <!-- Section List -->
+                <ListBox x:Name="SectionList" Background="Transparent" BorderThickness="0"
+                         SelectionChanged="SectionList_SelectionChanged"
+                         Padding="8,14,8,0">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            <Setter Property="Padding" Value="12,8"/>
+                            <Setter Property="Margin" Value="0,2"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Border" Background="Transparent"
+                                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Border" Property="Background"
+                                                        Value="{DynamicResource HoverBackgroundBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Border" Property="Background"
+                                                        Value="{DynamicResource AccentBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+
+                    <ListBoxItem Tag="General">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.general}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Sound">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE995;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.sound}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="License">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xEB95;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.license}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem x:Name="CreditsNavItem" Tag="Credits">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8C7;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.credits}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Storage">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8B7;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.storage}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Output">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE943;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.output}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="LocalApi">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xEC7A;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.localApi}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Shortcuts">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE765;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.shortcuts}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Backup">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.backup}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="Appearance">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE771;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.appearance}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                    <ListBoxItem Tag="About">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
+                            <TextBlock Text="{loc:Loc settings.nav.about}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </ListBoxItem>
+                </ListBox>
+            </StackPanel>
+        </Border>
+
+        <!-- Content Area - Frame for section pages -->
+        <Frame x:Name="ContentFrame" Grid.Column="1"
+               NavigationUIVisibility="Hidden"
+               Background="{DynamicResource ContentBackgroundBrush}"/>
+    </Grid>
+</Page>

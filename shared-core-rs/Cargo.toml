@@ -1,0 +1,38 @@
+# HyperWhisper shared Rust core — Cargo workspace.
+#
+# A single Rust core consumed by macOS (Swift), Windows (C#), iOS (Swift) and
+# (later) Android (Kotlin) via UniFFI. See README.md for the rebuild commands
+# and the milestone plan this implements.
+[workspace]
+resolver = "2"
+members = [
+    "crates/hw-core",
+    "crates/hw-phonetic",
+    "crates/hw-text",
+    "crates/hw-net",
+    "crates/hw-license",
+    "crates/hw-backup",
+    "crates/hw-catalog",
+]
+
+# Shared release profile for every crate's artifacts. Matches the tuning the
+# retired `app/macos/rphonetic-ffi` crate used (small, LTO, stripped) so the
+# committed binaries stay lean.
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
+
+# UniFFI versions are pinned in one place. uniffi-bindgen-cs (the community C#
+# generator) is version-locked to a specific uniffi release; its latest tag
+# (v0.9.2) targets uniffi 0.28.3, so the whole workspace pins to 0.28.3. Bump
+# this and the uniffi-bindgen-cs tag in README.md together.
+[workspace.dependencies]
+uniffi = "=0.28.3"
+# Shared across the non-FFI leaf crates (hw-net/license/backup/catalog). Pinned
+# to versions already resolved in Cargo.lock so `cargo build --offline` works.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"

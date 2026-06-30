@@ -1,0 +1,128 @@
+---
+title: HyperWhisper Cloud Credits
+description: How credits work, how to check your balance, and how to purchase more.
+---
+
+HyperWhisper Cloud is the built-in transcription service that requires no API key. It charges from a credit balance so you only pay for what you use.
+
+## What are credits?
+
+Credits are the currency for HyperWhisper Cloud transcription. One credit equals **$0.001 USD**. Credits are deducted from your balance after each successful transcription — you are never charged for a transcription that fails.
+
+The number of credits consumed depends on the provider you have selected in your mode settings. At the default Deepgram Nova 3 tier, transcription costs approximately **5.5 credits per minute** of audio. The exact rate is always shown in **Settings → Credits** next to your balance.
+
+Credits are tied to your account. If you have a Pro license, your balance is linked to your license key and carries over across all your devices and platforms.
+
+<Note>
+  BYOK providers — where you supply your own API key for OpenAI, Groq, Deepgram, etc. — do not consume HyperWhisper credits at all.
+</Note>
+
+## Account types and starting balance
+
+| Account type | How credits work |
+|---|---|
+| **Trial** | 150 credits on your first use (~27 minutes at the default tier). Tracked per device. |
+| **Pro** | 5,000 credits (~$5 value) bundled with your license. Additional credits can be purchased at any time. |
+| **Anonymous** | Daily quota based on your IP address; resets at midnight. Not credit-based. |
+
+Trial credits are not replenished — once they are used you will need to upgrade to a Pro license to continue using HyperWhisper Cloud.
+
+## Per-provider credit rates
+
+Different HyperWhisper Cloud providers have different costs per minute. The rate is set by the backend and displayed in your credits card alongside your balance.
+
+| Provider | Approximate credits per minute |
+|---|---|
+| Groq Whisper | ~0.7 |
+| Deepgram Nova 3 (default) | ~5.5 |
+| Grok STT | ~1.67 |
+| Microsoft MAI-Transcribe 1.5 | ~6.0 |
+| ElevenLabs Scribe v2 | ~9.83 |
+| Google Chirp 3 | ~16.0 |
+
+Rates reflect the backend's current pricing and may change. The live rate for your active provider is always shown in Settings.
+
+## Checking your balance
+
+<Tabs>
+  <Tab title="macOS">
+    Open **Settings** from the menu bar icon, then select **Credits** in the sidebar. The Credits section is only visible when a Pro license is active.
+
+    The credits card shows:
+    - Estimated minutes remaining
+    - Your raw credit balance and its dollar equivalent
+    - Your account type (Licensed / Trial / Anonymous)
+
+    Use the **refresh button** (circular arrow, top-right of the section header) to force a fresh balance check from the server. The balance is also refreshed automatically each time you navigate to the Credits section.
+
+    A warning appears when fewer than 10 minutes remain, and an error state appears when credits are exhausted.
+  </Tab>
+  <Tab title="Windows">
+    Open **Settings** from the system tray icon, then select **Credits** from the left navigation panel.
+
+    The credits page shows:
+    - Estimated minutes remaining and dollar equivalent
+    - Your credit balance and cost per minute for your current provider
+    - Your account type (Licensed / Trial / Anonymous)
+
+    Use the **refresh button** (top-right of the page) to fetch an updated balance.
+  </Tab>
+</Tabs>
+
+## Purchasing additional credits
+
+You must have an active Pro license to purchase credits. Credits are available in three tiers:
+
+| Package | Credits | Value |
+|---|---|---|
+| $5 | 5,000 credits | ~15 hours at default tier |
+| $10 | 10,000 credits | ~30 hours at default tier |
+| $20 | 20,000 credits | ~60 hours at default tier |
+
+<Steps>
+  <Step title="Open the credits purchase page">
+    <Tabs>
+      <Tab title="macOS">
+        In **Settings → Credits**, click **Manage Credits**. This opens [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) in your browser with your license pre-filled.
+      </Tab>
+      <Tab title="Windows">
+        In **Settings → Credits**, click **Manage Credits**. This opens [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) in your browser with your license pre-filled.
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Choose a tier and complete checkout">
+    Select the $5, $10, or $20 package. You will be taken to a Stripe Checkout page to enter your payment details. Promotion codes are accepted.
+  </Step>
+  <Step title="Credits are added immediately">
+    After a successful payment, credits are credited to your account right away. Refresh your balance in Settings to see the updated amount.
+  </Step>
+</Steps>
+
+## Managing your billing account
+
+Once your Pro license is active, a **Manage Billing** button appears in **Settings → License** (macOS) and **Settings → Credits** (Windows). Clicking it opens your account dashboard at [hyperwhisper.com/user](https://www.hyperwhisper.com/user), where you can:
+
+- View your current credit balance
+- See your purchase history
+- Buy additional top-ups
+- Update your payment method
+
+<Note>
+  The Manage Billing button is only available when a Pro license is active. Trial users can visit [hyperwhisper.com/user](https://www.hyperwhisper.com/user) directly.
+</Note>
+
+## How credits are deducted
+
+Credits are deducted **after** a successful transcription completes. If the transcription fails — due to a network error, an audio problem, or a server-side validation failure — no credits are charged.
+
+The balance shown in Settings may be slightly behind if you have just completed a transcription. Use the refresh button to fetch the latest server-side balance.
+
+## Running low or out of credits
+
+When your balance drops below 10 minutes of estimated transcription time, the credits card displays an orange warning. When your balance reaches zero, HyperWhisper Cloud transcriptions will be blocked until you purchase more credits.
+
+If you run out, you have two options:
+- **Purchase additional credits** from the credits page (licensed users only).
+- **Switch to a BYOK provider** such as your own OpenAI or Groq API key — these do not consume HyperWhisper credits.
+
+See [Choosing a Provider](/choosing-a-provider) for more information on switching providers.

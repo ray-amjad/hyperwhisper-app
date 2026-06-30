@@ -1,0 +1,322 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.LocalApiSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="{DynamicResource ContentBackgroundBrush}">
+
+    <Page.Resources>
+        <Style x:Key="TabHeaderButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthWide}">
+            <TextBlock Text="{loc:Loc settings.localApi.title}"
+                       FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+            <TextBlock Text="{loc:Loc settings.localApi.blurb}"
+                       FontSize="13"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextSecondaryBrush}"
+                       Margin="4,8,4,20"/>
+
+            <!-- Status card -->
+            <Border Background="{DynamicResource CardBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource CardCornerRadius}"
+                    Padding="14,12"
+                    Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox x:Name="EnabledToggle"
+                              VerticalAlignment="Center"
+                              Margin="0,0,14,0"
+                              Checked="EnabledToggle_Checked"
+                              Unchecked="EnabledToggle_Unchecked"/>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="EnabledLabel"
+                                   FontWeight="SemiBold" FontSize="13"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock x:Name="StatusLine"
+                                   FontSize="11"
+                                   Margin="0,2,0,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="2"
+                            Padding="10,3"
+                            Click="DocsButton_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE8A7;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                       Margin="0,0,6,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{loc:Loc settings.localApi.docs}" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <TextBlock x:Name="ActionStatusText"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="0,-8,0,14"
+                       Visibility="Collapsed"/>
+
+            <!-- Tab strip + content (collapsed when server toggle is off) -->
+            <StackPanel x:Name="TabsRoot" Visibility="Collapsed">
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,20">
+                    <StackPanel Orientation="Horizontal" Margin="4,0,0,0">
+                        <Button x:Name="ConnectionTabButton" Tag="connection" Margin="0,0,22,0"
+                                Style="{StaticResource TabHeaderButtonStyle}"
+                                Click="TabButton_Click">
+                            <StackPanel>
+                                <TextBlock x:Name="ConnectionTabLabel" Text="{loc:Loc settings.localApi.tab.connection}"
+                                           FontSize="13"
+                                           FontWeight="Normal"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <Rectangle x:Name="ConnectionTabUnderline" Height="2" Fill="{DynamicResource AccentBrush}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="McpTabButton" Tag="mcp" Margin="0,0,22,0"
+                                Style="{StaticResource TabHeaderButtonStyle}"
+                                Click="TabButton_Click">
+                            <StackPanel>
+                                <TextBlock x:Name="McpTabLabel" Text="{loc:Loc settings.localApi.tab.mcp}"
+                                           FontSize="13"
+                                           FontWeight="Normal"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Rectangle x:Name="McpTabUnderline" Height="2" Fill="Transparent" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button x:Name="CurlTabButton" Tag="curl"
+                                Style="{StaticResource TabHeaderButtonStyle}"
+                                Click="TabButton_Click">
+                            <StackPanel>
+                                <TextBlock x:Name="CurlTabLabel" Text="{loc:Loc settings.localApi.tab.curl}"
+                                           FontSize="13"
+                                           FontWeight="Normal"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Rectangle x:Name="CurlTabUnderline" Height="2" Fill="Transparent" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Connection tab -->
+                <Border x:Name="ConnectionTab"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}"
+                        Padding="14,12">
+                    <StackPanel>
+                        <!-- Port row -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{loc:Loc settings.localApi.row.port}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="PortValue" Grid.Column="1"
+                                       Margin="12,0,0,0"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <Button Grid.Column="2" x:Name="CopyPortButton" Padding="10,3"
+                                    Content="{loc:Loc settings.localApi.copy}"
+                                    Click="CopyPort_Click"/>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,8,0,8"/>
+
+                        <!-- Token row -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{loc:Loc settings.localApi.row.token}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="TokenValue" Grid.Column="1"
+                                       Margin="12,0,0,0"
+                                       FontFamily="Consolas" FontSize="12"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button x:Name="RevealTokenButton" Padding="10,3" Margin="0,0,6,0"
+                                        Content="{loc:Loc settings.localApi.reveal}"
+                                        Click="RevealToken_Click"/>
+                                <Button x:Name="CopyTokenButton" Padding="10,3" Margin="0,0,6,0"
+                                        Content="{loc:Loc settings.localApi.copy}"
+                                        Click="CopyToken_Click"/>
+                                <Button x:Name="RegenerateTokenButton" Width="30" Height="26" Padding="0"
+                                        ToolTip="{loc:Loc settings.localApi.regenerate}"
+                                        Click="RegenerateToken_Click">
+                                    <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,8,0,8"/>
+
+                        <!-- Port file row -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{loc:Loc settings.localApi.row.portFile}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                            <TextBlock x:Name="PortFileValue" Grid.Column="1"
+                                       Margin="12,0,0,0"
+                                       FontFamily="Consolas" FontSize="12"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="ShowPortFileButton"
+                                    Grid.Column="2"
+                                    Content="{loc:Loc settings.localApi.show}"
+                                    Padding="10,3"
+                                    Click="ShowPortFile_Click"/>
+                        </Grid>
+
+                        <TextBlock Text="{loc:Loc settings.localApi.helperAuth}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,12,0,0"/>
+
+                        <StackPanel x:Name="ErrorRow" Orientation="Horizontal" Margin="0,8,0,0" Visibility="Collapsed">
+                            <TextBlock Text="&#xE7BA;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                                       Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="ErrorText" FontSize="11"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- MCP tab -->
+                <Border x:Name="McpTab"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}"
+                        Padding="14,12"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc settings.localApi.mcp.caption}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,0,0,10"/>
+                        <Border BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Background="{DynamicResource InputBackgroundBrush}"
+                                Padding="12">
+                            <TextBox x:Name="McpSnippetBox"
+                                     IsReadOnly="True"
+                                     FontFamily="Consolas" FontSize="11"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     TextWrapping="NoWrap"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalScrollBarVisibility="Auto"
+                                     MaxHeight="180"/>
+                        </Border>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" FontSize="11">
+                                <Hyperlink x:Name="McpDocsLink" Foreground="{DynamicResource AccentBrush}" Click="McpDocs_Click">
+                                    <Run Text="{loc:Loc settings.localApi.mcp.guide}"/>
+                                </Hyperlink>
+                            </TextBlock>
+                            <Button Grid.Column="1" Padding="10,3"
+                                    Content="{loc:Loc settings.localApi.copy}"
+                                    Click="CopyMcp_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- cURL tab -->
+                <Border x:Name="CurlTab"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource CardCornerRadius}"
+                        Padding="14,12"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc settings.localApi.curl.caption}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,0,0,10"/>
+                        <Border BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Background="{DynamicResource InputBackgroundBrush}"
+                                Padding="12">
+                            <TextBox x:Name="CurlSnippetBox"
+                                     IsReadOnly="True"
+                                     FontFamily="Consolas" FontSize="11"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     TextWrapping="NoWrap"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     VerticalScrollBarVisibility="Auto"
+                                     MaxHeight="180"/>
+                        </Border>
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="1" Padding="10,3"
+                                    Content="{loc:Loc settings.localApi.copy}"
+                                    Click="CopyCurl_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

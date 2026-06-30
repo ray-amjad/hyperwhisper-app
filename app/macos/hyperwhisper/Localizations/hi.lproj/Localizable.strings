@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "शब्दावली";
+"vocabulary.description" = "यह सॉफ़्टवेयर को नाम, परिवर्णन शब्द, स्लैंग, या अन्य भाषाओं के शब्दों को पहचानने में मदद करता है जब भाषाओं को मिलाया जाता है।";
+"vocabulary.input.title" = "इनपुट";
+"vocabulary.new.word.placeholder" = "नया शब्द या वाक्यांश";
+"vocabulary.replacement.placeholder" = "इसके साथ बदलें...";
+"vocabulary.add.button" = "शब्दावली में जोड़ें";
+"vocabulary.edit.title" = "शब्दावली प्रविष्टि संपादित करें";
+"vocabulary.update.button" = "अपडेट करें";
+"vocabulary.cancel.button" = "रद्द करें";
+"vocabulary.word.column" = "शब्द/मुहावरा";
+"vocabulary.replacement.column" = "प्रतिस्थापन";
+"vocabulary.empty.title" = "अभी तक कोई शब्दावली शब्द नहीं";
+"vocabulary.empty.subtitle" = "ट्रांसक्रिप्शन सटीकता में सुधार के लिए कस्टम शब्द जोड़ें";
+"vocabulary.duplicate.title" = "डुप्लीकेट प्रविष्टि";
+"vocabulary.duplicate.message" = "%@ पहले से आपकी शब्दावली में मौजूद है। प्रत्येक शब्द केवल एक बार जोड़ा जा सकता है।";
+"vocabulary.ok.button" = "ठीक है";
+"vocabulary.limit.title" = "कीवर्ड सीमा पार हुई";
+"vocabulary.limit.message" = "आपके पास %d शब्द हैं, लेकिन केवल पहले %d का उपयोग ट्रांसक्रिप्शन बूस्टिंग के लिए किया जाएगा।";
+
+// MARK: - Streaming View
+"streaming.title" = "स्ट्रीमिंग (बीटा)";
+"streaming.description" = "जब आप बोलते हैं तो रीयल-टाइम ट्रांसक्रिप्शन। पाठ सीधे केंद्रित एप्लिकेशन में टाइप किया जाता है।";
+"streaming.enable.title" = "स्ट्रीमिंग सक्षम करें";
+"streaming.provider.picker.title" = "प्रदाता";
+"streaming.model.title" = "मॉडल";
+"streaming.model.nova3general" = "Nova 3 सामान्य";
+"streaming.model.nova3medical" = "Nova 3 चिकित्सा";
+"streaming.fastFormatting.title" = "तेज़ फॉर्मेटिंग";
+"streaming.fastFormatting.description" = "तेज़ टाइपिंग के लिए स्मार्ट फॉर्मेटिंग विलंब को कम करता है";
+"streaming.warning.vocabAutoDetect" = "ऑटो-डिटेक्ट मोड में कस्टम शब्दावली अक्षम है";
+"streaming.warning.vocabUnsupported" = "कस्टम शब्दावली %@ स्ट्रीमिंग के साथ समर्थित नहीं है";
+"streaming.warning.apiKeyRequired" = "%@ API कुंजी आवश्यक है";
+"streaming.warning.apiKeyRequired.action" = "कॉन्फ़िगर करें";
+"streaming.warning.apiKeyInvalid" = "%@ API कुंजी काम नहीं कर रही है। इसे सेटिंग्स > API कुंजियों में अपडेट करें।";
+"streaming.warning.apiKeyInvalid.action" = "कुंजी अपडेट करें";
+"streaming.language.title" = "भाषा";
+"streaming.shortcut.title" = "शॉर्टकट";
+
+// MARK: - Home View
+"home.get.started" = "शुरुआत करें";
+"home.open.system.settings" = "सिस्टम सेटिंग्स खोलें";
+
+// MARK: - API Keys
+"api.key.required" = "API कुंजी आवश्यक है";
+"api.keys.required" = "API कुंजियां आवश्यक हैं";
+"api.key.configure.message" = "ट्रांसक्रिप्शन सक्षम करने के लिए अपनी API कुंजियों को कॉन्फ़िगर करें।";
+"api.key.internet.required" = "इंटरनेट कनेक्शन आवश्यक है";
+"api.key.internet.message" = "क्लाउड ट्रांसक्रिप्शन के लिए इंटरनेट कनेक्शन की आवश्यकता है।";
+
+// MARK: - Common UI
+"common.ok" = "ठीक है";
+"common.cancel" = "रद्द करें";
+"common.delete" = "हटाएं";
+"common.edit" = "संपादित करें";
+"common.done" = "पूर्ण";
+"common.copy" = "कॉपी करें";
+"common.back" = "वापस";
+"common.skip" = "छोड़ें";
+"common.settings" = "सेटिंग्स";
+"common.error" = "त्रुटि";
+"common.retry" = "पुनः प्रयास करें";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "होम";
+"sidebar.statistics" = "आंकड़े";
+"sidebar.modes" = "मोड";
+"sidebar.vocabulary" = "शब्दावली";
+"sidebar.streaming" = "स्ट्रीमिंग";
+"sidebar.history" = "इतिहास";
+"sidebar.settings" = "सेटिंग्स";
+
+// MARK: - App Messages
+"app.unknown.error" = "एक अज्ञात त्रुटि हुई";
+"app.microphone.permission.message" = "HyperWhisper को ऑडियो ट्रांसक्राइब करने के लिए आपके माइक्रोफ़ोन तक पहुंच की आवश्यकता है।\n\nकृपया सिस्टम सेटिंग्स > गोपनीयता और सुरक्षा > माइक्रोफ़ोन पर जाएं और HyperWhisper के लिए एक्सेस सक्षम करें।";
+"app.recordings.location.message" = "HyperWhisper रिकॉर्डिंग को आपके दस्तावेज़ों में एक फ़ोल्डर में सहेजता है ताकि उन्हें ढूंढना आसान हो: Documents/hyperwhisper/recordings। macOS पहली बार जब हम वहां सहेजने का प्रयास करें तो अनुमति मांग सकता है। यदि आप एक्सेस नहीं देना चाहते, तो हम रिकॉर्डिंग को एक निजी ऐप फ़ोल्डर में संग्रहीत कर सकते हैं।";
+"app.upgrade.to.pro" = "Pro में अपग्रेड करें";
+"app.enter.license.key" = "लाइसेंस कुंजी दर्ज करें";
+"accessibility.upgrade.pro" = "HyperWhisper Pro में अपग्रेड करें";
+"accessibility.enter.license" = "लाइसेंस कुंजी दर्ज करें";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "चयनित मोड सक्षम करने के लिए अपनी %@ API कुंजियां जोड़ें।";
+"home.api.keys.missing.single" = "चयनित मोड सक्षम करने के लिए अपनी %@ API कुंजी जोड़ें।";
+"home.getting.started.recording.title" = "रिकॉर्डिंग शुरू करें";
+"home.getting.started.recording.description" = "एक ही क्लिक से आपकी आवाज़ को टेक्स्ट में बदलें।";
+"home.getting.started.shortcuts.title" = "अपने शॉर्टकट को अनुकूलित करें";
+"home.getting.started.shortcuts.description" = "HyperWhisper के लिए कीबोर्ड शॉर्टकट बदलें।";
+"home.getting.started.mode.title" = "एक मोड बनाएं";
+"home.getting.started.mode.description" = "अपने वर्कफ़्लो के लिए सही मोड बनाएं।";
+"home.getting.started.vocabulary.title" = "शब्दावली जोड़ें";
+"home.getting.started.vocabulary.description" = "HyperWhisper को कस्टम शब्द, नाम, या उद्योग की शर्तें सिखाएं।";
+"home.add.api.key" = "API कुंजी जोड़ें";
+"home.accessibility.enable.title" = "एक्सेसिबिलिटी सक्षम करें";
+"home.accessibility.enable.description" = "HyperWhisper को उन ऐप्स में स्वचालित-पेस्ट करने की अनुमति दें जो आप उपयोग कर रहे हैं।";
+"home.accessibility.waiting" = "प्रतीक्षा हो रही है...";
+"home.accessibility.open.settings" = "सेटिंग्स खोलें";
+"home.accessibility.restart.after.permission" = "अनुमति देने के बाद ऐप को पुनः प्रारंभ करें";
+"home.getting.started.completed" = "✓ पूर्ण";
+"home.whatsnew.badge" = "नया";
+"home.whatsnew.title" = "क्या नया है?";
+"home.whatsnew.update1.date" = "जुलाई 3";
+"home.whatsnew.update1.title" = "Parakeet अब उपलब्ध है";
+"home.whatsnew.update1.description" = "इसे आज ही आजमाने के लिए मोड निर्माण में भाषा मॉडल सूची से सीधे डाउनलोड करें।";
+"home.whatsnew.update2.date" = "जून 5";
+"home.whatsnew.update2.title" = "प्रत्येक OpenAI-संगत कस्टम मॉडल के लिए समर्थन";
+"home.whatsnew.update2.description" = "आप अब अपने मॉडल सूची में कोई भी OpenAI संगत API जोड़ सकते हैं।";
+"home.whatsnew.update3.date" = "मई 27";
+"home.whatsnew.update3.title" = "बिल्कुल नई मिनी-रिकॉर्डिंग विंडो";
+"home.whatsnew.update3.description" = "एक चिकना, न्यूनतम रिकॉर्डिंग इंटरफेस जो आपके रास्ते से बाहर रहता है।";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "हाल के अपडेट";
+"home.recent.updates.error" = "अपडेट लोड करने में विफल";
+"home.recent.updates.retry" = "पुनः प्रयास करें";
+"home.recent.updates.empty" = "कोई हाल के अपडेट उपलब्ध नहीं";
+"home.recent.updates.version" = "संस्करण %@";
+"home.recent.updates.new.badge" = "नया";
+"home.recent.updates.no.notes" = "कोई रिलीज़ नोट उपलब्ध नहीं";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "माइक्रोफ़ोन एक्सेस आवश्यक है";
+"common.open.settings" = "सेटिंग्स खोलें";
+"alerts.api.local.mode" = "स्थानीय मोड का उपयोग करें";
+"alerts.documents.permission.title" = "दस्तावेज़ों में सहेजें?";
+"common.continue" = "जारी रखें";
+"alerts.documents.permission.use.another" = "दूसरा स्थान उपयोग करें";
+"alerts.api.configure.generic" = "कृपया सेटिंग्स में अपनी API कुंजियों को कॉन्फ़िगर करें।";
+"alerts.api.internet.offline" = "क्लाउड ट्रांसक्रिप्शन के लिए इंटरनेट कनेक्शन की आवश्यकता है। कृपया अपनी नेटवर्क सेटिंग्स जांचें या एक स्थानीय ट्रांसक्रिप्शन मोड चुनें।";
+"alerts.api.configure.header.multiple" = "चयनित मोड का उपयोग करने के लिए, कृपया सेटिंग्स में निम्नलिखित API कुंजियों को कॉन्फ़िगर करें:";
+"alerts.api.configure.header.single" = "चयनित मोड का उपयोग करने के लिए, कृपया सेटिंग्स में निम्नलिखित API कुंजी को कॉन्फ़िगर करें:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "लापता कुंजियां जोड़ने के बाद, पुनः प्रयास करें।";
+"alerts.export.failed.title" = "निर्यात विफल";
+"alerts.export.logs.failed.message" = "अपडेट लॉग निर्यात नहीं कर सके। कृपया पुनः प्रयास करें।";
+"alerts.export.logs.success.title" = "लॉग निर्यात किए गए";
+"alerts.export.logs.success.message" = "अपडेट लॉग सफलतापूर्वक निर्यात कर दिए गए हैं।";
+"alerts.export.logs.saveFailed.message" = "लॉग को चयनित स्थान पर सहेज नहीं सके: %@";
+"alerts.export.diagnostics.failed.message" = "निदान निर्यात नहीं कर सके। कृपया पुनः प्रयास करें।";
+"alerts.export.diagnostics.success.title" = "निदान निर्यात किए गए";
+"alerts.export.diagnostics.success.message" = "सभी निदान लॉग सफलतापूर्वक निर्यात कर दिए गए हैं।";
+"alerts.export.diagnostics.saveFailed.message" = "निदान को चयनित स्थान पर सहेज नहीं सके: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "समर्थन के लिए अपडेट लॉग निर्यात करें";
+"panels.export.diagnostics.message" = "सभी निदान लॉग निर्यात करें";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "HyperWhisper के साथ शुरुआत करें";
+"sidebar.statistics.help" = "उपयोग आंकड़े और विश्लेषण देखें";
+"sidebar.modes.help" = "विभिन्न संदर्भों के लिए ट्रांसक्रिप्शन मोड प्रबंधित करें";
+"sidebar.vocabulary.help" = "बेहतर पहचान के लिए कस्टम शब्द और वाक्यांश जोड़ें";
+"sidebar.streaming.help" = "रीयल-टाइम स्ट्रीमिंग ट्रांसक्रिप्शन सेटिंग्स (इंटरनेट की आवश्यकता है)";
+"sidebar.history.help" = "अपने ट्रांसक्रिप्शन इतिहास को देखें और खोजें";
+"sidebar.settings.help" = "ऐप सेटिंग्स और वरीयताएं कॉन्फ़िगर करें";
+
+// MARK: - Recording State
+"recording.state.ready" = "रिकॉर्ड करने के लिए तैयार";
+"recording.state.recording" = "रिकॉर्ड हो रहा है...";
+"recording.state.processing" = "ऑडियो प्रोसेस हो रहा है...";
+"recording.state.transcribing" = "ट्रांसक्राइब हो रहा है...";
+"recording.state.postprocessing" = "AI के साथ बाद में प्रोसेसिंग...";
+"recording.state.complete" = "ट्रांसक्रिप्शन पूर्ण: %@";
+"recording.state.error" = "त्रुटि: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "रिकॉर्डिंग शुरू या बंद करें";
+"menu.recording.stop" = "रिकॉर्डिंग बंद करें";
+"menu.recording.toggle" = "रिकॉर्डिंग शुरू/बंद करें";
+"menu.history" = "इतिहास...";
+"menu.settings" = "सेटिंग्स...";
+"menu.microphone" = "माइक्रोफ़ोन";
+"menu.select.mode" = "मोड चुनें";
+"menu.transcribe.file" = "फ़ाइल ट्रांसक्राइब करें";
+"menu.mode.unnamed" = "अनाम";
+"menu.version.label" = "संस्करण %@";
+"common.quit" = "बाहर निकलें";
+"menu.microphone.default" = "डिफ़ॉल्ट";
+"menu.microphone.system.default" = "डिफ़ॉल्ट";
+"menu.bar.state.recording" = "रिकॉर्ड हो रहा है";
+"menu.bar.state.processing" = "प्रोसेसिंग";
+"menu.bar.state.idle" = "निष्क्रिय";
+"menu.command.check.updates" = "अपडेट के लिए जांचें…";
+"menu.debug.title" = "डीबग";
+"menu.command.export.logs" = "अपडेट लॉग निर्यात करें…";
+"menu.command.export.diagnostics" = "निदान निर्यात करें…";
+"menu.command.help.website" = "मदद वेबसाइट";
+"menu.command.contact.support" = "समर्थन से संपर्क करें";
+
+// MARK: - Settings Sections
+"settings.section.general" = "सामान्य";
+"settings.section.sound" = "ध्वनि";
+"settings.section.license" = "लाइसेंस";
+"settings.section.credits" = "क्रेडिट";
+"settings.section.storage" = "संग्रहण";
+"settings.section.models" = "मॉडल";
+"settings.section.api.keys" = "API कुंजियां";
+"settings.section.shortcuts" = "कीबोर्ड शॉर्टकट";
+"settings.section.output" = "पाठ आउटपुट";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (अंग्रेजी)";
+"onboarding.model.pro.multilingual" = "Pro (बहुभाषी)";
+"onboarding.model.downloading.progress" = "डाउनलोड हो रहा है... %d%%";
+"onboarding.accessibility.title" = "स्वचालित पेस्ट के लिए एक्सेसिबिलिटी सक्षम करें";
+"onboarding.accessibility.subtitle" = "HyperWhisper को स्वचालित रूप से ट्रांसक्राइब किए गए पाठ को आपके एप्लिकेशन में पेस्ट करने की अनुमति दें।";
+"onboarding.accessibility.instructions" = "सिस्टम सेटिंग्स → गोपनीयता और सुरक्षा → एक्सेसिबिलिटी";
+"onboarding.accessibility.status.granted" = "एक्सेसिबिलिटी अनुमति दी गई";
+"onboarding.accessibility.status.pending" = "एक्सेसिबिलिटी अनुमति अभी तक नहीं दी गई";
+"onboarding.accessibility.waiting" = "अनुमति की प्रतीक्षा की जा रही है...";
+"onboarding.accessibility.open.preferences" = "एक्सेसिबिलिटी प्राथमिकताएं खोलें";
+"onboarding.accessibility.restart" = "अनुमति देने के बाद, HyperWhisper को पुनः प्रारंभ करें।";
+"onboarding.model.recommendation.title" = "हम Pro मॉडल की सिफारिश करते हैं";
+"onboarding.model.recommendation.subtitle" = "आपकी सिस्टम भाषा और आपके Mac की क्षमताओं के आधार पर।";
+"onboarding.model.recommendation.note" = "नीचे दिए गए बटन पर क्लिक करके डाउनलोड करें।";
+"onboarding.model.downloaded" = "डाउनलोड किया गया";
+"onboarding.model.metric.speed" = "गति";
+"onboarding.model.metric.accuracy" = "सटीकता";
+"onboarding.model.metric.size" = "आकार";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "या, एक अलग वॉयस मॉडल चुनें";
+"onboarding.model.picker.title" = "मॉडल";
+"onboarding.model.option.proEnglish" = "Pro (अंग्रेजी)";
+"onboarding.model.option.tiny" = "छोटा";
+"onboarding.model.option.base" = "आधार";
+"onboarding.model.option.small" = "छोटा";
+"onboarding.model.option.medium" = "मध्यम";
+"onboarding.model.option.large" = "बड़ा";
+"onboarding.model.download.button" = "मॉडल डाउनलोड करें";
+"onboarding.audio.title" = "आप कौन सी ऑडियो रिकॉर्डिंग डिवाइस का उपयोग करना चाहते हैं?";
+"onboarding.audio.subtitle" = "सुनिश्चित करें कि आपकी ऑडियो इनपुट वॉल्यूम चालू है और वॉल्यूम दिखा रहा है।";
+"onboarding.audio.input.label" = "इनपुट डिवाइस";
+"onboarding.audio.picker.label" = "डिवाइस";
+"onboarding.audio.use.system.default" = "सिस्टम डिफ़ॉल्ट डिवाइस का उपयोग करें";
+"onboarding.audio.level" = "ऑडियो स्तर";
+"onboarding.audio.open.sound" = "ध्वनि प्राथमिकताएं खोलें";
+"onboarding.microphone.title" = "रिकॉर्डिंग अनुमति आवश्यक है";
+"onboarding.microphone.subtitle" = "ऑडियो रिकॉर्ड करने के लिए, हमें आपके माइक्रोफ़ोन तक पहुंचने की आवश्यकता है।";
+"onboarding.microphone.status.granted" = "माइक्रोफ़ोन अनुमति दी गई";
+"onboarding.microphone.status.pending" = "माइक्रोफ़ोन अनुमति अभी तक नहीं दी गई";
+"onboarding.microphone.grant" = "अनुमति दें";
+"onboarding.test.title" = "सब कुछ तैयार है, आइए अपनी पहली रिकॉर्डिंग शुरू करें";
+"onboarding.test.press.prefix" = "दबाएं";
+"onboarding.test.press.suffix" = "शुरू करने के लिए";
+"onboarding.test.status.recording" = "रिकॉर्ड हो रहा है...";
+"onboarding.test.status.speak" = "अब बोलें...";
+"onboarding.test.stop" = "रिकॉर्डिंग बंद करें";
+"onboarding.test.success.title" = "शानदार! आपकी रिकॉर्डिंग सफल रही।";
+"onboarding.test.success.subtitle" = "आपकी ट्रांसक्रिप्शन ऐप में दिखाई देगी।";
+"onboarding.test.start.cta" = "रिकॉर्डिंग शुरू करने के लिए क्लिक करें";
+"onboarding.test.start.shortcut" = "या अपने कीबोर्ड शॉर्टकट को दबाएं";
+"onboarding.settings.title" = "शानदार! अब, आइए सेटिंग्स खोलें";
+"onboarding.settings.subtitle" = "HyperWhisper आइकन पर दाएं क्लिक करें और सेटिंग्स... चुनें";
+"onboarding.settings.menu.startStop" = "रिकॉर्डिंग शुरू/बंद करें";
+"onboarding.settings.menu.history" = "इतिहास...";
+"onboarding.settings.menu.settings" = "सेटिंग्स...";
+"onboarding.settings.menu.quit" = "बाहर निकलें";
+"onboarding.settings.info" = "सेटिंग्स में, आप शॉर्टकट को अनुकूलित कर सकते हैं, API कुंजियों को प्रबंधित कर सकते हैं, और HyperWhisper को अपने पसंद के अनुसार कॉन्फ़िगर कर सकते हैं।";
+"onboarding.completion.title" = "आप पूर्ण हैं!";
+"onboarding.completion.subtitle" = "यदि आप कोई समस्या या प्रश्न में चलते हैं, तो ईमेल या Discord के माध्यम से संपर्क करें।";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "ईमेल";
+"onboarding.completion.resources.title" = "अतिरिक्त संसाधन";
+"onboarding.completion.resources.documentation" = "प्रलेखन";
+"onboarding.completion.resources.videos" = "वीडियो ट्यूटोरियल";
+"onboarding.completion.resources.blog" = "ब्लॉग";
+"onboarding.done.button" = "ऑनबोर्डिंग पूर्ण करें";
+"onboarding.error.model.notFound" = "मॉडल कैटलॉग में नहीं मिला।";
+"onboarding.error.microphone.denied" = "माइक्रोफ़ोन अनुमति अस्वीकृत। कृपया सिस्टम सेटिंग्स में अनुमति दें।";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "लॉगिन पर लॉन्च करें";
+"settings.general.launchAtLogin.info" = "जब आप लॉगिन करें तो HyperWhisper स्वचालित रूप से शुरू करें।";
+"settings.general.launchMinimized.title" = "न्यूनतम किया हुआ लॉन्च करें";
+"settings.general.launchMinimized.info" = "मुख्य विंडो छिपी हुई स्थिति में HyperWhisper शुरू करें। ऐप मेनू बार के माध्यम से सुलभ होगा।";
+"settings.general.showInDock.title" = "डॉक में दिखाएं";
+"settings.general.showInDock.info" = "डॉक में ऐप आइकन दिखाएं।";
+"settings.general.showRecordingWindow.title" = "रिकॉर्डिंग विंडो दिखाएं";
+"settings.general.showRecordingWindow.info" = "रिकॉर्डिंग और प्रोसेसिंग के दौरान फ़्लोटिंग वेवफॉर्म विंडो प्रदर्शित करें।";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "बंद";
+"settings.general.mediaControl.mode.mute" = "ऑडियो मूक करें";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "त्रुटि लॉगिंग";
+"settings.general.errorLogging.info" = "ऐप में सुधार करने में मदद के लिए स्वचालित रूप से त्रुटि रिपोर्ट कैप्चर और भेजें।";
+"settings.general.autoUpdate.title" = "स्वचालित अपडेट";
+"settings.general.autoUpdate.info" = "स्वचालित रूप से HyperWhisper के नए संस्करणों के लिए जांचें और डाउनलोड करें।";
+"settings.general.support.title" = "क्या आपको मदद चाहिए?";
+"settings.version.detail" = "संस्करण %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "ध्वनि प्रभाव चलाएं";
+"settings.sound.soundEffects.info" = "रिकॉर्डिंग शुरू और बंद होने पर ऑडियो संकेत चलाएं.";
+"settings.sound.mediaControl.title" = "रिकॉर्डिंग के दौरान मीडिया नियंत्रण";
+"settings.sound.mediaControl.info" = "चुनें कि HyperWhisper रिकॉर्ड करते समय अन्य ऑडियो को कैसे संभालता है। 'बंद' ऑडियो को अपरिवर्तित रखता है, 'मूक ऑडियो' रिकॉर्डिंग के दौरान सिस्टम आउटपुट को साइलेंट करता है और बाद में उसे पुनः स्थापित करता है।";
+"settings.sound.autoIncreaseMicVolume.title" = "माइक्रोफ़ोन वॉल्यूम स्वचालित रूप से बढ़ाएं";
+"settings.sound.autoIncreaseMicVolume.info" = "जब रिकॉर्डिंग शुरू हो तो माइक्रोफ़ोन इनपुट वॉल्यूम को अधिकतम पर सेट करता है, फिर रिकॉर्डिंग बंद होने पर मूल स्तर को पुनः स्थापित करता है। केवल सिस्टम डिफ़ॉल्ट इनपुट डिवाइस का उपयोग करते समय लागू होता है।";
+"settings.sound.vad.title" = "ट्रांसक्रिप्शन से पहले मौन हटाएं";
+"settings.sound.vad.info" = "AI वॉयस डिटेक्शन का उपयोग करके स्वचालित रूप से अग्रणी और अनुगामी मौन का पता लगाता और हटाता है। यह ट्रांसक्रिप्शन सटीकता में सुधार और प्रोसेसिंग समय को कम कर सकता है।";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "रिकॉर्डिंग फ़ोल्डर";
+"settings.storage.showFolder.title" = "रिकॉर्डिंग फ़ोल्डर दिखाएं";
+"settings.storage.showFolder.button" = "Finder में दिखाएं";
+"settings.storage.notice" = "रिकॉर्डिंग फ़ोल्डर को बदलना केवल नई रिकॉर्डिंग को प्रभावित करता है। मौजूदा रिकॉर्डिंग उनके मूल स्थान पर रहती हैं।";
+"settings.storage.choose.button" = "चुनें...";
+"settings.storage.dialog.select" = "फ़ोल्डर चुनें";
+"settings.storage.dialog.message" = "रिकॉर्डिंग संग्रहीत करने के लिए एक फ़ोल्डर चुनें";
+"settings.storage.storeAsM4A.title" = "रिकॉर्डिंग को M4A में संपीड़ित करें";
+"settings.storage.storeAsM4A.subtitle" = "WAV रिकॉर्डिंग को ट्रांसक्रिप्शन के बाद छोटी फ़ाइलों में परिवर्तित करता है। मूल WAV फ़ाइलों को रखने के लिए बंद करें (बड़ी लेकिन नुकसान रहित)।";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "स्वचालित रूप से परिणाम पेस्ट करें";
+"settings.output.paste.subtitle" = "ट्रांसक्राइब किए गए पाठ को सक्रिय एप्लिकेशन में स्वचालित रूप से पेस्ट करें";
+"settings.output.paste.info" = "यदि सक्षम है, तो पाठ सबसे आगे के ऐप में पेस्ट किया जाता है।";
+"settings.output.restoreClipboard.title" = "पेस्ट करने के बाद क्लिपबोर्ड पुनः स्थापित करें";
+"settings.output.restoreClipboard.subtitle" = "पेस्ट करने के बाद पिछली क्लिपबोर्ड सामग्री को पुनः स्थापित करें";
+"settings.output.restoreClipboard.info" = "ऐप ट्रांसक्रिप्शन पेस्ट करने के बाद आपकी पिछली क्लिपबोर्ड सामग्री को पुनः स्थापित करता है।";
+"settings.output.restore.after" = "के बाद पुनः स्थापित करें";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "क्लिपबोर्ड पुनः स्थापना विलंब";
+"settings.output.hideClipboardHistory.title" = "क्लिपबोर्ड इतिहास से छिपाएं";
+"settings.output.hideClipboardHistory.subtitle" = "ट्रांसक्रिप्शन को क्लिपबोर्ड इतिहास ऐप्स में दिखने से रोकें";
+"settings.output.hideClipboardHistory.info" = "जब सक्षम हो, तो ट्रांसक्राइब किए गए पाठ को Paste, Maccy या Alfred जैसे क्लिपबोर्ड प्रबंधकों द्वारा सहेजा नहीं जाएगा।";
+"settings.output.clipboard.header" = "क्लिपबोर्ड";
+"settings.output.removeFillers.title" = "भराव शब्द हटाएं";
+"settings.output.removeFillers.subtitle" = "कच्ची प्रतिलिपियों से 'uh', 'um' और 'er' हटाता है।";
+"settings.output.removeFillers.info" = "जब यह सक्षम होता है, HyperWhisper आउटपुट से पहले कच्ची प्रतिलिपियों से सामान्य भराव शब्द हटाता है।";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "रिकॉर्डिंग टॉगल करें";
+"settings.shortcuts.toggleRecording.subtitle" = "रिकॉर्डिंग शुरू और बंद करता है";
+"settings.shortcuts.cancelRecording.title" = "रिकॉर्डिंग रद्द करें";
+"settings.shortcuts.cancelRecording.subtitle" = "सक्रिय रिकॉर्डिंग को त्यागता है";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "पुश टू टॉक";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "रिकॉर्ड करने के लिए एक कुंजी दबाएं, पूर्ण होने पर रिलीज़ करें";
+"settings.shortcuts.pushToTalk.enable.info" = "एकल कुंजी दबाव के साथ त्वरित रिकॉर्डिंग के लिए पुश टू टॉक मोड सक्षम करता है।";
+
+"settings.shortcuts.pushToTalk.mode.title" = "रिकॉर्डिंग मोड";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "चुनें कि किस कुंजी का उपयोग करें";
+"settings.shortcuts.pushToTalk.mode.disabled" = "अक्षम";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN कुंजी";
+"settings.shortcuts.pushToTalk.mode.control" = "Control कुंजी";
+"settings.shortcuts.pushToTalk.mode.custom" = "कस्टम शॉर्टकट";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "रिकॉर्डिंग लॉक करने के लिए दोहरी दबाव करें";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "दबाए बिना रिकॉर्डिंग रखने के लिए तेज़ी से दो बार दबाएं";
+
+"settings.shortcuts.pushToTalk.custom.title" = "कस्टम शॉर्टकट";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "उपयोग करने के लिए कुंजी संयोजन दबाएं";
+
+
+"settings.shortcuts.changeMode.title" = "मोड बदलें";
+"settings.shortcuts.changeMode.subtitle" = "केवल रिकॉर्डिंग के दौरान काम करता है";
+
+"settings.shortcuts.reset.button" = "डिफ़ॉल्ट पर रीसेट करें";
+"settings.shortcuts.reset.dialog.title" = "कीबोर्ड शॉर्टकट रीसेट करें";
+"settings.shortcuts.reset.confirm" = "रीसेट करें";
+"settings.shortcuts.reset.dialog.message" = "यह सभी कीबोर्ड शॉर्टकट को उनके डिफ़ॉल्ट मानों पर रीसेट करेगा।";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API कुंजियां आपकी डिवाइस पर सुरक्षित रूप से संग्रहीत होती हैं और केवल आवश्यकता पड़ने पर प्रदाता को भेजी जाती हैं।";
+"settings.api.help.link" = "API कुंजियों के साथ मदद";
+"settings.api.transcription.title" = "ट्रांसक्रिप्शन";
+"settings.api.transcription.subtitle" = "क्लाउड-आधारित भाषण-से-पाठ सेवाओं के लिए API कुंजियां।";
+"settings.api.postProcessing.title" = "बाद में प्रोसेसिंग";
+"settings.api.postProcessing.subtitle" = "AI-संचालित पाठ वर्धन और फॉर्मेटिंग के लिए API कुंजियां।";
+"settings.api.placeholder" = "अपनी %@ API कुंजी दर्ज करें";
+"settings.api.openLink" = "%@ API कुंजी पृष्ठ खोलें";
+"settings.api.status.accessibility" = "%@ स्थिति: %@";
+"settings.api.status.unknown" = "प्रदाता स्थिति अज्ञात है";
+"settings.api.status.checking" = "स्वास्थ्य जांच चल रही है";
+"settings.api.status.unauthorized" = "API कुंजी प्रदाता द्वारा अस्वीकृत";
+"settings.api.status.unreachable" = "प्रदाता वर्तमान में अप्राप्य है";
+"settings.api.status.notInstalled" = "प्रदाता SDK स्थापित नहीं है";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "अज्ञात";
+"provider.status.checking" = "जांच की जा रही है…";
+"provider.status.healthy" = "तैयार";
+"provider.status.unauthorized" = "अमान्य कुंजी";
+"provider.status.unreachable" = "ऑफ़लाइन";
+"provider.status.notInstalled" = "स्थापित नहीं है";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "लाइसेंस सक्रिय";
+"alerts.license.deactivated.title" = "लाइसेंस निष्क्रिय";
+"alerts.license.activated.message" = "आपका लाइसेंस सफलतापूर्वक सक्रिय हो गया है। सभी सुविधाओं तक असीमित पहुंच का आनंद लें!";
+"alerts.license.deactivated.message" = "आपका लाइसेंस इस डिवाइस पर निष्क्रिय कर दिया गया है। आप अब इसे कहीं और सक्रिय कर सकते हैं।";
+"alerts.license.failed.title" = "ऑपरेशन विफल";
+"alerts.license.failed.message" = "ऑपरेशन विफल। कृपया पुनः प्रयास करें।";
+"license.button.deactivate" = "डिवाइस निष्क्रिय करें";
+"license.button.deactivating" = "निष्क्रिय हो रहा है...";
+"license.button.manageBilling" = "बिलिंग प्रबंधित करें";
+"license.button.activate" = "सक्रिय करें";
+"license.button.activating" = "सक्रिय हो रहा है...";
+"license.status.label" = "स्थिति: %@";
+"license.status.trial.title" = "ट्रायल";
+"license.status.active.title" = "सक्रिय";
+"license.status.expired.title" = "समाप्त";
+"license.status.invalid.title" = "अमान्य";
+"license.status.trial.description" = "मुफ्त ट्रायल (5 मिनट/दिन, %d मॉडल)";
+"license.status.active.description" = "लाइसेंसप्राप्त – पूर्ण पहुंच";
+"license.status.expired.description" = "लाइसेंस समाप्त";
+"license.status.invalid.description" = "अमान्य लाइसेंस";
+"settings.license.key.title" = "लाइसेंस कुंजी";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "क्लिपबोर्ड से पेस्ट करें";
+"settings.license.clearInput" = "साफ़ करें";
+"settings.license.recovery.prompt" = "अपनी लाइसेंस कुंजी भूल गए?";
+"settings.license.recovery.button" = "ग्राहक पोर्टल पर जाएं";
+"settings.license.daily.title" = "दैनिक ट्रांसक्रिप्शन";
+"settings.license.daily.usage" = "%@ में से %@ का उपयोग किया गया";
+"settings.license.limitReached" = "सीमा प्राप्त";
+"settings.license.models.title" = "ऑफ़लाइन मॉडल";
+"settings.license.models.progress" = "%d में से %d मॉडल डाउनलोड किए गए";
+"settings.license.models.progress.one" = "%d में से %d मॉडल डाउनलोड किया गया";
+"settings.license.upgrade.text" = "असीमित ट्रांसक्रिप्शन और मॉडल डाउनलोड के लिए अपग्रेड करें";
+"settings.license.upgrade.button" = "अपग्रेड करें";
+"license.error.invalidResponse" = "अमान्य प्रतिक्रिया प्रारूप";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper क्लाउड क्रेडिट";
+"settings.credits.refresh" = "रीफ़्रेश करें";
+"settings.credits.subtitle" = "अपने ट्रांसक्रिप्शन क्रेडिट और उपयोग की निगरानी करें";
+"settings.credits.manage" = "क्रेडिट प्रबंधित करें";
+"settings.credits.timeRemaining" = "ट्रांसक्रिप्शन समय शेष";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "मिनट";
+"settings.credits.creditsRemaining" = "%@ क्रेडिट शेष";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "मुफ्त दैनिक सीमा (100 क्रेडिट)";
+"settings.credits.resets" = "रीसेट %@";
+"settings.credits.warning.low" = "क्रेडिट कम चल रहे हैं। अतिरिक्त क्रेडिट के लिए लाइसेंस खरीदने पर विचार करें।";
+"settings.credits.warning.exhausted.daily" = "दैनिक सीमा समाप्त। असीमित उपयोग के लिए लाइसेंस खरीदें या रीसेट की प्रतीक्षा करें।";
+"settings.credits.warning.exhausted" = "क्रेडिट समाप्त। HyperWhisper क्लाउड का उपयोग जारी रखने के लिए अधिक क्रेडिट खरीदें।";
+"settings.credits.accountInfo" = "खाता जानकारी";
+"settings.credits.stat.creditsRemaining" = "शेष क्रेडिट";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "शेष मिनट";
+"settings.credits.stat.accountType" = "खाता प्रकार";
+"settings.credits.accountType.licensed" = "लाइसेंसप्राप्त";
+"settings.credits.accountType.anonymous" = "गुमनाम";
+"settings.credits.accountType.trial" = "ट्रायल";
+"settings.credits.stat.customerId" = "ग्राहक ID";
+"settings.credits.stat.dailyLimit" = "दैनिक सीमा";
+"settings.credits.dailyLimit.value" = "100 क्रेडिट";
+"settings.credits.loading" = "क्रेडिट बैलेंस लोड हो रहा है...";
+"settings.credits.error.title" = "क्रेडिट बैलेंस लोड करने में असमर्थ";
+"settings.credits.error.retry" = "पुनः प्रयास करें";
+"settings.credits.empty.title" = "कोई क्रेडिट जानकारी उपलब्ध नहीं";
+"settings.credits.empty.subtitle" = "अपना क्रेडिट बैलेंस लोड करने के लिए रीफ़्रेश पर क्लिक करें";
+"settings.credits.empty.button" = "क्रेडिट लोड करें";
+"settings.credits.error.insufficient" = "अपर्याप्त क्रेडिट। आपके पास %d क्रेडिट शेष हैं।";
+"settings.credits.error.network" = "नेटवर्क त्रुटि: %@";
+"settings.credits.error.invalidResponse" = "सर्वर से अमान्य प्रतिक्रिया। कृपया पुनः प्रयास करें।";
+"settings.credits.error.server" = "सर्वर त्रुटि: %@";
+"settings.models.alert.limit.title" = "मॉडल डाउनलोड सीमा पहुंच गई";
+"settings.models.alert.limit.message" = "ट्रायल में %d मॉडल डाउनलोड शामिल हैं। असीमित डाउनलोड के लिए अपने लाइसेंस को अपग्रेड करें।";
+"settings.models.alert.cannotDelete.title" = "मॉडल हटाना नहीं जा सकता";
+"settings.models.parakeet.title" = "Parakeet मॉडल";
+"settings.models.parakeet.subtitle" = "अधिकांश उपयोगकर्ताओं के लिए अनुशंसित। बहुभाषी मॉडल 25 भाषाओं का समर्थन करता है।";
+"settings.models.parakeet.empty" = "कोई Parakeet मॉडल उपलब्ध नहीं।";
+"settings.models.whisper.title" = "Whisper मॉडल";
+"settings.models.whisper.subtitle" = "OpenAI Whisper मॉडल। बड़े मॉडल अधिक सटीक होते हैं। 100+ भाषाओं का समर्थन करता है।";
+"settings.models.whisper.empty" = "कोई Whisper मॉडल उपलब्ध नहीं।";
+"settings.models.help.cancelDownload" = "डाउनलोड रद्द करें";
+"settings.models.help.remove" = "मॉडल हटाएं";
+"settings.models.downloaded" = "डाउनलोड किया गया";
+"settings.models.download" = "डाउनलोड करें";
+"settings.models.downloading" = "डाउनलोड हो रहा है…";
+"settings.models.localPostProcessing.title" = "स्थानीय पोस्ट-प्रोसेसिंग मॉडल";
+"settings.models.localPostProcessing.memoryWarning" = "24 GB यूनिफाइड मेमोरी या अधिक वाले Mac के लिए अनुशंसित। गति आपके चिप पर निर्भर करती है — M3/M4 Pro और उससे ऊपर पर तेज़।";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "इस वर्ष के शब्द";
+"vocabulary.input.placeholder" = "कोई शब्द जोड़ें या स्निपेट बनाएं";
+"vocabulary.action.addWord" = "शब्द जोड़ें";
+"vocabulary.action.replaceWith" = "इससे बदलें…";
+"vocabulary.action.replace" = "बदलें";
+"vocabulary.replacement.field.placeholder" = "प्रतिस्थापन पाठ…";
+"settings.output.autocapitalizeInsert.title" = "इन्सर्ट पर ऑटोकैपिटलाइज़";
+"settings.output.autocapitalizeInsert.subtitle" = "टेक्स्ट डालते समय कर्सर संदर्भ मिलाएं";
+"settings.output.autocapitalizeInsert.info" = "यदि सक्षम है, डाले गए ट्रांस्क्रिप्ट टेक्स्ट का पहला शब्द कर्सर संदर्भ (वाक्य की शुरुआत या मध्य) से मेल खाने के लिए समायोजित होता है। हमेशा लोअरकेस डिक्टेशन के लिए इसे बंद करें।";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper को ऑटोकैपिटलाइज़ेशन के लिए आवश्यक कर्सर संदर्भ पढ़ने हेतु एक्सेसिबिलिटी अनुमति चाहिए।\n\n\"सेटिंग खोलें\" पर क्लिक करें, HyperWhisper के बगल में टॉगल दबाएं, फिर पुनः प्रयास करें।";
+"settings.output.removeFillerWords.title" = "फिलर शब्द हटाएं";
+"settings.output.removeFillerWords.subtitle" = "AI पोस्ट-प्रोसेसिंग बंद होने पर रॉ ट्रांस्क्रिप्ट से \"उह\", \"अम\" और \"एर\" हटाएं";
+"settings.output.removeFillerWords.info" = "केवल तब लागू होता है जब कोई मोड AI पोस्ट-प्रोसेसिंग छोड़ देता है। AI-उन्नत मोड प्रॉम्प्ट में भाषण सफाई संभालते हैं।";
+"sidebar.modelLibrary" = "मॉडल लाइब्रेरी";
+"sidebar.modelLibrary.help" = "सभी वॉइस और पोस्ट-प्रोसेसिंग मॉडल एक ही जगह ब्राउज़ करें";
+"settings.shortcuts.quickCapture.enable.title" = "त्वरित कैप्चर";
+"settings.shortcuts.quickCapture.enable.subtitle" = "रिकॉर्ड करें और नोट्स में ट्रांसक्रिप्शन भेजें — पहले ऐप पर फ़ोकस करने की ज़रूरत नहीं।";
+"settings.shortcuts.quickCapture.shortcut.title" = "शॉर्टकट";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "रिकॉर्ड करने और नोट्स में भेजने के लिए कहीं भी दबाएँ।";
+"settings.shortcuts.quickCapture.mode.title" = "मोड";
+"settings.shortcuts.quickCapture.mode.subtitle" = "उपयोग किया जाने वाला ट्रांसक्रिप्शन मोड — मॉडल, प्रॉम्प्ट और पोस्ट-प्रोसेसिंग को नियंत्रित करता है।";
+"settings.shortcuts.quickCapture.mode.current" = "वर्तमान मोड";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper को नोट्स को नियंत्रित करने की अनुमति चाहिए। इसे सिस्टम सेटिंग्ज़ → गोपनीयता → स्वचालन में दें।";
+"settings.section.vocabulary" = "शब्द भंडार";
+"settings.vocabulary.icloudSync.title" = "iCloud सिंक";
+"settings.vocabulary.icloudSync.subtitle" = "एक ही iCloud खाते में साइन इन किए गए सभी Mac पर अपना कस्टम शब्द भंडार सिंक करें।";
+"settings.vocabulary.icloudSync.info" = "डिफ़ॉल्ट रूप से बंद। केवल आपका कस्टम शब्द भंडार सिंक होता है — ट्रांस्क्रिप्ट और रिकॉर्डिंग इस Mac पर रहती हैं। परिवर्तन अगली बार HyperWhisper खोलने पर प्रभावी होंगे।";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "परिवर्तन लागू करने के लिए HyperWhisper बंद करें";
+"vocabulary.icloudSync.restart.message" = "iCloud शब्द भंडार सिंक के परिवर्तन अगली बार HyperWhisper खोलने पर प्रभावी होंगे।";
+"vocabulary.icloudSync.restart.quit" = "HyperWhisper बंद करें";
+"vocabulary.icloudSync.restart.later" = "बाद में";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "रिकॉर्डिंग के बीच माइक्रोफ़ोन को सक्रिय रखें";
+"settings.sound.keepWarmMicrophone.info" = "HyperWhisper के निष्क्रिय रहने के दौरान माइक्रोफ़ोन सत्र को खुला रखकर पुश-टू-टॉक स्टार्टअप देरी को कम करता है। macOS लगातार नारंगी माइक्रोफ़ोन संकेतक दिखाएगा, और Bluetooth हेडसेट इसके सक्षम होने पर कम-गुणवत्ता वाले कॉल मोड में रह सकते हैं।";
+"settings.models.local.inUse" = "यह स्थानीय मॉडल वर्तमान में पोस्ट-प्रोसेसिंग के लिए उपयोग किया जा रहा है:
+
+%@
+
+इसे हटाने से पहले एक अलग मॉडल चुनने के लिए उन मोड को संपादित करें।";
+"models.postProcessing.gemma4.e2b.description" = "तेज़ और सटीक। पोस्ट-प्रोसेसिंग के लिए बेहतरीन ऑल-राउंडर।";
+"models.postProcessing.gemma4.e4b.description" = "अधिक विवरण के साथ उच्च गुणवत्ता। लंबे टेक्स्ट के लिए अच्छा।";
+"models.postProcessing.gemma4.26b.moe.description" = "26B मिक्सचर-ऑफ-एक्सपर्ट्स। केवल 4B सक्रिय पैरामीटर्स के साथ तेज़ इंफ़रेंस।";
+"models.postProcessing.gemma4.31b.description" = "31B डेंस मॉडल। सर्वोच्च गुणवत्ता, 18+ GB RAM आवश्यक।";
+"settings.models.whisper.inUse" = "यह मॉडल नहीं हटाया जा सकता क्योंकि इसका उपयोग निम्नलिखित द्वारा किया जा रहा है:\n\n%@\n\nइसे हटाने से पहले इन मोड्स को एक अलग मॉडल का उपयोग करने के लिए अपडेट करें।";
+"settings.models.parakeet.inUse" = "यह Parakeet मॉडल नहीं हटाया जा सकता क्योंकि इसका उपयोग निम्नलिखित द्वारा किया जा रहा है:\n\n%@\n\nइसे हटाने से पहले इन मोड्स को एक अलग मॉडल का उपयोग करने के लिए अपडेट करें।";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "अज्ञात";
+"settings.models.directory.whisper" = "Whisper मॉडल फ़ोल्डर";
+"settings.models.directory.parakeet" = "Parakeet मॉडल फ़ोल्डर";
+"settings.models.directory.local" = "स्थानीय मॉडल फ़ोल्डर";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — CoreML के लिए अनुकूलित बहुभाषी स्पीच रिकग्निशन।";
+"settings.models.qwen3asr.languages" = "30 भाषाएं";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "इस Qwen3 ASR मॉडल को हटाया नहीं जा सकता क्योंकि यह इनके द्वारा उपयोग में है:\n\n%@\n\nहटाने से पहले इन मोड्स को कोई भिन्न मॉडल उपयोग करने के लिए अपडेट करें।";
+"settings.models.directory.show" = "Finder में दिखाएं";
+"models.error.checksumFailed" = "मॉडल चेकसम सत्यापन विफल। डाउनलोड क्षतिग्रस्त हो सकता है।";
+
+// MARK: - Statistics View
+"statistics.title" = "आंकड़े";
+"statistics.header.title" = "आपके उपयोग के आंकड़े";
+"statistics.header.subtitle" = "अपनी ट्रांसक्रिप्शन गतिविधि और प्रदर्शन को ट्रैक करें";
+"statistics.card.recordings" = "कुल रिकॉर्डिंग";
+"statistics.card.recordings.subtitle" = "पूर्ण ट्रांसक्रिप्शन";
+"statistics.card.duration" = "कुल समय";
+"statistics.card.duration.subtitle" = "रिकॉर्डिंग में बिताया गया समय";
+"statistics.card.words" = "कुल शब्द";
+"statistics.card.words.subtitle" = "ट्रांसक्राइब किए गए शब्द";
+"statistics.card.average" = "औसत अवधि";
+"statistics.card.average.subtitle" = "प्रति रिकॉर्डिंग";
+"statistics.graph.title" = "समय के साथ गतिविधि";
+"statistics.daily.empty" = "अभी तक कोई रिकॉर्डिंग नहीं";
+"statistics.filter.week" = "इस हफ्ते";
+"statistics.filter.month" = "इस महीने";
+"statistics.filter.alltime" = "सभी समय";
+
+// MARK: - History View
+"history.title" = "इतिहास";
+"history.search.placeholder" = "खोजें";
+"history.filter.all" = "सभी";
+"history.filter.today" = "आज";
+"history.filter.week" = "इस हफ्ते";
+"history.filter.month" = "इस महीने";
+"history.empty.title" = "कोई रिकॉर्डिंग नहीं मिली";
+"history.empty.subtitle" = "अपनी खोज को समायोजित करने का प्रयास करें";
+"history.detail.empty" = "विवरण देखने के लिए एक रिकॉर्डिंग चुनें";
+"history.multi.selected" = "%d रिकॉर्डिंग चुनी गई";
+"history.multi.delete" = "चयनित हटाएं";
+"history.context.deleteSelected" = "%d रिकॉर्डिंग हटाएं";
+"history.context.retry" = "ट्रांसक्रिप्शन फिर से प्रयास करें";
+"history.context.retryWith" = "इसके साथ फिर से प्रयास करें...";
+"history.context.copy" = "पाठ कॉपी करें";
+"history.retrying" = "ट्रांसक्रिप्शन फिर से प्रयास किया जा रहा है...";
+"history.retry.help" = "ट्रांसक्रिप्शन फिर से प्रयास करें";
+"history.section.today" = "आज";
+"history.section.yesterday" = "कल";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "विफल";
+"history.status.transcription.failed.prefix" = "ट्रांसक्रिप्शन विफल:";
+"history.status.retry.failed.prefix" = "पुनः प्रयास विफल:";
+"history.failure.reason" = "कारण: %@";
+"history.mode.default" = "डिफ़ॉल्ट";
+"history.audio.showInFinder" = "Finder में दिखाएं";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "मोड हटाएं?";
+"modes.delete.confirm.message" = "यह चयनित मोड को हटा देगा। यह कार्य को पूर्ववत नहीं किया जा सकता।";
+"modes.header.title" = "मोड";
+"modes.header.subtitle" = "विभिन्न संदर्भों और वर्कफ़्लो के लिए कस्टम प्रोफ़ाइल बनाएं";
+"modes.header.create" = "मोड बनाएं";
+"modes.name.unnamed" = "अनाम";
+"modes.badge.offline" = "ऑफ़लाइन";
+"modes.context.select" = "चुनें";
+"modes.help.edit" = "मोड सेटिंग्स संपादित करें";
+"modes.help.preset" = "इस फॉर्मेटिंग शैली के बारे में और जानें";
+"modes.help.model" = "इस मॉडल के बारे में और जानें";
+"modes.preset.title" = "फॉर्मेटिंग शैली";
+"modes.preset.hyper.name" = "हाइपर";
+"modes.preset.message.name" = "संदेश";
+"modes.preset.mail.name" = "मेल";
+"modes.preset.note.name" = "नोट";
+"modes.preset.meeting.name" = "बैठक";
+"modes.preset.code.name" = "कोड";
+"modes.preset.custom.name" = "कस्टम";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "संदेश मोड आपके निर्देशित संदेश को साफ करता है, विराम चिह्न को ठीक करता है, पैराग्राफ में बदलता है और व्याकरणिक त्रुटियों को हल करता है।";
+"modes.preset.mail.tooltip" = "ईमेल मोड आपके निर्देशित को एक पेशेवर ईमेल संरचना में प्रारूपित करता है, उचित अभिवादन, पैराग्राफिंग और हस्ताक्षर के साथ।";
+"modes.preset.note.tooltip" = "नोट मोड आपकी निर्देशित सामग्री को एक स्पष्ट नोट प्रारूप में व्यवस्थित करता है, जिसमें शीर्षलेख, बुलेट पॉइंट और संरचित अनुभाग होते हैं।";
+"modes.preset.meeting.tooltip" = "बैठक मोड आपके निर्देशित को बैठक की मिनट प्रारूप में संरचित करता है जिसमें उपस्थित, कार्य आइटम और मुख्य चर्चा बिंदु होते हैं।";
+"modes.preset.code.tooltip" = "कोड मोड बोली गई प्रोग्रामिंग निर्देश को कोड सिंटैक्स में परिवर्तित करता है। 'ओपन ब्रैकेट', 'बैकस्लैश', 'कैमल केस' और अधिक कहें ताकि आप आवाज़ से कोड लिख सकें।";
+"modes.preset.custom.tooltip" = "कस्टम मोड आपको विशिष्ट उपयोग केसों के लिए अपने स्वयं के फॉर्मेटिंग नियम और संकेत परिभाषित करने देता है।";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI आपकी डिक्टेशन को उचित पैराग्राफ, विराम चिह्न और व्याकरण सुधारों के साथ एक साफ संदेश में पुनर्गठित करता है।";
+"modes.preset.mail.preview" = "AI आपकी डिक्टेशन को अभिवादन, संरचित पैराग्राफ और साइन-ऑफ के साथ एक पेशेवर ईमेल में फॉर्मेट करता है।";
+"modes.preset.note.preview" = "AI आपकी डिक्टेशन को शीर्षकों, बुलेट पॉइंट्स और स्पष्ट अनुभागों के साथ संरचित नोट्स में व्यवस्थित करता है।";
+"modes.preset.meeting.preview" = "AI आपकी डिक्टेशन को उपस्थित लोगों, चर्चा बिंदुओं और कार्य मदों के साथ बैठक के कार्यवृत्त में संरचित करता है।";
+"modes.preset.code.preview" = "AI बोली गई प्रोग्रामिंग डिक्टेशन को कोड सिंटैक्स में बदलता है, 'ओपन ब्रैकेट' और 'कैमल केस' जैसे कमांड की व्याख्या करता है।";
+"modes.preset.custom.preview" = "ट्रांसक्रिप्शन को प्रोसेस करने के लिए आपके कस्टम फॉर्मेटिंग निर्देशों का उपयोग करता है।";
+"modes.customInstructions" = "इस प्रीसेट के लिए पूर्ण स्वरूपण निर्देश परिभाषित करें।";
+"modes.notice.vocabularyUnsupported" = "कस्टम शब्दावली इस प्रदाता द्वारा इस मॉडल के लिए समर्थित नहीं है। इसे अनदेखा किया जाएगा।";
+"modes.notice.deepgramNova3AutoDetect" = "Deepgram Nova-3 के साथ ऑटो-डिटेक्ट भाषा का उपयोग करते समय कस्टम शब्दावली उपलब्ध नहीं है। शब्दावली बूस्टिंग सक्षम करने के लिए, एक विशिष्ट भाषा सेट करें (जैसे अंग्रेज़ी, स्पेनिश)।";
+"modes.language.title" = "भाषा";
+"modes.language.englishOnly" = "केवल अंग्रेज़ी (अनुकूलित मॉडल)";
+"modes.postProcessing.sectionTitle" = "बाद में प्रोसेसिंग";
+"modes.postProcessing.modeLabel" = "मोड";
+"modes.postProcessing.modeTitle" = "बाद में प्रोसेसिंग";
+"modes.postProcessing.modeDescription" = "चुनें कि ट्रांसक्रिप्शन कैसे संसाधित किए जाएं:\n\n• बंद: कोई बाद में प्रोसेसिंग नहीं, कच्चा ट्रांसक्रिप्शन\n• क्लाउड (AI): AI-संचालित वृद्धि (इंटरनेट की आवश्यकता है)\n• स्थानीय: llama.cpp के माध्यम से एक ऑन-डिवाइस LLM का उपयोग करता है जैसे Gemma\n\nक्लाउड प्रोसेसिंग आपके चयनित AI प्रदाता को पाठ भेजता है। स्थानीय मोड आपकी मशीन पर रहता है लेकिन स्थानीय सर्वर को चलाने की आवश्यकता है।";
+"modes.postProcessing.providerLabel" = "प्रदाता";
+"modes.postProcessing.apiKeyMissing" = "%@ API कुंजी कॉन्फ़िगर नहीं है। बाद में प्रोसेसिंग सक्षम करने के लिए इसे सेटिंग्स में जोड़ें।";
+"modes.postProcessing.configure" = "सेटिंग्स में कॉन्फ़िगर करें";
+"modes.postProcessing.modelRecommendation" = "हम गति और गुणवत्ता के सर्वोत्तम संतुलन के लिए GPT-4.1 Nano का उपयोग करने की सिफारिश करते हैं।";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "स्थानीय पोस्ट-प्रोसेसिंग के लिए एक डाउनलोड किया हुआ स्थानीय मॉडल आवश्यक है।";
+"modes.postProcessing.download" = "सेटिंग्स में डाउनलोड करें";
+"modes.postProcessing.localInfo" = "पूरी तरह से डिवाइस पर चलता है। यदि यह मोड सक्रिय है तो HyperWhisper स्वचालित रूप से बंडल किए गए llama.cpp सर्वर को लॉन्च करता है।";
+"modes.postProcessing.userSystemPrompt.title" = "स्थायी निर्देश";
+"modes.postProcessing.userSystemPrompt.placeholder" = "उदा., ईमेल हमेशा 'सादर, रे' के साथ समाप्त करें";
+"modes.postProcessing.userSystemPrompt.clear" = "साफ़ करें";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "स्थायी निर्देश";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "ऐसे निर्देश जोड़ें जो चयनित प्रीसेट के ऊपर हमेशा लागू होते हैं।";
+"modes.toggle.punctuation.title" = "विराम चिह्न जोड़ें";
+"modes.toggle.punctuation.subtitle" = "स्वचालित रूप से अवधि और अल्पविराम जोड़ें";
+"modes.toggle.capitalization.title" = "वाक्य को बड़े अक्षरों में लिखें";
+"modes.toggle.capitalization.subtitle" = "वाक्यों का पहला अक्षर बड़ा करें";
+"modes.toggle.profanity.title" = "अश्लीलता फ़िल्टर करें";
+"modes.toggle.profanity.subtitle" = "अनुपयुक्त शब्दों को प्रतिस्थापित करें";
+"modes.toggle.removeTrailingPeriod.title" = "अंतिम पूर्णविराम हटाएँ";
+"modes.toggle.removeTrailingPeriod.subtitle" = "प्रतिलेखन से अंतिम पूर्णविराम हटाता है";
+"modes.postProcessing.privacyNotice" = "आपका ट्रांसक्रिप्शन केवल %@ को बाद में प्रोसेसिंग के लिए भेजा जाता है। कहीं नहीं।";
+"modes.postProcessing.localModel" = "मॉडल";
+"modes.postProcessing.languageModel" = "भाषा मॉडल";
+"modes.englishSpelling.title" = "अंग्रेज़ी वर्तनी";
+"modes.englishSpelling.american" = "अमेरिकी";
+"modes.englishSpelling.british" = "ब्रिटिश";
+"modes.englishSpelling.australian" = "ऑस्ट्रेलियाई";
+"modes.englishSpelling.canadian" = "कनाडाई";
+"modes.englishSpelling.american.description" = "अमेरिकी अंग्रेज़ी वर्तनी का उपयोग करें (रंग, एहसास, संगठन, केंद्र, यात्रा)";
+"modes.englishSpelling.british.description" = "ब्रिटिश अंग्रेज़ी वर्तनी का उपयोग करें (रंग, महसूस करना, संगठन, केंद्र, यात्रा)";
+"modes.englishSpelling.australian.description" = "ऑस्ट्रेलियाई अंग्रेज़ी वर्तनी का उपयोग करें (रंग, महसूस करना, संगठन, केंद्र, यात्रा)";
+"modes.englishSpelling.canadian.description" = "कनाडाई अंग्रेज़ी वर्तनी का उपयोग करें (रंग, एहसास, संगठन, केंद्र, यात्रा)";
+"modes.gemini.customPrompt.title" = "कस्टम निर्देश";
+"modes.gemini.customPrompt.helper" = "वैकल्पिक। उदा. \"बुलेट पॉइंट के रूप में प्रारूपित करें\", \"औपचारिक भाषा का उपयोग करें\"। आपकी भाषा और शब्दावली सेटिंग्स स्वचालित रूप से शामिल की जाती हैं।";
+"modes.cloud.apiKeyMissing" = "%@ API कुंजी कॉन्फ़िगर नहीं है। क्लाउड ट्रांसक्रिप्शन का उपयोग करने के लिए इसे सेटिंग्स में जोड़ें।";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "सटीकता";
+"modes.cloudAccuracy.groqWhisper.label" = "मध्यम (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "मध्यम (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "उच्च (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "तेज़ और सस्ता। त्वरित ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.deepgramNova3.description" = "संतुलित गति और सटीकता। अधिकांश उपयोगकर्ताओं के लिए अनुशंसित।";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+
+"modes.create.title" = "नया मोड बनाएं";
+"modes.create.subtitle" = "एक कस्टम ट्रांसक्रिप्शन प्रोफ़ाइल कॉन्फ़िगर करें";
+"modes.section.basic" = "बुनियादी सेटिंग्स";
+"modes.section.transcription" = "ट्रांसक्रिप्शन मॉडल";
+"modes.section.punctuation" = "विराम चिह्न";
+"modes.toggle.screenText.title" = "स्क्रीन टेक्स्ट";
+"modes.toggle.screenText.subtitle" = "नामों और शर्तों की सटीकता में सुधार के लिए दृश्यमान स्क्रीन टेक्स्ट कैप्चर करें। स्क्रीन रिकॉर्डिंग अनुमति की आवश्यकता है।";
+"modes.screenText.openSettings" = "सिस्टम सेटिंग्स खोलें";
+"modes.screenText.permissionGranted" = "स्क्रीन रिकॉर्डिंग की अनुमति दी गई";
+"modes.screenText.permissionRequired" = "स्क्रीन रिकॉर्डिंग अनुमति आवश्यक";
+"modes.field.name" = "नाम";
+"modes.field.name.placeholder" = "जैसे, मीटिंग नोट्स";
+"modes.field.name.editPlaceholder" = "मोड नाम";
+"modes.field.model" = "मॉडल";
+"modes.field.provider" = "प्रदाता";
+"modes.provider.local" = "स्थानीय";
+"modes.provider.cloud" = "क्लाउड";
+"modes.notice.noLocalModels.title" = "कोई स्थानीय मॉडल स्थापित नहीं है";
+"modes.notice.noLocalModels.subtitle" = "पहले सेटिंग्स में एक मॉडल स्थापित करें";
+"modes.model.pricing" = "मूल्य निर्धारण: $%.6f / मिनट (प्रति सेकंड बिल किया गया)";
+"modes.button.create" = "मोड बनाएं";
+"modes.button.delete" = "मोड हटाएं";
+"modes.button.save" = "परिवर्तन सहेजें";
+"modes.edit.title" = "मोड संपादित करें";
+"modes.edit.subtitle" = "ट्रांसक्रिप्शन प्रोफ़ाइल सेटिंग्स को संशोधित करें";
+"mode.editor.cloudModel.previewHint" = "पूर्वावलोकन";
+"mode.editor.cloudModel.noVocabularyHint" = "कोई कस्टम शब्दावली नहीं";
+"mode.editor.cloudDomain.medical" = "चिकित्सा";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode ऐड-ऑन";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "पुनः प्रयास नहीं कर सकते: ऑडियो फ़ाइल नहीं मिली";
+"transcripts.error.invalidId" = "अमान्य प्रतिलिपि ID";
+"transcripts.delete.single.title" = "रिकॉर्डिंग हटाएं?";
+"transcripts.delete.single.message" = "यह इस रिकॉर्डिंग और इसकी ऑडियो फ़ाइल को स्थायी रूप से हटा देगा।";
+"transcripts.delete.multiple.title" = "%d रिकॉर्डिंग हटाएं?";
+"transcripts.delete.multiple.message" = "यह %d रिकॉर्डिंग और उनकी ऑडियो फ़ाइलों को स्थायी रूप से हटा देगा।\n\nयह कार्य को पूर्ववत नहीं किया जा सकता।";
+"transcripts.delete.multiple.confirm" = "सभी हटाएं";
+"transcripts.retry.error.title" = "पुनः प्रयास विफल";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "रिकॉर्डिंग फ़ोल्डर चुनें";
+"storage.folder.choose.message" = "नई रिकॉर्डिंग को सहेजने के लिए एक फ़ोल्डर चुनें।";
+"storage.folder.choose.prompt" = "चुनें";
+"storage.recovery.title" = "रिकॉर्डिंग फ़ोल्डर तक पहुंचना नहीं जा सकता";
+"storage.recovery.message" = "HyperWhisper कॉन्फ़िगर की गई रिकॉर्डिंग फ़ोल्डर तक पहुंच नहीं सकता। आप जारी रखने के लिए एक अलग फ़ोल्डर चुन सकते हैं।";
+"storage.recovery.choose" = "फ़ोल्डर चुनें…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "और जानें";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "ट्रांसक्रिप्शन पूर्ण";
+"recording.status.retrying" = "ट्रांसक्रिप्शन फिर से प्रयास किया जा रहा है…";
+"recording.status.postprocessing" = "AI के साथ बाद में प्रोसेसिंग…";
+"recording.status.transcribing" = "ट्रांसक्राइब किया जा रहा है…";
+"recording.success.pasted" = "पेस्ट किया गया!";
+"recording.loading.retrying" = "फिर से प्रयास किया जा रहा है…";
+"recording.loading.postprocessing" = "AI के साथ प्रोसेसिंग…";
+"recording.loading.starting" = "स्ट्रीम शुरू किया जा रहा है…";
+"recording.loading.transcribing" = "ट्रांसक्राइब किया जा रहा है…";
+
+// Streaming connection states
+"streaming.status.connecting" = "कनेक्ट हो रहा है...";
+"streaming.status.ready" = "तैयार - बोलना शुरू करें";
+"streaming.status.warming" = "गर्म हो रहा है...";
+"modes.badge.recommended" = "अनुशंसित";
+"modes.source.label" = "स्रोत";
+"modes.source.onDevice" = "डिवाइस पर";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API कुंजी";
+"modes.field.engine" = "इंजन";
+"settings.models.localASR.inUse" = "इस मॉडल को हटाया नहीं जा सकता क्योंकि इसका उपयोग इनके द्वारा किया जा रहा है:
+
+%@
+
+हटाने से पहले इन मोड को किसी अलग मॉडल का उपयोग करने के लिए अपडेट करें।";
+"models.postProcessing.gemma4.12b.description" = "मध्यम आकार का डेंस मॉडल। 16 GB Mac पर गुणवत्ता और गति में संतुलन।";
+"recording.success.savedToNotes" = "नोट्स में सहेजा गया!";
+"modes.provider.needsKey" = "%@ को एक कार्यशील कुंजी चाहिए।";
+"modes.provider.manageInLibrary" = "लाइब्रेरी में प्रबंधित करें →";
+"streaming.loading.warming" = "स्थानीय मॉडल गर्म हो रहा है...";
+"streaming.status.listening" = "सुन रहे हैं...";
+"streaming.status.streaming" = "स्ट्रीमिंग...";
+"streaming.status.disconnecting" = "बंद किया जा रहा है...";
+"streaming.loading.connecting" = "सर्वर से कनेक्ट किया जा रहा है...";
+"streaming.loading.ready" = "ऑडियो को प्रारंभ किया जा रहा है...";
+"streaming.loading.streaming" = "भाषण की प्रतीक्षा की जा रही है...";
+"streaming.state.reconnecting" = "फिर से कनेक्ट किया जा रहा है...";
+"recording.stop.help" = "रिकॉर्डिंग बंद करें (%@)";
+"recording.postprocessing.unavailable" = "बाद में प्रोसेसिंग उपलब्ध नहीं";
+"recording.postprocessing.missing.single" = "%@ कुंजी अनुपस्थित – बाद में प्रोसेसिंग के बिना रिकॉर्डिंग";
+"recording.postprocessing.missing.multiple" = "API कुंजियां अनुपस्थित – बाद में प्रोसेसिंग के बिना रिकॉर्डिंग";
+"recording.postprocessing.addKey" = "कुंजी जोड़ें";
+"recording.offline.banner" = "इंटरनेट कनेक्शन नहीं। क्लाउड ट्रांसक्रिप्शन विफल हो जाएगा जब तक आप ऑनलाइन न हों।";
+"recording.offline.title" = "इंटरनेट कनेक्शन नहीं";
+"recording.offline.subtitle" = "जारी रखने के लिए फिर से कनेक्ट करें या एक ऑफ़लाइन मोड पर स्विच करें।";
+"recording.error.network" = "अपने इंटरनेट कनेक्शन की जांच करें और फिर से प्रयास करें।";
+"recording.error.timeout" = "अनुरोध का समय समाप्त हो गया। अपनी कनेक्शन गति जांचें और फिर से प्रयास करें।";
+"recording.error.rateLimit" = "आपने बहुत सारे अनुरोध किए हैं। एक पल प्रतीक्षा करें और फिर से प्रयास करें।";
+"recording.error.credits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";
+"recording.error.apiKey" = "सेटिंग्स में अपनी %@ API कुंजी जोड़ें।";
+"recording.error.server" = "ट्रांसक्रिप्शन सेवा समस्याओं का सामना कर रही है। कृपया एक पल में फिर से प्रयास करें।";
+"recording.retry" = "पुनः प्रयास करें";
+"recording.retry.inProgress" = "पुनः प्रयास किया जा रहा है…";
+"recording.retry.count" = "पुनः प्रयास (%d)";
+"recording.retry.failed.missing" = "पुनः प्रयास विफल: ऑडियो फ़ाइल नहीं मिली";
+"recording.retry.failed.error" = "पुनः प्रयास विफल: %@";
+"recording.retry.pending" = "फिर से प्रयास करने के लिए तैयार – ट्रांसक्राइब करने के लिए क्लिक करें";
+"recording.provider.unknown" = "क्लाउड प्रदाता";
+"recording.cancel.dialog.title" = "रिकॉर्डिंग रद्द करें?";
+"recording.cancel.dialog.message" = "यह वर्तमान रिकॉर्डिंग को त्यागता है।";
+"recording.cancel.dialog.confirm" = "रिकॉर्डिंग रद्द करें";
+"recording.cancel.dialog.resume" = "फिर से शुरू करें";
+"recording.error.overlay.title" = "नेटवर्क कनेक्शन त्रुटि";
+"recording.error.overlay.message" = "नीचे 'पुनः प्रयास करें' दबाएं या एक ऑफ़लाइन मोड पर स्विच करके जारी रखें।";
+"recording.mode.default" = "डिफ़ॉल्ट";
+"recording.dialog.window.title" = "रिकॉर्डिंग संवाद";
+"recording.button.start" = "रिकॉर्डिंग शुरू करें";
+"recording.button.stop" = "रिकॉर्डिंग बंद करें";
+"recording.button.disable.checking" = "%@ स्थिति की जांच की जा रही है...";
+"recording.button.disable.invalid" = "अमान्य %@ API कुंजी। इसे सेटिंग्स में अपडेट करें।";
+"recording.button.disable.unreachable" = "%@ अप्राप्य है। अपनी कनेक्शन जांचें और फिर से प्रयास करें।";
+"recording.button.disable.missing" = "अपनी %@ API कुंजी को सेटिंग्स में जोड़ें।";
+"recording.button.disable.install.local" = "स्थानीय पोस्ट-प्रोसेसिंग का उपयोग करने से पहले सेटिंग → मॉडल में एक स्थानीय मॉडल डाउनलोड करें।";
+"modes.postProcessing.accuracy" = "सटीकता";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "आपने अपनी दैनिक %@-मिनट ट्रांसक्रिप्शन सीमा तक पहुंच गया है। असीमित ट्रांसक्रिप्शन के लिए HyperWhisper Pro में अपग्रेड करें।";
+"recording.error.documentsAccess" = "रिकॉर्डिंग फ़ोल्डर तक पहुंचा नहीं जा सकता। सेटिंग्स → संग्रहण में एक अलग स्थान चुनें।";
+"recording.error.modeMissing" = "चयनित मोड नहीं मिला। कृपया एक वैध मोड चुनें।";
+"recording.warning.oversizedWAV" = "ऑडियो संपीड़न विफल। अनुपीड़ित %@ MB फ़ाइल का उपयोग किया जा रहा है - ट्रांसक्रिप्शन धीमा हो सकता है।";
+
+// MARK: - Audio Manager
+"audio.device.default" = "डिफ़ॉल्ट माइक्रोफ़ोन";
+"audio.error.permissionDenied" = "माइक्रोफ़ोन एक्सेस अस्वीकृत। कृपया सिस्टम सेटिंग्स में सक्षम करें।";
+"audio.error.fileWatcher.open" = "ऑडियो फ़ाइल की निगरानी करने के लिए एक फ़ाइल विवरणक को खोल नहीं सके।";
+"audio.error.fileWatcher.timeout" = "ऑडियो फ़ाइल के लिखे जाने की प्रतीक्षा करते समय ऑपरेशन का समय समाप्त हो गया।";
+"audio.error.fileWatcher.creation" = "ऑडियो फ़ाइल समय पर नहीं बनाई गई।";
+"audio.error.microphonePermission" = "माइक्रोफ़ोन अनुमति नहीं दी गई";
+"audio.error.microphoneInUse" = "HyperWhisper माइक्रोफ़ोन तक पहुंच नहीं सकता क्योंकि एक अन्य ऐप वर्तमान में इसका उपयोग कर रहा है। अन्य ऐप को रोकें या इनपुट स्विच करें, फिर फिर से प्रयास करें।";
+"audio.error.createEngine" = "ऑडियो इंजन बनाने में विफल";
+"audio.error.noInput" = "कोई ऑडियो इनपुट उपलब्ध नहीं";
+"audio.error.createFile" = "ऑडियो फ़ाइल बनाने में विफल";
+"audio.error.managerUnavailable" = "ट्रांसक्रिप्शन प्रबंधक कॉन्फ़िगर नहीं किया गया";
+"audio.error.invalidHardwareFormat" = "अमान्य हार्डवेयर ऑडियो प्रारूप का पता चला। कृपया अपनी ऑडियो डिवाइस की जांच करें।";
+"audio.error.createFormat" = "रिकॉर्डिंग के लिए ऑडियो प्रारूप बनाने में विफल";
+"audio.error.createConverter" = "ऑडियो प्रारूप कनवर्टर बनाने में विफल";
+"audio.error.exportM4A" = "ऑडियो को m4a प्रारूप में निर्यात करने में विफल";
+"audio.error.readFile" = "रिकॉर्डिंग के बाद ऑडियो फ़ाइल को पढ़ा नहीं जा सका।";
+"audio.error.recordingTooShort" = "रिकॉर्डिंग बहुत छोटी थी। ऑडियो कैप्चर करने के लिए बटन को लंबे समय तक दबाएं।";
+"audio.error.noAudioTrack" = "इस वीडियो फ़ाइल में ऑडियो ट्रैक नहीं है।";
+"audio.alert.accessibility.title" = "एक्सेसिबिलिटी एक्सेस सक्षम करें";
+"audio.alert.accessibility.message" = "HyperWhisper को अन्य अनुप्रयोगों में ट्रांसक्राइब किए गए पाठ को पेस्ट करने के लिए एक्सेसिबिलिटी अनुमति की आवश्यकता है।\n\n\"सेटिंग्स खोलें\" पर क्लिक करें, HyperWhisper के बगल में टॉगल दबाएं, फिर फिर से प्रयास करें।";
+"audio.alert.accessibility.open" = "सेटिंग्स खोलें";
+"audio.alert.pasteFailed.title" = "स्वचालित पेस्ट विफल";
+"audio.alert.pasteFailed.message" = "ट्रांसक्राइब किया गया पाठ आपके क्लिपबोर्ड पर कॉपी कर दिया गया है।\n\nइसे मैन्युअल रूप से पेस्ट करने के लिए ⌘V दबाएं, या मेनू से संपादित करें → पेस्ट करें चुनें।";
+"accessibility.permission.location.debug" = "Xcode डीबग बिल्ड";
+"accessibility.permission.location.installed" = "स्थापित ऐप";
+"accessibility.permission.info" = "HyperWhisper को अन्य अनुप्रयोगों में ट्रांसक्राइब किए गए पाठ को पेस्ट करने के लिए एक्सेसिबिलिटी अनुमति की आवश्यकता है।\n\nवर्तमान ऐप स्थान: %@\n\nसिस्टम सेटिंग्स में:\n1. सूची में 'hyperwhisper' या 'HyperWhisper' देखें\n2. यदि आपने विभिन्न स्थानों से चलाया है तो आप कई प्रविष्टियां देख सकते हैं\n3. प्रविष्टि के लिए चेकबॉक्स सक्षम करें जो मेल खाता है:\n   %@";
+"accessibility.permission.xcodeNote" = "नोट: Xcode से चलाने के लिए स्थापित ऐप से अलग अनुमति की आवश्यकता है।";
+"accessibility.error.paste.commandFailed" = "पेस्ट कमांड विफल";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "ट्रांसक्रिप्शन प्रदाता उपलब्ध नहीं है। अपनी सेटिंग्स जांचें और फिर से प्रयास करें।";
+"transcription.error.providerNotAvailable.provider" = "%@ उपलब्ध नहीं है। अपनी सेटिंग्स जांचें और फिर से प्रयास करें।";
+"transcription.error.providerNotAvailable.detail" = "%@ उपलब्ध नहीं है: %@";
+"transcription.error.modelNotDownloaded" = "कृपया पहले एक मॉडल डाउनलोड करें";
+"transcription.error.modelProtected" = "यह मॉडल नहीं हटाया जा सकता";
+"transcription.error.audioFileNotFound" = "ऑडियो फ़ाइल नहीं मिली";
+"transcription.error.network.detail" = "नेटवर्क त्रुटि: %@";
+"transcription.error.network.generic" = "नेटवर्क कनेक्शन त्रुटि";
+"transcription.error.apiKeyMissing.provider" = "ट्रांसक्रिप्शन के लिए %@ API कुंजी आवश्यक है";
+"transcription.error.apiKeyMissing.generic" = "ट्रांसक्रिप्शन के लिए एक क्लाउड प्रदाता API कुंजी आवश्यक है";
+"transcription.error.maxRetriesExceeded" = "अधिकतम पुनः प्रयास प्रयास अतिक्रमित";
+"transcription.error.unauthorized.provider" = "अनुमति नहीं: अमान्य %@ API कुंजी या अनुमति।\n\nसेटिंग्स → API कुंजियां खोलकर अपनी साख सत्यापित करें।";
+"transcription.error.unauthorized.generic" = "अनुमति नहीं: अमान्य API कुंजी या अनुमति।\n\nसेटिंग्स → API कुंजियां खोलकर अपनी साख सत्यापित करें।";
+"transcription.error.invalidRequest" = "अमान्य अनुरोध: ऑडियो फ़ाइल या सेटिंग्स जांचें";
+"transcription.error.streamingInterrupted" = "स्ट्रीमिंग बाधित; आंशिक पाठ दिखाया गया";
+"transcription.error.busy" = "ट्रांसक्रिप्शन सेवा वर्तमान में व्यस्त है";
+"transcription.error.invalidAudioFormat" = "असमर्थित ऑडियो प्रारूप";
+"transcription.error.audioConversionFailed" = "ऑडियो को आवश्यक प्रारूप में परिवर्तित करने में विफल";
+"transcription.error.audioFileTooLarge" = "फ़ाइल बहुत बड़ी है: %@ %@ सीमा से अधिक है %@";
+"transcription.error.serverError" = "सर्वर त्रुटि (%d): %@";
+"transcription.error.rateLimited.seconds" = "दर सीमित: बहुत सारे अनुरोध। कृपया %d सेकंड प्रतीक्षा करें और फिर से प्रयास करें।";
+"transcription.error.rateLimited.generic" = "दर सीमित: बहुत सारे अनुरोध। कृपया एक पल प्रतीक्षा करें और फिर से प्रयास करें।";
+"transcription.error.insufficientCredits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";
+"transcription.error.quotaExceeded" = "%@ कोटा अतिक्रमित";
+"transcription.error.quotaExceeded.detail" = "%@ कोटा अतिक्रमित: %@";
+"transcription.error.timeout" = "%@ के दौरान अनुरोध का समय समाप्त। अपने इंटरनेट कनेक्शन की जांच करें और फिर से प्रयास करें।";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "सुनिश्चित करें कि आपका ट्रांसक्रिप्शन प्रदाता सेटिंग्स में ठीक से कॉन्फ़िगर किया गया है।";
+"transcription.guidance.providerNotAvailable.provider" = "सुनिश्चित करें कि %@ ठीक से कॉन्फ़िगर किया गया है। स्थानीय मॉडल के लिए, पहले एक मॉडल डाउनलोड करें। क्लाउड प्रदाता के लिए, अपनी API कुंजी सत्यापित करें।";
+"transcription.guidance.apiKeyMissing.provider" = "सेटिंग्स में अपनी %@ API कुंजी जोड़ें";
+"transcription.guidance.apiKeyMissing.generic" = "सेटिंग्स में अपनी क्लाउड प्रदाता API कुंजी जोड़ें";
+"transcription.guidance.modelNotDownloaded" = "मॉडल अनुभाग से एक मॉडल डाउनलोड करें";
+"transcription.guidance.modelProtected" = "यह मॉडल वर्तमान में उपयोग में है";
+"transcription.guidance.audioFileNotFound" = "ऑडियो फ़ाइल को हटा दिया गया या स्थानांतरित कर दिया गया";
+"transcription.guidance.networkError" = "अपने इंटरनेट कनेक्शन की जांच करें और फिर से प्रयास करें";
+"transcription.guidance.unauthorized.provider" = "सेटिंग्स में अपनी %@ API कुंजी या खाता अनुमति जांचें";
+"transcription.guidance.unauthorized.generic" = "सेटिंग्स में अपनी API कुंजी या खाता अनुमति जांचें";
+"transcription.guidance.invalidRequest" = "ऑडियो फ़ाइल और मोड सेटिंग्स सत्यापित करें, फिर फिर से प्रयास करें";
+"transcription.guidance.invalidAudioFormat" = "ऑडियो फ़ाइल को MP3 या WAV प्रारूप में परिवर्तित करने का प्रयास करें";
+"transcription.guidance.audioConversionFailed" = "ऑडियो फ़ाइल क्षतिग्रस्त हो सकती है। एक अलग फ़ाइल आजमाएं";
+"transcription.guidance.audioFileTooLarge" = "एक छोटी ऑडियो फ़ाइल का उपयोग करें या इसे छोटे खंडों में विभाजित करें";
+"transcription.guidance.serverError" = "ट्रांसक्रिप्शन सेवा समस्याओं का सामना कर रही है। कृपया फिर से प्रयास करें।";
+"transcription.guidance.rateLimited" = "आपने बहुत सारे अनुरोध किए हैं। फिर से प्रयास करने से पहले एक पल प्रतीक्षा करें।";
+"transcription.guidance.insufficientCredits" = "ट्रांसक्राइब करना जारी रखने के लिए सेटिंग्स में अधिक क्रेडिट खरीदें";
+"transcription.guidance.quotaExceeded" = "अपने %@ खाते में क्रेडिट जोड़ें या अपनी बिलिंग जानकारी अपडेट करें";
+"transcription.guidance.timeout" = "अनुरोध में बहुत समय लगा। अपनी इंटरनेट गति जांचें और फिर से प्रयास करें।";
+"transcription.error.noSpeechDetected" = "रिकॉर्डिंग में कोई भाषण का पता नहीं चला।";
+"transcription.guidance.noSpeechDetected" = "सुझाव:\n• माइक्रोफ़ोन में स्पष्ट रूप से बोलें\n• कुंजी को दबाने से पहले लंबे समय तक दबाएं\n• जांचें कि आपका माइक्रोफ़ोन काम कर रहा है\n• सुनिश्चित करें कि सही इनपुट डिवाइस चयनित है";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";
+"hyperwhisperCloud.error.network" = "नेटवर्क त्रुटि: %@";
+"hyperwhisperCloud.error.invalidResponse" = "HyperWhisper क्लाउड से अमान्य प्रतिक्रिया";
+"hyperwhisperCloud.error.server" = "सर्वर त्रुटि: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server निष्पादन योग्य का पता नहीं लगाया जा सकता।";
+"llama.runtime.error.missingDependencies" = "रनटाइम अनुपस्थित निर्भरता: %@";
+"llama.runtime.error.copyFailed" = "रनटाइम को कॉपी करने में विफल: %@";
+"llama.runtime.error.copy.executable" = "निष्पादन योग्य को कॉपी करने में असमर्थ: %@";
+"llama.runtime.missing" = "स्थानीय रनटाइम इस इंस्टॉलेशन से अनुपस्थित है। स्थानीय बाद में प्रोसेसिंग को पुनः स्थापित करने के लिए HyperWhisper को पुनः इंस्टॉल करें।";
+"llama.runtime.genericError" = "स्थानीय रनटाइम त्रुटि: %@";
+"runtime.error.llama.missingLib" = "स्थानीय रनटाइम libmtmd.dylib अनुपस्थित के बाद समाप्त";
+"runtime.error.llama.reportedMissingLib" = "स्थानीय रनटाइम ने अनुपस्थित libmtmd.dylib की सूचना दी";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Cloudflare Workers पर चलने वाली बिल्कुल नई AI बाद में प्रोसेसिंग। कोई कॉन्फ़िगरेशन आवश्यक नहीं।";
+"models.postProcessing.gpt4.1.nano.description" = "मध्यम सटीकता (92%), बहुत तेज़ गति (<1s)। त्वरित ड्राफ्ट और अनौपचारिक नोट्स के लिए उपयुक्त।";
+"models.postProcessing.gpt4.1.mini.description" = "उच्च सटीकता (94%), तेज़ गति (~1-2s)। रोज़मर्रा के व्यावसायिक संचार और मानक दस्तावेजों के लिए अच्छा।";
+"models.postProcessing.gpt4.1.description" = "बहुत उच्च सटीकता (96%), मध्यम गति (~3-4s)। जटिल फॉर्मेटिंग और तकनीकी सामग्री के लिए बहुत अच्छा।";
+"models.postProcessing.gpt5.nano.description" = "अच्छी सटीकता (95%), सबसे तेज़ गति (~1s)। त्वरित नोट्स, संदेश और आकस्मिक ट्रांसक्रिप्शन के लिए परफेक्ट।";
+"models.postProcessing.gpt5.mini.description" = "उत्कृष्ट सटीकता (97%), मध्यम गति (~2-3s)। व्यावसायिक ईमेल, रिपोर्ट और मीटिंग नोट्स के लिए आदर्श संतुलन।";
+"models.postProcessing.gpt5.description" = "सर्वोच्च सटीकता (99%+), सबसे धीमी गति (~3-5s)। महत्वपूर्ण दस्तावेज, कानूनी, चिकित्सा ट्रांसक्रिप्शन के लिए सर्वोत्तम जहां परिशुद्धता सर्वोपरि है।";
+"models.postProcessing.gpt5.1.description" = "अत्याधुनिक सटीकता (98%+), मध्यम गति (~2-3s)। जटिल कार्यों, कानूनी दस्तावेज़ और बेहतर तर्क के साथ तकनीकी सामग्री के लिए उत्कृष्ट।";
+"models.postProcessing.gpt5.2.description" = "बेहतर तर्क और तेज़ आह्वान के साथ नवीनतम GPT-5 श्रृंखला। उच्च-गुणवत्ता पाठ प्रसंस्करण के लिए सर्वोत्तम समग्र विकल्प।";
+"models.postProcessing.claude4.5.haiku.description" = "प्रतिक्रिया समय तेज़ रखते हुए बेहतर तर्क के साथ नवीनतम Claude Haiku।";
+"models.postProcessing.claude4.sonnet.description" = "संतुलित प्रदर्शन। व्यावसायिक दस्तावेजों के लिए उच्चतर तर्क और फॉर्मेटिंग क्षमता।";
+"models.postProcessing.gemini3.flash.description" = "Pro-स्तरीय बुद्धि के साथ Gemini 3 श्रृंखला फ्लैश गति पर। गतिशील सोच क्षमताओं के साथ उन्नत तर्क।";
+"models.postProcessing.gemini2.5.flash.description" = "मूल्य-प्रदर्शन के मामले में सर्वोत्तम। रोज़मर्रा के उपयोग के लिए अच्छी सटीकता को बनाए रखते हुए गति के लिए अनुकूलित।";
+"models.postProcessing.gemini2.5.flashLite.description" = "लागत-दक्षता और उच्च थ्रूपुट के लिए अनुकूलित अल्ट्रा तेज़ मॉडल।";
+"models.postProcessing.groq.llama33.70b.description" = "उत्कृष्ट गुणवत्ता के साथ बहुमुखी 70B मॉडल। ~280 टोकन/सेक। अनुशंसित।";
+"models.postProcessing.groq.llama31.8b.description" = "अल्ट्रा-तेज़ 8B मॉडल। तात्कालिक पाठ प्रसंस्करण के लिए ~560 टोकन/सेक।";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI का खुला स्रोत 120B मॉडल। उच्च-गुणवत्ता प्रसंस्करण के लिए ~500 टोकन/सेक।";
+"models.postProcessing.groq.gptoss.20b.description" = "हल्का 20B मॉडल। सबसे तेज़ प्रसंस्करण के लिए ~1000 टोकन/सेक।";
+"models.postProcessing.cerebras.gptoss.120b.description" = "Cerebras पर GPT OSS 120B। ~3000 टोकन/सेक पर अल्ट्रा-तेज़ 120B मॉडल। अनुशंसित।";
+"models.postProcessing.cerebras.llama31.8b.description" = "Cerebras पर Llama 3.1 8B। ~2200 टोकन/सेक पर हल्का और अल्ट्रा-तेज़।";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Cerebras पर Qwen 3 235B। ~1400 टोकन/सेक पर विशाल 235B MoE मॉडल। केवल पूर्वावलोकन।";
+"models.postProcessing.cerebras.zai.glm47.description" = "Cerebras पर Z.ai GLM 4.7। ~1000 टोकन/सेक पर 355B पैरामीटर मॉडल। केवल पूर्वावलोकन।";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "सहायता केंद्र";
+"settings.resources.contact.support" = "समर्थन से संपर्क करें";
+"settings.resources.feedback" = "फीडबैक और सुझाव";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "बैकअप";
+"settings.backup.export.title" = "सेटिंग्स निर्यात करें";
+"settings.backup.export.subtitle" = "अपनी सेटिंग्स, मोड और शब्दावली को एक फ़ाइल में सहेजें";
+"settings.backup.export.button" = "निर्यात...";
+"settings.backup.export.panel.title" = "सेटिंग्स निर्यात करें";
+"settings.backup.export.panel.label" = "बैकअप फ़ाइल:";
+"settings.backup.export.success" = "सेटिंग्स सफलतापूर्वक निर्यात की गई";
+"settings.backup.export.error.create" = "बैकअप डेटा बनाने में विफल";
+"settings.backup.export.error.encode" = "बैकअप डेटा एन्कोड करने में विफल";
+"settings.backup.export.error.write" = "बैकअप फ़ाइल लिखने में विफल";
+"settings.backup.includeAPIKeys.title" = "API कुंजियां शामिल करें";
+"settings.backup.includeAPIKeys.subtitle" = "बैकअप फ़ाइल में API कुंजियों को स्टोर करें (साझा करने के लिए अनुशंसित नहीं)";
+"settings.backup.includeLicense.title" = "लाइसेंस कुंजी शामिल करें";
+"settings.backup.import.title" = "सेटिंग्स आयात करें";
+"settings.backup.import.subtitle" = "बैकअप फ़ाइल से सेटिंग्स पुनः स्थापित करें";
+"settings.backup.import.button" = "आयात...";
+"settings.backup.import.panel.title" = "सेटिंग्स आयात करें";
+"settings.backup.import.success" = "आयात पूर्ण: %d मोड, %d शब्दावली आइटम आयात किए गए";
+"settings.backup.import.error.read" = "बैकअप फ़ाइल पढ़ने में विफल";
+"settings.backup.import.error.decode" = "अमान्य बैकअप फ़ाइल प्रारूप";
+"settings.backup.import.error.decode.keyNotFound" = "आवश्यक फ़ील्ड अनुपस्थित: %@";
+"settings.backup.import.error.decode.typeMismatch" = "फ़ील्ड के लिए गलत प्रकार: %@";
+"settings.backup.import.error.decode.valueNotFound" = "फ़ील्ड के लिए मान अनुपस्थित: %@";
+"settings.backup.import.error.decode.corrupted" = "दूषित डेटा: %@";
+"settings.backup.import.error.decode.corruptedField" = "फ़ील्ड के लिए दूषित मान: %@";
+"settings.backup.import.error.version" = "बैकअप फ़ाइल एक नए संस्करण से है";
+"settings.backup.import.error.unknown" = "आयात विफल";
+"settings.backup.import.confirm.title" = "सेटिंग्स आयात करें?";
+"settings.backup.import.confirm.message" = "यह आपके मौजूदा मोड और शब्दावली को बैकअप फ़ाइल से प्रतिस्थापित कर देगा। सेटिंग्स भी अपडेट की जाएंगी।";
+"settings.backup.import.confirm.button" = "आयात करें";
+"settings.backup.conflict.skip" = "मौजूदा छोड़ें";
+"settings.backup.conflict.replace" = "मौजूदा को प्रतिस्थापित करें";
+"settings.backup.conflict.keepBoth" = "दोनों रखें";
+"settings.backup.security.warning" = "चेतावनी: निर्यात की गई फ़ाइल में संवेदनशील डेटा होगा। इसे सुरक्षित रखें और इसे साझा न करें।";
+"settings.backup.info.note" = "बैकअप में सेटिंग्स, मोड और शब्दावली शामिल होती है। रिकॉर्डिंग और ट्रांसक्रिप्ट शामिल नहीं हैं।";
+"settings.backup.result.success.title" = "सफलता";
+"settings.backup.result.error.title" = "त्रुटि";
+"settings.backup.export.choose.subtitle" = "बैकअप फ़ाइल में क्या शामिल करना है चुनें";
+"settings.backup.export.section.settings" = "सेटिंग्स";
+"settings.backup.export.section.modes" = "मोड";
+"settings.backup.export.section.vocabulary" = "शब्दावली";
+"settings.backup.import.importing" = "%@ आयात हो रहा है";
+"settings.backup.import.contains" = "इस फ़ाइल में शामिल है: %@";
+"settings.backup.import.contains.vocabulary" = "शब्दावली (%d शब्द)";
+"settings.backup.import.contains.none" = "कुछ नहीं";
+"settings.backup.import.section.settings" = "सेटिंग्स";
+"settings.backup.import.section.modes" = "मोड";
+"settings.backup.import.section.vocabulary" = "शब्दावली";
+"settings.backup.import.section.apiKeys" = "API कुंजियाँ";
+"settings.backup.import.section.license" = "लाइसेंस कुंजी";
+"settings.backup.import.section.absent" = "— फ़ाइल में नहीं है";
+"settings.backup.import.premerge.summary" = "शब्दावली: %d नए जोड़ें, %d पहले से मौजूद हैं";
+"settings.backup.import.premerge.conflictLabel" = "उन शब्दों के लिए जो पहले से मौजूद हैं:";
+
+// MARK: - File Transcription
+"select.audio.file" = "ऑडियो फ़ाइल चुनें";
+"transcribe.file.error.title" = "ट्रांसक्रिप्शन त्रुटि";
+"transcribe.file.error.size.title" = "फ़ाइल बहुत बड़ी है";
+"transcribe.file.error.size.message" = "चयनित फ़ाइल (%@) %@ के लिए %@ सीमा से अधिक है।";
+"transcribe.file.error.format.title" = "असमर्थित प्रारूप";
+"transcribe.file.error.format.message" = ".%@ फ़ाइलें %@ द्वारा समर्थित नहीं हैं। समर्थित प्रारूप: %@";
+"transcribe.file.error.read" = "चयनित फ़ाइल को पढ़ा नहीं जा सकता।";
+"transcribe.file.error.copy" = "फ़ाइल को रिकॉर्डिंग फ़ोल्डर में कॉपी करने में विफल।";
+"transcribe.file.error.video.title" = "वीडियो में कोई ऑडियो नहीं";
+"transcribe.file.error.video.noAudio" = "इस वीडियो फ़ाइल में ऑडियो ट्रैक नहीं है। कृपया ऑडियो या एक ऑडियो फ़ाइल के साथ एक वीडियो चुनें।";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "तैयारी की जा रही है...";
+"file.transcription.transcribing" = "ट्रांसक्राइब किया जा रहा है...";
+"file.transcription.finishing" = "समाप्त किया जा रहा है...";
+"file.transcription.cancel" = "रद्द करें";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "स्वचालित हटाना सक्षम करें";
+"history.autoDelete.enable.subtitle" = "निर्दिष्ट अवधि से पुरानी रिकॉर्डिंग को हटा दिया जाएगा";
+"history.autoDelete.duration.prefix" = "के बाद";
+"history.autoDelete.unit.minutes" = "मिनट";
+"history.autoDelete.unit.hours" = "घंटे";
+"history.autoDelete.unit.days" = "दिन";
+"history.autoDelete.unit.minutes.plural" = "मिनट";
+"history.autoDelete.unit.hours.plural" = "घंटे";
+"history.autoDelete.unit.days.plural" = "दिन";
+"history.autoDelete.status.disabled" = "स्वचालित हटाना अक्षम है";
+"history.autoDelete.status.enabled" = "%d %@ से पुरानी रिकॉर्डिंग हटाएं";
+"history.autoDelete.cleanup.noItems" = "हटाने के लिए कोई रिकॉर्डिंग नहीं";
+"history.autoDelete.cleanup.summary" = "%d रिकॉर्डिंग हटाई गई और %@ खाली किया गया";

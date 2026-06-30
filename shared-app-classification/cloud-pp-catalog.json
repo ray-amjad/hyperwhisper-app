@@ -1,0 +1,132 @@
+{
+  "$schemaDoc": "Shared source of truth for HyperWhisper Cloud POST-PROCESSING (LLM) engines. Loaded by macOS and Windows to drive the credit-billed (no-key) post-processing Engine + Model picker and the X-LLM-Provider / X-LLM-Model headers sent to backend-v2-flyio /post-process. Mirrors cloud-stt-catalog.json. Prices are USD per 1M tokens and are the DISPLAY/estimate source of truth; the ACTUAL billing constants live in backend-v2-flyio/src/lib/cost-calculator.ts and MUST match these values (see CLAUDE.md). See CLAUDE.md in this directory before editing.",
+  "version": 1,
+  "updated": "2026-06-19",
+  "providers": [
+    {
+      "id": "cerebras",
+      "displayName": "Cerebras",
+      "vendor": "cerebras",
+      "llmProvider": "cerebras",
+      "apiStyle": "openai",
+      "endpoint": "https://api.cerebras.ai/v1/chat/completions",
+      "enabled": true,
+      "models": [
+        { "id": "gpt-oss-120b", "displayName": "GPT-OSS 120B", "llmModelHeader": "gpt-oss-120b",
+          "pricePerMInput": 0.35, "pricePerMOutput": 0.75, "isDefault": true, "isRecommended": true,
+          "accuracy": 5, "speed": 5, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://inference-docs.cerebras.ai/api-reference/chat-completions"]
+    },
+
+    {
+      "id": "groq",
+      "displayName": "Groq",
+      "vendor": "groq",
+      "llmProvider": "groq",
+      "apiStyle": "openai",
+      "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+      "enabled": true,
+      "models": [
+        { "id": "openai/gpt-oss-120b", "displayName": "GPT-OSS 120B", "llmModelHeader": "openai/gpt-oss-120b",
+          "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": true, "isRecommended": true,
+          "accuracy": 4, "speed": 4, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://console.groq.com/docs/models"]
+    },
+
+    {
+      "id": "anthropic",
+      "displayName": "Anthropic",
+      "vendor": "anthropic",
+      "llmProvider": "anthropic",
+      "apiStyle": "anthropic",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "enabled": true,
+      "isRecommended": true,
+      "models": [
+        { "id": "claude-haiku-4-5", "displayName": "Claude Haiku 4.5", "llmModelHeader": "claude-haiku-4-5",
+          "pricePerMInput": 1.00, "pricePerMOutput": 5.00, "isDefault": true, "isRecommended": true,
+          "accuracy": 4, "speed": 2, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://docs.anthropic.com/en/docs/about-claude/models"]
+    },
+
+    {
+      "id": "grok",
+      "displayName": "Grok (xAI)",
+      "vendor": "xai",
+      "llmProvider": "grok",
+      "apiStyle": "openai",
+      "endpoint": "https://api.x.ai/v1/chat/completions",
+      "enabled": true,
+      "models": [
+        { "id": "grok-4.3", "displayName": "Grok 4.3 Fast", "llmModelHeader": "grok-4.3",
+          "pricePerMInput": 1.25, "pricePerMOutput": 2.50, "isDefault": true, "isRecommended": true,
+          "accuracy": 5, "speed": 1, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://docs.x.ai/docs/models"]
+    },
+
+    {
+      "id": "openai",
+      "displayName": "OpenAI",
+      "vendor": "openai",
+      "llmProvider": "openai",
+      "apiStyle": "openai",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "enabled": true,
+      "enabledNote": "Set true once backend-v2-flyio PR #47 (hyperwhisper-fly) deploys with OPENAI_API_KEY set. Until then the app hides this engine so X-LLM-Provider: openai won't silently fall back to Cerebras (wrong model + wrong billing).",
+      "models": [
+        { "id": "gpt-5-mini", "displayName": "GPT-5 mini", "llmModelHeader": "gpt-5-mini",
+          "pricePerMInput": 0.25, "pricePerMOutput": 2.00, "isDefault": true, "isRecommended": true,
+          "accuracy": 4, "speed": 1, "previewStatus": false, "enabled": true },
+        { "id": "gpt-5-nano", "displayName": "GPT-5 nano", "llmModelHeader": "gpt-5-nano",
+          "pricePerMInput": 0.05, "pricePerMOutput": 0.40, "isDefault": false, "isRecommended": false,
+          "accuracy": 2, "speed": 2, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://platform.openai.com/docs/pricing", "https://platform.openai.com/docs/models"]
+    },
+
+    {
+      "id": "gemini",
+      "displayName": "Google Gemini",
+      "vendor": "google",
+      "llmProvider": "gemini",
+      "apiStyle": "openai",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "enabled": true,
+      "enabledNote": "Set true once backend-v2-flyio PR #47 deploys with GEMINI_API_KEY set.",
+      "models": [
+        { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "llmModelHeader": "gemini-2.5-flash",
+          "pricePerMInput": 0.30, "pricePerMOutput": 2.50, "isDefault": true, "isRecommended": true,
+          "accuracy": 3, "speed": 1, "previewStatus": false, "enabled": true },
+        { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash-Lite", "llmModelHeader": "gemini-2.5-flash-lite",
+          "pricePerMInput": 0.10, "pricePerMOutput": 0.40, "isDefault": false, "isRecommended": false,
+          "accuracy": 2, "speed": 2, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://ai.google.dev/gemini-api/docs/pricing", "https://ai.google.dev/gemini-api/docs/openai"]
+    },
+
+    {
+      "id": "mistral",
+      "displayName": "Mistral",
+      "vendor": "mistral",
+      "llmProvider": "mistral",
+      "apiStyle": "openai",
+      "endpoint": "https://api.mistral.ai/v1/chat/completions",
+      "enabled": true,
+      "enabledNote": "Set true once backend-v2-flyio PR #47 deploys with MISTRAL_API_KEY set.",
+      "models": [
+        { "id": "mistral-small-latest", "displayName": "Mistral Small", "llmModelHeader": "mistral-small-latest",
+          "pricePerMInput": 0.15, "pricePerMOutput": 0.60, "isDefault": true, "isRecommended": true,
+          "accuracy": 3, "speed": 2, "previewStatus": false, "enabled": true,
+          "priceNote": "Alias resolves to Mistral Small 4; sources conflict ($0.15/$0.60 model-docs vs $0.10/$0.30 pricing tile) — chose the higher/safer. Re-confirm before flipping enabled:true." },
+        { "id": "open-mistral-nemo", "displayName": "Mistral Nemo", "llmModelHeader": "open-mistral-nemo",
+          "pricePerMInput": 0.15, "pricePerMOutput": 0.15, "isDefault": false, "isRecommended": false,
+          "accuracy": 2, "speed": 2, "previewStatus": false, "enabled": true }
+      ],
+      "sources": ["https://mistral.ai/pricing", "https://docs.mistral.ai/getting-started/models/models_overview/"]
+    }
+  ]
+}

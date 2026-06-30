@@ -1,0 +1,70 @@
+---
+title: Keep Microphone Warm
+description: Reduce push-to-talk startup delay by keeping your microphone session open between recordings.
+---
+
+When you trigger push-to-talk, there is a brief moment while your operating system initializes the microphone capture path. On most wired or built-in microphones this delay is imperceptible, but on Bluetooth devices it can be long enough to clip the first word or two of your dictation.
+
+**Keep microphone warm** eliminates that delay by holding a silent, idle audio session open between recordings so the hardware is ready the instant you press your shortcut.
+
+## How it works
+
+When the setting is on, HyperWhisper opens a low-level capture session immediately after each recording ends and keeps it open until the next one begins. No audio from this idle session is stored, processed, or sent anywhere — the captured buffers are discarded as soon as they arrive. The session closes automatically while a real recording is running and reopens once recording stops.
+
+## Enabling the setting
+
+<Tabs>
+  <Tab title="macOS">
+    Open **Settings → Sound** and turn on **Keep microphone warm between recordings**.
+
+    The change takes effect immediately — no restart required.
+  </Tab>
+  <Tab title="Windows">
+    Open **Settings → Sound** and check **Keep microphone warm**.
+
+    The change takes effect immediately — no restart required.
+  </Tab>
+</Tabs>
+
+## Trade-offs to be aware of
+
+<Tabs>
+  <Tab title="macOS">
+    <Warning>
+      While **Keep microphone warm** is on, macOS displays the **orange microphone indicator** in the menu bar continuously — even when you are not recording. This is expected behavior: macOS shows the indicator whenever any app holds a capture session open.
+
+      Additionally, Bluetooth headsets may stay in their lower-quality **call audio profile** rather than switching back to stereo mode between recordings. If audio quality from your headset matters outside of HyperWhisper (for example, during music playback), consider leaving this setting off.
+    </Warning>
+
+    Turn the setting off if:
+
+    - You want the orange mic indicator to appear only during actual recordings.
+    - You use Bluetooth headphones and prefer stereo quality between recordings.
+    - You are on battery and want to minimize background activity.
+  </Tab>
+  <Tab title="Windows">
+    There is no system-level recording indicator on Windows for the idle session.
+
+    The idle stream runs at 16 kHz mono and consumes minimal CPU and battery — the effect is small but non-zero. Turn the setting off if power consumption is a concern.
+  </Tab>
+</Tabs>
+
+## Platform notes
+
+<Tabs>
+  <Tab title="macOS">
+    - The idle session uses `AVCaptureSession` with `AVCaptureAudioDataOutput`. All sample buffers are discarded immediately.
+    - HyperWhisper reuses your existing device selection — if you have a specific microphone chosen in **Settings → Sound**, the warm session runs on that device.
+    - If you switch input devices while the setting is on, HyperWhisper automatically restarts the idle session on the new device.
+    - The session does not start if microphone permission has not been granted.
+  </Tab>
+  <Tab title="Windows">
+    - The idle stream uses NAudio `WaveInEvent` at 16 kHz, 16-bit mono.
+    - All captured audio buffers are discarded without processing.
+    - If the device changes, HyperWhisper restarts the idle stream on the new device automatically.
+    - The stream does not start if the selected device is unavailable.
+  </Tab>
+  <Tab title="iOS">
+    Keep microphone warm is not available on iOS.
+  </Tab>
+</Tabs>

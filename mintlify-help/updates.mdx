@@ -1,0 +1,45 @@
+---
+title: App Updates
+description: How HyperWhisper updates itself on macOS and Windows, and how to check for updates manually.
+---
+
+HyperWhisper checks for updates automatically and installs them with a single click. You don't need to babysit version numbers.
+
+<Tabs>
+  <Tab title="macOS">
+    HyperWhisper uses [Sparkle](https://sparkle-project.org), the standard auto-update framework for Mac apps.
+
+    ## Automatic updates
+
+    On launch (and periodically while running), the app checks the appcast at `https://www.hyperwhisper.com/appcast.xml`. When a new version is available, you'll see a prompt with the release notes — click **Install Update** and HyperWhisper relaunches into the new version.
+
+    ## Checking manually
+
+    Click the menu bar icon and choose **Check for Updates...**. If you're on the latest version, you'll see a confirmation. Otherwise the update prompt appears.
+
+    ## Disabling auto-checks
+
+    If you'd rather control update timing yourself, untick **Automatically check for updates** in the Sparkle dialog. You can still trigger a manual check at any time via **Check for Updates...**.
+  </Tab>
+  <Tab title="Windows">
+    HyperWhisper uses [NetSparkle](https://github.com/NetSparkleUpdater/NetSparkle), the Windows equivalent of Sparkle.
+
+    ## Automatic updates
+
+    On launch, the app checks the appcast for a newer version. When one is available, you'll see a notification with the release notes and an **Install** button. The new version downloads, the app closes, and the installer runs automatically.
+
+    ## Checking manually
+
+    Right-click the tray icon and choose **Check for Updates**. If you're on the latest version, you'll see a confirmation; otherwise the update prompt appears.
+  </Tab>
+</Tabs>
+
+## Release channels
+
+HyperWhisper currently ships a single stable channel — there's no separate beta or insider track. Releases go through internal testing before being pushed to all users.
+
+If you want to be notified when a new version ships, follow us on [LinkedIn](https://www.linkedin.com/company/hyperwhisper/).
+
+## Rolling back
+
+If a new release breaks something for you, please email [support@hyperwhisper.com](mailto:support@hyperwhisper.com) with details — that's the fastest way to get a fix out, and we can point you to the previous installer in the meantime.

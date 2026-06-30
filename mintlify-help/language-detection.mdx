@@ -1,0 +1,146 @@
+---
+title: Language & Detection
+description: Configure the transcription language per mode, understand automatic language detection, and learn how language choice affects engine availability, vocabulary boosting, and AI post-processing.
+---
+
+HyperWhisper lets you set a transcription language for each mode independently. You can also let the engine detect the language automatically from the audio, though this works best with longer recordings.
+
+## Setting the Language for a Mode
+
+Language is stored **per mode**, so each mode in your list can target a different language. This makes it easy to keep a dedicated mode for each language you use regularly without changing any setting between tasks.
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open the mode editor">
+        Click the HyperWhisper menu bar icon to open the main window, then click **Modes** in the sidebar. Click the mode you want to edit, or click **Create Mode** to create one.
+      </Step>
+      <Step title="Change the language">
+        In the mode editor, find the **Language** row under the Transcription section. Click the dropdown to open the full language picker. Popular languages appear at the top; the rest are listed alphabetically below them.
+      </Step>
+      <Step title="Save">
+        Click **Save**. The language choice is stored with the mode and takes effect on the next recording in that mode.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open the mode editor">
+        In the main window sidebar, click **Modes**, then click the edit icon next to the mode you want to change, or click **Create Mode**.
+      </Step>
+      <Step title="Change the language">
+        Scroll to the **Language** section in the mode editor. Click the dropdown to choose from the available languages for the selected model.
+      </Step>
+      <Step title="Save">
+        Click **Save**. The language is stored with that mode.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="iOS">
+    On iOS, HyperWhisper transcribes through HyperWhisper Cloud. The per-mode **Language** section in the mode editor controls the **English Spelling** variant used by the AI post-processor (American, British, Australian, or Canadian). The transcription language itself is sent as part of the mode's locale when your recording is uploaded.
+  </Tab>
+</Tabs>
+
+The default selection is **Automatic**, which lets the engine detect the language from the audio. See [Automatic Language Detection](#automatic-language-detection) below for when to use it and its limitations.
+
+<Tip>
+  Create a separate mode for each language you use regularly. Switching modes is instant via the mode picker or keyboard shortcut, and each mode remembers its own language — no manual changes needed between sessions.
+</Tip>
+
+---
+
+## Automatic Language Detection
+
+When you select **Automatic**, HyperWhisper does not send a language hint to the transcription engine. The engine infers the language directly from the audio content.
+
+**Auto-detect works best when:**
+- Your recording contains at least 10–15 seconds of clear speech
+- You are dictating in a single language throughout the recording
+- The language you are speaking is well-represented in the model's training data
+
+**Auto-detect is unreliable when:**
+- Recordings are short (under 10–15 seconds) — there may not be enough speech for the engine to identify the language with confidence
+- You switch languages mid-recording
+
+Short auto-detect recordings can produce nonsense output, empty results, or the wrong language. For most use cases, setting an explicit language gives better and more consistent results. See [Best Practices](/best-practices) for more detail.
+
+<Note>
+  Some models and cloud providers do not support auto-detect. When a model only supports English, the language picker is hidden entirely in the mode editor and the engine always runs in English-only mode.
+</Note>
+
+---
+
+## English-Only Models
+
+Several local models support only English. For these models, the language picker is hidden in the mode editor and language detection is not available:
+
+- **Whisper `.en` variants** (e.g., `base.en`, `small.en`) — English-only builds of Whisper, optimized for English accuracy
+- **Parakeet V2** — NVIDIA's English-only Parakeet model with the highest recall
+
+When you select one of these models, the language field shows an informational notice instead of the picker, and the mode will always transcribe in English.
+
+---
+
+## Supported Languages by Model
+
+The number of available languages depends on the model or provider you choose.
+
+| Model / Provider | Languages |
+|---|---|
+| **Whisper (all multilingual variants)** | 101 languages |
+| **HyperWhisper Cloud, OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs, Soniox, Mistral, Gemini, Grok** | Varies by model — picker filters automatically |
+| **Google Speech / Chirp 3** (via HyperWhisper Cloud) | ~88 languages |
+| **Azure MAI-Transcribe** (via HyperWhisper Cloud) | ~42 languages |
+| **Parakeet V3** | 25 European languages (English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Russian, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Serbian, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian) |
+| **Qwen3 ASR** *(macOS only)* | 30 languages including Chinese, English, Cantonese, Arabic, Japanese, Korean, and major European languages |
+| **Parakeet V2** | English only (picker hidden) |
+| **Whisper `.en` variants** | English only (picker hidden) |
+
+For cloud providers, the language picker filters itself to only show the languages the selected model actually supports. Switching to a model with a narrower language list will automatically fall back to the first available language if your current selection is not supported by the new model.
+
+See the [Model Library](/models) for the full per-model breakdown.
+
+**Popular languages appear at the top of the picker** on both platforms: English, Japanese, Spanish, Chinese, Chinese (Traditional), Dutch, Hindi, Russian, Korean, Italian, Ukrainian, Polish, Portuguese, Greek, Czech, Swedish, Norwegian, Danish, and Indonesian. All other languages follow in alphabetical order.
+
+---
+
+## How Language Affects Other Features
+
+Your language choice in a mode affects more than just the transcription engine.
+
+### Vocabulary Boosting
+
+Custom vocabulary words you add in [Vocabulary](/vocabulary) are sent to cloud providers as hints to improve accuracy on proper nouns, technical terms, and domain-specific words.
+
+**Deepgram Nova-3 specifically:** vocabulary boosting via the `keyterm` parameter is ignored when the language is set to **Automatic**. To get vocabulary boosting with Deepgram Nova-3, set an explicit language in the mode. When you select Nova-3 with auto-detect enabled, a notice appears in the mode editor.
+
+Some providers do not support vocabulary hints at all (the mode editor shows a notice in those cases).
+
+### AI Post-Processing
+
+When AI post-processing is enabled, the transcription result is refined by a language model. The **English Spelling** setting (American, British, Australian, or Canadian) is only available — and only meaningful — when the mode language is set to English. For non-English modes, spelling conventions follow the target language automatically.
+
+### Engine Availability
+
+Choosing a language that a particular model does not support will cause the picker to fall back to the first language in the model's supported list. If you switch models while on a language the new model does not support, the language resets automatically rather than sending an unsupported code to the engine.
+
+---
+
+## Streaming Language
+
+Streaming transcription has its **own language setting**, separate from per-mode language.
+
+<Tabs>
+  <Tab title="macOS">
+    The streaming language is set in the **Streaming** section of the sidebar. It defaults to **English**. You can change it to any supported language or to **Automatic**. The available options filter to match the streaming provider and model you have selected — for example, Parakeet V3 streaming limits the picker to its 25 supported languages.
+  </Tab>
+  <Tab title="Windows">
+    Open the **Streaming** page in the main sidebar. The **Language** dropdown shows all supported languages for the selected streaming provider. It defaults to **English**.
+  </Tab>
+</Tabs>
+
+The same auto-detect caveats apply to streaming: short or single-sentence inputs are likely to produce inconsistent results when language is set to **Automatic**.
+
+<Note>
+  The Deepgram vocabulary boosting limitation applies to streaming as well: setting the streaming language to **Automatic** disables vocabulary hints for Deepgram Nova-3.
+</Note>

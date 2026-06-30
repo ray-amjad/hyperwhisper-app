@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "sync:presets": "python3 tools/sync-preset-descriptions.py",
+    "verify:presets": "python3 tools/verify-preset-descriptions.py"
+  },
+  "dependencies": {
+    "yaml": "2.8.3"
+  },
+  "packageManager": "pnpm@10.33.0"
+}

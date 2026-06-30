@@ -1,0 +1,18 @@
+[package]
+name = "hw-net"
+version = "0.1.0"
+edition = "2021"
+description = "Sans-I/O networking core for the 12 cloud STT providers: builds HttpRequest values and parses HttpResponse values. Audio is never marshalled (FileRef references a path the platform streams)."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

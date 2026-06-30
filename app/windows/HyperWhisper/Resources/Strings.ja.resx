@@ -1,0 +1,2393 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Application -->
+  <data name="app.title" xml:space="preserve">
+    <value>HyperWhisper</value>
+  </data>
+  <data name="app.badge.pro" xml:space="preserve">
+    <value>PRO</value>
+  </data>
+  <data name="app.upgrade.to.pro" xml:space="preserve">
+    <value>Pro にアップグレード</value>
+  </data>
+  <data name="app.enter.license.key" xml:space="preserve">
+    <value>ライセンスキーを入力</value>
+  </data>
+
+  <!-- Common UI -->
+  <data name="common.ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="common.cancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="common.save" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="common.delete" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="common.edit" xml:space="preserve">
+    <value>編集</value>
+  </data>
+  <data name="common.add" xml:space="preserve">
+    <value>追加</value>
+  </data>
+  <data name="common.copy" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="common.yes" xml:space="preserve">
+    <value>はい</value>
+  </data>
+  <data name="common.no" xml:space="preserve">
+    <value>いいえ</value>
+  </data>
+  <data name="common.error" xml:space="preserve">
+    <value>エラー</value>
+  </data>
+  <data name="common.retry" xml:space="preserve">
+    <value>再試行</value>
+  </data>
+  <data name="common.open.settings" xml:space="preserve">
+    <value>設定を開く</value>
+  </data>
+  <data name="menu.command.contact.support" xml:space="preserve">
+    <value>サポートに問い合わせる</value>
+  </data>
+  <data name="menu.history" xml:space="preserve">
+    <value>履歴...</value>
+  </data>
+  <data name="menu.settings" xml:space="preserve">
+    <value>設定...</value>
+  </data>
+  <data name="menu.recording.toggle" xml:space="preserve">
+    <value>録音を開始／停止</value>
+  </data>
+  <data name="menu.recording.stop" xml:space="preserve">
+    <value>録音を停止</value>
+  </data>
+  <data name="menu.microphone" xml:space="preserve">
+    <value>マイク</value>
+  </data>
+  <data name="menu.microphone.none" xml:space="preserve">
+    <value>マイクが見つかりません</value>
+  </data>
+  <data name="menu.select.mode" xml:space="preserve">
+    <value>モードを選択</value>
+  </data>
+  <data name="menu.mode.none" xml:space="preserve">
+    <value>利用可能なモードがありません</value>
+  </data>
+  <data name="menu.mode.unnamed" xml:space="preserve">
+    <value>名称未設定</value>
+  </data>
+  <data name="menu.transcribe.file" xml:space="preserve">
+    <value>ファイルを文字起こし</value>
+  </data>
+  <data name="menu.version.label" xml:space="preserve">
+    <value>バージョン {0}</value>
+  </data>
+  <data name="common.quit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+
+  <!-- Sidebar Navigation -->
+  <data name="sidebar.home" xml:space="preserve">
+    <value>ホーム</value>
+  </data>
+  <data name="sidebar.modes" xml:space="preserve">
+    <value>モード</value>
+  </data>
+  <data name="sidebar.vocabulary" xml:space="preserve">
+    <value>語彙</value>
+  </data>
+  <data name="sidebar.history" xml:space="preserve">
+    <value>履歴</value>
+  </data>
+  <data name="sidebar.settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+
+  <!-- Home Page -->
+  <data name="home.welcome.title" xml:space="preserve">
+    <value>HyperWhisperへようこそ</value>
+  </data>
+
+  <!-- History Page -->
+  <data name="history.title" xml:space="preserve">
+    <value>履歴</value>
+  </data>
+  <data name="history.filter.all" xml:space="preserve">
+    <value>すべて</value>
+  </data>
+  <data name="history.filter.today" xml:space="preserve">
+    <value>今日</value>
+  </data>
+  <data name="history.filter.week" xml:space="preserve">
+    <value>今週</value>
+  </data>
+  <data name="history.filter.month" xml:space="preserve">
+    <value>今月</value>
+  </data>
+  <data name="history.empty.title" xml:space="preserve">
+    <value>録音が見つかりません</value>
+  </data>
+  <data name="history.empty.subtitle" xml:space="preserve">
+    <value>検索条件を調整してください</value>
+  </data>
+  <data name="history.detail.empty" xml:space="preserve">
+    <value>録音を選択すると詳細が表示されます</value>
+  </data>
+  <data name="history.section.today" xml:space="preserve">
+    <value>今日</value>
+  </data>
+  <data name="history.section.yesterday" xml:space="preserve">
+    <value>昨日</value>
+  </data>
+  <data name="history.status.failed" xml:space="preserve">
+    <value>失敗</value>
+  </data>
+  <data name="history.context.retry" xml:space="preserve">
+    <value>文字起こしを再試行</value>
+  </data>
+  <data name="history.toggle.showProcessed" xml:space="preserve">
+    <value>処理済みを表示</value>
+  </data>
+  <data name="history.toggle.showOriginal" xml:space="preserve">
+    <value>元のテキストを表示</value>
+  </data>
+  <data name="history.action.deleteSelected" xml:space="preserve">
+    <value>選択を削除</value>
+  </data>
+  <data name="history.audio.notAvailable" xml:space="preserve">
+    <value>音声ファイルが利用できません</value>
+  </data>
+  <data name="history.badge.originalTranscript" xml:space="preserve">
+    <value>オリジナル</value>
+  </data>
+  <data name="history.context.retryWith" xml:space="preserve">
+    <value>再試行...</value>
+  </data>
+  <data name="history.empty.noRecordings" xml:space="preserve">
+    <value>まだ録音がありません</value>
+  </data>
+  <data name="history.status.retrying" xml:space="preserve">
+    <value>再試行中...</value>
+  </data>
+
+  <!-- Modes Page -->
+  <data name="modes.header.title" xml:space="preserve">
+    <value>モード</value>
+  </data>
+  <data name="modes.header.subtitle" xml:space="preserve">
+    <value>用途に合わせたカスタムプロファイルを作成できます</value>
+  </data>
+  <data name="modes.header.create" xml:space="preserve">
+    <value>モードを作成</value>
+  </data>
+  <data name="modes.badge.offline" xml:space="preserve">
+    <value>オフライン</value>
+  </data>
+  <data name="modes.badge.recommended" xml:space="preserve">
+    <value>おすすめ</value>
+  </data>
+  <data name="modes.button.create" xml:space="preserve">
+    <value>モードを作成</value>
+  </data>
+  <data name="modes.button.delete" xml:space="preserve">
+    <value>モードを削除</value>
+  </data>
+  <data name="modes.button.save" xml:space="preserve">
+    <value>変更を保存</value>
+  </data>
+
+  <!-- Mode Editor -->
+  <data name="mode.editor.title.create" xml:space="preserve">
+    <value>新しいモードを作成</value>
+  </data>
+  <data name="mode.editor.title.edit" xml:space="preserve">
+    <value>モードを編集</value>
+  </data>
+  <data name="mode.editor.field.name" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="mode.editor.field.provider" xml:space="preserve">
+    <value>プロバイダー</value>
+  </data>
+  <data name="mode.editor.field.language" xml:space="preserve">
+    <value>言語</value>
+  </data>
+  <data name="mode.editor.provider.local" xml:space="preserve">
+    <value>ローカル</value>
+  </data>
+  <data name="mode.editor.provider.cloud" xml:space="preserve">
+    <value>クラウド</value>
+  </data>
+  <data name="mode.editor.field.source" xml:space="preserve">
+    <value>ソース</value>
+  </data>
+  <data name="mode.editor.source.onDevice" xml:space="preserve">
+    <value>デバイス上</value>
+  </data>
+  <data name="mode.editor.source.hyperwhisperCloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
+  <data name="mode.editor.source.yourProvider" xml:space="preserve">
+    <value>APIキー</value>
+  </data>
+  <data name="mode.editor.field.engine" xml:space="preserve">
+    <value>エンジン</value>
+  </data>
+  <data name="mode.editor.engine.recommendedLabel" xml:space="preserve">
+    <value>{0} (おすすめ)</value>
+  </data>
+  <data name="mode.editor.section.basic" xml:space="preserve">
+    <value>基本設定</value>
+  </data>
+  <data name="mode.editor.section.transcription" xml:space="preserve">
+    <value>文字起こしモデル</value>
+  </data>
+  <data name="mode.editor.section.postProcessing" xml:space="preserve">
+    <value>後処理</value>
+  </data>
+  <data name="mode.editor.section.punctuation" xml:space="preserve">
+    <value>句読点</value>
+  </data>
+
+  <!-- Vocabulary Page -->
+  <data name="vocabulary.title" xml:space="preserve">
+    <value>語彙</value>
+  </data>
+  <data name="vocabulary.description" xml:space="preserve">
+    <value>これはソフトウェアが名前、頭字語、スラング、または言語を混在させる際の他の言語の単語を認識するのに役立ちます。</value>
+  </data>
+  <data name="vocabulary.input.title" xml:space="preserve">
+    <value>入力</value>
+  </data>
+  <data name="vocabulary.edit.title" xml:space="preserve">
+    <value>語彙エントリを編集</value>
+  </data>
+  <data name="common.update" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="vocabulary.word.column" xml:space="preserve">
+    <value>単語/フレーズ</value>
+  </data>
+  <data name="vocabulary.replacement.column" xml:space="preserve">
+    <value>置換</value>
+  </data>
+  <data name="vocabulary.empty.title" xml:space="preserve">
+    <value>語彙単語がまだありません</value>
+  </data>
+  <data name="vocabulary.empty.subtitle" xml:space="preserve">
+    <value>カスタム単語を追加して文字起こしの精度を向上させましょう</value>
+  </data>
+  <data name="vocabulary.limit.title" xml:space="preserve">
+    <value>キーワード上限を超えました</value>
+  </data>
+  <data name="vocabulary.input.wordLabel" xml:space="preserve">
+    <value>単語</value>
+  </data>
+  <data name="vocabulary.input.replacementLabel" xml:space="preserve">
+    <value>置換 (任意)</value>
+  </data>
+  <data name="vocabulary.autoLearned.badge" xml:space="preserve">
+    <value>自動学習</value>
+  </data>
+  <data name="vocabulary.autoLearned.clear" xml:space="preserve">
+    <value>自動学習をクリア</value>
+  </data>
+  <data name="vocabulary.autoLearned.clearConfirm.title" xml:space="preserve">
+    <value>自動学習した語彙をクリアしますか？</value>
+  </data>
+  <data name="vocabulary.autoLearned.clearConfirm.message" xml:space="preserve">
+    <value>自動学習した語彙エントリ {0} 件を削除しますか？手動で追加したエントリは残ります。</value>
+  </data>
+  <data name="vocabulary.input.placeholder" xml:space="preserve">
+    <value>単語を追加するかスニペットを作成</value>
+  </data>
+  <data name="vocabulary.action.addWord" xml:space="preserve">
+    <value>単語を追加</value>
+  </data>
+  <data name="vocabulary.action.replaceWith" xml:space="preserve">
+    <value>置換先…</value>
+  </data>
+  <data name="vocabulary.action.replace" xml:space="preserve">
+    <value>置換</value>
+  </data>
+  <data name="vocabulary.replacement.field.placeholder" xml:space="preserve">
+    <value>置換テキスト…</value>
+  </data>
+
+  <!-- Settings Page -->
+  <data name="settings.title" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <!-- Settings Navigation -->
+  <data name="settings.nav.general" xml:space="preserve">
+    <value>全般</value>
+  </data>
+  <data name="settings.nav.appearance" xml:space="preserve">
+    <value>外観</value>
+  </data>
+  <data name="settings.nav.license" xml:space="preserve">
+    <value>ライセンス</value>
+  </data>
+  <data name="settings.nav.credits" xml:space="preserve">
+    <value>クレジット</value>
+  </data>
+  <data name="settings.nav.storage" xml:space="preserve">
+    <value>ストレージ</value>
+  </data>
+  <data name="settings.nav.models" xml:space="preserve">
+    <value>モデル</value>
+  </data>
+  <data name="settings.nav.apiKeys" xml:space="preserve">
+    <value>APIキー</value>
+  </data>
+  <data name="settings.nav.output" xml:space="preserve">
+    <value>テキスト出力</value>
+  </data>
+  <data name="settings.nav.shortcuts" xml:space="preserve">
+    <value>ショートカット</value>
+  </data>
+  <data name="settings.nav.sound" xml:space="preserve">
+    <value>サウンド</value>
+  </data>
+  <data name="settings.nav.about" xml:space="preserve">
+    <value>このアプリについて</value>
+  </data>
+  <data name="settings.section.license" xml:space="preserve">
+    <value>ライセンス</value>
+  </data>
+  <data name="settings.section.storage" xml:space="preserve">
+    <value>ストレージ</value>
+  </data>
+  <data name="settings.section.models" xml:space="preserve">
+    <value>モデル</value>
+  </data>
+  <data name="settings.section.api.keys" xml:space="preserve">
+    <value>APIキー</value>
+  </data>
+  <data name="settings.section.shortcuts" xml:space="preserve">
+    <value>キーボードショートカット</value>
+  </data>
+  <data name="settings.section.output" xml:space="preserve">
+    <value>テキスト出力</value>
+  </data>
+  <data name="settings.section.about" xml:space="preserve">
+    <value>このアプリについて</value>
+  </data>
+
+  <!-- Settings - General -->
+  <data name="settings.general.title" xml:space="preserve">
+    <value>全般</value>
+  </data>
+  <data name="settings.general.startup.title" xml:space="preserve">
+    <value>起動</value>
+  </data>
+  <data name="settings.general.startup.subtitle" xml:space="preserve">
+    <value>HyperWhisperの起動方法を設定します</value>
+  </data>
+  <data name="settings.general.launchAtLogin.title" xml:space="preserve">
+    <value>起動時に開始</value>
+  </data>
+  <data name="settings.general.launchAtLogin.subtitle" xml:space="preserve">
+    <value>ログイン時にHyperWhisperを自動的に起動します。</value>
+  </data>
+  <data name="settings.general.launchMinimized.title" xml:space="preserve">
+    <value>最小化して起動</value>
+  </data>
+  <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
+    <value>システムトレイに隠れた状態でHyperWhisperを起動します。</value>
+  </data>
+  <data name="settings.general.windowBehavior.title" xml:space="preserve">
+    <value>ウィンドウ動作</value>
+  </data>
+  <data name="settings.general.windowBehavior.subtitle" xml:space="preserve">
+    <value>ウィンドウと録音の表示を設定します</value>
+  </data>
+  <data name="settings.general.minimizeToTray.title" xml:space="preserve">
+    <value>システムトレイに最小化</value>
+  </data>
+  <data name="settings.general.minimizeToTray.subtitle" xml:space="preserve">
+    <value>ウィンドウを閉じると終了せずにトレイに最小化します</value>
+  </data>
+  <data name="settings.general.showRecordingWindow.title" xml:space="preserve">
+    <value>録音ウィンドウを表示</value>
+  </data>
+  <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
+    <value>オーディオ波形付きの録音オーバーレイを表示します</value>
+  </data>
+  <data name="settings.general.loggingAndUpdates.title" xml:space="preserve">
+    <value>ログと更新</value>
+  </data>
+  <data name="settings.general.loggingAndUpdates.subtitle" xml:space="preserve">
+    <value>HyperWhisperの改善にご協力ください</value>
+  </data>
+  <data name="settings.general.errorLogging.title" xml:space="preserve">
+    <value>エラーレポートを送信</value>
+  </data>
+  <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
+    <value>問題の解決に役立つクラッシュレポートを自動的に送信します。文字起こし内容は送信されません。</value>
+  </data>
+  <data name="settings.general.autoUpdate.title" xml:space="preserve">
+    <value>更新を自動的にチェック</value>
+  </data>
+  <data name="settings.general.autoUpdate.subtitle" xml:space="preserve">
+    <value>起動時に新しいバージョンをサイレントにチェックします</value>
+  </data>
+  <data name="settings.general.support.title" xml:space="preserve">
+    <value>お困りですか？</value>
+  </data>
+  <data name="settings.general.support.openFailed" xml:space="preserve">
+    <value>サポートページを開けませんでした: {0}</value>
+  </data>
+  <data name="settings.version.detail" xml:space="preserve">
+    <value>バージョン {0} ({1})</value>
+  </data>
+  <data name="settings.resources.help.center" xml:space="preserve">
+    <value>ヘルプセンター</value>
+  </data>
+  <data name="settings.resources.contact.support" xml:space="preserve">
+    <value>サポートに問い合わせる</value>
+  </data>
+  <data name="settings.resources.feedback" xml:space="preserve">
+    <value>フィードバックを送信</value>
+  </data>
+
+  <!-- Settings - Appearance -->
+  <data name="settings.appearance.title" xml:space="preserve">
+    <value>外観</value>
+  </data>
+  <data name="settings.appearance.theme.title" xml:space="preserve">
+    <value>テーマ</value>
+  </data>
+  <data name="settings.appearance.theme.subtitle" xml:space="preserve">
+    <value>お好みの配色を選択してください</value>
+  </data>
+  <data name="settings.appearance.theme.system" xml:space="preserve">
+    <value>システムのデフォルト</value>
+  </data>
+  <data name="settings.appearance.theme.system.subtitle" xml:space="preserve">
+    <value>Windowsの設定に基づいてライトとダークを自動的に切り替えます</value>
+  </data>
+  <data name="settings.appearance.theme.light" xml:space="preserve">
+    <value>ライト</value>
+  </data>
+  <data name="settings.appearance.theme.light.subtitle" xml:space="preserve">
+    <value>常に明るい背景のライトテーマを使用します</value>
+  </data>
+  <data name="settings.appearance.theme.dark" xml:space="preserve">
+    <value>ダーク</value>
+  </data>
+  <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
+    <value>目の疲れを軽減するためにダークテーマを常に使用します</value>
+  </data>
+
+  <!-- Settings - License -->
+  <data name="settings.license.status.title" xml:space="preserve">
+    <value>ライセンス状態</value>
+  </data>
+  <data name="settings.license.activate.title" xml:space="preserve">
+    <value>ライセンスを有効化</value>
+  </data>
+  <data name="settings.license.activate.subtitle" xml:space="preserve">
+    <value>ライセンスキーを入力して無制限の利用を解除</value>
+  </data>
+  <data name="settings.license.nolicense.prompt" xml:space="preserve">
+    <value>ライセンスをお持ちでないですか? </value>
+  </data>
+  <data name="settings.license.nolicense.link" xml:space="preserve">
+    <value>こちらから購入</value>
+  </data>
+  <data name="settings.license.trial.title" xml:space="preserve">
+    <value>トライアル利用</value>
+  </data>
+  <data name="settings.license.trial.subtitle" xml:space="preserve">
+    <value>1日の利用制限は深夜にリセットされます</value>
+  </data>
+  <data name="settings.license.trial.dailyTranscription" xml:space="preserve">
+    <value>1日の文字起こし</value>
+  </data>
+  <data name="settings.license.trial.modelDownloads" xml:space="preserve">
+    <value>モデルダウンロード</value>
+  </data>
+  <data name="settings.license.clearInput" xml:space="preserve">
+    <value>クリア</value>
+  </data>
+  <data name="settings.license.upgrade.text" xml:space="preserve">
+    <value>無制限の文字起こしとモデルダウンロードにアップグレード</value>
+  </data>
+  <data name="settings.license.upgrade.button" xml:space="preserve">
+    <value>アップグレード</value>
+  </data>
+  <data name="license.status.trial.title" xml:space="preserve">
+    <value>トライアル</value>
+  </data>
+  <data name="license.button.activate" xml:space="preserve">
+    <value>有効化</value>
+  </data>
+  <data name="license.button.activating" xml:space="preserve">
+    <value>有効化中...</value>
+  </data>
+  <data name="license.button.deactivate" xml:space="preserve">
+    <value>デバイスを無効化</value>
+  </data>
+  <data name="license.button.manageBilling" xml:space="preserve">
+    <value>請求を管理</value>
+  </data>
+
+  <!-- Settings - Credits -->
+  <data name="settings.credits.title" xml:space="preserve">
+    <value>HyperWhisper Cloudクレジット</value>
+  </data>
+  <data name="settings.credits.subtitle" xml:space="preserve">
+    <value>クラウド文字起こしクレジットの残高と使用状況を確認します。</value>
+  </data>
+  <data name="settings.credits.balance.title" xml:space="preserve">
+    <value>残高</value>
+  </data>
+  <data name="settings.credits.balance.subtitle" xml:space="preserve">
+    <value>HyperWhisper Cloud文字起こしクレジット</value>
+  </data>
+  <data name="settings.credits.refresh" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="settings.credits.manage" xml:space="preserve">
+    <value>クレジットを管理</value>
+  </data>
+  <data name="settings.credits.manage.subtitle" xml:space="preserve">
+    <value>クレジットの追加やアカウント管理</value>
+  </data>
+  <data name="settings.credits.minutesRemaining" xml:space="preserve">
+    <value>分残り</value>
+  </data>
+  <data name="settings.credits.loading" xml:space="preserve">
+    <value>クレジットを読み込み中...</value>
+  </data>
+  <data name="settings.credits.lowWarning" xml:space="preserve">
+    <value>クレジット残量が少なくなっています。HyperWhisper Cloudを継続利用するにはクレジットの追加をご検討ください。</value>
+  </data>
+  <data name="settings.credits.exhaustedWarning" xml:space="preserve">
+    <value>クレジットを使い切りました。HyperWhisper Cloud文字起こしを継続するにはクレジットを追加してください。</value>
+  </data>
+  <data name="settings.credits.accountInfo.title" xml:space="preserve">
+    <value>アカウント情報</value>
+  </data>
+  <data name="settings.credits.accountInfo.credits" xml:space="preserve">
+    <value>クレジット</value>
+  </data>
+  <data name="settings.credits.accountInfo.costPerMinute" xml:space="preserve">
+    <value>1分あたりのコスト</value>
+  </data>
+  <data name="settings.credits.accountInfo.accountType" xml:space="preserve">
+    <value>アカウント種別</value>
+  </data>
+  <data name="settings.credits.accountInfo.customerId" xml:space="preserve">
+    <value>顧客ID</value>
+  </data>
+  <data name="settings.credits.accountInfo.dailyReset" xml:space="preserve">
+    <value>毎日のリセット</value>
+  </data>
+  <data name="settings.credits.error.title" xml:space="preserve">
+    <value>クレジットの読み込みに失敗しました</value>
+  </data>
+
+  <!-- Settings - API Keys -->
+  <data name="settings.api.info" xml:space="preserve">
+    <value>APIキーはデバイス内で安全に保存され、必要なときにのみプロバイダーへ送信されます。</value>
+  </data>
+  <data name="settings.api.help.link" xml:space="preserve">
+    <value>APIキーのヘルプ</value>
+  </data>
+  <data name="settings.api.transcription.title" xml:space="preserve">
+    <value>文字起こし</value>
+  </data>
+  <data name="settings.api.transcription.subtitle" xml:space="preserve">
+    <value>クラウド型音声認識サービス用のAPIキー</value>
+  </data>
+  <data name="settings.api.postProcessing.title" xml:space="preserve">
+    <value>後処理</value>
+  </data>
+  <data name="settings.api.postProcessing.subtitle" xml:space="preserve">
+    <value>AIによるテキスト整形・補正サービス用のAPIキー</value>
+  </data>
+  <data name="settings.api.invalidKey.title" xml:space="preserve">
+    <value>無効なキー</value>
+  </data>
+  <data name="settings.api.invalidKey.openai" xml:space="preserve">
+    <value>無効なAPIキー形式です。OpenAIキーは「sk-」で始まる必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.groq" xml:space="preserve">
+    <value>無効なAPIキー形式です。Groqキーは「gsk_」で始まる必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.anthropic" xml:space="preserve">
+    <value>無効なAPIキー形式です。Anthropicキーは「sk-ant-」で始まる必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.gemini" xml:space="preserve">
+    <value>無効なAPIキー形式です。Google APIキーは「AIza」で始まる必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.cerebras" xml:space="preserve">
+    <value>無効なAPIキー形式です。Cerebrasキーは「csk-」で始まる必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.deepgram" xml:space="preserve">
+    <value>無効なAPIキー形式です。Deepgramキーは32文字以上である必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.assemblyai" xml:space="preserve">
+    <value>無効なAPIキー形式です。AssemblyAIキーは32文字以上である必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.elevenlabs" xml:space="preserve">
+    <value>無効なAPIキー形式です。ElevenLabsキーは「sk_」で始まる必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.mistral" xml:space="preserve">
+    <value>無効なAPIキー形式です。Mistralキーは20文字以上である必要があります。</value>
+  </data>
+  <data name="settings.api.invalidKey.grok" xml:space="preserve">
+    <value>APIキーの形式が無効です。GrokキーはXAI-」で始まり、20文字以上である必要があります。</value>
+  </data>
+  <data name="settings.api.show" xml:space="preserve">
+    <value>表示</value>
+  </data>
+  <data name="settings.api.hide" xml:space="preserve">
+    <value>非表示</value>
+  </data>
+  <!-- API Provider Descriptions - Transcription -->
+  <data name="settings.api.provider.openai.description" xml:space="preserve">
+    <value>OpenAIのWhisper APIによるクラウド文字起こし</value>
+  </data>
+  <data name="settings.api.provider.groq.description" xml:space="preserve">
+    <value>Groq Cloudの低遅延Whisper API</value>
+  </data>
+  <data name="settings.api.provider.deepgram.description" xml:space="preserve">
+    <value>Deepgram Novaモデルファミリーとドメイン特化チューニング</value>
+  </data>
+  <data name="settings.api.provider.assemblyai.description" xml:space="preserve">
+    <value>AssemblyAIのUniversalとSLAMモデルを使用した音声認識</value>
+  </data>
+  <data name="settings.api.provider.elevenlabs.description" xml:space="preserve">
+    <value>ElevenLabs Scribeの詳細なタイムスタンプとダイアライゼーション</value>
+  </data>
+  <data name="settings.api.provider.mistral.description" xml:space="preserve">
+    <value>MistralのVoxtralによる最先端精度の音声認識</value>
+  </data>
+  <!-- API Provider Descriptions - Post-Processing -->
+  <data name="settings.api.provider.openai.post.description" xml:space="preserve">
+    <value>OpenAI GPTモデルによるテキスト補正</value>
+  </data>
+  <data name="settings.api.provider.anthropic.description" xml:space="preserve">
+    <value>Anthropic Claudeモデルによる高度なテキスト処理</value>
+  </data>
+  <data name="settings.api.provider.gemini.description" xml:space="preserve">
+    <value>Google Geminiモデルによる効率的なテキスト補正</value>
+  </data>
+  <data name="settings.api.provider.groq.post.description" xml:space="preserve">
+    <value>Groqの超高速LLM推論によるテキスト補正</value>
+  </data>
+  <data name="settings.api.provider.cerebras.description" xml:space="preserve">
+    <value>Cerebrasの超高速推論によるテキスト補正</value>
+  </data>
+  <data name="settings.api.provider.grok.description" xml:space="preserve">
+    <value>xAI Grok 音声テキスト変換 API</value>
+  </data>
+
+  <!-- Settings - Output -->
+  <data name="settings.output.cleanup.section" xml:space="preserve">
+    <value>クリーンアップ</value>
+  </data>
+  <data name="settings.output.removeFillerWords.title" xml:space="preserve">
+    <value>フィラーを削除</value>
+  </data>
+  <data name="settings.output.removeFillerWords.subtitle" xml:space="preserve">
+    <value>生の文字起こしから 'uh'、'um'、'er' を削除します。</value>
+  </data>
+  <data name="settings.output.paste.title" xml:space="preserve">
+    <value>結果を自動的に貼り付け</value>
+  </data>
+  <data name="settings.output.paste.subtitle" xml:space="preserve">
+    <value>文字起こし結果をアクティブなアプリに自動的に貼り付けます</value>
+  </data>
+  <data name="settings.output.restoreClipboard.title" xml:space="preserve">
+    <value>貼り付け後にクリップボードを復元</value>
+  </data>
+  <data name="settings.output.restoreClipboard.subtitle" xml:space="preserve">
+    <value>貼り付け後に以前のクリップボード内容を復元します</value>
+  </data>
+  <data name="settings.output.clipboard.description" xml:space="preserve">
+    <value>貼り付け後のクリップボード動作を管理</value>
+  </data>
+  <data name="settings.output.clipboard.section" xml:space="preserve">
+    <value>クリップボード</value>
+  </data>
+  <data name="settings.output.paste.description" xml:space="preserve">
+    <value>自動貼り付けの動作を設定</value>
+  </data>
+  <data name="settings.output.paste.section" xml:space="preserve">
+    <value>貼り付け動作</value>
+  </data>
+  <data name="settings.output.restoreDelay.subtitle" xml:space="preserve">
+    <value>クリップボード内容を復元するまでの遅延</value>
+  </data>
+  <data name="settings.output.restoreDelay.title" xml:space="preserve">
+    <value>復元遅延</value>
+  </data>
+
+  <!-- Settings - Shortcuts -->
+  <data name="settings.shortcuts.reset.button" xml:space="preserve">
+    <value>デフォルトにリセット</value>
+  </data>
+
+  <!-- Settings - Storage -->
+  <data name="settings.storage.recordings.title" xml:space="preserve">
+    <value>録音フォルダ</value>
+  </data>
+  <data name="settings.storage.recordings.subtitle" xml:space="preserve">
+    <value>新しい録音の保存先を選択します。</value>
+  </data>
+  <data name="settings.storage.showFolder.title" xml:space="preserve">
+    <value>録音フォルダを表示</value>
+  </data>
+  <data name="settings.storage.showFolder.button" xml:space="preserve">
+    <value>エクスプローラーで表示</value>
+  </data>
+  <data name="settings.storage.choose.button" xml:space="preserve">
+    <value>選択...</value>
+  </data>
+  <data name="settings.storage.notice" xml:space="preserve">
+    <value>録音フォルダを変更しても新しい録音にのみ適用されます。既存の録音は元の場所に残ります。</value>
+  </data>
+
+  <!-- Settings - About -->
+  <data name="settings.about.checkUpdates" xml:space="preserve">
+    <value>更新を確認</value>
+  </data>
+  <data name="settings.about.checkingForUpdates" xml:space="preserve">
+    <value>確認中...</value>
+  </data>
+  <data name="settings.about.updateCheckFailed.title" xml:space="preserve">
+    <value>アップデート確認失敗</value>
+  </data>
+  <data name="settings.about.updateCheckFailed.message" xml:space="preserve">
+    <value>アップデートの確認に失敗しました: {0}</value>
+  </data>
+  <data name="settings.about.appTitle" xml:space="preserve">
+    <value>HyperWhisper</value>
+  </data>
+  <data name="settings.about.openLogFolder" xml:space="preserve">
+    <value>ログフォルダを開く</value>
+  </data>
+  <data name="settings.about.exportDiagnostics" xml:space="preserve">
+    <value>診断情報を書き出す</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.dialogTitle" xml:space="preserve">
+    <value>HyperWhisper診断情報を書き出す</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.fileFilter" xml:space="preserve">
+    <value>ZIPアーカイブ (*.zip)|*.zip</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.exporting" xml:space="preserve">
+    <value>書き出し中...</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.success.title" xml:space="preserve">
+    <value>診断情報を書き出しました</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.success.message" xml:space="preserve">
+    <value>診断情報を正常に書き出しました。</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.failed.title" xml:space="preserve">
+    <value>診断情報の書き出しに失敗しました</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.failed.message" xml:space="preserve">
+    <value>診断情報を書き出せませんでした: {0}</value>
+  </data>
+
+  <!-- Recording Overlay -->
+  <data name="recording.state.recording" xml:space="preserve">
+    <value>録音中...</value>
+  </data>
+  <data name="recording.state.processing" xml:space="preserve">
+    <value>音声を処理しています...</value>
+  </data>
+  <data name="recording.state.transcribing" xml:space="preserve">
+    <value>文字起こし中...</value>
+  </data>
+  <data name="recording.success.pasted" xml:space="preserve">
+    <value>貼り付けました!</value>
+  </data>
+  <data name="recording.copy.copied" xml:space="preserve">
+    <value>コピーしました!</value>
+  </data>
+
+  <!-- Error Messages -->
+  <data name="errors.noSpeechDetected" xml:space="preserve">
+    <value>録音内に音声が検出されませんでした。</value>
+  </data>
+
+  <!-- Alerts -->
+
+  <!-- Transcription Errors -->
+
+  <!-- Transcripts -->
+  <data name="transcripts.delete.single.title" xml:space="preserve">
+    <value>録音を削除しますか?</value>
+  </data>
+  <data name="transcripts.delete.single.message" xml:space="preserve">
+    <value>この録音と音声ファイルを完全に削除します。</value>
+  </data>
+  <data name="transcripts.delete.multiple.title" xml:space="preserve">
+    <value>{0}件の録音を削除しますか?</value>
+  </data>
+  <data name="transcripts.delete.multiple.message" xml:space="preserve">
+    <value>{0}件の録音とその音声ファイルを完全に削除します。この操作は元に戻せません。</value>
+  </data>
+
+  <!-- Audio Errors -->
+  <data name="audio.error.notRecording" xml:space="preserve">
+    <value>現在録音していません</value>
+  </data>
+  <data name="audio.error.recordingPathNotSet" xml:space="preserve">
+    <value>内部エラー: 録音パスが設定されていません</value>
+  </data>
+  <data name="audio.error.stopRecordingFailed" xml:space="preserve">
+    <value>録音の停止に失敗しました</value>
+  </data>
+  <data name="audio.error.enumerationFailed" xml:space="preserve">
+    <value>オーディオデバイスの列挙に失敗しました</value>
+  </data>
+
+  <!-- Settings - Models -->
+  <data name="settings.models.downloaded" xml:space="preserve">
+    <value>ダウンロード済み</value>
+  </data>
+  <data name="settings.models.download" xml:space="preserve">
+    <value>ダウンロード</value>
+  </data>
+  <data name="settings.models.parakeet.title" xml:space="preserve">
+    <value>Parakeetモデル</value>
+  </data>
+  <data name="settings.models.parakeet.subtitle" xml:space="preserve">
+    <value>ほとんどのユーザーに推奨。多言語モデルは25言語に対応しています。</value>
+  </data>
+  <data name="settings.models.directory.parakeet" xml:space="preserve">
+    <value>Parakeetモデルフォルダ</value>
+  </data>
+  <data name="settings.models.directory.whisper" xml:space="preserve">
+    <value>Whisperモデルフォルダ</value>
+  </data>
+  <data name="settings.models.directory.local" xml:space="preserve">
+    <value>ローカルLLMモデルフォルダ</value>
+  </data>
+  <data name="settings.models.directory.show" xml:space="preserve">
+    <value>エクスプローラーで表示</value>
+  </data>
+  <data name="settings.models.directory.openFailed" xml:space="preserve">
+    <value>モデルフォルダを開けませんでした: {0}</value>
+  </data>
+  <data name="settings.models.download.cancelled" xml:space="preserve">
+    <value>ダウンロードがユーザーによってキャンセルされました</value>
+  </data>
+  <data name="settings.models.download.failed" xml:space="preserve">
+    <value>ダウンロードに失敗しました: {0}</value>
+  </data>
+  <data name="settings.models.available.title" xml:space="preserve">
+    <value>利用可能なモデル</value>
+  </data>
+  <data name="settings.models.available.subtitle" xml:space="preserve">
+    <value>オフライン文字起こし用モデルをダウンロード</value>
+  </data>
+  <data name="settings.models.englishOnly" xml:space="preserve">
+    <value>（英語のみ）</value>
+  </data>
+  <data name="settings.models.gpu.detecting" xml:space="preserve">
+    <value>検出中...</value>
+  </data>
+  <data name="settings.models.gpu.name" xml:space="preserve">
+    <value>GPU:</value>
+  </data>
+  <data name="settings.models.gpu.subtitle" xml:space="preserve">
+    <value>GPU アクセラレーションで文字起こし速度を向上</value>
+  </data>
+  <data name="settings.models.gpu.title" xml:space="preserve">
+    <value>GPU 情報</value>
+  </data>
+  <data name="settings.models.gpu.vram" xml:space="preserve">
+    <value>VRAM:</value>
+  </data>
+  <data name="settings.models.guide.title" xml:space="preserve">
+    <value>モデル選択ガイド</value>
+  </data>
+  <data name="settings.models.recommendation.title" xml:space="preserve">
+    <value>推奨</value>
+  </data>
+  <data name="settings.models.recommendation.text" xml:space="preserve">
+    <value>ハードウェアに基づく</value>
+  </data>
+  <data name="settings.models.vramWarning" xml:space="preserve">
+    <value>（VRAM 超過）</value>
+  </data>
+
+  <!-- Post-Processing -->
+  <data name="postprocessing.error.apiKeyNotSet" xml:space="preserve">
+    <value>後処理が無効 - APIキーが設定されていません</value>
+  </data>
+  <data name="postprocessing.error.failed" xml:space="preserve">
+    <value>後処理に失敗しました。元のテキストを使用します</value>
+  </data>
+
+  <!-- Status Messages -->
+  <data name="status.ready.withHotkey" xml:space="preserve">
+    <value>準備完了 - {0}を押して録音</value>
+  </data>
+  <data name="status.audio.enumerationFailed" xml:space="preserve">
+    <value>オーディオデバイスの列挙に失敗しました</value>
+  </data>
+  <data name="status.model.loading" xml:space="preserve">
+    <value>{0}を読み込み中...</value>
+  </data>
+  <data name="status.model.ready" xml:space="preserve">
+    <value>{0} (準備完了)</value>
+  </data>
+  <data name="status.model.loadFailed" xml:space="preserve">
+    <value>読み込み失敗</value>
+  </data>
+  <data name="status.failed" xml:space="preserve">
+    <value>失敗: {0}</value>
+  </data>
+  <data name="status.mode.none" xml:space="preserve">
+    <value>モードなし</value>
+  </data>
+  <data name="status.model.localReady" xml:space="preserve">
+    <value>ローカル: {0} ({1} 準備完了)</value>
+  </data>
+  <data name="status.model.cloudReady" xml:space="preserve">
+    <value>クラウド (準備完了)</value>
+  </data>
+  <data name="status.model.unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="status.model.computeReady" xml:space="preserve">
+    <value>{0} ({1} 準備完了)</value>
+  </data>
+  <data name="status.model.downloaded" xml:space="preserve">
+    <value>{0} (ダウンロード済み)</value>
+  </data>
+  <data name="status.model.notDownloaded" xml:space="preserve">
+    <value>{0} (未ダウンロード)</value>
+  </data>
+  <data name="status.recordingCancelled" xml:space="preserve">
+    <value>録音がキャンセルされました</value>
+  </data>
+  <data name="status.unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+
+  <!-- Error Messages - ViewModel -->
+  <data name="errors.noMicrophone" xml:space="preserve">
+    <value>マイクが利用できません</value>
+  </data>
+  <data name="errors.noModeSelected" xml:space="preserve">
+    <value>モードが選択されていません</value>
+  </data>
+  <data name="errors.trialLimitReached" xml:space="preserve">
+    <value>1日のトライアル上限に達しました。無制限の文字起こしにはアップグレードしてください。</value>
+  </data>
+  <data name="errors.modelNotDownloaded" xml:space="preserve">
+    <value>モデル '{0}' がダウンロードされていません</value>
+  </data>
+  <data name="errors.modelLoadFailed" xml:space="preserve">
+    <value>文字起こしモデルの読み込みに失敗しました</value>
+  </data>
+  <data name="errors.recordingStartFailed" xml:space="preserve">
+    <value>録音の開始に失敗しました</value>
+  </data>
+  <data name="errors.transcriptionFailed" xml:space="preserve">
+    <value>文字起こしに失敗しました: {0}</value>
+  </data>
+  <data name="errors.noModeForRetry" xml:space="preserve">
+    <value>再試行に使用できるモードがありません。</value>
+  </data>
+  <data name="errors.retryFailed" xml:space="preserve">
+    <value>再試行に失敗しました: {0}</value>
+  </data>
+
+  <!-- Recording States -->
+  <data name="recording.state.enhancing" xml:space="preserve">
+    <value>強化中...</value>
+  </data>
+
+  <!-- History - Status -->
+  <data name="history.status.processing" xml:space="preserve">
+    <value>処理中...</value>
+  </data>
+  <data name="history.status.completed" xml:space="preserve">
+    <value>完了</value>
+  </data>
+
+  <!-- History - Retry -->
+  <data name="history.retry.attemptSingular" xml:space="preserve">
+    <value>1回の試行</value>
+  </data>
+  <data name="history.retry.attemptPlural" xml:space="preserve">
+    <value>{0}回の試行</value>
+  </data>
+  <data name="history.context.retryAgain" xml:space="preserve">
+    <value>もう一度再試行</value>
+  </data>
+
+  <!-- Modes -->
+  <data name="modes.subtitle.local" xml:space="preserve">
+    <value>ローカル - {0}</value>
+  </data>
+
+  <!-- Language -->
+  <data name="language.automatic" xml:space="preserve">
+    <value>自動</value>
+  </data>
+
+  <!-- Status Bar -->
+  <data name="statusbar.mode" xml:space="preserve">
+    <value>モード: </value>
+  </data>
+  <data name="statusbar.model" xml:space="preserve">
+    <value>モデル: </value>
+  </data>
+  <data name="statusbar.postProcessing" xml:space="preserve">
+    <value>後処理: </value>
+  </data>
+
+  <!-- Recording Overlay - Extended -->
+  <data name="recording.cancel.prompt" xml:space="preserve">
+    <value>キャンセル?</value>
+  </data>
+
+  <!-- Mode Editor - Extended -->
+  <data name="mode.editor.section.settings" xml:space="preserve">
+    <value>モード設定</value>
+  </data>
+  <data name="mode.editor.arm64.info" xml:space="preserve">
+    <value>ARM64 Windowsではローカル文字起こしは利用できません。クラウドプロバイダーを使用してください。</value>
+  </data>
+  <data name="mode.editor.field.preset" xml:space="preserve">
+    <value>プリセット</value>
+  </data>
+  <data name="mode.editor.preset.hyper" xml:space="preserve">
+    <value>ハイパー (おすすめ)</value>
+  </data>
+  <data name="mode.editor.preset.message" xml:space="preserve">
+    <value>メッセージ</value>
+  </data>
+  <data name="mode.editor.preset.mail" xml:space="preserve">
+    <value>メール</value>
+  </data>
+  <data name="mode.editor.preset.note" xml:space="preserve">
+    <value>ノート</value>
+  </data>
+  <data name="mode.editor.preset.meeting" xml:space="preserve">
+    <value>ミーティング</value>
+  </data>
+  <data name="mode.editor.preset.code" xml:space="preserve">
+    <value>Code</value>
+  </data>
+  <data name="mode.editor.preset.custom" xml:space="preserve">
+    <value>カスタム</value>
+  </data>
+  <data name="mode.editor.field.customInstructions" xml:space="preserve">
+    <value>カスタム指示</value>
+  </data>
+  <data name="mode.editor.field.customInstructions.hint" xml:space="preserve">
+    <value>AIが文字起こしを処理する方法を定義します</value>
+  </data>
+  <data name="mode.editor.field.localModel" xml:space="preserve">
+    <value>ローカルモデル</value>
+  </data>
+  <data name="mode.editor.field.cloudProvider" xml:space="preserve">
+    <value>クラウドプロバイダー</value>
+  </data>
+  <data name="mode.editor.field.cloudModel" xml:space="preserve">
+    <value>クラウドモデル</value>
+  </data>
+  <data name="modes.cloudAccuracy.title" xml:space="preserve">
+    <value>クラウド精度</value>
+  </data>
+  <data name="modes.cloudAccuracy.groqWhisper.label" xml:space="preserve">
+    <value>Groq Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.deepgramNova3.label" xml:space="preserve">
+    <value>Deepgram Nova 3</value>
+  </data>
+  <data name="modes.cloudAccuracy.elevenLabsScribeV2.label" xml:space="preserve">
+    <value>ElevenLabs Scribe v2</value>
+  </data>
+  <data name="modes.cloudAccuracy.groqWhisper.description" xml:space="preserve">
+    <value>Groq Whisper - 最速の文字起こし、低コスト</value>
+  </data>
+  <data name="modes.cloudAccuracy.deepgramNova3.description" xml:space="preserve">
+    <value>Deepgram Nova-3 - 速度と精度のバランス</value>
+  </data>
+  <data name="modes.cloudAccuracy.elevenLabsScribeV2.description" xml:space="preserve">
+    <value>ElevenLabs Scribe v2 - 最高精度、低速</value>
+  </data>
+  <data name="modes.cloudAccuracy.grokStt.label" xml:space="preserve">
+    <value>Grok STT</value>
+  </data>
+  <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
+    <value>xAI Grok STT - 最高精度、低速</value>
+  </data>
+  <data name="mode.editor.warning.vocabularyUnsupported" xml:space="preserve">
+    <value>このプロバイダーではカスタム語彙はサポートされていません。</value>
+  </data>
+  <data name="mode.editor.warning.vocabularyUnsupported.parakeet" xml:space="preserve">
+    <value>Parakeetモデルではカスタム語彙はサポートされていません。</value>
+  </data>
+  <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
+    <value>ElevenLabs Scribe V1ではカスタム語彙はサポートされていません。</value>
+  </data>
+  <data name="mode.editor.warning.vocabularyUnsupported.mistral" xml:space="preserve">
+    <value>Mistralではカスタム語彙はサポートされていません。</value>
+  </data>
+  <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
+    <value>Deepgram Baseモデルではカスタム語彙はサポートされていません。</value>
+  </data>
+  <data name="mode.editor.warning.vocabularyUnsupported.deepgramWhisper" xml:space="preserve">
+    <value>Deepgram Whisperモデルではカスタム語彙はサポートされていません。</value>
+  </data>
+  <data name="mode.editor.warning.nova3AutoDetect" xml:space="preserve">
+    <value>Novaモデルで自動検出を使用する場合、カスタム語彙は無効になります。語彙ブースティングを有効にするには、特定の言語を設定してください。</value>
+  </data>
+  <data name="mode.editor.postProcessing.enable" xml:space="preserve">
+    <value>AI後処理を有効化</value>
+  </data>
+  <data name="mode.editor.postProcessing.provider" xml:space="preserve">
+    <value>プロバイダー</value>
+  </data>
+  <data name="mode.editor.postProcessing.model" xml:space="preserve">
+    <value>AIモデル</value>
+  </data>
+  <data name="mode.editor.postProcessing.englishSpelling" xml:space="preserve">
+    <value>英語のスペル</value>
+  </data>
+  <data name="mode.editor.spelling.american" xml:space="preserve">
+    <value>アメリカ英語</value>
+  </data>
+  <data name="mode.editor.spelling.british" xml:space="preserve">
+    <value>イギリス英語</value>
+  </data>
+  <data name="mode.editor.spelling.australian" xml:space="preserve">
+    <value>オーストラリア英語</value>
+  </data>
+  <data name="mode.editor.spelling.canadian" xml:space="preserve">
+    <value>カナダ英語</value>
+  </data>
+  <data name="mode.editor.spelling.hint" xml:space="preserve">
+    <value>英語テキストのスペルバリエーションを選択</value>
+  </data>
+  <data name="mode.editor.postProcessing.punctuation" xml:space="preserve">
+    <value>句読点を追加</value>
+  </data>
+  <data name="mode.editor.postProcessing.capitalization" xml:space="preserve">
+    <value>テキストを大文字化</value>
+  </data>
+  <data name="mode.editor.postProcessing.profanityFilter" xml:space="preserve">
+    <value>不適切な語をフィルター</value>
+  </data>
+  <data name="mode.editor.postProcessing.screenText" xml:space="preserve">
+    <value>Screen Text</value>
+  </data>
+  <data name="mode.editor.postProcessing.screenText.hint" xml:space="preserve">
+    <value>Capture visible screen text to improve accuracy of names and terms</value>
+  </data>  <data name="mode.editor.postProcessing.removeTrailingPeriod" xml:space="preserve">
+    <value>末尾のピリオドを削除</value>
+  </data>
+  <data name="mode.editor.postProcessing.customPrompt" xml:space="preserve">
+    <value>永続的な指示</value>
+  </data>
+  <data name="mode.editor.postProcessing.customPrompt.hint" xml:space="preserve">
+    <value>選択したプリセットの上に常に適用される指示を追加します。</value>
+  </data>
+  <data name="mode.editor.warning.apiKeyRequired" xml:space="preserve">
+    <value>APIキーが必要です</value>
+  </data>
+  <!-- Mode Editor - Provider Tooltips -->
+  <data name="mode.editor.provider.openai.tooltip" xml:space="preserve">
+    <value>業界標準のWhisperモデルで優れた精度を実現</value>
+  </data>
+  <data name="mode.editor.provider.groq.tooltip" xml:space="preserve">
+    <value>Whisperモデルでの超高速推論</value>
+  </data>
+  <data name="mode.editor.provider.deepgram.tooltip" xml:space="preserve">
+    <value>カスタム語彙ブースティングによるリアルタイム文字起こし</value>
+  </data>
+  <data name="mode.editor.provider.assemblyai.tooltip" xml:space="preserve">
+    <value>話者ダイアライゼーションによる高精度文字起こし</value>
+  </data>
+  <data name="mode.editor.provider.elevenlabs.tooltip" xml:space="preserve">
+    <value>高品質な多言語文字起こし</value>
+  </data>
+  <data name="mode.editor.provider.mistral.tooltip" xml:space="preserve">
+    <value>多言語サポートを備えたヨーロッパのAIプロバイダー</value>
+  </data>
+  <data name="mode.editor.provider.grok.tooltip" xml:space="preserve">
+    <value>xAI Grok 音声テキスト変換（バッチ HTTP）</value>
+  </data>
+  <data name="mode.editor.provider.hyperwhisper.tooltip" xml:space="preserve">
+    <value>高速・高精度な文字起こし - APIキー不要</value>
+  </data>
+  <!-- Mode Editor - Delete Dialogs -->
+  <data name="mode.editor.delete.confirm.title" xml:space="preserve">
+    <value>モードを削除</value>
+  </data>
+  <data name="mode.editor.delete.confirm.message" xml:space="preserve">
+    <value>モード「{0}」を削除してもよろしいですか?
+
+この操作は元に戻せません。</value>
+  </data>
+  <data name="mode.editor.delete.cannotDelete.title" xml:space="preserve">
+    <value>削除できません</value>
+  </data>
+  <data name="mode.editor.delete.cannotDelete.message" xml:space="preserve">
+    <value>最後に残ったモードは削除できません。
+
+少なくとも1つのモードが必要です。</value>
+  </data>
+  <!-- Settings - Shortcuts (additional) -->
+  <data name="settings.shortcuts.global.title" xml:space="preserve">
+    <value>グローバルショートカット</value>
+  </data>
+  <data name="settings.shortcuts.global.subtitle" xml:space="preserve">
+    <value>キーボードショートカットをカスタマイズ</value>
+  </data>
+  <data name="settings.shortcuts.toggle.label" xml:space="preserve">
+    <value>録音の開始/停止</value>
+  </data>
+  <data name="settings.shortcuts.cancel.label" xml:space="preserve">
+    <value>録音をキャンセル</value>
+  </data>
+  <data name="settings.shortcuts.changeMode.label" xml:space="preserve">
+    <value>モードを変更</value>
+  </data>
+  <data name="settings.shortcuts.tooltip" xml:space="preserve">
+    <value>クリックして使用したいキーを押してください</value>
+  </data>
+  <!-- App Error Messages -->
+  <data name="errors.database.initFailed" xml:space="preserve">
+    <value>データベースの初期化に失敗しました: {0}</value>
+  </data>
+  <data name="errors.database.title" xml:space="preserve">
+    <value>データベースエラー</value>
+  </data>
+  <data name="errors.unhandled.title" xml:space="preserve">
+    <value>HyperWhisperエラー</value>
+  </data>
+  <data name="errors.unhandled.message" xml:space="preserve">
+    <value>エラー: {0}</value>
+  </data>
+  <!-- Settings - General errors -->
+  <data name="settings.general.startup.enableFailed" xml:space="preserve">
+    <value>起動時に開始の有効化に失敗しました。スタートアップ設定を変更する権限があるか確認してください。</value>
+  </data>
+  <data name="settings.general.startup.disableFailed" xml:space="preserve">
+    <value>起動時に開始の無効化に失敗しました。スタートアップ設定を変更する権限があるか確認してください。</value>
+  </data>
+  <!-- Settings - Models -->
+  <data name="settings.models.trialLimit.title" xml:space="preserve">
+    <value>トライアル制限に達しました</value>
+  </data>
+  <data name="settings.models.trialLimit.message" xml:space="preserve">
+    <value>トライアルユーザーのモデルダウンロード上限に達しました。
+
+無制限のモデルダウンロードにはライセンスをご購入ください。</value>
+  </data>
+  <data name="settings.models.vramWarning.title" xml:space="preserve">
+    <value>VRAM不足</value>
+  </data>
+  <data name="settings.models.downloadFailed.title" xml:space="preserve">
+    <value>ダウンロード失敗</value>
+  </data>
+  <data name="settings.models.downloadFailed.message" xml:space="preserve">
+    <value>{0}のダウンロードに失敗しました:
+
+{1}</value>
+  </data>
+  <data name="settings.models.delete.confirm.title" xml:space="preserve">
+    <value>モデルを削除</value>
+  </data>
+  <data name="settings.models.delete.confirm.message" xml:space="preserve">
+    <value>{0}を削除してもよろしいですか?
+
+後で再ダウンロードできます。</value>
+  </data>
+  <data name="settings.models.deleteFailed.title" xml:space="preserve">
+    <value>削除に失敗</value>
+  </data>
+  <data name="settings.models.deleteFailed.message" xml:space="preserve">
+    <value>{0}の削除に失敗しました:
+
+{1}</value>
+  </data>
+  <!-- Settings - License -->
+  <data name="settings.license.deactivate.confirm.title" xml:space="preserve">
+    <value>ライセンスを無効化</value>
+  </data>
+  <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
+    <value>ライセンスを無効化してもよろしいですか?機能が制限されたトライアルモードに戻ります。</value>
+  </data>
+  <!-- Settings - Storage -->
+  <data name="settings.storage.error.title" xml:space="preserve">
+    <value>ストレージ</value>
+  </data>
+  <data name="settings.storage.error.invalidFolder" xml:space="preserve">
+    <value>選択したフォルダを使用できません。</value>
+  </data>
+  <data name="settings.storage.folderBrowser.description" xml:space="preserve">
+    <value>新しい録音の保存先フォルダを選択</value>
+  </data>
+  <data name="settings.storage.autoDelete.title" xml:space="preserve">
+    <value>自動クリーンアップ</value>
+  </data>
+  <data name="settings.storage.autoDelete.subtitle" xml:space="preserve">
+    <value>古い録音を自動削除してディスク容量を節約</value>
+  </data>
+  <data name="settings.storage.autoDelete.enabled" xml:space="preserve">
+    <value>自動削除を有効にする</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteAfter" xml:space="preserve">
+    <value>次より古い録音を削除:</value>
+  </data>
+  <data name="settings.storage.autoDelete.days" xml:space="preserve">
+    <value>日</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteNow" xml:space="preserve">
+    <value>今すぐ削除</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleting" xml:space="preserve">
+    <value>削除中...</value>
+  </data>
+  <data name="settings.storage.autoDelete.lastCleanup" xml:space="preserve">
+    <value>最後のクリーンアップ: {0} - {1}件の録音を削除</value>
+  </data>
+  <data name="settings.storage.autoDelete.noCleanupYet" xml:space="preserve">
+    <value>まだクリーンアップが実行されていません</value>
+  </data>
+  <data name="settings.storage.autoDelete.confirmDelete.title" xml:space="preserve">
+    <value>削除の確認</value>
+  </data>
+  <data name="settings.storage.autoDelete.confirmDelete.message" xml:space="preserve">
+    <value>古い録音を完全に削除します。続行しますか？</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteComplete.title" xml:space="preserve">
+    <value>クリーンアップ完了</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
+    <value>{0}件の録音を削除しました</value>
+  </data>
+
+  <!-- Provider Names -->
+  <data name="provider.openai" xml:space="preserve">
+    <value>OpenAI</value>
+  </data>
+  <data name="provider.groq" xml:space="preserve">
+    <value>Groq</value>
+  </data>
+  <data name="provider.deepgram" xml:space="preserve">
+    <value>Deepgram</value>
+  </data>
+  <data name="provider.assemblyai" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="provider.elevenlabs" xml:space="preserve">
+    <value>ElevenLabs</value>
+  </data>
+  <data name="provider.mistral" xml:space="preserve">
+    <value>Mistral</value>
+  </data>
+  <data name="provider.grok" xml:space="preserve">
+    <value>Grok</value>
+  </data>
+  <data name="provider.anthropic" xml:space="preserve">
+    <value>Anthropic</value>
+  </data>
+  <data name="provider.gemini" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="provider.cerebras" xml:space="preserve">
+    <value>Cerebras</value>
+  </data>
+  <data name="provider.hyperwhisper" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
+  <data name="provider.status.configured" xml:space="preserve">
+    <value>設定済み ({0})</value>
+  </data>
+  <data name="provider.status.notConfigured" xml:space="preserve">
+    <value>未設定</value>
+  </data>
+
+  <!-- Keyboard Keys -->
+  <data name="keyboard.shift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+
+  <!-- Shortcut Modes -->
+  <data name="settings.shortcuts.mode.disabled" xml:space="preserve">
+    <value>無効</value>
+  </data>
+  <data name="settings.shortcuts.mode.modifier" xml:space="preserve">
+    <value>修飾キー</value>
+  </data>
+  <data name="settings.shortcuts.mode.custom" xml:space="preserve">
+    <value>カスタム</value>
+  </data>
+
+  <!-- License Status Descriptions -->
+  <data name="license.status.trial.description" xml:space="preserve">
+    <value>トライアルモード - 機能制限あり</value>
+  </data>
+  <data name="license.status.active.description" xml:space="preserve">
+    <value>ライセンス済み - フルアクセス</value>
+  </data>
+  <data name="license.status.expired.description" xml:space="preserve">
+    <value>ライセンス期限切れ</value>
+  </data>
+  <data name="license.status.invalid.description" xml:space="preserve">
+    <value>無効なライセンス</value>
+  </data>
+  <data name="license.status.unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="license.error.enterKey" xml:space="preserve">
+    <value>ライセンスキーを入力してください。</value>
+  </data>
+
+  <!-- Models - ARM64 and GPU -->
+  <data name="settings.models.noGpu.title" xml:space="preserve">
+    <value>NVIDIA GPUが検出されませんでした</value>
+  </data>
+  <data name="settings.models.cpuMode" xml:space="preserve">
+    <value>CPUモード</value>
+  </data>
+  <data name="settings.models.noGpu.description" xml:space="preserve">
+    <value>最高のパフォーマンスを得るには、CUDA対応のNVIDIA GPUをローカル文字起こしに推奨します。</value>
+  </data>
+  <data name="settings.models.gpu.notDetected" xml:space="preserve">
+    <value>未検出</value>
+  </data>
+  <data name="settings.models.gpu.unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="settings.models.gpu.recommendBase" xml:space="preserve">
+    <value>GPUが検出されませんでした。CPU文字起こしにはBaseモデルの使用をお勧めします。</value>
+  </data>
+  <data name="settings.models.limitReached.title" xml:space="preserve">
+    <value>モデル上限に達しました</value>
+  </data>
+  <data name="settings.models.limitReached.message" xml:space="preserve">
+    <value>{0}個のモデルをダウンロードしました。これはトライアルユーザーの上限（{1}）です。</value>
+  </data>
+  <data name="settings.models.trial.title" xml:space="preserve">
+    <value>トライアルモード</value>
+  </data>
+  <data name="settings.models.trial.message" xml:space="preserve">
+    <value>{1}個中{0}個のモデルをダウンロード済み。残り{2}個。</value>
+  </data>
+  <data name="settings.models.diskUsage.none" xml:space="preserve">
+    <value>ダウンロード済みモデルなし</value>
+  </data>
+  <data name="settings.models.diskUsage.format" xml:space="preserve">
+    <value>{0}個のモデル ({1})</value>
+  </data>
+
+  <!-- Mode Editor - Additional -->
+  <data name="mode.editor.model.notDownloaded" xml:space="preserve">
+    <value> - 未ダウンロード</value>
+  </data>
+
+  <!-- Modes - ARM64 -->
+  <data name="modes.arm64.notAvailable" xml:space="preserve">
+    <value>利用不可 (ARM64)</value>
+  </data>
+
+  <!-- Mode Change Toast -->
+  <data name="mode.change.toast" xml:space="preserve">
+    <value>モード: {0}</value>
+  </data>
+
+  <!-- File Transcription -->
+  <data name="file.transcribe.dialogTitle" xml:space="preserve">
+    <value>文字起こしする音声ファイルを選択</value>
+  </data>
+  <data name="errors.fileNotFound" xml:space="preserve">
+    <value>ファイルが見つかりません</value>
+  </data>
+  <data name="errors.fileTooLarge" xml:space="preserve">
+    <value>このプロバイダーにはファイルが大きすぎます。最大サイズ: {0}</value>
+  </data>
+
+  <!-- Update UI -->
+  <data name="update.available.title" xml:space="preserve">
+    <value>アップデートあり</value>
+  </data>
+  <data name="update.available.subtitle" xml:space="preserve">
+    <value>HyperWhisperの新しいバージョンが利用可能です！</value>
+  </data>
+  <data name="update.available.currentVersion" xml:space="preserve">
+    <value>現在のバージョン: {0}</value>
+  </data>
+  <data name="update.available.releaseNotes" xml:space="preserve">
+    <value>新機能</value>
+  </data>
+  <data name="update.available.install" xml:space="preserve">
+    <value>ダウンロードしてインストール</value>
+  </data>
+  <data name="update.available.installReady" xml:space="preserve">
+    <value>アップデートをインストール</value>
+  </data>
+  <data name="update.available.skip" xml:space="preserve">
+    <value>このバージョンをスキップ</value>
+  </data>
+  <data name="update.available.remindLater" xml:space="preserve">
+    <value>後で通知</value>
+  </data>
+  <data name="update.checking" xml:space="preserve">
+    <value>アップデートを確認中...</value>
+  </data>
+  <data name="update.toast" xml:space="preserve">
+    <value>HyperWhisperの新しいバージョンが利用可能です</value>
+  </data>
+  <data name="update.upToDate.title" xml:space="preserve">
+    <value>最新版です</value>
+  </data>
+  <data name="update.upToDate.message" xml:space="preserve">
+    <value>HyperWhisper {0} は最新バージョンです。</value>
+  </data>
+  <data name="update.skipped.title" xml:space="preserve">
+    <value>アップデートをスキップ</value>
+  </data>
+  <data name="update.skipped.message" xml:space="preserve">
+    <value>このアップデートをスキップしました。</value>
+  </data>
+  <data name="update.error.appcast" xml:space="preserve">
+    <value>アップデートを確認できません。インターネット接続を確認してください。</value>
+  </data>
+  <data name="update.error.download" xml:space="preserve">
+    <value>アップデートのダウンロード中にエラーが発生しました: {0}</value>
+  </data>
+  <data name="update.error.unknownFormat" xml:space="preserve">
+    <value>ダウンロードしたファイル「{0}」は認識できない形式です。</value>
+  </data>
+
+  <!-- Settings - Sound -->
+  <data name="settings.sound.title" xml:space="preserve">
+    <value>サウンド</value>
+  </data>
+  <data name="settings.sound.soundEffects.title" xml:space="preserve">
+    <value>効果音</value>
+  </data>
+  <data name="settings.sound.soundEffects.subtitle" xml:space="preserve">
+    <value>録音イベントの音声フィードバックを設定</value>
+  </data>
+  <data name="settings.sound.enableSoundEffects.title" xml:space="preserve">
+    <value>効果音を再生</value>
+  </data>
+  <data name="settings.sound.enableSoundEffects.subtitle" xml:space="preserve">
+    <value>録音の開始と停止時にサウンドを再生する</value>
+  </data>
+
+  <!-- Statistics Page -->
+
+  <!-- Getting Started -->
+  <data name="home.gettingStarted.title" xml:space="preserve">
+    <value>はじめに</value>
+  </data>
+  <data name="home.gettingStarted.recording.title" xml:space="preserve">
+    <value>録音を開始</value>
+  </data>
+  <data name="home.gettingStarted.recording.description" xml:space="preserve">
+    <value>最初の文字起こしを試してみましょう</value>
+  </data>
+  <data name="home.gettingStarted.shortcuts.title" xml:space="preserve">
+    <value>ショートカットをカスタマイズ</value>
+  </data>
+  <data name="home.gettingStarted.shortcuts.description" xml:space="preserve">
+    <value>お好みのキーボードショートカットを設定</value>
+  </data>
+  <data name="home.gettingStarted.mode.title" xml:space="preserve">
+    <value>モードを作成</value>
+  </data>
+  <data name="home.gettingStarted.mode.description" xml:space="preserve">
+    <value>さまざまなワークフロー向けに文字起こしをカスタマイズ</value>
+  </data>
+  <data name="home.gettingStarted.vocabulary.title" xml:space="preserve">
+    <value>語彙を追加</value>
+  </data>
+  <data name="home.gettingStarted.vocabulary.description" xml:space="preserve">
+    <value>名前や専門用語の精度を向上させましょう</value>
+  </data>
+  <data name="home.gettingStarted.completed" xml:space="preserve">
+    <value>完了！</value>
+  </data>
+  <data name="home.recentReleases.title" xml:space="preserve">
+    <value>最近のアップデート</value>
+  </data>
+  <data name="home.recentReleases.new" xml:space="preserve">
+    <value>新着</value>
+  </data>
+  <data name="home.recentReleases.error" xml:space="preserve">
+    <value>リリースノートを読み込めませんでした</value>
+  </data>
+  <data name="home.recentReleases.retry" xml:space="preserve">
+    <value>再試行</value>
+  </data>
+
+
+  <data name="history.copy.copied" xml:space="preserve">
+    <value>コピーしました!</value>
+  </data>
+  <data name="home.microphone.low.dismiss" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="home.microphone.low.message" xml:space="preserve">
+    <value>{0}の入力レベルが約{1}%です。サウンド設定で少なくとも25%に上げてください。</value>
+  </data>
+  <data name="home.microphone.low.openSoundSettings" xml:space="preserve">
+    <value>サウンド設定を開く</value>
+  </data>
+  <data name="home.microphone.low.title" xml:space="preserve">
+    <value>マイクの入力レベルが低すぎます</value>
+  </data>
+  <data name="keyboard.leftAlt" xml:space="preserve">
+    <value>左Alt</value>
+  </data>
+  <data name="keyboard.rightAlt" xml:space="preserve">
+    <value>右Alt</value>
+  </data>
+  <data name="mode.editor.gemini.customPrompt.helper" xml:space="preserve">
+    <value>Gemini向けの任意の指示</value>
+  </data>
+  <data name="mode.editor.gemini.customPrompt.placeholder" xml:space="preserve">
+    <value>Geminiの文字起こしを導くための任意の指示...</value>
+  </data>
+  <data name="mode.editor.gemini.customPrompt.title" xml:space="preserve">
+    <value>カスタム文字起こしプロンプト</value>
+  </data>
+  <data name="mode.editor.parakeetModel.notDownloaded" xml:space="preserve">
+    <value> — ダウンロードされていません</value>
+  </data>
+  <data name="mode.editor.provider.gemini.tooltip" xml:space="preserve">
+    <value>ネイティブ音声理解を持つGoogle Geminiモデル</value>
+  </data>
+  <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
+    <value>SonioxのSTTモデルによる非同期文字起こし</value>
+  </data>
+  <data name="mode.editor.warning.parakeetLanguageUnsupported" xml:space="preserve">
+    <value>Parakeet v3はこの言語をサポートしていません。Whisperまたはクラウドプロバイダーのご利用をご検討ください。</value>
+  </data>
+  <data name="mode.editor.warning.parakeetV2EnglishOnly" xml:space="preserve">
+    <value>Parakeet v2は英語のみをサポートします。言語が英語に設定されます。</value>
+  </data>
+  <data name="provider.soniox" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="settings.api.invalidKey.soniox" xml:space="preserve">
+    <value>APIキーの形式が無効です。SonioxのキーはRobot 10文字以上必要です。</value>
+  </data>
+  <data name="settings.api.provider.soniox.description" xml:space="preserve">
+    <value>Sonioxによる非同期多言語文字起こし</value>
+  </data>
+  <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
+    <value>APIキーはバックアップファイルにプレーンテキストで保存されます。</value>
+  </data>
+  <data name="settings.backup.export.button" xml:space="preserve">
+    <value>バックアップをエクスポート...</value>
+  </data>
+  <data name="settings.backup.export.dialogTitle" xml:space="preserve">
+    <value>HyperWhisperバックアップをエクスポート</value>
+  </data>
+  <data name="settings.backup.export.exporting" xml:space="preserve">
+    <value>エクスポート中...</value>
+  </data>
+  <data name="settings.backup.export.includeApiKeys" xml:space="preserve">
+    <value>APIキーを含める</value>
+  </data>
+  <data name="settings.backup.export.subtitle" xml:space="preserve">
+    <value>設定、モード、語彙をバックアップファイルに保存します。</value>
+  </data>
+  <data name="settings.backup.export.success" xml:space="preserve">
+    <value>バックアップが正常にエクスポートされました。</value>
+  </data>
+  <data name="settings.backup.export.title" xml:space="preserve">
+    <value>バックアップをエクスポート</value>
+  </data>
+  <data name="settings.backup.fileFilter.universal" xml:space="preserve">
+    <value>HyperWhisperバックアップ (*.hwbackup.json)|*.hwbackup.json</value>
+  </data>
+  <data name="settings.backup.import.button" xml:space="preserve">
+    <value>バックアップをインポート...</value>
+  </data>
+  <data name="settings.backup.import.confirmReplace.message" xml:space="preserve">
+    <value>インポート前に現在の設定、モード、語彙、文字起こしがすべて削除されます。この操作は取り消せません。続行しますか？</value>
+  </data>
+  <data name="settings.backup.import.confirmReplace.title" xml:space="preserve">
+    <value>既存のデータを置き換えますか？</value>
+  </data>
+  <data name="settings.backup.import.dialogTitle" xml:space="preserve">
+    <value>HyperWhisperバックアップをインポート</value>
+  </data>
+  <data name="settings.backup.import.importing" xml:space="preserve">
+    <value>インポート中...</value>
+  </data>
+  <data name="settings.backup.import.replaceExisting" xml:space="preserve">
+    <value>既存のデータを置き換える</value>
+  </data>
+  <data name="settings.backup.import.replaceExisting.subtitle" xml:space="preserve">
+    <value>インポート前に既存のデータをすべて削除します。オフの場合、データはマージされます。</value>
+  </data>
+  <data name="settings.backup.import.subtitle" xml:space="preserve">
+    <value>バックアップファイルから設定、モード、語彙を復元します。</value>
+  </data>
+  <data name="settings.backup.import.success" xml:space="preserve">
+    <value>バックアップが正常にインポートされました。{0}</value>
+  </data>
+  <data name="settings.backup.import.title" xml:space="preserve">
+    <value>バックアップをインポート</value>
+  </data>
+  <data name="settings.backup.notice" xml:space="preserve">
+    <value>バックアップには設定、モード、語彙が含まれます。音声録音ファイルは含まれません。</value>
+  </data>
+  <data name="settings.nav.backup" xml:space="preserve">
+    <value>バックアップ</value>
+  </data>
+  <data name="settings.section.backup" xml:space="preserve">
+    <value>バックアップとエクスポート</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.custom.label" xml:space="preserve">
+    <value>カスタムショートカット</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.custom.tooltip" xml:space="preserve">
+    <value>クリックしてプッシュトークのキーを押す</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.doublePress" xml:space="preserve">
+    <value>ダブルプレスで録音ロック</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.doublePress.subtitle" xml:space="preserve">
+    <value>素早く2回押して、押し続けずに録音を続ける</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.mode.label" xml:space="preserve">
+    <value>モード</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.modifier.label" xml:space="preserve">
+    <value>修飾キー</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.subtitle" xml:space="preserve">
+    <value>キーを押し続けて録音、完了したら離す</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.title" xml:space="preserve">
+    <value>プッシュトーク</value>
+  </data>
+  <data name="settings.shortcuts.pushToTalk.unassigned" xml:space="preserve">
+    <value>未割り当て</value>
+  </data>
+  <data name="settings.sound.autoIncreaseMicVolume.subtitle" xml:space="preserve">
+    <value>録音開始時にマイク入力を自動的に90%に設定し、停止時に元のレベルに戻します。</value>
+  </data>
+  <data name="settings.sound.autoIncreaseMicVolume.title" xml:space="preserve">
+    <value>マイク音量を自動的に上げる</value>
+  </data>
+  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
+    <value>録音中のマイク入力動作を設定</value>
+  </data>
+  <data name="settings.sound.microphone.title" xml:space="preserve">
+    <value>マイク</value>
+  </data>
+  <data name="status.model.parakeet.loading" xml:space="preserve">
+    <value>{0}を読み込み中...</value>
+  </data>
+  <data name="status.model.parakeet.notDownloaded" xml:space="preserve">
+    <value>{0}はダウンロードされていません</value>
+  </data>
+  <data name="status.model.parakeet.ready" xml:space="preserve">
+    <value>{0}（{1}）準備完了</value>
+  </data>
+
+  <!-- Local LLM Post-Processing -->
+  <data name="provider.localLlm" xml:space="preserve">
+    <value>ローカルLLM</value>
+  </data>
+  <data name="settings.api.provider.localLlm.description" xml:space="preserve">
+    <value>端末上で実行され、APIキーは不要です。</value>
+  </data>
+  <data name="settings.api.provider.localLlm.status" xml:space="preserve">
+    <value>APIキーは不要</value>
+  </data>
+  <data name="settings.api.provider.localLlm.manageModels" xml:space="preserve">
+    <value>モデルを管理</value>
+  </data>
+  <data name="settings.models.localLlm.title" xml:space="preserve">
+    <value>ローカルLLMモデル</value>
+  </data>
+  <data name="settings.models.localLlm.subtitle" xml:space="preserve">
+    <value>この端末に保存されるオフライン後処理モデル</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
+    <value>ランタイム: CPUフォールバック。GPUアクセラレーションデバイスが検出されませんでした。</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
+    <value>最初にCUDAを試し、読み込みに失敗した場合はCPUにフォールバックします</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.cudaRequiresNvidia" xml:space="preserve">
+    <value>CPUフォールバック。CUDAアクセラレーションにはNVIDIA GPUが必要です</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
+    <value>ローカルLLMとWhisperはGPUメモリを共有する場合があります。文字起こしが遅くなる場合は小さいモデルを使ってください。</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.runtimeFormat" xml:space="preserve">
+    <value>ランタイム: {0} ({1})。{2}。</value>
+  </data>
+  <data name="settings.models.localLlm.notDownloadedSuffix" xml:space="preserve">
+    <value> - 未ダウンロード</value>
+  </data>
+  <data name="settings.models.localLlm.missingModel" xml:space="preserve">
+    <value>ローカルLLMモデル「{0}」はダウンロードされていません。設定 &gt; モデルでダウンロードしてください。</value>
+  </data>
+  <data name="settings.models.localLlm.diskSpace" xml:space="preserve">
+    <value>{0}をダウンロードする空き容量が足りません。必要: {1}、利用可能: {2}。</value>
+  </data>
+  <data name="settings.models.localLlm.invalidModelFile" xml:space="preserve">
+    <value>ダウンロードしたファイルは有効なGGUFモデルではありません。</value>
+  </data>
+  <data name="mode.editor.localLlm.openModelsSettings" xml:space="preserve">
+    <value>モデル設定を開く</value>
+  </data>
+  <data name="mode.editor.localLlm.readyDescription" xml:space="preserve">
+    <value>{0} オフライン後処理に使用できます。</value>
+  </data>
+  <data name="mode.editor.localLlm.downloadDescription" xml:space="preserve">
+    <value>{0} 先に設定 &gt; モデルでダウンロードしてください。</value>
+  </data>
+
+  <!-- Synced fallback strings -->
+  <data name="mode.editor.cloudModel.popularLabel" xml:space="preserve">
+    <value>{0} (Popular)</value>
+  </data>
+  <data name="mode.editor.cloudModel.showAll" xml:space="preserve">
+    <value>Show all models</value>
+  </data>
+  <data name="recording.state.streaming" xml:space="preserve">
+    <value>Live</value>
+  </data>
+  <data name="settings.api.provider.grok.post.description" xml:space="preserve">
+    <value>xAI Grok models for text enhancement</value>
+  </data>
+  <data name="settings.nav.streaming" xml:space="preserve">
+    <value>ストリーミング</value>
+  </data>
+  <data name="settings.output.hideClipboardHistory.subtitle" xml:space="preserve">
+    <value>Prevent transcriptions from appearing in Windows clipboard history</value>
+  </data>
+  <data name="settings.output.hideClipboardHistory.title" xml:space="preserve">
+    <value>Hide from clipboard history</value>
+  </data>
+  <data name="settings.shortcuts.streaming.label" xml:space="preserve">
+    <value>ストリーミング</value>
+  </data>
+  <data name="settings.storage.storeAsM4A.subtitle" xml:space="preserve">
+    <value>Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files.</value>
+  </data>
+  <data name="settings.storage.storeAsM4A.title" xml:space="preserve">
+    <value>Compress recordings to M4A</value>
+  </data>
+  <data name="settings.streaming.deepgram.model.general" xml:space="preserve">
+    <value>Nova 3 General</value>
+  </data>
+  <data name="settings.streaming.deepgram.model.medical" xml:space="preserve">
+    <value>Nova 3 Medical</value>
+  </data>
+  <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
+    <value>モデル</value>
+  </data>
+  <data name="settings.streaming.deepgram.subtitle" xml:space="preserve">
+    <value>Deepgram固有のストリーミング動作を設定します。</value>
+  </data>
+  <data name="settings.streaming.deepgram.title" xml:space="preserve">
+    <value>Deepgramオプション</value>
+  </data>
+  <data name="settings.streaming.enable.subtitle" xml:space="preserve">
+    <value>専用のショートカットで連続文字起こしを行い、確定した音声セグメントをアクティブなアプリに貼り付けます。</value>
+  </data>
+  <data name="settings.streaming.enable.title" xml:space="preserve">
+    <value>ストリーミング文字起こしを有効にする</value>
+  </data>
+  <data name="settings.streaming.fastFormatting.subtitle" xml:space="preserve">
+    <value>低遅延で整形済みテキストを返します。</value>
+  </data>
+  <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
+    <value>高速整形</value>
+  </data>
+  <data name="settings.streaming.language.subtitle" xml:space="preserve">
+    <value>ストリーミング文字起こしで使用する言語を選択します。</value>
+  </data>
+  <data name="settings.streaming.language.title" xml:space="preserve">
+    <value>言語</value>
+  </data>
+  <data name="settings.streaming.provider.deepgram" xml:space="preserve">
+    <value>Deepgram</value>
+  </data>
+  <data name="settings.streaming.provider.elevenLabs" xml:space="preserve">
+    <value>ElevenLabs</value>
+  </data>
+  <data name="settings.streaming.provider.hyperwhisperCloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.streaming.provider.subtitle" xml:space="preserve">
+    <value>リアルタイム文字起こしに使用するサービスを選択します。</value>
+  </data>
+  <data name="settings.streaming.provider.title" xml:space="preserve">
+    <value>プロバイダー</value>
+  </data>
+  <data name="settings.streaming.provider.xai" xml:space="preserve">
+    <value>xAI</value>
+  </data>
+  <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
+    <value>Deepgram APIキーが設定されています。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.deepgram.missingKey" xml:space="preserve">
+    <value>Deepgramストリーミングには、モデルのAPIキーマネージャーでDeepgram APIキーが必要です。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.elevenLabs.configured" xml:space="preserve">
+    <value>ElevenLabs APIキーが設定されています。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.elevenLabs.missingKey" xml:space="preserve">
+    <value>ElevenLabsストリーミングには、モデルのAPIキーマネージャーでElevenLabs APIキーが必要です。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
+    <value>HyperWhisperライセンスまたは試用クレジットを使用します。別のAPIキーは不要です。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
+    <value>xAI APIキーが設定されています。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
+    <value>xAIストリーミングには、モデルのAPIキーマネージャーでGrok APIキーが必要です。</value>
+  </data>
+  <data name="settings.streaming.shortcut.current" xml:space="preserve">
+    <value>現在のショートカット: {0}</value>
+  </data>
+  <data name="settings.streaming.shortcut.title" xml:space="preserve">
+    <value>ストリーミングショートカット</value>
+  </data>
+  <data name="settings.streaming.title" xml:space="preserve">
+    <value>ストリーミング</value>
+  </data>
+  <data name="settings.streaming.warning.vocabularyAutoDetect" xml:space="preserve">
+    <value>言語が自動の場合、ストリーミングではカスタム語彙が無効になります。語彙ブーストを有効にするには特定の言語を選択してください。</value>
+  </data>
+  <data name="settings.streaming.warning.vocabularyUnsupported" xml:space="preserve">
+    <value>選択したストリーミングプロバイダーではカスタム語彙は使用されません。</value>
+  </data>
+
+  <!-- Synced fallback strings -->
+  <data name="settings.sound.mediaControl.title" xml:space="preserve">
+    <value>メディア制御</value>
+  </data>
+  <data name="settings.sound.mediaControl.subtitle" xml:space="preserve">
+    <value>HyperWhisperの録音中に他の音声を制御します。</value>
+  </data>
+  <data name="settings.sound.mediaControl.mode.title" xml:space="preserve">
+    <value>録音中</value>
+  </data>
+  <data name="settings.sound.mediaControl.mode.subtitle" xml:space="preserve">
+    <value>音楽、通話、動画の音がディクテーションに入らないよう、システム出力をミュートします。</value>
+  </data>
+  <data name="settings.sound.mediaControl.off" xml:space="preserve">
+    <value>オフ</value>
+  </data>
+  <data name="settings.sound.mediaControl.muteAudio" xml:space="preserve">
+    <value>音声をミュート</value>
+  </data>
+  <!-- Synced fallback strings -->
+  <data name="settings.sound.keepMicrophoneWarm.title" xml:space="preserve">
+    <value>Keep microphone warm</value>
+  </data>
+  <data name="settings.sound.keepMicrophoneWarm.subtitle" xml:space="preserve">
+    <value>Keep a quiet idle input stream open between recordings to reduce startup delay, especially with Bluetooth microphones.</value>
+  </data>
+
+  <!-- Synced fallback strings -->
+  <data name="settings.nav.vocabulary" xml:space="preserve">
+    <value>Vocabulary</value>
+  </data>
+  <data name="window.caption.minimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="window.caption.maximize" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="window.caption.close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="common.clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="common.off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="settings.output.autocapitalizeInsert.title" xml:space="preserve">
+    <value>Autocapitalize Insert</value>
+  </data>
+  <data name="settings.output.autocapitalizeInsert.subtitle" xml:space="preserve">
+    <value>Match cursor context when inserting text</value>
+  </data>
+  <data name="settings.output.autocapitalizeInsert.permissionMessage" xml:space="preserve">
+    <value>Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications.</value>
+  </data>
+  <data name="settings.about.checkUpdates.description" xml:space="preserve">
+    <value>Look for the latest release.</value>
+  </data>
+  <data name="settings.about.openLogFolder.description" xml:space="preserve">
+    <value>View local diagnostic files.</value>
+  </data>
+  <data name="settings.about.openLogFolder.failed.title" xml:space="preserve">
+    <value>Could Not Open Log Folder</value>
+  </data>
+  <data name="settings.about.openLogFolder.failed.message" xml:space="preserve">
+    <value>HyperWhisper could not open the log folder. Please try again or export diagnostics instead. Details: {0}</value>
+  </data>
+  <data name="settings.about.exportDiagnostics.description" xml:space="preserve">
+    <value>Create a support bundle.</value>
+  </data>
+  <data name="settings.models.clearFilters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="settings.models.empty.noMatches" xml:space="preserve">
+    <value>No models match your filters.</value>
+  </data>
+  <data name="settings.models.empty.filtered" xml:space="preserve">
+    <value>No models match: {0}.</value>
+  </data>
+  <data name="settings.models.empty.noneAvailable" xml:space="preserve">
+    <value>No models are available.</value>
+  </data>
+  <data name="settings.models.empty.filter.search" xml:space="preserve">
+    <value>search &quot;{0}&quot;</value>
+  </data>
+  <data name="settings.models.feature.vocabulary" xml:space="preserve">
+    <value>custom vocabulary</value>
+  </data>
+  <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
+    <value>Microsoft MAI-Transcribe 1.5</value>
+  </data>
+  <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
+    <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
+  </data>
+  <data name="modes.cloudAccuracy.googleChirp3.label" xml:space="preserve">
+    <value>Google Chirp 3</value>
+  </data>
+  <data name="modes.cloudAccuracy.googleChirp3.description" xml:space="preserve">
+    <value>Google Chirp 3 - 100+ languages (no custom vocabulary)</value>
+  </data>
+  <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
+    <value>~{0} credits/min</value>
+  </data>
+  <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
+    <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
+  </data>
+  <data name="settings.streaming.provider.openAI" xml:space="preserve">
+    <value>OpenAI</value>
+  </data>
+  <data name="settings.streaming.providerStatus.openAI.configured" xml:space="preserve">
+    <value>OpenAI API key is configured.</value>
+  </data>
+  <data name="settings.streaming.providerStatus.openAI.missingKey" xml:space="preserve">
+    <value>OpenAI streaming requires an OpenAI API key in the Model Library API keys manager.</value>
+  </data>
+  <data name="provider.none" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="provider.microsoftAzureSpeech" xml:space="preserve">
+    <value>Microsoft Azure Speech</value>
+  </data>
+  <data name="provider.googleSpeech" xml:space="preserve">
+    <value>Google Cloud Speech</value>
+  </data>
+  <data name="home.stats.averageSpeed" xml:space="preserve">
+    <value>Average speed</value>
+  </data>
+  <data name="home.stats.wordsThisWeek" xml:space="preserve">
+    <value>Words this week</value>
+  </data>
+  <data name="home.stats.wordsThisMonth" xml:space="preserve">
+    <value>Words this month</value>
+  </data>
+  <data name="home.stats.savedThisWeek" xml:space="preserve">
+    <value>Saved this week</value>
+  </data>
+  <data name="home.stats.minutesValue" xml:space="preserve">
+    <value>{0} minutes</value>
+  </data>
+  <data name="home.stats.typingSpeedHelp" xml:space="preserve">
+    <value>Adjust your assumed typing speed</value>
+  </data>
+  <data name="providerApiKey.title" xml:space="preserve">
+    <value>Connect {0}</value>
+  </data>
+  <data name="providerApiKey.subtitle" xml:space="preserve">
+    <value>Add your {0} API key to unlock this provider in Model Library.</value>
+  </data>
+  <data name="providerApiKey.currentStatus.none" xml:space="preserve">
+    <value>No API key configured</value>
+  </data>
+  <data name="providerApiKey.currentStatus.configured" xml:space="preserve">
+    <value>Configured as {0}</value>
+  </data>
+  <data name="providerApiKey.getKey" xml:space="preserve">
+    <value>Get key</value>
+  </data>
+  <data name="providerApiKey.apiKeyLabel" xml:space="preserve">
+    <value>API key</value>
+  </data>
+  <data name="providerApiKey.secureStorage" xml:space="preserve">
+    <value>Stored securely in Windows Credential Manager.</value>
+  </data>
+  <data name="providerApiKey.invalid.title" xml:space="preserve">
+    <value>Invalid API Key</value>
+  </data>
+  <data name="providerApiKey.invalid.message" xml:space="preserve">
+    <value>That does not look like a valid {0} API key.</value>
+  </data>
+  <data name="settings.nav.localApi" xml:space="preserve">
+    <value>Local API</value>
+  </data>
+  <data name="settings.localApi.title" xml:space="preserve">
+    <value>Local API</value>
+  </data>
+  <data name="settings.localApi.blurb" xml:space="preserve">
+    <value>Localhost-only HTTP API for MCP clients, benchmark scripts, and shell automation. Off by default. When on, HyperWhisper listens on 127.0.0.1 and writes the port + bearer token to %LOCALAPPDATA%\HyperWhisper\local-api.json with restricted file permissions.</value>
+  </data>
+  <data name="settings.localApi.toggle.enabled" xml:space="preserve">
+    <value>Server enabled</value>
+  </data>
+  <data name="settings.localApi.toggle.disabled" xml:space="preserve">
+    <value>Server disabled</value>
+  </data>
+  <data name="settings.localApi.docs" xml:space="preserve">
+    <value>Docs</value>
+  </data>
+  <data name="settings.localApi.tab.connection" xml:space="preserve">
+    <value>Connection</value>
+  </data>
+  <data name="settings.localApi.tab.mcp" xml:space="preserve">
+    <value>MCP setup</value>
+  </data>
+  <data name="settings.localApi.tab.curl" xml:space="preserve">
+    <value>cURL</value>
+  </data>
+  <data name="settings.localApi.row.port" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="settings.localApi.row.token" xml:space="preserve">
+    <value>Bearer token</value>
+  </data>
+  <data name="settings.localApi.row.portFile" xml:space="preserve">
+    <value>Port file</value>
+  </data>
+  <data name="settings.localApi.copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="settings.localApi.reveal" xml:space="preserve">
+    <value>Reveal</value>
+  </data>
+  <data name="settings.localApi.hide" xml:space="preserve">
+    <value>Hide</value>
+  </data>
+  <data name="settings.localApi.regenerate" xml:space="preserve">
+    <value>Regenerate</value>
+  </data>
+  <data name="settings.localApi.show" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="settings.localApi.helperAuth" xml:space="preserve">
+    <value>Sent as Authorization: Bearer &lt;token&gt;. Required on every endpoint except /health.</value>
+  </data>
+  <data name="settings.localApi.mcp.caption" xml:space="preserve">
+    <value>Drop into Cursor, Claude Code, or Claude Desktop's mcpServers block. The wrapper auto-reads the port and token from the discovery file at startup — no secrets in client config.</value>
+  </data>
+  <data name="settings.localApi.mcp.guide" xml:space="preserve">
+    <value>MCP setup guide</value>
+  </data>
+  <data name="settings.localApi.curl.caption" xml:space="preserve">
+    <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Copied to clipboard.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Could not copy to clipboard: {0}</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Could not open docs: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Discovery file is not available yet. Turn on the server and wait for it to finish starting.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Opened the discovery file location.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Could not open the discovery file location: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Port is not available until the server is running.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Token is not available yet.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Token regenerated.</value>
+  </data>
+  <data name="settings.localApi.status.idle" xml:space="preserve">
+    <value>No network sockets bound.</value>
+  </data>
+  <data name="settings.localApi.status.starting" xml:space="preserve">
+    <value>Starting…</value>
+  </data>
+  <data name="settings.localApi.status.running" xml:space="preserve">
+    <value>127.0.0.1:{0} · token ••••{1}</value>
+  </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Audio file could not be loaded</value>
+  </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Restart Required</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>The application needs to restart for the theme change to take effect.
+
+Do you want to restart now?</value>
+  </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Unable to open the recordings folder. {0}</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Cleanup Failed</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Unable to delete old recordings. {0}</value>
+  </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Manual</value>
+  </data>
+  <data name="settings.backup.export.section.modes" xml:space="preserve">
+    <value>モード</value>
+  </data>
+  <data name="settings.backup.export.section.settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="settings.backup.export.section.vocabulary" xml:space="preserve">
+    <value>ボキャブラリー（{0}）</value>
+  </data>
+  <data name="settings.backup.export.sections.header" xml:space="preserve">
+    <value>バックアップに含める</value>
+  </data>
+  <data name="settings.backup.import.applyButton" xml:space="preserve">
+    <value>選択項目をインポート</value>
+  </data>
+  <data name="settings.backup.import.chooseFile" xml:space="preserve">
+    <value>ファイルを選択...</value>
+  </data>
+  <data name="settings.backup.import.contains" xml:space="preserve">
+    <value>このファイルに含まれる内容:</value>
+  </data>
+  <data name="settings.backup.import.nothingSelected" xml:space="preserve">
+    <value>インポートするセクションを少なくとも1つ選択してください。</value>
+  </data>
+  <data name="settings.backup.import.premerge.message" xml:space="preserve">
+    <value>{0}個の新しい単語を追加、{1}個が既存の単語と競合します。続けますか？</value>
+  </data>
+  <data name="settings.backup.import.premerge.title" xml:space="preserve">
+    <value>ボキャブラリーをインポートしますか？</value>
+  </data>
+  <data name="settings.backup.import.section.apiKeys" xml:space="preserve">
+    <value>APIキー</value>
+  </data>
+  <data name="settings.backup.import.section.modes" xml:space="preserve">
+    <value>モード</value>
+  </data>
+  <data name="settings.backup.import.section.settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="settings.backup.import.section.vocabulary" xml:space="preserve">
+    <value>ボキャブラリー（{0}）</value>
+  </data>
+  <data name="settings.backup.import.summary" xml:space="preserve">
+    <value>モード: {0}、追加した語彙: {1}、競合: {2}。</value>
+  </data>
+  <data name="settings.backup.import.vocabConflict.header" xml:space="preserve">
+    <value>単語が既に存在する場合:</value>
+  </data>
+  <data name="settings.backup.import.vocabConflict.replace" xml:space="preserve">
+    <value>インポートした単語で置き換える</value>
+  </data>
+  <data name="settings.backup.import.vocabConflict.skip" xml:space="preserve">
+    <value>既存の単語を保持する</value>
+  </data>
+</root>

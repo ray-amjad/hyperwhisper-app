@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI häältranskriptsioon macOS-ile ja Windowsile",
+    "description": "Kirjuta 5x kiiremini AI-põhise häältranskriptsiooniga. HyperWhisper transkribeerib sinu häält uskumatult täpselt macOS-is ja Windowsis. Räägi loomulikult ja vaata, kuidas sõnad ilmuvad kohe."
+  },
+  "navbar": {
+    "features": "Funktsioonid",
+    "pricing": "Hinnad",
+    "faq": "KKK",
+    "support": "Tugi",
+    "download": "Laadi alla",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Vaheta keelt"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisperi logo",
+    "headline": "Kirjuta, loo ja kujunda",
+    "headlineAccent": "5x kiiremini AI-ga",
+    "subheadline": "HyperWhisper transkribeerib sinu häält uskumatult täpselt. Lihtsalt räägi loomulikult ja vaata, kuidas sinu sõnad ilmuvad kohe.",
+    "downloadCta": "Laadi kohe alla",
+    "demoCta": "Vaata demot",
+    "availableOn": "Saadaval",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Loodud professionaalidele",
+    "subtitle": "Iga funktsioon on loodud selleks, et aidata sul töötada kiiremini ja tõhusamalt",
+    "customVocabulary": {
+      "title": "Kohandatud sõnavara",
+      "description": "Lisa nimesid, lühendeid ja eritermineid, et saavutada iga kord täiuslik täpsus."
+    },
+    "languages": {
+      "title": "100+ keelt",
+      "description": "Transkribeeri rohkem kui 100 keeles automaatse keele tuvastusega."
+    },
+    "offline": {
+      "title": "Offline tugi",
+      "description": "Töötab täielikult offline. Sinu andmed ei lahku kunagi sinu seadmest."
+    },
+    "privacy": {
+      "title": "Privaatsus esikohal",
+      "description": "Konto pole vajalik. Jälgimist pole. Sinu hääleandmed jäävad sinu Maci või PC-sse."
+    },
+    "hybridProcessing": {
+      "title": "Hübriidtöötlus",
+      "description": "Vali privaatsuse jaoks kohalikud mudelid või kiiruse jaoks pilve API-d. Mõlema maailma parimad küljed."
+    },
+    "customizable": {
+      "title": "Väga kohandatav",
+      "description": "Vali enam kui 9 API pakkuja ja 30+ transkriptsioonimudeli vahel."
+    },
+    "realTime": {
+      "title": "Reaalajas voogedastus",
+      "description": "Näe, kuidas sõnad ilmuvad kohe, kui räägid. Tööstusharu tipptasemel täpsus koos alla 700 ms latentsusega."
+    },
+    "fileImport": {
+      "title": "Faili import",
+      "description": "Impordi transkriptsiooniks heli- või videofaile. Toetatud on kõik peamised formaadid automaatse vaikuse tuvastusega."
+    },
+    "screenOcr": {
+      "title": "Ekraani OCR",
+      "description": "Luba HyperWhisperil näha oma ekraani, et see saaks kõik täpselt kirjutada."
+    },
+    "mcpServer": {
+      "title": "Kohalik API ja MCP-server",
+      "description": "Sisseehitatud MCP-server võimaldab Claude'il, Cursoril ja teistel AI agentidel HyperWhisperit juhtida. Ainult kohalik HTTP API bearer-autentimisega skriptide ja automatiseerimise jaoks."
+    },
+    "modes": {
+      "title": "Režiimid igaks olukorraks",
+      "description": "Lülitu erinevate transkriptsioonirežiimide vahel, mis on optimeeritud koosolekute, märkmete, e-kirjade, programmeerimise ja muu jaoks. Iga režiim kasutab kohandatud prompt-e, et sinu tekst oleks ideaalselt vormindatud.",
+      "meeting": "Koosolek",
+      "email": "E-kiri",
+      "note": "Märge",
+      "code": "Kood",
+      "legal": "Juriidiline",
+      "medical": "Meditsiiniline",
+      "presetModes": "Eelseadistatud režiimid",
+      "customModes": "Kohandatud režiimid"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Kiirem kui trükkimine",
+    "accuracyRate": "Täpsusmäär",
+    "languagesSupported": "Toetatud keeled",
+    "providersSupported": "Toetatud pakkujad"
+  },
+  "pricing": {
+    "title": "Ilma tellimusteta. Kunagi.",
+    "subtitle": "Maksa üks kord, kasuta igavesti. Ka meie vihkame tellimusi.",
+    "guarantee": "14-päevane raha tagasi garantii",
+    "guaranteeExtended": "kui sa pole täielikult rahul.",
+    "learnMore": "Loe lähemalt",
+    "free": {
+      "name": "Tasuta",
+      "price": "$0",
+      "period": "igavesti",
+      "description": "Ideaalne HyperWhisperi proovimiseks",
+      "cta": "Laadi tasuta alla",
+      "features": {
+        "transcriptionLimit": "5 minutit transkriptsiooni päevas",
+        "basicModes": "Põhilised transkriptsioonirežiimid",
+        "offlineTranscription": "Offline transkriptsioon",
+        "apiTranscription": "API transkriptsioon (kasuta oma võtmeid)",
+        "postProcessing": "Teksti järeltöötlus",
+        "providers": "9+ pakkujat valimiseks",
+        "lifetimeUpdates": "Eluaegsed uuendused",
+        "cloudLimited": "HyperWhisper Cloud (piiratud kasutus)",
+        "customVocabulary": "Kohandatud sõnavara",
+        "prioritySupport": "Prioriteetne tugi"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "eluaegne",
+      "description": "Ühekordne ost, piiramatu võimsus igaveseks",
+      "cta": "Osta kohe - Eluaegne ligipääs",
+      "mostPopular": "Kõige populaarsem",
+      "features": {
+        "unlimitedTranscription": "Piiramatu transkriptsioon",
+        "allModes": "Kõik transkriptsioonirežiimid",
+        "offlineTranscription": "Offline transkriptsioon",
+        "apiTranscription": "API transkriptsioon (kasuta oma võtmeid)",
+        "postProcessing": "Teksti järeltöötlus",
+        "providers": "9+ pakkujat valimiseks",
+        "lifetimeUpdates": "Eluaegsed uuendused",
+        "cloudCredits": "HyperWhisper Cloud ($5 krediiti)",
+        "customVocabulary": "Kohandatud sõnavara",
+        "prioritySupport": "Prioriteetne tugi"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise ja kohandatud hinnastamine",
+      "description": "Mahusoodustused, SSO, prioriteetne tugi, sisemajutus ja kohandatud integratsioonid",
+      "cta": "Võta müügiga ühendust"
+    }
+  },
+  "faq": {
+    "title": "Korduma kippuvad küsimused",
+    "subtitle": "Kõik, mida pead HyperWhisperi kohta teadma",
+    "contactPrompt": "Kas sul on veel küsimusi? Kirjuta meile",
+    "questions": {
+      "accuracy": {
+        "question": "Kui täpne on transkriptsioon?",
+        "answer": "Saavutame valdkonna tipptasemel 99% täpsuse, kasutades kaasaegseimaid AI mudeleid. Täpsust saad veelgi parandada, lisades oma kohandatud sõnavara tehniliste terminite, nimede ja erialase žargoni jaoks."
+      },
+      "offline": {
+        "question": "Kas saan seda kasutada ilma internetita?",
+        "answer": "Absoluutselt. HyperWhisperit saab Macis kasutada täielikult offline kohalike AI mudelitega - internetti pole vaja. Kasutajatele, kes soovivad maksimaalset täpsust ja kiirust, pakume ka valikulist pilvetöötlust erinevate pakkujate kaudu."
+      },
+      "apiKey": {
+        "question": "Kas pean API juurdepääsu eest maksma?",
+        "answer": "Kasutad oma API võtit järgmiste pakkujate jaoks: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ja Google Gemini. Mõned pakkujad pakuvad uutele kasutajatele tasuta krediiti; Deepgram pakub $200, AssemblyAI pakub $50. Pikemas perspektiivis on see oluliselt odavam kui ükskõik milline tellimus. \n\nSamuti saad kasutada HyperWhisper Cloudi (sisseehitatud), mis ei vaja API võtit ja töötab kasutuspõhise hinnastusega.\n\nAga pea meeles, kohalik offline režiim töötab ilma API võtmeta ja on täiesti tasuta."
+      },
+      "languages": {
+        "question": "Milliseid keeli see toetab?",
+        "answer": "Toetatud on üle 100 keele kohe algusest peale, alates inglise ja hispaania keelest kuni mandariini ja araabia keeleni. Enamik mudeleid suudab automaatselt tuvastada, mis keeles räägid, ja sujuvalt ümber lülituda."
+      },
+      "offlineModels": {
+        "question": "Millised offline mudelid on saadaval?",
+        "answer": "Offline transkriptsiooniks pakume Whisper-mudeli mitut suurust (loodud OpenAI poolt, toetab 99+ keelt). Pakume ka NVidia Parakeet mudeleid (toetavad 25+ keelt).\n      \n      Offline järeltöötluseks pakume Gemma 3 mudeli mitut suurust (loodud Google'i poolt)."
+      },
+      "compatibility": {
+        "question": "Kas see töötab kõigi Maci ja Windowsi rakendustega?",
+        "answer": "Jah, see töötab kõikjal, kus saad kirjutada. Olgu see e-kirjade, dokumentide või koodi kirjutamine või vestlemine. Vajuta lihtsalt kiirklahvi, räägi ja vaata, kuidas su sõnad kohe ilmuvad."
+      },
+      "privacy": {
+        "question": "Kuidas on minu privaatsus kaitstud?",
+        "answer": "Kui kasutad kohalikku režiimi, ei lahku andmed kunagi sinu Macist.\n\nKui kasutad pilvetranskriptsiooni, saadetakse andmed sinu valitud pilvepakkujale (nt OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs või Mistral).\n\nSeda saad ise kontrollida võrguliikluse tööriistaga nagu [Proxyman](https://proxyman.io) või võrgumonitoriga nagu [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Mis on HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud on sisseehitatud pilvetranskriptsioon vähem tehnilistele kasutajatele, kes soovivad kiiresti alustada.\n\nSee töötab pay as you go mudeliga. Litsentsi ostmisel saad $5 transkriptsioonikrediiti. Hiljem saad krediiti juurde lisada.\n    \nPakume kolme täpsustaset: Medium (kiireim, Groq), High (soovitatud, Deepgram) ja Highest (parim kvaliteet, xAI Grok STT). Järeltöötlus on automaatne. Me ei talleta midagi peale selle, kui palju krediiti sa kasutasid.\n\nMaksad täpselt sama palju, kui meie nendele pakkujatele maksame. Me ei lisa juurdehindlust.\n\nKindluse mõttes saad HyperWhisper Cloudi lähtekoodi vaadata [siin](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Kas minu häälandmeid kasutatakse tehisintellekti mudelite treenimiseks?",
+        "answer": "HyperWhisper Cloud loobub teie andmete kasutamisest mudelite treenimiseks kõigi meie kasutatavate teenusepakkujate juures. Oma API-võtme kasutamisel on loobumine teie vastutusel — vaadake meie [andmete privaatsuse juhendit](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Miks eluaegne hind tellimuse asemel?",
+        "answer": "Usume lihtsasse ja ausasse hinnastamisse. Maksa üks kord $39 ja kasuta HyperWhisperit igavesti. Ei mingeid kuutasusid, ei mingeid üllatusi. Tasuta versioon võimaldab proovida põhifunktsioone 3 minuti transkriptsiooniga päevas."
+      },
+      "deviceLimit": {
+        "question": "Mitmes seadmes saan oma litsentsi kasutada?",
+        "answer": "Võid oma litsentsi kasutada nii paljudes seadmetes, kui soovid, vastavalt meie Õiglase Kasutuse poliitikale, mis on kirjas [Teenusetingimustes](/legal/terms-of-service). See poliitika on loodud olema paindlik legaalseks isiklikuks ja ärikasutuseks, samal ajal vältides kuritarvitust."
+      },
+      "requirements": {
+        "question": "Millised on süsteeminõuded?",
+        "answer": "Macile: macOS 14 või uuem, toetatud on nii Apple Silicon kui Intel. Windowsile: Windows 10/11, x64 või ARM64. Parima jõudluse jaoks soovitame 8GB RAM-i."
+      },
+      "windowsStatus": {
+        "question": "Kas Windowsi versioonil on kõik samad funktsioonid nagu macOS-il?",
+        "answer": "Windowsi versioon ilmus hiljuti, seega ei pruugi seal veel olla kõiki macOS-is saadaval olevaid funktsioone. Töötame aktiivselt selle nimel, et saavutada täielik funktsioonide võrdsus mõlemal platvormil."
+      },
+      "madeBy": {
+        "question": "Kes selle tegi?",
+        "answer": "Selle tegi YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Tugikeskus",
+    "subtitle": "Oleme siin, et aidata sul HyperWhisperist maksimum võtta",
+    "getInTouch": "Võta ühendust",
+    "description": "Tehnilise toe, litsentsiküsimuste või ükskõik milliste HyperWhisperiga seotud küsimuste korral on meie tiim valmis aitama.",
+    "emailUsAt": "Kirjuta meile:",
+    "openInClient": "Ava oma e-posti kliendis:",
+    "defaultClient": "Vaikimisi e-posti klient",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Tavaliselt vastame tööpäeviti 24 tunni jooksul.",
+    "emailTemplate": {
+      "subject": "HyperWhisperi toe päring",
+      "body": "Tere,\n\nVersioon: \n[seda saad kontrollida menüüst Settings > About]\n\nProbleem: \n[Kirjelda oma probleemi]\n\nDetailid: \n[Lisa olulised detailid, mida tegid enne krahhi]\n\n[Sinu sõnum siia]\n\nParimate soovidega,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisperi logo",
+    "title": "Laadi HyperWhisper alla",
+    "emailPlaceholder": "E-post",
+    "description": "Saadame sulle e-postiga allalaadimislingi ja lühikese õpetusvideo, et saaksid kiiresti alustada. Rämpsposti ei saada.",
+    "downloadButton": "Laadi HyperWhisper alla",
+    "errorGeneric": "Midagi läks valesti. Palun proovi uuesti.",
+    "errorNetwork": "Võrguviga. Kontrolli ühendust ja proovi uuesti.",
+    "thankYouTitle": "Aitäh!",
+    "downloadStarted": "Allalaadimine peaks algama automaatselt.",
+    "manualDownload": "Allalaadimine ei alanud? Klõpsa siia",
+    "skipAndDownloadButton": "Jäta vahele ja laadi alla"
+  },
+  "downloadPage": {
+    "title": "Laadi HyperWhisper alla",
+    "countdownText": "Algab {seconds} pärast...",
+    "downloadStarted": "Kontrolli kausta Downloads",
+    "downloadNow": "Laadi alla nüüd",
+    "downloadAgain": "Laadi uuesti",
+    "selectArchitecture": "Vali arhitektuur",
+    "downloadX64": "Laadi alla x64 jaoks",
+    "downloadArm64": "Laadi alla ARM64 jaoks",
+    "orDivider": "VÕI",
+    "homebrewTitle": "Paigalda Homebrew abil",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopeeri",
+    "copied": "Kopeeritud!"
+  },
+  "purchaseSuccess": {
+    "title": "Ost õnnestus!",
+    "subtitle": "Tere tulemast HyperWhisper Pro-sse! Sinu eluaegne litsents on valmis.",
+    "checkEmail": {
+      "title": "Kontrolli oma e-posti",
+      "description": "Saatsime sinu litsentsivõtme ja allalaadimisjuhised sinu e-posti aadressile. Need peaksid kohale jõudma mõne minuti jooksul."
+    },
+    "whatsNext": {
+      "title": "Mis edasi?",
+      "step1": {
+        "title": "Kontrolli oma postkasti",
+        "description": "Otsi HyperWhisperi e-kirja"
+      },
+      "step2": {
+        "title": "Kopeeri oma litsentsivõti",
+        "description": "Seda on vaja rakenduse aktiveerimiseks"
+      },
+      "step3": {
+        "title": "Laadi HyperWhisper alla",
+        "description": "Paigalda rakendus ja sisesta litsentsivõti"
+      }
+    },
+    "downloadButton": "Laadi HyperWhisper alla",
+    "returnHome": "Tagasi avalehele",
+    "noEmail": "Ei saanud e-kirja? Kontrolli rämpsposti kausta või",
+    "contactSupport": "võta ühendust toega",
+    "loading": "Laadimine..."
+  },
+  "footer": {
+    "tagline": "Kirjuta 5x kiiremini AI häältranskriptsiooniga macOS-ile ja Windowsile.",
+    "product": "Toode",
+    "resources": "Ressursid",
+    "company": "Ettevõte",
+    "legal": "Juriidiline",
+    "links": {
+      "features": "Funktsioonid",
+      "pricing": "Hinnad",
+      "download": "Laadi alla",
+      "roadmap": "Teekaart",
+      "helpCenter": "Abikeskus",
+      "manageBilling": "Halda arveldust",
+      "customerPortal": "Kliendiportaal",
+      "olderVersions": "Vanemad versioonid",
+      "blog": "Blogi",
+      "about": "Meist",
+      "support": "Tugi",
+      "privacyPolicy": "Privaatsuspoliitika",
+      "termsOfService": "Teenusetingimused",
+      "refundPolicy": "Tagasimaksepoliitika",
+      "dataTraining": "Andmete privaatsus"
+    },
+    "copyright": "© 2026 HyperWhisper. Kõik õigused kaitstud.",
+    "linkedinAria": "LinkedIn"
+  }
+}

@@ -1,0 +1,749 @@
+name: Windows Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (e.g. 1.3.0)"
+        required: true
+        type: string
+      release_notes:
+        description: "Release notes (HTML <li> items)"
+        required: true
+        type: string
+      github_release_body:
+        description: "GitHub release body (markdown, optional). Falls back to release_notes if empty."
+        required: false
+        type: string
+      skip_upload:
+        description: "Skip R2 upload (for testing)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-push
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  build-sign-release:
+    name: Build, Sign & Release
+    runs-on: windows-latest
+    environment: Production
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Checkout
+      # ----------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Preflight release inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $ver = "${{ inputs.version }}".Trim()
+          $tag = "windows/v$ver"
+
+          if ($ver -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Version must be semantic major.minor.patch, got '$ver'"
+          }
+
+          $releaseNotes = ($env:INPUT_RELEASE_NOTES ?? "").Trim()
+          if (-not $releaseNotes) {
+            throw "Release notes are required for Windows releases. Provide HTML <li> items for the appcast."
+          }
+          if ($releaseNotes -notmatch '<li[\s>]') {
+            throw "Release notes must include HTML <li> items for the Windows appcast."
+          }
+
+          .\app\windows\HyperWhisper\scripts\verify_release_readiness.ps1 `
+            -TargetVersion $ver `
+            -ReleaseNotes $releaseNotes `
+            -SkipAppcastValidator
+
+          $csproj = "app\windows\HyperWhisper\HyperWhisper.csproj"
+          $projectContent = Get-Content $csproj -Raw
+          $projectMatch = [regex]::Match($projectContent, '<Version>(?<version>\d+\.\d+\.\d+)</Version>')
+          if (-not $projectMatch.Success) {
+            throw "Could not read current Windows project version from $csproj"
+          }
+
+          $appcast = "nextjs\public\appcast-windows.xml"
+          $appcastContent = Get-Content $appcast -Raw
+          $appcastMatches = [regex]::Matches($appcastContent, '<sparkle:shortVersionString>(?<version>\d+\.\d+\.\d+)</sparkle:shortVersionString>')
+          if ($appcastMatches.Count -eq 0) {
+            throw "Could not read current Windows appcast versions from $appcast"
+          }
+
+          $requestedVersion = [version]$ver
+          $projectVersion = [version]$projectMatch.Groups["version"].Value
+          $topAppcastVersion = $appcastMatches |
+            ForEach-Object { [version]$_.Groups["version"].Value } |
+            Sort-Object -Descending |
+            Select-Object -First 1
+
+          if ($requestedVersion -lt $projectVersion) {
+            throw "Requested version $ver must be greater than or equal to project version $projectVersion"
+          }
+          if ($requestedVersion -le $topAppcastVersion) {
+            throw "Requested version $ver must be greater than appcast top version $topAppcastVersion"
+          }
+
+          $localTag = git tag --list $tag
+          if ($localTag) {
+            throw "Local tag $tag already exists"
+          }
+
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if ($remoteTag) {
+            throw "Remote tag $tag already exists"
+          }
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "GitHub release $tag already exists"
+          }
+          # gh exits 1 when the release is absent (the expected case for a new
+          # release); reset so its non-zero code isn't propagated as the step's.
+          $LASTEXITCODE = 0
+
+          if ("${{ inputs.skip_upload }}" -eq "true") {
+            Write-Host "skip_upload=true: this run will build/sign installers but skip R2 upload, appcast mutation, git commit, and GitHub release creation."
+          }
+
+          Write-Host "Preflight passed for Windows $ver"
+
+      # ----------------------------------------------------------------
+      # 2. Setup .NET 10 SDK
+      # ----------------------------------------------------------------
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      # ----------------------------------------------------------------
+      # 3. Install Inno Setup 6
+      # ----------------------------------------------------------------
+      - name: Install Inno Setup 6
+        run: choco install innosetup -y --no-progress
+
+      # ----------------------------------------------------------------
+      # 4. Bump version in .csproj
+      # ----------------------------------------------------------------
+      - name: Bump version
+        run: |
+          $ver = "${{ inputs.version }}"
+          $csproj = "app\windows\HyperWhisper\HyperWhisper.csproj"
+          $content = Get-Content $csproj -Raw
+
+          $content = $content -replace '<Version>[^<]+</Version>', "<Version>$ver</Version>"
+          $content = $content -replace '<AssemblyVersion>[^<]+</AssemblyVersion>', "<AssemblyVersion>$ver.0</AssemblyVersion>"
+          $content = $content -replace '<FileVersion>[^<]+</FileVersion>', "<FileVersion>$ver.0</FileVersion>"
+
+          Set-Content $csproj $content
+          Write-Host "Version bumped to $ver"
+
+      # ----------------------------------------------------------------
+      # 4b. Build + bundle the Rust shared-core DLL (x64 + ARM64) — D1.
+      #     The csproj Content blocks are Exists()-guarded and the
+      #     EnsureRustCoreDll target hard-errors when the DLL is missing, so this
+      #     MUST run before the build. shared-core-rs/rust-toolchain.toml pins the
+      #     toolchain (1.86.0); rustup honors it. windows-latest ships rustup with
+      #     the x64 MSVC target; the ARM64 cross target is added here.
+      # ----------------------------------------------------------------
+      - name: Build Rust shared core (x64 + ARM64)
+        working-directory: shared-core-rs
+        run: |
+          rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+          cargo build --release --target x86_64-pc-windows-msvc
+          cargo build --release --target aarch64-pc-windows-msvc
+
+          $dest = "..\app\windows\HyperWhisper\Resources\rust-core"
+          New-Item -ItemType Directory -Force -Path "$dest\x64", "$dest\arm64" | Out-Null
+          Copy-Item "target\x86_64-pc-windows-msvc\release\hyperwhisper_core.dll" "$dest\x64\hyperwhisper_core.dll" -Force
+          Copy-Item "target\aarch64-pc-windows-msvc\release\hyperwhisper_core.dll" "$dest\arm64\hyperwhisper_core.dll" -Force
+          Write-Host "x64 DLL:   $((Get-Item "$dest\x64\hyperwhisper_core.dll").Length) bytes"
+          Write-Host "ARM64 DLL: $((Get-Item "$dest\arm64\hyperwhisper_core.dll").Length) bytes"
+
+      # ----------------------------------------------------------------
+      # 5. Build both x64 + ARM64 installers
+      # ----------------------------------------------------------------
+      - name: Build installers
+        working-directory: app/windows
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ray-amjad
+          SENTRY_PROJECT: hyperwhisper
+          # Baked into the assembly via AssemblyMetadata (see HyperWhisper.csproj).
+          # Empty when the secret is unset → crash reporting disabled in forks.
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          .\build-release.ps1 -Architecture both -Version "${{ inputs.version }}"
+
+      - name: Verify installers exist
+        run: |
+          $ver = "${{ inputs.version }}"
+          $x64 = "app\windows-installers\HyperWhisper-$ver-x64-Setup.exe"
+          $arm64 = "app\windows-installers\HyperWhisper-$ver-arm64-Setup.exe"
+          if (-not (Test-Path $x64)) { throw "x64 installer not found: $x64" }
+          if (-not (Test-Path $arm64)) { throw "ARM64 installer not found: $arm64" }
+          Write-Host "x64:   $((Get-Item $x64).Length) bytes"
+          Write-Host "ARM64: $((Get-Item $arm64).Length) bytes"
+
+      # ----------------------------------------------------------------
+      # 6. Authenticode sign both installers (SSL.com eSigner)
+      #    Uses CodeSignTool directly (not the GitHub Action wrapper)
+      #    for reliable TOTP handling.
+      # ----------------------------------------------------------------
+      - name: Setup Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "11"
+
+      - name: Download CodeSignTool
+        run: |
+          $zip = "$env:RUNNER_TEMP\CodeSignTool.zip"
+          $dest = "$env:RUNNER_TEMP\CodeSignTool"
+          Invoke-WebRequest -Uri "https://github.com/SSLcom/CodeSignTool/releases/download/v1.3.0/CodeSignTool-v1.3.0-windows.zip" -OutFile $zip -UseBasicParsing
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+
+          # Find directory containing CodeSignTool.bat (may be $dest or a subdirectory)
+          $bat = Get-ChildItem $dest -Recurse -Filter "CodeSignTool.bat" | Select-Object -First 1
+          if (-not $bat) { throw "CodeSignTool.bat not found after extraction" }
+          $cstDir = $bat.DirectoryName
+          echo "CST_PATH=$cstDir" >> $env:GITHUB_ENV
+          Write-Host "CodeSignTool found at: $cstDir"
+          Get-ChildItem $cstDir | ForEach-Object { Write-Host "  $_" }
+
+      - name: Authenticode sign both installers
+        env:
+          ES_USERNAME: ${{ secrets.ES_USERNAME }}
+          ES_PASSWORD: ${{ secrets.ES_PASSWORD }}
+          ES_CREDENTIAL_ID: ${{ secrets.ES_CREDENTIAL_ID }}
+          ES_TOTP_SECRET: ${{ secrets.ES_TOTP_SECRET }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          $cstDir = $env:CST_PATH
+
+          # Compute TOTP ourselves (CodeSignTool's internal TOTP fails with our secret)
+          function Get-TOTP {
+            param([string]$Secret)
+            $alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+            $bits = ""
+            foreach ($c in $Secret.ToUpper().ToCharArray()) {
+              $val = $alphabet.IndexOf($c)
+              if ($val -lt 0) { throw "Invalid base32 char: $c" }
+              $bits += [Convert]::ToString($val, 2).PadLeft(5, "0")
+            }
+            $keyBytes = [System.Collections.Generic.List[byte]]::new()
+            for ($i = 0; $i + 8 -le $bits.Length; $i += 8) {
+              $keyBytes.Add([Convert]::ToByte($bits.Substring($i, 8), 2))
+            }
+            $epoch = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+            $counter = [Math]::Floor($epoch / 30)
+            $counterBytes = [BitConverter]::GetBytes([long]$counter)
+            [Array]::Reverse($counterBytes)
+            $hmac = New-Object System.Security.Cryptography.HMACSHA1
+            $hmac.Key = [byte[]]$keyBytes.ToArray()
+            $hash = $hmac.ComputeHash($counterBytes)
+            $offset = $hash[$hash.Length - 1] -band 0x0f
+            $code = (($hash[$offset] -band 0x7f) -shl 24) -bor
+                    (($hash[$offset+1] -band 0xff) -shl 16) -bor
+                    (($hash[$offset+2] -band 0xff) -shl 8) -bor
+                    ($hash[$offset+3] -band 0xff)
+            return "{0:D6}" -f ($code % 1000000)
+          }
+
+          foreach ($arch in @("x64", "arm64")) {
+            $file = (Resolve-Path "app\windows-installers\HyperWhisper-$ver-$arch-Setup.exe").Path
+            Write-Host "`n=== Signing $arch installer ==="
+            Write-Host "File: $file"
+
+            # Compute fresh TOTP for each signing (in case we cross a 30s boundary)
+            $otp = Get-TOTP -Secret $env:ES_TOTP_SECRET
+            Write-Host "Computed OTP (first 2 digits): $($otp.Substring(0,2))****"
+
+            # Pipe OTP to CodeSignTool stdin (it prompts "Enter the OTP" when -totp_secret is omitted)
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = "java"
+            $psi.Arguments = "-Xmx1024M -jar `"$cstDir\jar\code_sign_tool-1.3.0.jar`" sign -username=`"$($env:ES_USERNAME)`" -password=`"$($env:ES_PASSWORD)`" -credential_id=`"$($env:ES_CREDENTIAL_ID)`" -input_file_path=`"$file`" -override=true"
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardInput = $true
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.WorkingDirectory = $cstDir
+
+            $proc = [System.Diagnostics.Process]::Start($psi)
+
+            # Read output asynchronously to avoid deadlocks
+            $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+            $stderrTask = $proc.StandardError.ReadToEndAsync()
+
+            # Wait for prompt, then send OTP
+            Start-Sleep -Milliseconds 5000
+            $proc.StandardInput.WriteLine($otp)
+            $proc.StandardInput.Close()
+
+            $proc.WaitForExit(120000)
+            $stdout = $stdoutTask.GetAwaiter().GetResult()
+            $stderr = $stderrTask.GetAwaiter().GetResult()
+            Write-Host "STDOUT: $stdout"
+            if ($stderr) { Write-Host "STDERR: $stderr" }
+
+            if ($proc.ExitCode -ne 0 -or $stdout -match "Error:" -or $stderr -match "Error:") {
+              throw "Authenticode signing failed for $arch (exit: $($proc.ExitCode))`n$stdout`n$stderr"
+            }
+            Write-Host "$arch signing: SUCCESS"
+          }
+
+      - name: Verify Authenticode signatures
+        run: |
+          $ver = "${{ inputs.version }}"
+          foreach ($arch in @("x64", "arm64")) {
+            $file = "app\windows-installers\HyperWhisper-$ver-$arch-Setup.exe"
+            $sig = Get-AuthenticodeSignature -FilePath $file
+            if ($sig.Status -ne "Valid") {
+              throw "Authenticode verification FAILED for $arch`: $($sig.Status)"
+            }
+            Write-Host "$arch Authenticode: $($sig.Status) ($($sig.SignerCertificate.Subject))"
+          }
+
+      # ----------------------------------------------------------------
+      # 7. Install NetSparkle CLI (pinned version)
+      # ----------------------------------------------------------------
+      - name: Install NetSparkle CLI
+        run: |
+          dotnet tool install --global NetSparkleUpdater.Tools.AppCastGenerator --version 2.9.0-preview20251127001
+
+      # ----------------------------------------------------------------
+      # 8. Ed25519 sign + validate + verify both installers
+      # ----------------------------------------------------------------
+      - name: Write NetSparkle key files and derive public key
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.NETSPARKLE_ED25519_PRIV }}
+        run: |
+          # NetSparkle CLI needs both .priv and .pub in %LOCALAPPDATA%\netsparkle\
+          $keyDir = "$env:LOCALAPPDATA\netsparkle"
+          New-Item -ItemType Directory -Path $keyDir -Force | Out-Null
+
+          # Write private key
+          Set-Content -Path "$keyDir\NetSparkle_Ed25519.priv" -Value $env:SPARKLE_PRIVATE_KEY -NoNewline
+          Write-Host "Wrote .priv to $keyDir"
+
+          # Derive public key using inline dotnet project
+          $tmpDir = "$env:RUNNER_TEMP\hw-keygen"
+          New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
+
+          @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net10.0</TargetFramework>
+              <ImplicitUsings>enable</ImplicitUsings>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="NetSparkleUpdater.SparkleUpdater" Version="3.0.4" />
+            </ItemGroup>
+          </Project>
+          "@ | Set-Content "$tmpDir\keygen.csproj"
+
+          @"
+          using NetSparkleUpdater.SignatureVerifiers;
+          using NetSparkleUpdater.Enums;
+          // Read the seed from stdin (not argv) so the private key never appears on a
+          // process command line that other processes on the runner could enumerate.
+          var seed = Convert.FromBase64String(Console.In.ReadToEnd().Trim());
+          _ = new Ed25519Checker(SecurityMode.Unsafe, "placeholder");
+          var asm = AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "Chaos.NaCl");
+          var pubMethod = asm.GetType("Chaos.NaCl.Ed25519")!.GetMethod("PublicKeyFromSeed")!;
+          var pubKey = (byte[])pubMethod.Invoke(null, new object[] { seed })!;
+          Console.Write(Convert.ToBase64String(pubKey));
+          "@ | Set-Content "$tmpDir\Program.cs"
+
+          Push-Location $tmpDir
+          $pubKey = $env:SPARKLE_PRIVATE_KEY | & dotnet run --verbosity quiet 2>$null
+          Pop-Location
+
+          if (-not $pubKey -or $pubKey.Length -lt 10) {
+            throw "Failed to derive public key"
+          }
+
+          Set-Content -Path "$keyDir\NetSparkle_Ed25519.pub" -Value $pubKey -NoNewline
+          Write-Host "Wrote .pub to $keyDir (key: $pubKey)"
+
+          # Also export for later validation step
+          echo "ED25519_PUB_KEY=$pubKey" >> $env:GITHUB_ENV
+
+      - name: Ed25519 sign x64 installer
+        id: sign_x64
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.NETSPARKLE_ED25519_PRIV }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          $file = "app\windows-installers\HyperWhisper-$ver-x64-Setup.exe"
+
+          $output = & netsparkle-generate-appcast --generate-signature $file 2>&1
+          Write-Host $output
+
+          $sigLine = $output | Select-String -Pattern "Signature:\s*(.+)"
+          if (-not $sigLine) { throw "Failed to extract x64 Ed25519 signature" }
+          $sig = $sigLine.Matches.Groups[1].Value.Trim()
+          if (-not $sig -or $sig.Length -lt 10) { throw "x64 Ed25519 signature is empty or invalid: '$sig'" }
+
+          echo "signature=$sig" >> $env:GITHUB_OUTPUT
+          Write-Host "x64 Ed25519 signature: $sig"
+
+      - name: Ed25519 sign ARM64 installer
+        id: sign_arm64
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.NETSPARKLE_ED25519_PRIV }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          $file = "app\windows-installers\HyperWhisper-$ver-arm64-Setup.exe"
+
+          $output = & netsparkle-generate-appcast --generate-signature $file 2>&1
+          Write-Host $output
+
+          $sigLine = $output | Select-String -Pattern "Signature:\s*(.+)"
+          if (-not $sigLine) { throw "Failed to extract ARM64 Ed25519 signature" }
+          $sig = $sigLine.Matches.Groups[1].Value.Trim()
+          if (-not $sig -or $sig.Length -lt 10) { throw "ARM64 Ed25519 signature is empty or invalid: '$sig'" }
+
+          echo "signature=$sig" >> $env:GITHUB_OUTPUT
+          Write-Host "ARM64 Ed25519 signature: $sig"
+
+      # ----------------------------------------------------------------
+      # 9. Validate Ed25519 key consistency + post-signing verification
+      # ----------------------------------------------------------------
+      - name: Validate Ed25519 key and verify signatures
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.NETSPARKLE_ED25519_PRIV }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          $x64Sig = "${{ steps.sign_x64.outputs.signature }}"
+          $arm64Sig = "${{ steps.sign_arm64.outputs.signature }}"
+          $x64File = "app\windows-installers\HyperWhisper-$ver-x64-Setup.exe"
+          $arm64File = "app\windows-installers\HyperWhisper-$ver-arm64-Setup.exe"
+
+          # Create a temp dotnet project for key derivation + verification
+          $tmpDir = "$env:RUNNER_TEMP\hw-verify"
+          New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
+
+          $csproj = @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net10.0</TargetFramework>
+              <ImplicitUsings>enable</ImplicitUsings>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="NetSparkleUpdater.SparkleUpdater" Version="3.0.4" />
+            </ItemGroup>
+          </Project>
+          "@
+
+          $program = @"
+          using NetSparkleUpdater.SignatureVerifiers;
+          using NetSparkleUpdater.Enums;
+
+          var mode = args[0]; // "derive" or "verify"
+
+          if (mode == "derive") {
+              // Read the seed from stdin (not argv) so the private key never appears on a
+              // process command line that other processes on the runner could enumerate.
+              var seed = Convert.FromBase64String(Console.In.ReadToEnd().Trim());
+              _ = new Ed25519Checker(SecurityMode.Unsafe, "placeholder");
+              var asm = AppDomain.CurrentDomain.GetAssemblies().First(a => a.GetName().Name == "Chaos.NaCl");
+              var pubMethod = asm.GetType("Chaos.NaCl.Ed25519")!.GetMethod("PublicKeyFromSeed")!;
+              var pubKey = (byte[])pubMethod.Invoke(null, new object[] { seed })!;
+              Console.Write(Convert.ToBase64String(pubKey));
+          }
+          else if (mode == "verify") {
+              var publicKey = args[1];
+              var signature = args[2];
+              var filePath = args[3];
+              var checker = new Ed25519Checker(SecurityMode.Strict, publicKey);
+              var result = checker.VerifySignatureOfFile(signature, filePath);
+              Console.Write(result.ToString());
+          }
+          "@
+
+          Set-Content -Path "$tmpDir\verify.csproj" -Value $csproj
+          Set-Content -Path "$tmpDir\Program.cs" -Value $program
+
+          # Step 1: Derive public key from private key seed (piped via stdin, not argv)
+          Push-Location $tmpDir
+          $derivedKey = $env:SPARKLE_PRIVATE_KEY | & dotnet run --verbosity quiet -- derive 2>$null
+          Pop-Location
+
+          if (-not $derivedKey -or $derivedKey.Length -lt 10) {
+            throw "Failed to derive public key from seed"
+          }
+          Write-Host "Derived public key: $derivedKey"
+
+          # Step 2: Validate against UpdateService.cs
+          $usContent = Get-Content "app\windows\HyperWhisper\Services\UpdateService.cs" -Raw
+          $keyMatch = [regex]::Match($usContent, 'Ed25519PublicKey\s*=\s*"([^"]+)"')
+          if (-not $keyMatch.Success) { throw "Could not find Ed25519PublicKey in UpdateService.cs" }
+          $embeddedKey = $keyMatch.Groups[1].Value
+
+          if ($derivedKey -ne $embeddedKey) {
+            Write-Host "MISMATCH! Derived: $derivedKey | Embedded: $embeddedKey"
+            throw "Ed25519 public key mismatch between private key seed and UpdateService.cs"
+          }
+          Write-Host "Key consistency: OK"
+
+          # Step 3: Verify both signatures
+          $repoRoot = $env:GITHUB_WORKSPACE
+          foreach ($item in @(
+            @{ arch = "x64"; sig = $x64Sig; file = "$repoRoot\$x64File" },
+            @{ arch = "arm64"; sig = $arm64Sig; file = "$repoRoot\$arm64File" }
+          )) {
+            if (-not $item.sig -or $item.sig.Length -lt 10) {
+              throw "Empty or invalid signature for $($item.arch): '$($item.sig)'"
+            }
+            Push-Location $tmpDir
+            $result = & dotnet run --verbosity quiet -- verify $derivedKey $($item.sig) $($item.file) 2>$null
+            Pop-Location
+
+            if ($result -ne "Valid") {
+              throw "Post-signing verification FAILED for $($item.arch): $result"
+            }
+            Write-Host "$($item.arch) Ed25519 verification: PASSED"
+          }
+
+      # ----------------------------------------------------------------
+      # 10. Upload to Cloudflare R2
+      # ----------------------------------------------------------------
+      - name: Install AWS CLI
+        if: ${{ inputs.skip_upload != true }}
+        run: choco install awscli -y --no-progress
+
+      - name: Upload installers to Cloudflare R2
+        if: ${{ inputs.skip_upload != true }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          $ver = "${{ inputs.version }}"
+          $endpoint = "https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          $bucket = "${{ secrets.R2_BUCKET_NAME }}"
+
+          foreach ($arch in @("x64", "arm64")) {
+            $file = "app\windows-installers\HyperWhisper-$ver-$arch-Setup.exe"
+            $key = "HyperWhisper-$ver-$arch-Setup.exe"
+            Write-Host "Uploading $key..."
+            & aws s3 cp $file "s3://$bucket/$key" --endpoint-url $endpoint
+            if ($LASTEXITCODE -ne 0) { throw "R2 upload failed for $arch" }
+          }
+          Write-Host "Both installers uploaded to R2"
+
+      # ----------------------------------------------------------------
+      # 11. Update appcast-windows.xml
+      # ----------------------------------------------------------------
+      - name: Update appcast XML
+        if: ${{ inputs.skip_upload != true }}
+        env:
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          $appcastFile = "nextjs\public\appcast-windows.xml"
+          $content = Get-Content $appcastFile -Raw
+
+          $x64Size = (Get-Item "app\windows-installers\HyperWhisper-$ver-x64-Setup.exe").Length
+          $arm64Size = (Get-Item "app\windows-installers\HyperWhisper-$ver-arm64-Setup.exe").Length
+          $x64Sig = "${{ steps.sign_x64.outputs.signature }}"
+          $arm64Sig = "${{ steps.sign_arm64.outputs.signature }}"
+          $today = (Get-Date).ToUniversalTime().ToString("ddd, dd MMM yyyy HH:mm:ss +0000")
+
+          $releaseNotes = $env:INPUT_RELEASE_NOTES.Trim()
+
+          # Build only the new version block (not the whole file)
+          $newBlock = @"
+          <!-- ================================================================== -->
+          <!-- VERSION $ver -->
+          <!-- ================================================================== -->
+
+          <!-- $ver - ARM64 -->
+          <item>
+          <title>$ver (ARM64)</title>
+          <pubDate>$today</pubDate>
+          <sparkle:version>$ver</sparkle:version>
+          <sparkle:shortVersionString>$ver</sparkle:shortVersionString>
+          <sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+          <sparkle:os>windows-arm64</sparkle:os>
+          <enclosure
+          url="https://builds.hyperwhisper.com/HyperWhisper-$ver-arm64-Setup.exe"
+          length="$arm64Size"
+          type="application/octet-stream"
+          sparkle:edSignature="$arm64Sig"
+          />
+          <description><![CDATA[
+          <h2>What's New in $ver</h2>
+          <ul>
+          $releaseNotes
+          </ul>
+          ]]></description>
+          </item>
+
+          <!-- $ver - x64 -->
+          <item>
+          <title>$ver (x64)</title>
+          <pubDate>$today</pubDate>
+          <sparkle:version>$ver</sparkle:version>
+          <sparkle:shortVersionString>$ver</sparkle:shortVersionString>
+          <sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+          <sparkle:os>windows-x64</sparkle:os>
+          <enclosure
+          url="https://builds.hyperwhisper.com/HyperWhisper-$ver-x64-Setup.exe"
+          length="$x64Size"
+          type="application/octet-stream"
+          sparkle:edSignature="$x64Sig"
+          />
+          <description><![CDATA[
+          <h2>What's New in $ver</h2>
+          <ul>
+          $releaseNotes
+          </ul>
+          ]]></description>
+          </item>
+
+          "@
+
+          # Remove leading whitespace from heredoc indentation
+          $newBlock = ($newBlock -split "`n" | ForEach-Object { $_.TrimStart() }) -join "`n"
+
+          # Insert before first existing version block, or before </channel>
+          if ($content.Contains("<!-- ==")) {
+            $insertPos = $content.IndexOf("<!-- ==")
+            $content = $content.Substring(0, $insertPos) + $newBlock + $content.Substring($insertPos)
+          } else {
+            $insertPos = $content.IndexOf("</channel>")
+            $content = $content.Substring(0, $insertPos) + $newBlock + $content.Substring($insertPos)
+          }
+
+          Set-Content $appcastFile $content -Encoding utf8 -NoNewline
+          Write-Host "Appcast updated for v$ver (appended to existing entries)"
+
+      # ----------------------------------------------------------------
+      # 12. Validate appcast-windows.xml
+      # ----------------------------------------------------------------
+      - name: Setup pnpm
+        if: ${{ inputs.skip_upload != true }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        if: ${{ inputs.skip_upload != true }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Next.js dependencies
+        if: ${{ inputs.skip_upload != true }}
+        working-directory: nextjs
+        # nextjs/pnpm-lock.yaml is gitignored, so it's absent in CI; resolve
+        # fresh rather than requiring a frozen lockfile.
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Validate Windows appcast XML
+        if: ${{ inputs.skip_upload != true }}
+        working-directory: nextjs
+        run: |
+          node scripts/validate-windows-appcast.js
+
+      # ----------------------------------------------------------------
+      # 13. Commit and push version bump + appcast
+      # ----------------------------------------------------------------
+      - name: Commit and push changes
+        if: ${{ inputs.skip_upload != true }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/windows/HyperWhisper/HyperWhisper.csproj
+          git add app/windows/setup-x64.iss
+          git add app/windows/setup-arm64.iss
+          git add nextjs/public/appcast-windows.xml
+          git commit -m "release: Windows v$ver — bump version and update appcast"
+          for ($i = 1; $i -le 5; $i++) {
+            git pull --rebase --autostash origin $env:GITHUB_REF_NAME
+            if ($LASTEXITCODE -eq 0) {
+              git push
+              if ($LASTEXITCODE -eq 0) { break }
+            }
+
+            if ($i -eq 5) {
+              throw "git push failed after 5 attempts"
+            }
+
+            Write-Host "push attempt $i failed, retrying after fetch/rebase..."
+            Start-Sleep -Seconds 5
+          }
+
+      # ----------------------------------------------------------------
+      # 14. Create GitHub Release
+      # ----------------------------------------------------------------
+      - name: Create GitHub Release
+        if: ${{ inputs.skip_upload != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_GH_BODY: ${{ inputs.github_release_body }}
+          INPUT_RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          $ver = "${{ inputs.version }}"
+          $tag = "windows/v$ver"
+
+          $ghBody = $env:INPUT_GH_BODY.Trim()
+          $releaseNotes = $env:INPUT_RELEASE_NOTES.Trim()
+          if ($ghBody) {
+            $body = $ghBody
+          } elseif ($releaseNotes) {
+            $body = "## What's New in $ver`n`n$releaseNotes"
+          } else {
+            $body = "Windows release $ver"
+          }
+
+          gh release create $tag `
+            --title "Windows $ver" `
+            --notes $body `
+            "app\windows-installers\HyperWhisper-$ver-x64-Setup.exe#HyperWhisper-$ver-x64-Setup.exe" `
+            "app\windows-installers\HyperWhisper-$ver-arm64-Setup.exe#HyperWhisper-$ver-arm64-Setup.exe"
+
+          Write-Host "Release created: $tag"
+
+      # ----------------------------------------------------------------
+      # 15. Summary
+      # ----------------------------------------------------------------
+      - name: Write job summary
+        run: |
+          $ver = "${{ inputs.version }}"
+          $x64Size = (Get-Item "app\windows-installers\HyperWhisper-$ver-x64-Setup.exe").Length
+          $arm64Size = (Get-Item "app\windows-installers\HyperWhisper-$ver-arm64-Setup.exe").Length
+
+          $summary = @"
+          ## Windows Release $ver
+
+          | | x64 | ARM64 |
+          |---|---|---|
+          | **Size** | $($x64Size.ToString('N0')) bytes | $($arm64Size.ToString('N0')) bytes |
+          | **Ed25519** | ``${{ steps.sign_x64.outputs.signature }}`` | ``${{ steps.sign_arm64.outputs.signature }}`` |
+          | **Authenticode** | Valid | Valid |
+          | **R2 Upload** | ${{ inputs.skip_upload == true && 'Skipped' || 'Done' }} | ${{ inputs.skip_upload == true && 'Skipped' || 'Done' }} |
+          | **Appcast** | Updated | Updated |
+          "@
+
+          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

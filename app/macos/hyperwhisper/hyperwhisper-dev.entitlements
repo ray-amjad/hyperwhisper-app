@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<key>com.apple.security.get-task-allow</key>
+	<true/>
+	<!-- DEV ONLY: library validation is disabled here to keep debug tooling
+	     (dylib injection, instrumentation) working. The release entitlements
+	     intentionally OMIT this key — see hyperwhisper-release.entitlements
+	     and issue #270. Do not copy it back into release. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+
+	<!-- Automation / Apple Events: required for the Quick Capture flow,
+	     which uses NSAppleScript to ask Notes.app to create a new note.
+	     Without this entitlement, NSAppleScript returns errAEEventNotPermitted
+	     (-1743) immediately instead of triggering the TCC prompt — and the
+	     user never gets a chance to grant Notes automation. The matching
+	     entitlement also lives in hyperwhisper.entitlements (release). -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+
+	<!-- iCloud / CloudKit for vocabulary sync across Macs.
+	     Only the vocabulary Core Data store syncs; transcripts stay local.
+	     No aps-environment: we skip silent push and rely on launch +
+	     periodic sync. See hyperwhisper-release.entitlements for rationale. -->
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.hyperwhisper.hyperwhisper</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+</dict>
+</plist>

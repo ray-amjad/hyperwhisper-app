@@ -1,0 +1,168 @@
+<Window x:Class="HyperWhisper.Views.Windows.CustomEndpointWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add Endpoint"
+        Height="560" Width="500"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource ContentBackgroundBrush}">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock x:Name="TitleText" Text="Add Endpoint" FontSize="17" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+        <!-- Tab Selector -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
+            <RadioButton x:Name="TabLMStudio" Content="LMStudio" GroupName="EndpointTab"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         Padding="12,6" Margin="0,0,4,0" Checked="Tab_Checked"/>
+            <RadioButton x:Name="TabOllama" Content="Ollama" GroupName="EndpointTab"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         Padding="12,6" Margin="0,0,4,0" Checked="Tab_Checked"/>
+            <RadioButton x:Name="TabCustom" Content="Custom" GroupName="EndpointTab"
+                         Foreground="{DynamicResource TextPrimaryBrush}"
+                         IsChecked="True" Padding="12,6" Checked="Tab_Checked"/>
+        </StackPanel>
+
+        <!-- Form Fields -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <!-- Name -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="Name" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="NameTextBox"/>
+                </StackPanel>
+
+                <!-- URL -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock x:Name="UrlLabel" Text="Base URL" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox x:Name="UrlTextBox"/>
+                    <TextBlock x:Name="UrlHintText" Text="Base URL of your local server"
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Model (ComboBox for LMStudio/Ollama, TextBox for Custom) -->
+                <StackPanel Margin="0,0,0,16">
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Model" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Button x:Name="RefreshModelsButton" Grid.Column="1"
+                                Width="30" Height="30"
+                                Padding="0" Click="RefreshModels_Click"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="{DynamicResource TextSecondaryBrush}"
+                                Visibility="Collapsed">
+                            <TextBlock Text="&#xE72C;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       TextAlignment="Center"
+                                       LineStackingStrategy="BlockLineHeight"
+                                       LineHeight="12"/>
+                        </Button>
+                    </Grid>
+
+                    <!-- Model ComboBox (for LMStudio/Ollama) -->
+                    <ComboBox x:Name="ModelCombo" Visibility="Collapsed"/>
+
+                    <!-- Model TextBox (for Custom or fallback) -->
+                    <TextBox x:Name="ModelTextBox"/>
+
+                    <!-- Fetching indicator -->
+                    <StackPanel x:Name="FetchingPanel" Orientation="Horizontal" Visibility="Collapsed" Margin="0,4,0,0">
+                        <ProgressBar IsIndeterminate="True" Width="60" Height="4" Margin="0,0,8,0"/>
+                        <TextBlock Text="Fetching models..." FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <!-- Fetch error -->
+                    <TextBlock x:Name="ModelFetchErrorText" Visibility="Collapsed"
+                               FontSize="11" Foreground="{DynamicResource WarningBrush}"
+                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                    <TextBlock Text="The model identifier your endpoint expects"
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- API Key -->
+                <StackPanel Margin="0,0,0,16">
+                    <TextBlock Text="API Key (Optional)" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                    <PasswordBox x:Name="ApiKeyBox"/>
+                    <TextBlock Text="Stored securely in Windows Credential Manager"
+                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Test Connection -->
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0"
+                        Padding="0,16,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="TestButton" Content="Test Connection"
+                                    Click="TestConnection_Click"/>
+
+                            <!-- Test result indicator -->
+                            <StackPanel x:Name="TestSuccessPanel" Orientation="Horizontal"
+                                        Visibility="Collapsed" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets"
+                                           Foreground="{DynamicResource SuccessForegroundBrush}" Margin="0,0,4,0"/>
+                                <TextBlock Text="Connected" Foreground="{DynamicResource SuccessForegroundBrush}" FontSize="12"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="TestFailPanel" Orientation="Horizontal"
+                                        Visibility="Collapsed" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                           Foreground="{DynamicResource ErrorForegroundBrush}" Margin="0,0,4,0"/>
+                                <TextBlock Text="Failed" Foreground="{DynamicResource ErrorForegroundBrush}" FontSize="12"/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="TestingPanel" Orientation="Horizontal"
+                                        Visibility="Collapsed" Margin="12,0,0,0" VerticalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True" Width="40" Height="4" Margin="0,0,8,0"/>
+                                <TextBlock Text="Testing..." FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Test result details -->
+                        <Border x:Name="TestResultPanel" Visibility="Collapsed"
+                                CornerRadius="6" Padding="8" Margin="0,8,0,0">
+                            <TextBlock x:Name="TestResultText" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="3" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Content="Cancel" Click="Cancel_Click"/>
+
+            <Button x:Name="SaveButton" Grid.Column="2" Content="Add Endpoint"
+                    Click="Save_Click" IsDefault="True"
+                    Style="{StaticResource PrimaryButtonStyle}"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,18 @@
+[package]
+name = "hw-catalog"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform catalog core: embeds and looks up the shared model + cloud-STT/PP + app-type catalogs. Plain Rust; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

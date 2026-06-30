@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI-spraaktranscriptie voor macOS en Windows",
+    "description": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie. HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid op macOS en Windows. Spreek natuurlijk en zie je woorden direct verschijnen."
+  },
+  "navbar": {
+    "features": "Functies",
+    "pricing": "Prijzen",
+    "faq": "FAQ",
+    "support": "Support",
+    "download": "Download",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Taal wisselen"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper-logo",
+    "headline": "Schrijf, composeer en creëer",
+    "headlineAccent": "5x sneller met AI",
+    "subheadline": "HyperWhisper transcribeert je stem met ongelooflijke nauwkeurigheid. Spreek natuurlijk en zie je woorden direct verschijnen.",
+    "downloadCta": "Nu downloaden",
+    "demoCta": "Demo bekijken",
+    "availableOn": "Beschikbaar op",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Gemaakt voor professionals",
+    "subtitle": "Elke functie is ontworpen om je sneller en efficiënter te laten werken",
+    "customVocabulary": {
+      "title": "Aangepaste woordenschat",
+      "description": "Voeg namen, afkortingen en speciale termen toe voor maximale nauwkeurigheid, elke keer weer."
+    },
+    "languages": {
+      "title": "100+ talen",
+      "description": "Transcribeer in meer dan 100 talen met automatische taaldetectie."
+    },
+    "offline": {
+      "title": "Offline ondersteuning",
+      "description": "Werkt volledig offline. Je data verlaat je apparaat nooit."
+    },
+    "privacy": {
+      "title": "Privacygericht",
+      "description": "Geen account nodig. Geen tracking. Je spraakdata blijft op je Mac of pc."
+    },
+    "hybridProcessing": {
+      "title": "Hybride verwerking",
+      "description": "Kies tussen lokale modellen voor privacy of cloud-API's voor snelheid. Het beste van beide werelden."
+    },
+    "customizable": {
+      "title": "Zeer aanpasbaar",
+      "description": "Kies uit meer dan 9 API-providers en 30+ transcriptiemodellen."
+    },
+    "realTime": {
+      "title": "Realtime streaming",
+      "description": "Zie je woorden direct verschijnen terwijl je spreekt. Toonaangevende nauwkeurigheid met minder dan 700 ms latency."
+    },
+    "fileImport": {
+      "title": "Bestandsimport",
+      "description": "Importeer audio- of videobestanden om te transcriberen. Ondersteunt alle gangbare formaten met automatische stiltdetectie."
+    },
+    "screenOcr": {
+      "title": "Scherm-OCR",
+      "description": "Laat HyperWhisper je scherm zien, zodat alles nauwkeurig gespeld wordt."
+    },
+    "mcpServer": {
+      "title": "Lokale API & MCP-server",
+      "description": "De ingebouwde MCP-server laat Claude, Cursor en andere AI-agents HyperWhisper aansturen. Lokale HTTP-API met bearer-authenticatie voor scripts en automatiseringen."
+    },
+    "modes": {
+      "title": "Modi voor elke situatie",
+      "description": "Schakel tussen verschillende transcriptiemodi, geoptimaliseerd voor vergaderingen, notities, e-mails, coderen en meer. Elke modus gebruikt aangepaste prompts om je tekst perfect op te maken.",
+      "meeting": "Vergadering",
+      "email": "E-mail",
+      "note": "Notitie",
+      "code": "Code",
+      "legal": "Juridisch",
+      "medical": "Medisch",
+      "presetModes": "Vooraf ingestelde modi",
+      "customModes": "Aangepaste modi"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Sneller dan typen",
+    "accuracyRate": "Nauwkeurigheid",
+    "languagesSupported": "Ondersteunde talen",
+    "providersSupported": "Ondersteunde providers"
+  },
+  "pricing": {
+    "title": "Geen abonnementen. Ooit.",
+    "subtitle": "Betaal één keer, gebruik voor altijd. Wij haten abonnementen ook.",
+    "guarantee": "14 dagen geld-terug-garantie",
+    "guaranteeExtended": "als je niet volledig tevreden bent.",
+    "learnMore": "Meer informatie",
+    "free": {
+      "name": "Gratis",
+      "price": "$0",
+      "period": "voor altijd",
+      "description": "Perfect om HyperWhisper uit te proberen",
+      "cta": "Gratis downloaden",
+      "features": {
+        "transcriptionLimit": "5 minuten transcriptie per dag",
+        "basicModes": "Basis transcriptiemodi",
+        "offlineTranscription": "Offline transcriptie",
+        "apiTranscription": "API-transcriptie (gebruik je eigen sleutels)",
+        "postProcessing": "Tekstnabewerking",
+        "providers": "9+ providers om uit te kiezen",
+        "lifetimeUpdates": "Levenslange updates",
+        "cloudLimited": "HyperWhisper Cloud (beperkt gebruik)",
+        "customVocabulary": "Aangepaste woordenschat",
+        "prioritySupport": "Prioritaire support"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "levenslang",
+      "description": "Eenmalige aankoop, onbeperkte kracht voor altijd",
+      "cta": "Nu kopen - Levenslange toegang",
+      "mostPopular": "Meest populair",
+      "features": {
+        "unlimitedTranscription": "Onbeperkte transcriptie",
+        "allModes": "Alle transcriptiemodi",
+        "offlineTranscription": "Offline transcriptie",
+        "apiTranscription": "API-transcriptie (gebruik je eigen sleutels)",
+        "postProcessing": "Tekstnabewerking",
+        "providers": "9+ providers om uit te kiezen",
+        "lifetimeUpdates": "Levenslange updates",
+        "cloudCredits": "HyperWhisper Cloud ($5 aan credits)",
+        "customVocabulary": "Aangepaste woordenschat",
+        "prioritySupport": "Prioritaire support"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise & maatwerkprijzen",
+      "description": "Volumekorting, SSO, prioritaire support, interne hosting en maatwerkintegraties",
+      "cta": "Contact opnemen met sales"
+    }
+  },
+  "faq": {
+    "title": "Veelgestelde vragen",
+    "subtitle": "Alles wat je moet weten over HyperWhisper",
+    "contactPrompt": "Nog vragen? Mail ons op",
+    "questions": {
+      "accuracy": {
+        "question": "Hoe nauwkeurig is de transcriptie?",
+        "answer": "Met state-of-the-art AI-modellen behalen we een toonaangevende nauwkeurigheid van 99%. Je kunt de nauwkeurigheid verder verhogen door je eigen aangepaste woordenschat toe te voegen voor technische termen, namen en specialistisch jargon."
+      },
+      "offline": {
+        "question": "Kan ik het zonder internet gebruiken?",
+        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
+      },
+      "apiKey": {
+        "question": "Moet ik betalen voor API-toegang?",
+        "answer": "Je gebruikt je eigen API-sleutel voor de volgende providers: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral en Google Gemini. Sommige providers bieden gratis credits aan nieuwe gebruikers; Deepgram biedt $200 en AssemblyAI biedt $50. Op de lange termijn is dit aanzienlijk goedkoper dan welk abonnement dan ook. \n\nJe kunt ook HyperWhisper Cloud (ingebouwd) gebruiken, waarvoor geen API-sleutel nodig is en dat op basis van gebruik wordt afgerekend.\n\nEn vergeet niet: de lokale offline modus werkt zonder API-sleutel en is volledig gratis."
+      },
+      "languages": {
+        "question": "Welke talen worden ondersteund?",
+        "answer": "Meer dan 100 talen worden standaard ondersteund, van Engels en Spaans tot Mandarijn en Arabisch. De meeste modellen kunnen automatisch detecteren welke taal je spreekt en naadloos wisselen."
+      },
+      "offlineModels": {
+        "question": "Welke offline modellen zijn beschikbaar?",
+        "answer": "Voor offline transcriptie bieden we meerdere groottes van het Whisper-model (gemaakt door OpenAI, met ondersteuning voor 99+ talen). We bieden ook NVidia's Parakeet-modellen (met ondersteuning voor 25+ talen).\n      \n      Voor offline nabewerking bieden we meerdere groottes van het Gemma 3-model (gemaakt door Google)."
+      },
+      "compatibility": {
+        "question": "Werkt het met alle Mac- en Windows-apps?",
+        "answer": "Ja, het werkt overal waar je kunt typen. Of je nu e-mails schrijft, documenten maakt, codeert of chat. Druk op de sneltoets, spreek, en zie je woorden direct verschijnen."
+      },
+      "privacy": {
+        "question": "Hoe wordt mijn privacy beschermd?",
+        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs of Mistral).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io) of een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Wat is HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud is ingebouwde cloudtranscriptie voor minder technische gebruikers die snel willen starten.\n\nHet is pay-as-you-go. Bij aankoop van een licentie krijg je $5 aan transcriptiecredits. Je kunt later extra credits toevoegen.\n    \nWe bieden drie nauwkeurigheidsniveaus: Medium (snelst, aangedreven door Groq), High (aanbevolen, aangedreven door Deepgram) en Highest (beste kwaliteit, aangedreven door xAI Grok STT). Nabewerking is automatisch. We slaan niets op behalve hoeveel credits je hebt verbruikt.\n\nJe betaalt exact wat wij aan deze providers betalen. We rekenen geen opslag.\n\nVoor extra zekerheid kun je de broncode van HyperWhisper Cloud [hier](https://github.com/theramjad/hyperwhisper-fly) bekijken."
+      },
+      "dataTraining": {
+        "question": "Worden mijn spraakgegevens gebruikt om AI-modellen te trainen?",
+        "answer": "HyperWhisper Cloud sluit je uit van modeltraining bij elke provider die we gebruiken. Met je eigen API-sleutel is het uitschrijven jouw verantwoordelijkheid — zie onze [gids voor gegevensprivacy](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Waarom levenslange prijs in plaats van abonnement?",
+        "answer": "Wij geloven in eenvoudige, eerlijke prijzen. Betaal één keer $39 en gebruik HyperWhisper voor altijd. Geen maandelijkse kosten, geen verrassingen. Met de gratis versie kun je de belangrijkste functies gebruiken met 3 minuten transcriptie per dag."
+      },
+      "deviceLimit": {
+        "question": "Op hoeveel apparaten kan ik mijn licentie gebruiken?",
+        "answer": "Je kunt je licentie op zoveel apparaten gebruiken als je wilt, onder voorbehoud van ons Fair Usage Policy zoals beschreven in onze [Servicevoorwaarden](/legal/terms-of-service). Dit beleid is bedoeld om flexibel te zijn voor legitiem persoonlijk en zakelijk gebruik, en misbruik te voorkomen."
+      },
+      "requirements": {
+        "question": "Wat zijn de systeemvereisten?",
+        "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. 8GB RAM aanbevolen voor optimale prestaties."
+      },
+      "windowsStatus": {
+        "question": "Heeft de Windows-versie dezelfde functies als macOS?",
+        "answer": "De Windows-versie is onlangs uitgebracht, dus mogelijk zijn nog niet alle functies van macOS beschikbaar. We werken actief aan volledige feature parity op beide platforms."
+      },
+      "madeBy": {
+        "question": "Door wie is dit gemaakt?",
+        "answer": "Dit is gemaakt door YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Supportcentrum",
+    "subtitle": "We helpen je graag om het maximale uit HyperWhisper te halen",
+    "getInTouch": "Neem contact op",
+    "description": "Voor technische support, licentieproblemen of vragen over HyperWhisper staat ons team voor je klaar.",
+    "emailUsAt": "Mail ons op:",
+    "openInClient": "Open in je e-mailclient:",
+    "defaultClient": "Standaard e-mailclient",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "We reageren doorgaans binnen 24 uur op werkdagen.",
+    "emailTemplate": {
+      "subject": "HyperWhisper Supportverzoek",
+      "body": "Hoi,\n\nVersie: \n[je kunt dit controleren in Instellingen > Over]\n\nProbleem: \n[Beschrijf je probleem]\n\nDetails: \n[Geef relevante details, wat deed je vóór de crash]\n\n[Jouw bericht hier]\n\nMet vriendelijke groet,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper-logo",
+    "title": "Download HyperWhisper",
+    "emailPlaceholder": "E-mail",
+    "description": "We sturen je een downloadlink en een korte tutorialvideo per e-mail om je op weg te helpen. Geen spam.",
+    "downloadButton": "Download HyperWhisper",
+    "errorGeneric": "Er is iets misgegaan. Probeer het opnieuw.",
+    "errorNetwork": "Netwerkfout. Controleer je verbinding en probeer opnieuw.",
+    "thankYouTitle": "Bedankt!",
+    "downloadStarted": "Je download zou automatisch moeten starten.",
+    "manualDownload": "Is de download niet gestart? Klik hier",
+    "skipAndDownloadButton": "Overslaan en downloaden"
+  },
+  "downloadPage": {
+    "title": "Download HyperWhisper",
+    "countdownText": "Start over {seconds}...",
+    "downloadStarted": "Controleer je Downloads-map",
+    "downloadNow": "Nu downloaden",
+    "downloadAgain": "Opnieuw downloaden",
+    "selectArchitecture": "Selecteer je architectuur",
+    "downloadX64": "Download voor x64",
+    "downloadArm64": "Download voor ARM64",
+    "orDivider": "OF",
+    "homebrewTitle": "Installeer via Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopiëren",
+    "copied": "Gekopieerd!"
+  },
+  "purchaseSuccess": {
+    "title": "Aankoop geslaagd!",
+    "subtitle": "Welkom bij HyperWhisper Pro! Je levenslange licentie staat klaar.",
+    "checkEmail": {
+      "title": "Controleer je e-mail",
+      "description": "We hebben je licentiesleutel en downloadinstructies naar je e-mailadres gestuurd. Die zouden binnen enkele minuten moeten arriveren."
+    },
+    "whatsNext": {
+      "title": "Wat nu?",
+      "step1": {
+        "title": "Controleer je inbox",
+        "description": "Zoek naar een e-mail van HyperWhisper"
+      },
+      "step2": {
+        "title": "Kopieer je licentiesleutel",
+        "description": "Deze heb je nodig om de app te activeren"
+      },
+      "step3": {
+        "title": "Download HyperWhisper",
+        "description": "Installeer de app en voer je licentiesleutel in"
+      }
+    },
+    "downloadButton": "Download HyperWhisper",
+    "returnHome": "Terug naar homepage",
+    "noEmail": "Geen e-mail ontvangen? Controleer je spammap of",
+    "contactSupport": "neem contact op met support",
+    "loading": "Laden..."
+  },
+  "footer": {
+    "tagline": "Schrijf 5x sneller met AI-gestuurde spraaktranscriptie voor macOS en Windows.",
+    "product": "Product",
+    "resources": "Resources",
+    "company": "Bedrijf",
+    "legal": "Juridisch",
+    "links": {
+      "features": "Functies",
+      "pricing": "Prijzen",
+      "download": "Download",
+      "roadmap": "Roadmap",
+      "helpCenter": "Helpcentrum",
+      "manageBilling": "Facturering beheren",
+      "customerPortal": "Klantportaal",
+      "olderVersions": "Oudere versies",
+      "blog": "Blog",
+      "about": "Over",
+      "support": "Support",
+      "privacyPolicy": "Privacybeleid",
+      "termsOfService": "Servicevoorwaarden",
+      "refundPolicy": "Terugbetalingsbeleid",
+      "dataTraining": "Gegevensprivacy"
+    },
+    "copyright": "© 2026 HyperWhisper. Alle rechten voorbehouden.",
+    "linkedinAria": "LinkedIn"
+  }
+}

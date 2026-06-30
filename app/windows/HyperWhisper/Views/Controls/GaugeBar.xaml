@@ -1,0 +1,14 @@
+<UserControl x:Class="HyperWhisper.Views.Controls.GaugeBar"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Five-segment rating bar (macOS ModelRow gauge parity). The filled count
+         and colours are applied in code-behind so the control stays correct when
+         the host ListBox recycles rows. -->
+    <StackPanel x:Name="Segments" Orientation="Horizontal" VerticalAlignment="Center">
+        <Border Width="12" Height="4" CornerRadius="1" Margin="0,0,3,0"/>
+        <Border Width="12" Height="4" CornerRadius="1" Margin="0,0,3,0"/>
+        <Border Width="12" Height="4" CornerRadius="1" Margin="0,0,3,0"/>
+        <Border Width="12" Height="4" CornerRadius="1" Margin="0,0,3,0"/>
+        <Border Width="12" Height="4" CornerRadius="1" Margin="0,0,0,0"/>
+    </StackPanel>
+</UserControl>

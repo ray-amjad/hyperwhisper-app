@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "ศัพท์เฉพาะ";
+"vocabulary.description" = "สิ่งนี้ช่วยให้ซอฟต์แวร์รู้จักชื่อ ตัวย่อ คำสแลง หรือคำจากภาษาอื่นเมื่อผสมภาษา";
+"vocabulary.input.title" = "ป้อนข้อมูล";
+"vocabulary.new.word.placeholder" = "คำศัพท์หรือวลีใหม่";
+"vocabulary.replacement.placeholder" = "แทนด้วย...";
+"vocabulary.add.button" = "เพิ่มเข้าศัพท์เฉพาะ";
+"vocabulary.edit.title" = "แก้ไขรายการศัพท์";
+"vocabulary.update.button" = "อัปเดต";
+"vocabulary.cancel.button" = "ยกเลิก";
+"vocabulary.word.column" = "คำ/วลี";
+"vocabulary.replacement.column" = "การแทนที่";
+"vocabulary.empty.title" = "ยังไม่มีศัพท์เฉพาะ";
+"vocabulary.empty.subtitle" = "เพิ่มคำศัพท์ที่กำหนดเองเพื่อปรับปรุงความแม่นยำของการสัญลักษณ์";
+"vocabulary.duplicate.title" = "รายการที่ซ้ำกัน";
+"vocabulary.duplicate.message" = "%@ มีอยู่แล้วในศัพท์เฉพาะของคุณ สามารถเพิ่มแต่ละคำได้เพียงครั้งเดียว";
+"vocabulary.ok.button" = "ตกลง";
+"vocabulary.limit.title" = "เกินขีดจำกัดคำหลัก";
+"vocabulary.limit.message" = "คุณมี %d คำ แต่จะใช้เฉพาะ %d คำแรกสำหรับการเพิ่มศัพท์เฉพาะ";
+
+// MARK: - Streaming View
+"streaming.title" = "สตรีมมิง (เบตา)";
+"streaming.description" = "การสัญลักษณ์แบบเรียลไทม์เมื่อคุณพูด ข้อความจะพิมพ์โดยตรงลงในแอปพลิเคชันที่มีการโฟกัส";
+"streaming.enable.title" = "เปิดใช้สตรีมมิง";
+"streaming.provider.picker.title" = "ผู้ให้บริการ";
+"streaming.model.title" = "โมเดล";
+"streaming.model.nova3general" = "Nova 3 ทั่วไป";
+"streaming.model.nova3medical" = "Nova 3 ทางการแพทย์";
+"streaming.fastFormatting.title" = "การจัดรูปแบบแบบรวดเร็ว";
+"streaming.fastFormatting.description" = "ลดความล่าช้าของการจัดรูปแบบอัจฉริยะเพื่อให้พิมพ์เร็วขึ้น";
+"streaming.warning.vocabAutoDetect" = "ศัพท์เฉพาะที่กำหนดเองถูกปิดใช้งานในโหมดตรวจสอบอัตโนมัติ";
+"streaming.warning.vocabUnsupported" = "ศัพท์เฉพาะที่กำหนดเองไม่ได้รับการสนับสนุนกับสตรีมมิง %@";
+"streaming.warning.apiKeyRequired" = "ต้องการคีย์ API %@";
+"streaming.warning.apiKeyRequired.action" = "กำหนดค่า";
+"streaming.warning.apiKeyInvalid" = "คีย์ API %@ ไม่ทำงาน อัปเดตในการตั้งค่า > คีย์ API";
+"streaming.warning.apiKeyInvalid.action" = "อัปเดตคีย์";
+"streaming.language.title" = "ภาษา";
+"streaming.shortcut.title" = "ลัดโปรแกรม";
+
+// MARK: - Home View
+"home.get.started" = "เริ่มต้นใช้งาน";
+"home.open.system.settings" = "เปิดการตั้งค่าระบบ";
+
+// MARK: - API Keys
+"api.key.required" = "ต้องการคีย์ API";
+"api.keys.required" = "ต้องการคีย์ API";
+"api.key.configure.message" = "กำหนดค่าคีย์ API ของคุณเพื่อเปิดใช้การสัญลักษณ์";
+"api.key.internet.required" = "ต้องการการเชื่อมต่ออินเทอร์เน็ต";
+"api.key.internet.message" = "การสัญลักษณ์แบบคลาวด์ต้องการการเชื่อมต่ออินเทอร์เน็ต";
+
+// MARK: - Common UI
+"common.ok" = "ตกลง";
+"common.cancel" = "ยกเลิก";
+"common.delete" = "ลบ";
+"common.edit" = "แก้ไข";
+"common.done" = "เสร็จ";
+"common.copy" = "คัดลอก";
+"common.back" = "ย้อนกลับ";
+"common.skip" = "ข้าม";
+"common.settings" = "การตั้งค่า";
+"common.error" = "ข้อผิดพลาด";
+"common.retry" = "ลองใหม่";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "หน้าแรก";
+"sidebar.statistics" = "สถิติ";
+"sidebar.modes" = "โหมด";
+"sidebar.vocabulary" = "ศัพท์เฉพาะ";
+"sidebar.streaming" = "สตรีมมิง";
+"sidebar.history" = "ประวัติ";
+"sidebar.settings" = "การตั้งค่า";
+
+// MARK: - App Messages
+"app.unknown.error" = "เกิดข้อผิดพลาดที่ไม่รู้จัก";
+"app.microphone.permission.message" = "HyperWhisper ต้องการการเข้าถึงไมโครโฟนเพื่อสัญลักษณ์เสียง\n\nโปรดไปที่การตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย > ไมโครโฟน และเปิดใช้การเข้าถึงสำหรับ HyperWhisper";
+"app.recordings.location.message" = "HyperWhisper บันทึกการบันทึกเสียงลงในโฟลเดอร์ในเอกสารของคุณเพื่อให้ง่ายต่อการค้นหา: เอกสาร/hyperwhisper/recordings macOS อาจขออนุญาตครั้งแรกที่เราพยายามบันทึกที่นั่น หากคุณไม่ต้องการให้การเข้าถึง เราสามารถเก็บการบันทึกไว้ในโฟลเดอร์แอปส่วนตัวแทนได้";
+"app.upgrade.to.pro" = "อัปเกรดเป็น Pro";
+"app.enter.license.key" = "ป้อนคีย์ลัทธิ";
+"accessibility.upgrade.pro" = "อัปเกรดเป็น HyperWhisper Pro";
+"accessibility.enter.license" = "ป้อนคีย์ลัทธิ";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "เพิ่มคีย์ API %@ ของคุณเพื่อเปิดใช้โหมดที่เลือก";
+"home.api.keys.missing.single" = "เพิ่มคีย์ API %@ ของคุณเพื่อเปิดใช้โหมดที่เลือก";
+"home.getting.started.recording.title" = "เริ่มการบันทึก";
+"home.getting.started.recording.description" = "เปลี่ยนเสียงของคุณเป็นข้อความด้วยคลิกเดียว";
+"home.getting.started.shortcuts.title" = "ปรับแต่งลัดแป้นพิมพ์ของคุณ";
+"home.getting.started.shortcuts.description" = "เปลี่ยนลัดแป้นพิมพ์สำหรับ HyperWhisper";
+"home.getting.started.mode.title" = "สร้างโหมด";
+"home.getting.started.mode.description" = "สร้างโหมดที่สมบูรณ์แบบสำหรับขั้นตอนการทำงานของคุณ";
+"home.getting.started.vocabulary.title" = "เพิ่มศัพท์เฉพาะ";
+"home.getting.started.vocabulary.description" = "สอน HyperWhisper คำที่กำหนดเอง ชื่อ หรือคำศัพท์อุตสาหกรรม";
+"home.add.api.key" = "เพิ่มคีย์ API";
+"home.accessibility.enable.title" = "เปิดใช้การเข้าถึง";
+"home.accessibility.enable.description" = "อนุญาตให้ HyperWhisper วางลงโดยอัตโนมัติในแอปที่คุณใช้";
+"home.accessibility.waiting" = "รอ...";
+"home.accessibility.open.settings" = "เปิดการตั้งค่า";
+"home.accessibility.restart.after.permission" = "รีสตาร์ทแอปหลังจากให้สิทธิ์";
+"home.getting.started.completed" = "✓ เสร็จแล้ว";
+"home.whatsnew.badge" = "ใหม่";
+"home.whatsnew.title" = "มีอะไรใหม่?";
+"home.whatsnew.update1.date" = "3 กรกฎาคม";
+"home.whatsnew.update1.title" = "Parakeet พร้อมใช้งาน";
+"home.whatsnew.update1.description" = "ดาวน์โหลดได้โดยตรงจากรายการโมเดลภาษาในการสร้างโหมดเพื่อลองใช้วันนี้";
+"home.whatsnew.update2.date" = "5 มิถุนายน";
+"home.whatsnew.update2.title" = "รองรับทุกโมเดลที่เข้ากันได้กับ OpenAI";
+"home.whatsnew.update2.description" = "ตอนนี้คุณสามารถเพิ่ม API ที่เข้ากันได้กับ OpenAI ใด ๆ ลงในรายการโมเดลของคุณ";
+"home.whatsnew.update3.date" = "27 พฤษภาคม";
+"home.whatsnew.update3.title" = "หน้าต่างการบันทึกแบบมินิที่ใหม่ล่าสุด";
+"home.whatsnew.update3.description" = "อินเทอร์เฟซการบันทึกแบบสไตล์ที่นอนออกแบบอย่างสวยงามและน้อยที่สุด";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "อัปเดตล่าสุด";
+"home.recent.updates.error" = "ไม่สามารถโหลดการอัปเดต";
+"home.recent.updates.retry" = "ลองใหม่";
+"home.recent.updates.empty" = "ไม่มีการอัปเดตล่าสุด";
+"home.recent.updates.version" = "เวอร์ชัน %@";
+"home.recent.updates.new.badge" = "ใหม่";
+"home.recent.updates.no.notes" = "ไม่มีหมายเหตุการเปิดตัวที่พร้อมใช้งาน";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "ต้องการการเข้าถึงไมโครโฟน";
+"common.open.settings" = "เปิดการตั้งค่า";
+"alerts.api.local.mode" = "ใช้โหมดโลคัล";
+"alerts.documents.permission.title" = "บันทึกลงในเอกสาร?";
+"common.continue" = "ดำเนินการต่อ";
+"alerts.documents.permission.use.another" = "ใช้ตำแหน่งอื่น";
+"alerts.api.configure.generic" = "โปรดกำหนดค่าคีย์ API ของคุณในการตั้งค่า";
+"alerts.api.internet.offline" = "การสัญลักษณ์แบบคลาวด์ต้องการการเชื่อมต่ออินเทอร์เน็ต โปรดตรวจสอบการตั้งค่าเครือข่ายของคุณหรือเลือกโหมดการสัญลักษณ์โลคัล";
+"alerts.api.configure.header.multiple" = "เพื่อใช้โหมดที่เลือก โปรดกำหนดค่าคีย์ API ต่อไปนี้ในการตั้งค่า:";
+"alerts.api.configure.header.single" = "เพื่อใช้โหมดที่เลือก โปรดกำหนดค่าคีย์ API ต่อไปนี้ในการตั้งค่า:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "หลังจากเพิ่มคีย์ที่ขาดหายไป ให้ลองใหม่";
+"alerts.export.failed.title" = "ไม่สามารถส่งออก";
+"alerts.export.logs.failed.message" = "ไม่สามารถส่งออกบันทึกการอัปเดต โปรดลองใหม่";
+"alerts.export.logs.success.title" = "ส่งออกบันทึกแล้ว";
+"alerts.export.logs.success.message" = "บันทึกการอัปเดตได้ส่งออกสำเร็จ";
+"alerts.export.logs.saveFailed.message" = "ไม่สามารถบันทึกบันทึกลงในตำแหน่งที่เลือก: %@";
+"alerts.export.diagnostics.failed.message" = "ไม่สามารถส่งออกการวินิจฉัย โปรดลองใหม่";
+"alerts.export.diagnostics.success.title" = "ส่งออกการวินิจฉัยแล้ว";
+"alerts.export.diagnostics.success.message" = "บันทึกการวินิจฉัยทั้งหมดส่งออกสำเร็จ";
+"alerts.export.diagnostics.saveFailed.message" = "ไม่สามารถบันทึกการวินิจฉัยลงในตำแหน่งที่เลือก: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "ส่งออกบันทึกการอัปเดตเพื่อการสนับสนุน";
+"panels.export.diagnostics.message" = "ส่งออกบันทึกการวินิจฉัยทั้งหมด";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "เริ่มต้นใช้งาน HyperWhisper";
+"sidebar.statistics.help" = "ดูสถิติการใช้งานและการวิเคราะห์";
+"sidebar.modes.help" = "จัดการโหมดการสัญลักษณ์สำหรับบริบทต่างๆ";
+"sidebar.vocabulary.help" = "เพิ่มคำศัพท์และวลีที่กำหนดเองเพื่อการรู้จำที่ดีขึ้น";
+"sidebar.streaming.help" = "การตั้งค่าการสัญลักษณ์สตรีมมิงแบบเรียลไทม์ (ต้องเชื่อมต่ออินเทอร์เน็ต)";
+"sidebar.history.help" = "ดูและค้นหาประวัติการสัญลักษณ์ของคุณ";
+"sidebar.settings.help" = "กำหนดค่าการตั้งค่าแอปและความสำหรับจำ";
+
+// MARK: - Recording State
+"recording.state.ready" = "พร้อมที่จะบันทึก";
+"recording.state.recording" = "กำลังบันทึก...";
+"recording.state.processing" = "กำลังประมวลผลเสียง...";
+"recording.state.transcribing" = "กำลังสัญลักษณ์...";
+"recording.state.postprocessing" = "หลังการประมวลผลด้วย AI...";
+"recording.state.complete" = "เสร็จสิ้นการสัญลักษณ์: %@";
+"recording.state.error" = "ข้อผิดพลาด: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "เริ่มหรือหยุดการบันทึก";
+"menu.recording.stop" = "หยุดการบันทึก";
+"menu.recording.toggle" = "เริ่ม/หยุดการบันทึก";
+"menu.history" = "ประวัติ...";
+"menu.settings" = "การตั้งค่า...";
+"menu.microphone" = "ไมโครโฟน";
+"menu.select.mode" = "เลือกโหมด";
+"menu.transcribe.file" = "สัญลักษณ์ไฟล์";
+"menu.mode.unnamed" = "ไม่มีชื่อ";
+"menu.version.label" = "เวอร์ชัน %@";
+"common.quit" = "ออก";
+"menu.microphone.default" = "ค่าเริ่มต้น";
+"menu.microphone.system.default" = "ค่าเริ่มต้น";
+"menu.bar.state.recording" = "กำลังบันทึก";
+"menu.bar.state.processing" = "กำลังประมวลผล";
+"menu.bar.state.idle" = "พักผ่อน";
+"menu.command.check.updates" = "ตรวจสอบการอัปเดต…";
+"menu.debug.title" = "ดีบัก";
+"menu.command.export.logs" = "ส่งออกบันทึกการอัปเดต…";
+"menu.command.export.diagnostics" = "ส่งออกการวินิจฉัย…";
+"menu.command.help.website" = "เว็บไซต์วิธีใช้";
+"menu.command.contact.support" = "ติดต่อสนับสนุน";
+
+// MARK: - Settings Sections
+"settings.section.general" = "ทั่วไป";
+"settings.section.sound" = "เสียง";
+"settings.section.license" = "ลัทธิ";
+"settings.section.credits" = "เครดิต";
+"settings.section.storage" = "ที่เก็บข้อมูล";
+"settings.section.models" = "โมเดล";
+"settings.section.api.keys" = "คีย์ API";
+"settings.section.shortcuts" = "ลัดแป้นพิมพ์";
+"settings.section.output" = "ผลลัพธ์ข้อความ";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (อังกฤษ)";
+"onboarding.model.pro.multilingual" = "Pro (พหุภาษา)";
+"onboarding.model.downloading.progress" = "กำลังดาวน์โหลด... %d%%";
+"onboarding.accessibility.title" = "เปิดใช้การเข้าถึงสำหรับการวางอัตโนมัติ";
+"onboarding.accessibility.subtitle" = "อนุญาตให้ HyperWhisper วางข้อความที่สัญลักษณ์โดยอัตโนมัติลงในแอปพลิเคชันของคุณ";
+"onboarding.accessibility.instructions" = "การตั้งค่าระบบ → ความเป็นส่วนตัวและความปลอดภัย → การเข้าถึง";
+"onboarding.accessibility.status.granted" = "สิทธิ์การเข้าถึงได้รับสิทธิ์";
+"onboarding.accessibility.status.pending" = "ยังไม่ได้รับสิทธิ์การเข้าถึง";
+"onboarding.accessibility.waiting" = "รอการอนุญาต...";
+"onboarding.accessibility.open.preferences" = "เปิดความต้องการการเข้าถึง";
+"onboarding.accessibility.restart" = "หลังจากให้สิทธิ์ ให้รีสตาร์ท HyperWhisper";
+"onboarding.model.recommendation.title" = "เราแนะนำโมเดล Pro";
+"onboarding.model.recommendation.subtitle" = "ตามภาษาระบบของคุณและความสามารถของ Mac ของคุณ";
+"onboarding.model.recommendation.note" = "ดาวน์โหลดโดยคลิกปุ่มด้านล่าง";
+"onboarding.model.downloaded" = "ดาวน์โหลดแล้ว";
+"onboarding.model.metric.speed" = "ความเร็ว";
+"onboarding.model.metric.accuracy" = "ความแม่นยำ";
+"onboarding.model.metric.size" = "ขนาด";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "หรือเลือกโมเดลเสียงที่แตกต่างกัน";
+"onboarding.model.picker.title" = "โมเดล";
+"onboarding.model.option.proEnglish" = "Pro (อังกฤษ)";
+"onboarding.model.option.tiny" = "เล็ก";
+"onboarding.model.option.base" = "ฐาน";
+"onboarding.model.option.small" = "เล็ก";
+"onboarding.model.option.medium" = "ปานกลาง";
+"onboarding.model.option.large" = "ใหญ่";
+"onboarding.model.download.button" = "ดาวน์โหลดโมเดล";
+"onboarding.audio.title" = "คุณต้องการใช้อุปกรณ์บันทึกเสียงใด";
+"onboarding.audio.subtitle" = "ตรวจสอบว่าระดับเสียงอินพุตของคุณเพิ่มขึ้นและลงทะเบียนเสียง";
+"onboarding.audio.input.label" = "อุปกรณ์อินพุต";
+"onboarding.audio.picker.label" = "อุปกรณ์";
+"onboarding.audio.use.system.default" = "ใช้อุปกรณ์เริ่มต้นของระบบ";
+"onboarding.audio.level" = "ระดับเสียง";
+"onboarding.audio.open.sound" = "เปิดการตั้งค่าเสียง";
+"onboarding.microphone.title" = "ต้องการสิทธิ์การบันทึก";
+"onboarding.microphone.subtitle" = "ในการบันทึกเสียง เราต้องเข้าถึงไมโครโฟนของคุณ";
+"onboarding.microphone.status.granted" = "สิทธิ์ไมโครโฟนได้รับสิทธิ์";
+"onboarding.microphone.status.pending" = "ยังไม่ได้รับสิทธิ์ไมโครโฟน";
+"onboarding.microphone.grant" = "ให้สิทธิ์";
+"onboarding.test.title" = "ทุกอย่างพร้อม มาเริ่มการบันทึกครั้งแรกของคุณ";
+"onboarding.test.press.prefix" = "กด";
+"onboarding.test.press.suffix" = "เพื่อเริ่ม";
+"onboarding.test.status.recording" = "กำลังบันทึก...";
+"onboarding.test.status.speak" = "พูดตอนนี้...";
+"onboarding.test.stop" = "หยุดการบันทึก";
+"onboarding.test.success.title" = "ยอดเยี่ยม การบันทึกของคุณสำเร็จ";
+"onboarding.test.success.subtitle" = "การสัญลักษณ์ของคุณจะปรากฏในแอป";
+"onboarding.test.start.cta" = "คลิกเพื่อเริ่มการบันทึก";
+"onboarding.test.start.shortcut" = "หรือกดลัดแป้นพิมพ์ของคุณ";
+"onboarding.settings.title" = "ดีมาก ตอนนี้มาเปิดการตั้งค่ากัน";
+"onboarding.settings.subtitle" = "คลิกขวาบนไอคอน HyperWhisper แล้วเลือก Settings...";
+"onboarding.settings.menu.startStop" = "เริ่ม/หยุดการบันทึก";
+"onboarding.settings.menu.history" = "ประวัติ...";
+"onboarding.settings.menu.settings" = "การตั้งค่า...";
+"onboarding.settings.menu.quit" = "ออก";
+"onboarding.settings.info" = "ในการตั้งค่า คุณสามารถปรับแต่งลัดแป้นพิมพ์ จัดการคีย์ API และกำหนดค่า HyperWhisper ตามใจชอบของคุณ";
+"onboarding.completion.title" = "เสร็จเรียบร้อย!";
+"onboarding.completion.subtitle" = "หากคุณพบปัญหาหรือมีคำถาม โปรดติดต่อทางอีเมลหรือ Discord";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "อีเมล";
+"onboarding.completion.resources.title" = "แหล่งข้อมูลเพิ่มเติม";
+"onboarding.completion.resources.documentation" = "เอกสาร";
+"onboarding.completion.resources.videos" = "บทช่วยสอนวิดีโอ";
+"onboarding.completion.resources.blog" = "บล็อก";
+"onboarding.done.button" = "เสร็จสิ้นการเข้าสู่ระบบ";
+"onboarding.error.model.notFound" = "ไม่พบโมเดลในแคตตาล็อก";
+"onboarding.error.microphone.denied" = "ปฏิเสธการอนุญาตไมโครโฟน โปรดให้สิทธิ์ในการตั้งค่าระบบ";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "เปิดตัวเมื่อเข้าสู่ระบบ";
+"settings.general.launchAtLogin.info" = "เริ่ม HyperWhisper โดยอัตโนมัติเมื่อคุณเข้าสู่ระบบ";
+"settings.general.launchMinimized.title" = "เปิดตัวแบบย่อขนาด";
+"settings.general.launchMinimized.info" = "เริ่ม HyperWhisper โดยมีหน้าต่างหลักซ่อนอยู่ แอปจะสามารถเข้าถึงได้ผ่านแถบเมนู";
+"settings.general.showInDock.title" = "แสดงใน Dock";
+"settings.general.showInDock.info" = "แสดงไอคอนแอปใน Dock";
+"settings.general.showRecordingWindow.title" = "แสดงหน้าต่างการบันทึก";
+"settings.general.showRecordingWindow.info" = "แสดงหน้าต่างรูปคลื่นลอยตัวขณะบันทึกและประมวลผล";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "ปิด";
+"settings.general.mediaControl.mode.mute" = "ปิดเสียง";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "บันทึกข้อผิดพลาด";
+"settings.general.errorLogging.info" = "โดยอัตโนมัติจับและส่งรายงานข้อผิดพลาดเพื่อช่วยปรับปรุงแอป";
+"settings.general.autoUpdate.title" = "อัปเดตอัตโนมัติ";
+"settings.general.autoUpdate.info" = "โดยอัตโนมัติตรวจสอบและดาวน์โหลดเวอร์ชันใหม่ของ HyperWhisper";
+"settings.general.support.title" = "ต้องการความช่วยเหลือ?";
+"settings.version.detail" = "เวอร์ชัน %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "เล่นเอฟเฟกต์เสียง";
+"settings.sound.soundEffects.info" = "เล่นสัญญาณเสียงเมื่อเริ่มและหยุดการบันทึก";
+"settings.sound.mediaControl.title" = "การควบคุมมีเดียขณะบันทึก";
+"settings.sound.mediaControl.info" = "เลือกวิธีจัดการเสียงอื่นขณะบันทึก 'Off' ปล่อยเสียงไม่เปลี่ยนแปลง 'Mute Audio' ปิดเสียงเอาต์พุตระบบขณะบันทึกและเรียกคืนหลังจากนั้น";
+"settings.sound.autoIncreaseMicVolume.title" = "เพิ่มระดับเสียงไมโครโฟนโดยอัตโนมัติ";
+"settings.sound.autoIncreaseMicVolume.info" = "โดยอัตโนมัติตั้งค่าระดับเสียงอินพุตไมโครโฟนเป็นสูงสุดเมื่อเริ่มการบันทึก จากนั้นคืนค่าระดับต้นฉบับเมื่อหยุดการบันทึก ใช้ได้เฉพาะเมื่อใช้อุปกรณ์อินพุตเริ่มต้นของระบบเท่านั้น";
+"settings.sound.vad.title" = "ลบความเงียบก่อนการสัญลักษณ์";
+"settings.sound.vad.info" = "โดยอัตโนมัติตรวจสอบและลบความเงียบด้านหน้าและด้านหลังโดยใช้การตรวจจับเสียงพูด AI สิ่งนี้สามารถปรับปรุงความแม่นยำของการสัญลักษณ์และลดเวลาการประมวลผล";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "โฟลเดอร์การบันทึก";
+"settings.storage.showFolder.title" = "แสดงโฟลเดอร์การบันทึก";
+"settings.storage.showFolder.button" = "แสดงใน Finder";
+"settings.storage.notice" = "การเปลี่ยนโฟลเดอร์การบันทึกจะมีผลต่อการบันทึกใหม่เท่านั้น การบันทึกที่มีอยู่ยังคงอยู่ในตำแหน่งดั้งเดิม";
+"settings.storage.choose.button" = "เลือก...";
+"settings.storage.dialog.select" = "เลือกโฟลเดอร์";
+"settings.storage.dialog.message" = "เลือกโฟลเดอร์เพื่อเก็บการบันทึก";
+"settings.storage.storeAsM4A.title" = "บีบอัดการบันทึกเป็น M4A";
+"settings.storage.storeAsM4A.subtitle" = "แปลงการบันทึก WAV เป็นไฟล์ขนาดเล็กกว่าหลังการสัญลักษณ์ ปิดเพื่อเก็บไฟล์ WAV ดั้งเดิม (ใหญ่กว่า แต่ไม่มีการสูญเสีย)";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "วางผลลัพธ์โดยอัตโนมัติ";
+"settings.output.paste.subtitle" = "วางข้อความที่สัญลักษณ์โดยอัตโนมัติลงในแอปพลิเคชันที่ใช้งานอยู่";
+"settings.output.paste.info" = "หากเปิดใช้งาน ข้อความจะวางลงในแอปหน้า";
+"settings.output.restoreClipboard.title" = "คืนค่าคลิปบอร์ดหลังการวาง";
+"settings.output.restoreClipboard.subtitle" = "คืนค่าเนื้อหาคลิปบอร์ดก่อนหน้าหลังการวาง";
+"settings.output.restoreClipboard.info" = "คืนค่าเนื้อหาคลิปบอร์ดก่อนหน้าหลังจากที่แอปวางการสัญลักษณ์";
+"settings.output.restore.after" = "คืนค่าหลังจาก";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "ความล่าช้าของการคืนค่าคลิปบอร์ด";
+"settings.output.hideClipboardHistory.title" = "ซ่อนจากประวัติคลิปบอร์ด";
+"settings.output.hideClipboardHistory.subtitle" = "ป้องกันไม่ให้การสัญลักษณ์ปรากฏในแอปประวัติคลิปบอร์ด";
+"settings.output.hideClipboardHistory.info" = "เมื่อเปิดใช้งาน ข้อความที่สัญลักษณ์จะไม่ได้รับการบันทึกโดยตัวจัดการคลิปบอร์ดเช่น Paste Maccy หรือ Alfred";
+"settings.output.clipboard.header" = "คลิปบอร์ด";
+"settings.output.removeFillers.title" = "ลบคำเติม";
+"settings.output.removeFillers.subtitle" = "ลบ 'uh', 'um' และ 'er' ออกจากบทถอดเสียงดิบ";
+"settings.output.removeFillers.info" = "เมื่อเปิดใช้งาน HyperWhisper จะลบคำเติมที่พบบ่อยออกจากบทถอดเสียงดิบก่อนแสดงผล.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "สลับการบันทึก";
+"settings.shortcuts.toggleRecording.subtitle" = "เริ่มและหยุดการบันทึก";
+"settings.shortcuts.cancelRecording.title" = "ยกเลิกการบันทึก";
+"settings.shortcuts.cancelRecording.subtitle" = "ยกเลิกการบันทึกที่ใช้งานอยู่";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "ค้างปุ่มเพื่อบันทึก ปล่อยเมื่อเสร็จ";
+"settings.shortcuts.pushToTalk.enable.info" = "เปิดใช้งานโหมด Push to Talk เพื่อการบันทึกอย่างรวดเร็วด้วยการกดปุ่มเดียว";
+
+"settings.shortcuts.pushToTalk.mode.title" = "โหมดการบันทึก";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "เลือกปุ่มที่จะใช้";
+"settings.shortcuts.pushToTalk.mode.disabled" = "ปิดใช้งาน";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN Key";
+"settings.shortcuts.pushToTalk.mode.control" = "Control Key";
+"settings.shortcuts.pushToTalk.mode.custom" = "ลัดแป้นพิมพ์ที่กำหนดเอง";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "กดสองครั้งเพื่อล็อกการบันทึก";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "กดสองครั้งอย่างรวดเร็วเพื่อให้การบันทึกดำเนินต่อไปโดยไม่ต้องค้าง";
+
+"settings.shortcuts.pushToTalk.custom.title" = "ลัดแป้นพิมพ์ที่กำหนดเอง";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "กดชุดปุ่มเพื่อใช้";
+
+
+"settings.shortcuts.changeMode.title" = "เปลี่ยนโหมด";
+"settings.shortcuts.changeMode.subtitle" = "ใช้ได้เฉพาะระหว่างการบันทึกเท่านั้น";
+
+"settings.shortcuts.reset.button" = "รีเซ็ตเป็นค่าเริ่มต้น";
+"settings.shortcuts.reset.dialog.title" = "รีเซ็ตลัดแป้นพิมพ์";
+"settings.shortcuts.reset.confirm" = "รีเซ็ต";
+"settings.shortcuts.reset.dialog.message" = "สิ่งนี้จะรีเซ็ตลัดแป้นพิมพ์ทั้งหมดเป็นค่าเริ่มต้น";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "คีย์ API ถูกจัดเก็บอย่างปลอดภัยบนอุปกรณ์ของคุณและส่งไปยังผู้ให้บริการเมื่อจำเป็นเท่านั้น";
+"settings.api.help.link" = "วิธีใช้กับคีย์ API";
+"settings.api.transcription.title" = "การสัญลักษณ์";
+"settings.api.transcription.subtitle" = "คีย์ API สำหรับบริการการสัญลักษณ์เสียงเป็นข้อความบนคลาวด์";
+"settings.api.postProcessing.title" = "หลังการประมวลผล";
+"settings.api.postProcessing.subtitle" = "คีย์ API สำหรับการปรับปรุงข้อความและการจัดรูปแบบที่ขับเคลื่อนด้วย AI";
+"settings.api.placeholder" = "ป้อนคีย์ API %@ ของคุณ";
+"settings.api.openLink" = "เปิดหน้าคีย์ API %@";
+"settings.api.status.accessibility" = "%@ สถานะ: %@";
+"settings.api.status.unknown" = "สถานะผู้ให้บริการไม่ทราบ";
+"settings.api.status.checking" = "กำลังตรวจสอบสุขภาพ";
+"settings.api.status.unauthorized" = "คีย์ API ปฏิเสธโดยผู้ให้บริการ";
+"settings.api.status.unreachable" = "ผู้ให้บริการไม่สามารถเข้าถึงได้ในขณะนี้";
+"settings.api.status.notInstalled" = "SDK ผู้ให้บริการไม่ได้ติดตั้ง";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "ไม่รู้จัก";
+"provider.status.checking" = "กำลังตรวจสอบ…";
+"provider.status.healthy" = "พร้อม";
+"provider.status.unauthorized" = "คีย์ไม่ถูกต้อง";
+"provider.status.unreachable" = "ออฟไลน์";
+"provider.status.notInstalled" = "ไม่ได้ติดตั้ง";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "ลัทธิได้รับการเปิดใช้งาน";
+"alerts.license.deactivated.title" = "ลัทธิถูกปิดใช้งาน";
+"alerts.license.activated.message" = "ลัทธิของคุณได้รับการเปิดใช้งานสำเร็จ สนุกกับการเข้าถึงแบบไม่จำกัดไปยังคุณสมบัติทั้งหมด!";
+"alerts.license.deactivated.message" = "ลัทธิของคุณถูกปิดใช้งานบนอุปกรณ์นี้ ตอนนี้คุณสามารถเปิดใช้งานได้ในที่อื่น";
+"alerts.license.failed.title" = "การดำเนินการล้มเหลว";
+"alerts.license.failed.message" = "การดำเนินการล้มเหลว โปรดลองใหม่";
+"license.button.deactivate" = "ปิดใช้งานอุปกรณ์";
+"license.button.deactivating" = "กำลังปิดใช้งาน...";
+"license.button.manageBilling" = "จัดการการเรียกเก็บเงิน";
+"license.button.activate" = "เปิดใช้งาน";
+"license.button.activating" = "กำลังเปิดใช้งาน...";
+"license.status.label" = "สถานะ: %@";
+"license.status.trial.title" = "ทดลอง";
+"license.status.active.title" = "ใช้งานอยู่";
+"license.status.expired.title" = "หมดอายุ";
+"license.status.invalid.title" = "ไม่ถูกต้อง";
+"license.status.trial.description" = "ทดลองใช้ฟรี (5 นาที/วัน %d โมเดล)";
+"license.status.active.description" = "ลัทธิ - เข้าถึงแบบเต็ม";
+"license.status.expired.description" = "ลัทธิหมดอายุ";
+"license.status.invalid.description" = "ลัทธิไม่ถูกต้อง";
+"settings.license.key.title" = "คีย์ลัทธิ";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "วางจากคลิปบอร์ด";
+"settings.license.clearInput" = "ล้าง";
+"settings.license.recovery.prompt" = "ลืมคีย์ลัทธิของคุณ?";
+"settings.license.recovery.button" = "ไปที่พอร์ทัลลูกค้า";
+"settings.license.daily.title" = "การสัญลักษณ์รายวัน";
+"settings.license.daily.usage" = "%@ ของ %@ ใช้แล้ว";
+"settings.license.limitReached" = "ถึงขีดจำกัด";
+"settings.license.models.title" = "โมเดลออฟไลน์";
+"settings.license.models.progress" = "%d ของ %d โมเดลดาวน์โหลดแล้ว";
+"settings.license.models.progress.one" = "%d ของ %d โมเดลดาวน์โหลดแล้ว";
+"settings.license.upgrade.text" = "อัปเกรดเพื่อการสัญลักษณ์แบบไม่จำกัดและการดาวน์โหลดโมเดล";
+"settings.license.upgrade.button" = "อัปเกรด";
+"license.error.invalidResponse" = "รูปแบบการตอบสนองไม่ถูกต้อง";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "เครดิต HyperWhisper Cloud";
+"settings.credits.refresh" = "รีเฟรช";
+"settings.credits.subtitle" = "ตรวจสอบเครดิตการสัญลักษณ์และการใช้งานของคุณ";
+"settings.credits.manage" = "จัดการเครดิต";
+"settings.credits.timeRemaining" = "เวลาการสัญลักษณ์ที่เหลือ";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "นาที";
+"settings.credits.creditsRemaining" = "%@ เครดิตคงเหลือ";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "ขีดจำกัดรายวันฟรี (100 เครดิต)";
+"settings.credits.resets" = "รีเซ็ต %@";
+"settings.credits.warning.low" = "เครดิตกำลังจะหมด พิจารณาซื้อลัทธิสำหรับเครดิตเพิ่มเติม";
+"settings.credits.warning.exhausted.daily" = "ขีดจำกัดรายวันหมดแล้ว ซื้อลัทธิเพื่อการใช้งานแบบไม่จำกัดหรือรอการรีเซ็ต";
+"settings.credits.warning.exhausted" = "เครดิตหมดแล้ว ซื้อเครดิตเพิ่มเติมเพื่อใช้งาน HyperWhisper Cloud ต่อ";
+"settings.credits.accountInfo" = "ข้อมูลบัญชี";
+"settings.credits.stat.creditsRemaining" = "เครดิตคงเหลือ";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "นาทีคงเหลือ";
+"settings.credits.stat.accountType" = "ประเภทบัญชี";
+"settings.credits.accountType.licensed" = "ลัทธิ";
+"settings.credits.accountType.anonymous" = "ไม่ระบุตัว";
+"settings.credits.accountType.trial" = "ทดลอง";
+"settings.credits.stat.customerId" = "รหัสลูกค้า";
+"settings.credits.stat.dailyLimit" = "ขีดจำกัดรายวัน";
+"settings.credits.dailyLimit.value" = "100 เครดิต";
+"settings.credits.loading" = "กำลังโหลดยอดคงเหลือเครดิต...";
+"settings.credits.error.title" = "ไม่สามารถโหลดยอดคงเหลือเครดิต";
+"settings.credits.error.retry" = "ลองใหม่";
+"settings.credits.empty.title" = "ไม่มีข้อมูลเครดิต";
+"settings.credits.empty.subtitle" = "คลิกรีเฟรชเพื่อโหลดยอดคงเหลือเครดิต";
+"settings.credits.empty.button" = "โหลดเครดิต";
+"settings.credits.error.insufficient" = "เครดิตไม่เพียงพอ คุณมี %d เครดิตคงเหลือ";
+"settings.credits.error.network" = "ข้อผิดพลาดเครือข่าย: %@";
+"settings.credits.error.invalidResponse" = "การตอบสนองจากเซิร์ฟเวอร์ไม่ถูกต้อง โปรดลองใหม่";
+"settings.credits.error.server" = "ข้อผิดพลาดเซิร์ฟเวอร์: %@";
+"settings.models.alert.limit.title" = "ถึงขีดจำกัดการดาวน์โหลดโมเดล";
+"settings.models.alert.limit.message" = "ทดลองใช้รวม %d การดาวน์โหลดโมเดล อัปเกรดลัทธิของคุณเพื่อการดาวน์โหลดแบบไม่จำกัด";
+"settings.models.alert.cannotDelete.title" = "ไม่สามารถลบโมเดล";
+"settings.models.parakeet.title" = "โมเดล Parakeet";
+"settings.models.parakeet.subtitle" = "แนะนำสำหรับผู้ใช้ส่วนใหญ่ โมเดลพหุภาษารองรับ 25 ภาษา";
+"settings.models.parakeet.empty" = "ไม่มีโมเดล Parakeet ที่พร้อมใช้งาน";
+"settings.models.whisper.title" = "โมเดล Whisper";
+"settings.models.whisper.subtitle" = "โมเดล OpenAI Whisper โมเดลที่ใหญ่ขึ้นจะแม่นยำมากขึ้น รองรับ 100+ ภาษา";
+"settings.models.whisper.empty" = "ไม่มีโมเดล Whisper ที่พร้อมใช้งาน";
+"settings.models.help.cancelDownload" = "ยกเลิกการดาวน์โหลด";
+"settings.models.help.remove" = "ลบโมเดล";
+"settings.models.downloaded" = "ดาวน์โหลดแล้ว";
+"settings.models.download" = "ดาวน์โหลด";
+"settings.models.downloading" = "กำลังดาวน์โหลด…";
+"settings.models.localPostProcessing.title" = "โมเดลหลังการประมวลผลในเครื่อง";
+"settings.models.localPostProcessing.memoryWarning" = "แนะนำสำหรับ Mac ที่มี unified memory 24 GB ขึ้นไป ความเร็วขึ้นอยู่กับชิป — เร็วขึ้นบน M3/M4 Pro และสูงกว่า";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "คำในปีนี้";
+"vocabulary.input.placeholder" = "เพิ่มคำหรือสร้างตัวอย่าง";
+"vocabulary.action.addWord" = "เพิ่มคำ";
+"vocabulary.action.replaceWith" = "แทนที่ด้วย…";
+"vocabulary.action.replace" = "แทนที่";
+"vocabulary.replacement.field.placeholder" = "ข้อความแทนที่…";
+"settings.output.autocapitalizeInsert.title" = "พิมพ์ตัวพิมพ์ใหญ่อัตโนมัติเมื่อแทรก";
+"settings.output.autocapitalizeInsert.subtitle" = "จับคู่บริบทเคอร์เซอร์เมื่อแทรกข้อความ";
+"settings.output.autocapitalizeInsert.info" = "หากเปิดใช้งาน คำแรกของข้อความถอดเสียงที่แทรกจะถูกปรับให้ตรงกับบริบทของเคอร์เซอร์ (ต้นประโยคหรือกลางประโยค) ปิดเพื่อการบอกเนื้อหาแบบตัวพิมพ์เล็กเสมอ";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper ต้องการสิทธิ์การเข้าถึงเพื่ออ่านบริบทเคอร์เซอร์ที่จำเป็นสำหรับตัวพิมพ์ใหญ่อัตโนมัติ\n\nคลิก \"เปิดการตั้งค่า\" กดปุ่มสลับข้าง HyperWhisper จากนั้นลองอีกครั้ง";
+"settings.output.removeFillerWords.title" = "ลบคำเติม";
+"settings.output.removeFillerWords.subtitle" = "ลบ \"เอ่อ\" \"อืม\" และ \"เออ\" จากการถอดเสียงดิบเมื่อปิดการประมวลผลหลัง AI";
+"settings.output.removeFillerWords.info" = "ใช้เฉพาะเมื่อโหมดข้ามการประมวลผลหลัง AI โหมดที่ AI ปรับปรุงจะจัดการการล้างข้อความพูดในพรอมต์";
+"sidebar.modelLibrary" = "คลังโมเดล";
+"sidebar.modelLibrary.help" = "เรียกดูโมเดลเสียงและโมเดลหลังประมวลผลทั้งหมดในที่เดียว";
+"settings.shortcuts.quickCapture.enable.title" = "จับภาพด่วน";
+"settings.shortcuts.quickCapture.enable.subtitle" = "บันทึกและส่งการถอดเสียงไปยังโน้ต — โดยไม่ต้องโฟกัสที่แอปก่อน";
+"settings.shortcuts.quickCapture.shortcut.title" = "ทางลัด";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "กดที่ใดก็ได้เพื่อบันทึกและส่งไปยังโน้ต";
+"settings.shortcuts.quickCapture.mode.title" = "โหมด";
+"settings.shortcuts.quickCapture.mode.subtitle" = "โหมดการถอดเสียงที่ใช้ — ควบคุมโมเดล พรอมต์ และการประมวลผลหลัง";
+"settings.shortcuts.quickCapture.mode.current" = "โหมดปัจจุบัน";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper ต้องการสิทธิ์ในการควบคุมโน้ต อนุญาตได้ที่การตั้งค่าระบบ → ความเป็นส่วนตัว → ระบบอัตโนมัติ";
+"settings.section.vocabulary" = "คำศัพท์";
+"settings.vocabulary.icloudSync.title" = "การซิงค์ iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "ซิงค์คำศัพท์ที่กำหนดเองของคุณในทุก Mac ที่ลงชื่อเข้าใช้ด้วย iCloud บัญชีเดียวกัน";
+"settings.vocabulary.icloudSync.info" = "ปิดใช้งานตามค่าเริ่มต้น ซิงค์เฉพาะคำศัพท์ที่กำหนดเองของคุณเท่านั้น — ข้อความและการบันทึกเสียงจะอยู่ใน Mac เครื่องนี้ การเปลี่ยนแปลงจะมีผลในครั้งถัดไปที่คุณเปิด HyperWhisper";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "ปิด HyperWhisper เพื่อใช้การเปลี่ยนแปลง";
+"vocabulary.icloudSync.restart.message" = "การเปลี่ยนแปลงการซิงค์คำศัพท์ iCloud จะมีผลในครั้งถัดไปที่คุณเปิด HyperWhisper";
+"vocabulary.icloudSync.restart.quit" = "ปิด HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "ภายหลัง";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "รักษาไมโครโฟนให้พร้อมใช้งานระหว่างการบันทึก";
+"settings.sound.keepWarmMicrophone.info" = "ลดความล่าช้าในการเริ่มต้น push-to-talk โดยรักษาเซสชันไมโครโฟนให้เปิดอยู่ขณะที่ HyperWhisper อยู่ในโหมดสแตนด์บาย macOS จะแสดงไฟแสดงสถานะไมโครโฟนสีส้มอย่างต่อเนื่อง และชุดหูฟัง Bluetooth อาจอยู่ในโหมดโทรศัพท์คุณภาพต่ำกว่าในขณะที่เปิดใช้งานตัวเลือกนี้";
+"settings.models.local.inUse" = "โมเดลท้องถิ่นนี้กำลังถูกใช้สำหรับการประมวลผลภายหลังโดย:
+
+%@
+
+แก้ไขโหมดเหล่านั้นเพื่อเลือกโมเดลอื่นก่อนนำออก";
+"models.postProcessing.gemma4.e2b.description" = "เร็วและแม่นยำ รุ่นอเนกประสงค์ที่ยอดเยี่ยมสำหรับการประมวลผลภายหลัง";
+"models.postProcessing.gemma4.e4b.description" = "คุณภาพสูงขึ้นพร้อมรายละเอียดมากขึ้น เหมาะสำหรับข้อความยาว";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts การอนุมานที่รวดเร็วด้วยพารามิเตอร์ที่ใช้งานเพียง 4B";
+"models.postProcessing.gemma4.31b.description" = "โมเดลหนาแน่น 31B คุณภาพสูงสุด ต้องการ RAM 18+ GB";
+"settings.models.whisper.inUse" = "ไม่สามารถลบโมเดลนี้ได้เพราะใช้โดย:\n\n%@\n\nอัปเดตโหมดเหล่านี้เพื่อใช้โมเดลอื่นก่อนลบ";
+"settings.models.parakeet.inUse" = "ไม่สามารถลบโมเดล Parakeet นี้ได้เพราะใช้โดย:\n\n%@\n\nอัปเดตโหมดเหล่านี้เพื่อใช้โมเดลอื่นก่อนลบ";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "ไม่รู้จัก";
+"settings.models.directory.whisper" = "โฟลเดอร์โมเดล Whisper";
+"settings.models.directory.parakeet" = "โฟลเดอร์โมเดล Parakeet";
+"settings.models.directory.local" = "โฟลเดอร์โมเดลท้องถิ่น";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — การรู้จำเสียงพูดหลายภาษาที่ปรับแต่งสำหรับ CoreML";
+"settings.models.qwen3asr.languages" = "30 ภาษา";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "ไม่สามารถลบโมเดล Qwen3 ASR นี้ได้เนื่องจากถูกใช้งานโดย:\n\n%@\n\nอัปเดตโหมดเหล่านี้ให้ใช้โมเดลอื่นก่อนที่จะลบ";
+"settings.models.directory.show" = "แสดงใน Finder";
+"models.error.checksumFailed" = "การตรวจสอบ checksum โมเดลล้มเหลว การดาวน์โหลดอาจเสียหาย";
+
+// MARK: - Statistics View
+"statistics.title" = "สถิติ";
+"statistics.header.title" = "สถิติการใช้งานของคุณ";
+"statistics.header.subtitle" = "ติดตามกิจกรรมการสัญลักษณ์และประสิทธิภาพ";
+"statistics.card.recordings" = "การบันทึกทั้งหมด";
+"statistics.card.recordings.subtitle" = "การสัญลักษณ์ที่เสร็จสิ้น";
+"statistics.card.duration" = "เวลาทั้งหมด";
+"statistics.card.duration.subtitle" = "เวลาที่ใช้บันทึก";
+"statistics.card.words" = "คำทั้งหมด";
+"statistics.card.words.subtitle" = "คำที่สัญลักษณ์";
+"statistics.card.average" = "ระยะเวลาเฉลี่ย";
+"statistics.card.average.subtitle" = "ต่อการบันทึก";
+"statistics.graph.title" = "กิจกรรมเมื่อเวลาผ่านไป";
+"statistics.daily.empty" = "ยังไม่มีการบันทึก";
+"statistics.filter.week" = "สัปดาห์นี้";
+"statistics.filter.month" = "เดือนนี้";
+"statistics.filter.alltime" = "ทั้งหมด";
+
+// MARK: - History View
+"history.title" = "ประวัติ";
+"history.search.placeholder" = "ค้นหา";
+"history.filter.all" = "ทั้งหมด";
+"history.filter.today" = "วันนี้";
+"history.filter.week" = "สัปดาห์นี้";
+"history.filter.month" = "เดือนนี้";
+"history.empty.title" = "ไม่พบการบันทึก";
+"history.empty.subtitle" = "ลองปรับเงื่อนไขการค้นหา";
+"history.detail.empty" = "เลือกการบันทึกเพื่อดูรายละเอียด";
+"history.multi.selected" = "เลือก %d การบันทึก";
+"history.multi.delete" = "ลบรายการที่เลือก";
+"history.context.deleteSelected" = "ลบ %d การบันทึก";
+"history.context.retry" = "ลองสัญลักษณ์ใหม่";
+"history.context.retryWith" = "ลองใหม่ด้วย...";
+"history.context.copy" = "คัดลอกข้อความ";
+"history.retrying" = "กำลังลองสัญลักษณ์ใหม่...";
+"history.retry.help" = "ลองสัญลักษณ์ใหม่";
+"history.section.today" = "วันนี้";
+"history.section.yesterday" = "เมื่อวาน";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "ล้มเหลว";
+"history.status.transcription.failed.prefix" = "สัญลักษณ์ล้มเหลว:";
+"history.status.retry.failed.prefix" = "การลองใหม่ล้มเหลว:";
+"history.failure.reason" = "เหตุผล: %@";
+"history.mode.default" = "ค่าเริ่มต้น";
+"history.audio.showInFinder" = "แสดงใน Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "ลบโหมด?";
+"modes.delete.confirm.message" = "สิ่งนี้จะลบโหมดที่เลือก ไม่สามารถเลิกทำการดำเนินการนี้ได้";
+"modes.header.title" = "โหมด";
+"modes.header.subtitle" = "สร้างโปรไฟล์ที่กำหนดเองสำหรับบริบทและขั้นตอนการทำงานต่างๆ";
+"modes.header.create" = "สร้างโหมด";
+"modes.name.unnamed" = "ไม่มีชื่อ";
+"modes.badge.offline" = "ออฟไลน์";
+"modes.context.select" = "เลือก";
+"modes.help.edit" = "แก้ไขการตั้งค่าโหมด";
+"modes.help.preset" = "เรียนรู้เพิ่มเติมเกี่ยวกับการตั้งค่านี้";
+"modes.help.model" = "เรียนรู้เพิ่มเติมเกี่ยวกับโมเดลนี้";
+"modes.preset.title" = "การตั้งค่าไว้";
+"modes.preset.hyper.name" = "ไฮเปอร์";
+"modes.preset.message.name" = "ข้อความ";
+"modes.preset.mail.name" = "อีเมล";
+"modes.preset.note.name" = "หมายเหตุ";
+"modes.preset.meeting.name" = "การประชุม";
+"modes.preset.code.name" = "รหัส";
+"modes.preset.custom.name" = "กำหนดเอง";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "โหมดข้อความล้างข้อมูลข้อความที่กำหนดเสียงของคุณ แก้ไขการเว้นระยะ แปลงเป็นย่อหน้า และจัดเรียงข้อผิดพลาดทางไวยากรณ์";
+"modes.preset.mail.tooltip" = "โหมดอีเมลจัดรูปแบบการกำหนดเสียงของคุณเป็นโครงสร้างอีเมลมืออาชีพ ด้วยการทักทายที่เหมาะสม การจัดหน้า และลายเซ็น";
+"modes.preset.note.tooltip" = "โหมดหมายเหตุจัดระเบียบเนื้อหาที่กำหนดเสียงของคุณเป็นรูปแบบหมายเหตุที่ชัดเจน มีส่วนหัว จุดสัญลักษณ์ หัวข้อที่มีโครงสร้าง";
+"modes.preset.meeting.tooltip" = "โหมดการประชุมจัดโครงสร้างการกำหนดเสียงของคุณเป็นรูปแบบนาทีการประชุม ด้วยผู้เข้าร่วม รายการสิ่งที่ต้องทำ และประเด็นการอภิปรายหลัก";
+"modes.preset.code.tooltip" = "โหมดรหัสแปลงการกำหนดเสียงการเขียนโปรแกรมเป็นไวยากรณ์รหัส พูด 'วงเล็บเปิด' 'แบ็กสแลช' 'camel case' และอื่นๆ เพื่อเขียนโค้ดด้วยเสียง";
+"modes.preset.custom.tooltip" = "โหมดกำหนดเองช่วยให้คุณสามารถกำหนดกฎการจัดรูปแบบและพรอมต์ของคุณเองสำหรับกรณีการใช้งานเฉพาะ";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "กำหนดคำแนะนำการจัดรูปแบบทั้งหมดสำหรับพรีเซ็ตนี้";
+"modes.notice.vocabularyUnsupported" = "ศัพท์เฉพาะที่กำหนดเองไม่ได้รับการสนับสนุนโดยผู้ให้บริการนี้สำหรับโมเดลนี้ จะถูกละเว้น";
+"modes.notice.deepgramNova3AutoDetect" = "ศัพท์เฉพาะที่กำหนดเองไม่มีให้ใช้งานเมื่อใช้ Deepgram Nova-3 พร้อมการตรวจจับภาษาอัตโนมัติ หากต้องการเปิดใช้งานการเพิ่มศัพท์เฉพาะ ให้ตั้งค่าภาษาที่เฉพาะเจาะจง (เช่น อังกฤษ สเปน)";
+"modes.language.title" = "ภาษา";
+"modes.language.englishOnly" = "อังกฤษเท่านั้น (โมเดลที่ปรับปรุง)";
+"modes.postProcessing.sectionTitle" = "หลังการประมวลผล";
+"modes.postProcessing.modeLabel" = "โหมด";
+"modes.postProcessing.modeTitle" = "หลังการประมวลผล";
+"modes.postProcessing.modeDescription" = "เลือกวิธีการประมวลผลการสัญลักษณ์:\n\n• ปิด: ไม่มีการประมวลผลหลังจาก การสัญลักษณ์ดิบ\n• คลาวด์ (AI): การปรับปรุงที่ขับเคลื่อนด้วย AI (ต้องมีอินเทอร์เน็ต)\n• ท้องถิ่น: ใช้ LLM บนอุปกรณ์ เช่น Gemma ผ่าน llama.cpp\n\nการประมวลผลคลาวด์ส่งข้อความไปยังผู้ให้บริการ AI ที่เลือก โหมดท้องถิ่นอยู่บนเครื่องของคุณ แต่ต้องมีเซิร์ฟเวอร์ท้องถิ่นที่ใช้งาน";
+"modes.postProcessing.providerLabel" = "ผู้ให้บริการ";
+"modes.postProcessing.apiKeyMissing" = "ไม่ได้กำหนดค่าคีย์ API %@ เพิ่มในการตั้งค่าเพื่อเปิดใช้งานการประมวลผลหลังจาก";
+"modes.postProcessing.configure" = "กำหนดค่าในการตั้งค่า";
+"modes.postProcessing.modelRecommendation" = "เราแนะนำให้ใช้ GPT-4.1 Nano เพื่อให้ได้ความสมดุลที่ดีที่สุดระหว่างความเร็วและคุณภาพ";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "การประมวลผลภายหลังในเครื่องต้องมีโมเดลท้องถิ่นที่ดาวน์โหลดแล้ว";
+"modes.postProcessing.download" = "ดาวน์โหลดในการตั้งค่า";
+"modes.postProcessing.localInfo" = "ทำงานทั้งหมดบนอุปกรณ์ HyperWhisper เปิดตัวเซิร์ฟเวอร์ llama.cpp ที่รวมอยู่โดยอัตโนมัติเมื่อโหมดนี้เป็นที่ใช้งาน";
+"modes.postProcessing.userSystemPrompt.title" = "คำแนะนำถาวร";
+"modes.postProcessing.userSystemPrompt.placeholder" = "เช่น ลงท้ายอีเมลด้วย 'ด้วยความนับถือ, เรย์' เสมอ";
+"modes.postProcessing.userSystemPrompt.clear" = "ล้าง";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "คำแนะนำถาวร";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "เพิ่มคำแนะนำที่ใช้เสมอนอกเหนือจากพรีเซ็ตที่เลือก";
+"modes.toggle.punctuation.title" = "เพิ่มการเว้นระยะ";
+"modes.toggle.punctuation.subtitle" = "อัตโนมัติเพิ่มจุดและเครื่องหมายจุลภาค";
+"modes.toggle.capitalization.title" = "ใช้ตัวพิมพ์ใหญ่ประโยค";
+"modes.toggle.capitalization.subtitle" = "ตัวพิมพ์ใหญ่อักษรตัวแรกของประโยค";
+"modes.toggle.profanity.title" = "กรองคำหยาบคาย";
+"modes.toggle.profanity.subtitle" = "แทนที่คำที่ไม่เหมาะสม";
+"modes.toggle.removeTrailingPeriod.title" = "ลบจุดท้ายประโยค";
+"modes.toggle.removeTrailingPeriod.subtitle" = "ลบจุดสุดท้ายออกจากข้อความถอดเสียง";
+"modes.postProcessing.privacyNotice" = "การสัญลักษณ์ของคุณจะถูกส่งไปยัง %@ สำหรับการประมวลผลหลังจากเท่านั้น ไม่ที่ไหนอื่น";
+"modes.postProcessing.localModel" = "โมเดล";
+"modes.postProcessing.languageModel" = "โมเดลภาษา";
+"modes.englishSpelling.title" = "การสะกดภาษาอังกฤษ";
+"modes.englishSpelling.american" = "อเมริกัน";
+"modes.englishSpelling.british" = "บริติช";
+"modes.englishSpelling.australian" = "ออสเตรเลีย";
+"modes.englishSpelling.canadian" = "แคนาดา";
+"modes.englishSpelling.american.description" = "ใช้การสะกดภาษาอังกฤษอเมริกัน (สี ตระหนัก องค์กร ศูนย์ เดินทาง)";
+"modes.englishSpelling.british.description" = "ใช้การสะกดภาษาอังกฤษบริติช (สี ตระหนัก องค์กร ศูนย์ เดินทาง)";
+"modes.englishSpelling.australian.description" = "ใช้การสะกดภาษาอังกฤษออสเตรเลีย (สี ตระหนัก องค์กร ศูนย์ เดินทาง)";
+"modes.englishSpelling.canadian.description" = "ใช้การสะกดภาษาอังกฤษแคนาดา (สี ตระหนัก องค์กร ศูนย์ เดินทาง)";
+"modes.gemini.customPrompt.title" = "คำสั่งที่กำหนดเอง";
+"modes.gemini.customPrompt.helper" = "ไม่บังคับ เช่น \"จัดรูปแบบเป็นหัวข้อย่อย\", \"ใช้ภาษาทางการ\" การตั้งค่าภาษาและคำศัพท์ของคุณจะถูกรวมโดยอัตโนมัติ";
+"modes.cloud.apiKeyMissing" = "ไม่ได้กำหนดค่าคีย์ API %@ เพิ่มในการตั้งค่าเพื่อใช้การสัญลักษณ์คลาวด์";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "ความแม่นยำ";
+"modes.cloudAccuracy.groqWhisper.label" = "ปานกลาง (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "ปานกลาง (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "สูง (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "เร็วและราคาไม่แพง ดีที่สุดสำหรับการสัญลักษณ์อย่างรวดเร็ว";
+"modes.cloudAccuracy.deepgramNova3.description" = "ความเร็วและความแม่นยำที่สมดุล แนะนำสำหรับผู้ใช้ส่วนใหญ่";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
+"modes.cloudAccuracy.grokStt.label" = "สูงสุด (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
+
+"modes.create.title" = "สร้างโหมดใหม่";
+"modes.create.subtitle" = "กำหนดค่าโปรไฟล์การสัญลักษณ์ที่กำหนดเอง";
+"modes.section.basic" = "การตั้งค่าพื้นฐาน";
+"modes.section.transcription" = "โมเดลการสัญลักษณ์";
+"modes.section.punctuation" = "เครื่องหมายวรรคตอน";
+"modes.toggle.screenText.title" = "ข้อความบนหน้าจอ";
+"modes.toggle.screenText.subtitle" = "จับภาพข้อความบนหน้าจอที่มองเห็นได้เพื่อปรับปรุงความแม่นยำของชื่อและคำศัพท์ จำเป็นต้องได้รับอนุญาตการบันทึกหน้าจอ";
+"modes.screenText.openSettings" = "เปิดการตั้งค่าระบบ";
+"modes.screenText.permissionGranted" = "ได้รับอนุญาตการบันทึกหน้าจอ";
+"modes.screenText.permissionRequired" = "จำเป็นต้องได้รับอนุญาตการบันทึกหน้าจอ";
+"modes.field.name" = "ชื่อ";
+"modes.field.name.placeholder" = "เช่น บันทึกการประชุม";
+"modes.field.name.editPlaceholder" = "ชื่อโหมด";
+"modes.field.model" = "โมเดล";
+"modes.field.provider" = "ผู้ให้บริการ";
+"modes.provider.local" = "ท้องถิ่น";
+"modes.provider.cloud" = "คลาวด์";
+"modes.notice.noLocalModels.title" = "ไม่มีโมเดลท้องถิ่นติดตั้ง";
+"modes.notice.noLocalModels.subtitle" = "ติดตั้งโมเดลในการตั้งค่าก่อน";
+"modes.model.pricing" = "ราคา: $%.6f / นาที (เรียกเก็บต่อวินาที)";
+"modes.button.create" = "สร้างโหมด";
+"modes.button.delete" = "ลบโหมด";
+"modes.button.save" = "บันทึกการเปลี่ยนแปลง";
+"modes.edit.title" = "แก้ไขโหมด";
+"modes.edit.subtitle" = "แก้ไขการตั้งค่าโปรไฟล์การสัญลักษณ์";
+"mode.editor.cloudModel.previewHint" = "ตัวอย่าง";
+"mode.editor.cloudModel.noVocabularyHint" = "ไม่มีคำศัพท์ที่กำหนดเอง";
+"mode.editor.cloudDomain.medical" = "การแพทย์";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ ส่วนเสริม Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "ไม่สามารถลองใหม่: ไม่พบไฟล์เสียง";
+"transcripts.error.invalidId" = "รหัสการสัญลักษณ์ไม่ถูกต้อง";
+"transcripts.delete.single.title" = "ลบการบันทึก?";
+"transcripts.delete.single.message" = "สิ่งนี้จะลบการบันทึกนี้และไฟล์เสียงของมันอย่างถาวร";
+"transcripts.delete.multiple.title" = "ลบ %d การบันทึก?";
+"transcripts.delete.multiple.message" = "สิ่งนี้จะลบ %d การบันทึกและไฟล์เสียงของพวกเขาอย่างถาวร\n\nไม่สามารถเลิกทำการดำเนินการนี้ได้";
+"transcripts.delete.multiple.confirm" = "ลบทั้งหมด";
+"transcripts.retry.error.title" = "การลองใหม่ล้มเหลว";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "เลือกโฟลเดอร์การบันทึก";
+"storage.folder.choose.message" = "เลือกโฟลเดอร์สำหรับบันทึกการบันทึกใหม่";
+"storage.folder.choose.prompt" = "เลือก";
+"storage.recovery.title" = "ไม่สามารถเข้าถึงโฟลเดอร์การบันทึก";
+"storage.recovery.message" = "HyperWhisper ไม่สามารถเข้าถึงโฟลเดอร์การบันทึกที่กำหนดค่าไว้ คุณสามารถเลือกโฟลเดอร์อื่นเพื่อดำเนินการต่อได้";
+"storage.recovery.choose" = "เลือกโฟลเดอร์…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "เรียนรู้เพิ่มเติม";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "สัญลักษณ์สมบูรณ์";
+"recording.status.retrying" = "กำลังลองสัญลักษณ์ใหม่…";
+"recording.status.postprocessing" = "หลังการประมวลผลด้วย AI…";
+"recording.status.transcribing" = "กำลังสัญลักษณ์…";
+"recording.success.pasted" = "วางแล้ว!";
+"recording.loading.retrying" = "กำลังลองใหม่…";
+"recording.loading.postprocessing" = "กำลังประมวลผลด้วย AI…";
+"recording.loading.starting" = "เริ่มสตรีม…";
+"recording.loading.transcribing" = "กำลังสัญลักษณ์…";
+
+// Streaming connection states
+"streaming.status.connecting" = "กำลังเชื่อมต่อ...";
+"streaming.status.ready" = "พร้อม - เริ่มพูด";
+"streaming.status.warming" = "กำลังอุ่น...";
+"modes.badge.recommended" = "แนะนำ";
+"modes.source.label" = "แหล่งที่มา";
+"modes.source.onDevice" = "บนอุปกรณ์";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "คีย์ API";
+"modes.field.engine" = "เครื่องยนต์";
+"settings.models.localASR.inUse" = "ไม่สามารถลบโมเดลนี้ได้เนื่องจากมีการใช้งานโดย:
+
+%@
+
+อัปเดตโหมดเหล่านี้ให้ใช้โมเดลอื่นก่อนลบ";
+"models.postProcessing.gemma4.12b.description" = "โมเดลหนาแน่นขนาดกลาง สมดุลระหว่างคุณภาพและความเร็วบน Mac 16 GB";
+"recording.success.savedToNotes" = "บันทึกไว้ในบันทึกแล้ว!";
+"modes.provider.needsKey" = "%@ ต้องการคีย์ที่ใช้งานได้";
+"modes.provider.manageInLibrary" = "จัดการในคลัง →";
+"streaming.loading.warming" = "กำลังอุ่นโมเดลในเครื่อง...";
+"streaming.status.listening" = "กำลังฟัง...";
+"streaming.status.streaming" = "กำลังสตรีม...";
+"streaming.status.disconnecting" = "กำลังหยุด...";
+"streaming.loading.connecting" = "กำลังเชื่อมต่อกับเซิร์ฟเวอร์...";
+"streaming.loading.ready" = "กำลังเริ่มต้นเสียง...";
+"streaming.loading.streaming" = "รอเสียงพูด...";
+"streaming.state.reconnecting" = "กำลังเชื่อมต่อใหม่...";
+"recording.stop.help" = "หยุดการบันทึก (%@)";
+"recording.postprocessing.unavailable" = "หลังการประมวลผลไม่พร้อมใช้งาน";
+"recording.postprocessing.missing.single" = "คีย์ %@ หายไป – กำลังบันทึกโดยไม่มีการประมวลผลหลังจาก";
+"recording.postprocessing.missing.multiple" = "คีย์ API หายไป – กำลังบันทึกโดยไม่มีการประมวลผลหลังจาก";
+"recording.postprocessing.addKey" = "เพิ่มคีย์";
+"recording.offline.banner" = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต การสัญลักษณ์คลาวด์จะล้มเหลวจนกว่าคุณจะออนไลน์";
+"recording.offline.title" = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต";
+"recording.offline.subtitle" = "เชื่อมต่อใหม่เพื่อดำเนินการต่อหรือสลับไปยังโหมดออฟไลน์";
+"recording.error.network" = "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่";
+"recording.error.timeout" = "หมดเวลาคำขอ ตรวจสอบความเร็วการเชื่อมต่อและลองใหม่";
+"recording.error.rateLimit" = "คุณทำการร้องขอจำนวนมากเกินไป รอสักครู่แล้วลองใหม่";
+"recording.error.credits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";
+"recording.error.apiKey" = "เพิ่มคีย์ API %@ ของคุณในการตั้งค่า";
+"recording.error.server" = "บริการการสัญลักษณ์กำลังประสบปัญหา โปรดลองใหม่ในอีกสักครู่";
+"recording.retry" = "ลองใหม่";
+"recording.retry.inProgress" = "กำลังลองใหม่…";
+"recording.retry.count" = "ลองใหม่ (%d)";
+"recording.retry.failed.missing" = "การลองใหม่ล้มเหลว: ไม่พบไฟล์เสียง";
+"recording.retry.failed.error" = "การลองใหม่ล้มเหลว: %@";
+"recording.retry.pending" = "พร้อมที่จะลองใหม่ – คลิกเพื่อสัญลักษณ์";
+"recording.provider.unknown" = "ผู้ให้บริการคลาวด์";
+"recording.cancel.dialog.title" = "ยกเลิกการบันทึก?";
+"recording.cancel.dialog.message" = "สิ่งนี้จะละทิ้งการบันทึกปัจจุบัน";
+"recording.cancel.dialog.confirm" = "ยกเลิกการบันทึก";
+"recording.cancel.dialog.resume" = "ดำเนินการต่อ";
+"recording.error.overlay.title" = "ข้อผิดพลาดการเชื่อมต่อเครือข่าย";
+"recording.error.overlay.message" = "กด 'ลองใหม่' ด้านล่างหรือสลับไปยังโหมดออฟไลน์เพื่อดำเนินการต่อ";
+"recording.mode.default" = "ค่าเริ่มต้น";
+"recording.dialog.window.title" = "หน้าต่างการบันทึก";
+"recording.button.start" = "เริ่มการบันทึก";
+"recording.button.stop" = "หยุดการบันทึก";
+"recording.button.disable.checking" = "กำลังตรวจสอบสถานะ %@...";
+"recording.button.disable.invalid" = "คีย์ API %@ ไม่ถูกต้อง อัปเดตในการตั้งค่า";
+"recording.button.disable.unreachable" = "%@ ไม่สามารถเข้าถึงได้ ตรวจสอบการเชื่อมต่อและลองใหม่";
+"recording.button.disable.missing" = "เพิ่มคีย์ API %@ ของคุณในการตั้งค่า";
+"recording.button.disable.install.local" = "ดาวน์โหลดโมเดลในเครื่องใน การตั้งค่า → โมเดล ก่อนใช้การประมวลผลหลังในเครื่อง";
+"modes.postProcessing.accuracy" = "ความแม่นยำ";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "คุณได้ถึงขีดจำกัดการสัญลักษณ์ %@-นาทีรายวัน อัปเกรดเป็น HyperWhisper Pro สำหรับการสัญลักษณ์แบบไม่จำกัด";
+"recording.error.documentsAccess" = "ไม่สามารถเข้าถึงโฟลเดอร์การบันทึก เลือกตำแหน่งอื่นในการตั้งค่า → ที่เก็บข้อมูล";
+"recording.error.modeMissing" = "ไม่พบโหมดที่เลือก โปรดเลือกโหมดที่ถูกต้อง";
+"recording.warning.oversizedWAV" = "การบีบอัดเสียงล้มเหลว การใช้ไฟล์ %@ MB ที่ไม่มีการบีบอัด - การสัญลักษณ์อาจช้าลง";
+
+// MARK: - Audio Manager
+"audio.device.default" = "ไมโครโฟนเริ่มต้น";
+"audio.error.permissionDenied" = "การเข้าถึงไมโครโฟนถูกปฏิเสธ โปรดเปิดใช้งานในการตั้งค่าระบบ";
+"audio.error.fileWatcher.open" = "ไม่สามารถเปิดตัวอธิบายไฟล์เพื่อตรวจสอบไฟล์เสียง";
+"audio.error.fileWatcher.timeout" = "การดำเนินการหมดเวลาขณะรอการเขียนไฟล์เสียง";
+"audio.error.fileWatcher.creation" = "ไฟล์เสียงไม่ได้สร้างขึ้นตรงเวลา";
+"audio.error.microphonePermission" = "ไม่ได้รับสิทธิ์ไมโครโฟน";
+"audio.error.microphoneInUse" = "HyperWhisper ไม่สามารถเข้าถึงไมโครโฟนเพราะแอปอื่นใช้งานอยู่ หยุดแอปอื่นหรือสลับอินพุต แล้วลองใหม่";
+"audio.error.createEngine" = "ไม่สามารถสร้างเอนจิ้นเสียง";
+"audio.error.noInput" = "ไม่มีอินพุตเสียง";
+"audio.error.createFile" = "ไม่สามารถสร้างไฟล์เสียง";
+"audio.error.managerUnavailable" = "ตัวจัดการการสัญลักษณ์ไม่ได้กำหนดค่า";
+"audio.error.invalidHardwareFormat" = "ตรวจพบรูปแบบเสียงฮาร์ดแวร์ไม่ถูกต้อง โปรดตรวจสอบอุปกรณ์เสียงของคุณ";
+"audio.error.createFormat" = "ไม่สามารถสร้างรูปแบบเสียงสำหรับการบันทึก";
+"audio.error.createConverter" = "ไม่สามารถสร้างตัวแปลงรูปแบบเสียง";
+"audio.error.exportM4A" = "ไม่สามารถส่งออกเสียงเป็นรูปแบบ m4a";
+"audio.error.readFile" = "ไม่สามารถอ่านไฟล์เสียงหลังการบันทึก";
+"audio.error.recordingTooShort" = "การบันทึกสั้นเกินไป โปรดค้างปุ่มนานขึ้นเพื่อจับเสียง";
+"audio.error.noAudioTrack" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง";
+"audio.alert.accessibility.title" = "เปิดใช้การเข้าถึง";
+"audio.alert.accessibility.message" = "HyperWhisper ต้องการสิทธิ์การเข้าถึงเพื่อวางข้อความที่สัญลักษณ์ลงในแอปพลิเคชันอื่น\n\nคลิก \"เปิดการตั้งค่า\" กด/ตัวเลือกการสลับถัดจาก HyperWhisper จากนั้นลองใหม่";
+"audio.alert.accessibility.open" = "เปิดการตั้งค่า";
+"audio.alert.pasteFailed.title" = "วางอัตโนมัติล้มเหลว";
+"audio.alert.pasteFailed.message" = "ข้อความที่สัญลักษณ์ได้ถูกคัดลอกไปยังคลิปบอร์ดของคุณ\n\nกด ⌘V เพื่อวางด้วยตนเอง หรือเลือก แก้ไข → วางจากเมนู";
+"accessibility.permission.location.debug" = "การดีบัก Xcode";
+"accessibility.permission.location.installed" = "แอปที่ติดตั้ง";
+"accessibility.permission.info" = "HyperWhisper ต้องการสิทธิ์การเข้าถึงเพื่อวางข้อความที่สัญลักษณ์ลงในแอปพลิเคชันอื่น\n\nแอปปัจจุบัน: %@\n\nในการตั้งค่าระบบ:\n1. มองหา 'hyperwhisper' หรือ 'HyperWhisper' ในรายการ\n2. คุณอาจเห็นรายการหลายรายการหากคุณได้เรียกใช้จากตำแหน่งต่างๆ\n3. เปิดใช้งานช่องทำเครื่องหมายสำหรับรายการที่ตรงกับ:\n   %@";
+"accessibility.permission.xcodeNote" = "หมายเหตุ: การเรียกใช้จาก Xcode ต้องการสิทธิ์ที่แตกต่างจากแอปที่ติดตั้ง";
+"accessibility.error.paste.commandFailed" = "คำสั่งวางล้มเหลว";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "ผู้ให้บริการการสัญลักษณ์ไม่พร้อมใช้งาน ตรวจสอบการตั้งค่าและลองใหม่";
+"transcription.error.providerNotAvailable.provider" = "%@ ไม่พร้อมใช้งาน ตรวจสอบการตั้งค่าและลองใหม่";
+"transcription.error.providerNotAvailable.detail" = "%@ ไม่พร้อมใช้งาน: %@";
+"transcription.error.modelNotDownloaded" = "โปรดดาวน์โหลดโมเดลก่อน";
+"transcription.error.modelProtected" = "ไม่สามารถลบโมเดลนี้ได้";
+"transcription.error.audioFileNotFound" = "ไม่พบไฟล์เสียง";
+"transcription.error.network.detail" = "ข้อผิดพลาดเครือข่าย: %@";
+"transcription.error.network.generic" = "ข้อผิดพลาดการเชื่อมต่อเครือข่าย";
+"transcription.error.apiKeyMissing.provider" = "ต้องการคีย์ API %@ สำหรับการสัญลักษณ์";
+"transcription.error.apiKeyMissing.generic" = "ต้องการคีย์ API ของผู้ให้บริการคลาวด์สำหรับการสัญลักษณ์";
+"transcription.error.maxRetriesExceeded" = "เกินจำนวนการพยายามลองใหม่สูงสุด";
+"transcription.error.unauthorized.provider" = "ไม่ได้รับการยืนยัน: คีย์ API %@ ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
+"transcription.error.unauthorized.generic" = "ไม่ได้รับการยืนยัน: คีย์ API ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
+"transcription.error.invalidRequest" = "คำขอไม่ถูกต้อง: ตรวจสอบไฟล์เสียงหรือการตั้งค่า";
+"transcription.error.streamingInterrupted" = "สตรีมถูกหลีกลี่ยง ข้อความบางส่วนแสดง";
+"transcription.error.busy" = "บริการการสัญลักษณ์ยังคงไม่ว่าง";
+"transcription.error.invalidAudioFormat" = "รูปแบบเสียงไม่รองรับ";
+"transcription.error.audioConversionFailed" = "ไม่สามารถแปลงเสียงเป็นรูปแบบที่ต้องการ";
+"transcription.error.audioFileTooLarge" = "ไฟล์ใหญ่เกินไป: %@ เกินขีดจำกัด %@ สำหรับ %@";
+"transcription.error.serverError" = "ข้อผิดพลาดเซิร์ฟเวอร์ (%d): %@";
+"transcription.error.rateLimited.seconds" = "ได้รับอัตราจำกัด: เบิกเรียกมากเกินไป โปรดรอ %d วินาทีและลองใหม่";
+"transcription.error.rateLimited.generic" = "ได้รับอัตราจำกัด: เบิกเรียกมากเกินไป โปรดรอสักครู่แล้วลองใหม่";
+"transcription.error.insufficientCredits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";
+"transcription.error.quotaExceeded" = "โควตา %@ เกิน";
+"transcription.error.quotaExceeded.detail" = "โควตา %@ เกิน: %@";
+"transcription.error.timeout" = "หมดเวลาคำขอระหว่าง %@ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "ตรวจสอบให้แน่ใจว่าผู้ให้บริการการสัญลักษณ์ของคุณได้รับการกำหนดค่าอย่างถูกต้องในการตั้งค่า";
+"transcription.guidance.providerNotAvailable.provider" = "ตรวจสอบให้แน่ใจว่า %@ ได้รับการกำหนดค่าอย่างถูกต้อง สำหรับโมเดลท้องถิ่น ดาวน์โหลดโมเดลก่อน สำหรับผู้ให้บริการคลาวด์ ตรวจสอบคีย์ API ของคุณ";
+"transcription.guidance.apiKeyMissing.provider" = "เพิ่มคีย์ API %@ ของคุณในการตั้งค่า";
+"transcription.guidance.apiKeyMissing.generic" = "เพิ่มคีย์ API ของผู้ให้บริการคลาวด์ของคุณในการตั้งค่า";
+"transcription.guidance.modelNotDownloaded" = "ดาวน์โหลดโมเดลจากส่วนโมเดล";
+"transcription.guidance.modelProtected" = "โมเดลนี้กำลังใช้งานอยู่";
+"transcription.guidance.audioFileNotFound" = "ไฟล์เสียงถูกลบหรือย้าย";
+"transcription.guidance.networkError" = "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่";
+"transcription.guidance.unauthorized.provider" = "ตรวจสอบคีย์ API %@ หรือสิทธิ์บัญชีของคุณในการตั้งค่า";
+"transcription.guidance.unauthorized.generic" = "ตรวจสอบคีย์ API หรือสิทธิ์บัญชีของคุณในการตั้งค่า";
+"transcription.guidance.invalidRequest" = "ตรวจสอบไฟล์เสียงและการตั้งค่าโหมด จากนั้นลองใหม่";
+"transcription.guidance.invalidAudioFormat" = "ลองแปลงไฟล์เสียงเป็นรูปแบบ MP3 หรือ WAV";
+"transcription.guidance.audioConversionFailed" = "ไฟล์เสียงอาจเสียหาย ลองใช้ไฟล์อื่น";
+"transcription.guidance.audioFileTooLarge" = "ใช้ไฟล์เสียงที่สั้นกว่าหรือแบ่งเป็นส่วนเล็กน้อย";
+"transcription.guidance.serverError" = "บริการการสัญลักษณ์กำลังประสบปัญหา โปรดลองใหม่";
+"transcription.guidance.rateLimited" = "คุณทำการร้องขอจำนวนมากเกินไป รอสักครู่ก่อนลองใหม่";
+"transcription.guidance.insufficientCredits" = "ซื้อเครดิตเพิ่มเติมในการตั้งค่าเพื่อสัญลักษณ์ต่อไป";
+"transcription.guidance.quotaExceeded" = "เพิ่มเครดิตไปยัง %@ บัญชีของคุณหรืออัปเดตรายละเอียดการเรียกเก็บเงิน";
+"transcription.guidance.timeout" = "คำขอใช้เวลานานเกินไป ตรวจสอบความเร็วอินเทอร์เน็ตและลองใหม่";
+"transcription.error.noSpeechDetected" = "ไม่พบเสียงพูดในการบันทึก";
+"transcription.guidance.noSpeechDetected" = "เคล็ดลับ:\n• พูดชัดเจนลงในไมโครโฟน\n• ค้างคีย์นานขึ้นก่อนพูด\n• ตรวจสอบว่าไมโครโฟนของคุณใช้งานได้\n• ตรวจสอบให้แน่ใจว่าอุปกรณ์อินพุตที่ถูกต้องได้รับการเลือก";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";
+"hyperwhisperCloud.error.network" = "ข้อผิดพลาดเครือข่าย: %@";
+"hyperwhisperCloud.error.invalidResponse" = "การตอบสนองจาก HyperWhisper Cloud ไม่ถูกต้อง";
+"hyperwhisperCloud.error.server" = "ข้อผิดพลาดเซิร์ฟเวอร์: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "ไม่พบปฏิบัติการ llama-server";
+"llama.runtime.error.missingDependencies" = "รันไทม์หายไป dependencies: %@";
+"llama.runtime.error.copyFailed" = "ไม่สามารถคัดลอกรันไทม์: %@";
+"llama.runtime.error.copy.executable" = "ไม่สามารถคัดลอกปฏิบัติการ: %@";
+"llama.runtime.missing" = "ท้องถิ่น runtime หายไปจากการติดตั้งนี้ ติดตั้ง HyperWhisper ใหม่เพื่อคืนค่าการประมวลผลหลังจาก";
+"llama.runtime.genericError" = "ข้อผิดพลาด ท้องถิ่น runtime: %@";
+"runtime.error.llama.missingLib" = "ท้องถิ่น runtime สิ้นสุดหลังจากหาย libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "ท้องถิ่น runtime รายงานหาย libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "การประมวลผลหลังจาก AI ในตัวที่ทำงานบน Cloudflare Workers ไม่จำเป็นต้องกำหนดค่า";
+"models.postProcessing.gpt4.1.nano.description" = "ความแม่นยำปานกลาง (92%) ความเร็วสูงมาก (<1s) เหมาะสำหรับแบบร่างอย่างรวดเร็วและหมายเหตุที่ไม่เป็นทางการ";
+"models.postProcessing.gpt4.1.mini.description" = "ความแม่นยำสูง (94%) ความเร็วสูง (~1-2 วินาที) ดีสำหรับการสื่อสารทางธุรกิจในแต่ละวันและเอกสารมาตรฐาน";
+"models.postProcessing.gpt4.1.description" = "ความแม่นยำสูงมาก (96%) ความเร็วปานกลาง (~3-4 วินาที) ยอดเยี่ยมสำหรับการจัดรูปแบบที่ซับซ้อนและเนื้อหาทางเทคนิค";
+"models.postProcessing.gpt5.nano.description" = "ความแม่นยำที่ดี (95%) ความเร็วที่เร็วที่สุด (~1 วินาที) สมบูรณ์สำหรับบันทึกอย่างรวดเร็ว ข้อความ และการสัญลักษณ์ที่ไม่เป็นทางการ";
+"models.postProcessing.gpt5.mini.description" = "ความแม่นยำที่ยอดเยี่ยม (97%) ความเร็วปานกลาง (~2-3 วินาที) ความสมดุลอุดมคติสำหรับอีเมลมืออาชีพ รายงาน และบันทึกการประชุม";
+"models.postProcessing.gpt5.description" = "ความแม่นยำสูงสุด (99%+) ความเร็วที่ช้าที่สุด (~3-5 วินาที) ดีที่สุดสำหรับเอกสารที่สำคัญ ทางกฎหมาย การสัญลักษณ์ทางการแพทย์ที่ความแม่นยำสูงสุด";
+"models.postProcessing.gpt5.1.description" = "ความแม่นยำเทคโนโลยีทั่วไป (98%+) ความเร็วปานกลาง (~2-3 วินาที) ยอดเยี่ยมสำหรับงานที่ซับซ้อน เอกสารทางกฎหมาย เนื้อหาทางเทคนิคด้วยการให้เหตุผลที่เหนือกว่า";
+"models.postProcessing.gpt5.2.description" = "ซีรี่ส์ GPT-5 ล่าสุดพร้อมการให้เหตุผลและความเร็วการอนุมาน ตัวเลือกโดยรวมที่ดีที่สุดสำหรับการประมวลผลข้อความที่มีคุณภาพสูง";
+"models.postProcessing.claude4.5.haiku.description" = "Claude Haiku ล่าสุดพร้อมการให้เหตุผลที่ดีขึ้นในขณะที่ยังคงเวลาตอบสนองที่รวดเร็ว";
+"models.postProcessing.claude4.sonnet.description" = "ประสิทธิภาพที่สมดุล ความสามารถในการให้เหตุผลและการจัดรูปแบบที่เหนือกว่าสำหรับเอกสารมืออาชีพ";
+"models.postProcessing.gemini3.flash.description" = "ซีรี่ส์ Gemini 3 ที่มีปัญญา Pro-level ที่ความเร็ว Flash การให้เหตุผลขั้นสูงพร้อมความสามารถในการคิดแบบไดนามิก";
+"models.postProcessing.gemini2.5.flash.description" = "ดีที่สุดในแง่ของราคา-ประสิทธิภาพ เพิ่มประสิทธิภาพความเร็วรักษาความแม่นยำที่ดีสำหรับการใช้งานในแต่ละวัน";
+"models.postProcessing.gemini2.5.flashLite.description" = "รูปแบบพิเศษที่ปรับให้เหมาะสำหรับประสิทธิภาพต้นทุนและปริมาณงานสูง";
+"models.postProcessing.groq.llama33.70b.description" = "รูปแบบ 70B อเนกประสงค์พร้อมคุณภาพที่ยอดเยี่ยม ~280 tokens/sec แนะนำ";
+"models.postProcessing.groq.llama31.8b.description" = "รูปแบบ 8B เร็วจริงๆ ~560 tokens/sec สำหรับการประมวลผลข้อความทันที";
+"models.postProcessing.groq.gptoss.120b.description" = "รูปแบบ open-source 120B ของ OpenAI ~500 tokens/sec สำหรับการประมวลผลที่มีคุณภาพสูง";
+"models.postProcessing.groq.gptoss.20b.description" = "รูปแบบ lightweight 20B ~1000 tokens/sec สำหรับการประมวลผลที่เร็วที่สุด";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B บน Cerebras รูปแบบ 120B เร็วจริงๆ ที่ ~3000 tokens/sec แนะนำ";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B บน Cerebras lightweight และเร็วจริงๆ ที่ ~2200 tokens/sec";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B บน Cerebras รูปแบบ MoE ขนาดใหญ่ 235B ที่ ~1400 tokens/sec ตัวอย่างเท่านั้น";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 บน Cerebras รูปแบบพารามิเตอร์ 355B ที่ ~1000 tokens/sec ตัวอย่างเท่านั้น";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "ศูนย์ช่วยเหลือ";
+"settings.resources.contact.support" = "ติดต่อสนับสนุน";
+"settings.resources.feedback" = "คำติชม & คำแนะนำ";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "สำรอง";
+"settings.backup.export.title" = "ส่งออกการตั้งค่า";
+"settings.backup.export.subtitle" = "บันทึกการตั้งค่า โหมด และศัพท์เฉพาะของคุณไปยังไฟล์";
+"settings.backup.export.button" = "ส่งออก...";
+"settings.backup.export.panel.title" = "ส่งออกการตั้งค่า";
+"settings.backup.export.panel.label" = "ไฟล์สำรอง:";
+"settings.backup.export.success" = "ส่งออกการตั้งค่าสำเร็จ";
+"settings.backup.export.error.create" = "ไม่สามารถสร้างข้อมูลสำรอง";
+"settings.backup.export.error.encode" = "ไม่สามารถเข้ารหัสข้อมูลสำรอง";
+"settings.backup.export.error.write" = "ไม่สามารถเขียนไฟล์สำรอง";
+"settings.backup.includeAPIKeys.title" = "รวมคีย์ API";
+"settings.backup.includeAPIKeys.subtitle" = "จัดเก็บคีย์ API ในไฟล์สำรอง (ไม่แนะนำสำหรับการแชร์)";
+"settings.backup.includeLicense.title" = "รวมคีย์ลัทธิ";
+"settings.backup.import.title" = "นำเข้าการตั้งค่า";
+"settings.backup.import.subtitle" = "คืนค่าการตั้งค่าจากไฟล์สำรอง";
+"settings.backup.import.button" = "นำเข้า...";
+"settings.backup.import.panel.title" = "นำเข้าการตั้งค่า";
+"settings.backup.import.success" = "นำเข้าเสร็จสิ้น: นำเข้า %d โหมด %d รายการศัพท์เฉพาะ";
+"settings.backup.import.error.read" = "ไม่สามารถอ่านไฟล์สำรอง";
+"settings.backup.import.error.decode" = "รูปแบบไฟล์สำรองไม่ถูกต้อง";
+"settings.backup.import.error.decode.keyNotFound" = "ไม่มีฟิลด์ที่จำเป็น: %@";
+"settings.backup.import.error.decode.typeMismatch" = "ประเภทฟิลด์ไม่ถูกต้อง: %@";
+"settings.backup.import.error.decode.valueNotFound" = "ไม่มีค่าสำหรับฟิลด์: %@";
+"settings.backup.import.error.decode.corrupted" = "ข้อมูลเสียหาย: %@";
+"settings.backup.import.error.decode.corruptedField" = "ค่าฟิลด์เสียหาย: %@";
+"settings.backup.import.error.version" = "ไฟล์สำรองมาจากเวอร์ชันที่ใหม่กว่า";
+"settings.backup.import.error.unknown" = "นำเข้าล้มเหลว";
+"settings.backup.import.confirm.title" = "นำเข้าการตั้งค่า?";
+"settings.backup.import.confirm.message" = "สิ่งนี้จะแทนที่โหมดและศัพท์เฉพาะที่มีอยู่ของคุณด้วยส่วนจากไฟล์สำรอง การตั้งค่าจะได้รับการอัปเดตด้วย";
+"settings.backup.import.confirm.button" = "นำเข้า";
+"settings.backup.conflict.skip" = "ข้ามที่มีอยู่";
+"settings.backup.conflict.replace" = "แทนที่ที่มีอยู่";
+"settings.backup.conflict.keepBoth" = "เก็บทั้งคู่";
+"settings.backup.security.warning" = "คำเตือน: ไฟล์ที่ส่งออกจะมีข้อมูลที่ละเอียดอ่อน เก็บให้ปลอดภัยและไม่ใช้ร่วมกัน";
+"settings.backup.info.note" = "ไฟล์สำรองรวมถึงการตั้งค่า โหมด และศัพท์เฉพาะ การบันทึกและการสัญลักษณ์ไม่รวม";
+"settings.backup.result.success.title" = "ความสำเร็จ";
+"settings.backup.result.error.title" = "ข้อผิดพลาด";
+"settings.backup.export.choose.subtitle" = "เลือกสิ่งที่จะรวมไว้ในไฟล์สำรองข้อมูล";
+"settings.backup.export.section.settings" = "การตั้งค่า";
+"settings.backup.export.section.modes" = "โหมด";
+"settings.backup.export.section.vocabulary" = "คำศัพท์";
+"settings.backup.import.importing" = "กำลังนำเข้า %@";
+"settings.backup.import.contains" = "ไฟล์นี้มี: %@";
+"settings.backup.import.contains.vocabulary" = "คำศัพท์ (%d คำ)";
+"settings.backup.import.contains.none" = "ไม่มีอะไร";
+"settings.backup.import.section.settings" = "การตั้งค่า";
+"settings.backup.import.section.modes" = "โหมด";
+"settings.backup.import.section.vocabulary" = "คำศัพท์";
+"settings.backup.import.section.apiKeys" = "คีย์ API";
+"settings.backup.import.section.license" = "คีย์ใบอนุญาต";
+"settings.backup.import.section.absent" = "— ไม่มีในไฟล์";
+"settings.backup.import.premerge.summary" = "คำศัพท์: เพิ่ม %d รายการใหม่, %d รายการมีอยู่แล้ว";
+"settings.backup.import.premerge.conflictLabel" = "สำหรับคำที่มีอยู่แล้ว:";
+
+// MARK: - File Transcription
+"select.audio.file" = "เลือกไฟล์เสียง";
+"transcribe.file.error.title" = "ข้อผิดพลาดการสัญลักษณ์";
+"transcribe.file.error.size.title" = "ไฟล์ใหญ่เกินไป";
+"transcribe.file.error.size.message" = "ไฟล์ที่เลือก (%@) เกินขีดจำกัด %@ สำหรับ %@";
+"transcribe.file.error.format.title" = "รูปแบบไม่รองรับ";
+"transcribe.file.error.format.message" = "ไฟล์ .%@ ไม่ได้รับการสนับสนุนโดย %@ รูปแบบที่รองรับ: %@";
+"transcribe.file.error.read" = "ไม่สามารถอ่านไฟล์ที่เลือก";
+"transcribe.file.error.copy" = "ไม่สามารถคัดลอกไฟล์ไปยังโฟลเดอร์การบันทึก";
+"transcribe.file.error.video.title" = "ไม่มีเสียงในวิดีโอ";
+"transcribe.file.error.video.noAudio" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง โปรดเลือกวิดีโอที่มีเสียงหรือไฟล์เสียง";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "กำลังเตรียม...";
+"file.transcription.transcribing" = "กำลังสัญลักษณ์...";
+"file.transcription.finishing" = "กำลังเสร็จ...";
+"file.transcription.cancel" = "ยกเลิก";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "เปิดใช้งานการลบอัตโนมัติ";
+"history.autoDelete.enable.subtitle" = "การบันทึกที่เก่ากว่าระยะเวลาที่ระบุจะถูกลบ";
+"history.autoDelete.duration.prefix" = "หลัง";
+"history.autoDelete.unit.minutes" = "นาที";
+"history.autoDelete.unit.hours" = "ชั่วโมง";
+"history.autoDelete.unit.days" = "วัน";
+"history.autoDelete.unit.minutes.plural" = "นาที";
+"history.autoDelete.unit.hours.plural" = "ชั่วโมง";
+"history.autoDelete.unit.days.plural" = "วัน";
+"history.autoDelete.status.disabled" = "การลบอัตโนมัติถูกปิดใช้งาน";
+"history.autoDelete.status.enabled" = "ลบการบันทึกที่เก่ากว่า %d %@";
+"history.autoDelete.cleanup.noItems" = "ไม่มีการบันทึกที่จะลบ";
+"history.autoDelete.cleanup.summary" = "ลบ %d การบันทึก และปลดปล่อย %@";

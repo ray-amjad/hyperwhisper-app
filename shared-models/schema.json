@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperwhisper.com/schema/shared-models/v1.json",
+  "title": "HyperWhisper Shared Models Catalog",
+  "description": "Cross-platform source of truth for model metadata used by the Model Library on macOS, Windows, and iOS. Per-model fields that don't belong in any one platform's local registry (custom-vocabulary support, HyperWhisper Cloud routability, per-platform availability) live here so they're defined exactly once.",
+  "type": "object",
+  "required": ["schemaVersion", "models"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version. Bump on breaking field changes."
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the catalog was last edited (YYYY-MM-DD)."
+    },
+    "models": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/model" }
+    }
+  },
+  "$defs": {
+    "model": {
+      "type": "object",
+      "required": ["id", "provider", "kind", "supportsCustomVocabulary", "availableViaHyperWhisperCloud", "platforms"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The upstream model identifier used by the provider's API (e.g. \"nova-3-general\", \"claude-haiku-4-5\"). Combined with `provider` to form a unique key — the same id string can appear under multiple providers (e.g. `gpt-oss-120b` exists under both Groq with the `openai/` prefix and Cerebras without it)."
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "hyperwhisper",
+            "openai",
+            "anthropic",
+            "groq",
+            "deepgram",
+            "assemblyAI",
+            "elevenLabs",
+            "mistral",
+            "soniox",
+            "gemini",
+            "grok",
+            "cerebras",
+            "microsoftAzureSpeech",
+            "googleSpeech",
+            "appleSpeech",
+            "localWhisper",
+            "parakeet",
+            "qwen3ASR",
+            "nemotron",
+            "localLLM"
+          ],
+          "description": "Provider key. The transcription-only providers (deepgram, assemblyAI, elevenLabs, mistral, soniox, appleSpeech, localWhisper, parakeet, qwen3ASR, nemotron) and post-processing-only providers (anthropic, cerebras, localLLM) are disjoint; the rest (openai, groq, gemini, grok, hyperwhisper) appear in both roles, so use `kind` to disambiguate."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["voice", "text"],
+          "description": "`voice` = transcription (speech-to-text). `text` = post-processing LLM."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Optional human-readable name. Each platform may override; the catalog value is the default."
+        },
+        "supportsCustomVocabulary": {
+          "type": "boolean",
+          "description": "Whether this model accepts user-supplied keyword/keyterm/initial-prompt boosts at request time. Cross-checked against the provider's transcription request site, not vendor marketing."
+        },
+        "availableViaHyperWhisperCloud": {
+          "type": "boolean",
+          "description": "Whether this model is reachable through the credit-based HyperWhisper Cloud routing service (Fly backend forwards to the provider). When true, users without their own API key for that provider can still use it via cloud credits."
+        },
+        "platforms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["macos", "windows", "ios"] },
+          "description": "Platforms where this model is exposed in the Model Library. A model can sit in the catalog before any given app ships it — just omit that platform from the list and the app filters it out at load time."
+        },
+        "supportedLanguages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" },
+          "description": "Base ISO-639-1 language codes (region/script stripped, e.g. \"en\", \"es\", \"zh\") this CLOUD voice model can transcribe, used by the Model Library language filter. Omit when `supportsAllLanguages` is true. Only set on cloud (voice) models — local-model language sets live in each platform's code (Parakeet/Whisper registries), because the catalog's local rows are wildcards (`id: \"*\"`) that can't express per-model differences. The authoritative source is macOS `STTCapabilities.swift` (cloud models present there) or `shared-app-classification/cloud-stt-catalog.json` (Azure/Google); a macOS unit test asserts this field stays in sync."
+        },
+        "isEnglishOnly": {
+          "type": "boolean",
+          "description": "True when this cloud voice model transcribes English only (e.g. deepgram nova-3-medical). A convenience marker; `supportedLanguages` of [\"en\"] is equivalent for filtering."
+        },
+        "supportsAllLanguages": {
+          "type": "boolean",
+          "description": "True when this voice model is not language-limited for filtering — it passes every language filter. Set for models whose set covers all base languages (Whisper-family, Google Chirp) or that auto-detect with no closed list (Gemini, Grok). When true, `supportedLanguages` is omitted. This is a filtering convenience, NOT a user-facing guarantee of universal quality."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional free-form note (deprecation, alias, etc). Not consumed by code."
+        }
+      }
+    }
+  }
+}

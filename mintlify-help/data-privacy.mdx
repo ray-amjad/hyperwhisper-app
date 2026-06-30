@@ -1,0 +1,101 @@
+---
+title: "Data Privacy"
+description: "How HyperWhisper handles your audio data, and how to opt out of model training when you bring your own API keys."
+---
+
+## Where your audio goes
+
+HyperWhisper supports three transcription paths, each with different privacy implications:
+
+| Path | Where audio goes | Who's responsible for training opt-out |
+|------|------------------|----------------------------------------|
+| **Local models** (Whisper, Parakeet) | Never leaves your device | You — but it's offline, so there's nothing to opt out of |
+| **HyperWhisper Cloud** | Routed through HyperWhisper to a backing provider (Deepgram, Groq, ElevenLabs, Grok, OpenAI, Gemini, AssemblyAI, Mistral, Soniox, Azure, or Google) | HyperWhisper — we apply each provider's strongest no-train / no-retain control |
+| **Your own API key** (BYOK) | Sent directly from your device to the provider | **You** — except Deepgram, where we opt out for you automatically |
+
+<Tip>
+If you want zero risk of your audio being used for training, use **local transcription**. It's offline and the audio physically never leaves your Mac or PC.
+</Tip>
+
+## HyperWhisper Cloud
+
+When you use HyperWhisper Cloud, we forward your audio to a backing speech-to-text provider, and your transcribed text to a backing LLM for post-processing. We don't store your audio on HyperWhisper's own servers — it's processed in memory at the edge and discarded after the response is returned.
+
+**We apply the strongest data-protection control each provider offers**, so your audio isn't used to train their models:
+
+- Where a provider has a per-request no-train / no-store flag, we set it on every call (for example, Deepgram's `mip_opt_out`).
+- Where the control is account-level, we enable zero-data-retention on the HyperWhisper account (for example, Groq).
+- Where neither exists, we delete the transcript as soon as we've fetched it (for example, AssemblyAI, where we've also opted out of model training).
+
+A few providers keep data briefly for abuse monitoring — Grok and Mistral retain it for roughly 30 days — but do not use it to train their models. One provider, **ElevenLabs**, retains data by default; its zero-retention mode is limited to enterprise plans and we're working toward enabling it. If retention is critical for your use case, choose a different cloud model or use local transcription in the meantime.
+
+So as a HyperWhisper Cloud user, you don't need to configure anything — your audio is excluded from model training across the stack, and retained nowhere except the limited cases noted above.
+
+## Your own API keys (BYOK)
+
+When you configure your own API key in **Settings → API Keys**, your audio is sent **directly from your device to that provider**, using their account, on their terms.
+
+<Warning>
+**You are usually responsible for your own opt-out** when using your own API keys. HyperWhisper cannot toggle dashboard-level settings on accounts we don't control. Each provider has its own default — some don't train on API data, some do unless you opt out.
+</Warning>
+
+### Deepgram BYOK — we opt out for you automatically
+
+For **Deepgram** specifically, HyperWhisper does the work for you on both macOS and Windows: every direct Deepgram request the app sends includes `mip_opt_out=true` in the query string. You don't need to change any setting on your Deepgram dashboard for this to take effect — it applies on a per-request basis. Verify it on a recent request in [console.deepgram.com](https://console.deepgram.com) under **Usage → Logs**: the request detail should show `mip_opt_out: true`.
+
+### Other providers — quick reference
+
+| Provider | Trains on API data by default? | How to opt out |
+|----------|-------------------------------|----------------|
+| Groq | No — inference data is not retained by default | Optional: enable Zero Data Retention in [console.groq.com](https://console.groq.com) → Data Controls. [Source](https://console.groq.com/docs/your-data) |
+| Anthropic (Claude) | No — commercial API inputs/outputs are not used for training | Nothing to do for default usage. [Source](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training) |
+| Cerebras | No — API content is not used to train or fine-tune models | Nothing to do. [Source](https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data) |
+| OpenAI | No (since March 2023) — API data is not used for training by default | Nothing to do; verify under [platform.openai.com](https://platform.openai.com) → **Settings → Data Controls** |
+| xAI Grok | No — API inputs and outputs are not used for training by default | Nothing to do for default usage; verify in the xAI data controls if your use case is sensitive |
+| Google Gemini | **Free tier (AI Studio): yes**, paid API: no | Use a paid API key, or change settings in [aistudio.google.com](https://aistudio.google.com) |
+| ElevenLabs | Retention is enabled by default; Zero Retention Mode is enterprise-only | Contact ElevenLabs sales if your use case requires it |
+| AssemblyAI | **Yes** — paid async transcripts are used for model improvement (PII-redacted) unless you opt out | Email `data-opt-out@assemblyai.com` to opt out (paid accounts; applies going forward). [Source](https://www.assemblyai.com/docs/deployment/account-management/data-retention) |
+| Mistral | No — paid API content isn't used for training by default (retained ~30 days for abuse monitoring) | Nothing to do for default usage |
+
+<Note>
+This table reflects publicly stated policies as of when this page was written. Providers can change their terms — for any provider whose policy is critical to your use case, verify directly using the prompt below.
+</Note>
+
+### Verifying any provider
+
+Provider data policies move around — pages get renamed, settings get redesigned. The most reliable check is to ask a current language model. Open ChatGPT, Claude, or any LLM with web access and paste:
+
+```text
+I use {PROVIDER}'s API. I want to make sure {PROVIDER} does NOT train
+their models on the audio, transcripts, or text I send through the API.
+
+Please:
+1. Find the official page that explains their data policy for API customers.
+2. Tell me the exact setting, header, query parameter, or form I need
+   to use to opt out of training.
+3. Link me directly to the page or dashboard setting.
+4. Tell me whether opt-out is on or off by default for new API accounts.
+
+Cite official sources only (the provider's own docs or trust center).
+```
+
+## If you've already used a key without opting out
+
+A few things you can do:
+
+1. **Opt out now** — most providers stop using future requests for training the moment you flip the setting, even if past requests were used.
+2. **Request deletion** — many providers honor data deletion requests for previously sent content. The same LLM prompt above can ask "how do I request deletion of past API data on `{PROVIDER}`?"
+3. **Rotate the key** — if you want a hard line in the sand, generate a new key on the provider's dashboard and replace the old one in **Settings → API Keys**.
+
+## Summary
+
+- **Local** = nothing leaves your device.
+- **HyperWhisper Cloud** = we don't store your audio, and we apply each provider's strongest no-train / no-retain control. Most providers retain nothing; a couple keep data briefly for abuse monitoring (no training), and ElevenLabs retains by default until we complete an enterprise zero-retention upgrade.
+- **Your own API key** = mostly your responsibility — except for Deepgram, which HyperWhisper auto-opts-out by adding `mip_opt_out=true` to every request the app sends.
+
+---
+
+**Related documentation:**
+- [API Keys Configuration](/api-keys)
+- [Network Filtering](/network-filtering)
+- [Choosing a Provider](/choosing-a-provider)

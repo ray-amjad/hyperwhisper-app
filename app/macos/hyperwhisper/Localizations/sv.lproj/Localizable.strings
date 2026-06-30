@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Ordförråd";
+"vocabulary.description" = "Det här hjälper programmet att känna igen namn, förkortningar, slang eller ord från andra språk när du blandas språk.";
+"vocabulary.input.title" = "Inmatning";
+"vocabulary.new.word.placeholder" = "Nytt ord eller fras";
+"vocabulary.replacement.placeholder" = "Ersätt med...";
+"vocabulary.add.button" = "Lägg till i ordförråd";
+"vocabulary.edit.title" = "Redigera ordförrådspost";
+"vocabulary.update.button" = "Uppdatera";
+"vocabulary.cancel.button" = "Avbryt";
+"vocabulary.word.column" = "Ord/Sats";
+"vocabulary.replacement.column" = "Ersättning";
+"vocabulary.empty.title" = "Inga ordförrådsord än";
+"vocabulary.empty.subtitle" = "Lägg till anpassade ord för att förbättra transkriptionsnoggrannheten";
+"vocabulary.duplicate.title" = "Dubblett";
+"vocabulary.duplicate.message" = "%@ finns redan i ditt ordförråd. Varje ord kan endast läggas till en gång.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Nyckelordsgräns överskriden";
+"vocabulary.limit.message" = "Du har %d ord, men endast de första %d kommer att användas för transkriptionsförstärkning.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streaming (Beta)";
+"streaming.description" = "Transkription i realtid när du talar. Text skrivs direkt in i det fokuserade programmet.";
+"streaming.enable.title" = "Aktivera streaming";
+"streaming.provider.picker.title" = "Leverantör";
+"streaming.model.title" = "Modell";
+"streaming.model.nova3general" = "Nova 3 Allmän";
+"streaming.model.nova3medical" = "Nova 3 Medicinsk";
+"streaming.fastFormatting.title" = "Snabb formatering";
+"streaming.fastFormatting.description" = "Minskar smart formateringsfördröjning för snabbare skrivning";
+"streaming.warning.vocabAutoDetect" = "Anpassat ordförråd är inaktiverat i läge för automatisk identifiering";
+"streaming.warning.vocabUnsupported" = "Anpassat ordförråd stöds inte med %@ streaming";
+"streaming.warning.apiKeyRequired" = "%@ API-nyckel krävs";
+"streaming.warning.apiKeyRequired.action" = "Konfigurera";
+"streaming.warning.apiKeyInvalid" = "%@ API-nyckel fungerar inte. Uppdatera den i Inställningar > API-nycklar.";
+"streaming.warning.apiKeyInvalid.action" = "Uppdatera nyckel";
+"streaming.language.title" = "Språk";
+"streaming.shortcut.title" = "Genväg";
+
+// MARK: - Home View
+"home.get.started" = "Kom igång";
+"home.open.system.settings" = "Öppna Systeminställningar";
+
+// MARK: - API Keys
+"api.key.required" = "API-nyckel krävs";
+"api.keys.required" = "API-nycklar krävs";
+"api.key.configure.message" = "Konfigurera dina API-nycklar för att aktivera transkription.";
+"api.key.internet.required" = "Internetanslutning krävs";
+"api.key.internet.message" = "Molntranskription kräver en internetanslutning.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Avbryt";
+"common.delete" = "Radera";
+"common.edit" = "Redigera";
+"common.done" = "Klar";
+"common.copy" = "Kopiera";
+"common.back" = "Tillbaka";
+"common.skip" = "Hoppa över";
+"common.settings" = "Inställningar";
+"common.error" = "Fel";
+"common.retry" = "Försök igen";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Hem";
+"sidebar.statistics" = "Statistik";
+"sidebar.modes" = "Lägen";
+"sidebar.vocabulary" = "Ordförråd";
+"sidebar.streaming" = "Streaming";
+"sidebar.history" = "Historik";
+"sidebar.settings" = "Inställningar";
+
+// MARK: - App Messages
+"app.unknown.error" = "Ett okänt fel uppstod";
+"app.microphone.permission.message" = "HyperWhisper behöver åtkomst till din mikrofon för att transkribera ljud.\n\nGå till Systeminställningar > Sekretess och säkerhet > Mikrofon och aktivera åtkomst för HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper sparar inspelningar i en mapp i dina Dokument för att de ska vara lätta att hitta: Dokument/hyperwhisper/inspelningar. macOS kan fråga om tillåtelse första gången vi försöker spara där. Om du hellre vill inte ge åtkomst kan vi spara inspelningar i en privat appmapp istället.";
+"app.upgrade.to.pro" = "Uppgradera till Pro";
+"app.enter.license.key" = "Ange licensnyckel";
+"accessibility.upgrade.pro" = "Uppgradera till HyperWhisper Pro";
+"accessibility.enter.license" = "Ange licensnyckel";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Lägg till dina %@ API-nycklar för att aktivera det valda läget.";
+"home.api.keys.missing.single" = "Lägg till din %@ API-nyckel för att aktivera det valda läget.";
+"home.getting.started.recording.title" = "Börja spela in";
+"home.getting.started.recording.description" = "Omvandla din röst till text med ett enkelt klick.";
+"home.getting.started.shortcuts.title" = "Anpassa dina genvägar";
+"home.getting.started.shortcuts.description" = "Ändra tangentbordsgenvägarna för HyperWhisper.";
+"home.getting.started.mode.title" = "Skapa ett läge";
+"home.getting.started.mode.description" = "Bygg det perfekta läget för ditt arbetsflöde.";
+"home.getting.started.vocabulary.title" = "Lägg till ordförråd";
+"home.getting.started.vocabulary.description" = "Lär HyperWhisper anpassade ord, namn eller branschtermer.";
+"home.add.api.key" = "Lägg till API-nyckel";
+"home.accessibility.enable.title" = "Aktivera tillgänglighet";
+"home.accessibility.enable.description" = "Tillåt HyperWhisper att automatiskt klistra in i appar du använder.";
+"home.accessibility.waiting" = "Väntar...";
+"home.accessibility.open.settings" = "Öppna inställningar";
+"home.accessibility.restart.after.permission" = "Starta om appen efter att ha gett tillåtelse";
+"home.getting.started.completed" = "✓ Slutförd";
+"home.whatsnew.badge" = "NY";
+"home.whatsnew.title" = "Vad är nytt?";
+"home.whatsnew.update1.date" = "3 juli";
+"home.whatsnew.update1.title" = "Parakeet är nu tillgänglig";
+"home.whatsnew.update1.description" = "Ladda ner den direkt från listan Språkmodeller vid lägeskapning för att prova den idag.";
+"home.whatsnew.update2.date" = "5 juni";
+"home.whatsnew.update2.title" = "Stöd för varje OpenAI-kompatibel anpassad modell";
+"home.whatsnew.update2.description" = "Du kan nu lägga till alla OpenAI-kompatibla API:er till din lista över modeller.";
+"home.whatsnew.update3.date" = "27 maj";
+"home.whatsnew.update3.title" = "Helt nytt mini-inspelningsfönster";
+"home.whatsnew.update3.description" = "Ett elegant, minimalt inspelningsgränssnitt som inte är i vägen.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Senaste uppdateringar";
+"home.recent.updates.error" = "Det gick inte att läsa in uppdateringar";
+"home.recent.updates.retry" = "Försök igen";
+"home.recent.updates.empty" = "Inga senaste uppdateringar tillgängliga";
+"home.recent.updates.version" = "Version %@";
+"home.recent.updates.new.badge" = "NY";
+"home.recent.updates.no.notes" = "Inga versionsinformation tillgängliga";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Retur";
+"keyboard.space" = "Mellanslag";
+"keyboard.option.space" = "⌥Mellanslag";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Mikrofonaccessdelas krävs";
+"common.open.settings" = "Öppna inställningar";
+"alerts.api.local.mode" = "Använd lokalt läge";
+"alerts.documents.permission.title" = "Spara till dokument?";
+"common.continue" = "Fortsätt";
+"alerts.documents.permission.use.another" = "Använd en annan plats";
+"alerts.api.configure.generic" = "Konfigurera dina API-nycklar i Inställningar.";
+"alerts.api.internet.offline" = "Molntranskription kräver en internetanslutning. Kontrollera dina nätverksinställningar eller välj ett lokalt transkriptionsläge.";
+"alerts.api.configure.header.multiple" = "För att använda det valda läget måste du konfigurera följande API-nycklar i Inställningar:";
+"alerts.api.configure.header.single" = "För att använda det valda läget måste du konfigurera följande API-nyckel i Inställningar:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Försök igen efter att du har lagt till de saknade nycklarna.";
+"alerts.export.failed.title" = "Export misslyckades";
+"alerts.export.logs.failed.message" = "Det gick inte att exportera uppdateringsloggar. Försök igen.";
+"alerts.export.logs.success.title" = "Loggar exporterade";
+"alerts.export.logs.success.message" = "Uppdateringsloggar har exporterats framgångsrikt.";
+"alerts.export.logs.saveFailed.message" = "Det gick inte att spara loggar till vald plats: %@";
+"alerts.export.diagnostics.failed.message" = "Det gick inte att exportera diagnostik. Försök igen.";
+"alerts.export.diagnostics.success.title" = "Diagnostik exporterad";
+"alerts.export.diagnostics.success.message" = "Alla diagnostikloggar har exporterats framgångsrikt.";
+"alerts.export.diagnostics.saveFailed.message" = "Det gick inte att spara diagnostik till vald plats: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Exportera uppdateringsloggar för support";
+"panels.export.diagnostics.message" = "Exportera alla diagnostikloggar";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Kom igång med HyperWhisper";
+"sidebar.statistics.help" = "Visa användningsstatistik och analys";
+"sidebar.modes.help" = "Hantera transkriptionslägen för olika sammanhang";
+"sidebar.vocabulary.help" = "Lägg till anpassade ord och fraser för bättre igenkänning";
+"sidebar.streaming.help" = "Inställningar för transkription i realtid (kräver Internet)";
+"sidebar.history.help" = "Visa och sök i din transkriptionshistorik";
+"sidebar.settings.help" = "Konfigurera appinställningar och inställningar";
+
+// MARK: - Recording State
+"recording.state.ready" = "Klar att spela in";
+"recording.state.recording" = "Spelar in...";
+"recording.state.processing" = "Bearbetar ljud...";
+"recording.state.transcribing" = "Transkriberar...";
+"recording.state.postprocessing" = "Efterbearbetar med AI...";
+"recording.state.complete" = "Transkription slutförd: %@";
+"recording.state.error" = "Fel: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Börja eller stoppa inspelning";
+"menu.recording.stop" = "Stoppa inspelning";
+"menu.recording.toggle" = "Börja/Stoppa inspelning";
+"menu.history" = "Historik...";
+"menu.settings" = "Inställningar...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Välj läge";
+"menu.transcribe.file" = "Transkribera fil";
+"menu.mode.unnamed" = "Namnlös";
+"menu.version.label" = "Version %@";
+"common.quit" = "Avsluta";
+"menu.microphone.default" = "Standard";
+"menu.microphone.system.default" = "Standard";
+"menu.bar.state.recording" = "Spelar in";
+"menu.bar.state.processing" = "Bearbetar";
+"menu.bar.state.idle" = "Inaktiv";
+"menu.command.check.updates" = "Sök efter uppdateringar...";
+"menu.debug.title" = "Felsökning";
+"menu.command.export.logs" = "Exportera uppdateringsloggar...";
+"menu.command.export.diagnostics" = "Exportera diagnostik...";
+"menu.command.help.website" = "Hjälpwebbplats";
+"menu.command.contact.support" = "Kontakta support";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Allmänt";
+"settings.section.sound" = "Ljud";
+"settings.section.license" = "Licens";
+"settings.section.credits" = "Tillskrivningar";
+"settings.section.storage" = "Lagring";
+"settings.section.models" = "Modeller";
+"settings.section.api.keys" = "API-nycklar";
+"settings.section.shortcuts" = "Tangentbordgenvägar";
+"settings.section.output" = "Textutmatning";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (engelska)";
+"onboarding.model.pro.multilingual" = "Pro (flerspråkig)";
+"onboarding.model.downloading.progress" = "Laddar ner... %d%%";
+"onboarding.accessibility.title" = "Aktivera tillgänglighet för automatisk inklistring";
+"onboarding.accessibility.subtitle" = "Tillåt HyperWhisper att automatiskt klistra in transkriberad text i dina applikationer.";
+"onboarding.accessibility.instructions" = "Systeminställningar → Sekretess och säkerhet → Tillgänglighet";
+"onboarding.accessibility.status.granted" = "Tillgänglighetstillåtelse beviljas";
+"onboarding.accessibility.status.pending" = "Tillgänglighetstillåtelse inte än beviljas";
+"onboarding.accessibility.waiting" = "Väntar på tillåtelse...";
+"onboarding.accessibility.open.preferences" = "Öppna tillgänglighetsinställningar";
+"onboarding.accessibility.restart" = "Starta om HyperWhisper efter att ha gett tillåtelse.";
+"onboarding.model.recommendation.title" = "Vi rekommenderar Pro-modellen";
+"onboarding.model.recommendation.subtitle" = "Baserat på ditt systemspråk och din Macs kapacitet.";
+"onboarding.model.recommendation.note" = "Ladda ner genom att klicka på knappen nedan.";
+"onboarding.model.downloaded" = "Nedladdad";
+"onboarding.model.metric.speed" = "Hastighet";
+"onboarding.model.metric.accuracy" = "Noggrannhet";
+"onboarding.model.metric.size" = "Storlek";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Eller välj en annan röstmodell";
+"onboarding.model.picker.title" = "Modell";
+"onboarding.model.option.proEnglish" = "Pro (engelska)";
+"onboarding.model.option.tiny" = "Liten";
+"onboarding.model.option.base" = "Bas";
+"onboarding.model.option.small" = "Liten";
+"onboarding.model.option.medium" = "Medel";
+"onboarding.model.option.large" = "Stor";
+"onboarding.model.download.button" = "Ladda ner modell";
+"onboarding.audio.title" = "Vilken inspelningsenhet vill du använda?";
+"onboarding.audio.subtitle" = "Se till att din audioinmatningsvolym är påslagen och registrerar volym.";
+"onboarding.audio.input.label" = "Ingångsenhet";
+"onboarding.audio.picker.label" = "Enhet";
+"onboarding.audio.use.system.default" = "Använd systemets standardenhet";
+"onboarding.audio.level" = "Audionivå";
+"onboarding.audio.open.sound" = "Öppna ljudinställningar";
+"onboarding.microphone.title" = "Inspelningstillåtelse krävs";
+"onboarding.microphone.subtitle" = "För att spela in ljud behöver vi åtkomst till din mikrofon.";
+"onboarding.microphone.status.granted" = "Mikrofonåtkomst beviljad";
+"onboarding.microphone.status.pending" = "Mikrofonåtkomst inte än beviljad";
+"onboarding.microphone.grant" = "Bevilja tillåtelse";
+"onboarding.test.title" = "Allt är klart, låt oss börja din första inspelning";
+"onboarding.test.press.prefix" = "Tryck";
+"onboarding.test.press.suffix" = "för att börja";
+"onboarding.test.status.recording" = "Spelar in...";
+"onboarding.test.status.speak" = "Tala nu...";
+"onboarding.test.stop" = "Stoppa inspelning";
+"onboarding.test.success.title" = "Bra! Din inspelning var framgångsrik.";
+"onboarding.test.success.subtitle" = "Din transkription visas i appen.";
+"onboarding.test.start.cta" = "Klicka för att börja inspelning";
+"onboarding.test.start.shortcut" = "Eller tryck på din tangentbordgenväg";
+"onboarding.settings.title" = "Bra gjort! Låt oss nu öppna inställningar";
+"onboarding.settings.subtitle" = "Högerklicka på HyperWhisper-ikonen och välj Inställningar...";
+"onboarding.settings.menu.startStop" = "Börja/Stoppa inspelning";
+"onboarding.settings.menu.history" = "Historik...";
+"onboarding.settings.menu.settings" = "Inställningar...";
+"onboarding.settings.menu.quit" = "Avsluta";
+"onboarding.settings.info" = "I Inställningar kan du anpassa genvägar, hantera API-nycklar och konfigurera HyperWhisper efter dina önskemål.";
+"onboarding.completion.title" = "Du är klar!";
+"onboarding.completion.subtitle" = "Om du stöter på problem eller har frågor kan du kontakta oss via e-post eller Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-post";
+"onboarding.completion.resources.title" = "Ytterligare resurser";
+"onboarding.completion.resources.documentation" = "Dokumentation";
+"onboarding.completion.resources.videos" = "Videohandledningar";
+"onboarding.completion.resources.blog" = "Blogg";
+"onboarding.done.button" = "Slutför introduktion";
+"onboarding.error.model.notFound" = "Modellen hittades inte i katalogen.";
+"onboarding.error.microphone.denied" = "Mikrofonåtkomst nekad. Bevilja tillåtelse i Systeminställningar.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Starta vid inloggning";
+"settings.general.launchAtLogin.info" = "Starta HyperWhisper automatiskt när du loggar in.";
+"settings.general.launchMinimized.title" = "Starta minimerad";
+"settings.general.launchMinimized.info" = "Starta HyperWhisper med huvudfönstret gömt. Appen är tillgänglig via menyraden.";
+"settings.general.showInDock.title" = "Visa i Dock";
+"settings.general.showInDock.info" = "Visa appikonen i Dock.";
+"settings.general.showRecordingWindow.title" = "Visa inspelningsfönster";
+"settings.general.showRecordingWindow.info" = "Visa det flytande vågformsfönstret under inspelning och bearbetning.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Av";
+"settings.general.mediaControl.mode.mute" = "Stäng av ljud";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Felöversikt";
+"settings.general.errorLogging.info" = "Samla automatiskt in och skicka felrapporter för att hjälpa till att förbättra appen.";
+"settings.general.autoUpdate.title" = "Automatisk uppdatering";
+"settings.general.autoUpdate.info" = "Sök automatiskt efter och ladda ner nya versioner av HyperWhisper.";
+"settings.general.support.title" = "Behöver du hjälp?";
+"settings.version.detail" = "Version %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Spela upp ljudeffekter";
+"settings.sound.soundEffects.info" = "Spela upp ljudsignaler när inspelningen startar och stoppar.";
+"settings.sound.mediaControl.title" = "Mediakontroll vid inspelning";
+"settings.sound.mediaControl.info" = "Välj hur HyperWhisper hanterar annan ljud under inspelning. 'Av' lämnar ljud oförändrat, 'Stäng av ljud' tystnar systemutgång under inspelning och återställer den efteråt.";
+"settings.sound.autoIncreaseMicVolume.title" = "Öka automatiskt mikrofonvolym";
+"settings.sound.autoIncreaseMicVolume.info" = "Ställer automatiskt in mikrofoningångsvolymen på max när inspelningen startar, sedan återställs den ursprungliga nivån när inspelningen stoppas. Gäller endast när systemets standardingångsenhet används.";
+"settings.sound.vad.title" = "Ta bort tystnad innan transkription";
+"settings.sound.vad.info" = "Upptäcker och tar bort automatiskt ledande och avslutande tystnad med AI-röstidentifiering. Detta kan förbättra transkriptionsnoggrannheten och minska bearbetningstiden.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Inspelningsmapp";
+"settings.storage.showFolder.title" = "Visa inspelningsmapp";
+"settings.storage.showFolder.button" = "Visa i Finder";
+"settings.storage.notice" = "Om du ändrar inspelningsmappen påverkas endast nya inspelningar. Befintliga inspelningar förblir på sin ursprungliga plats.";
+"settings.storage.choose.button" = "Välj...";
+"settings.storage.dialog.select" = "Välj mapp";
+"settings.storage.dialog.message" = "Välj en mapp för att lagra inspelningar";
+"settings.storage.storeAsM4A.title" = "Komprimera inspelningar till M4A";
+"settings.storage.storeAsM4A.subtitle" = "Konverterar WAV-inspelningar till mindre filer efter transkription. Stäng av för att behålla ursprungliga WAV-filer (större men förlustfri).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Klistra in resultat automatiskt";
+"settings.output.paste.subtitle" = "Klistra in transkriberad text automatiskt till den aktiva applikationen";
+"settings.output.paste.info" = "Om aktiverat klistras texten in i den främsta appen.";
+"settings.output.restoreClipboard.title" = "Återställ urklipp efter inklistring";
+"settings.output.restoreClipboard.subtitle" = "Återställ tidigare urklippsinnehål efter inklistring";
+"settings.output.restoreClipboard.info" = "Återställer ditt tidigare urklippsinnehål efter att appen klistrar in transkriptionen.";
+"settings.output.restore.after" = "Återställ efter";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Urklippets återställningsfördröjning";
+"settings.output.hideClipboardHistory.title" = "Dölj från urklippets historik";
+"settings.output.hideClipboardHistory.subtitle" = "Förhindra att transkriptioner visas i urklippshistoriken";
+"settings.output.hideClipboardHistory.info" = "Om aktiverad sparas transkriberad text inte av urklippshanterare som Paste, Maccy eller Alfred.";
+"settings.output.clipboard.header" = "Urklipp";
+"settings.output.removeFillers.title" = "Ta bort utfyllnadsord";
+"settings.output.removeFillers.subtitle" = "Tar bort 'uh', 'um' och 'er' från råa transkriptioner.";
+"settings.output.removeFillers.info" = "När det här är aktiverat tar HyperWhisper bort vanliga utfyllnadsord från råa transkriptioner före utdata.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Växla inspelning";
+"settings.shortcuts.toggleRecording.subtitle" = "Startar och stoppar inspelningar";
+"settings.shortcuts.cancelRecording.title" = "Avbryt inspelning";
+"settings.shortcuts.cancelRecording.subtitle" = "Kastar den aktiva inspelningen";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Håll in en tangent för att spela in, släpp när det är klart";
+"settings.shortcuts.pushToTalk.enable.info" = "Aktiverar Push to Talk-läge för snabb inspelning med ett enkelt tangenttryck.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Inspelningsläge";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Välj vilken tangent som ska användas";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Inaktiverad";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN-tangent";
+"settings.shortcuts.pushToTalk.mode.control" = "Ctrl-tangent";
+"settings.shortcuts.pushToTalk.mode.custom" = "Anpassad genväg";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Dubbelklicka för att låsa inspelning";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Tryck två gånger snabbt för att fortsätta spela in utan att hålla";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Anpassad genväg";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Tryck på tangentkombitionen som du vill använda";
+
+
+"settings.shortcuts.changeMode.title" = "Ändra läge";
+"settings.shortcuts.changeMode.subtitle" = "Fungerar endast vid inspelning";
+
+"settings.shortcuts.reset.button" = "Återställ till standard";
+"settings.shortcuts.reset.dialog.title" = "Återställ tangentbordgenvägar";
+"settings.shortcuts.reset.confirm" = "Återställ";
+"settings.shortcuts.reset.dialog.message" = "Detta återställer alla tangentbordgenvägar till sina standardvärden.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API-nycklar lagras säkert på din enhet och skickas endast till leverantören när det behövs.";
+"settings.api.help.link" = "Hjälp med API-nycklar";
+"settings.api.transcription.title" = "Transkription";
+"settings.api.transcription.subtitle" = "API-nycklar för molnbaserade tal-till-textjänster.";
+"settings.api.postProcessing.title" = "Efterbearbetning";
+"settings.api.postProcessing.subtitle" = "API-nycklar för AI-driven textförbättring och formatering.";
+"settings.api.placeholder" = "Ange din %@ API-nyckel";
+"settings.api.openLink" = "Öppna %@ API-nyckelsida";
+"settings.api.status.accessibility" = "%@ status: %@";
+"settings.api.status.unknown" = "Leverantörsstatus okänd";
+"settings.api.status.checking" = "Hälsokontroll pågår";
+"settings.api.status.unauthorized" = "API-nyckel avvisad av leverantör";
+"settings.api.status.unreachable" = "Leverantören är för närvarande inte tillgänglig";
+"settings.api.status.notInstalled" = "Leverantörs-SDK inte installerad";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Okänd";
+"provider.status.checking" = "Kontrollerar...";
+"provider.status.healthy" = "Klar";
+"provider.status.unauthorized" = "Ogiltig nyckel";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Inte installerad";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licens aktiverad";
+"alerts.license.deactivated.title" = "Licens inaktiverad";
+"alerts.license.activated.message" = "Din licens har aktiverats framgångsrikt. Njut av obegränsad åtkomst till alla funktioner!";
+"alerts.license.deactivated.message" = "Din licens har inaktiverats på denna enhet. Du kan nu aktivera den någon annanstans.";
+"alerts.license.failed.title" = "Åtgärden misslyckades";
+"alerts.license.failed.message" = "Åtgärden misslyckades. Försök igen.";
+"license.button.deactivate" = "Inaktivera enhet";
+"license.button.deactivating" = "Inaktiverar...";
+"license.button.manageBilling" = "Hantera fakturering";
+"license.button.activate" = "Aktivera";
+"license.button.activating" = "Aktiverar...";
+"license.status.label" = "Status: %@";
+"license.status.trial.title" = "Testversion";
+"license.status.active.title" = "Aktiv";
+"license.status.expired.title" = "Utgånget";
+"license.status.invalid.title" = "Ogiltig";
+"license.status.trial.description" = "Gratis testversion (5 min/dag, %d modeller)";
+"license.status.active.description" = "Licensierad – fullständig åtkomst";
+"license.status.expired.description" = "Licens utgånget";
+"license.status.invalid.description" = "Ogiltig licens";
+"settings.license.key.title" = "Licensnyckel";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Klistra in från urklipp";
+"settings.license.clearInput" = "Rensa";
+"settings.license.recovery.prompt" = "Glömt din licensnyckel?";
+"settings.license.recovery.button" = "Gå till kundportal";
+"settings.license.daily.title" = "Daglig transkription";
+"settings.license.daily.usage" = "%@ av %@ använd";
+"settings.license.limitReached" = "Gräns uppnådd";
+"settings.license.models.title" = "Offline-modeller";
+"settings.license.models.progress" = "%d av %d modeller nedladdad";
+"settings.license.models.progress.one" = "%d av %d modell nedladdad";
+"settings.license.upgrade.text" = "Uppgradera för obegränsad transkription och modellnedladdningar";
+"settings.license.upgrade.button" = "Uppgradera";
+"license.error.invalidResponse" = "Ogiltigt svarsformat";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud-krediter";
+"settings.credits.refresh" = "Uppdatera";
+"settings.credits.subtitle" = "Övervaka dina transkriptionskrediter och användning";
+"settings.credits.manage" = "Hantera krediter";
+"settings.credits.timeRemaining" = "Transkriptionstid återstår";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minuter";
+"settings.credits.creditsRemaining" = "%@ krediter återstår";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Gratis daglig gräns (100 krediter)";
+"settings.credits.resets" = "Återställs %@";
+"settings.credits.warning.low" = "Krediterna börjar ta slut. Överväg att köpa en licens för ytterligare krediter.";
+"settings.credits.warning.exhausted.daily" = "Daglig gräns uttömd. Köp en licens för obegränsad användning eller vänta på återställning.";
+"settings.credits.warning.exhausted" = "Krediter slut. Köp fler krediter för att fortsätta använda HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Kontoinformation";
+"settings.credits.stat.creditsRemaining" = "Krediter återstår";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minuter återstår";
+"settings.credits.stat.accountType" = "Kontotyp";
+"settings.credits.accountType.licensed" = "Licensierad";
+"settings.credits.accountType.anonymous" = "Anonym";
+"settings.credits.accountType.trial" = "Testversion";
+"settings.credits.stat.customerId" = "Kund-ID";
+"settings.credits.stat.dailyLimit" = "Daglig gräns";
+"settings.credits.dailyLimit.value" = "100 krediter";
+"settings.credits.loading" = "Läser in kreditsaldo...";
+"settings.credits.error.title" = "Det gick inte att läsa in kreditsaldo";
+"settings.credits.error.retry" = "Försök igen";
+"settings.credits.empty.title" = "Ingen kreditutiformation tillgänglig";
+"settings.credits.empty.subtitle" = "Klicka på uppdatera för att läsa in ditt kreditsaldo";
+"settings.credits.empty.button" = "Ladda krediter";
+"settings.credits.error.insufficient" = "Otillräckliga krediter. Du har %d krediter återstår.";
+"settings.credits.error.network" = "Nätverksfel: %@";
+"settings.credits.error.invalidResponse" = "Ogiltigt svar från servern. Försök igen.";
+"settings.credits.error.server" = "Serverfel: %@";
+"settings.models.alert.limit.title" = "Modellnedladdningsgräns nådd";
+"settings.models.alert.limit.message" = "Testversioner inkluderar %d modellnedladdningar. Uppgradera din licens för obegränsade nedladdningar.";
+"settings.models.alert.cannotDelete.title" = "Det gick inte att ta bort modellen";
+"settings.models.parakeet.title" = "Parakeet-modeller";
+"settings.models.parakeet.subtitle" = "Rekommenderas för de flesta användare. Flerspråkig modell stöder 25 språk.";
+"settings.models.parakeet.empty" = "Inga Parakeet-modeller tillgängliga.";
+"settings.models.whisper.title" = "Whisper-modeller";
+"settings.models.whisper.subtitle" = "OpenAI Whisper-modeller. Större modeller är mer exakta. Stöder 100+ språk.";
+"settings.models.whisper.empty" = "Inga Whisper-modeller tillgängliga.";
+"settings.models.help.cancelDownload" = "Avbryt nedladdning";
+"settings.models.help.remove" = "Ta bort modell";
+"settings.models.downloaded" = "Nedladdad";
+"settings.models.download" = "Ladda ner";
+"settings.models.downloading" = "Laddar ner...";
+"settings.models.localPostProcessing.title" = "Lokala efterbearbetningsmodeller";
+"settings.models.localPostProcessing.memoryWarning" = "Rekommenderas för Mac med 24 GB unified memory eller mer. Hastigheten beror på ditt chip — snabbare på M3/M4 Pro och högre.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Ord i år";
+"vocabulary.input.placeholder" = "Lägg till ett ord eller skapa ett utdrag";
+"vocabulary.action.addWord" = "Lägg till ord";
+"vocabulary.action.replaceWith" = "Ersätt med…";
+"vocabulary.action.replace" = "Ersätt";
+"vocabulary.replacement.field.placeholder" = "Ersättningstext…";
+"settings.output.autocapitalizeInsert.title" = "Automatisk stor bokstav vid infogning";
+"settings.output.autocapitalizeInsert.subtitle" = "Matcha markörkontext vid infogning av text";
+"settings.output.autocapitalizeInsert.info" = "Om aktiverat justeras det första ordet i den infogade transkriberingstexten för att matcha markörkontext (meningens start eller mitt). Stäng av för alltid-gemener-diktering.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper behöver Hjälpmedelsbehörighet för att läsa markörkontext som krävs för automatiska versaler.\n\nKlicka på \"Öppna inställningar\", tryck på växeln bredvid HyperWhisper och försök igen.";
+"settings.output.removeFillerWords.title" = "Ta bort fyllnadsord";
+"settings.output.removeFillerWords.subtitle" = "Ta bort \"eh\", \"um\" och \"er\" från råa transkriptioner när AI-efterbearbetning är av";
+"settings.output.removeFillerWords.info" = "Gäller bara när ett läge hoppar över AI-efterbearbetning. AI-förbättrade lägen hanterar talerensning i prompten.";
+"sidebar.modelLibrary" = "Modellbibliotek";
+"sidebar.modelLibrary.help" = "Bläddra bland alla röst- och efterbearbetningsmodeller på ett ställe";
+"settings.shortcuts.quickCapture.enable.title" = "Snabbinspelning";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Spela in och skicka transkription till Anteckningar — utan att behöva fokusera appen först.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Genväg";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Tryck var som helst för att spela in och skicka till Anteckningar.";
+"settings.shortcuts.quickCapture.mode.title" = "Läge";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Transkriptionsläget som används — styr modell, prompt och efterbehandling.";
+"settings.shortcuts.quickCapture.mode.current" = "Aktuellt läge";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper behöver tillåtelse att styra Anteckningar. Bevilja det i Systeminställningar → Integritet → Automatisering.";
+"settings.section.vocabulary" = "Ordlista";
+"settings.vocabulary.icloudSync.title" = "iCloud-synkronisering";
+"settings.vocabulary.icloudSync.subtitle" = "Synkronisera din anpassade ordlista på alla Macs som är inloggade på samma iCloud-konto.";
+"settings.vocabulary.icloudSync.info" = "Avstängt som standard. Endast din anpassade ordlista synkroniseras — transkript och inspelningar stannar på den här Macen. Ändringar träder i kraft nästa gång du öppnar HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Stäng HyperWhisper för att tillämpa ändringar";
+"vocabulary.icloudSync.restart.message" = "Ändringar i iCloud-ordlistesynkronisering träder i kraft nästa gång du öppnar HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Stäng HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Senare";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Håll mikrofon varm mellan inspelningar";
+"settings.sound.keepWarmMicrophone.info" = "Minskar push-to-talk-startfördröjningen genom att hålla mikrofonsessionen öppen medan HyperWhisper är inaktiv. macOS visar den orangea mikrofonindikatorn kontinuerligt, och Bluetooth-headset kan stanna kvar i samtalsmodus med lägre kvalitet medan detta är aktiverat.";
+"settings.models.local.inUse" = "Denna lokala modell används för närvarande för efterbehandling av:
+
+%@
+
+Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
+"models.postProcessing.gemma4.e2b.description" = "Snabb och exakt. Utmärkt allroundval för efterbehandling.";
+"models.postProcessing.gemma4.e4b.description" = "Högre kvalitet med mer detalj. Bra för längre texter.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Snabb inferens med bara 4B aktiva parametrar.";
+"models.postProcessing.gemma4.31b.description" = "31B tät modell. Högsta kvalitet, kräver 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Denna modell kan inte tas bort eftersom den används av:\n\n%@\n\nUppdatera dessa lägen för att använda en annan modell innan du tar bort.";
+"settings.models.parakeet.inUse" = "Denna Parakeet-modell kan inte tas bort eftersom den används av:\n\n%@\n\nUppdatera dessa lägen för att använda en annan modell innan du tar bort.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Okänd";
+"settings.models.directory.whisper" = "Whisper-modellmapp";
+"settings.models.directory.parakeet" = "Parakeet-modellmapp";
+"settings.models.directory.local" = "Mapp för lokala modeller";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — flerspråkig taligenkänning optimerad för CoreML.";
+"settings.models.qwen3asr.languages" = "30 språk";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Den här Qwen3 ASR-modellen kan inte tas bort eftersom den används av:\n\n%@\n\nUppdatera dessa lägen för att använda en annan modell innan du tar bort.";
+"settings.models.directory.show" = "Visa i Finder";
+"models.error.checksumFailed" = "Modellkontrollsummaverifiering misslyckades. Nedladdningen kan vara skadad.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistik";
+"statistics.header.title" = "Din användningsstatistik";
+"statistics.header.subtitle" = "Spåra din transkriptionsaktivitet och prestanda";
+"statistics.card.recordings" = "Totala inspelningar";
+"statistics.card.recordings.subtitle" = "Slutförda transkriptioner";
+"statistics.card.duration" = "Total tid";
+"statistics.card.duration.subtitle" = "Tid använd för inspelning";
+"statistics.card.words" = "Totala ord";
+"statistics.card.words.subtitle" = "Ord transkriberade";
+"statistics.card.average" = "Genomsnittlig varaktighet";
+"statistics.card.average.subtitle" = "Per inspelning";
+"statistics.graph.title" = "Aktivitet över tid";
+"statistics.daily.empty" = "Inga inspelningar än";
+"statistics.filter.week" = "Denna vecka";
+"statistics.filter.month" = "Denna månad";
+"statistics.filter.alltime" = "All tid";
+
+// MARK: - History View
+"history.title" = "Historik";
+"history.search.placeholder" = "Sök";
+"history.filter.all" = "Alla";
+"history.filter.today" = "Idag";
+"history.filter.week" = "Denna vecka";
+"history.filter.month" = "Denna månad";
+"history.empty.title" = "Inga inspelningar hittade";
+"history.empty.subtitle" = "Försök justera din sökning";
+"history.detail.empty" = "Välj en inspelning för att visa detaljer";
+"history.multi.selected" = "%d inspelningar valda";
+"history.multi.delete" = "Radera valda";
+"history.context.deleteSelected" = "Radera %d inspelningar";
+"history.context.retry" = "Försök igen med transkription";
+"history.context.retryWith" = "Försök igen med...";
+"history.context.copy" = "Kopiera text";
+"history.retrying" = "Försöker igen transkription...";
+"history.retry.help" = "Försök igen med transkriptionen";
+"history.section.today" = "Idag";
+"history.section.yesterday" = "Igår";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Misslyckades";
+"history.status.transcription.failed.prefix" = "Transkription misslyckades:";
+"history.status.retry.failed.prefix" = "Försök igen misslyckades:";
+"history.failure.reason" = "Anledning: %@";
+"history.mode.default" = "Standard";
+"history.audio.showInFinder" = "Visa i Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Radera läge?";
+"modes.delete.confirm.message" = "Detta kommer att ta bort det valda läget. Denna åtgärd kan inte ångras.";
+"modes.header.title" = "Lägen";
+"modes.header.subtitle" = "Skapa anpassade profiler för olika sammanhang och arbetsflöden";
+"modes.header.create" = "Skapa läge";
+"modes.name.unnamed" = "Namnlös";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Välj";
+"modes.help.edit" = "Redigera lägeinställningar";
+"modes.help.preset" = "Lär dig mer om denna förinställning";
+"modes.help.model" = "Lär dig mer om denna modell";
+"modes.preset.title" = "Förinställning";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Meddelande";
+"modes.preset.mail.name" = "E-post";
+"modes.preset.note.name" = "Anteckning";
+"modes.preset.meeting.name" = "Möte";
+"modes.preset.code.name" = "Kod";
+"modes.preset.custom.name" = "Anpassad";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Meddelandeläge rensar upp ditt dikterade meddelande, fixar skiljetecken, gör till stycken och sorterar grammatiska fel.";
+"modes.preset.mail.tooltip" = "E-postläge formaterar din diktation till en professionell e-poststruktur, med lämpliga hälsningar, styckning och avslutning.";
+"modes.preset.note.tooltip" = "Anteckningsläge organiserar ditt dikterade innehål i ett tydligt anteckningsformat med rubriker, punktlistor och strukturerade avsnitt.";
+"modes.preset.meeting.tooltip" = "Mötesläge strukturerar din diktation till mötesprotokollformat med närvarande, åtgärdspunkter och viktiga diskussionspunkter.";
+"modes.preset.code.tooltip" = "Kodläge konverterar talad programmeringsdiktation till kodsyntax. Säg 'öppen hakparentes', 'backslash', 'kamelnotation' och mer för att skriva kod med röst.";
+"modes.preset.custom.tooltip" = "Anpassat läge tillåter dig att definiera dina egna formateringsregler och uppmaningar för specifika användningsfall.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Definiera de fullständiga formateringsinstruktionerna för denna förinställning.";
+"modes.notice.vocabularyUnsupported" = "Anpassat ordförråd stöds inte av denna leverantör för denna modell. Det kommer att ignoreras.";
+"modes.notice.deepgramNova3AutoDetect" = "Anpassat ordförråd är inte tillgängligt när du använder Deepgram Nova-3 med läge för automatisk språkidentifiering. För att aktivera ordförrådsförstärkning ställer du in ett specifikt språk (t.ex. engelska, spanska).";
+"modes.language.title" = "Språk";
+"modes.language.englishOnly" = "Endast engelska (optimerad modell)";
+"modes.postProcessing.sectionTitle" = "Efterbearbetning";
+"modes.postProcessing.modeLabel" = "Läge";
+"modes.postProcessing.modeTitle" = "Efterbearbetning";
+"modes.postProcessing.modeDescription" = "Välj hur transkriptioner behandlas:\n\n• Av: Ingen efterbearbetning, råtranskription\n• Molnet (AI): AI-driven förbättring (kräver internet)\n• Lokalt: Använder en enhetens LLM såsom Gemma via llama.cpp\n\nMolnbearbetning skickar text till din valda AI-leverantör. Lokalt läge förblir på din maskin men behöver den lokala servern igång.";
+"modes.postProcessing.providerLabel" = "Leverantör";
+"modes.postProcessing.apiKeyMissing" = "%@ API-nyckel inte konfigurerad. Lägg till den i inställningar för att aktivera efterbearbetning.";
+"modes.postProcessing.configure" = "Konfigurera i inställningar";
+"modes.postProcessing.modelRecommendation" = "Vi rekommenderar att du använder GPT-4.1 Nano för bästa balans mellan hastighet och kvalitet.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Lokal efterbehandling kräver en nedladdad lokal modell.";
+"modes.postProcessing.download" = "Ladda ner i inställningar";
+"modes.postProcessing.localInfo" = "Körs helt på enheten. HyperWhisper startar den paketerade llama.cpp-servern automatiskt när detta läge är aktivt.";
+"modes.postProcessing.userSystemPrompt.title" = "Fasta instruktioner";
+"modes.postProcessing.userSystemPrompt.placeholder" = "t.ex. Avsluta alltid e-post med 'Hälsningar, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Rensa";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Fasta instruktioner";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Lägg till instruktioner som alltid gäller ovanpå den valda förinställningen.";
+"modes.toggle.punctuation.title" = "Lägg till skiljetecken";
+"modes.toggle.punctuation.subtitle" = "Lägg automatiskt till punkter och kommatecken";
+"modes.toggle.capitalization.title" = "Använd stora bokstäver för meningar";
+"modes.toggle.capitalization.subtitle" = "Stor bokstav för första bokstaven i meningar";
+"modes.toggle.profanity.title" = "Filtrera svordomar";
+"modes.toggle.profanity.subtitle" = "Ersätt olämpliga ord";
+"modes.toggle.removeTrailingPeriod.title" = "Ta bort avslutande punkt";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Tar bort sista punkten från transkriptioner";
+"modes.postProcessing.privacyNotice" = "Din transkription skickas ENDAST till %@ för efterbearbetning. Aldrig någonstans annars.";
+"modes.postProcessing.localModel" = "Modell";
+"modes.postProcessing.languageModel" = "Språkmodell";
+"modes.englishSpelling.title" = "Engelsk stavning";
+"modes.englishSpelling.american" = "Amerikansk";
+"modes.englishSpelling.british" = "Brittisk";
+"modes.englishSpelling.australian" = "Australisk";
+"modes.englishSpelling.canadian" = "Kanadensisk";
+"modes.englishSpelling.american.description" = "Använd amerikansk engelsk stavning (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Använd brittisk engelsk stavning (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Använd australisk engelsk stavning (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Använd kanadensisk engelsk stavning (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Anpassade instruktioner";
+"modes.gemini.customPrompt.helper" = "Valfritt. T.ex. \"Formatera som punktlista\", \"Använd formellt språk\". Dina språk- och ordförrådsinställningar inkluderas automatiskt.";
+"modes.cloud.apiKeyMissing" = "%@ API-nyckel inte konfigurerad. Lägg till den i inställningar för att använda molntranskription.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Noggrannhet";
+"modes.cloudAccuracy.groqWhisper.label" = "Medel (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Medel (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Hög (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Snabb och prisvärd. Bäst för snabba transkriptioner.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Balanserad hastighet och noggrannhet. Rekommenderas för de flesta användare.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
+"modes.cloudAccuracy.grokStt.label" = "Högsta (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
+
+"modes.create.title" = "Skapa nytt läge";
+"modes.create.subtitle" = "Konfigurera en anpassad transkriptionsprofil";
+"modes.section.basic" = "Grundläggande inställningar";
+"modes.section.transcription" = "Transkriptionsmodell";
+"modes.section.punctuation" = "Skiljetecken";
+"modes.toggle.screenText.title" = "Skärmtext";
+"modes.toggle.screenText.subtitle" = "Fånga synlig skärmtext för att förbättra noggrannheten för namn och termer. Kräver skärmspelningsbehörighet.";
+"modes.screenText.openSettings" = "Öppna Systeminställningar";
+"modes.screenText.permissionGranted" = "Skärmspelningsbehörighet beviljad";
+"modes.screenText.permissionRequired" = "Skärmspelningsbehörighet krävs";
+"modes.field.name" = "Namn";
+"modes.field.name.placeholder" = "T.ex. mötesanteckningar";
+"modes.field.name.editPlaceholder" = "Lägesnamn";
+"modes.field.model" = "Modell";
+"modes.field.provider" = "Leverantör";
+"modes.provider.local" = "Lokal";
+"modes.provider.cloud" = "Moln";
+"modes.notice.noLocalModels.title" = "Inga lokala modeller installerade";
+"modes.notice.noLocalModels.subtitle" = "Installera en modell i inställningar först";
+"modes.model.pricing" = "Prissättning: $%.6f / minut (faktureras per sekund)";
+"modes.button.create" = "Skapa läge";
+"modes.button.delete" = "Radera läge";
+"modes.button.save" = "Spara ändringar";
+"modes.edit.title" = "Redigera läge";
+"modes.edit.subtitle" = "Ändra inställningar för transkriptionsprofil";
+"mode.editor.cloudModel.previewHint" = "Förhandsvisning";
+"mode.editor.cloudModel.noVocabularyHint" = "Inget anpassat ordförråd";
+"mode.editor.cloudDomain.medical" = "Medicinsk";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode-tillägg";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Kan inte försöka igen: Ljudfilen hittades inte";
+"transcripts.error.invalidId" = "Ogiltigt transkript-ID";
+"transcripts.delete.single.title" = "Radera inspelning?";
+"transcripts.delete.single.message" = "Detta tar permanent bort denna inspelning och dess ljudfil.";
+"transcripts.delete.multiple.title" = "Radera %d inspelningar?";
+"transcripts.delete.multiple.message" = "Detta tar permanent bort %d inspelningar och deras ljudfiler.\n\nDenna åtgärd kan inte ångras.";
+"transcripts.delete.multiple.confirm" = "Radera alla";
+"transcripts.retry.error.title" = "Försök igen misslyckades";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Välj inspelningsmapp";
+"storage.folder.choose.message" = "Välj en mapp för att spara nya inspelningar.";
+"storage.folder.choose.prompt" = "Välj";
+"storage.recovery.title" = "Kan inte komma åt inspelningsmappen";
+"storage.recovery.message" = "HyperWhisper kunde inte komma åt den konfigurerade inspelningsmappen. Du kan välja en annan mapp för att fortsätta.";
+"storage.recovery.choose" = "Välj mapp...";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Läs mer";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkription slutförd";
+"recording.status.retrying" = "Försöker igen transkription...";
+"recording.status.postprocessing" = "Efterbearbetar med AI...";
+"recording.status.transcribing" = "Transkriberar...";
+"recording.success.pasted" = "Inklistrad!";
+"recording.loading.retrying" = "Försöker igen...";
+"recording.loading.postprocessing" = "Bearbetar med AI...";
+"recording.loading.starting" = "Startar stream...";
+"recording.loading.transcribing" = "Transkriberar...";
+
+// Streaming connection states
+"streaming.status.connecting" = "Ansluter...";
+"streaming.status.ready" = "Klar – börja tala";
+"streaming.status.warming" = "Värmer upp...";
+"modes.badge.recommended" = "Rekommenderat";
+"modes.source.label" = "Källa";
+"modes.source.onDevice" = "På enheten";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-nyckel";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Den här modellen kan inte raderas eftersom den används av:
+
+%@
+
+Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
+"models.postProcessing.gemma4.12b.description" = "Mellanstor tät modell. Balanserar kvalitet och hastighet på 16 GB Mac-datorer.";
+"recording.success.savedToNotes" = "Sparat i Anteckningar!";
+"modes.provider.needsKey" = "%@ behöver en fungerande nyckel.";
+"modes.provider.manageInLibrary" = "Hantera i biblioteket →";
+"streaming.loading.warming" = "Värmer upp lokal modell...";
+"streaming.status.listening" = "Lyssnar...";
+"streaming.status.streaming" = "Strömmar...";
+"streaming.status.disconnecting" = "Stoppar...";
+"streaming.loading.connecting" = "Ansluter till servern...";
+"streaming.loading.ready" = "Initierar ljud...";
+"streaming.loading.streaming" = "Väntar på tal...";
+"streaming.state.reconnecting" = "Återansluter...";
+"recording.stop.help" = "Stoppa inspelning (%@)";
+"recording.postprocessing.unavailable" = "Efterbearbetning inte tillgänglig";
+"recording.postprocessing.missing.single" = "%@ nyckel saknas – spelar in utan efterbearbetning";
+"recording.postprocessing.missing.multiple" = "API-nycklar saknas – spelar in utan efterbearbetning";
+"recording.postprocessing.addKey" = "Lägg till nyckel";
+"recording.offline.banner" = "Ingen internetanslutning. Molntranskription misslyckas tills du är online.";
+"recording.offline.title" = "Ingen internetanslutning";
+"recording.offline.subtitle" = "Återanslut för att fortsätta eller växla till ett offline-läge.";
+"recording.error.network" = "Kontrollera din internetanslutning och försök igen.";
+"recording.error.timeout" = "Förfrågan upphörde. Kontrollera din anslutningshastighet och försök igen.";
+"recording.error.rateLimit" = "Du har gjort för många förfrågningar. Vänta en stund och försök igen.";
+"recording.error.credits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";
+"recording.error.apiKey" = "Lägg till din %@ API-nyckel i inställningar.";
+"recording.error.server" = "Transkriptionstjänsten upplevelse problem. Försök igen om en stund.";
+"recording.retry" = "Försök igen";
+"recording.retry.inProgress" = "Försöker igen...";
+"recording.retry.count" = "Försök igen (%d)";
+"recording.retry.failed.missing" = "Försök igen misslyckades: Ljudfilen hittades inte";
+"recording.retry.failed.error" = "Försök igen misslyckades: %@";
+"recording.retry.pending" = "Klar för att försöka igen – klicka för att transkribera";
+"recording.provider.unknown" = "molnleverantör";
+"recording.cancel.dialog.title" = "Avbryt inspelning?";
+"recording.cancel.dialog.message" = "Detta kommer att förkasta den aktuella inspelningen.";
+"recording.cancel.dialog.confirm" = "Avbryt inspelning";
+"recording.cancel.dialog.resume" = "Återuppta";
+"recording.error.overlay.title" = "Nätverksanslutningsfel";
+"recording.error.overlay.message" = "Tryck 'Försök igen' nedan eller växla till ett offline-läge för att fortsätta.";
+"recording.mode.default" = "Standard";
+"recording.dialog.window.title" = "Inspelningsdialog";
+"recording.button.start" = "Börja inspelning";
+"recording.button.stop" = "Stoppa inspelning";
+"recording.button.disable.checking" = "Kontrollerar %@ status...";
+"recording.button.disable.invalid" = "Ogiltig %@ API-nyckel. Uppdatera den i inställningar.";
+"recording.button.disable.unreachable" = "%@ är inte tillgänglig. Kontrollera din anslutning och försök igen.";
+"recording.button.disable.missing" = "Lägg till din %@ API-nyckel i inställningar.";
+"recording.button.disable.install.local" = "Ladda ner en lokal modell i Inställningar → Modeller innan du använder lokal efterbearbetning.";
+"modes.postProcessing.accuracy" = "Noggrannhet";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Du har nått din dagliga gräns för %@-minuters transkription. Uppgradera till HyperWhisper Pro för obegränsad transkription.";
+"recording.error.documentsAccess" = "Kan inte komma åt inspelningsmappen. Välj en annan plats i Inställningar → Lagring.";
+"recording.error.modeMissing" = "Valt läge hittades inte. Välj ett giltigt läge.";
+"recording.warning.oversizedWAV" = "Audiokomprimering misslyckades. Använder okomprimerad %@ MB-fil - transkriptionen kan vara långsammare.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Standardmikrofon";
+"audio.error.permissionDenied" = "Mikrofonåtkomst nekad. Aktivera i Systeminställningar.";
+"audio.error.fileWatcher.open" = "Kunde inte öppna en filbeskrivare för att övervaka ljudfilen.";
+"audio.error.fileWatcher.timeout" = "Åtgärden upphörde medan vi väntade på att ljudfilen skulle skrivas.";
+"audio.error.fileWatcher.creation" = "Ljudfilen skapades inte i tid.";
+"audio.error.microphonePermission" = "Mikrofonåtkomst inte beviljas";
+"audio.error.microphoneInUse" = "HyperWhisper kan inte komma åt mikrofonen eftersom en annan app använder den för närvarande. Pausa den andra appen eller växla inmatningar, sedan försök igen.";
+"audio.error.createEngine" = "Det gick inte att skapa audiomotor";
+"audio.error.noInput" = "Ingen audioinmatning tillgänglig";
+"audio.error.createFile" = "Det gick inte att skapa ljudfil";
+"audio.error.managerUnavailable" = "Transkriptionshanterare inte konfigurerad";
+"audio.error.invalidHardwareFormat" = "Ogiltigt maskinvareaudiolformat identifierat. Kontrollera din audioenhet.";
+"audio.error.createFormat" = "Det gick inte att skapa audioformat för inspelning";
+"audio.error.createConverter" = "Det gick inte att skapa audioformatkonverterare";
+"audio.error.exportM4A" = "Det gick inte att exportera ljud till m4a-format";
+"audio.error.readFile" = "Ljudfilen kunde inte läsas efter inspelning.";
+"audio.error.recordingTooShort" = "Inspelningen var för kort. Håll knappen längre för att fånga ljud.";
+"audio.error.noAudioTrack" = "Denna videofil innehåller inget ljudspår.";
+"audio.alert.accessibility.title" = "Aktivera tillgänglighetsåtkomst";
+"audio.alert.accessibility.message" = "HyperWhisper behöver tillgänglighetstillåtelse för att klistra in transkriberad text i andra applikationer.\n\nKlicka på 'Öppna inställningar', tryck på växeln bredvid HyperWhisper, sedan försök igen.";
+"audio.alert.accessibility.open" = "Öppna inställningar";
+"audio.alert.pasteFailed.title" = "Automatisk inklistring misslyckades";
+"audio.alert.pasteFailed.message" = "Den transkriberade texten har kopierats till ditt urklipp.\n\nTryck ⌘V för att klistra in den manuellt, eller välj Redigera → Klistra in från menyn.";
+"accessibility.permission.location.debug" = "Xcode-felsökningversion";
+"accessibility.permission.location.installed" = "Installerad app";
+"accessibility.permission.info" = "HyperWhisper behöver tillgänglighetstillåtelse för att klistra in transkriberad text i andra applikationer.\n\nNuvarande applats: %@\n\nI Systeminställningar:\n1. Leta efter 'hyperwhisper' eller 'HyperWhisper' i listan\n2. Du kan se flera poster om du har kört från olika platser\n3. Aktivera kryssrutan för posten som matchar:\n   %@";
+"accessibility.permission.xcodeNote" = "Anmärkning: Kör från Xcode kräver olika tillåtelse än den installerade appen.";
+"accessibility.error.paste.commandFailed" = "Kleartkommandot misslyckades";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transkriptionsleverantören är inte tillgänglig. Kontrollera dina inställningar och försök igen.";
+"transcription.error.providerNotAvailable.provider" = "%@ är inte tillgänglig. Kontrollera dina inställningar och försök igen.";
+"transcription.error.providerNotAvailable.detail" = "%@ är inte tillgänglig: %@";
+"transcription.error.modelNotDownloaded" = "Ladda ner en modell först";
+"transcription.error.modelProtected" = "Denna modell kan inte tas bort";
+"transcription.error.audioFileNotFound" = "Ljudfilen hittades inte";
+"transcription.error.network.detail" = "Nätverksfel: %@";
+"transcription.error.network.generic" = "Nätverksanslutningsfel";
+"transcription.error.apiKeyMissing.provider" = "%@ API-nyckel krävs för transkription";
+"transcription.error.apiKeyMissing.generic" = "En molnleverantörs API-nyckel krävs för transkription";
+"transcription.error.maxRetriesExceeded" = "Maximalt antal försök överskridits";
+"transcription.error.unauthorized.provider" = "Obehörig: ogiltig %@ API-nyckel eller behörigheter.\n\nÖppna Inställningar → API-nycklar för att verifiera dina autentiseringsuppgifter.";
+"transcription.error.unauthorized.generic" = "Obehörig: ogiltig API-nyckel eller behörigheter.\n\nÖppna Inställningar → API-nycklar för att verifiera dina autentiseringsuppgifter.";
+"transcription.error.invalidRequest" = "Ogiltig förfrågan: kontrollera ljudfil eller inställningar";
+"transcription.error.streamingInterrupted" = "Strömningen avbröts; delvis text visad";
+"transcription.error.busy" = "Transkriptionstjänsten är för närvarande upptagen";
+"transcription.error.invalidAudioFormat" = "Audioformat som inte stöds";
+"transcription.error.audioConversionFailed" = "Det gick inte att konvertera ljud till erforderligt format";
+"transcription.error.audioFileTooLarge" = "Filen är för stor: %@ överskrider %@ gräns för %@";
+"transcription.error.serverError" = "Serverfel (%d): %@";
+"transcription.error.rateLimited.seconds" = "Hastighetsbegränsning: för många förfrågningar. Vänta %d sekunder och försök igen.";
+"transcription.error.rateLimited.generic" = "Hastighetsbegränsning: för många förfrågningar. Vänta en stund och försök igen.";
+"transcription.error.insufficientCredits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";
+"transcription.error.quotaExceeded" = "%@ kvot överskriden";
+"transcription.error.quotaExceeded.detail" = "%@ kvot överskriden: %@";
+"transcription.error.timeout" = "Förfrågan upphörde under %@. Kontrollera din internetanslutning och försök igen.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Se till att din transkriptionsleverantör är korrekt konfigurerad i inställningar.";
+"transcription.guidance.providerNotAvailable.provider" = "Se till att %@ är korrekt konfigurerad. För lokala modeller laddar du ner en modell först. För molnleverantörer verifierar du din API-nyckel.";
+"transcription.guidance.apiKeyMissing.provider" = "Lägg till din %@ API-nyckel i inställningar";
+"transcription.guidance.apiKeyMissing.generic" = "Lägg till din molnleverantörs API-nyckel i inställningar";
+"transcription.guidance.modelNotDownloaded" = "Ladda ner en modell från Modeller-avsnittet";
+"transcription.guidance.modelProtected" = "Denna modell används för närvarande";
+"transcription.guidance.audioFileNotFound" = "Ljudfilen raderades eller flyttades";
+"transcription.guidance.networkError" = "Kontrollera din internetanslutning och försök igen";
+"transcription.guidance.unauthorized.provider" = "Kontrollera din %@ API-nyckel eller kontobehörigheter i inställningar";
+"transcription.guidance.unauthorized.generic" = "Kontrollera din API-nyckel eller kontobehörigheter i inställningar";
+"transcription.guidance.invalidRequest" = "Verifiera ljudfilen och lägeinställningarna, sedan försök igen";
+"transcription.guidance.invalidAudioFormat" = "Försök konvertera ljudfilen till MP3- eller WAV-format";
+"transcription.guidance.audioConversionFailed" = "Ljudfilen kan vara skadad. Prova en annan fil";
+"transcription.guidance.audioFileTooLarge" = "Använd en kortare ljudfil eller dela den i mindre segment";
+"transcription.guidance.serverError" = "Transkriptionstjänsten upplevelse problem. Försök igen.";
+"transcription.guidance.rateLimited" = "Du har gjort för många förfrågningar. Vänta en stund innan du försöker igen.";
+"transcription.guidance.insufficientCredits" = "Köp mer krediter i inställningar för att fortsätta transkribera";
+"transcription.guidance.quotaExceeded" = "Lägg till krediter till ditt %@ konto eller uppdatera din faktureringsinformation";
+"transcription.guidance.timeout" = "Förfrågan tog för lång tid. Kontrollera din internethastighet och försök igen.";
+"transcription.error.noSpeechDetected" = "Inget tal upptäcktes i inspelningen.";
+"transcription.guidance.noSpeechDetected" = "Tips:\n• Tala tydligt in i mikrofonen\n• Håll tangenten längre innan du talar\n• Kontrollera att din mikrofon fungerar\n• Se till att rätt ingångsenhet är vald";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";
+"hyperwhisperCloud.error.network" = "Nätverksfel: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Ogiltigt svar från HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Serverfel: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server exekverbara kunde inte hittas.";
+"llama.runtime.error.missingDependencies" = "Runtime saknar beroenden: %@";
+"llama.runtime.error.copyFailed" = "Det gick inte att kopiera runtime: %@";
+"llama.runtime.error.copy.executable" = "Kunde inte kopiera exekverbaen: %@";
+"llama.runtime.missing" = "Lokal runtime saknas från denna installation. Installera om HyperWhisper för att återställa lokal efterbearbetning.";
+"llama.runtime.genericError" = "Lokal runtime-fel: %@";
+"runtime.error.llama.missingLib" = "Lokal runtime avslutade efter saknade libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Lokal runtime rapporterade saknade libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Inbyggd AI-efterbearbetning som körs på Cloudflare Workers. Ingen konfiguration krävs.";
+"models.postProcessing.gpt4.1.nano.description" = "Måttlig noggrannhet (92%), mycket snabb hastighet (<1s). Lämplig för snabba utkast och informella anteckningar.";
+"models.postProcessing.gpt4.1.mini.description" = "Hög noggrannhet (94%), snabb hastighet (~1-2s). Bra för daglig affärskommunikation och standarddokument.";
+"models.postProcessing.gpt4.1.description" = "Mycket hög noggrannhet (96%), måttlig hastighet (~3-4s). Utmärkt för komplex formatering och tekniskt innehål.";
+"models.postProcessing.gpt5.nano.description" = "God noggrannhet (95%), snabbaste hastighet (~1s). Perfekt för snabba anteckningar, meddelanden och lågnivåtranskriptioner.";
+"models.postProcessing.gpt5.mini.description" = "Utmärkt noggrannhet (97%), måttlig hastighet (~2-3s). Idealisk balans för professionella e-postmeddelanden, rapporter och mötesanteckningar.";
+"models.postProcessing.gpt5.description" = "Högsta noggrannhet (99%+), långsamaste hastighet (~3-5s). Bäst för kritiska dokument, juridisk, medicinska transkriptioner där precision är överordnad.";
+"models.postProcessing.gpt5.1.description" = "Bästa möjliga noggrannhet (98%+), måttlig hastighet (~2-3s). Utmärkt för komplexa uppgifter, juridiska dokument och tekniskt innehål med överlägsen resonemang.";
+"models.postProcessing.gpt5.2.description" = "Senaste GPT-5 serien med förbättrad resonemang och snabbare inferens. Bästa övergripande valet för högkvalitativ textbearbetning.";
+"models.postProcessing.claude4.5.haiku.description" = "Senaste Claude Haiku med förbättrad resonemang medan svar tiden förblir snabb.";
+"models.postProcessing.claude4.sonnet.description" = "Balanserad prestanda. Överlägsen resonemang och formateringskapacitet för professionella dokument.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 serien med Pro-nivå intelligens vid Flash-hastighet. Avancerad resonemang med dynamiska tänkande förmågor.";
+"models.postProcessing.gemini2.5.flash.description" = "Bäst när det gäller pris-prestanda. Optimerad för hastighet samtidigt som god noggrannhet upprätthålls för daglig användning.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultra snabb modell optimerad för kostnadseffektivitet och högt genomflöde.";
+"models.postProcessing.groq.llama33.70b.description" = "Mångsidig 70B-modell med utmärkt kvalitet. ~280 tokens/sek. Rekommenderas.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultra-snabb 8B-modell. ~560 tokens/sek för omedelbar textbearbetning.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI:s öppen käll 120B-modell. ~500 tokens/sek för högkvalitativ bearbetning.";
+"models.postProcessing.groq.gptoss.20b.description" = "Lätt 20B-modell. ~1000 tokens/sek för snabbaste bearbetning.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B på Cerebras. Ultra-snabb 120B-modell vid ~3000 tokens/sek. Rekommenderas.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B på Cerebras. Lätt och ultra-snabb vid ~2200 tokens/sek.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B på Cerebras. Massiv 235B MoE-modell vid ~1400 tokens/sek. Endast förhandsvisning.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 på Cerebras. 355B parametermodell vid ~1000 tokens/sek. Endast förhandsvisning.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Hjälpcenter";
+"settings.resources.contact.support" = "Kontakta support";
+"settings.resources.feedback" = "Feedback och förslag";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Säkerhetskopia";
+"settings.backup.export.title" = "Exportera inställningar";
+"settings.backup.export.subtitle" = "Spara dina inställningar, lägen och ordförråd till en fil";
+"settings.backup.export.button" = "Exportera...";
+"settings.backup.export.panel.title" = "Exportera inställningar";
+"settings.backup.export.panel.label" = "Säkerhetskopia:";
+"settings.backup.export.success" = "Inställningar exporterade framgångsrikt";
+"settings.backup.export.error.create" = "Det gick inte att skapa säkerhetskopieringsdata";
+"settings.backup.export.error.encode" = "Det gick inte att koda säkerhetskopieringsdata";
+"settings.backup.export.error.write" = "Det gick inte att skriva säkerhetskopieringsfil";
+"settings.backup.includeAPIKeys.title" = "Inkludera API-nycklar";
+"settings.backup.includeAPIKeys.subtitle" = "Lagra API-nycklar i säkerhetskopieringsfilen (rekommenderas inte för delning)";
+"settings.backup.includeLicense.title" = "Inkludera licensnyckel";
+"settings.backup.import.title" = "Importera inställningar";
+"settings.backup.import.subtitle" = "Återställ inställningar från en säkerhetskopieringsfil";
+"settings.backup.import.button" = "Importera...";
+"settings.backup.import.panel.title" = "Importera inställningar";
+"settings.backup.import.success" = "Importering slutförd: %d lägen, %d ordförrådsord importerade";
+"settings.backup.import.error.read" = "Det gick inte att läsa säkerhetskopieringsfil";
+"settings.backup.import.error.decode" = "Ogiltigt säkerhetskopieringsfilformat";
+"settings.backup.import.error.decode.keyNotFound" = "Obligatoriskt fält saknas: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Fel typ för fält: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Värde saknas för fält: %@";
+"settings.backup.import.error.decode.corrupted" = "Skadade data: %@";
+"settings.backup.import.error.decode.corruptedField" = "Skadat värde för fält: %@";
+"settings.backup.import.error.version" = "Säkerhetskopieringsfilen är från en nyare version";
+"settings.backup.import.error.unknown" = "Importering misslyckades";
+"settings.backup.import.confirm.title" = "Importera inställningar?";
+"settings.backup.import.confirm.message" = "Detta kommer att ersätta dina befintliga lägen och ordförråd med dem från säkerhetskopieringsfilen. Inställningarna uppdateras också.";
+"settings.backup.import.confirm.button" = "Importera";
+"settings.backup.conflict.skip" = "Hoppa över befintlig";
+"settings.backup.conflict.replace" = "Ersätt befintlig";
+"settings.backup.conflict.keepBoth" = "Behåll båda";
+"settings.backup.security.warning" = "Varning: Den exporterade filen innehåller känslig data. Skydda den och dela den inte.";
+"settings.backup.info.note" = "Säkerhetskopior inkluderar inställningar, lägen och ordförråd. Inspelningar och transkriptioner inkluderas inte.";
+"settings.backup.result.success.title" = "Framgång";
+"settings.backup.result.error.title" = "Fel";
+"settings.backup.export.choose.subtitle" = "Välj vad som ska inkluderas i säkerhetskopieringsfilen";
+"settings.backup.export.section.settings" = "Inställningar";
+"settings.backup.export.section.modes" = "Lägen";
+"settings.backup.export.section.vocabulary" = "Ordförråd";
+"settings.backup.import.importing" = "Importerar %@";
+"settings.backup.import.contains" = "Den här filen innehåller: %@";
+"settings.backup.import.contains.vocabulary" = "Ordförråd (%d ord)";
+"settings.backup.import.contains.none" = "ingenting";
+"settings.backup.import.section.settings" = "Inställningar";
+"settings.backup.import.section.modes" = "Lägen";
+"settings.backup.import.section.vocabulary" = "Ordförråd";
+"settings.backup.import.section.apiKeys" = "API-nycklar";
+"settings.backup.import.section.license" = "Licensnyckel";
+"settings.backup.import.section.absent" = "— inte i filen";
+"settings.backup.import.premerge.summary" = "Ordförråd: lägg till %d nya, %d finns redan";
+"settings.backup.import.premerge.conflictLabel" = "För ord som redan finns:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Välj ljudfil";
+"transcribe.file.error.title" = "Transkriptionsfel";
+"transcribe.file.error.size.title" = "Fil för stor";
+"transcribe.file.error.size.message" = "Den valda filen (%@) överskrider gränsen för %@ för %@.";
+"transcribe.file.error.format.title" = "Format som inte stöds";
+"transcribe.file.error.format.message" = ".%@ filer stöds inte av %@. Stödda format: %@";
+"transcribe.file.error.read" = "Kan inte läsa den valda filen.";
+"transcribe.file.error.copy" = "Det gick inte att kopiera filen till inspelningsmappen.";
+"transcribe.file.error.video.title" = "Inget ljud i video";
+"transcribe.file.error.video.noAudio" = "Denna videofil innehåller inget ljudspår. Välj en video med ljud eller en ljudfil.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Förbereder...";
+"file.transcription.transcribing" = "Transkriberar...";
+"file.transcription.finishing" = "Slutför...";
+"file.transcription.cancel" = "Avbryt";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Aktivera automatisk borttagning";
+"history.autoDelete.enable.subtitle" = "Inspelningar äldre än den angivna varaktigheten kommer att raderas";
+"history.autoDelete.duration.prefix" = "Efter";
+"history.autoDelete.unit.minutes" = "Minuter";
+"history.autoDelete.unit.hours" = "Timmar";
+"history.autoDelete.unit.days" = "Dagar";
+"history.autoDelete.unit.minutes.plural" = "minuter";
+"history.autoDelete.unit.hours.plural" = "timmar";
+"history.autoDelete.unit.days.plural" = "dagar";
+"history.autoDelete.status.disabled" = "Automatisk borttagning är inaktiverad";
+"history.autoDelete.status.enabled" = "Radera inspelningar äldre än %d %@";
+"history.autoDelete.cleanup.noItems" = "Inga inspelningar att radera";
+"history.autoDelete.cleanup.summary" = "Raderade %d inspelning(ar) och frigöra %@";

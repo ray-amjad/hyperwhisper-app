@@ -1,0 +1,398 @@
+{
+  "$schema": "./schema.json",
+  "schemaVersion": 1,
+  "lastUpdated": "2026-06-18",
+  "models": [
+    {
+      "provider": "appleSpeech",
+      "id": "*",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos"],
+      "notes": "Wildcard. SpeechTranscriber contextual words + post-transcription replace pass."
+    },
+    {
+      "provider": "localWhisper",
+      "id": "*",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Wildcard. whisper.cpp / WhisperNet accept initial_prompt. Language sets live in each platform's Whisper registry (.en = English-only), not here — a wildcard row can't express per-model differences."
+    },
+    {
+      "provider": "parakeet",
+      "id": "*",
+      "kind": "voice",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Wildcard. Language sets live in each platform's Parakeet registry (v2 English-only, v3 25 langs), not here."
+    },
+    {
+      "provider": "qwen3ASR",
+      "id": "*",
+      "kind": "voice",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos"]
+    },
+    {
+      "provider": "nemotron",
+      "id": "*",
+      "kind": "voice",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos"]
+    },
+    {
+      "provider": "localLLM",
+      "id": "*",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"]
+    },
+
+    {
+      "provider": "openai",
+      "id": "gpt-4o-mini-transcribe-2025-12-15",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-4o-transcribe",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-4o-mini-transcribe",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "openai",
+      "id": "whisper-1",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+
+    {
+      "provider": "groq",
+      "id": "whisper-large-v3-turbo",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "groq",
+      "id": "whisper-large-v3",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+
+    {
+      "provider": "deepgram",
+      "id": "nova-3-general",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["ar", "be", "bg", "bn", "bs", "ca", "cs", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "he", "hi", "hr", "hu", "id", "it", "ja", "kn", "ko", "lt", "lv", "mk", "mr", "ms", "nl", "no", "pl", "pt", "ro", "ru", "sk", "sl", "sr", "sv", "ta", "te", "tl", "tr", "uk", "ur", "vi"]
+    },
+    {
+      "provider": "deepgram",
+      "id": "nova-3-medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["en"],
+      "isEnglishOnly": true
+    },
+    {
+      "provider": "deepgram",
+      "id": "nova-2-general",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["bg", "ca", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "hi", "hu", "id", "it", "ja", "ko", "lt", "lv", "ms", "nl", "no", "pl", "pt", "ro", "ru", "sk", "sv", "th", "tr", "uk", "vi", "zh"]
+    },
+    {
+      "provider": "deepgram",
+      "id": "nova-2-medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["en"],
+      "isEnglishOnly": true
+    },
+
+    {
+      "provider": "assemblyAI",
+      "id": "universal-2",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh"]
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "universal-3-pro",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["de", "en", "es", "fr", "it", "pt"]
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "universal-2-medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["de", "en", "es", "fr"]
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "universal-3-pro-medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["de", "en", "es", "fr"]
+    },
+
+    {
+      "provider": "elevenLabs",
+      "id": "scribe_v1",
+      "kind": "voice",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "elevenLabs",
+      "id": "scribe_v2",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+
+    {
+      "provider": "mistral",
+      "id": "voxtral-mini-latest",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["en", "zh", "hi", "es", "ar", "fr", "pt", "ru", "de", "ja", "ko", "it", "nl"]
+    },
+
+    {
+      "provider": "soniox",
+      "id": "stt-async-v4",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he", "hi", "hr", "hu", "id", "it", "ja", "kk", "kn", "ko", "lt", "lv", "mk", "ml", "mr", "ms", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "zh"]
+    },
+    {
+      "provider": "soniox",
+      "id": "stt-async-v5",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he", "hi", "hr", "hu", "id", "it", "ja", "kk", "kn", "ko", "lt", "lv", "mk", "ml", "mr", "ms", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "zh"]
+    },
+
+    {
+      "provider": "gemini",
+      "id": "gemini-2.5-flash",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-2.5-flash-lite",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-2.5-pro",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.1-flash-lite-preview",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3-flash-preview",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.1-pro-preview",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-2.0-flash",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["windows"],
+      "supportsAllLanguages": true
+    },
+
+    {
+      "provider": "grok",
+      "id": "",
+      "kind": "voice",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["windows"],
+      "supportsAllLanguages": true,
+      "notes": "xAI Grok STT exposes one implicit model; the registry encodes it with an empty id. supportsAllLanguages: Grok transcription auto-detects and is NOT language-limited — the 25-code list in macOS STTCapabilities is only an ITN number/currency formatting allowlist (per xAI docs), so it is intentionally NOT mirrored here."
+    },
+
+    {
+      "provider": "anthropic",
+      "id": "claude-haiku-4-5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"]
+    },
+    {
+      "provider": "groq",
+      "id": "openai/gpt-oss-120b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"]
+    },
+    {
+      "provider": "cerebras",
+      "id": "gpt-oss-120b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "notes": "Same model family as Groq's openai/gpt-oss-120b but a distinct Cerebras deployment. Keyed by (provider, id), not id alone."
+    },
+    {
+      "provider": "grok",
+      "id": "grok-4.3",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"]
+    },
+
+    {
+      "provider": "mistral",
+      "id": "mistral-small-latest",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "notes": "Live via HyperWhisper Cloud (backend-v2-flyio hyperwhisper-fly#48 deployed 2026-06-19); kept in sync with cloud-pp-catalog.json mistral 'enabled':true."
+    },
+
+    {
+      "provider": "mistral",
+      "id": "open-mistral-nemo",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "notes": "Live via HyperWhisper Cloud (backend-v2-flyio hyperwhisper-fly#48 deployed 2026-06-19)."
+    },
+
+    {
+      "provider": "hyperwhisper",
+      "id": "hyperwhisper-cloud",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos"],
+      "notes": "macOS-only PP entry that routes through the Fly backend's LLM router."
+    },
+
+    {
+      "provider": "microsoftAzureSpeech",
+      "id": "mai-transcribe-1.5",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["ar", "as", "bg", "bn", "ca", "cs", "da", "de", "el", "en", "es", "et", "fi", "fr", "gu", "hi", "hu", "id", "it", "ja", "kn", "ko", "lt", "ml", "mr", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sv", "ta", "te", "th", "tr", "uk", "vi"],
+      "notes": "Microsoft MAI-Transcribe 1.5 via Azure Speech / Foundry. HyperWhisper Cloud only (X-STT-Provider: azure-mai). Languages from shared-app-classification/cloud-stt-catalog.json (azureMaiTranscribe), base-normalized; not in macOS STTCapabilities so the macOS Mode Editor currently shows all languages."
+    },
+    {
+      "provider": "googleSpeech",
+      "id": "chirp_3",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportedLanguages": ["af", "am", "ar", "as", "az", "bg", "bn", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "uz", "vi", "yo", "yue", "zh"],
+      "notes": "Google Cloud Speech-to-Text V2 Chirp 3. HyperWhisper Cloud only (X-STT-Provider: google-chirp). Languages from shared-app-classification/cloud-stt-catalog.json (googleChirp3), vendor codes aliased (cmn->zh, fil->tl, iw->he, jv->jw) and base-normalized; not in macOS STTCapabilities so the macOS Mode Editor currently shows all languages."
+    }
+  ]
+}

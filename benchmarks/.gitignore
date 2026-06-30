@@ -1,0 +1,35 @@
+# Transient Python state
+__pycache__/
+*.pyc
+
+# Stage 0 health-check output (regenerable)
+health.json
+
+# Per-engine raw results (large + machine-specific; regenerable from any
+# fresh sweep). We commit only overrides.json (load-bearing ground truth)
+# and scored.json (publishable per-run summary).
+results/*/summary.json
+results/*/*.log
+
+# Per-engine result files: a single sweep produces ~40 of these.
+# Match anything that doesn't have a curated filename — the curated set is
+# explicitly tracked below.
+results/*/applespeech.json
+results/*/cloud-*.json
+results/*/whisperlocal-*.json
+results/*/parakeet-*.json
+results/*/qwen3asr-*.json
+
+# Post-processing sweep raw outputs: one file per (provider, model, preset).
+# A single pp run produces ~30 × N-presets of these — regenerable from any
+# fresh sweep. pp_references.json (load-bearing ground truth) and
+# results/pp-*/scored.json (publishable summary) are committed; raw
+# per-engine outputs are not.
+results/pp-*/openai-*.json
+results/pp-*/anthropic-*.json
+results/pp-*/gemini-*.json
+results/pp-*/groq-*.json
+results/pp-*/grok-*.json
+results/pp-*/cerebras-*.json
+results/pp-*/local_llm-*.json
+results/pp-*/hyperwhisper-*.json

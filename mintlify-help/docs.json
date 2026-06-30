@@ -1,0 +1,208 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "HyperWhisper",
+  "description": "AI-powered speech-to-text transcription for macOS",
+  "redirects": [
+    {
+      "source": "/model-management",
+      "destination": "/models"
+    }
+  ],
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "favicon": "/assets/favicon.png",
+  "logo": "/assets/logo.png",
+  "navbar": {
+    "primary": {
+      "type": "button",
+      "label": "Get HyperWhisper",
+      "href": "https://www.hyperwhisper.com"
+    }
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "icon": "rocket",
+        "pages": [
+          "index",
+          "system-requirements",
+          "permissions",
+          "best-practices"
+        ]
+      },
+      {
+        "group": "Plans & Billing",
+        "icon": "credit-card",
+        "pages": [
+          "licensing",
+          "cloud-credits"
+        ]
+      },
+      {
+        "group": "Transcription & Models",
+        "icon": "microphone-lines",
+        "pages": [
+          "transcription-modes",
+          "models",
+          "choosing-a-provider",
+          "api-keys",
+          "custom-endpoints",
+          "language-detection"
+        ]
+      },
+      {
+        "group": "The Interface",
+        "icon": "window-maximize",
+        "pages": [
+          "recording-window",
+          "menu-bar",
+          "history"
+        ]
+      },
+      {
+        "group": "Features",
+        "icon": "sparkles",
+        "pages": [
+          "keyboard-shortcuts",
+          "auto-paste",
+          "file-transcription",
+          "voice-commands",
+          "voice-coding",
+          "streaming-settings",
+          {
+            "group": "Audio Input",
+            "icon": "waveform",
+            "pages": [
+              "audio-input",
+              "microphone-selection",
+              "keep-microphone-warm",
+              "voice-activity-detection",
+              "system-audio"
+            ]
+          },
+          {
+            "group": "Sounds & Media",
+            "icon": "volume-high",
+            "pages": [
+              "sound-effects",
+              "media-control"
+            ]
+          },
+          {
+            "group": "Vocabulary",
+            "icon": "book-open",
+            "pages": [
+              "vocabulary",
+              "vocabulary-import-export",
+              "vocabulary-cloud-sync"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Settings",
+        "icon": "sliders",
+        "pages": [
+          "general-settings",
+          "output-settings",
+          "appearance-settings",
+          "advanced-settings",
+          "backup-export-settings"
+        ]
+      },
+      {
+        "group": "Privacy & Security",
+        "icon": "shield",
+        "pages": [
+          "data-privacy",
+          "network-filtering"
+        ]
+      },
+      {
+        "group": "Developer & API",
+        "icon": "code",
+        "pages": [
+          "local-api",
+          "developer-mode",
+          {
+            "group": "Local API Reference",
+            "icon": "server",
+            "openapi": "api-reference/local-api/openapi.yaml",
+            "pages": [
+              "api-reference/local-api/overview",
+              "api-reference/local-api/mcp-setup"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Troubleshooting",
+        "icon": "life-ring",
+        "pages": [
+          "troubleshooting",
+          "hallucinations",
+          "performance-tips",
+          "provider-health",
+          "updates",
+          "support"
+        ]
+      },
+      {
+        "group": "Windows",
+        "icon": "windows",
+        "pages": [
+          "windows-getting-started",
+          "windows-permissions",
+          "windows/faq"
+        ]
+      }
+    ]
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity"
+    ]
+  },
+  "footer": {
+    "socials": {
+      "linkedin": "https://www.linkedin.com/company/hyperwhisper/"
+    },
+    "links": [
+      {
+        "header": "Product",
+        "items": [
+          {
+            "label": "Website",
+            "href": "https://www.hyperwhisper.com"
+          },
+          {
+            "label": "Download",
+            "href": "https://www.hyperwhisper.com"
+          }
+        ]
+      },
+      {
+        "header": "Support",
+        "items": [
+          {
+            "label": "Email Support",
+            "href": "https://hyperwhisper.com/support"
+          },
+          {
+            "label": "Documentation",
+            "href": "https://hyperwhisper.com/docs"
+          }
+        ]
+      }
+    ]
+  }
+}

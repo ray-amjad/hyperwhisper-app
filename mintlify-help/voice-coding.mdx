@@ -1,0 +1,245 @@
+---
+title: Voice Coding in AI IDEs
+description: Use HyperWhisper with Cursor, Claude Code, and other AI-powered editors to dictate prompts and tag files by voice.
+---
+
+HyperWhisper integrates with AI coding agents through the local MCP bridge, a dedicated Code preset, and Developer Mode. Together they help your transcripts land in the right format and carry the right file context before agents like Cursor and Claude Code see them.
+
+This page covers the full picture. Deep-dive reference for individual features is linked throughout.
+
+## Prerequisites
+
+- HyperWhisper is installed and has been opened at least once.
+- **Settings → Local API** is turned **on**. This is what writes the discovery file that the MCP bridge reads.
+- Node.js 18 or newer is on your `PATH` (`node --version` should print a version number). The `npx` command ships with Node.
+
+<Note>
+  The MCP bridge is a macOS feature. iOS does not currently support editor integrations.
+</Note>
+
+---
+
+## Agent integration via MCP
+
+The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) package is a Model Context Protocol bridge that wraps the local API. Configure it once and any MCP-capable agent — Cursor, Claude Desktop, Claude Code, Zed, custom code — can call HyperWhisper as a tool.
+
+### Tools the agent gets
+
+| Tool | What it does |
+|---|---|
+| `health` | Confirms HyperWhisper is running. |
+| `list_models` | Returns the catalog of available voice and post-processing models. |
+| `list_modes` | Lists your saved transcription Modes. |
+| `transcribe` | Transcribes an absolute path to an audio file. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or a free-form instruction passed via the `prompt` field. |
+| `search_recordings` | Substring search across past transcripts. |
+| `get_recording` | Retrieves a single transcript row by ID. |
+
+### Setup
+
+<Tabs>
+  <Tab title="Cursor">
+    Edit `~/.cursor/mcp.json` and add the `hyperwhisper` entry:
+
+    ```json
+    {
+      "mcpServers": {
+        "hyperwhisper": {
+          "command": "npx",
+          "args": ["-y", "@hyperwhisper/mcp"]
+        }
+      }
+    }
+    ```
+
+    Restart Cursor. The server should appear under **Settings → MCP**.
+  </Tab>
+  <Tab title="Claude Desktop">
+    Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "hyperwhisper": {
+          "command": "npx",
+          "args": ["-y", "@hyperwhisper/mcp"]
+        }
+      }
+    }
+    ```
+
+    Quit and reopen Claude Desktop. The hammer icon in the composer should list `hyperwhisper`.
+  </Tab>
+  <Tab title="Claude Code">
+    Run the CLI helper once:
+
+    ```bash
+    claude mcp add hyperwhisper -- npx -y @hyperwhisper/mcp
+    ```
+
+    In a new session, `/mcp` lists `hyperwhisper` with its tools.
+  </Tab>
+</Tabs>
+
+### Verify
+
+Open a fresh agent session and ask:
+
+```text
+Ask hyperwhisper to run a health check.
+```
+
+The agent should call the `health` tool and report the app version. If you have an audio file handy, try:
+
+```text
+Use hyperwhisper to transcribe /Users/me/Desktop/test.wav
+```
+
+The agent calls `transcribe` and returns the text inline.
+
+For full tool signatures and troubleshooting, see [MCP Setup](/api-reference/local-api/mcp-setup).
+
+---
+
+## Code preset for voice-to-code
+
+When you're dictating code rather than prose, use a mode with the **Code** preset. It converts spoken symbol names into code syntax and disables automatic capitalization and punctuation so your identifiers land exactly as spoken.
+
+| You say | You get |
+|---|---|
+| `open paren` | `(` |
+| `close paren` | `)` |
+| `fat arrow` | `=>` |
+| `camel case user name` | `userName` |
+
+### Set up a Code mode
+
+<Steps>
+  <Step title="Create a new mode">
+    Click **+** in the mode list (or open an existing mode to edit it).
+  </Step>
+  <Step title="Choose the Code preset">
+    Select **Code** from the preset picker. This sets the post-processing instructions for symbol conversion.
+  </Step>
+  <Step title="Enable AI post-processing">
+    Set **AI Post-Processing** to **Cloud** or **Local** — the Code preset requires a post-processing pass to convert spoken symbols.
+  </Step>
+  <Step title="Turn off auto-capitalization and punctuation">
+    In the mode's formatting options, make sure **Capitalization** and **Punctuation** are off. The Code preset expects raw, case-preserving output.
+  </Step>
+</Steps>
+
+<Tip>
+  Consider enabling **Screen Text** on your Code mode so the AI can see your current file and spell identifiers, class names, and variable names correctly.
+</Tip>
+
+---
+
+## Developer Mode for file context
+
+Developer Mode lets you tag specific files by voice during a recording. HyperWhisper detects your active IDE, indexes your project files, and resolves spoken file references into proper `@filename` tags — exactly what AI agents need for precise, context-aware code generation.
+
+### Setup
+
+<Steps>
+  <Step title="Enable Developer Mode">
+    Open HyperWhisper settings and turn on **Enable Developer Mode**. See [Developer Mode](/developer-mode) for the exact location.
+  </Step>
+  <Step title="Add your project directories">
+    Click **+ Add Directory** and select your project root. You can add multiple directories for monorepos or parallel projects.
+  </Step>
+  <Step title="Verify indexing">
+    The status indicator shows your active project name and a file count. A blue checkmark confirms the IDE is detected.
+  </Step>
+</Steps>
+
+### Using @ mentions
+
+With Developer Mode and AI post-processing active, say `"at [filename]"` during recording:
+
+| You say | Transcript becomes |
+|---|---|
+| `"at app.swift, add error handling"` | `@app.swift, add error handling` |
+| `"at components/button, update the border radius"` | `@components/button.tsx, update the border radius` |
+| `"at main.swift and at utils.ts, check the date formatting"` | `@main.swift and @utils.ts, check the date formatting` |
+
+HyperWhisper uses fuzzy matching to resolve partial file names and path fragments. The system remembers your last active project for 30 minutes and switches automatically when you change IDEs or projects.
+
+### Supported IDEs
+
+Xcode, VS Code, Cursor, Windsurf, IntelliJ IDEA, PyCharm, WebStorm, GoLand, Zed, Atom, and Brackets.
+
+For a deeper look at status indicators and troubleshooting, see [Developer Mode](/developer-mode).
+
+---
+
+## Auto-paste into your editor
+
+Enable auto-paste and HyperWhisper delivers the finished transcript directly into your focused editor window — no manual paste needed.
+
+<Steps>
+  <Step title="Enable auto-paste">
+    Open **Settings → Text Output** and turn on **Paste result automatically**.
+  </Step>
+  <Step title="Grant Accessibility permission">
+    macOS prompts you the first time. If you missed it: **System Settings → Privacy & Security → Accessibility** → enable HyperWhisper.
+  </Step>
+</Steps>
+
+After a recording finishes, HyperWhisper copies the transcript to the clipboard, focuses your editor, and issues a standard paste. Your previous clipboard contents are restored afterwards.
+
+See [Auto Paste & Clipboard Behavior](/auto-paste) for the full configuration options, including clipboard restore delay.
+
+## Workflows
+
+### Cursor agent: dictate a prompt
+
+1. Switch to your Code mode.
+2. Press your record shortcut, speak your prompt — e.g. *"at components/button, refactor the onClick handler to use useCallback"*.
+3. HyperWhisper transcribes, resolves the `@` mention, and pastes the result into Cursor's composer.
+4. Cursor's agent picks up the prompt with full file context and generates code.
+
+### Standalone transcription via MCP
+
+Any agent session can call `transcribe` directly on a recorded file:
+
+```text
+Use hyperwhisper to transcribe /Users/me/recordings/meeting.m4a and post_process the result with the "note" preset.
+```
+
+The agent calls both tools in sequence and returns a formatted transcript inline.
+
+---
+
+## Troubleshooting
+
+**MCP server doesn't appear in the IDE**
+- Confirm `node --version` prints 18 or higher.
+- Toggle **Settings → Local API** off and back on, then restart the IDE.
+- On first run, `npx -y` downloads the package — it may take a few seconds on a slow connection.
+
+**`HYPERWHISPER_NOT_RUNNING` error**
+Open HyperWhisper, enable **Settings → Local API**, then re-run the agent prompt. The bridge reads the discovery file on every request.
+
+**Code preset not converting symbols**
+Verify **AI Post-Processing** is set to **Cloud** or **Local** on the mode — the Code preset has no effect when post-processing is off.
+
+**@ mentions not appearing in the transcript**
+- Confirm Developer Mode is enabled (see [Developer Mode](/developer-mode)).
+- Click **Reindex Files** to refresh the file index.
+- Ensure AI post-processing is on for the active mode.
+- Say `"at [filename]"` clearly — the fuzzy matcher needs at least a partial filename.
+
+**Auto-paste not working**
+- Grant Accessibility permission in **System Settings → Privacy & Security → Accessibility**.
+- Confirm the IDE window is focused when the recording finishes.
+- Try pasting into Notes or TextEdit to rule out an editor-specific issue.
+
+---
+
+## Limitations
+
+- The MCP bridge requires HyperWhisper to be running — there is no background listener that activates independently.
+- Local model transcription followed by local post-processing adds latency; for long code blocks, cloud transcription is faster.
+- The Code preset guides the AI's formatting instructions, but cloud post-processing models may occasionally rephrase output beyond what the preset intends.
+- iOS does not support MCP integration.

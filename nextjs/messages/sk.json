@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI prepis hlasu pre macOS a Windows",
+    "description": "Píšte 5x rýchlejšie s AI prepisom hlasu. HyperWhisper prepisuje váš hlas s neuveriteľnou presnosťou na macOS aj Windows. Hovorte prirodzene a sledujte, ako sa vaše slová okamžite zobrazujú."
+  },
+  "navbar": {
+    "features": "Funkcie",
+    "pricing": "Cenník",
+    "faq": "FAQ",
+    "support": "Podpora",
+    "download": "Stiahnuť",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Zmeniť jazyk"
+    }
+  },
+  "hero": {
+    "logoAlt": "Logo HyperWhisper",
+    "headline": "Píšte, tvorte a vytvárajte",
+    "headlineAccent": "5x rýchlejšie s AI",
+    "subheadline": "HyperWhisper prepisuje váš hlas s neuveriteľnou presnosťou. Stačí hovoriť prirodzene a sledovať, ako sa vaše slová okamžite objavia.",
+    "downloadCta": "Stiahnuť teraz",
+    "demoCta": "Pozrieť demo",
+    "availableOn": "Dostupné na",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Vytvorené pre profesionálov",
+    "subtitle": "Každá funkcia je navrhnutá tak, aby vám pomohla pracovať rýchlejšie a efektívnejšie",
+    "customVocabulary": {
+      "title": "Vlastný slovník",
+      "description": "Pridajte mená, skratky a špeciálne pojmy pre perfektnú presnosť pri každom prepise."
+    },
+    "languages": {
+      "title": "100+ jazykov",
+      "description": "Prepisujte vo viac ako 100 jazykoch s automatickou detekciou jazyka."
+    },
+    "offline": {
+      "title": "Podpora offline",
+      "description": "Funguje úplne offline. Vaše údaje nikdy neopustia vaše zariadenie."
+    },
+    "privacy": {
+      "title": "Dôraz na súkromie",
+      "description": "Nie je potrebný účet. Bez sledovania. Vaše hlasové dáta zostávajú na vašom Macu alebo PC."
+    },
+    "hybridProcessing": {
+      "title": "Hybridné spracovanie",
+      "description": "Vyberte si lokálne modely pre súkromie alebo cloudové API pre rýchlosť. To najlepšie z oboch svetov."
+    },
+    "customizable": {
+      "title": "Vysoko prispôsobiteľné",
+      "description": "Vyberte si z viac ako 9 API poskytovateľov a 30+ modelov prepisu."
+    },
+    "realTime": {
+      "title": "Streamovanie v reálnom čase",
+      "description": "Sledujte, ako sa vaše slová zobrazujú okamžite počas hovorenia. Špičková presnosť v odvetví s latenciou pod 700 ms."
+    },
+    "fileImport": {
+      "title": "Import súborov",
+      "description": "Importujte audio alebo video súbory na prepis. Podpora všetkých hlavných formátov s automatickou detekciou ticha."
+    },
+    "screenOcr": {
+      "title": "OCR obrazovky",
+      "description": "Povoľte HyperWhisperu vidieť vašu obrazovku, aby mohol všetko presne napísať."
+    },
+    "mcpServer": {
+      "title": "Lokálne API a MCP server",
+      "description": "Vstavaný MCP server umožňuje Claudeovi, Cursoru a ďalším AI agentom ovládať HyperWhisper. Iba lokálne HTTP API s bearer autentifikáciou pre skripty a automatizácie."
+    },
+    "modes": {
+      "title": "Režimy pre každú situáciu",
+      "description": "Prepínajte medzi rôznymi režimami prepisu optimalizovanými pre stretnutia, poznámky, emaily, programovanie a ďalšie. Každý režim používa vlastné prompty, aby bol váš text perfektne naformátovaný.",
+      "meeting": "Stretnutie",
+      "email": "Email",
+      "note": "Poznámka",
+      "code": "Kód",
+      "legal": "Právne",
+      "medical": "Medicínsky",
+      "presetModes": "Prednastavené režimy",
+      "customModes": "Vlastné režimy"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Rýchlejšie než písanie",
+    "accuracyRate": "Miera presnosti",
+    "languagesSupported": "Podporované jazyky",
+    "providersSupported": "Podporovaní poskytovatelia"
+  },
+  "pricing": {
+    "title": "Bez predplatného. Navždy.",
+    "subtitle": "Zaplaťte raz, používajte navždy. Predplatné nemáme radi rovnako ako vy.",
+    "guarantee": "14-dňová garancia vrátenia peňazí",
+    "guaranteeExtended": "ak nebudete úplne spokojní.",
+    "learnMore": "Zistiť viac",
+    "free": {
+      "name": "Free",
+      "price": "$0",
+      "period": "navždy",
+      "description": "Ideálne na vyskúšanie HyperWhisper",
+      "cta": "Stiahnuť zadarmo",
+      "features": {
+        "transcriptionLimit": "5 minút prepisu denne",
+        "basicModes": "Základné režimy prepisu",
+        "offlineTranscription": "Offline prepis",
+        "apiTranscription": "API prepis (použite vlastné kľúče)",
+        "postProcessing": "Následné spracovanie textu",
+        "providers": "9+ poskytovateľov na výber",
+        "lifetimeUpdates": "Doživotné aktualizácie",
+        "cloudLimited": "HyperWhisper Cloud (obmedzené použitie)",
+        "customVocabulary": "Vlastný slovník",
+        "prioritySupport": "Prioritná podpora"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "doživotne",
+      "description": "Jednorazový nákup, neobmedzený výkon navždy",
+      "cta": "Kúpiť teraz - Doživotný prístup",
+      "mostPopular": "Najobľúbenejšie",
+      "features": {
+        "unlimitedTranscription": "Neobmedzený prepis",
+        "allModes": "Všetky režimy prepisu",
+        "offlineTranscription": "Offline prepis",
+        "apiTranscription": "API prepis (použite vlastné kľúče)",
+        "postProcessing": "Následné spracovanie textu",
+        "providers": "9+ poskytovateľov na výber",
+        "lifetimeUpdates": "Doživotné aktualizácie",
+        "cloudCredits": "HyperWhisper Cloud ($5 v kreditoch)",
+        "customVocabulary": "Vlastný slovník",
+        "prioritySupport": "Prioritná podpora"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise a vlastné ceny",
+      "description": "Množstevné zľavy, SSO, prioritná podpora, interný hosting a vlastné integrácie",
+      "cta": "Kontaktovať predaj"
+    }
+  },
+  "faq": {
+    "title": "Často kladené otázky",
+    "subtitle": "Všetko, čo potrebujete vedieť o HyperWhisper",
+    "contactPrompt": "Stále máte otázky? Napíšte nám na",
+    "questions": {
+      "accuracy": {
+        "question": "Aký presný je prepis?",
+        "answer": "Dosahujeme špičkovú presnosť 99 % pomocou najmodernejších AI modelov. Presnosť môžete ešte zvýšiť pridaním vlastného slovníka pre technické pojmy, mená a špecializovaný žargón."
+      },
+      "offline": {
+        "question": "Môžem to používať bez internetu?",
+        "answer": "Určite. HyperWhisper sa dá na Macu používať úplne offline pomocou lokálnych AI modelov - bez internetu. Pre používateľov, ktorí chcú maximálnu presnosť a rýchlosť, ponúkame aj voliteľné cloudové spracovanie cez rôznych poskytovateľov."
+      },
+      "apiKey": {
+        "question": "Musím platiť za API prístup?",
+        "answer": "Používate vlastný API kľúč pre týchto poskytovateľov: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral a Google Gemini. Niektorí poskytovatelia ponúkajú novým používateľom bezplatné kredity; Deepgram ponúka $200, AssemblyAI ponúka $50. Dlhodobo je to výrazne lacnejšie než akékoľvek predplatné. \n\nMôžete tiež používať HyperWhisper Cloud (vstavaný), ktorý nevyžaduje API kľúč a funguje na princípe pay-as-you-go.\n\nNezabudnite, že lokálny offline režim funguje bez akéhokoľvek API kľúča a je úplne zadarmo."
+      },
+      "languages": {
+        "question": "Aké jazyky podporuje?",
+        "answer": "Podporovaných je viac ako 100 jazykov hneď po inštalácii, od angličtiny a španielčiny po mandarínčinu a arabčinu. Väčšina modelov dokáže automaticky rozpoznať, akým jazykom hovoríte, a plynulo prepnúť."
+      },
+      "offlineModels": {
+        "question": "Aké offline modely sú k dispozícii?",
+        "answer": "Pre offline prepis ponúkame viacero veľkostí modelu Whisper (od OpenAI, podpora 99+ jazykov). Ponúkame aj modely Parakeet od NVidia (podpora 25+ jazykov).\n      \n      Pre offline následné spracovanie ponúkame viacero veľkostí modelu Gemma 3 (od Google)."
+      },
+      "compatibility": {
+        "question": "Funguje to so všetkými aplikáciami na Macu a Windows?",
+        "answer": "Áno, funguje to všade, kde môžete písať. Či už píšete emaily, dokumenty, kód alebo chatujete. Stačí stlačiť skratku, hovoriť a sledovať, ako sa vaše slová okamžite objavia."
+      },
+      "privacy": {
+        "question": "Ako je chránené moje súkromie?",
+        "answer": "Pri používaní lokálneho režimu žiadne dáta neopúšťajú váš Mac.\n\nPri cloudovom prepise sa vaše dáta odosielajú cloudovému poskytovateľovi, ktorého si vyberiete (napr. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs alebo Mistral).\n\nMôžete si to overiť sami pomocou sieťového inšpektora, napríklad [Proxyman](https://proxyman.io), alebo sieťového monitora, napríklad [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Čo je HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud je vstavaný cloudový prepis určený pre menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe pay as you go. Kúpou licencie získate $5 v kreditoch na prepis. Neskôr môžete pridať ďalšie kredity.\n    \nPonúkame tri úrovne presnosti: Medium (najrýchlejšie, poháňané Groq), High (odporúčané, poháňané Deepgram) a Highest (najlepšia kvalita, poháňané xAI Grok STT). Následné spracovanie je automatické. Neukladáme nič okrem toho, koľko kreditov ste minuli.\n\nPlatíte presne to, čo platíme týmto poskytovateľom aj my. Neúčtujeme žiadnu prirážku.\n\nPre pokoj na duši si môžete pozrieť zdrojový kód HyperWhisper Cloud [tu](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Budú moje hlasové údaje použité na trénovanie modelov AI?",
+        "answer": "HyperWhisper Cloud vás odhlási z trénovania modelov u každého poskytovateľa, ktorého používame. Pri použití vlastného API kľúča je odhlásenie vašou zodpovednosťou — pozrite si nášho [sprievodcu ochranou súkromia údajov](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Prečo doživotná cena namiesto predplatného?",
+        "answer": "Veríme v jednoduché a férové ceny. Zaplaťte raz $39 a používajte HyperWhisper navždy. Žiadne mesačné poplatky, žiadne prekvapenia. Bezplatná verzia vám umožní vyskúšať kľúčové funkcie s 3 minútami prepisu denne."
+      },
+      "deviceLimit": {
+        "question": "Na koľkých zariadeniach môžem používať svoju licenciu?",
+        "answer": "Licenciu môžete používať na ľubovoľnom počte zariadení v súlade s našimi Zásadami férového používania, ako je uvedené v [Podmienkach služby](/legal/terms-of-service). Tieto zásady sú navrhnuté tak, aby boli flexibilné pre legitímne osobné aj firemné použitie a zároveň zabránili zneužitiu."
+      },
+      "requirements": {
+        "question": "Aké sú systémové požiadavky?",
+        "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre optimálny výkon odporúčame 8 GB RAM."
+      },
+      "windowsStatus": {
+        "question": "Má verzia pre Windows všetky rovnaké funkcie ako macOS?",
+        "answer": "Verzia pre Windows bola vydaná nedávno, takže zatiaľ nemusí mať všetky funkcie dostupné na macOS. Aktívne pracujeme na plnej zhode funkcií na oboch platformách."
+      },
+      "madeBy": {
+        "question": "Kto to vytvoril?",
+        "answer": "Vytvoril to YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Centrum podpory",
+    "subtitle": "Sme tu, aby sme vám pomohli využiť HyperWhisper naplno",
+    "getInTouch": "Kontaktujte nás",
+    "description": "Pri technickej podpore, problémoch s licenciou alebo akýchkoľvek otázkach o HyperWhisper je náš tím pripravený pomôcť.",
+    "emailUsAt": "Napíšte nám na:",
+    "openInClient": "Otvoriť vo vašom email klientovi:",
+    "defaultClient": "Predvolený Email Klient",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Počas pracovných dní zvyčajne odpovedáme do 24 hodín.",
+    "emailTemplate": {
+      "subject": "Žiadosť o podporu HyperWhisper",
+      "body": "Ahoj,\n\nVerzia: \n[môžete skontrolovať v Nastavenia > O aplikácii]\n\nProblém: \n[Popíšte svoj problém]\n\nDetaily: \n[Uveďte relevantné detaily, čo ste robili pred pádom]\n\n[Vaša správa tu]\n\nS pozdravom,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "Logo HyperWhisper",
+    "title": "Stiahnuť HyperWhisper",
+    "emailPlaceholder": "Email",
+    "description": "Pošleme vám odkaz na stiahnutie a krátke video-návody, aby ste mohli rýchlo začať. Bez spamu.",
+    "downloadButton": "Stiahnuť HyperWhisper",
+    "errorGeneric": "Niečo sa pokazilo. Skúste to prosím znova.",
+    "errorNetwork": "Chyba siete. Skontrolujte pripojenie a skúste to znova.",
+    "thankYouTitle": "Ďakujeme!",
+    "downloadStarted": "Sťahovanie by sa malo spustiť automaticky.",
+    "manualDownload": "Sťahovanie sa nespustilo? Kliknite sem",
+    "skipAndDownloadButton": "Preskočiť a stiahnuť"
+  },
+  "downloadPage": {
+    "title": "Stiahnuť HyperWhisper",
+    "countdownText": "Spúšťa sa o {seconds}...",
+    "downloadStarted": "Skontrolujte priečinok Stiahnuté",
+    "downloadNow": "Stiahnuť teraz",
+    "downloadAgain": "Stiahnuť znova",
+    "selectArchitecture": "Vyberte architektúru",
+    "downloadX64": "Stiahnuť pre x64",
+    "downloadArm64": "Stiahnuť pre ARM64",
+    "orDivider": "ALEBO",
+    "homebrewTitle": "Inštalácia cez Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopírovať",
+    "copied": "Skopírované!"
+  },
+  "purchaseSuccess": {
+    "title": "Nákup bol úspešný!",
+    "subtitle": "Vitajte v HyperWhisper Pro! Vaša doživotná licencia je pripravená.",
+    "checkEmail": {
+      "title": "Skontrolujte svoj email",
+      "description": "Licenčný kľúč a pokyny na stiahnutie sme poslali na vašu emailovú adresu. Mali by doraziť v priebehu niekoľkých minút."
+    },
+    "whatsNext": {
+      "title": "Čo ďalej?",
+      "step1": {
+        "title": "Skontrolujte doručenú poštu",
+        "description": "Hľadajte email od HyperWhisper"
+      },
+      "step2": {
+        "title": "Skopírujte licenčný kľúč",
+        "description": "Budete ho potrebovať na aktiváciu aplikácie"
+      },
+      "step3": {
+        "title": "Stiahnite HyperWhisper",
+        "description": "Nainštalujte aplikáciu a zadajte licenčný kľúč"
+      }
+    },
+    "downloadButton": "Stiahnuť HyperWhisper",
+    "returnHome": "Návrat na domovskú stránku",
+    "noEmail": "Nedostali ste email? Skontrolujte spam alebo",
+    "contactSupport": "kontaktujte podporu",
+    "loading": "Načítava sa..."
+  },
+  "footer": {
+    "tagline": "Píšte 5x rýchlejšie s AI prepisom hlasu pre macOS a Windows.",
+    "product": "Produkt",
+    "resources": "Zdroje",
+    "company": "Spoločnosť",
+    "legal": "Právne",
+    "links": {
+      "features": "Funkcie",
+      "pricing": "Cenník",
+      "download": "Stiahnuť",
+      "roadmap": "Roadmapa",
+      "helpCenter": "Centrum pomoci",
+      "manageBilling": "Správa fakturácie",
+      "customerPortal": "Zákaznícky portál",
+      "olderVersions": "Staršie verzie",
+      "blog": "Blog",
+      "about": "O nás",
+      "support": "Podpora",
+      "privacyPolicy": "Zásady ochrany súkromia",
+      "termsOfService": "Podmienky služby",
+      "refundPolicy": "Zásady vrátenia peňazí",
+      "dataTraining": "Ochrana údajov"
+    },
+    "copyright": "© 2026 HyperWhisper. Všetky práva vyhradené.",
+    "linkedinAria": "LinkedIn"
+  }
+}

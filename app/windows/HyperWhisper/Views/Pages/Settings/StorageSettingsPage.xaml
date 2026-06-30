@@ -1,0 +1,197 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.StorageSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.section.storage}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.storage.recordings.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock x:Name="RecordingsPathText"
+                                       FontSize="13"
+                                       FontFamily="Consolas"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="NoWrap"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1"
+                                Content="{loc:Loc settings.storage.choose.button}"
+                                Margin="12,0,0,0"
+                                VerticalAlignment="Center"
+                                Click="ChooseRecordingsFolder_Click"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="{loc:Loc settings.storage.showFolder.title}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"/>
+
+                        <Button Grid.Column="1"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Content="{loc:Loc settings.storage.showFolder.button}"
+                                Margin="12,0,0,0"
+                                Click="ShowRecordingsFolder_Click"/>
+                    </Grid>
+
+                    <TextBlock x:Name="StorageErrorText"
+                               FontSize="12"
+                               Foreground="{DynamicResource ErrorBrush}"
+                               Visibility="Collapsed"
+                               Margin="0,8,0,0"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Margin="4,0,4,12">
+                <TextBlock Text="&#xE946;"
+                           FontFamily="Segoe MDL2 Assets"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           VerticalAlignment="Top"
+                           Margin="0,1,8,0"/>
+                <TextBlock Text="{loc:Loc settings.storage.notice}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Audio Compression Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <TextBlock Text="{loc:Loc settings.storage.storeAsM4A.title}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{loc:Loc settings.storage.storeAsM4A.subtitle}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <CheckBox x:Name="StoreAsM4ACheckbox"
+                              Grid.Column="1"
+                              VerticalAlignment="Center"
+                              Checked="StoreAsM4A_Changed"
+                              Unchecked="StoreAsM4A_Changed"/>
+                </Grid>
+            </Border>
+
+            <!-- Auto-Delete Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                <StackPanel>
+                    <!-- Enable Toggle -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.storage.autoDelete.title}"
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.storage.autoDelete.subtitle}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="AutoDeleteEnabledCheckbox"
+                                  Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="AutoDeleteEnabled_Changed"
+                                  Unchecked="AutoDeleteEnabled_Changed"/>
+                    </Grid>
+
+                    <!-- Days Old Configuration (shown when enabled) -->
+                    <StackPanel x:Name="AutoDeleteConfigPanel"
+                                Visibility="Collapsed">
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="{loc:Loc settings.storage.autoDelete.deleteAfter}"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,0,12,0"/>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBox x:Name="DaysOldTextBox"
+                                         Width="60"
+                                         TextAlignment="Center"
+                                         VerticalContentAlignment="Center"
+                                         PreviewTextInput="NumericOnly_PreviewTextInput"
+                                         LostFocus="DaysOld_LostFocus"/>
+                                <TextBlock Text="{loc:Loc settings.storage.autoDelete.days}"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Last Cleanup Info (shown when enabled) -->
+                    <StackPanel x:Name="LastCleanupInfoPanel"
+                                Visibility="Collapsed">
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#xE823;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       VerticalAlignment="Top"
+                                       Margin="0,1,8,0"/>
+                            <TextBlock x:Name="LastCleanupText"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Delete Now Button -->
+                    <Button x:Name="DeleteNowButton"
+                            Content="{loc:Loc settings.storage.autoDelete.deleteNow}"
+                            Click="DeleteNow_Click"
+                            HorizontalAlignment="Left"
+                            Visibility="Collapsed"
+                            Margin="0,12,0,0"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

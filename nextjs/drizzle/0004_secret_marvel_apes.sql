@@ -1,0 +1,2 @@
+ALTER TABLE "stripe_processed_events" ALTER COLUMN "stripe_object_id" SET NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "stripe_processed_events_object_id_unique" ON "stripe_processed_events" USING btree ("stripe_object_id");

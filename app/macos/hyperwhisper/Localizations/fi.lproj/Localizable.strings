@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Sanasto";
+"vocabulary.description" = "Tämä auttaa ohjelmistoa tunnistamaan nimiä, lyhenteitä, slangia tai sanoja muista kielistä sekoitettaessa kieliä.";
+"vocabulary.input.title" = "Syöte";
+"vocabulary.new.word.placeholder" = "Uusi sana tai lause";
+"vocabulary.replacement.placeholder" = "Korvaa tällä...";
+"vocabulary.add.button" = "Lisää sanastoon";
+"vocabulary.edit.title" = "Muokkaa sanastoavainta";
+"vocabulary.update.button" = "Päivitä";
+"vocabulary.cancel.button" = "Peruuta";
+"vocabulary.word.column" = "Sana/lause";
+"vocabulary.replacement.column" = "Korvaus";
+"vocabulary.empty.title" = "Ei sanastosanoja vielä";
+"vocabulary.empty.subtitle" = "Lisää mukautettuja sanoja parantaaksesi transkription tarkkuutta";
+"vocabulary.duplicate.title" = "Kaksoiskappale";
+"vocabulary.duplicate.message" = "%@ on jo sanastossasi. Jokainen sana voidaan lisätä vain kerran.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Avainsanaraja ylitetty";
+"vocabulary.limit.message" = "Sinulla on %d sanaa, mutta vain ensimmäiset %d käytetään transkription tehostamiseen.";
+
+// MARK: - Streaming View
+"streaming.title" = "Suoratoisto (Beta)";
+"streaming.description" = "Reaaliaikainen transkriptio puhuessasi. Teksti kirjoitetaan suoraan aktiiviseen sovellukseen.";
+"streaming.enable.title" = "Käytä suoratoistoa";
+"streaming.provider.picker.title" = "Palveluntarjoaja";
+"streaming.model.title" = "Malli";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Nopea muotoilu";
+"streaming.fastFormatting.description" = "Vähentää älykästä muotoilun viivettä nopeampaa kirjoitusta varten";
+"streaming.warning.vocabAutoDetect" = "Mukautettu sanasto on poistettu käytöstä automaattisessa tunnistustilassa";
+"streaming.warning.vocabUnsupported" = "Mukautettua sanastoa ei tueta %@-suoratoistossa";
+"streaming.warning.apiKeyRequired" = "%@ API-avain vaaditaan";
+"streaming.warning.apiKeyRequired.action" = "Määritä";
+"streaming.warning.apiKeyInvalid" = "%@ API-avain ei toimi. Päivitä se Asetukset > API-avaimet.";
+"streaming.warning.apiKeyInvalid.action" = "Päivitä avain";
+"streaming.language.title" = "Kieli";
+"streaming.shortcut.title" = "Pikanäppäin";
+
+// MARK: - Home View
+"home.get.started" = "Aloita";
+"home.open.system.settings" = "Avaa järjestelmäasetukset";
+
+// MARK: - API Keys
+"api.key.required" = "API-avain vaaditaan";
+"api.keys.required" = "API-avaimet vaaditaan";
+"api.key.configure.message" = "Määritä API-avaimesi ottaaksesi transkription käyttöön.";
+"api.key.internet.required" = "Internet-yhteys vaaditaan";
+"api.key.internet.message" = "Pilvitranskriptio vaatii internet-yhteyden.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Peruuta";
+"common.delete" = "Poista";
+"common.edit" = "Muokkaa";
+"common.done" = "Valmis";
+"common.copy" = "Kopioi";
+"common.back" = "Takaisin";
+"common.skip" = "Ohita";
+"common.settings" = "Asetukset";
+"common.error" = "Virhe";
+"common.retry" = "Yritä uudelleen";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Koti";
+"sidebar.statistics" = "Tilastot";
+"sidebar.modes" = "Tilat";
+"sidebar.vocabulary" = "Sanasto";
+"sidebar.streaming" = "Suoratoisto";
+"sidebar.history" = "Historia";
+"sidebar.settings" = "Asetukset";
+
+// MARK: - App Messages
+"app.unknown.error" = "Tapahtui tuntematon virhe";
+"app.microphone.permission.message" = "HyperWhisper tarvitsee pääsyn mikrofoniisi transkriboidakseen ääntä.\n\nMene kohtaan Järjestelmäasetukset > Tietosuoja ja turvallisuus > Mikrofoni ja ota käyttöön pääsy HyperWhisperille.";
+"app.recordings.location.message" = "HyperWhisper tallentaa nauhoitukset kansioon Documents-kansiosi sisällä, jotta ne ovat helposti löydettävissä: Documents/hyperwhisper/recordings. macOS saattaa kysyä lupaa ensimmäisellä kerralla. Jos et halua myöntää lupaa, voimme tallentaa nauhoitukset yksityiseen sovelluskansioon sen sijaan.";
+"app.upgrade.to.pro" = "Päivitä Pro-versioon";
+"app.enter.license.key" = "Syötä lisenssiavain";
+"accessibility.upgrade.pro" = "Päivitä HyperWhisper Pro -versioon";
+"accessibility.enter.license" = "Syötä lisenssiavain";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Lisää %@ API-avaimet ottaaksesi valitun tilan käyttöön.";
+"home.api.keys.missing.single" = "Lisää %@ API-avain ottaaksesi valitun tilan käyttöön.";
+"home.getting.started.recording.title" = "Aloita nauhoitus";
+"home.getting.started.recording.description" = "Muuta puheesi tekstiksi yhdellä napsautuksella.";
+"home.getting.started.shortcuts.title" = "Mukauta pikanäppäimesi";
+"home.getting.started.shortcuts.description" = "Vaihda pikanäppäimiä HyperWhisperille.";
+"home.getting.started.mode.title" = "Luo tila";
+"home.getting.started.mode.description" = "Rakenna täydellinen tila työnkulullesi.";
+"home.getting.started.vocabulary.title" = "Lisää sanastoa";
+"home.getting.started.vocabulary.description" = "Opeta HyperWhisperille mukautettuja sanoja, nimiä tai alan termejä.";
+"home.add.api.key" = "Lisää API-avain";
+"home.accessibility.enable.title" = "Ota saavutettavuus käyttöön";
+"home.accessibility.enable.description" = "Salli HyperWhisperin liittää tekstiä automaattisesti käyttämiisi sovelluksiin.";
+"home.accessibility.waiting" = "Odotetaan...";
+"home.accessibility.open.settings" = "Avaa asetukset";
+"home.accessibility.restart.after.permission" = "Käynnistä sovellus uudelleen luvan myöntämisen jälkeen";
+"home.getting.started.completed" = "✓ Valmis";
+"home.whatsnew.badge" = "UUTTA";
+"home.whatsnew.title" = "Mitä uutta?";
+"home.whatsnew.update1.date" = "3. heinäkuuta";
+"home.whatsnew.update1.title" = "Parakeet on nyt saatavilla";
+"home.whatsnew.update1.description" = "Lataa se suoraan kielimallien luettelosta tilaa luodessa kokeillaksesi sitä tänään.";
+"home.whatsnew.update2.date" = "5. kesäkuuta";
+"home.whatsnew.update2.title" = "Tuki kaikille OpenAI-yhteensopiville mukautetuille malleille";
+"home.whatsnew.update2.description" = "Voit nyt lisätä mitä tahansa OpenAI-yhteensopivia API:eja malliluetteloosi.";
+"home.whatsnew.update3.date" = "27. toukokuuta";
+"home.whatsnew.update3.title" = "Upouusi pieni nauhoitusikkuna";
+"home.whatsnew.update3.description" = "Tyylikäs, minimalistinen nauhoituskäyttöliittymä, joka pysyy poissa tieltä.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Viimeaikaiset päivitykset";
+"home.recent.updates.error" = "Päivitysten lataus epäonnistui";
+"home.recent.updates.retry" = "Yritä uudelleen";
+"home.recent.updates.empty" = "Ei viimeaikaisia päivityksiä saatavilla";
+"home.recent.updates.version" = "Versio %@";
+"home.recent.updates.new.badge" = "UUTTA";
+"home.recent.updates.no.notes" = "Ei julkaisumuistiinpanoja saatavilla";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Välilyönti";
+"keyboard.option.space" = "⌥Välilyönti";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Mikrofonin käyttöoikeus vaaditaan";
+"common.open.settings" = "Avaa asetukset";
+"alerts.api.local.mode" = "Käytä paikallista tilaa";
+"alerts.documents.permission.title" = "Tallenna Dokumentteihin?";
+"common.continue" = "Jatka";
+"alerts.documents.permission.use.another" = "Käytä toista sijaintia";
+"alerts.api.configure.generic" = "Määritä API-avaimesi asetuksissa.";
+"alerts.api.internet.offline" = "Pilvitranskriptio vaatii internet-yhteyden. Tarkista verkkoasetuksesi tai valitse paikallinen transkriptiotila.";
+"alerts.api.configure.header.multiple" = "Käyttääksesi valittua tilaa, määritä seuraavat API-avaimet asetuksissa:";
+"alerts.api.configure.header.single" = "Käyttääksesi valittua tilaa, määritä seuraava API-avain asetuksissa:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Yritä uudelleen puuttuvien avainten lisäämisen jälkeen.";
+"alerts.export.failed.title" = "Vienti epäonnistui";
+"alerts.export.logs.failed.message" = "Päivityslokien vienti epäonnistui. Yritä uudelleen.";
+"alerts.export.logs.success.title" = "Lokit viety";
+"alerts.export.logs.success.message" = "Päivityslokit on viety onnistuneesti.";
+"alerts.export.logs.saveFailed.message" = "Lokien tallennus valittuun sijaintiin epäonnistui: %@";
+"alerts.export.diagnostics.failed.message" = "Diagnostiikkatietojen vienti epäonnistui. Yritä uudelleen.";
+"alerts.export.diagnostics.success.title" = "Diagnostiikka viety";
+"alerts.export.diagnostics.success.message" = "Kaikki diagnostiikkalokit on viety onnistuneesti.";
+"alerts.export.diagnostics.saveFailed.message" = "Diagnostiikan tallennus valittuun sijaintiin epäonnistui: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Vie päivityslokit tukea varten";
+"panels.export.diagnostics.message" = "Vie kaikki diagnostiikkalokit";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Aloita HyperWhisperin käyttö";
+"sidebar.statistics.help" = "Näytä käyttötilastot ja analytiikka";
+"sidebar.modes.help" = "Hallinnoi transkriptiotiloja eri konteksteissa";
+"sidebar.vocabulary.help" = "Lisää mukautettuja sanoja ja lauseita paremman tunnistuksen saavuttamiseksi";
+"sidebar.streaming.help" = "Reaaliaikaisen suoratranskription asetukset (vaatii internetin)";
+"sidebar.history.help" = "Näytä ja etsi transkriptiohistoriaasi";
+"sidebar.settings.help" = "Määritä sovelluksen asetukset ja mieltymykset";
+
+// MARK: - Recording State
+"recording.state.ready" = "Valmis nauhoittamaan";
+"recording.state.recording" = "Nauhoitetaan...";
+"recording.state.processing" = "Käsitellään ääntä...";
+"recording.state.transcribing" = "Transkriboidaan...";
+"recording.state.postprocessing" = "Jälkikäsittely AI:lla...";
+"recording.state.complete" = "Transkriptio valmis: %@";
+"recording.state.error" = "Virhe: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Aloita tai lopeta nauhoitus";
+"menu.recording.stop" = "Lopeta nauhoitus";
+"menu.recording.toggle" = "Aloita/lopeta nauhoitus";
+"menu.history" = "Historia...";
+"menu.settings" = "Asetukset...";
+"menu.microphone" = "Mikrofoni";
+"menu.select.mode" = "Valitse tila";
+"menu.transcribe.file" = "Transkriboi tiedosto";
+"menu.mode.unnamed" = "Nimetön";
+"menu.version.label" = "Versio %@";
+"common.quit" = "Lopeta";
+"menu.microphone.default" = "Oletus";
+"menu.microphone.system.default" = "Oletus";
+"menu.bar.state.recording" = "Nauhoitetaan";
+"menu.bar.state.processing" = "Käsitellään";
+"menu.bar.state.idle" = "Tyhjäkäynnillä";
+"menu.command.check.updates" = "Tarkista päivitykset…";
+"menu.debug.title" = "Virheenkorjaus";
+"menu.command.export.logs" = "Vie päivityslokit…";
+"menu.command.export.diagnostics" = "Vie diagnostiikka…";
+"menu.command.help.website" = "Ohjeen verkkosivusto";
+"menu.command.contact.support" = "Ota yhteyttä tukeen";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Yleiset";
+"settings.section.sound" = "Ääni";
+"settings.section.license" = "Lisenssi";
+"settings.section.credits" = "Krediitit";
+"settings.section.storage" = "Tallennus";
+"settings.section.models" = "Mallit";
+"settings.section.api.keys" = "API-avaimet";
+"settings.section.shortcuts" = "Pikanäppäimet";
+"settings.section.output" = "Tekstituloste";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (englanti)";
+"onboarding.model.pro.multilingual" = "Pro (monikielinen)";
+"onboarding.model.downloading.progress" = "Ladataan... %d%%";
+"onboarding.accessibility.title" = "Ota saavutettavuus käyttöön automaattista liittämistä varten";
+"onboarding.accessibility.subtitle" = "Salli HyperWhisperin liittää transkriptoitu teksti automaattisesti sovelluksiisi.";
+"onboarding.accessibility.instructions" = "Järjestelmäasetukset → Tietosuoja ja turvallisuus → Saavutettavuus";
+"onboarding.accessibility.status.granted" = "Saavutettavuuslupa myönnetty";
+"onboarding.accessibility.status.pending" = "Saavutettavuuslupaa ei ole vielä myönnetty";
+"onboarding.accessibility.waiting" = "Odotetaan lupaa...";
+"onboarding.accessibility.open.preferences" = "Avaa saavutettavuusasetukset";
+"onboarding.accessibility.restart" = "Luvan myöntämisen jälkeen käynnistä HyperWhisper uudelleen.";
+"onboarding.model.recommendation.title" = "Suosittelemme Pro-mallia";
+"onboarding.model.recommendation.subtitle" = "Perustuu järjestelmäkieleesi ja Macisi ominaisuuksiin.";
+"onboarding.model.recommendation.note" = "Lataa napsauttamalla alla olevaa painiketta.";
+"onboarding.model.downloaded" = "Ladattu";
+"onboarding.model.metric.speed" = "Nopeus";
+"onboarding.model.metric.accuracy" = "Tarkkuus";
+"onboarding.model.metric.size" = "Koko";
+"onboarding.model.metric.size.value" = "1,5 Gt";
+"onboarding.model.alternatives" = "Tai valitse toinen äänimalli";
+"onboarding.model.picker.title" = "Malli";
+"onboarding.model.option.proEnglish" = "Pro (englanti)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Lataa malli";
+"onboarding.audio.title" = "Mitä äänen nauhoituslaitetta haluat käyttää?";
+"onboarding.audio.subtitle" = "Varmista, että äänitulon voimakkuus on ylhäällä ja rekisteröi äänenvoimakkuuden.";
+"onboarding.audio.input.label" = "Tulolaite";
+"onboarding.audio.picker.label" = "Laite";
+"onboarding.audio.use.system.default" = "Käytä järjestelmän oletuslaitetta";
+"onboarding.audio.level" = "Äänitaso";
+"onboarding.audio.open.sound" = "Avaa ääniasetukset";
+"onboarding.microphone.title" = "Nauhoituslupa vaaditaan";
+"onboarding.microphone.subtitle" = "Nauhoittaaksemme ääntä, tarvitsemme pääsyn mikrofoniisi.";
+"onboarding.microphone.status.granted" = "Mikrofonilupa myönnetty";
+"onboarding.microphone.status.pending" = "Mikrofonilupaa ei ole vielä myönnetty";
+"onboarding.microphone.grant" = "Myönnä lupa";
+"onboarding.test.title" = "Valmista, aloitetaan ensimmäinen nauhoitus";
+"onboarding.test.press.prefix" = "Paina";
+"onboarding.test.press.suffix" = "aloittaaksesi";
+"onboarding.test.status.recording" = "Nauhoitetaan...";
+"onboarding.test.status.speak" = "Puhu nyt...";
+"onboarding.test.stop" = "Lopeta nauhoitus";
+"onboarding.test.success.title" = "Hienoa! Nauhoituksesi onnistui.";
+"onboarding.test.success.subtitle" = "Transkriptiosi tulee näkyviin sovellukseen.";
+"onboarding.test.start.cta" = "Napsauta aloittaaksesi nauhoituksen";
+"onboarding.test.start.shortcut" = "Tai paina pikanäppäintäsi";
+"onboarding.settings.title" = "Hyvää työtä! Nyt avataan asetukset";
+"onboarding.settings.subtitle" = "Napsauta HyperWhisper-kuvaketta hiiren oikealla painikkeella ja valitse Asetukset...";
+"onboarding.settings.menu.startStop" = "Aloita/lopeta nauhoitus";
+"onboarding.settings.menu.history" = "Historia...";
+"onboarding.settings.menu.settings" = "Asetukset...";
+"onboarding.settings.menu.quit" = "Lopeta";
+"onboarding.settings.info" = "Asetuksissa voit mukauttaa pikanäppäimiä, hallita API-avaimia ja määrittää HyperWhisperin mieleiseksesi.";
+"onboarding.completion.title" = "Valmista!";
+"onboarding.completion.subtitle" = "Jos kohtaat ongelmia tai kysymyksiä, ota yhteyttä sähköpostilla tai Discordissa.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Sähköposti";
+"onboarding.completion.resources.title" = "Lisäresurssit";
+"onboarding.completion.resources.documentation" = "Dokumentaatio";
+"onboarding.completion.resources.videos" = "Video-oppaat";
+"onboarding.completion.resources.blog" = "Blogi";
+"onboarding.done.button" = "Käyttöönotto valmis";
+"onboarding.error.model.notFound" = "Mallia ei löydy luettelosta.";
+"onboarding.error.microphone.denied" = "Mikrofonilupa evätty. Myönnä lupa järjestelmäasetuksissa.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Käynnistä sisäänkirjautumisen yhteydessä";
+"settings.general.launchAtLogin.info" = "Käynnistä HyperWhisper automaattisesti sisäänkirjautumisen yhteydessä.";
+"settings.general.launchMinimized.title" = "Käynnistä pienennettynä";
+"settings.general.launchMinimized.info" = "Käynnistä HyperWhisper pääikkunan ollessa piilossa. Sovellus on käytettävissä valikkorivin kautta.";
+"settings.general.showInDock.title" = "Näytä Dockissa";
+"settings.general.showInDock.info" = "Näytä sovelluksen kuvake Dockissa.";
+"settings.general.showRecordingWindow.title" = "Näytä nauhoitusikkuna";
+"settings.general.showRecordingWindow.info" = "Näytä kelluva aaltomuotoikkuna nauhoituksen ja käsittelyn aikana.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Pois";
+"settings.general.mediaControl.mode.mute" = "Mykistä ääni";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Virheiden kirjaus";
+"settings.general.errorLogging.info" = "Sieppaa ja lähetä virheraportteja automaattisesti sovelluksen parantamiseksi.";
+"settings.general.autoUpdate.title" = "Automaattiset päivitykset";
+"settings.general.autoUpdate.info" = "Tarkista ja lataa HyperWhisperin uudet versiot automaattisesti.";
+"settings.general.support.title" = "Tarvitsetko apua?";
+"settings.version.detail" = "Versio %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Toista äänitehosteet";
+"settings.sound.soundEffects.info" = "Toista äänimerkit nauhoituksen alkaessa ja päättyessä.";
+"settings.sound.mediaControl.title" = "Median hallinta nauhoituksen aikana";
+"settings.sound.mediaControl.info" = "Valitse, miten HyperWhisper käsittelee muuta ääntä nauhoituksen aikana. 'Pois' jättää äänen muuttumattomaksi, 'Mykistä ääni' hiljentää järjestelmän ulostulon nauhoituksen aikana ja palauttaa sen sen jälkeen.";
+"settings.sound.autoIncreaseMicVolume.title" = "Kasvata mikrofonin äänenvoimakkuutta automaattisesti";
+"settings.sound.autoIncreaseMicVolume.info" = "Asettaa mikrofonin tulon voimakkuuden automaattisesti maksimiin nauhoituksen alkaessa ja palauttaa alkuperäisen tason nauhoituksen päättyessä. Koskee vain järjestelmän oletuslaitetta.";
+"settings.sound.vad.title" = "Poista hiljaisuus ennen transkriptiota";
+"settings.sound.vad.info" = "Tunnistaa ja poistaa automaattisesti alku- ja loppuhiljaisuuden AI-puheentunnistuksella. Tämä voi parantaa transkription tarkkuutta ja vähentää käsittelyaikaa.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Nauhoituskansio";
+"settings.storage.showFolder.title" = "Näytä nauhoituskansio";
+"settings.storage.showFolder.button" = "Näytä Finderissa";
+"settings.storage.notice" = "Nauhoituskansion vaihtaminen vaikuttaa vain uusiin nauhoituksiin. Olemassa olevat nauhoitukset pysyvät alkuperäisessä sijainnissaan.";
+"settings.storage.choose.button" = "Valitse...";
+"settings.storage.dialog.select" = "Valitse kansio";
+"settings.storage.dialog.message" = "Valitse kansio nauhoitusten tallentamiseen";
+"settings.storage.storeAsM4A.title" = "Pakkaa nauhoitukset M4A-muotoon";
+"settings.storage.storeAsM4A.subtitle" = "Muuntaa WAV-nauhoitukset pienemmiksi tiedostoiksi transkription jälkeen. Poista käytöstä säilyttääksesi alkuperäiset WAV-tiedostot (suuremmat mutta häviöttömät).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Liitä tulos automaattisesti";
+"settings.output.paste.subtitle" = "Liitä transkriptoitu teksti automaattisesti aktiiviseen sovellukseen";
+"settings.output.paste.info" = "Jos käytössä, teksti liitetään etualaisimmaiseen sovellukseen.";
+"settings.output.restoreClipboard.title" = "Palauta leikepöytä liittämisen jälkeen";
+"settings.output.restoreClipboard.subtitle" = "Palauta edellinen leikepöydän sisältö liittämisen jälkeen";
+"settings.output.restoreClipboard.info" = "Palauttaa edellisen leikepöydän sisällön sen jälkeen, kun sovellus liittää transkription.";
+"settings.output.restore.after" = "Palauta";
+"settings.output.restore.seconds" = "%ds kuluttua";
+"settings.output.restore.accessibility" = "Leikepöydän palautusviive";
+"settings.output.hideClipboardHistory.title" = "Piilota leikepöydän historiasta";
+"settings.output.hideClipboardHistory.subtitle" = "Estä transkriptioiden näkymisen leikepöytähistoriasovelluksissa";
+"settings.output.hideClipboardHistory.info" = "Kun käytössä, transkriptoitua tekstiä eivät tallenna leikepöytähallintaohjelmat kuten Paste, Maccy tai Alfred.";
+"settings.output.clipboard.header" = "Leikepöytä";
+"settings.output.removeFillers.title" = "Poista täytesanat";
+"settings.output.removeFillers.subtitle" = "Poistaa raakatranskriptiosta 'uh', 'um' ja 'er'.";
+"settings.output.removeFillers.info" = "Kun tämä on käytössä, HyperWhisper poistaa tavalliset täytesanat raakatranskriptioista ennen tulostusta.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Käynnistä/lopeta nauhoitus";
+"settings.shortcuts.toggleRecording.subtitle" = "Aloittaa ja lopettaa nauhoitukset";
+"settings.shortcuts.cancelRecording.title" = "Peruuta nauhoitus";
+"settings.shortcuts.cancelRecording.subtitle" = "Hylkää aktiivisen nauhoituksen";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Pidä näppäintä painettuna nauhoittaaksesi, päästä irti lopettaaksesi";
+"settings.shortcuts.pushToTalk.enable.info" = "Ottaa käyttöön Push to Talk -tilan nopeaa nauhoitusta varten yhdellä näppäinpainalluksella.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Nauhoitustila";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Valitse käytettävä näppäin";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Pois käytöstä";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN-näppäin";
+"settings.shortcuts.pushToTalk.mode.control" = "Control-näppäin";
+"settings.shortcuts.pushToTalk.mode.custom" = "Mukautettu pikanäppäin";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Kaksoisnapsautus lukitsee nauhoituksen";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Paina kahdesti nopeasti jatkaaksesi nauhoitusta pitämättä painettuna";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Mukautettu pikanäppäin";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Paina käytettävää näppäinyhdistelmää";
+
+
+"settings.shortcuts.changeMode.title" = "Vaihda tila";
+"settings.shortcuts.changeMode.subtitle" = "Toimii vain nauhoituksen aikana";
+
+"settings.shortcuts.reset.button" = "Palauta oletusarvot";
+"settings.shortcuts.reset.dialog.title" = "Palauta pikanäppäimet";
+"settings.shortcuts.reset.confirm" = "Palauta";
+"settings.shortcuts.reset.dialog.message" = "Tämä palauttaa kaikki pikanäppäimet oletusarvoihinsa.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API-avaimet tallennetaan turvallisesti laitteeseesi ja lähetetään vain palveluntarjoajalle tarvittaessa.";
+"settings.api.help.link" = "Ohje API-avaimille";
+"settings.api.transcription.title" = "Transkriptio";
+"settings.api.transcription.subtitle" = "API-avaimet pilvipohjaisia puheesta tekstiksi -palveluja varten.";
+"settings.api.postProcessing.title" = "Jälkikäsittely";
+"settings.api.postProcessing.subtitle" = "API-avaimet AI-pohjaiseen tekstin parantamiseen ja muotoiluun.";
+"settings.api.placeholder" = "Syötä %@ API-avaimesi";
+"settings.api.openLink" = "Avaa %@ API-avaimen sivu";
+"settings.api.status.accessibility" = "%@ tila: %@";
+"settings.api.status.unknown" = "Palveluntarjoajan tila tuntematon";
+"settings.api.status.checking" = "Terveystarkistus käynnissä";
+"settings.api.status.unauthorized" = "Palveluntarjoaja hylkäsi API-avaimen";
+"settings.api.status.unreachable" = "Palveluntarjoaja ei ole tällä hetkellä tavoitettavissa";
+"settings.api.status.notInstalled" = "Palveluntarjoajan SDK ei ole asennettu";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Tuntematon";
+"provider.status.checking" = "Tarkistetaan…";
+"provider.status.healthy" = "Valmis";
+"provider.status.unauthorized" = "Virheellinen avain";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Ei asennettu";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Lisenssi aktivoitu";
+"alerts.license.deactivated.title" = "Lisenssi poistettu käytöstä";
+"alerts.license.activated.message" = "Lisenssisi on aktivoitu onnistuneesti. Nauti rajoittamattomasta pääsystä kaikkiin ominaisuuksiin!";
+"alerts.license.deactivated.message" = "Lisenssisi on poistettu käytöstä tällä laitteella. Voit nyt aktivoida sen muualla.";
+"alerts.license.failed.title" = "Toiminto epäonnistui";
+"alerts.license.failed.message" = "Toiminto epäonnistui. Yritä uudelleen.";
+"license.button.deactivate" = "Poista laite käytöstä";
+"license.button.deactivating" = "Poistetaan käytöstä...";
+"license.button.manageBilling" = "Hallitse laskutusta";
+"license.button.activate" = "Aktivoi";
+"license.button.activating" = "Aktivoidaan...";
+"license.status.label" = "Tila: %@";
+"license.status.trial.title" = "Kokeilu";
+"license.status.active.title" = "Aktiivinen";
+"license.status.expired.title" = "Vanhentunut";
+"license.status.invalid.title" = "Virheellinen";
+"license.status.trial.description" = "Ilmainen kokeilu (5 min/päivä, %d mallia)";
+"license.status.active.description" = "Lisensoitu – täysi pääsy";
+"license.status.expired.description" = "Lisenssi vanhentunut";
+"license.status.invalid.description" = "Virheellinen lisenssi";
+"settings.license.key.title" = "Lisenssiavain";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Liitä leikepöydältä";
+"settings.license.clearInput" = "Tyhjennä";
+"settings.license.recovery.prompt" = "Unohditko lisenssisi?";
+"settings.license.recovery.button" = "Siirry asiakasportaaliin";
+"settings.license.daily.title" = "Päivittäinen transkriptio";
+"settings.license.daily.usage" = "%@ / %@ käytetty";
+"settings.license.limitReached" = "Raja saavutettu";
+"settings.license.models.title" = "Offline-mallit";
+"settings.license.models.progress" = "%d / %d mallia ladattu";
+"settings.license.models.progress.one" = "%d / %d malli ladattu";
+"settings.license.upgrade.text" = "Päivitä saadaksesi rajoittamattoman transkription ja mallilataukset";
+"settings.license.upgrade.button" = "Päivitä";
+"license.error.invalidResponse" = "Virheellinen vastausmuoto";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud -krediitit";
+"settings.credits.refresh" = "Päivitä";
+"settings.credits.subtitle" = "Seuraa transkriptiokrediittejäsi ja käyttöäsi";
+"settings.credits.manage" = "Hallitse krediittejä";
+"settings.credits.timeRemaining" = "Transkriptioaikaa jäljellä";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minuuttia";
+"settings.credits.creditsRemaining" = "%@ krediittiä jäljellä";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Ilmainen päiväraja (100 krediittiä)";
+"settings.credits.resets" = "Nollautuu %@";
+"settings.credits.warning.low" = "Krediitit vähissä. Harkitse lisenssin ostamista saadaksesi lisää krediittejä.";
+"settings.credits.warning.exhausted.daily" = "Päiväraja käytetty. Osta lisenssi rajoittamatonta käyttöä varten tai odota nollausta.";
+"settings.credits.warning.exhausted" = "Krediitit loppuivat. Osta lisää krediittejä jatkaaksesi HyperWhisper Cloudin käyttöä.";
+"settings.credits.accountInfo" = "Tilin tiedot";
+"settings.credits.stat.creditsRemaining" = "Krediittejä jäljellä";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minuutteja jäljellä";
+"settings.credits.stat.accountType" = "Tilityyppi";
+"settings.credits.accountType.licensed" = "Lisensoitu";
+"settings.credits.accountType.anonymous" = "Anonyymi";
+"settings.credits.accountType.trial" = "Kokeilu";
+"settings.credits.stat.customerId" = "Asiakastunnus";
+"settings.credits.stat.dailyLimit" = "Päiväraja";
+"settings.credits.dailyLimit.value" = "100 krediittiä";
+"settings.credits.loading" = "Ladataan krediittisaldoa...";
+"settings.credits.error.title" = "Krediittisaldon lataus epäonnistui";
+"settings.credits.error.retry" = "Yritä uudelleen";
+"settings.credits.empty.title" = "Ei krediittitietoja saatavilla";
+"settings.credits.empty.subtitle" = "Napsauta päivitä ladataksesi krediittisaldosi";
+"settings.credits.empty.button" = "Lataa krediitit";
+"settings.credits.error.insufficient" = "Krediitit eivät riitä. Sinulla on %d krediittiä jäljellä.";
+"settings.credits.error.network" = "Verkkovirhe: %@";
+"settings.credits.error.invalidResponse" = "Virheellinen vastaus palvelimelta. Yritä uudelleen.";
+"settings.credits.error.server" = "Palvelinvirhe: %@";
+"settings.models.alert.limit.title" = "Mallien latausraja saavutettu";
+"settings.models.alert.limit.message" = "Kokeilut sisältävät %d mallilatauksen. Päivitä lisenssisi rajoittamattomia latauksia varten.";
+"settings.models.alert.cannotDelete.title" = "Mallia ei voi poistaa";
+"settings.models.parakeet.title" = "Parakeet-mallit";
+"settings.models.parakeet.subtitle" = "Suositeltu useimmille käyttäjille. Monikielinen malli tukee 25 kieltä.";
+"settings.models.parakeet.empty" = "Ei Parakeet-malleja saatavilla.";
+"settings.models.whisper.title" = "Whisper-mallit";
+"settings.models.whisper.subtitle" = "OpenAI Whisper -mallit. Suuremmat mallit ovat tarkempia. Tukee 100+ kieltä.";
+"settings.models.whisper.empty" = "Ei Whisper-malleja saatavilla.";
+"settings.models.help.cancelDownload" = "Peruuta lataus";
+"settings.models.help.remove" = "Poista malli";
+"settings.models.downloaded" = "Ladattu";
+"settings.models.download" = "Lataa";
+"settings.models.downloading" = "Ladataan…";
+"settings.models.localPostProcessing.title" = "Paikalliset jälkikäsittelymallit";
+"settings.models.localPostProcessing.memoryWarning" = "Suositellaan Mac-tietokoneille, joissa on 24 GB yhtenäistä muistia tai enemmän. Nopeus riippuu sirusta — nopeampi M3/M4 Pro -piirillä ja sitä uudemmilla.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Sanoja tänä vuonna";
+"vocabulary.input.placeholder" = "Lisää sana tai luo katkelma";
+"vocabulary.action.addWord" = "Lisää sana";
+"vocabulary.action.replaceWith" = "Korvaa seuraavalla…";
+"vocabulary.action.replace" = "Korvaa";
+"vocabulary.replacement.field.placeholder" = "Korvaava teksti…";
+"settings.output.autocapitalizeInsert.title" = "Automaattinen isolla alkukirjaimella lisättäessä";
+"settings.output.autocapitalizeInsert.subtitle" = "Sovita kohdistimen konteksti tekstiä lisättäessä";
+"settings.output.autocapitalizeInsert.info" = "Jos käytössä, lisätyn transkriptiotekstin ensimmäinen sana sovitetaan kohdistimen kontekstiin (lauseen alku tai keskikohta). Poista käytöstä aina pienillä kirjaimilla tapahtuvaa sanelua varten.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper tarvitsee esteettömyysluvat lukeakseen kursorikontekstin, jota tarvitaan automaattiseen isoon alkukirjaimeen.\n\nNapsauta \"Avaa asetukset\", paina HyperWhisperin vieressä olevaa kytkintä ja yritä uudelleen.";
+"settings.output.removeFillerWords.title" = "Poista täytesanat";
+"settings.output.removeFillerWords.subtitle" = "Poista \"öh\", \"um\" ja \"er\" raakatranskriptioista, kun tekoälyjälkikäsittely on pois päältä";
+"settings.output.removeFillerWords.info" = "Koskee vain silloin, kun tila ohittaa tekoälyjälkikäsittelyn. Tekoälyllä parannetut tilat käsittelevät puheen puhdistuksen kehotteessa.";
+"sidebar.modelLibrary" = "Mallikirjasto";
+"sidebar.modelLibrary.help" = "Selaa kaikkia ääni- ja jälkikäsittelymalleja yhdestä paikasta";
+"settings.shortcuts.quickCapture.enable.title" = "Pikatallennus";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Tallenna ja lähetä transkriptio Muistiinpanoihin — ilman että sinun täytyy ensin kohdistaa sovellus.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Pikanäppäin";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Paina missä tahansa tallentaaksesi ja lähettääksesi Muistiinpanoihin.";
+"settings.shortcuts.quickCapture.mode.title" = "Tila";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Käytettävä transkriptiotila — hallitsee mallia, kehotetta ja jälkikäsittelyä.";
+"settings.shortcuts.quickCapture.mode.current" = "Nykyinen tila";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper tarvitsee luvan Muistiinpanojen hallintaan. Myönnä se kohdassa Järjestelmäasetukset → Tietosuoja → Automaatio.";
+"settings.section.vocabulary" = "Sanasto";
+"settings.vocabulary.icloudSync.title" = "iCloud-synkronointi";
+"settings.vocabulary.icloudSync.subtitle" = "Synkronoi mukautettu sanastosi kaikkiin Maceihin, jotka on kirjautunut samalle iCloud-tilille.";
+"settings.vocabulary.icloudSync.info" = "Oletuksena pois käytöstä. Vain mukautettu sanastosi synkronoidaan — transkriptiot ja tallenteet pysyvät tällä Macilla. Muutokset tulevat voimaan seuraavan kerran, kun avaat HyperWhisperin.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Sulje HyperWhisper ottaaksesi muutokset käyttöön";
+"vocabulary.icloudSync.restart.message" = "iCloudin sanastosynkronoinnin muutokset tulevat voimaan seuraavan kerran, kun avaat HyperWhisperin.";
+"vocabulary.icloudSync.restart.quit" = "Sulje HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Myöhemmin";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Pidä mikrofoni lämpimänä tallennusten välillä";
+"settings.sound.keepWarmMicrophone.info" = "Vähentää push-to-talk-käynnistysviivettä pitämällä mikrofonisession auki, kun HyperWhisper on käyttämättömänä. macOS näyttää oranssin mikrofoninilmaisimen jatkuvasti, ja Bluetooth-kuulokkeet voivat pysyä heikomman laadun puhelutilassa tämän ollessa käytössä.";
+"settings.models.local.inUse" = "Tätä paikallista mallia käytetään tällä hetkellä jälkikäsittelyyn:
+
+%@
+
+Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
+"models.postProcessing.gemma4.e2b.description" = "Nopea ja tarkka. Erinomainen yleismalli jälkikäsittelyyn.";
+"models.postProcessing.gemma4.e4b.description" = "Korkeampi laatu ja enemmän yksityiskohtia. Hyvä pidemmille teksteille.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Nopea päättely vain 4B aktiivisella parametrilla.";
+"models.postProcessing.gemma4.31b.description" = "31B tiheä malli. Korkein laatu, vaatii 18+ GB RAM-muistia.";
+"settings.models.whisper.inUse" = "Tätä mallia ei voi poistaa, koska sitä käyttävät:\n\n%@\n\nPäivitä nämä tilat käyttämään toista mallia ennen poistamista.";
+"settings.models.parakeet.inUse" = "Tätä Parakeet-mallia ei voi poistaa, koska sitä käyttävät:\n\n%@\n\nPäivitä nämä tilat käyttämään toista mallia ennen poistamista.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Tuntematon";
+"settings.models.directory.whisper" = "Whisper-mallien kansio";
+"settings.models.directory.parakeet" = "Parakeet-mallien kansio";
+"settings.models.directory.local" = "Paikallisten mallien kansio";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — monikielinen puheentunnistus optimoitu CoreML:lle.";
+"settings.models.qwen3asr.languages" = "30 kieltä";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Tätä Qwen3 ASR -mallia ei voi poistaa, koska se on käytössä:\n\n%@\n\nPäivitä nämä tilat käyttämään eri mallia ennen poistamista.";
+"settings.models.directory.show" = "Näytä Finderissa";
+"models.error.checksumFailed" = "Mallin tarkistussumman vahvistus epäonnistui. Lataus saattaa olla vaurioitunut.";
+
+// MARK: - Statistics View
+"statistics.title" = "Tilastot";
+"statistics.header.title" = "Käyttötilastosi";
+"statistics.header.subtitle" = "Seuraa transkriptiotoimintaasi ja suorituskykyäsi";
+"statistics.card.recordings" = "Nauhoitukset yhteensä";
+"statistics.card.recordings.subtitle" = "Valmiit transkriptiot";
+"statistics.card.duration" = "Aika yhteensä";
+"statistics.card.duration.subtitle" = "Nauhoitukseen käytetty aika";
+"statistics.card.words" = "Sanat yhteensä";
+"statistics.card.words.subtitle" = "Transkriptoituja sanoja";
+"statistics.card.average" = "Keskimääräinen kesto";
+"statistics.card.average.subtitle" = "Per nauhoitus";
+"statistics.graph.title" = "Toiminta ajan mittaan";
+"statistics.daily.empty" = "Ei vielä nauhoituksia";
+"statistics.filter.week" = "Tällä viikolla";
+"statistics.filter.month" = "Tässä kuussa";
+"statistics.filter.alltime" = "Kaikkina aikoina";
+
+// MARK: - History View
+"history.title" = "Historia";
+"history.search.placeholder" = "Etsi";
+"history.filter.all" = "Kaikki";
+"history.filter.today" = "Tänään";
+"history.filter.week" = "Tällä viikolla";
+"history.filter.month" = "Tässä kuussa";
+"history.empty.title" = "Ei nauhoituksia löytynyt";
+"history.empty.subtitle" = "Yritä säätää hakuasi";
+"history.detail.empty" = "Valitse nauhoitus nähdäksesi tiedot";
+"history.multi.selected" = "%d nauhoitusta valittu";
+"history.multi.delete" = "Poista valitut";
+"history.context.deleteSelected" = "Poista %d nauhoitusta";
+"history.context.retry" = "Yritä transkriptiota uudelleen";
+"history.context.retryWith" = "Yritä uudelleen...";
+"history.context.copy" = "Kopioi teksti";
+"history.retrying" = "Yritetään transkriptiota uudelleen...";
+"history.retry.help" = "Yritä transkriptiota uudelleen";
+"history.section.today" = "Tänään";
+"history.section.yesterday" = "Eilen";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Epäonnistui";
+"history.status.transcription.failed.prefix" = "Transkriptio epäonnistui:";
+"history.status.retry.failed.prefix" = "Uudelleenyritys epäonnistui:";
+"history.failure.reason" = "Syy: %@";
+"history.mode.default" = "Oletus";
+"history.audio.showInFinder" = "Näytä Finderissa";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Poista tila?";
+"modes.delete.confirm.message" = "Tämä poistaa valitun tilan. Tätä toimintoa ei voi perua.";
+"modes.header.title" = "Tilat";
+"modes.header.subtitle" = "Luo mukautettuja profiileja eri konteksteja ja työnkulkuja varten";
+"modes.header.create" = "Luo tila";
+"modes.name.unnamed" = "Nimetön";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Valitse";
+"modes.help.edit" = "Muokkaa tilan asetuksia";
+"modes.help.preset" = "Lue lisää tästä muotoilutyylistä";
+"modes.help.model" = "Lue lisää tästä mallista";
+"modes.preset.title" = "Muotoilutyyli";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Viesti";
+"modes.preset.mail.name" = "Sähköposti";
+"modes.preset.note.name" = "Muistiinpano";
+"modes.preset.meeting.name" = "Kokous";
+"modes.preset.code.name" = "Koodi";
+"modes.preset.custom.name" = "Mukautettu";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Viestintila siistii sanelemasi viestin, korjaa välimerkit, muuttaa kappaleiksi ja korjaa kielioppivirheet.";
+"modes.preset.mail.tooltip" = "Sähköpostitila muotoilee sanelusi ammattimaiseksi sähköpostin rakenteeksi, sopivilla tervehdyksillä, kappalejaolla ja lopetuksella.";
+"modes.preset.note.tooltip" = "Muistiinpanotila järjestää sanellun sisältösi selkeäksi muistiinpanomuodoksi otsikoilla, luettelomerkeillä ja jäsennellyillä osioilla.";
+"modes.preset.meeting.tooltip" = "Kokouksen tila järjestää sanelusi kokouspöytäkirjan muotoon osallistujilla, toimenpiteillä ja keskeisillä keskustelukohdilla.";
+"modes.preset.code.tooltip" = "Kooditila muuntaa puhutun ohjelmointisanelun koodisyntaksiksi. Sano 'avaa sulje', 'kenoviiva', 'camel case' ja muuta kirjoittaaksesi koodia puheella.";
+"modes.preset.custom.tooltip" = "Mukautettu tila mahdollistaa omien muotoilusääntöjen ja kehoteiden määrittelyn erityistapauksille.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "Tekoäly muokkaa sanelusi siistiksi viestiksi oikeilla kappaleilla, välimerkeillä ja kielioppikorjauksilla.";
+"modes.preset.mail.preview" = "Tekoäly muotoilee sanelusi ammattimaiseksi sähköpostiksi tervehdyksillä, jäsennellyillä kappaleilla ja lopputervehdyksellä.";
+"modes.preset.note.preview" = "Tekoäly järjestää sanelusi strukturoiduiksi muistiinpanoiksi otsikoilla, luettelomerkeillä ja selkeillä osioilla.";
+"modes.preset.meeting.preview" = "Tekoäly jäsentää sanelusi kokousmuistioksi osallistujilla, keskustelupisteillä ja toimenpiteillä.";
+"modes.preset.code.preview" = "Tekoäly muuttaa puhutun ohjelmointidiktauksen koodisyntaksiksi tulkiten komentoja kuten 'avaa sulku' ja 'camel case'.";
+"modes.preset.custom.preview" = "Käyttää mukautettuja muotoiluohjeita transkription käsittelyyn.";
+"modes.customInstructions" = "Määritä tämän esiasetuksen täydelliset muotoiluohjeet.";
+"modes.notice.vocabularyUnsupported" = "Mukautettua sanastoa ei tueta tämän palveluntarjoajan kanssa tälle mallille. Se ohitetaan.";
+"modes.notice.deepgramNova3AutoDetect" = "Mukautettu sanasto ei ole saatavilla käytettäessä Deepgram Nova-3:a automaattisen kielen tunnistuksen kanssa. Ottaaksesi sanaston tehostuksen käyttöön, aseta tietty kieli (esim. englanti, espanja).";
+"modes.language.title" = "Kieli";
+"modes.language.englishOnly" = "Vain englanti (optimoitu malli)";
+"modes.postProcessing.sectionTitle" = "Jälkikäsittely";
+"modes.postProcessing.modeLabel" = "Tila";
+"modes.postProcessing.modeTitle" = "Jälkikäsittely";
+"modes.postProcessing.modeDescription" = "Valitse, miten transkriptiot käsitellään:\n\n• Pois: Ei jälkikäsittelyä, raaka transkriptio\n• Pilvi (AI): AI-pohjainen parantaminen (vaatii internetin)\n• Paikallinen: Käyttää laitteeseen asennettua kielimallia, kuten Gemma llama.cpp:n kautta\n\nPilvikäsittely lähettää tekstin valitsemalles AI-palveluntarjoajalle. Paikallinen tila pysyy koneessasi, mutta vaatii paikallisen palvelimen ajamisen.";
+"modes.postProcessing.providerLabel" = "Palveluntarjoaja";
+"modes.postProcessing.apiKeyMissing" = "%@ API-avainta ei ole määritetty. Lisää se asetuksissa ottaaksesi jälkikäsittelyn käyttöön.";
+"modes.postProcessing.configure" = "Määritä asetuksissa";
+"modes.postProcessing.modelRecommendation" = "Suosittelemme GPT-4.1 Nano -mallin käyttöä parhaan nopeuden ja laadun tasapainon saavuttamiseksi.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Paikallinen jälkikäsittely vaatii ladatun paikallisen mallin.";
+"modes.postProcessing.download" = "Lataa asetuksissa";
+"modes.postProcessing.localInfo" = "Toimii kokonaan laitteessa. HyperWhisper käynnistää paketoidun llama.cpp-palvelimen automaattisesti, kun tämä tila on aktiivinen.";
+"modes.postProcessing.userSystemPrompt.title" = "Pysyvät ohjeet";
+"modes.postProcessing.userSystemPrompt.placeholder" = "esim. Allekirjoita sähköpostit aina 'Terveisin, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Tyhjennä";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Pysyvät ohjeet";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Lisää ohjeet, jotka pätevät aina valitun esiasetuksen päälle.";
+"modes.toggle.punctuation.title" = "Lisää välimerkit";
+"modes.toggle.punctuation.subtitle" = "Lisää pisteet ja pilkut automaattisesti";
+"modes.toggle.capitalization.title" = "Aloita lauseet isolla kirjaimella";
+"modes.toggle.capitalization.subtitle" = "Aloita lauseiden ensimmäinen kirjain isolla";
+"modes.toggle.profanity.title" = "Suodata kiroilu";
+"modes.toggle.profanity.subtitle" = "Korvaa sopimattomia sanoja";
+"modes.toggle.removeTrailingPeriod.title" = "Poista loppupiste";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Poistaa litterointien viimeisen pisteen";
+"modes.postProcessing.privacyNotice" = "Transkriptiosi lähetetään VAIN %@:lle jälkikäsittelyä varten. Ei koskaan muualle.";
+"modes.postProcessing.localModel" = "Malli";
+"modes.postProcessing.languageModel" = "Kielimalli";
+"modes.englishSpelling.title" = "Englannin oikeinkirjoitus";
+"modes.englishSpelling.american" = "Amerikkalainen";
+"modes.englishSpelling.british" = "Brittiläinen";
+"modes.englishSpelling.australian" = "Australialainen";
+"modes.englishSpelling.canadian" = "Kanadalainen";
+"modes.englishSpelling.american.description" = "Käytä amerikkalaista englannin oikeinkirjoitusta (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Käytä brittiläistä englannin oikeinkirjoitusta (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Käytä australialaista englannin oikeinkirjoitusta (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Käytä kanadalaista englannin oikeinkirjoitusta (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Mukautetut ohjeet";
+"modes.gemini.customPrompt.helper" = "Valinnainen. Esim. \"Muotoile luettelomerkeillä\", \"Käytä muodollista kieltä\". Kieli- ja sanastoasetukset sisällytetään automaattisesti.";
+"modes.cloud.apiKeyMissing" = "%@ API-avainta ei ole määritetty. Lisää se asetuksissa käyttääksesi pilvitranskriptiota.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Tarkkuus";
+"modes.cloudAccuracy.groqWhisper.label" = "Keskitaso (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Keskitaso (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Korkea (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Nopea ja edullinen. Paras nopeisiin transkriptioihin.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Tasapainoinen nopeus ja tarkkuus. Suositeltu useimmille käyttäjille.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
+"modes.cloudAccuracy.grokStt.label" = "Korkein (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
+
+"modes.create.title" = "Luo uusi tila";
+"modes.create.subtitle" = "Määritä mukautettu transkriptioprofiili";
+"modes.section.basic" = "Perusasetukset";
+"modes.section.transcription" = "Transkriptiomalli";
+"modes.section.punctuation" = "Välimerkit";
+"modes.toggle.screenText.title" = "Näytön teksti";
+"modes.toggle.screenText.subtitle" = "Tallenna näkyvillä oleva näytön teksti nimien ja termien tarkkuuden parantamiseksi. Vaatii näytön nauhoitusoikeuden.";
+"modes.screenText.openSettings" = "Avaa järjestelmäasetukset";
+"modes.screenText.permissionGranted" = "Näytön nauhoitusoikeus myönnetty";
+"modes.screenText.permissionRequired" = "Näytön nauhoitusoikeus vaaditaan";
+"modes.field.name" = "Nimi";
+"modes.field.name.placeholder" = "esim. Kokouspöytäkirjat";
+"modes.field.name.editPlaceholder" = "Tilan nimi";
+"modes.field.model" = "Malli";
+"modes.field.provider" = "Palveluntarjoaja";
+"modes.provider.local" = "Paikallinen";
+"modes.provider.cloud" = "Pilvi";
+"modes.notice.noLocalModels.title" = "Ei paikallisia malleja asennettuna";
+"modes.notice.noLocalModels.subtitle" = "Asenna malli ensin asetuksissa";
+"modes.model.pricing" = "Hinnoittelu: $%.6f / minuutti (laskutetaan sekunnittain)";
+"modes.button.create" = "Luo tila";
+"modes.button.delete" = "Poista tila";
+"modes.button.save" = "Tallenna muutokset";
+"modes.edit.title" = "Muokkaa tilaa";
+"modes.edit.subtitle" = "Muokkaa transkriptioprofiiliasetuksia";
+"mode.editor.cloudModel.previewHint" = "Esikatselu";
+"mode.editor.cloudModel.noVocabularyHint" = "Ei mukautettua sanastoa";
+"mode.editor.cloudDomain.medical" = "Lääketiede";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode -lisäosa";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Ei voi yrittää uudelleen: Äänitiedostoa ei löydy";
+"transcripts.error.invalidId" = "Virheellinen transkriptiotunnus";
+"transcripts.delete.single.title" = "Poista nauhoitus?";
+"transcripts.delete.single.message" = "Tämä poistaa pysyvästi tämän nauhoituksen ja sen äänitiedoston.";
+"transcripts.delete.multiple.title" = "Poista %d nauhoitusta?";
+"transcripts.delete.multiple.message" = "Tämä poistaa pysyvästi %d nauhoitusta ja niiden äänitiedostot.\n\nTätä toimintoa ei voi perua.";
+"transcripts.delete.multiple.confirm" = "Poista kaikki";
+"transcripts.retry.error.title" = "Uudelleenyritys epäonnistui";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Valitse nauhoituskansio";
+"storage.folder.choose.message" = "Valitse kansio uusien nauhoitusten tallentamiseen.";
+"storage.folder.choose.prompt" = "Valitse";
+"storage.recovery.title" = "Nauhoituskansiota ei voi käyttää";
+"storage.recovery.message" = "HyperWhisper ei voinut käyttää määritettyä nauhoituskansiota. Voit valita toisen kansion jatkaaksesi.";
+"storage.recovery.choose" = "Valitse kansio…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Lue lisää";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkriptio valmis";
+"recording.status.retrying" = "Yritetään transkriptiota uudelleen…";
+"recording.status.postprocessing" = "Jälkikäsittely AI:lla…";
+"recording.status.transcribing" = "Transkriboidaan…";
+"recording.success.pasted" = "Liitetty!";
+"recording.loading.retrying" = "Yritetään uudelleen…";
+"recording.loading.postprocessing" = "Käsitellään AI:lla…";
+"recording.loading.starting" = "Aloitetaan suoratoistoa…";
+"recording.loading.transcribing" = "Transkriboidaan…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Yhdistetään...";
+"streaming.status.ready" = "Valmis - Aloita puhuminen";
+"streaming.status.warming" = "Lämmitetään...";
+"modes.badge.recommended" = "Suositeltu";
+"modes.source.label" = "Lähde";
+"modes.source.onDevice" = "Laitteella";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-avain";
+"modes.field.engine" = "Moottori";
+"settings.models.localASR.inUse" = "Tätä mallia ei voi poistaa, koska se on käytössä:
+
+%@
+
+Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
+"models.postProcessing.gemma4.12b.description" = "Keskikokoinen tiheä malli. Tasapainottaa laadun ja nopeuden 16 GB Maceissa.";
+"recording.success.savedToNotes" = "Tallennettu Muistiinpanoihin!";
+"modes.provider.needsKey" = "%@ tarvitsee toimivan avaimen.";
+"modes.provider.manageInLibrary" = "Hallitse kirjastossa →";
+"streaming.loading.warming" = "Lämmitetään paikallista mallia...";
+"streaming.status.listening" = "Kuunnellaan...";
+"streaming.status.streaming" = "Suoratoistetaan...";
+"streaming.status.disconnecting" = "Pysäytetään...";
+"streaming.loading.connecting" = "Yhdistetään palvelimeen...";
+"streaming.loading.ready" = "Alustetaan ääntä...";
+"streaming.loading.streaming" = "Odotetaan puhetta...";
+"streaming.state.reconnecting" = "Yhdistetään uudelleen...";
+"recording.stop.help" = "Lopeta nauhoitus (%@)";
+"recording.postprocessing.unavailable" = "Jälkikäsittely ei saatavilla";
+"recording.postprocessing.missing.single" = "%@ avain puuttuu – nauhoitetaan ilman jälkikäsittelyä";
+"recording.postprocessing.missing.multiple" = "API-avaimet puuttuvat – nauhoitetaan ilman jälkikäsittelyä";
+"recording.postprocessing.addKey" = "Lisää avain";
+"recording.offline.banner" = "Ei internet-yhteyttä. Pilvitranskriptio epäonnistuu, kunnes olet online.";
+"recording.offline.title" = "Ei internet-yhteyttä";
+"recording.offline.subtitle" = "Yhdistä uudelleen jatkaaksesi tai vaihda offline-tilaan.";
+"recording.error.network" = "Tarkista internet-yhteytesi ja yritä uudelleen.";
+"recording.error.timeout" = "Pyyntö aikakatkaistiin. Tarkista yhteytesi nopeus ja yritä uudelleen.";
+"recording.error.rateLimit" = "Olet tehnyt liikaa pyyntöjä. Odota hetki ja yritä uudelleen.";
+"recording.error.credits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";
+"recording.error.apiKey" = "Lisää %@ API-avaimesi asetuksissa.";
+"recording.error.server" = "Transkriptiopalvelu kokee ongelmia. Yritä uudelleen hetken kuluttua.";
+"recording.retry" = "Yritä uudelleen";
+"recording.retry.inProgress" = "Yritetään uudelleen…";
+"recording.retry.count" = "Yritä uudelleen (%d)";
+"recording.retry.failed.missing" = "Uudelleenyritys epäonnistui: Äänitiedostoa ei löydy";
+"recording.retry.failed.error" = "Uudelleenyritys epäonnistui: %@";
+"recording.retry.pending" = "Valmis uudelleenyritykseen – napsauta transkriboidaksesi";
+"recording.provider.unknown" = "pilvipalveluntarjoaja";
+"recording.cancel.dialog.title" = "Peruuta nauhoitus?";
+"recording.cancel.dialog.message" = "Tämä hylkää nykyisen nauhoituksen.";
+"recording.cancel.dialog.confirm" = "Peruuta nauhoitus";
+"recording.cancel.dialog.resume" = "Jatka";
+"recording.error.overlay.title" = "Verkkoyhteyden virhe";
+"recording.error.overlay.message" = "Paina 'Yritä uudelleen' alla tai vaihda offline-tilaan jatkaaksesi.";
+"recording.mode.default" = "Oletus";
+"recording.dialog.window.title" = "Nauhoitusdialogi";
+"recording.button.start" = "Aloita nauhoitus";
+"recording.button.stop" = "Lopeta nauhoitus";
+"recording.button.disable.checking" = "Tarkistetaan %@ tilaa...";
+"recording.button.disable.invalid" = "Virheellinen %@ API-avain. Päivitä se asetuksissa.";
+"recording.button.disable.unreachable" = "%@ ei ole tavoitettavissa. Tarkista yhteytesi ja yritä uudelleen.";
+"recording.button.disable.missing" = "Lisää %@ API-avaimesi asetuksissa.";
+"recording.button.disable.install.local" = "Lataa paikallinen malli kohdasta Asetukset → Mallit ennen paikallisen jälkikäsittelyn käyttämistä.";
+"modes.postProcessing.accuracy" = "Tarkkuus";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Olet saavuttanut päivittäisen %@-minuutin transkriptiorajasi. Päivitä HyperWhisper Pro -versioon saadaksesi rajoittamattoman transkription.";
+"recording.error.documentsAccess" = "Nauhoituskansiota ei voi käyttää. Valitse toinen sijainti kohdassa Asetukset → Tallennus.";
+"recording.error.modeMissing" = "Valittua tilaa ei löydy. Valitse kelvollinen tila.";
+"recording.warning.oversizedWAV" = "Äänen pakkaus epäonnistui. Käytetään pakkaamatonta %@ Mt tiedostoa - transkriptio saattaa olla hitaampaa.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Oletusmikrofoni";
+"audio.error.permissionDenied" = "Mikrofonin käyttöoikeus evätty. Ota käyttöön järjestelmäasetuksissa.";
+"audio.error.fileWatcher.open" = "Tiedostokuvaajan avaaminen äänitiedoston valvontaan epäonnistui.";
+"audio.error.fileWatcher.timeout" = "Toiminto aikakatkaistiin odotettu äänitiedoston kirjoitusta.";
+"audio.error.fileWatcher.creation" = "Äänitiedostoa ei luotu ajoissa.";
+"audio.error.microphonePermission" = "Mikrofonilupaa ei myönnetty";
+"audio.error.microphoneInUse" = "HyperWhisper ei voi käyttää mikrofonia, koska toinen sovellus käyttää sitä tällä hetkellä. Keskeytä toinen sovellus tai vaihda tuloa ja yritä uudelleen.";
+"audio.error.createEngine" = "Äänimoottorin luominen epäonnistui";
+"audio.error.noInput" = "Äänituloa ei ole saatavilla";
+"audio.error.createFile" = "Äänitiedoston luominen epäonnistui";
+"audio.error.managerUnavailable" = "Transkriptiohallintaa ei ole määritetty";
+"audio.error.invalidHardwareFormat" = "Virheellinen laitteiston äänimuoto havaittu. Tarkista äänilaite.";
+"audio.error.createFormat" = "Äänimuodon luominen nauhoitukselle epäonnistui";
+"audio.error.createConverter" = "Äänimuodon muuntimen luominen epäonnistui";
+"audio.error.exportM4A" = "Äänen vieminen m4a-muotoon epäonnistui";
+"audio.error.readFile" = "Äänitiedostoa ei voitu lukea nauhoituksen jälkeen.";
+"audio.error.recordingTooShort" = "Nauhoitus oli liian lyhyt. Pidä painiketta pidempään kaappataksesi ääntä.";
+"audio.error.noAudioTrack" = "Tämä videotiedosto ei sisällä äänitä.";
+"audio.alert.accessibility.title" = "Ota saavutettavuuskäyttö käyttöön";
+"audio.alert.accessibility.message" = "HyperWhisper tarvitsee saavutettavuusluvan liittääkseen transkriptoitua tekstiä muihin sovelluksiin.\n\nNapsauta \"Avaa asetukset\", paina HyperWhisperin vieressä olevaa kytkintä ja yritä uudelleen.";
+"audio.alert.accessibility.open" = "Avaa asetukset";
+"audio.alert.pasteFailed.title" = "Automaattinen liittäminen epäonnistui";
+"audio.alert.pasteFailed.message" = "Transkriptoitu teksti on kopioitu leikepöydällesi.\n\nPaina ⌘V liittääksesi sen manuaalisesti tai valitse Muokkaa → Liitä valikosta.";
+"accessibility.permission.location.debug" = "Xcode-virheenkorjausversio";
+"accessibility.permission.location.installed" = "Asennettu sovellus";
+"accessibility.permission.info" = "HyperWhisper tarvitsee saavutettavuusluvan liittääkseen transkriptoitua tekstiä muihin sovelluksiin.\n\nNykyinen sovelluksen sijainti: %@\n\nJärjestelmäasetuksissa:\n1. Etsi 'hyperwhisper' tai 'HyperWhisper' listalta\n2. Saatat nähdä useita merkintöjä, jos olet ajanut eri sijainneista\n3. Ota käyttöön valintaruutu merkinnälle, joka vastaa:\n   %@";
+"accessibility.permission.xcodeNote" = "Huomautus: Xcodesta ajaminen vaatii eri luvan kuin asennettu sovellus.";
+"accessibility.error.paste.commandFailed" = "Liittämiskomento epäonnistui";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transkriptiopalveluntarjoaja ei ole saatavilla. Tarkista asetuksesi ja yritä uudelleen.";
+"transcription.error.providerNotAvailable.provider" = "%@ ei ole saatavilla. Tarkista asetuksesi ja yritä uudelleen.";
+"transcription.error.providerNotAvailable.detail" = "%@ ei ole saatavilla: %@";
+"transcription.error.modelNotDownloaded" = "Lataa ensin malli";
+"transcription.error.modelProtected" = "Tätä mallia ei voi poistaa";
+"transcription.error.audioFileNotFound" = "Äänitiedostoa ei löydy";
+"transcription.error.network.detail" = "Verkkovirhe: %@";
+"transcription.error.network.generic" = "Verkkoyhteyden virhe";
+"transcription.error.apiKeyMissing.provider" = "%@ API-avain vaaditaan transkriptiota varten";
+"transcription.error.apiKeyMissing.generic" = "Pilvipalveluntarjoajan API-avain vaaditaan transkriptiota varten";
+"transcription.error.maxRetriesExceeded" = "Uudelleenyritysten enimmäismäärä ylitetty";
+"transcription.error.unauthorized.provider" = "Ei valtuutusta: virheellinen %@ API-avain tai käyttöoikeudet.\n\nAvaa Asetukset → API-avaimet vahvistaaksesi tunnistetietosi.";
+"transcription.error.unauthorized.generic" = "Ei valtuutusta: virheellinen API-avain tai käyttöoikeudet.\n\nAvaa Asetukset → API-avaimet vahvistaaksesi tunnistetietosi.";
+"transcription.error.invalidRequest" = "Virheellinen pyyntö: tarkista äänitiedosto tai asetukset";
+"transcription.error.streamingInterrupted" = "Suoratoisto keskeytetty; osittainen teksti näytetään";
+"transcription.error.busy" = "Transkriptiopalvelu on tällä hetkellä varattu";
+"transcription.error.invalidAudioFormat" = "Ei-tuettu äänimuoto";
+"transcription.error.audioConversionFailed" = "Äänen muuntaminen vaadittuun muotoon epäonnistui";
+"transcription.error.audioFileTooLarge" = "Tiedosto liian suuri: %@ ylittää %@ rajan palvelulle %@";
+"transcription.error.serverError" = "Palvelinvirhe (%d): %@";
+"transcription.error.rateLimited.seconds" = "Nopeusrajoitettu: Liikaa pyyntöjä. Odota %d sekuntia ja yritä uudelleen.";
+"transcription.error.rateLimited.generic" = "Nopeusrajoitettu: Liikaa pyyntöjä. Odota hetki ja yritä uudelleen.";
+"transcription.error.insufficientCredits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";
+"transcription.error.quotaExceeded" = "%@ kiintiö ylitetty";
+"transcription.error.quotaExceeded.detail" = "%@ kiintiö ylitetty: %@";
+"transcription.error.timeout" = "Pyyntö aikakatkaistiin %@:n aikana. Tarkista internet-yhteytesi ja yritä uudelleen.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Varmista, että transkriptiopalveluntarjoajasi on oikein määritetty asetuksissa.";
+"transcription.guidance.providerNotAvailable.provider" = "Varmista, että %@ on oikein määritetty. Paikallisille malleille lataa ensin malli. Pilvipalveluntarjoajille tarkista API-avaimesi.";
+"transcription.guidance.apiKeyMissing.provider" = "Lisää %@ API-avaimesi asetuksissa";
+"transcription.guidance.apiKeyMissing.generic" = "Lisää pilvipalveluntarjoajan API-avaimesi asetuksissa";
+"transcription.guidance.modelNotDownloaded" = "Lataa malli Mallit-osiosta";
+"transcription.guidance.modelProtected" = "Tämä malli on tällä hetkellä käytössä";
+"transcription.guidance.audioFileNotFound" = "Äänitiedosto poistettiin tai siirrettiin";
+"transcription.guidance.networkError" = "Tarkista internet-yhteytesi ja yritä uudelleen";
+"transcription.guidance.unauthorized.provider" = "Tarkista %@ API-avaimesi tai tilin käyttöoikeudet asetuksissa";
+"transcription.guidance.unauthorized.generic" = "Tarkista API-avaimesi tai tilin käyttöoikeudet asetuksissa";
+"transcription.guidance.invalidRequest" = "Vahvista äänitiedosto ja tilan asetukset ja yritä sitten uudelleen";
+"transcription.guidance.invalidAudioFormat" = "Yritä muuntaa äänitiedosto MP3- tai WAV-muotoon";
+"transcription.guidance.audioConversionFailed" = "Äänitiedosto saattaa olla vaurioitunut. Yritä toista tiedostoa";
+"transcription.guidance.audioFileTooLarge" = "Käytä lyhyempää äänitiedostoa tai jaa se pienempiin osiin";
+"transcription.guidance.serverError" = "Transkriptiopalvelu kokee ongelmia. Yritä uudelleen.";
+"transcription.guidance.rateLimited" = "Olet tehnyt liikaa pyyntöjä. Odota hetki ennen uudelleenyritystä.";
+"transcription.guidance.insufficientCredits" = "Osta lisää krediittejä asetuksissa jatkaaksesi transkribointia";
+"transcription.guidance.quotaExceeded" = "Lisää krediittejä %@-tilillesi tai päivitä laskutustietosi";
+"transcription.guidance.timeout" = "Pyyntö kesti liian kauan. Tarkista internet-nopeutesi ja yritä uudelleen.";
+"transcription.error.noSpeechDetected" = "Nauhoituksessa ei havaittu puhetta.";
+"transcription.guidance.noSpeechDetected" = "Vinkkejä:\n• Puhu selvästi mikrofoniin\n• Pidä näppäintä pidempään ennen puhumista\n• Tarkista, että mikrofonisi toimii\n• Varmista, että oikea tulolaite on valittu";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";
+"hyperwhisperCloud.error.network" = "Verkkovirhe: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Virheellinen vastaus HyperWhisper Cloudilta";
+"hyperwhisperCloud.error.server" = "Palvelinvirhe: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server-suoritettavaa tiedostoa ei löytynyt.";
+"llama.runtime.error.missingDependencies" = "Ajoympäristöstä puuttuu riippuvuuksia: %@";
+"llama.runtime.error.copyFailed" = "Ajoympäristön kopiointi epäonnistui: %@";
+"llama.runtime.error.copy.executable" = "Suoritettavan tiedoston kopiointi epäonnistui: %@";
+"llama.runtime.missing" = "Paikallinen-ajoympäristö puuttuu tästä asennuksesta. Asenna HyperWhisper uudelleen palauttaaksesi paikallisen jälkikäsittelyn.";
+"llama.runtime.genericError" = "Paikallinen-ajoympäristön virhe: %@";
+"runtime.error.llama.missingLib" = "Paikallinen-ajoympäristö lopetettiin puuttuvan libmtmd.dylib:n jälkeen";
+"runtime.error.llama.reportedMissingLib" = "Paikallinen-ajoympäristö ilmoitti puuttuvasta libmtmd.dylib:stä";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Sisäänrakennettu AI-jälkikäsittely Cloudflare Workersissa. Ei määritystä tarvita.";
+"models.postProcessing.gpt4.1.nano.description" = "Kohtalainen tarkkuus (92%), erittäin nopea (<1s). Sopii nopeisiin luonnoksiin ja epävirallisiin muistiinpanoihin.";
+"models.postProcessing.gpt4.1.mini.description" = "Korkea tarkkuus (94%), nopea (~1-2s). Hyvä jokapäiväiseen yrityskommunikaatioon ja vakioasiakirjoihin.";
+"models.postProcessing.gpt4.1.description" = "Erittäin korkea tarkkuus (96%), kohtalainen nopeus (~3-4s). Erinomainen monimutkaiseen muotoiluun ja tekniseen sisältöön.";
+"models.postProcessing.gpt5.nano.description" = "Hyvä tarkkuus (95%), nopein (~1s). Täydellinen nopeisiin muistiinpanoihin, viesteihin ja rennompiin transkriptioihin.";
+"models.postProcessing.gpt5.mini.description" = "Erinomainen tarkkuus (97%), kohtalainen nopeus (~2-3s). Ihanteellinen tasapaino ammattimaisille sähköposteille, raporteille ja kokouspöytäkirjoille.";
+"models.postProcessing.gpt5.description" = "Korkein tarkkuus (99%+), hitain (~3-5s). Paras kriittisiin asiakirjoihin, oikeudellisiin, lääketieteellisiin transkriptioihin, joissa tarkkuus on ensiarvoisen tärkeää.";
+"models.postProcessing.gpt5.1.description" = "Huippuluokan tarkkuus (98%+), kohtalainen nopeus (~2-3s). Erinomainen monimutkaisiin tehtäviin, oikeudellisiin asiakirjoihin ja tekniseen sisältöön, jossa on ylivoimainen päättely.";
+"models.postProcessing.gpt5.2.description" = "Uusin GPT-5-sarja parannetulla päättelyllä ja nopeammalla päättelyllä. Paras yleisvalinta korkealaatuiseen tekstinkäsittelyyn.";
+"models.postProcessing.claude4.5.haiku.description" = "Uusin Claude Haiku parannetulla päättelyllä pitäen vasteajat nopeina.";
+"models.postProcessing.claude4.sonnet.description" = "Tasapainoinen suorituskyky. Ylivoimainen päättely ja muotoiluominaisuudet ammattimaisille asiakirjoille.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 -sarja Pro-tason älykkyydellä Flash-nopeudella. Edistyksellinen päättely dynaamisella ajattelukyvyllä.";
+"models.postProcessing.gemini2.5.flash.description" = "Paras hinta-laatusuhde. Optimoitu nopeuteen säilyttäen hyvän tarkkuuden jokapäiväiseen käyttöön.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultranopea malli optimoitu kustannustehokkuuteen ja korkeaan suorituskykyyn.";
+"models.postProcessing.groq.llama33.70b.description" = "Monipuolinen 70B-malli erinomaisella laadulla. ~280 tokenia/s. Suositeltu.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultranopea 8B-malli. ~560 tokenia/s välittömään tekstinkäsittelyyn.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI:n avoimen lähdekoodin 120B-malli. ~500 tokenia/s korkealaatuiseen käsittelyyn.";
+"models.postProcessing.groq.gptoss.20b.description" = "Kevyt 20B-malli. ~1000 tokenia/s nopeimpaan käsittelyyn.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B Cerebraksessa. Ultranopea 120B-malli ~3000 tokenia/s. Suositeltu.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B Cerebraksessa. Kevyt ja ultranopea ~2200 tokenia/s.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B Cerebraksessa. Massiivinen 235B MoE-malli ~1400 tokenia/s. Vain esikatselu.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 Cerebraksessa. 355B parametrin malli ~1000 tokenia/s. Vain esikatselu.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Ohje-keskus";
+"settings.resources.contact.support" = "Ota yhteyttä tukeen";
+"settings.resources.feedback" = "Palaute ja ehdotukset";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Varmuuskopiointi";
+"settings.backup.export.title" = "Vie asetukset";
+"settings.backup.export.subtitle" = "Tallenna asetuksesi, tilasi ja sanastosi tiedostoon";
+"settings.backup.export.button" = "Vie...";
+"settings.backup.export.panel.title" = "Vie asetukset";
+"settings.backup.export.panel.label" = "Varmuuskopiotiedosto:";
+"settings.backup.export.success" = "Asetukset viety onnistuneesti";
+"settings.backup.export.error.create" = "Varmuuskopiotietojen luominen epäonnistui";
+"settings.backup.export.error.encode" = "Varmuuskopiotietojen koodaus epäonnistui";
+"settings.backup.export.error.write" = "Varmuuskopiotiedoston kirjoitus epäonnistui";
+"settings.backup.includeAPIKeys.title" = "Sisällytä API-avaimet";
+"settings.backup.includeAPIKeys.subtitle" = "Tallenna API-avaimet varmuuskopiotiedostoon (ei suositella jakamiseen)";
+"settings.backup.includeLicense.title" = "Sisällytä lisenssiavain";
+"settings.backup.import.title" = "Tuo asetukset";
+"settings.backup.import.subtitle" = "Palauta asetukset varmuuskopiotiedostosta";
+"settings.backup.import.button" = "Tuo...";
+"settings.backup.import.panel.title" = "Tuo asetukset";
+"settings.backup.import.success" = "Tuonti valmis: %d tilaa, %d sanastokohde tuotu";
+"settings.backup.import.error.read" = "Varmuuskopiotiedoston lukeminen epäonnistui";
+"settings.backup.import.error.decode" = "Virheellinen varmuuskopiotiedoston muoto";
+"settings.backup.import.error.decode.keyNotFound" = "Pakollinen kenttä puuttuu: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Väärä tyyppi kentälle: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Kentän arvo puuttuu: %@";
+"settings.backup.import.error.decode.corrupted" = "Vioittuneet tiedot: %@";
+"settings.backup.import.error.decode.corruptedField" = "Vioittunut kentän arvo: %@";
+"settings.backup.import.error.version" = "Varmuuskopiotiedosto on uudemmasta versiosta";
+"settings.backup.import.error.unknown" = "Tuonti epäonnistui";
+"settings.backup.import.confirm.title" = "Tuo asetukset?";
+"settings.backup.import.confirm.message" = "Tämä korvaa olemassa olevat tilasi ja sanastosi varmuuskopiotiedoston tiedoilla. Asetukset myös päivitetään.";
+"settings.backup.import.confirm.button" = "Tuo";
+"settings.backup.conflict.skip" = "Ohita olemassa olevat";
+"settings.backup.conflict.replace" = "Korvaa olemassa olevat";
+"settings.backup.conflict.keepBoth" = "Pidä molemmat";
+"settings.backup.security.warning" = "Varoitus: Viety tiedosto sisältää arkaluontoisia tietoja. Pidä se turvassa äläkä jaa sitä.";
+"settings.backup.info.note" = "Varmuuskopiot sisältävät asetukset, tilat ja sanaston. Nauhoituksia ja transkriptioita ei sisällytetä.";
+"settings.backup.result.success.title" = "Onnistui";
+"settings.backup.result.error.title" = "Virhe";
+"settings.backup.export.choose.subtitle" = "Valitse, mitä varmuuskopiointitiedostoon sisällytetään";
+"settings.backup.export.section.settings" = "Asetukset";
+"settings.backup.export.section.modes" = "Tilat";
+"settings.backup.export.section.vocabulary" = "Sanasto";
+"settings.backup.import.importing" = "Tuodaan %@";
+"settings.backup.import.contains" = "Tämä tiedosto sisältää: %@";
+"settings.backup.import.contains.vocabulary" = "Sanasto (%d sanaa)";
+"settings.backup.import.contains.none" = "ei mitään";
+"settings.backup.import.section.settings" = "Asetukset";
+"settings.backup.import.section.modes" = "Tilat";
+"settings.backup.import.section.vocabulary" = "Sanasto";
+"settings.backup.import.section.apiKeys" = "API-avaimet";
+"settings.backup.import.section.license" = "Lisenssiavain";
+"settings.backup.import.section.absent" = "— ei tiedostossa";
+"settings.backup.import.premerge.summary" = "Sanasto: lisää %d uutta, %d on jo olemassa";
+"settings.backup.import.premerge.conflictLabel" = "Sanoille, joita jo on:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Valitse äänitiedosto";
+"transcribe.file.error.title" = "Transkriptiovirhe";
+"transcribe.file.error.size.title" = "Tiedosto liian suuri";
+"transcribe.file.error.size.message" = "Valittu tiedosto (%@) ylittää %@ rajan palvelulle %@.";
+"transcribe.file.error.format.title" = "Ei-tuettu muoto";
+"transcribe.file.error.format.message" = ".%@ tiedostoja ei tueta palvelussa %@. Tuetut muodot: %@";
+"transcribe.file.error.read" = "Valittua tiedostoa ei voi lukea.";
+"transcribe.file.error.copy" = "Tiedoston kopiointi nauhoituskansioon epäonnistui.";
+"transcribe.file.error.video.title" = "Ei ääntä videossa";
+"transcribe.file.error.video.noAudio" = "Tämä videotiedosto ei sisällä äänitä. Valitse video, jossa on ääni tai äänitiedosto.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Valmistellaan...";
+"file.transcription.transcribing" = "Transkriboidaan...";
+"file.transcription.finishing" = "Viimeistellään...";
+"file.transcription.cancel" = "Peruuta";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Ota automaattinen poisto käyttöön";
+"history.autoDelete.enable.subtitle" = "Määritettyä kestoa vanhemmat nauhoitukset poistetaan";
+"history.autoDelete.duration.prefix" = "Jälkeen";
+"history.autoDelete.unit.minutes" = "Minuutit";
+"history.autoDelete.unit.hours" = "Tunnit";
+"history.autoDelete.unit.days" = "Päivät";
+"history.autoDelete.unit.minutes.plural" = "minuuttia";
+"history.autoDelete.unit.hours.plural" = "tuntia";
+"history.autoDelete.unit.days.plural" = "päivää";
+"history.autoDelete.status.disabled" = "Automaattinen poisto on poistettu käytöstä";
+"history.autoDelete.status.enabled" = "Poista nauhoitukset, jotka ovat vanhempia kuin %d %@";
+"history.autoDelete.cleanup.noItems" = "Ei poistettavia nauhoituksia";
+"history.autoDelete.cleanup.summary" = "Poistettiin %d nauhoitus(ta) ja vapautettiin %@";

@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Речник";
+"vocabulary.description" = "Това помага на софтуера да разпознава имена, съкращения, жаргон или думи от други езици при смесване на езици.";
+"vocabulary.input.title" = "Въвеждане";
+"vocabulary.new.word.placeholder" = "Нова дума или фраза";
+"vocabulary.replacement.placeholder" = "Замени с...";
+"vocabulary.add.button" = "Добави към речника";
+"vocabulary.edit.title" = "Редактирам запис от речник";
+"vocabulary.update.button" = "Актуализиране";
+"vocabulary.cancel.button" = "Отмяна";
+"vocabulary.word.column" = "Дума/Фраза";
+"vocabulary.replacement.column" = "Заместване";
+"vocabulary.empty.title" = "Все още няма думи в речника";
+"vocabulary.empty.subtitle" = "Добавете потребителски думи за подобряване на точността на транскрипцията";
+"vocabulary.duplicate.title" = "Дублиращ се запис";
+"vocabulary.duplicate.message" = "%@ вече съществува във вашия речник. Всяка дума може да бъде добавена само веднъж.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Лимитът на ключови думи е надвишен";
+"vocabulary.limit.message" = "Имате %d думи, но само първите %d ще бъдат използвани за подобряване на транскрипцията.";
+
+// MARK: - Streaming View
+"streaming.title" = "Поточно предаване (Бета)";
+"streaming.description" = "Транскрипция в реално време, докато говорите. Текстът се въвежда директно във фокусираното приложение.";
+"streaming.enable.title" = "Активиране на поточно предаване";
+"streaming.provider.picker.title" = "Доставчик";
+"streaming.model.title" = "Модел";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Бързо форматиране";
+"streaming.fastFormatting.description" = "Намалява забавянето на интелигентното форматиране за по-бързо въвеждане";
+"streaming.warning.vocabAutoDetect" = "Потребителският речник е деактивиран в режим на автоматично разпознаване";
+"streaming.warning.vocabUnsupported" = "Потребителският речник не се поддържа с %@ поточно предаване";
+"streaming.warning.apiKeyRequired" = "Необходим е %@ API ключ";
+"streaming.warning.apiKeyRequired.action" = "Настройване";
+"streaming.warning.apiKeyInvalid" = "%@ API ключът не работи. Актуализирайте го в Настройки > API ключове.";
+"streaming.warning.apiKeyInvalid.action" = "Актуализиране на ключа";
+"streaming.language.title" = "Език";
+"streaming.shortcut.title" = "Клавишна комбинация";
+
+// MARK: - Home View
+"home.get.started" = "Започнете";
+"home.open.system.settings" = "Отвори Системни настройки";
+
+// MARK: - API Keys
+"api.key.required" = "Необходим е API ключ";
+"api.keys.required" = "Необходими са API ключове";
+"api.key.configure.message" = "Настройте вашите API ключове, за да активирате транскрипцията.";
+"api.key.internet.required" = "Необходима е интернет връзка";
+"api.key.internet.message" = "Облачната транскрипция изисква интернет връзка.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Отказ";
+"common.delete" = "Изтрий";
+"common.edit" = "Редактирай";
+"common.done" = "Готово";
+"common.copy" = "Копирай";
+"common.back" = "Назад";
+"common.skip" = "Пропусни";
+"common.settings" = "Настройки";
+"common.error" = "Грешка";
+"common.retry" = "Опитай отново";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Начало";
+"sidebar.statistics" = "Статистики";
+"sidebar.modes" = "Режими";
+"sidebar.vocabulary" = "Речник";
+"sidebar.streaming" = "Поточно предаване";
+"sidebar.history" = "История";
+"sidebar.settings" = "Настройки";
+
+// MARK: - App Messages
+"app.unknown.error" = "Възникна неизвестна грешка";
+"app.microphone.permission.message" = "HyperWhisper се нуждае от достъп до вашия микрофон, за да транскрибира аудио.\n\nМоля, отидете в Системни настройки > Поверителност и сигурност > Микрофон и активирайте достъпа за HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper записва записите в папка във вашите Документи, за да ги намирате лесно: Documents/hyperwhisper/recordings. macOS може да поиска разрешение при първия опит за запазване. Ако предпочитате да не давате достъп, можем да съхраняваме записите в частна папка на приложението.";
+"app.upgrade.to.pro" = "Надградете до Pro";
+"app.enter.license.key" = "Въведете лицензен ключ";
+"accessibility.upgrade.pro" = "Надградете до HyperWhisper Pro";
+"accessibility.enter.license" = "Въведете лицензен ключ";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Добавете вашите %@ API ключове, за да активирате избрания режим.";
+"home.api.keys.missing.single" = "Добавете вашия %@ API ключ, за да активирате избрания режим.";
+"home.getting.started.recording.title" = "Стартиране на запис";
+"home.getting.started.recording.description" = "Превърнете гласа си в текст с едно щракване.";
+"home.getting.started.shortcuts.title" = "Персонализирайте клавишните комбинации";
+"home.getting.started.shortcuts.description" = "Променете клавишните комбинации за HyperWhisper.";
+"home.getting.started.mode.title" = "Създайте режим";
+"home.getting.started.mode.description" = "Изградете перфектния режим за вашия работен процес.";
+"home.getting.started.vocabulary.title" = "Добавяне на речник";
+"home.getting.started.vocabulary.description" = "Научете HyperWhisper на потребителски думи, имена или специализирани термини.";
+"home.add.api.key" = "Добавяне на API ключ";
+"home.accessibility.enable.title" = "Активиране на достъпността";
+"home.accessibility.enable.description" = "Позволете на HyperWhisper автоматично да поставя текст в приложенията, които използвате.";
+"home.accessibility.waiting" = "Изчакване...";
+"home.accessibility.open.settings" = "Отвори Настройки";
+"home.accessibility.restart.after.permission" = "Рестартирайте приложението след предоставяне на разрешение";
+"home.getting.started.completed" = "✓ Завършено";
+"home.whatsnew.badge" = "НОВО";
+"home.whatsnew.title" = "Какво ново?";
+"home.whatsnew.update1.date" = "3 юли";
+"home.whatsnew.update1.title" = "Parakeet вече е наличен";
+"home.whatsnew.update1.description" = "Изтеглете го директно от списъка с езикови модели при създаване на режим, за да го изпробвате днес.";
+"home.whatsnew.update2.date" = "5 юни";
+"home.whatsnew.update2.title" = "Поддръжка на всеки OpenAI-съвместим потребителски модел";
+"home.whatsnew.update2.description" = "Вече можете да добавите всякакви OpenAI-съвместими API към вашия списък с модели.";
+"home.whatsnew.update3.date" = "27 май";
+"home.whatsnew.update3.title" = "Изцяло нов мини прозорец за запис";
+"home.whatsnew.update3.description" = "Елегантен, минималистичен интерфейс за запис, който не ви пречи.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Последни актуализации";
+"home.recent.updates.error" = "Неуспешно зареждане на актуализации";
+"home.recent.updates.retry" = "Опитай отново";
+"home.recent.updates.empty" = "Няма налични последни актуализации";
+"home.recent.updates.version" = "Версия %@";
+"home.recent.updates.new.badge" = "НОВО";
+"home.recent.updates.no.notes" = "Няма налични бележки за изданието";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Необходим е достъп до микрофона";
+"common.open.settings" = "Отвори Настройки";
+"alerts.api.local.mode" = "Използвай локален режим";
+"alerts.documents.permission.title" = "Запазване в Документи?";
+"common.continue" = "Продължи";
+"alerts.documents.permission.use.another" = "Използвай друго местоположение";
+"alerts.api.configure.generic" = "Моля, настройте вашите API ключове в Настройки.";
+"alerts.api.internet.offline" = "Облачната транскрипция изисква интернет връзка. Моля, проверете мрежовите си настройки или изберете локален режим на транскрипция.";
+"alerts.api.configure.header.multiple" = "За да използвате избрания режим, моля настройте следните API ключове в Настройки:";
+"alerts.api.configure.header.single" = "За да използвате избрания режим, моля настройте следния API ключ в Настройки:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "След добавяне на липсващите ключове, опитайте отново.";
+"alerts.export.failed.title" = "Неуспешен експорт";
+"alerts.export.logs.failed.message" = "Не можа да се експортира дневникът за актуализации. Моля, опитайте отново.";
+"alerts.export.logs.success.title" = "Дневниците са експортирани";
+"alerts.export.logs.success.message" = "Дневниците за актуализации бяха експортирани успешно.";
+"alerts.export.logs.saveFailed.message" = "Не можа да се запази дневникът на избраното местоположение: %@";
+"alerts.export.diagnostics.failed.message" = "Не можа да се експортира диагностиката. Моля, опитайте отново.";
+"alerts.export.diagnostics.success.title" = "Диагностиката е експортирана";
+"alerts.export.diagnostics.success.message" = "Всички диагностични дневници бяха експортирани успешно.";
+"alerts.export.diagnostics.saveFailed.message" = "Не можа да се запази диагностиката на избраното местоположение: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Експортиране на дневници за актуализации за поддръжка";
+"panels.export.diagnostics.message" = "Експортиране на всички диагностични дневници";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Започнете работа с HyperWhisper";
+"sidebar.statistics.help" = "Преглед на статистики и анализи за използването";
+"sidebar.modes.help" = "Управление на режимите за транскрипция за различни контексти";
+"sidebar.vocabulary.help" = "Добавяне на потребителски думи и фрази за по-добро разпознаване";
+"sidebar.streaming.help" = "Настройки за поточна транскрипция в реално време (изисква интернет)";
+"sidebar.history.help" = "Преглед и търсене в историята на транскрипциите";
+"sidebar.settings.help" = "Конфигуриране на настройки и предпочитания на приложението";
+
+// MARK: - Recording State
+"recording.state.ready" = "Готов за запис";
+"recording.state.recording" = "Записване...";
+"recording.state.processing" = "Обработка на аудио...";
+"recording.state.transcribing" = "Транскрибиране...";
+"recording.state.postprocessing" = "Последваща обработка с ИИ...";
+"recording.state.complete" = "Транскрипцията завършена: %@";
+"recording.state.error" = "Грешка: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Стартиране или спиране на запис";
+"menu.recording.stop" = "Спри записа";
+"menu.recording.toggle" = "Стартиране/Спиране на запис";
+"menu.history" = "История...";
+"menu.settings" = "Настройки...";
+"menu.microphone" = "Микрофон";
+"menu.select.mode" = "Избор на режим";
+"menu.transcribe.file" = "Транскрибиране на файл";
+"menu.mode.unnamed" = "Без име";
+"menu.version.label" = "Версия %@";
+"common.quit" = "Изход";
+"menu.microphone.default" = "По подразбиране";
+"menu.microphone.system.default" = "По подразбиране";
+"menu.bar.state.recording" = "Записване";
+"menu.bar.state.processing" = "Обработка";
+"menu.bar.state.idle" = "Неактивен";
+"menu.command.check.updates" = "Проверка за актуализации...";
+"menu.debug.title" = "Отстраняване на грешки";
+"menu.command.export.logs" = "Експортиране на дневници за актуализации...";
+"menu.command.export.diagnostics" = "Експортиране на диагностика...";
+"menu.command.help.website" = "Уебсайт за помощ";
+"menu.command.contact.support" = "Свържете се с поддръжката";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Общи";
+"settings.section.sound" = "Звук";
+"settings.section.license" = "Лиценз";
+"settings.section.credits" = "Кредити";
+"settings.section.storage" = "Съхранение";
+"settings.section.models" = "Модели";
+"settings.section.api.keys" = "API ключове";
+"settings.section.shortcuts" = "Клавишни комбинации";
+"settings.section.output" = "Текстов изход";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Английски)";
+"onboarding.model.pro.multilingual" = "Pro (Многоезичен)";
+"onboarding.model.downloading.progress" = "Изтегляне... %d%%";
+"onboarding.accessibility.title" = "Активиране на достъпността за автоматично поставяне";
+"onboarding.accessibility.subtitle" = "Позволете на HyperWhisper автоматично да поставя транскрибиран текст във вашите приложения.";
+"onboarding.accessibility.instructions" = "Системни настройки → Поверителност и сигурност → Достъпност";
+"onboarding.accessibility.status.granted" = "Разрешението за достъпност е предоставено";
+"onboarding.accessibility.status.pending" = "Разрешението за достъпност все още не е предоставено";
+"onboarding.accessibility.waiting" = "Изчакване на разрешение...";
+"onboarding.accessibility.open.preferences" = "Отвори настройки за достъпност";
+"onboarding.accessibility.restart" = "След предоставяне на разрешение рестартирайте HyperWhisper.";
+"onboarding.model.recommendation.title" = "Препоръчваме Pro модела";
+"onboarding.model.recommendation.subtitle" = "Въз основа на вашия системен език и възможностите на вашия Mac.";
+"onboarding.model.recommendation.note" = "Изтеглете, като натиснете бутона по-долу.";
+"onboarding.model.downloaded" = "Изтеглен";
+"onboarding.model.metric.speed" = "Скорост";
+"onboarding.model.metric.accuracy" = "Точност";
+"onboarding.model.metric.size" = "Размер";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Или изберете друг гласов модел";
+"onboarding.model.picker.title" = "Модел";
+"onboarding.model.option.proEnglish" = "Pro (Английски)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Изтегляне на модел";
+"onboarding.audio.title" = "Кое устройство за аудиозапис искате да използвате?";
+"onboarding.audio.subtitle" = "Уверете се, че входната сила на звука е увеличена и регистрира звук.";
+"onboarding.audio.input.label" = "Входно устройство";
+"onboarding.audio.picker.label" = "Устройство";
+"onboarding.audio.use.system.default" = "Използвай системното устройство по подразбиране";
+"onboarding.audio.level" = "Ниво на звука";
+"onboarding.audio.open.sound" = "Отвори настройки за звука";
+"onboarding.microphone.title" = "Необходимо е разрешение за запис";
+"onboarding.microphone.subtitle" = "За да записваме аудио, трябва да имаме достъп до вашия микрофон.";
+"onboarding.microphone.status.granted" = "Разрешението за микрофон е предоставено";
+"onboarding.microphone.status.pending" = "Разрешението за микрофон все още не е предоставено";
+"onboarding.microphone.grant" = "Предоставяне на разрешение";
+"onboarding.test.title" = "Всичко е готово, нека започнем вашия първи запис";
+"onboarding.test.press.prefix" = "Натиснете";
+"onboarding.test.press.suffix" = "за да започнете";
+"onboarding.test.status.recording" = "Записване...";
+"onboarding.test.status.speak" = "Говорете сега...";
+"onboarding.test.stop" = "Спри записа";
+"onboarding.test.success.title" = "Чудесно! Записът ви беше успешен.";
+"onboarding.test.success.subtitle" = "Вашата транскрипция ще се появи в приложението.";
+"onboarding.test.start.cta" = "Натиснете, за да започнете запис";
+"onboarding.test.start.shortcut" = "Или натиснете клавишната комбинация";
+"onboarding.settings.title" = "Браво! Сега нека отворим Настройки";
+"onboarding.settings.subtitle" = "Щракнете с десен бутон върху иконата на HyperWhisper и изберете Настройки...";
+"onboarding.settings.menu.startStop" = "Стартиране/Спиране на запис";
+"onboarding.settings.menu.history" = "История...";
+"onboarding.settings.menu.settings" = "Настройки...";
+"onboarding.settings.menu.quit" = "Изход";
+"onboarding.settings.info" = "В Настройки можете да персонализирате клавишните комбинации, да управлявате API ключовете и да конфигурирате HyperWhisper по ваш вкус.";
+"onboarding.completion.title" = "Готови сте!";
+"onboarding.completion.subtitle" = "Ако срещнете проблеми или имате въпроси, свържете се с нас по имейл или Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Имейл";
+"onboarding.completion.resources.title" = "Допълнителни ресурси";
+"onboarding.completion.resources.documentation" = "Документация";
+"onboarding.completion.resources.videos" = "Видео ръководства";
+"onboarding.completion.resources.blog" = "Блог";
+"onboarding.done.button" = "Въвеждането завършено";
+"onboarding.error.model.notFound" = "Моделът не е намерен в каталога.";
+"onboarding.error.microphone.denied" = "Разрешението за микрофон е отказано. Моля, предоставете разрешение в Системни настройки.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Стартиране при вход";
+"settings.general.launchAtLogin.info" = "Стартирайте HyperWhisper автоматично, когато влезете в системата.";
+"settings.general.launchMinimized.title" = "Стартиране минимизирано";
+"settings.general.launchMinimized.info" = "Стартирайте HyperWhisper със скрит главен прозорец. Приложението ще бъде достъпно от лентата с менюта.";
+"settings.general.showInDock.title" = "Показване в Dock";
+"settings.general.showInDock.info" = "Показване на иконата на приложението в Dock.";
+"settings.general.showRecordingWindow.title" = "Показване на прозореца за запис";
+"settings.general.showRecordingWindow.info" = "Показване на плаващия прозорец с вълнова форма по време на запис и обработка.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Изкл.";
+"settings.general.mediaControl.mode.mute" = "Заглушаване на звука";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Регистриране на грешки";
+"settings.general.errorLogging.info" = "Автоматично улавяне и изпращане на доклади за грешки за подобряване на приложението.";
+"settings.general.autoUpdate.title" = "Автоматично актуализиране";
+"settings.general.autoUpdate.info" = "Автоматична проверка за и изтегляне на нови версии на HyperWhisper.";
+"settings.general.support.title" = "Имате нужда от помощ?";
+"settings.version.detail" = "Версия %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Възпроизвеждане на звукови ефекти";
+"settings.sound.soundEffects.info" = "Възпроизвеждане на звукови сигнали при стартиране и спиране на записа.";
+"settings.sound.mediaControl.title" = "Управление на медиите по време на запис";
+"settings.sound.mediaControl.info" = "Изберете как HyperWhisper обработва друго аудио, докато записвате. 'Изкл.' оставя аудиото непроменено, 'Заглушаване на звука' заглушава системния изход по време на запис и го възстановява след това.";
+"settings.sound.autoIncreaseMicVolume.title" = "Автоматично увеличаване на силата на микрофона";
+"settings.sound.autoIncreaseMicVolume.info" = "Автоматично задава входната сила на микрофона на максимум при начало на запис, след което възстановява оригиналното ниво при спиране. Прилага се само при използване на системното входно устройство по подразбиране.";
+"settings.sound.vad.title" = "Премахване на тишината преди транскрипция";
+"settings.sound.vad.info" = "Автоматично разпознава и премахва началната и крайната тишина с помощта на ИИ гласово разпознаване. Това може да подобри точността на транскрипцията и да намали времето за обработка.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Папка за записи";
+"settings.storage.showFolder.title" = "Показване на папката за записи";
+"settings.storage.showFolder.button" = "Покажи във Finder";
+"settings.storage.notice" = "Промяната на папката за записи засяга само новите записи. Съществуващите записи остават на оригиналното си място.";
+"settings.storage.choose.button" = "Избери...";
+"settings.storage.dialog.select" = "Избери папка";
+"settings.storage.dialog.message" = "Изберете папка за съхранение на записи";
+"settings.storage.storeAsM4A.title" = "Компресиране на записите в M4A";
+"settings.storage.storeAsM4A.subtitle" = "Конвертира WAV записите в по-малки файлове след транскрипция. Изключете, за да запазите оригиналните WAV файлове (по-големи, но без загуба).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Автоматично поставяне на резултата";
+"settings.output.paste.subtitle" = "Автоматично поставяне на транскрибирания текст в активното приложение";
+"settings.output.paste.info" = "Ако е активирано, текстът се поставя в най-предното приложение.";
+"settings.output.restoreClipboard.title" = "Възстановяване на клипборда след поставяне";
+"settings.output.restoreClipboard.subtitle" = "Възстановяване на предишното съдържание на клипборда след поставяне";
+"settings.output.restoreClipboard.info" = "Възстановява предишното съдържание на клипборда, след като приложението постави транскрипцията.";
+"settings.output.restore.after" = "Възстановяване след";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Забавяне на възстановяването на клипборда";
+"settings.output.hideClipboardHistory.title" = "Скриване от историята на клипборда";
+"settings.output.hideClipboardHistory.subtitle" = "Предотвратяване на показването на транскрипции в приложения за история на клипборда";
+"settings.output.hideClipboardHistory.info" = "Когато е активирано, транскрибираният текст няма да бъде запазван от мениджъри на клипборда като Paste, Maccy или Alfred.";
+"settings.output.clipboard.header" = "Клипборд";
+"settings.output.removeFillers.title" = "Премахване на паразитни думи";
+"settings.output.removeFillers.subtitle" = "Премахва 'uh', 'um' и 'er' от суровите транскрипции.";
+"settings.output.removeFillers.info" = "Когато е включено, HyperWhisper премахва често срещани паразитни думи от суровите транскрипции преди извеждане.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Превключване на записа";
+"settings.shortcuts.toggleRecording.subtitle" = "Стартира и спира записите";
+"settings.shortcuts.cancelRecording.title" = "Отмяна на записа";
+"settings.shortcuts.cancelRecording.subtitle" = "Отхвърля активния запис";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Задръжте клавиш, за да записвате, отпуснете, когато приключите";
+"settings.shortcuts.pushToTalk.enable.info" = "Активира режима Push to Talk за бърз запис с натискане на един клавиш.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Режим на запис";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Изберете кой клавиш да използвате";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Деактивиран";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN Key";
+"settings.shortcuts.pushToTalk.mode.control" = "Control Key";
+"settings.shortcuts.pushToTalk.mode.custom" = "Потребителска комбинация";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Двойно натискане за заключване на записа";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Натиснете два пъти бързо, за да продължите да записвате без задържане";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Потребителска комбинация";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Натиснете клавишната комбинация, която искате да използвате";
+
+
+"settings.shortcuts.changeMode.title" = "Смяна на режим";
+"settings.shortcuts.changeMode.subtitle" = "Работи само по време на запис";
+
+"settings.shortcuts.reset.button" = "Нулиране по подразбиране";
+"settings.shortcuts.reset.dialog.title" = "Нулиране на клавишните комбинации";
+"settings.shortcuts.reset.confirm" = "Нулиране";
+"settings.shortcuts.reset.dialog.message" = "Това ще нулира всички клавишни комбинации до стойностите им по подразбиране.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API ключовете се съхраняват сигурно на вашето устройство и се изпращат на доставчика само при необходимост.";
+"settings.api.help.link" = "Помощ за API ключове";
+"settings.api.transcription.title" = "Транскрипция";
+"settings.api.transcription.subtitle" = "API ключове за облачни услуги за преобразуване на реч в текст.";
+"settings.api.postProcessing.title" = "Последваща обработка";
+"settings.api.postProcessing.subtitle" = "API ключове за подобряване и форматиране на текст с ИИ.";
+"settings.api.placeholder" = "Въведете вашия %@ API ключ";
+"settings.api.openLink" = "Отвори страницата за %@ API ключ";
+"settings.api.status.accessibility" = "Статус на %@: %@";
+"settings.api.status.unknown" = "Статусът на доставчика е неизвестен";
+"settings.api.status.checking" = "Проверка на здравето в ход";
+"settings.api.status.unauthorized" = "API ключът е отхвърлен от доставчика";
+"settings.api.status.unreachable" = "Доставчикът в момента е недостъпен";
+"settings.api.status.notInstalled" = "SDK на доставчика не е инсталиран";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Неизвестен";
+"provider.status.checking" = "Проверка...";
+"provider.status.healthy" = "Готов";
+"provider.status.unauthorized" = "Невалиден ключ";
+"provider.status.unreachable" = "Офлайн";
+"provider.status.notInstalled" = "Не е инсталиран";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Лицензът е активиран";
+"alerts.license.deactivated.title" = "Лицензът е деактивиран";
+"alerts.license.activated.message" = "Вашият лиценз беше успешно активиран. Наслаждавайте се на неограничен достъп до всички функции!";
+"alerts.license.deactivated.message" = "Вашият лиценз беше деактивиран на това устройство. Вече можете да го активирате другаде.";
+"alerts.license.failed.title" = "Неуспешна операция";
+"alerts.license.failed.message" = "Операцията е неуспешна. Моля, опитайте отново.";
+"license.button.deactivate" = "Деактивиране на устройството";
+"license.button.deactivating" = "Деактивиране...";
+"license.button.manageBilling" = "Управление на фактурирането";
+"license.button.activate" = "Активиране";
+"license.button.activating" = "Активиране...";
+"license.status.label" = "Статус: %@";
+"license.status.trial.title" = "Пробен период";
+"license.status.active.title" = "Активен";
+"license.status.expired.title" = "Изтекъл";
+"license.status.invalid.title" = "Невалиден";
+"license.status.trial.description" = "Безплатен пробен период (5 мин/ден, %d модела)";
+"license.status.active.description" = "Лицензиран – Пълен достъп";
+"license.status.expired.description" = "Лицензът е изтекъл";
+"license.status.invalid.description" = "Невалиден лиценз";
+"settings.license.key.title" = "Лицензен ключ";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Поставяне от клипборда";
+"settings.license.clearInput" = "Изчисти";
+"settings.license.recovery.prompt" = "Забравили сте лицензния си ключ?";
+"settings.license.recovery.button" = "Отидете в клиентския портал";
+"settings.license.daily.title" = "Дневна транскрипция";
+"settings.license.daily.usage" = "%@ от %@ използвани";
+"settings.license.limitReached" = "Лимитът е достигнат";
+"settings.license.models.title" = "Офлайн модели";
+"settings.license.models.progress" = "%d от %d модела изтеглени";
+"settings.license.models.progress.one" = "%d от %d модел изтеглен";
+"settings.license.upgrade.text" = "Надградете за неограничена транскрипция и изтегляне на модели";
+"settings.license.upgrade.button" = "Надграждане";
+"license.error.invalidResponse" = "Невалиден формат на отговора";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Кредити за HyperWhisper Cloud";
+"settings.credits.refresh" = "Обнови";
+"settings.credits.subtitle" = "Следете вашите кредити и използване за транскрипция";
+"settings.credits.manage" = "Управление на кредитите";
+"settings.credits.timeRemaining" = "Оставащо време за транскрипция";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "минути";
+"settings.credits.creditsRemaining" = "%@ оставащи кредити";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Безплатен дневен лимит (100 кредита)";
+"settings.credits.resets" = "Нулиране %@";
+"settings.credits.warning.low" = "Кредитите намаляват. Помислете за закупуване на лиценз за допълнителни кредити.";
+"settings.credits.warning.exhausted.daily" = "Дневният лимит е изчерпан. Закупете лиценз за неограничено използване или изчакайте нулирането.";
+"settings.credits.warning.exhausted" = "Кредитите са изчерпани. Закупете повече кредити, за да продължите да използвате HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Информация за акаунта";
+"settings.credits.stat.creditsRemaining" = "Оставащи кредити";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Оставащи минути";
+"settings.credits.stat.accountType" = "Тип акаунт";
+"settings.credits.accountType.licensed" = "Лицензиран";
+"settings.credits.accountType.anonymous" = "Анонимен";
+"settings.credits.accountType.trial" = "Пробен";
+"settings.credits.stat.customerId" = "Клиентски номер";
+"settings.credits.stat.dailyLimit" = "Дневен лимит";
+"settings.credits.dailyLimit.value" = "100 кредита";
+"settings.credits.loading" = "Зареждане на баланса на кредитите...";
+"settings.credits.error.title" = "Не може да се зареди балансът на кредитите";
+"settings.credits.error.retry" = "Опитай отново";
+"settings.credits.empty.title" = "Няма налична информация за кредити";
+"settings.credits.empty.subtitle" = "Натиснете обнови, за да заредите баланса на кредитите";
+"settings.credits.empty.button" = "Зареди кредитите";
+"settings.credits.error.insufficient" = "Недостатъчно кредити. Имате %d оставащи кредити.";
+"settings.credits.error.network" = "Мрежова грешка: %@";
+"settings.credits.error.invalidResponse" = "Невалиден отговор от сървъра. Моля, опитайте отново.";
+"settings.credits.error.server" = "Грешка на сървъра: %@";
+"settings.models.alert.limit.title" = "Лимитът за изтегляне на модели е достигнат";
+"settings.models.alert.limit.message" = "Пробният период включва %d изтегляния на модели. Надградете лиценза си за неограничени изтегляния.";
+"settings.models.alert.cannotDelete.title" = "Моделът не може да бъде изтрит";
+"settings.models.parakeet.title" = "Модели Parakeet";
+"settings.models.parakeet.subtitle" = "Препоръчва се за повечето потребители. Многоезичният модел поддържа 25 езика.";
+"settings.models.parakeet.empty" = "Няма налични модели Parakeet.";
+"settings.models.whisper.title" = "Модели Whisper";
+"settings.models.whisper.subtitle" = "Модели OpenAI Whisper. По-големите модели са по-точни. Поддържа 100+ езика.";
+"settings.models.whisper.empty" = "Няма налични модели Whisper.";
+"settings.models.help.cancelDownload" = "Отмяна на изтеглянето";
+"settings.models.help.remove" = "Премахване на модела";
+"settings.models.downloaded" = "Изтеглен";
+"settings.models.download" = "Изтегли";
+"settings.models.downloading" = "Изтегляне...";
+"settings.models.localPostProcessing.title" = "Локални модели за последваща обработка";
+"settings.models.localPostProcessing.memoryWarning" = "Препоръчва се за Mac с 24 GB унифицирана памет или повече. Скоростта зависи от чипа — по-бърз на M3/M4 Pro и по-нови.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Думи тази година";
+"vocabulary.input.placeholder" = "Добавете дума или създайте фрагмент";
+"vocabulary.action.addWord" = "Добавяне на дума";
+"vocabulary.action.replaceWith" = "Замяна с…";
+"vocabulary.action.replace" = "Замяна";
+"vocabulary.replacement.field.placeholder" = "Заместващ текст…";
+"settings.output.autocapitalizeInsert.title" = "Автоматично главни букви при вмъкване";
+"settings.output.autocapitalizeInsert.subtitle" = "Съобразяване с контекста на курсора при вмъкване на текст";
+"settings.output.autocapitalizeInsert.info" = "Ако е активирано, първата дума от вмъкнатия текст се коригира спрямо контекста на курсора (начало или среда на изречение). Изключете го за диктовка с постоянно малки букви.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper се нуждае от разрешение за достъпност, за да чете контекста на курсора, необходим за автоматично главни букви.\n\nКликнете \"Отвори настройки\", натиснете превключвателя до HyperWhisper и опитайте отново.";
+"settings.output.removeFillerWords.title" = "Премахване на запълващи думи";
+"settings.output.removeFillerWords.subtitle" = "Премахвайте \"ъъ\", \"ем\" и \"ер\" от необработените транскрипции, когато AI постобработката е изключена";
+"settings.output.removeFillerWords.info" = "Прилага се само когато даден режим пропуска AI постобработка. AI-подобрените режими обработват почистването на речта в подканата.";
+"sidebar.modelLibrary" = "Библиотека с модели";
+"sidebar.modelLibrary.help" = "Разгледайте всички гласови и модели за постобработка на едно място";
+"settings.shortcuts.quickCapture.enable.title" = "Бързо записване";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Запишете и изпратете транскрипцията в Бележки — без да се налага да фокусирате приложението.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Клавишна комбинация";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Натиснете навсякъде, за да запишете и изпратите в Бележки.";
+"settings.shortcuts.quickCapture.mode.title" = "Режим";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Режимът на транскрипция — управлява модела, подсказката и последващата обработка.";
+"settings.shortcuts.quickCapture.mode.current" = "Текущ режим";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper се нуждае от разрешение за управление на Бележки. Дайте го в Системни настройки → Поверителност → Автоматизация.";
+"settings.section.vocabulary" = "Речник";
+"settings.vocabulary.icloudSync.title" = "Синхронизация с iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Синхронизирайте персонализирания си речник на всички Mac компютри, влезли в същия iCloud акаунт.";
+"settings.vocabulary.icloudSync.info" = "Изключено по подразбиране. Синхронизира се само персонализираният речник — преписите и записите остават на този Mac. Промените влизат в сила следващия път, когато отворите HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Затворете HyperWhisper за прилагане";
+"vocabulary.icloudSync.restart.message" = "Промените в синхронизацията на речника с iCloud влизат в сила следващия път, когато отворите HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Затвори HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "По-късно";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Поддържай микрофона активен между записите";
+"settings.sound.keepWarmMicrophone.info" = "Намалява забавянето при стартиране на push-to-talk, като поддържа микрофонната сесия отворена, докато HyperWhisper е в неактивен режим. macOS ще показва непрекъснато оранжевия индикатор на микрофона, а Bluetooth слушалките може да останат в режим на разговор с по-ниско качество, докато е активирано.";
+"settings.models.local.inUse" = "Този локален модел в момента се използва за последваща обработка от:
+
+%@
+
+Редактирайте тези режими, за да изберете друг модел преди да го премахнете.";
+"models.postProcessing.gemma4.e2b.description" = "Бърз и точен. Отличен универсален модел за последваща обработка.";
+"models.postProcessing.gemma4.e4b.description" = "По-високо качество с повече детайли. Добър за по-дълги текстове.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B смесица от експерти. Бързо извеждане само с 4B активни параметри.";
+"models.postProcessing.gemma4.31b.description" = "31B плътен модел. Най-високо качество, изисква 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Този модел не може да бъде изтрит, защото се използва от:\n\n%@\n\nАктуализирайте тези режими, за да използват друг модел, преди да го изтриете.";
+"settings.models.parakeet.inUse" = "Този модел Parakeet не може да бъде изтрит, защото се използва от:\n\n%@\n\nАктуализирайте тези режими, за да използват друг модел, преди да го изтриете.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Неизвестен";
+"settings.models.directory.whisper" = "Папка с модели Whisper";
+"settings.models.directory.parakeet" = "Папка с модели Parakeet";
+"settings.models.directory.local" = "Папка с локални модели";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — многоезично разпознаване на реч, оптимизирано за CoreML.";
+"settings.models.qwen3asr.languages" = "30 езика";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Този модел Qwen3 ASR не може да бъде изтрит, защото се използва от:\n\n%@\n\nАктуализирайте тези режими, за да използвате различен модел, преди да изтриете.";
+"settings.models.directory.show" = "Покажи във Finder";
+"models.error.checksumFailed" = "Проверката на контролната сума на модела е неуспешна. Изтеглянето може да е повредено.";
+
+// MARK: - Statistics View
+"statistics.title" = "Статистики";
+"statistics.header.title" = "Вашата статистика за използване";
+"statistics.header.subtitle" = "Следете вашата активност и ефективност при транскрипция";
+"statistics.card.recordings" = "Общо записи";
+"statistics.card.recordings.subtitle" = "Завършени транскрипции";
+"statistics.card.duration" = "Общо време";
+"statistics.card.duration.subtitle" = "Време, прекарано в запис";
+"statistics.card.words" = "Общо думи";
+"statistics.card.words.subtitle" = "Транскрибирани думи";
+"statistics.card.average" = "Средна продължителност";
+"statistics.card.average.subtitle" = "За запис";
+"statistics.graph.title" = "Активност във времето";
+"statistics.daily.empty" = "Все още няма записи";
+"statistics.filter.week" = "Тази седмица";
+"statistics.filter.month" = "Този месец";
+"statistics.filter.alltime" = "За всички времена";
+
+// MARK: - History View
+"history.title" = "История";
+"history.search.placeholder" = "Търсене";
+"history.filter.all" = "Всички";
+"history.filter.today" = "Днес";
+"history.filter.week" = "Тази седмица";
+"history.filter.month" = "Този месец";
+"history.empty.title" = "Няма намерени записи";
+"history.empty.subtitle" = "Опитайте да коригирате търсенето";
+"history.detail.empty" = "Изберете запис, за да видите подробностите";
+"history.multi.selected" = "%d избрани записа";
+"history.multi.delete" = "Изтрий избраните";
+"history.context.deleteSelected" = "Изтриване на %d записа";
+"history.context.retry" = "Повтори транскрипцията";
+"history.context.retryWith" = "Повтори с...";
+"history.context.copy" = "Копирай текста";
+"history.retrying" = "Повторен опит за транскрипция...";
+"history.retry.help" = "Повтори транскрипцията";
+"history.section.today" = "Днес";
+"history.section.yesterday" = "Вчера";
+"history.duration.format" = "%dм %dс";
+"history.status.failed" = "Неуспешно";
+"history.status.transcription.failed.prefix" = "Транскрипцията е неуспешна:";
+"history.status.retry.failed.prefix" = "Повторният опит е неуспешен:";
+"history.failure.reason" = "Причина: %@";
+"history.mode.default" = "По подразбиране";
+"history.audio.showInFinder" = "Покажи във Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Изтриване на режима?";
+"modes.delete.confirm.message" = "Това ще премахне избрания режим. Това действие не може да бъде отменено.";
+"modes.header.title" = "Режими";
+"modes.header.subtitle" = "Създайте потребителски профили за различни контексти и работни процеси";
+"modes.header.create" = "Създаване на режим";
+"modes.name.unnamed" = "Без име";
+"modes.badge.offline" = "Офлайн";
+"modes.context.select" = "Избери";
+"modes.help.edit" = "Редактиране на настройките на режима";
+"modes.help.preset" = "Научете повече за този стил на форматиране";
+"modes.help.model" = "Научете повече за този модел";
+"modes.preset.title" = "Стил на форматиране";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Съобщение";
+"modes.preset.mail.name" = "Имейл";
+"modes.preset.note.name" = "Бележка";
+"modes.preset.meeting.name" = "Среща";
+"modes.preset.code.name" = "Код";
+"modes.preset.custom.name" = "Потребителски";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Режимът за съобщения изчиства вашето диктувано съобщение, коригирайки пунктуацията, превръщайки го в параграфи и коригирайки граматически грешки.";
+"modes.preset.mail.tooltip" = "Режимът за имейл форматира вашата диктовка в професионална имейл структура с подходящи обръщения, параграфи и подпис.";
+"modes.preset.note.tooltip" = "Режимът за бележки организира вашето диктувано съдържание в ясен формат за бележки с заглавия, маркирани списъци и структурирани раздели.";
+"modes.preset.meeting.tooltip" = "Режимът за среща структурира вашата диктовка във формат на протокол от среща с участници, задачи за изпълнение и ключови точки за обсъждане.";
+"modes.preset.code.tooltip" = "Режимът за код преобразува говоримата програмна диктовка в синтаксис на код. Кажете 'open bracket', 'backslash', 'camel case' и още, за да пишете код с глас.";
+"modes.preset.custom.tooltip" = "Потребителският режим ви позволява да дефинирате собствени правила за форматиране и подкани за конкретни случаи на употреба.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "ИИ преструктурира диктовката ви в чисто съобщение с правилни абзаци, пунктуация и граматически корекции.";
+"modes.preset.mail.preview" = "ИИ форматира диктовката ви в професионален имейл с поздрави, структурирани абзаци и подпис.";
+"modes.preset.note.preview" = "ИИ организира диктовката ви в структурирани бележки със заглавия, точки и ясни раздели.";
+"modes.preset.meeting.preview" = "ИИ структурира диктовката ви в протокол от среща с присъстващи, точки за обсъждане и задачи.";
+"modes.preset.code.preview" = "ИИ преобразува изговорената програмна диктовка в кодов синтаксис, интерпретирайки команди като 'отвори скоба' и 'камел кейс'.";
+"modes.preset.custom.preview" = "Използва вашите персонализирани инструкции за форматиране за обработка на транскрипцията.";
+"modes.customInstructions" = "Определете пълните инструкции за форматиране за този шаблон.";
+"modes.notice.vocabularyUnsupported" = "Потребителският речник не се поддържа от този доставчик за този модел. Той ще бъде игнориран.";
+"modes.notice.deepgramNova3AutoDetect" = "Потребителският речник не е наличен при използване на Deepgram Nova-3 с автоматично разпознаване на език. За да активирате подобряване с речник, задайте конкретен език (напр. Английски, Испански).";
+"modes.language.title" = "Език";
+"modes.language.englishOnly" = "Само английски (оптимизиран модел)";
+"modes.postProcessing.sectionTitle" = "Последваща обработка";
+"modes.postProcessing.modeLabel" = "Режим";
+"modes.postProcessing.modeTitle" = "Последваща обработка";
+"modes.postProcessing.modeDescription" = "Изберете как да се обработват транскрипциите:\n\n• Изкл.: Без последваща обработка, необработена транскрипция\n• Облак (ИИ): Подобряване с ИИ (изисква интернет)\n• Локално: Използва локален LLM като Gemma чрез llama.cpp\n\nОблачната обработка изпраща текст до избрания от вас ИИ доставчик. Локалният режим работи на вашата машина, но изисква стартиране на локалния сървър.";
+"modes.postProcessing.providerLabel" = "Доставчик";
+"modes.postProcessing.apiKeyMissing" = "%@ API ключът не е конфигуриран. Добавете го в Настройки, за да активирате последващата обработка.";
+"modes.postProcessing.configure" = "Настройване в Настройки";
+"modes.postProcessing.modelRecommendation" = "Препоръчваме използването на GPT-4.1 Nano за най-добрия баланс между скорост и качество.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Локалната последваща обработка изисква изтеглен локален модел.";
+"modes.postProcessing.download" = "Изтеглете в Настройки";
+"modes.postProcessing.localInfo" = "Работи изцяло на устройството. HyperWhisper стартира автоматично вградения llama.cpp сървър, когато този режим е активен.";
+"modes.postProcessing.userSystemPrompt.title" = "Постоянни инструкции";
+"modes.postProcessing.userSystemPrompt.placeholder" = "напр., Винаги завършвай имейлите с 'Поздрави, Рей'";
+"modes.postProcessing.userSystemPrompt.clear" = "Изчисти";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Постоянни инструкции";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Добавете инструкции, които винаги се прилагат върху избрания шаблон.";
+"modes.toggle.punctuation.title" = "Добавяне на пунктуация";
+"modes.toggle.punctuation.subtitle" = "Автоматично добавяне на точки и запетаи";
+"modes.toggle.capitalization.title" = "Главни букви на изреченията";
+"modes.toggle.capitalization.subtitle" = "Главна буква в началото на изреченията";
+"modes.toggle.profanity.title" = "Филтриране на нецензурни думи";
+"modes.toggle.profanity.subtitle" = "Заместване на неподходящи думи";
+"modes.toggle.removeTrailingPeriod.title" = "Премахване на крайната точка";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Премахва последната точка от транскрипциите";
+"modes.postProcessing.privacyNotice" = "Вашата транскрипция се изпраща САМО до %@ за последваща обработка. Никога другаде.";
+"modes.postProcessing.localModel" = "Модел";
+"modes.postProcessing.languageModel" = "Езиков модел";
+"modes.englishSpelling.title" = "Английски правопис";
+"modes.englishSpelling.american" = "Американски";
+"modes.englishSpelling.british" = "Британски";
+"modes.englishSpelling.australian" = "Австралийски";
+"modes.englishSpelling.canadian" = "Канадски";
+"modes.englishSpelling.american.description" = "Използване на американски английски правопис (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Използване на британски английски правопис (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Използване на австралийски английски правопис (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Използване на канадски английски правопис (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Персонализирани инструкции";
+"modes.gemini.customPrompt.helper" = "По избор. Напр. \"Форматирай като точки\", \"Използвай официален език\". Вашите настройки за език и речник се включват автоматично.";
+"modes.cloud.apiKeyMissing" = "%@ API ключът не е конфигуриран. Добавете го в Настройки, за да използвате облачна транскрипция.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Точност";
+"modes.cloudAccuracy.groqWhisper.label" = "Средна (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Средна (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Висока (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Бърза и достъпна. Най-добра за бързи транскрипции.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Балансирана скорост и точност. Препоръчва се за повечето потребители.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
+"modes.cloudAccuracy.grokStt.label" = "Най-висока (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
+
+"modes.create.title" = "Създаване на нов режим";
+"modes.create.subtitle" = "Конфигуриране на потребителски профил за транскрипция";
+"modes.section.basic" = "Основни настройки";
+"modes.section.transcription" = "Модел за транскрипция";
+"modes.section.punctuation" = "Пунктуация";
+"modes.toggle.screenText.title" = "Текст на екрана";
+"modes.toggle.screenText.subtitle" = "Заснемете видимия текст на екрана, за да подобрите точността на имена и термини. Изисква разрешение за записване на екрана.";
+"modes.screenText.openSettings" = "Отворете системните настройки";
+"modes.screenText.permissionGranted" = "Разрешение за записване на екрана е отпуснато";
+"modes.screenText.permissionRequired" = "Необходимо е разрешение за записване на екрана";
+"modes.field.name" = "Име";
+"modes.field.name.placeholder" = "напр. Бележки от среща";
+"modes.field.name.editPlaceholder" = "Име на режима";
+"modes.field.model" = "Модел";
+"modes.field.provider" = "Доставчик";
+"modes.provider.local" = "Локален";
+"modes.provider.cloud" = "Облак";
+"modes.notice.noLocalModels.title" = "Няма инсталирани локални модели";
+"modes.notice.noLocalModels.subtitle" = "Първо инсталирайте модел в Настройки";
+"modes.model.pricing" = "Цена: $%.6f / минута (таксуване по секунда)";
+"modes.button.create" = "Създаване на режим";
+"modes.button.delete" = "Изтриване на режим";
+"modes.button.save" = "Запазване на промените";
+"modes.edit.title" = "Редактиране на режим";
+"modes.edit.subtitle" = "Промяна на настройките на профила за транскрипция";
+"mode.editor.cloudModel.previewHint" = "Преглед";
+"mode.editor.cloudModel.noVocabularyHint" = "Без потребителски речник";
+"mode.editor.cloudDomain.medical" = "Медицински";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ добавка Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Не може да се повтори: Аудио файлът не е намерен";
+"transcripts.error.invalidId" = "Невалиден идентификатор на транскрипция";
+"transcripts.delete.single.title" = "Изтриване на записа?";
+"transcripts.delete.single.message" = "Това ще изтрие окончателно този запис и неговия аудио файл.";
+"transcripts.delete.multiple.title" = "Изтриване на %d записа?";
+"transcripts.delete.multiple.message" = "Това ще изтрие окончателно %d записа и техните аудио файлове.\n\nТова действие не може да бъде отменено.";
+"transcripts.delete.multiple.confirm" = "Изтрий всички";
+"transcripts.retry.error.title" = "Повторният опит е неуспешен";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Изберете папка за записи";
+"storage.folder.choose.message" = "Изберете папка за запазване на новите записи.";
+"storage.folder.choose.prompt" = "Избери";
+"storage.recovery.title" = "Няма достъп до папката за записи";
+"storage.recovery.message" = "HyperWhisper не можа да получи достъп до конфигурираната папка за записи. Можете да изберете друга папка, за да продължите.";
+"storage.recovery.choose" = "Избери папка...";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Научете повече";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Транскрипцията завършена";
+"recording.status.retrying" = "Повторен опит за транскрипция...";
+"recording.status.postprocessing" = "Последваща обработка с ИИ...";
+"recording.status.transcribing" = "Транскрибиране...";
+"recording.success.pasted" = "Поставено!";
+"recording.loading.retrying" = "Повторен опит...";
+"recording.loading.postprocessing" = "Обработка с ИИ...";
+"recording.loading.starting" = "Стартиране на поток...";
+"recording.loading.transcribing" = "Транскрибиране...";
+
+// Streaming connection states
+"streaming.status.connecting" = "Свързване...";
+"streaming.status.ready" = "Готов - Започнете да говорите";
+"streaming.status.warming" = "Загряване...";
+"modes.badge.recommended" = "Препоръчано";
+"modes.source.label" = "Източник";
+"modes.source.onDevice" = "На устройството";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API ключ";
+"modes.field.engine" = "Двигател";
+"settings.models.localASR.inUse" = "Този модел не може да бъде изтрит, защото се използва от:
+
+%@
+
+Актуализирайте тези режими, за да използват различен модел, преди да изтриете.";
+"models.postProcessing.gemma4.12b.description" = "Среден плътен модел. Балансира качество и скорост на Mac с 16 GB.";
+"recording.success.savedToNotes" = "Запазено в бележките!";
+"modes.provider.needsKey" = "%@ изисква работещ ключ.";
+"modes.provider.manageInLibrary" = "Управление в библиотеката →";
+"streaming.loading.warming" = "Загряване на локалния модел...";
+"streaming.status.listening" = "Слушане...";
+"streaming.status.streaming" = "Поточно предаване...";
+"streaming.status.disconnecting" = "Спиране...";
+"streaming.loading.connecting" = "Свързване със сървъра...";
+"streaming.loading.ready" = "Инициализиране на аудиото...";
+"streaming.loading.streaming" = "Очакване на реч...";
+"streaming.state.reconnecting" = "Повторно свързване...";
+"recording.stop.help" = "Спиране на записа (%@)";
+"recording.postprocessing.unavailable" = "Последващата обработка е недостъпна";
+"recording.postprocessing.missing.single" = "Липсва ключ за %@ – запис без последваща обработка";
+"recording.postprocessing.missing.multiple" = "Липсват API ключове – запис без последваща обработка";
+"recording.postprocessing.addKey" = "Добави ключ";
+"recording.offline.banner" = "Няма интернет връзка. Облачната транскрипция ще бъде неуспешна, докато не сте онлайн.";
+"recording.offline.title" = "Няма интернет връзка";
+"recording.offline.subtitle" = "Свържете се отново, за да продължите, или превключете на офлайн режим.";
+"recording.error.network" = "Проверете интернет връзката си и опитайте отново.";
+"recording.error.timeout" = "Заявката изтече. Проверете скоростта на връзката си и опитайте отново.";
+"recording.error.rateLimit" = "Направили сте твърде много заявки. Изчакайте малко и опитайте отново.";
+"recording.error.credits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";
+"recording.error.apiKey" = "Добавете вашия %@ API ключ в Настройки.";
+"recording.error.server" = "Услугата за транскрипция изпитва проблеми. Моля, опитайте отново след малко.";
+"recording.retry" = "Опитай отново";
+"recording.retry.inProgress" = "Повторен опит...";
+"recording.retry.count" = "Опитай отново (%d)";
+"recording.retry.failed.missing" = "Повторният опит е неуспешен: Аудио файлът не е намерен";
+"recording.retry.failed.error" = "Повторният опит е неуспешен: %@";
+"recording.retry.pending" = "Готов за повторен опит – натиснете за транскрибиране";
+"recording.provider.unknown" = "облачен доставчик";
+"recording.cancel.dialog.title" = "Отмяна на записа?";
+"recording.cancel.dialog.message" = "Това ще отхвърли текущия запис.";
+"recording.cancel.dialog.confirm" = "Отмяна на записа";
+"recording.cancel.dialog.resume" = "Продължи";
+"recording.error.overlay.title" = "Грешка в мрежовата връзка";
+"recording.error.overlay.message" = "Натиснете 'Опитай отново' по-долу или превключете на офлайн режим, за да продължите.";
+"recording.mode.default" = "По подразбиране";
+"recording.dialog.window.title" = "Диалог за запис";
+"recording.button.start" = "Стартиране на запис";
+"recording.button.stop" = "Спиране на записа";
+"recording.button.disable.checking" = "Проверка на статуса на %@...";
+"recording.button.disable.invalid" = "Невалиден %@ API ключ. Актуализирайте го в Настройки.";
+"recording.button.disable.unreachable" = "%@ е недостъпен. Проверете връзката си и опитайте отново.";
+"recording.button.disable.missing" = "Добавете вашия %@ API ключ в Настройки.";
+"recording.button.disable.install.local" = "Изтеглете локален модел в Настройки → Модели преди да използвате локална постобработка.";
+"modes.postProcessing.accuracy" = "Точност";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Достигнахте дневния си лимит от %@ минути за транскрипция. Надградете до HyperWhisper Pro за неограничена транскрипция.";
+"recording.error.documentsAccess" = "Няма достъп до папката за записи. Изберете друго местоположение в Настройки → Съхранение.";
+"recording.error.modeMissing" = "Избраният режим не е намерен. Моля, изберете валиден режим.";
+"recording.warning.oversizedWAV" = "Компресирането на аудиото е неуспешно. Използване на некомпресиран %@ MB файл – транскрипцията може да е по-бавна.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Микрофон по подразбиране";
+"audio.error.permissionDenied" = "Достъпът до микрофона е отказан. Моля, активирайте го в Системни настройки.";
+"audio.error.fileWatcher.open" = "Не може да се отвори файлов дескриптор за наблюдение на аудио файла.";
+"audio.error.fileWatcher.timeout" = "Операцията изтече, докато изчакваше аудио файлът да бъде записан.";
+"audio.error.fileWatcher.creation" = "Аудио файлът не беше създаден навреме.";
+"audio.error.microphonePermission" = "Разрешението за микрофон не е предоставено";
+"audio.error.microphoneInUse" = "HyperWhisper не може да получи достъп до микрофона, защото друго приложение го използва в момента. Поставете на пауза другото приложение или сменете входа, след което опитайте отново.";
+"audio.error.createEngine" = "Неуспешно създаване на аудио механизъм";
+"audio.error.noInput" = "Няма наличен аудио вход";
+"audio.error.createFile" = "Неуспешно създаване на аудио файл";
+"audio.error.managerUnavailable" = "Мениджърът за транскрипция не е конфигуриран";
+"audio.error.invalidHardwareFormat" = "Открит е невалиден хардуерен аудио формат. Моля, проверете аудио устройството си.";
+"audio.error.createFormat" = "Неуспешно създаване на аудио формат за запис";
+"audio.error.createConverter" = "Неуспешно създаване на конвертор на аудио формат";
+"audio.error.exportM4A" = "Неуспешен експорт на аудио в m4a формат";
+"audio.error.readFile" = "Аудио файлът не може да бъде прочетен след запис.";
+"audio.error.recordingTooShort" = "Записът беше твърде кратък. Моля, задръжте бутона по-дълго, за да уловите звук.";
+"audio.error.noAudioTrack" = "Този видео файл не съдържа аудио пътека.";
+"audio.alert.accessibility.title" = "Активиране на достъп за достъпност";
+"audio.alert.accessibility.message" = "HyperWhisper се нуждае от разрешение за достъпност, за да поставя транскрибиран текст в други приложения.\n\nНатиснете \"Отвори Настройки\", включете превключвателя до HyperWhisper, след което опитайте отново.";
+"audio.alert.accessibility.open" = "Отвори Настройки";
+"audio.alert.pasteFailed.title" = "Автоматичното поставяне е неуспешно";
+"audio.alert.pasteFailed.message" = "Транскрибираният текст е копиран в клипборда ви.\n\nНатиснете ⌘V, за да го поставите ръчно, или изберете Редактиране → Постави от менюто.";
+"accessibility.permission.location.debug" = "Xcode Debug Build";
+"accessibility.permission.location.installed" = "Инсталирано приложение";
+"accessibility.permission.info" = "HyperWhisper се нуждае от разрешение за достъпност, за да поставя транскрибиран текст в други приложения.\n\nТекущо местоположение на приложението: %@\n\nВ Системни настройки:\n1. Потърсете 'hyperwhisper' или 'HyperWhisper' в списъка\n2. Може да видите няколко записа, ако сте стартирали от различни местоположения\n3. Активирайте отметката за записа, съответстващ на:\n   %@";
+"accessibility.permission.xcodeNote" = "Забележка: Стартирането от Xcode изисква различно разрешение от инсталираното приложение.";
+"accessibility.error.paste.commandFailed" = "Командата за поставяне е неуспешна";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Доставчикът за транскрипция не е наличен. Проверете настройките си и опитайте отново.";
+"transcription.error.providerNotAvailable.provider" = "%@ не е наличен. Проверете настройките си и опитайте отново.";
+"transcription.error.providerNotAvailable.detail" = "%@ не е наличен: %@";
+"transcription.error.modelNotDownloaded" = "Моля, първо изтеглете модел";
+"transcription.error.modelProtected" = "Този модел не може да бъде изтрит";
+"transcription.error.audioFileNotFound" = "Аудио файлът не е намерен";
+"transcription.error.network.detail" = "Мрежова грешка: %@";
+"transcription.error.network.generic" = "Грешка в мрежовата връзка";
+"transcription.error.apiKeyMissing.provider" = "%@ API ключ е необходим за транскрипция";
+"transcription.error.apiKeyMissing.generic" = "Необходим е API ключ за облачен доставчик за транскрипция";
+"transcription.error.maxRetriesExceeded" = "Максималният брой повторни опити е надвишен";
+"transcription.error.unauthorized.provider" = "Неоторизиран: невалиден %@ API ключ или разрешения.\n\nОтворете Настройки → API ключове, за да проверите идентификационните си данни.";
+"transcription.error.unauthorized.generic" = "Неоторизиран: невалиден API ключ или разрешения.\n\nОтворете Настройки → API ключове, за да проверите идентификационните си данни.";
+"transcription.error.invalidRequest" = "Невалидна заявка: проверете аудио файла или настройките";
+"transcription.error.streamingInterrupted" = "Поточното предаване е прекъснато; показан е частичен текст";
+"transcription.error.busy" = "Услугата за транскрипция в момента е заета";
+"transcription.error.invalidAudioFormat" = "Неподдържан аудио формат";
+"transcription.error.audioConversionFailed" = "Неуспешно конвертиране на аудиото в необходимия формат";
+"transcription.error.audioFileTooLarge" = "Файлът е твърде голям: %@ надвишава лимита от %@ за %@";
+"transcription.error.serverError" = "Грешка на сървъра (%d): %@";
+"transcription.error.rateLimited.seconds" = "Ограничение на заявките: Твърде много заявки. Моля, изчакайте %d секунди и опитайте отново.";
+"transcription.error.rateLimited.generic" = "Ограничение на заявките: Твърде много заявки. Моля, изчакайте малко и опитайте отново.";
+"transcription.error.insufficientCredits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";
+"transcription.error.quotaExceeded" = "Квотата на %@ е надвишена";
+"transcription.error.quotaExceeded.detail" = "Квотата на %@ е надвишена: %@";
+"transcription.error.timeout" = "Заявката изтече по време на %@. Проверете интернет връзката си и опитайте отново.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Уверете се, че доставчикът за транскрипция е правилно конфигуриран в Настройки.";
+"transcription.guidance.providerNotAvailable.provider" = "Уверете се, че %@ е правилно конфигуриран. За локални модели първо изтеглете модел. За облачни доставчици проверете API ключа си.";
+"transcription.guidance.apiKeyMissing.provider" = "Добавете вашия %@ API ключ в Настройки";
+"transcription.guidance.apiKeyMissing.generic" = "Добавете вашия API ключ за облачен доставчик в Настройки";
+"transcription.guidance.modelNotDownloaded" = "Изтеглете модел от секцията Модели";
+"transcription.guidance.modelProtected" = "Този модел се използва в момента";
+"transcription.guidance.audioFileNotFound" = "Аудио файлът е изтрит или преместен";
+"transcription.guidance.networkError" = "Проверете интернет връзката си и опитайте отново";
+"transcription.guidance.unauthorized.provider" = "Проверете вашия %@ API ключ или разрешенията на акаунта в Настройки";
+"transcription.guidance.unauthorized.generic" = "Проверете вашия API ключ или разрешенията на акаунта в Настройки";
+"transcription.guidance.invalidRequest" = "Проверете аудио файла и настройките на режима, след което опитайте отново";
+"transcription.guidance.invalidAudioFormat" = "Опитайте да конвертирате аудио файла в MP3 или WAV формат";
+"transcription.guidance.audioConversionFailed" = "Аудио файлът може да е повреден. Опитайте с друг файл";
+"transcription.guidance.audioFileTooLarge" = "Използвайте по-кратък аудио файл или го разделете на по-малки сегменти";
+"transcription.guidance.serverError" = "Услугата за транскрипция изпитва проблеми. Моля, опитайте отново.";
+"transcription.guidance.rateLimited" = "Направили сте твърде много заявки. Изчакайте малко, преди да опитате отново.";
+"transcription.guidance.insufficientCredits" = "Закупете повече кредити в Настройки, за да продължите с транскрибирането";
+"transcription.guidance.quotaExceeded" = "Добавете кредити към вашия %@ акаунт или актуализирайте данните си за фактуриране";
+"transcription.guidance.timeout" = "Заявката отне твърде дълго. Проверете скоростта на интернет и опитайте отново.";
+"transcription.error.noSpeechDetected" = "В записа не е открита реч.";
+"transcription.guidance.noSpeechDetected" = "Съвети:\n• Говорете ясно в микрофона\n• Задръжте клавиша по-дълго, преди да говорите\n• Проверете дали микрофонът ви работи\n• Уверете се, че е избрано правилното входно устройство";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";
+"hyperwhisperCloud.error.network" = "Мрежова грешка: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Невалиден отговор от HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Грешка на сървъра: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Изпълнимият файл llama-server не може да бъде намерен.";
+"llama.runtime.error.missingDependencies" = "Липсващи зависимости на средата за изпълнение: %@";
+"llama.runtime.error.copyFailed" = "Неуспешно копиране на средата за изпълнение: %@";
+"llama.runtime.error.copy.executable" = "Не може да се копира изпълнимият файл: %@";
+"llama.runtime.missing" = "Средата за изпълнение на Локалната липсва от тази инсталация. Преинсталирайте HyperWhisper, за да възстановите локалната последваща обработка.";
+"llama.runtime.genericError" = "Грешка в средата за изпълнение на Локалната: %@";
+"runtime.error.llama.missingLib" = "Средата за изпълнение на Локалната е прекратена след липсващ libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Средата за изпълнение на Локалната докладва за липсващ libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Вградена ИИ последваща обработка, работеща на Cloudflare Workers. Не е необходима конфигурация.";
+"models.postProcessing.gpt4.1.nano.description" = "Умерена точност (92%), много висока скорост (<1с). Подходящ за бързи чернови и неформални бележки.";
+"models.postProcessing.gpt4.1.mini.description" = "Висока точност (94%), бърза скорост (~1-2с). Добър за ежедневни бизнес комуникации и стандартни документи.";
+"models.postProcessing.gpt4.1.description" = "Много висока точност (96%), умерена скорост (~3-4с). Страхотен за сложно форматиране и техническо съдържание.";
+"models.postProcessing.gpt5.nano.description" = "Добра точност (95%), най-висока скорост (~1с). Перфектен за бързи бележки, съобщения и неформални транскрипции.";
+"models.postProcessing.gpt5.mini.description" = "Отлична точност (97%), умерена скорост (~2-3с). Идеален баланс за професионални имейли, доклади и бележки от срещи.";
+"models.postProcessing.gpt5.description" = "Най-висока точност (99%+), най-бавна скорост (~3-5с). Най-добър за критични документи, правни, медицински транскрипции, където прецизността е от първостепенно значение.";
+"models.postProcessing.gpt5.1.description" = "Най-модерна точност (98%+), умерена скорост (~2-3с). Отличен за сложни задачи, правни документи и техническо съдържание с превъзходно разсъждение.";
+"models.postProcessing.gpt5.2.description" = "Най-новият от серията GPT-5 с подобрено разсъждение и по-бързо извеждане. Най-добрият цялостен избор за висококачествена обработка на текст.";
+"models.postProcessing.claude4.5.haiku.description" = "Най-новият Claude Haiku с подобрено разсъждение, запазвайки бързи времена за отговор.";
+"models.postProcessing.claude4.sonnet.description" = "Балансирана производителност. Превъзходни способности за разсъждение и форматиране за професионални документи.";
+"models.postProcessing.gemini3.flash.description" = "Серия Gemini 3 с интелигентност на ниво Pro при скорост Flash. Разширено разсъждение с динамични мислителни способности.";
+"models.postProcessing.gemini2.5.flash.description" = "Най-добро съотношение цена-качество. Оптимизиран за скорост, запазвайки добра точност за ежедневна употреба.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ултра бърз модел, оптимизиран за ефективност на разходите и висока производителност.";
+"models.postProcessing.groq.llama33.70b.description" = "Универсален модел от 70B с отлично качество. ~280 токена/сек. Препоръчан.";
+"models.postProcessing.groq.llama31.8b.description" = "Ултра бърз модел от 8B. ~560 токена/сек за мигновена обработка на текст.";
+"models.postProcessing.groq.gptoss.120b.description" = "Модел с отворен код от OpenAI от 120B. ~500 токена/сек за висококачествена обработка.";
+"models.postProcessing.groq.gptoss.20b.description" = "Лек модел от 20B. ~1000 токена/сек за най-бърза обработка.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B на Cerebras. Ултра бърз модел от 120B при ~3000 токена/сек. Препоръчан.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B на Cerebras. Лек и ултра бърз при ~2200 токена/сек.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B на Cerebras. Масивен MoE модел от 235B при ~1400 токена/сек. Само предварителен преглед.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 на Cerebras. Модел с 355B параметъра при ~1000 токена/сек. Само предварителен преглед.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Център за помощ";
+"settings.resources.contact.support" = "Свържете се с поддръжката";
+"settings.resources.feedback" = "Обратна връзка и предложения";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Резервно копие";
+"settings.backup.export.title" = "Експортиране на настройки";
+"settings.backup.export.subtitle" = "Запазване на настройки, режими и речник във файл";
+"settings.backup.export.button" = "Експортиране...";
+"settings.backup.export.panel.title" = "Експортиране на настройки";
+"settings.backup.export.panel.label" = "Файл за резервно копие:";
+"settings.backup.export.success" = "Настройките са експортирани успешно";
+"settings.backup.export.error.create" = "Неуспешно създаване на данни за резервно копие";
+"settings.backup.export.error.encode" = "Неуспешно кодиране на данни за резервно копие";
+"settings.backup.export.error.write" = "Неуспешен запис на файл за резервно копие";
+"settings.backup.includeAPIKeys.title" = "Включване на API ключове";
+"settings.backup.includeAPIKeys.subtitle" = "Съхраняване на API ключове във файла за резервно копие (не се препоръчва за споделяне)";
+"settings.backup.includeLicense.title" = "Включване на лицензен ключ";
+"settings.backup.import.title" = "Импортиране на настройки";
+"settings.backup.import.subtitle" = "Възстановяване на настройки от файл за резервно копие";
+"settings.backup.import.button" = "Импортиране...";
+"settings.backup.import.panel.title" = "Импортиране на настройки";
+"settings.backup.import.success" = "Импортирането завърши: %d режима, %d елемента от речника импортирани";
+"settings.backup.import.error.read" = "Неуспешно четене на файл за резервно копие";
+"settings.backup.import.error.decode" = "Невалиден формат на файл за резервно копие";
+"settings.backup.import.error.decode.keyNotFound" = "Липсва задължително поле: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Грешен тип за поле: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Липсва стойност за поле: %@";
+"settings.backup.import.error.decode.corrupted" = "Повредени данни: %@";
+"settings.backup.import.error.decode.corruptedField" = "Повредена стойност за поле: %@";
+"settings.backup.import.error.version" = "Файлът за резервно копие е от по-нова версия";
+"settings.backup.import.error.unknown" = "Импортирането е неуспешно";
+"settings.backup.import.confirm.title" = "Импортиране на настройки?";
+"settings.backup.import.confirm.message" = "Това ще замени вашите съществуващи режими и речник с тези от файла за резервно копие. Настройките също ще бъдат актуализирани.";
+"settings.backup.import.confirm.button" = "Импортиране";
+"settings.backup.conflict.skip" = "Пропусни съществуващите";
+"settings.backup.conflict.replace" = "Замени съществуващите";
+"settings.backup.conflict.keepBoth" = "Запази и двата";
+"settings.backup.security.warning" = "Предупреждение: Експортираният файл ще съдържа чувствителни данни. Пазете го на сигурно и не го споделяйте.";
+"settings.backup.info.note" = "Резервните копия включват настройки, режими и речник. Записите и транскрипциите не са включени.";
+"settings.backup.result.success.title" = "Успех";
+"settings.backup.result.error.title" = "Грешка";
+"settings.backup.export.choose.subtitle" = "Изберете какво да включите в архивния файл";
+"settings.backup.export.section.settings" = "Настройки";
+"settings.backup.export.section.modes" = "Режими";
+"settings.backup.export.section.vocabulary" = "Речник";
+"settings.backup.import.importing" = "Импортиране на %@";
+"settings.backup.import.contains" = "Този файл съдържа: %@";
+"settings.backup.import.contains.vocabulary" = "Речник (%d думи)";
+"settings.backup.import.contains.none" = "нищо";
+"settings.backup.import.section.settings" = "Настройки";
+"settings.backup.import.section.modes" = "Режими";
+"settings.backup.import.section.vocabulary" = "Речник";
+"settings.backup.import.section.apiKeys" = "API ключове";
+"settings.backup.import.section.license" = "Лицензен ключ";
+"settings.backup.import.section.absent" = "— не е в файла";
+"settings.backup.import.premerge.summary" = "Речник: добавяне на %d нови, %d вече съществуват";
+"settings.backup.import.premerge.conflictLabel" = "За вече съществуващи думи:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Избор на аудио файл";
+"transcribe.file.error.title" = "Грешка при транскрипция";
+"transcribe.file.error.size.title" = "Файлът е твърде голям";
+"transcribe.file.error.size.message" = "Избраният файл (%@) надвишава лимита от %@ за %@.";
+"transcribe.file.error.format.title" = "Неподдържан формат";
+"transcribe.file.error.format.message" = ".%@ файлове не се поддържат от %@. Поддържани формати: %@";
+"transcribe.file.error.read" = "Избраният файл не може да бъде прочетен.";
+"transcribe.file.error.copy" = "Неуспешно копиране на файла в папката за записи.";
+"transcribe.file.error.video.title" = "Няма аудио във видеото";
+"transcribe.file.error.video.noAudio" = "Този видео файл не съдържа аудио пътека. Моля, изберете видео с аудио или аудио файл.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Подготовка...";
+"file.transcription.transcribing" = "Транскрибиране...";
+"file.transcription.finishing" = "Завършване...";
+"file.transcription.cancel" = "Отказ";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Активиране на автоматичното изтриване";
+"history.autoDelete.enable.subtitle" = "Записите, по-стари от указаната продължителност, ще бъдат изтрити";
+"history.autoDelete.duration.prefix" = "След";
+"history.autoDelete.unit.minutes" = "Минути";
+"history.autoDelete.unit.hours" = "Часове";
+"history.autoDelete.unit.days" = "Дни";
+"history.autoDelete.unit.minutes.plural" = "минути";
+"history.autoDelete.unit.hours.plural" = "часове";
+"history.autoDelete.unit.days.plural" = "дни";
+"history.autoDelete.status.disabled" = "Автоматичното изтриване е деактивирано";
+"history.autoDelete.status.enabled" = "Изтриване на записи, по-стари от %d %@";
+"history.autoDelete.cleanup.noItems" = "Няма записи за изтриване";
+"history.autoDelete.cleanup.summary" = "Изтрити %d записа и освободени %@";

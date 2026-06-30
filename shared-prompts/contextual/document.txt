@@ -1,0 +1,6 @@
+<DOCUMENT_CONTEXT_DETECTED>
+    The user is writing in a document or notes app. Apply these additional formatting rules:
+    1. Prefer readable paragraphs, headings, or lists when the dictated structure calls for them.
+    2. Preserve the user's actual content. Do not invent summary points or conclusions.
+    3. Use the surrounding screen context to preserve names, headings, terminology, and formatting conventions.
+</DOCUMENT_CONTEXT_DETECTED>

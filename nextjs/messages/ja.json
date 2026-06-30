@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - macOS・Windows向けAI音声文字起こしアプリ",
+    "description": "AI音声認識で執筆スピードが5倍に。HyperWhisperは、話すだけで高精度な文字起こしを実現するmacOS・Windowsアプリです。自然に話すだけで、瞬時にテキスト化されます。"
+  },
+  "navbar": {
+    "features": "機能",
+    "pricing": "料金",
+    "faq": "よくある質問",
+    "support": "サポート",
+    "download": "ダウンロード",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "言語を切り替え"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisperロゴ",
+    "headline": "執筆、作成、創造が",
+    "headlineAccent": "AIで5倍速くなる",
+    "subheadline": "HyperWhisperは、驚異的な精度であなたの声を文字に変換します。話すだけで、リアルタイムにテキストが表示されます。",
+    "downloadCta": "今すぐダウンロード",
+    "demoCta": "デモ動画を見る",
+    "availableOn": "対応OS",
+    "macos": "macOS 14以降",
+    "windows": "Windows 10以降"
+  },
+  "features": {
+    "title": "プロフェッショナルのために",
+    "subtitle": "すべての機能が、より速く、より効率的な作業を実現するために設計されています",
+    "customVocabulary": {
+      "title": "カスタム辞書",
+      "description": "人名、略語、専門用語を登録することで、認識精度を大幅に向上できます。"
+    },
+    "languages": {
+      "title": "100以上の言語に対応",
+      "description": "自動言語検出機能により、100以上の言語を認識できます。"
+    },
+    "offline": {
+      "title": "完全オフライン対応",
+      "description": "インターネット接続不要で動作します。データがデバイスの外に出ることはありません。"
+    },
+    "privacy": {
+      "title": "プライバシー第一",
+      "description": "アカウント登録不要。トラッキングなし。音声データはすべてMacまたはPC内で処理されます。"
+    },
+    "hybridProcessing": {
+      "title": "ハイブリッド処理",
+      "description": "プライバシー重視のローカルモデルと、高速なクラウドAPIから選択可能。どちらの長所も活かせます。"
+    },
+    "customizable": {
+      "title": "柔軟なカスタマイズ",
+      "description": "9種類以上のAPIプロバイダーと、30以上の文字起こしモデルから選択できます。"
+    },
+    "realTime": {
+      "title": "リアルタイム文字起こし",
+      "description": "話すと同時にテキストが表示されます。業界最高水準の精度と700ms以下の低遅延を実現。"
+    },
+    "fileImport": {
+      "title": "ファイル読み込み",
+      "description": "音声・動画ファイルをインポートして文字起こし。主要フォーマットに対応し、無音部分を自動検出。"
+    },
+    "screenOcr": {
+      "title": "画面OCR",
+      "description": "HyperWhisperが画面を見られるようにすると、すべてを正確に綴れます。"
+    },
+    "mcpServer": {
+      "title": "ローカルAPIとMCPサーバー",
+      "description": "内蔵のMCPサーバーにより、Claude、Cursorなどの AI エージェントから HyperWhisper を操作できます。スクリプトや自動化向けの、ベアラー認証付きローカル限定 HTTP API。"
+    },
+    "modes": {
+      "title": "シーン別の最適化モード",
+      "description": "会議、メモ作成、メール、プログラミングなど、用途に応じた文字起こしモードを搭載。カスタムプロンプトにより、テキストを最適な形式に整形します。",
+      "meeting": "会議",
+      "email": "メール",
+      "note": "メモ",
+      "code": "コード",
+      "legal": "法律",
+      "medical": "医療",
+      "presetModes": "プリセットモード",
+      "customModes": "カスタムモード"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "タイピングの何倍も速い",
+    "accuracyRate": "認識精度",
+    "languagesSupported": "対応言語数",
+    "providersSupported": "対応プロバイダー数"
+  },
+  "pricing": {
+    "title": "サブスク不要。買い切り型。",
+    "subtitle": "一度の購入で永久に使えます。私たちもサブスクは嫌いです。",
+    "guarantee": "14日間返金保証",
+    "guaranteeExtended": "ご満足いただけない場合は全額返金いたします。",
+    "learnMore": "詳しく見る",
+    "free": {
+      "name": "無料版",
+      "price": "$0",
+      "period": "永久無料",
+      "description": "HyperWhisperをお試しいただけます",
+      "cta": "無料ダウンロード",
+      "features": {
+        "transcriptionLimit": "1日5分まで文字起こし可能",
+        "basicModes": "基本的な文字起こしモード",
+        "offlineTranscription": "オフライン文字起こし",
+        "apiTranscription": "API文字起こし（APIキーの用意が必要）",
+        "postProcessing": "テキスト後処理",
+        "providers": "9種類以上のプロバイダーから選択可能",
+        "lifetimeUpdates": "永久アップデート",
+        "cloudLimited": "HyperWhisper Cloud（利用制限あり）",
+        "customVocabulary": "カスタム辞書",
+        "prioritySupport": "優先サポート"
+      }
+    },
+    "pro": {
+      "name": "Pro版",
+      "price": "$39",
+      "period": "買い切り",
+      "description": "一度の購入で、すべての機能が永久に使えます",
+      "cta": "今すぐ購入 - 永久ライセンス",
+      "mostPopular": "人気No.1",
+      "features": {
+        "unlimitedTranscription": "無制限の文字起こし",
+        "allModes": "すべての文字起こしモード",
+        "offlineTranscription": "オフライン文字起こし",
+        "apiTranscription": "API文字起こし（APIキーの用意が必要）",
+        "postProcessing": "テキスト後処理",
+        "providers": "9種類以上のプロバイダーから選択可能",
+        "lifetimeUpdates": "永久アップデート",
+        "cloudCredits": "HyperWhisper Cloud（$5分のクレジット付き）",
+        "customVocabulary": "カスタム辞書",
+        "prioritySupport": "優先サポート"
+      }
+    },
+    "enterprise": {
+      "title": "エンタープライズ・カスタムプラン",
+      "description": "ボリュームディスカウント、SSO、優先サポート、オンプレミスホスティング、カスタム統合をご提供",
+      "cta": "営業へお問い合わせ"
+    }
+  },
+  "faq": {
+    "title": "よくある質問",
+    "subtitle": "HyperWhisperについて知っておきたいこと",
+    "contactPrompt": "他にご質問がある場合は、こちらまでお問い合わせください：",
+    "questions": {
+      "accuracy": {
+        "question": "文字起こしの精度はどのくらいですか？",
+        "answer": "最先端のAIモデルにより、業界トップクラスの99%の認識精度を実現しています。専門用語、固有名詞、業界用語などをカスタム辞書に登録することで、さらに精度を高めることができます。"
+      },
+      "offline": {
+        "question": "インターネット接続なしで使えますか？",
+        "answer": "はい、完全にオフラインで使用できます。ローカルAIモデルを使用するため、インターネット接続は不要です。より高速で高精度な処理をご希望の場合は、各種クラウドプロバイダーによるオプションのクラウド処理もご利用いただけます。"
+      },
+      "apiKey": {
+        "question": "APIの利用に料金がかかりますか？",
+        "answer": "Groq、OpenAI、Deepgram、AssemblyAI、ElevenLabsを利用する場合は、各プロバイダーのAPIキーを用意していただく必要があります。一部のプロバイダーは新規ユーザーに無料クレジットを提供しており、Deepgramは$200、AssemblyAIは$50分の無料クレジットが利用できます。長期的には、サブスクリプション型のサービスよりもかなりお得になります。\n\nまた、APIキー不要で従量課金制のHyperWhisper Cloud（組み込み）もご利用いただけます。\n\nもちろん、ローカルオフラインモードはAPIキー不要で完全無料です。"
+      },
+      "languages": {
+        "question": "対応言語は何ですか？",
+        "answer": "英語、スペイン語、中国語、アラビア語など、100以上の言語に標準対応しています。ほとんどのモデルは話している言語を自動検出し、シームレスに切り替えることができます。"
+      },
+      "offlineModels": {
+        "question": "利用できるオフラインモデルは何ですか？",
+        "answer": "オフライン文字起こしには、OpenAI製のWhisperモデル（複数サイズ、99言語以上に対応）と、NVIDIA製のParakeetモデル（25言語以上に対応）を提供しています。\n      \n      オフライン後処理には、Google製のGemma 3モデル（複数サイズ）を提供しています。"
+      },
+      "compatibility": {
+        "question": "すべてのMac・Windowsアプリで使えますか？",
+        "answer": "はい、テキスト入力ができる場所ならどこでも使えます。メール作成、文書作成、プログラミング、チャットなど。ショートカットを押して話すだけで、即座にテキストが表示されます。"
+      },
+      "privacy": {
+        "question": "プライバシーはどのように保護されますか？",
+        "answer": "ローカルモードを使用している場合、データがMacの外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、Deepgram、AssemblyAI、ElevenLabs、Mistralなど）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、ご自身で通信内容を確認することもできます。"
+      },
+      "cloud": {
+        "question": "HyperWhisper Cloudとは何ですか？",
+        "answer": "HyperWhisper Cloudは、技術的な知識がないユーザーでも簡単に始められる、組み込みのクラウド文字起こしサービスです。\n\n従量課金制で、ライセンス購入時に$5分のクレジットが付与されます。クレジットは後から追加購入できます。\n    \n3つの精度レベルを提供しています：標準（最速、Groq使用）、高（推奨、Deepgram使用）、最高（最高品質、xAI Grok STT使用）。後処理は自動です。保存するのは使用したクレジット量のみです。\n\nプロバイダーに支払う金額と同じ料金をいただいており、上乗せは一切ありません。\n\nソースコードは[こちら](https://github.com/theramjad/hyperwhisper-fly)で公開しています。"
+      },
+      "dataTraining": {
+        "question": "私の音声データはAIモデルの学習に使用されますか？",
+        "answer": "HyperWhisper Cloud は、当社が使用するすべてのプロバイダーでモデル学習へのデータ利用を無効化します。ご自身の API キーを使用する場合、オプトアウトはお客様の責任となります — [データプライバシーガイド](https://hyperwhisper.com/docs/data-privacy)をご覧ください。"
+      },
+      "lifetime": {
+        "question": "なぜサブスクリプションではなく買い切り型なのですか？",
+        "answer": "シンプルで公正な価格設定を大切にしているからです。$39を一度お支払いいただければ、HyperWhisperを永久にご利用いただけます。月額料金も追加費用もありません。無料版では、1日5分の文字起こしで主要機能をお試しいただけます。"
+      },
+      "deviceLimit": {
+        "question": "ライセンスは何台のデバイスで利用できますか？",
+        "answer": "お客様のライセンスは、[利用規約](/legal/terms-of-service)に記載されている公正利用ポリシーに従う限り、お好きな台数のデバイスでご利用いただけます。このポリシーは、正当な個人利用およびビジネス利用に柔軟に対応しながら、不正使用を防止するよう設計されています。"
+      },
+      "requirements": {
+        "question": "動作環境を教えてください。",
+        "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。最適なパフォーマンスには8GB以上のRAMを推奨します。"
+      },
+      "windowsStatus": {
+        "question": "Windows版はmacOS版と同じ機能がすべて使えますか？",
+        "answer": "Windows版は最近リリースされたばかりのため、macOS版のすべての機能がまだ搭載されていない場合があります。両プラットフォームの機能を揃えるべく、積極的に開発を進めています。"
+      },
+      "madeBy": {
+        "question": "開発者は誰ですか？",
+        "answer": "YouTuberの[Ray Amjad](https://www.youtube.com/@ramjad)が開発しました。"
+      }
+    }
+  },
+  "support": {
+    "title": "サポートセンター",
+    "subtitle": "HyperWhisperを最大限に活用していただけるよう、サポートいたします",
+    "getInTouch": "お問い合わせ",
+    "description": "技術的なサポート、ライセンスに関する問題、その他HyperWhisperについてのご質問は、お気軽にお問い合わせください。",
+    "emailUsAt": "メールアドレス：",
+    "openInClient": "メールクライアントで開く：",
+    "defaultClient": "デフォルトメールアプリ",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "通常、営業日の24時間以内にご返信いたします。",
+    "emailTemplate": {
+      "subject": "HyperWhisper サポートリクエスト",
+      "body": "お世話になっております。\n\n【バージョン】\n[設定 > アプリについて でご確認ください]\n\n【問題内容】\n[問題の内容を記載してください]\n\n【詳細】\n[クラッシュ前に何をしていたかなど、関連する詳細情報を記載してください]\n\n[ご質問やご要望をご記入ください]\n\nよろしくお願いいたします。"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisperロゴ",
+    "title": "HyperWhisperをダウンロード",
+    "emailPlaceholder": "メールアドレス",
+    "description": "ダウンロードリンクと、使い方を説明した短い動画をメールでお送りします。スパムメールは送りません。",
+    "downloadButton": "HyperWhisperをダウンロード",
+    "errorGeneric": "エラーが発生しました。もう一度お試しください。",
+    "errorNetwork": "ネットワークエラーが発生しました。接続を確認してから再度お試しください。",
+    "thankYouTitle": "ありがとうございます！",
+    "downloadStarted": "ダウンロードが自動的に開始されます。",
+    "manualDownload": "ダウンロードが開始されない場合はこちら",
+    "skipAndDownloadButton": "スキップしてダウンロード"
+  },
+  "downloadPage": {
+    "title": "HyperWhisperをダウンロード",
+    "countdownText": "{seconds}秒後に開始...",
+    "downloadStarted": "ダウンロードフォルダをご確認ください",
+    "downloadNow": "今すぐダウンロード",
+    "downloadAgain": "再ダウンロード",
+    "selectArchitecture": "アーキテクチャを選択してください",
+    "downloadX64": "x64版をダウンロード",
+    "downloadArm64": "ARM64版をダウンロード",
+    "orDivider": "または",
+    "homebrewTitle": "Homebrewでインストール",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "コピー",
+    "copied": "コピーしました！"
+  },
+  "purchaseSuccess": {
+    "title": "ご購入ありがとうございます！",
+    "subtitle": "HyperWhisper Proへようこそ！永久ライセンスの準備が整いました。",
+    "checkEmail": {
+      "title": "メールをご確認ください",
+      "description": "ライセンスキーとダウンロード手順をメールでお送りしました。数分以内に届きます。"
+    },
+    "whatsNext": {
+      "title": "次のステップ",
+      "step1": {
+        "title": "受信トレイをご確認ください",
+        "description": "HyperWhisperからのメールをお探しください"
+      },
+      "step2": {
+        "title": "ライセンスキーをコピー",
+        "description": "アプリの認証に必要です"
+      },
+      "step3": {
+        "title": "HyperWhisperをダウンロード",
+        "description": "アプリをインストールして、ライセンスキーを入力してください"
+      }
+    },
+    "downloadButton": "HyperWhisperをダウンロード",
+    "returnHome": "トップページに戻る",
+    "noEmail": "メールが届きませんか？迷惑メールフォルダをご確認いただくか、",
+    "contactSupport": "サポートへお問い合わせください",
+    "loading": "読み込み中..."
+  },
+  "footer": {
+    "tagline": "macOS・Windows向けAI音声文字起こしで、執筆スピードを5倍に。",
+    "product": "製品",
+    "resources": "リソース",
+    "company": "会社情報",
+    "legal": "法的情報",
+    "links": {
+      "features": "機能",
+      "pricing": "料金",
+      "download": "ダウンロード",
+      "roadmap": "ロードマップ",
+      "helpCenter": "ヘルプセンター",
+      "manageBilling": "請求管理",
+      "customerPortal": "カスタマーポータル",
+      "olderVersions": "過去のバージョン",
+      "blog": "ブログ",
+      "about": "について",
+      "support": "サポート",
+      "privacyPolicy": "プライバシーポリシー",
+      "termsOfService": "利用規約",
+      "refundPolicy": "返金ポリシー",
+      "dataTraining": "データプライバシー"
+    },
+    "copyright": "© 2026 HyperWhisper. All rights reserved.",
+    "linkedinAria": "LinkedIn"
+  }
+}

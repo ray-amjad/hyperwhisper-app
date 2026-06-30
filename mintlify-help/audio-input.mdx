@@ -1,0 +1,128 @@
+---
+title: Audio Input Volume
+description: Check and adjust your microphone volume, and configure HyperWhisper's Sound settings for the best transcription quality.
+---
+
+When your microphone input is set too low, HyperWhisper may miss words or produce muffled transcriptions. This guide explains how to check and adjust your system microphone volume, and how to configure every option in **Settings → Sound**.
+
+## Video Walkthrough
+
+<iframe
+  src="https://www.loom.com/embed/fb340fe1e21e44aea60d1c31915270e2?sid=9023b9d2-41b1-471e-a00f-c9d7919ba623"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="Adjusting Microphone Input Volume on macOS"
+/>
+
+## Checking and Adjusting System Microphone Volume
+
+The system microphone slider controls the hardware capture level. HyperWhisper reads audio from the device at whatever level the system reports — if the slider is low, every transcription provider receives quieter audio.
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open Sound settings">
+        Go to **System Settings → Sound → Input**.
+      </Step>
+      <Step title="Select your microphone">
+        Pick the device you use for recording. The **Input volume** slider below the device list controls its capture level.
+      </Step>
+      <Step title="Set the input volume">
+        Drag the slider to the right. Speaking at your normal dictation volume should push the **Input level** meter to roughly the middle or higher. If the meter barely moves, raise the slider.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open Sound settings">
+        Right-click the speaker icon in the taskbar and choose **Open Sound settings**, then click **Sound Control Panel** → **Recording** tab.
+      </Step>
+      <Step title="Open microphone properties">
+        Double-click your microphone (or right-click → **Properties**) and go to the **Levels** tab.
+      </Step>
+      <Step title="Set the input volume">
+        Raise the **Microphone** slider (0–100). Speaking at your normal dictation volume should move the meter in the main Recording tab to about 50–75%. If the meter barely moves, increase the slider.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Sound Settings
+
+Open **Settings → Sound** in HyperWhisper to configure audio behavior during recording.
+
+### Sound Effects
+
+| Setting | What it does |
+|---|---|
+| **Play sound effects** | Plays audio cues when recording starts and stops. Turn this off for silent operation. |
+
+### Media Control While Recording
+
+Choose how HyperWhisper handles other audio when you start recording.
+
+<Tabs>
+  <Tab title="macOS">
+    | Option | Behavior |
+    |---|---|
+    | **Off** (default) | No changes to system audio. |
+    | **Mute audio** | Mutes system output volume when recording starts and restores it when recording stops. Prevents music, calls, or video playback from bleeding into your dictation. |
+  </Tab>
+  <Tab title="Windows">
+    | Option | Behavior |
+    |---|---|
+    | **Off** (default) | No changes to system audio. |
+    | **Mute audio** | Mutes system output volume when recording starts and restores it when recording stops. |
+  </Tab>
+</Tabs>
+
+### Microphone
+
+#### Auto-Increase Microphone Volume
+
+When enabled, HyperWhisper automatically raises your microphone input to **90%** when recording starts, then restores the original level when recording stops.
+
+- On **macOS**, this applies to both the system default device and any specific device you have selected in HyperWhisper. If the device does not expose a software-controllable volume, the boost is skipped silently. The original volume is always restored.
+- On **Windows**, the boost only applies when your current capture volume is below **50%**. If your mic is already at 50% or higher, the level is left unchanged.
+
+This is useful if you often forget to set your mic level before recording. It is not a substitute for a well-configured input level — if your device does not support software volume control, this setting has no effect.
+
+#### Keep Microphone Warm
+
+<Tabs>
+  <Tab title="macOS">
+    Keeps a quiet idle audio session open between recordings so the microphone is ready the moment you trigger push-to-talk. This eliminates the brief startup delay that is especially noticeable with Bluetooth microphones.
+
+    <Note>
+      While **Keep microphone warm** is on, macOS displays the orange microphone indicator in the menu bar continuously — even when you are not recording. Bluetooth headsets may also stay in their lower-quality call audio profile rather than switching to stereo mode. Turn this off if those trade-offs matter to you.
+    </Note>
+  </Tab>
+  <Tab title="Windows">
+    Keeps a quiet idle audio session open between recordings to reduce push-to-talk startup delay, especially with Bluetooth microphones.
+  </Tab>
+</Tabs>
+
+### Microphone Selection
+
+To change which input device HyperWhisper records from, see [Select a Microphone or Audio Input Device](/microphone-selection).
+
+### Voice Activity Detection (VAD)
+
+<Tabs>
+  <Tab title="macOS">
+    When **Remove silence before transcription** is on, HyperWhisper analyzes the audio clip after you stop recording and strips leading and trailing silence using an AI voice-detection model (Silero VAD) before sending audio to the transcription provider.
+
+    **Why enable it:**
+    - Reduces the amount of audio sent to cloud providers, which can lower API costs.
+    - Can speed up transcription, especially for short clips with long pauses at the start or end.
+    - May improve accuracy by removing noise-only segments from the input.
+
+    **When to leave it off:**
+    - If your recordings consistently start and end with speech, VAD adds a small processing step with no benefit.
+  </Tab>
+  <Tab title="Windows">
+    Windows applies voice activity detection automatically when using the local Parakeet model — there is no separate toggle in Sound settings.
+  </Tab>
+</Tabs>

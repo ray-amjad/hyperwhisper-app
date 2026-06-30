@@ -1,0 +1,1051 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "語彙";
+"vocabulary.description" = "これはソフトウェアが名前、頭字語、スラング、または言語を混在させる際の他の言語の単語を認識するのに役立ちます。";
+"vocabulary.input.title" = "入力";
+"vocabulary.new.word.placeholder" = "新しい単語またはフレーズ";
+"vocabulary.replacement.placeholder" = "置換する...";
+"vocabulary.add.button" = "語彙に追加";
+"vocabulary.edit.title" = "語彙エントリを編集";
+"vocabulary.update.button" = "更新";
+"vocabulary.cancel.button" = "キャンセル";
+"vocabulary.word.column" = "単語/フレーズ";
+"vocabulary.replacement.column" = "置換";
+"vocabulary.empty.title" = "語彙単語がまだありません";
+"vocabulary.empty.subtitle" = "カスタム単語を追加して文字起こしの精度を向上させましょう";
+"vocabulary.duplicate.title" = "重複エントリ";
+"vocabulary.duplicate.message" = "「%@」はすでに語彙に存在します。各単語は1回しか追加できません。";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "キーワード上限を超えました";
+"vocabulary.limit.message" = "%d個の単語がありますが、文字起こし精度向上に使用されるのは最初の%d個のみです。";
+
+// MARK: - Streaming View
+"streaming.title" = "ストリーミング（ベータ）";
+"streaming.description" = "話しながらリアルタイムで文字起こし。テキストはフォーカスされたアプリケーションに直接入力されます。インターネット接続が必要で、HyperWhisper Cloudクレジットを使用します。";
+"streaming.enable.title" = "ストリーミングを有効化";
+"streaming.provider.picker.title" = "プロバイダー";
+"streaming.model.title" = "モデル";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "高速フォーマット";
+"streaming.fastFormatting.description" = "スマートフォーマットの遅延を削減して、より高速な入力を実現";
+"streaming.warning.vocabAutoDetect" = "自動検出モードではカスタム語彙が無効になります";
+"streaming.warning.vocabUnsupported" = "%@ ストリーミングではカスタム語彙がサポートされていません";
+"streaming.warning.apiKeyRequired" = "%@ API キーが必要です";
+"streaming.warning.apiKeyRequired.action" = "設定";
+"streaming.warning.apiKeyInvalid" = "%@ のAPIキーが機能していません。設定 > APIキーで更新してください。";
+"streaming.warning.apiKeyInvalid.action" = "キーを更新";
+"streaming.language.title" = "言語";
+"streaming.shortcut.title" = "ショートカット";
+
+// MARK: - Home View
+"home.get.started" = "開始";
+"home.open.system.settings" = "システム設定を開く";
+
+// MARK: - API Keys
+"api.key.required" = "APIキーが必要";
+"api.keys.required" = "APIキーが必要";
+"api.key.configure.message" = "文字起こしを有効にするにはAPIキーを設定してください。";
+"api.key.internet.required" = "インターネット接続が必要";
+"api.key.internet.message" = "クラウド文字起こしにはインターネット接続が必要です。";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "キャンセル";
+"common.delete" = "削除";
+"common.edit" = "編集";
+"common.done" = "完了";
+"common.copy" = "コピー";
+"common.back" = "戻る";
+"common.skip" = "スキップ";
+"common.settings" = "設定";
+"common.error" = "エラー";
+"common.retry" = "再試行";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "ホーム";
+"sidebar.statistics" = "統計";
+"sidebar.modes" = "モード";
+"sidebar.vocabulary" = "語彙";
+"sidebar.streaming" = "ストリーミング";
+"sidebar.history" = "履歴";
+"sidebar.settings" = "設定";
+
+// MARK: - App Messages
+"app.unknown.error" = "不明なエラーが発生しました";
+"app.microphone.permission.message" = "HyperWhisperが音声を文字起こしするにはマイクへのアクセスが必要です。\n\nシステム設定 > プライバシーとセキュリティ > マイクに移動し、HyperWhisperのアクセスを有効にしてください。";
+"app.recordings.location.message" = "HyperWhisperは録音をDocumentsフォルダに保存して見つけやすくします：Documents/hyperwhisper/recordings。初めて保存するときにmacOSがアクセス許可を求めることがあります。アクセスを許可したくない場合は、プライベートアプリフォルダに保存することもできます。";
+"app.upgrade.to.pro" = "Proにアップグレード";
+"app.enter.license.key" = "ライセンスキーを入力";
+"accessibility.upgrade.pro" = "HyperWhisper Pro にアップグレード";
+"accessibility.enter.license" = "ライセンスキーを入力";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "%@のAPIキーを追加して選択したモードを有効にしてください。";
+"home.api.keys.missing.single" = "%@のAPIキーを追加して選択したモードを有効にしてください。";
+"home.getting.started.recording.title" = "録音を開始する";
+"home.getting.started.recording.description" = "ワンクリックで音声をテキストに変換します。";
+"home.getting.started.shortcuts.title" = "ショートカットをカスタマイズ";
+"home.getting.started.shortcuts.description" = "HyperWhisperのキーボードショートカットを変更します。";
+"home.getting.started.mode.title" = "モードを作成";
+"home.getting.started.mode.description" = "ワークフローに最適なモードを構築しましょう。";
+"home.getting.started.vocabulary.title" = "語彙を追加";
+"home.getting.started.vocabulary.description" = "HyperWhisperに固有名詞や専門用語を教えましょう。";
+"home.add.api.key" = "APIキーを追加";
+"home.accessibility.enable.title" = "アクセシビリティを有効にする";
+"home.accessibility.enable.description" = "使用中のアプリに自動ペーストできるようにHyperWhisperを許可します。";
+"home.accessibility.waiting" = "待機中...";
+"home.accessibility.open.settings" = "設定を開く";
+"home.accessibility.restart.after.permission" = "許可後にアプリを再起動してください";
+"home.getting.started.completed" = "✓ 完了";
+"home.whatsnew.badge" = "新着";
+"home.whatsnew.title" = "最新情報";
+"home.whatsnew.update1.date" = "7月3日";
+"home.whatsnew.update1.title" = "Parakeetが利用可能になりました";
+"home.whatsnew.update1.description" = "モード作成の言語モデル一覧から直接ダウンロードして今すぐお試しください。";
+"home.whatsnew.update2.date" = "6月5日";
+"home.whatsnew.update2.title" = "すべてのOpenAI互換カスタムモデルをサポート";
+"home.whatsnew.update2.description" = "任意のOpenAI互換APIをモデル一覧に追加できるようになりました。";
+"home.whatsnew.update3.date" = "5月27日";
+"home.whatsnew.update3.title" = "新しいミニ録音ウィンドウ";
+"home.whatsnew.update3.description" = "邪魔にならないスリムな録音インターフェイスです。";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "最新のアップデート";
+"home.recent.updates.error" = "アップデートの読み込みに失敗しました";
+"home.recent.updates.retry" = "再試行";
+"home.recent.updates.empty" = "最新のアップデートはありません";
+"home.recent.updates.version" = "バージョン %@";
+"home.recent.updates.new.badge" = "新着";
+"home.recent.updates.no.notes" = "リリースノートはありません";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "マイクへのアクセスが必要です";
+"common.open.settings" = "設定を開く";
+"alerts.api.local.mode" = "ローカルモードを使用";
+"alerts.documents.permission.title" = "書類フォルダに保存しますか？";
+"common.continue" = "続行";
+"alerts.documents.permission.use.another" = "別の場所を使用";
+"alerts.api.configure.generic" = "設定でAPIキーを構成してください。";
+"alerts.api.internet.offline" = "クラウド文字起こしにはインターネット接続が必要です。ネットワークを確認するかローカル文字起こしモードを選択してください。";
+"alerts.api.configure.header.multiple" = "選択したモードを使用するには、設定で次のAPIキーを構成してください。";
+"alerts.api.configure.header.single" = "選択したモードを使用するには、設定で次のAPIキーを構成してください。";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "不足しているキーを追加したら、もう一度お試しください。";
+"alerts.export.failed.title" = "書き出しに失敗しました";
+"alerts.export.logs.failed.message" = "更新ログを書き出せませんでした。もう一度お試しください。";
+"alerts.export.logs.success.title" = "ログを書き出しました";
+"alerts.export.logs.success.message" = "更新ログの書き出しに成功しました。";
+"alerts.export.logs.saveFailed.message" = "選択した場所にログを保存できませんでした: %@";
+"alerts.export.diagnostics.failed.message" = "診断情報を書き出せませんでした。もう一度お試しください。";
+"alerts.export.diagnostics.success.title" = "診断情報を書き出しました";
+"alerts.export.diagnostics.success.message" = "すべての診断ログの書き出しに成功しました。";
+"alerts.export.diagnostics.saveFailed.message" = "選択した場所に診断情報を保存できませんでした: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "サポート用に更新ログを書き出します";
+"panels.export.diagnostics.message" = "診断ログをすべて書き出します";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "HyperWhisperを始めましょう";
+"sidebar.statistics.help" = "使用統計と分析を表示します";
+"sidebar.modes.help" = "利用シーンに合わせて文字起こしモードを管理します";
+"sidebar.vocabulary.help" = "精度向上のためにカスタム単語やフレーズを追加します";
+"sidebar.streaming.help" = "リアルタイムストリーミング文字起こしの設定（インターネット接続が必要）";
+"sidebar.history.help" = "文字起こしの履歴を表示・検索します";
+"sidebar.settings.help" = "アプリの設定と各種調整を行います";
+
+// MARK: - Recording State
+"recording.state.ready" = "録音の準備完了";
+"recording.state.recording" = "録音中...";
+"recording.state.processing" = "音声を処理しています...";
+"recording.state.transcribing" = "文字起こし中...";
+"recording.state.postprocessing" = "AIで後処理中...";
+"recording.state.complete" = "文字起こし完了: %@";
+"recording.state.error" = "エラー: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "録音の開始／停止";
+"menu.recording.stop" = "録音を停止";
+"menu.recording.toggle" = "録音を開始／停止";
+"menu.history" = "履歴...";
+"menu.settings" = "設定...";
+"menu.microphone" = "マイク";
+"menu.select.mode" = "モードを選択";
+"menu.transcribe.file" = "ファイルを文字起こし";
+"menu.mode.unnamed" = "名称未設定";
+"menu.version.label" = "バージョン %@";
+"common.quit" = "終了";
+"menu.microphone.default" = "デフォルト";
+"menu.microphone.system.default" = "デフォルト";
+"menu.bar.state.recording" = "録音中";
+"menu.bar.state.processing" = "処理中";
+"menu.bar.state.idle" = "待機中";
+"menu.command.check.updates" = "アップデートを確認…";
+"menu.debug.title" = "デバッグ";
+"menu.command.export.logs" = "更新ログを書き出す…";
+"menu.command.export.diagnostics" = "診断ログを書き出す…";
+"menu.command.help.website" = "ヘルプサイト";
+"menu.command.contact.support" = "サポートに連絡";
+
+// MARK: - Settings Sections
+"settings.section.general" = "一般";
+"settings.section.sound" = "サウンド";
+"settings.section.license" = "ライセンス";
+"settings.section.credits" = "クレジット";
+"settings.section.storage" = "ストレージ";
+"settings.section.models" = "モデル";
+"settings.section.api.keys" = "APIキー";
+"settings.section.shortcuts" = "キーボードショートカット";
+"settings.section.output" = "テキスト出力";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro（英語）";
+"onboarding.model.pro.multilingual" = "Pro（多言語）";
+"onboarding.model.downloading.progress" = "ダウンロード中... %d%%";
+"onboarding.accessibility.title" = "自動ペーストのためにアクセシビリティを有効にする";
+"onboarding.accessibility.subtitle" = "HyperWhisper が文字起こし結果を自動的にアプリへ貼り付けられるようにします。";
+"onboarding.accessibility.instructions" = "システム設定 → プライバシーとセキュリティ → アクセシビリティ";
+"onboarding.accessibility.status.granted" = "アクセシビリティの許可が付与されています";
+"onboarding.accessibility.status.pending" = "アクセシビリティの許可がまだ付与されていません";
+"onboarding.accessibility.waiting" = "許可を待機しています...";
+"onboarding.accessibility.open.preferences" = "アクセシビリティ設定を開く";
+"onboarding.accessibility.restart" = "許可を付与した後は HyperWhisper を再起動してください。";
+"onboarding.model.recommendation.title" = "Pro モデルをおすすめします";
+"onboarding.model.recommendation.subtitle" = "システム言語とお使いの Mac の性能に基づいて選ばれています。";
+"onboarding.model.recommendation.note" = "下のボタンをクリックしてダウンロードしてください。";
+"onboarding.model.downloaded" = "ダウンロード済み";
+"onboarding.model.metric.speed" = "速度";
+"onboarding.model.metric.accuracy" = "精度";
+"onboarding.model.metric.size" = "サイズ";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "別の音声モデルを選択することもできます";
+"onboarding.model.picker.title" = "モデル";
+"onboarding.model.option.proEnglish" = "Pro（英語）";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "モデルをダウンロード";
+"onboarding.audio.title" = "使用したい録音デバイスを選択してください";
+"onboarding.audio.subtitle" = "入力音量が十分でメーターが反応していることを確認してください。";
+"onboarding.audio.input.label" = "入力デバイス";
+"onboarding.audio.picker.label" = "デバイス";
+"onboarding.audio.use.system.default" = "システムのデフォルトデバイスを使用する";
+"onboarding.audio.level" = "音量レベル";
+"onboarding.audio.open.sound" = "サウンド設定を開く";
+"onboarding.microphone.title" = "録音許可が必要です";
+"onboarding.microphone.subtitle" = "音声を録音するにはマイクへのアクセスが必要です。";
+"onboarding.microphone.status.granted" = "マイクの許可が付与されています";
+"onboarding.microphone.status.pending" = "マイクの許可がまだ付与されていません";
+"onboarding.microphone.grant" = "許可を付与";
+"onboarding.test.title" = "準備完了です。最初の録音を始めましょう";
+"onboarding.test.press.prefix" = "ショートカット";
+"onboarding.test.press.suffix" = "を押して開始します";
+"onboarding.test.status.recording" = "録音中...";
+"onboarding.test.status.speak" = "話し始めてください...";
+"onboarding.test.stop" = "録音を停止";
+"onboarding.test.success.title" = "録音が完了しました。お疲れさまです!";
+"onboarding.test.success.subtitle" = "文字起こし結果はアプリ内に表示されます。";
+"onboarding.test.start.cta" = "クリックして録音を開始";
+"onboarding.test.start.shortcut" = "またはショートカットキーを押します";
+"onboarding.settings.title" = "よくできました。次は設定を開きましょう";
+"onboarding.settings.subtitle" = "メニューバーの HyperWhisper アイコンを右クリックして「設定」を選択します。";
+"onboarding.settings.menu.startStop" = "録音を開始/停止";
+"onboarding.settings.menu.history" = "履歴...";
+"onboarding.settings.menu.settings" = "設定...";
+"onboarding.settings.menu.quit" = "終了";
+"onboarding.settings.info" = "設定ではショートカットの調整、API キーの管理、HyperWhisper の動作をカスタマイズできます。";
+"onboarding.completion.title" = "これで完了です!";
+"onboarding.completion.subtitle" = "問題や質問があればメールや Discord でお気軽にご連絡ください。";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "メール";
+"onboarding.completion.resources.title" = "追加リソース";
+"onboarding.completion.resources.documentation" = "ドキュメント";
+"onboarding.completion.resources.videos" = "動画チュートリアル";
+"onboarding.completion.resources.blog" = "ブログ";
+"onboarding.done.button" = "オンボーディングを完了";
+"onboarding.error.model.notFound" = "カタログにモデルが見つかりません。";
+"onboarding.error.microphone.denied" = "マイクの許可が拒否されました。システム設定で許可してください。";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "ログイン時に起動";
+"settings.general.launchAtLogin.info" = "ログインすると自動的にHyperWhisperを起動します。";
+"settings.general.launchMinimized.title" = "最小化して起動";
+"settings.general.launchMinimized.info" = "メインウィンドウを表示せずに起動します。メニューバーからアクセスできます。";
+"settings.general.showInDock.title" = "Dockに表示";
+"settings.general.showInDock.info" = "Dockにアプリアイコンを表示します。";
+"settings.general.showRecordingWindow.title" = "録音ウィンドウを表示";
+"settings.general.showRecordingWindow.info" = "録音と処理中に浮動ウィンドウを表示します。";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "オフ";
+"settings.general.mediaControl.mode.mute" = "オーディオをミュート";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "エラーログ";
+"settings.general.errorLogging.info" = "エラーレポートを自動的に収集し、アプリ改善に役立てます。";
+"settings.general.autoUpdate.title" = "自動更新";
+"settings.general.autoUpdate.info" = "HyperWhisperの新しいバージョンを自動的にチェックしてダウンロードします。";
+"settings.general.support.title" = "お困りですか？";
+"settings.version.detail" = "バージョン %@（%@）";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "効果音を再生";
+"settings.sound.soundEffects.info" = "録音の開始時と停止時にオーディオキューを再生します。";
+"settings.sound.mediaControl.title" = "録音中のメディア制御";
+"settings.sound.mediaControl.info" = "録音中HyperWhisperが他のオーディオをどのように処理するかを選択します。「オフ」はオーディオを変更せず、「オーディオをミュート」は録音中にシステム出力をミュートし、その後復元します。";
+"settings.sound.autoIncreaseMicVolume.title" = "録音開始時にマイク音量を自動で最大化";
+"settings.sound.autoIncreaseMicVolume.info" = "録音開始時にマイクの入力音量を自動的に最大に設定し、録音終了時に元の音量に戻します。システムのデフォルト入力デバイスを使用している場合のみ適用されます。";
+"settings.sound.vad.title" = "文字起こし前に無音を除去";
+"settings.sound.vad.info" = "AI音声検出を使用して、音声の前後の無音部分を自動的に検出し除去します。これにより、文字起こしの精度が向上し、処理時間が短縮される場合があります。";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "録音フォルダ";
+"settings.storage.showFolder.title" = "録音フォルダを表示";
+"settings.storage.showFolder.button" = "Finderで表示";
+"settings.storage.notice" = "録音フォルダを変更しても新規録音にのみ適用されます。既存の録音は元の場所に残ります。";
+"settings.storage.choose.button" = "選択...";
+"settings.storage.dialog.select" = "フォルダを選択";
+"settings.storage.dialog.message" = "録音を保存するフォルダを選択してください";
+"settings.storage.storeAsM4A.title" = "録音をM4Aに圧縮";
+"settings.storage.storeAsM4A.subtitle" = "文字起こし後にWAV録音をより小さいファイルに変換します。オフにすると元のWAVファイルを保持します（容量は大きいがロスレス）。";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "結果を自動的に貼り付け";
+"settings.output.paste.subtitle" = "文字起こし結果をアクティブなアプリに自動貼り付け";
+"settings.output.paste.info" = "有効にすると、最前面のアプリにテキストを貼り付けます。";
+"settings.output.restoreClipboard.title" = "貼り付け後にクリップボードを戻す";
+"settings.output.restoreClipboard.subtitle" = "貼り付け後に以前のクリップボード内容を復元";
+"settings.output.restoreClipboard.info" = "アプリが文字起こしを貼り付けた後、以前のクリップボード内容を復元します。";
+"settings.output.restore.after" = "復元まで";
+"settings.output.restore.seconds" = "%d秒";
+"settings.output.restore.accessibility" = "クリップボード復元までの時間";
+"settings.output.hideClipboardHistory.title" = "クリップボード履歴から隠す";
+"settings.output.hideClipboardHistory.subtitle" = "文字起こしをクリップボード履歴アプリに表示しない";
+"settings.output.hideClipboardHistory.info" = "有効にすると、Paste、Maccy、Alfredなどのクリップボードマネージャーが文字起こしテキストを保存しません。";
+"settings.output.clipboard.header" = "クリップボード";
+"settings.output.removeFillers.title" = "フィラーを削除";
+"settings.output.removeFillers.subtitle" = "生の文字起こしから 'uh'、'um'、'er' を削除します。";
+"settings.output.removeFillers.info" = "有効にすると、HyperWhisper は出力前に生の文字起こしから一般的なフィラーを削除します。";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "録音の開始／停止";
+"settings.shortcuts.toggleRecording.subtitle" = "録音を開始・停止します";
+"settings.shortcuts.cancelRecording.title" = "録音をキャンセル";
+"settings.shortcuts.cancelRecording.subtitle" = "進行中の録音を破棄します";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "プッシュトゥトーク";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "キーを押して記録開始、離して終了";
+"settings.shortcuts.pushToTalk.enable.info" = "ワンキーで素早く録音できるプッシュトゥトークモードを有効にします。";
+
+"settings.shortcuts.pushToTalk.mode.title" = "録音モード";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "使用するキーを選択";
+"settings.shortcuts.pushToTalk.mode.disabled" = "無効";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN キー";
+"settings.shortcuts.pushToTalk.mode.control" = "Control キー";
+"settings.shortcuts.pushToTalk.mode.custom" = "カスタムショートカット";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "ダブルプレスで録音をロック";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "素早く2回押すと、押し続けなくても録音を継続します";
+
+"settings.shortcuts.pushToTalk.custom.title" = "カスタムショートカット";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "使用するキーの組み合わせを入力";
+
+
+"settings.shortcuts.changeMode.title" = "モードを切り替え";
+"settings.shortcuts.changeMode.subtitle" = "録音中のみ有効";
+
+"settings.shortcuts.reset.button" = "デフォルトにリセット";
+"settings.shortcuts.reset.dialog.title" = "キーボードショートカットをリセット";
+"settings.shortcuts.reset.confirm" = "リセット";
+"settings.shortcuts.reset.dialog.message" = "すべてのキーボードショートカットを初期設定に戻します。";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "APIキーはデバイス内で安全に保存され、必要なときにのみ提供先へ送信されます。";
+"settings.api.help.link" = "APIキーのヘルプ";
+"settings.api.transcription.title" = "文字起こし";
+"settings.api.transcription.subtitle" = "クラウド型音声認識サービス用のAPIキー";
+"settings.api.postProcessing.title" = "ポストプロセス";
+"settings.api.postProcessing.subtitle" = "AIによるテキスト整形・補正サービス用のAPIキー";
+"settings.api.placeholder" = "%@のAPIキーを入力";
+"settings.api.openLink" = "%@のAPIキー管理ページを開く";
+"settings.api.status.accessibility" = "%@の状態: %@";
+"settings.api.status.unknown" = "プロバイダーの状態が不明です";
+"settings.api.status.checking" = "ヘルスチェックを実行中";
+"settings.api.status.unauthorized" = "APIキーがプロバイダーに拒否されました";
+"settings.api.status.unreachable" = "現在プロバイダーに接続できません";
+"settings.api.status.notInstalled" = "プロバイダーのSDKがインストールされていません";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "不明";
+"provider.status.checking" = "確認中...";
+"provider.status.healthy" = "利用可能";
+"provider.status.unauthorized" = "キーが無効";
+"provider.status.unreachable" = "オフライン";
+"provider.status.notInstalled" = "未インストール";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "ライセンスを有効化しました";
+"alerts.license.deactivated.title" = "ライセンスを無効化しました";
+"alerts.license.activated.message" = "ライセンスが正常に有効化されました。すべての機能をお楽しみください。";
+"alerts.license.deactivated.message" = "このデバイスのライセンスを無効化しました。他のデバイスで再度有効化できます。";
+"alerts.license.failed.title" = "操作に失敗しました";
+"alerts.license.failed.message" = "操作に失敗しました。もう一度お試しください。";
+"license.button.deactivate" = "デバイスを無効化";
+"license.button.deactivating" = "無効化中...";
+"license.button.manageBilling" = "請求を管理";
+"license.button.activate" = "有効化";
+"license.button.activating" = "有効化中...";
+"license.status.label" = "ステータス: %@";
+"license.status.trial.title" = "トライアル";
+"license.status.active.title" = "有効";
+"license.status.expired.title" = "期限切れ";
+"license.status.invalid.title" = "無効";
+"license.status.trial.description" = "無料トライアル（1日5分、%dモデル）";
+"license.status.active.description" = "ライセンス済み - すべての機能が利用可能";
+"license.status.expired.description" = "ライセンスの有効期限が切れました";
+"license.status.invalid.description" = "ライセンスが無効です";
+"settings.license.key.title" = "ライセンスキー";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "クリップボードから貼り付け";
+"settings.license.clearInput" = "クリア";
+"settings.license.recovery.prompt" = "ライセンスキーをお忘れですか？";
+"settings.license.recovery.button" = "カスタマーポータルを開く";
+"settings.license.daily.title" = "1日の文字起こし制限";
+"settings.license.daily.usage" = "%@ / %@ を使用済み";
+"settings.license.limitReached" = "制限に達しました";
+"settings.license.models.title" = "オフラインモデル";
+"settings.license.models.progress" = "%d / %d モデルをダウンロード済み";
+"settings.license.models.progress.one" = "%d / %d モデルをダウンロード済み";
+"settings.license.upgrade.text" = "無制限の文字起こしとモデルを利用するにはアップグレードしてください";
+"settings.license.upgrade.button" = "アップグレード";
+"license.error.invalidResponse" = "応答フォーマットが不正です";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisperクラウドクレジット";
+"settings.credits.refresh" = "更新";
+"settings.credits.subtitle" = "文字起こしのクレジットと利用状況を確認できます";
+"settings.credits.manage" = "クレジットを管理";
+"settings.credits.timeRemaining" = "残りの文字起こし時間";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "分";
+"settings.credits.creditsRemaining" = "%@ クレジット残り";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "無料の1日上限（100クレジット）";
+"settings.credits.resets" = "%@ にリセット";
+"settings.credits.warning.low" = "クレジット残量が少なくなっています。ライセンスを購入して追加クレジットをご検討ください。";
+"settings.credits.warning.exhausted.daily" = "1日の上限に達しました。リセットを待つか、ライセンスを購入して無制限にご利用ください。";
+"settings.credits.warning.exhausted" = "クレジットを使い切りました。HyperWhisper Cloudを継続利用するには追加クレジットを購入してください。";
+"settings.credits.accountInfo" = "アカウント情報";
+"settings.credits.stat.creditsRemaining" = "残りクレジット";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "残り分数";
+"settings.credits.stat.accountType" = "アカウント種別";
+"settings.credits.accountType.licensed" = "ライセンス済み";
+"settings.credits.accountType.anonymous" = "匿名";
+"settings.credits.accountType.trial" = "トライアル";
+"settings.credits.stat.customerId" = "顧客ID";
+"settings.credits.stat.dailyLimit" = "1日の上限";
+"settings.credits.dailyLimit.value" = "100 クレジット";
+"settings.credits.loading" = "クレジット残高を読み込み中...";
+"settings.credits.error.title" = "クレジット残高を読み込めませんでした";
+"settings.credits.error.retry" = "再試行";
+"settings.credits.empty.title" = "クレジット情報がありません";
+"settings.credits.empty.subtitle" = "更新をクリックしてクレジット残高を取得してください";
+"settings.credits.empty.button" = "クレジットを読み込む";
+"settings.credits.error.insufficient" = "クレジットが不足しています。残りは %d クレジットです。";
+"settings.credits.error.network" = "ネットワークエラー: %@";
+"settings.credits.error.invalidResponse" = "サーバーからのレスポンスが無効です。もう一度お試しください。";
+"settings.credits.error.server" = "サーバーエラー: %@";
+"settings.models.alert.limit.title" = "モデルのダウンロード制限に達しました";
+"settings.models.alert.limit.message" = "トライアルでは%dつのモデルをダウンロードできます。無制限に利用するにはライセンスをアップグレードしてください。";
+"settings.models.alert.cannotDelete.title" = "モデルを削除できません";
+"settings.models.parakeet.title" = "Parakeetモデル";
+"settings.models.parakeet.subtitle" = "ほとんどのユーザーにおすすめ。多言語モデルは25言語に対応しています。";
+"settings.models.parakeet.empty" = "利用可能なParakeetモデルがありません。";
+"settings.models.whisper.title" = "Whisperモデル";
+"settings.models.whisper.subtitle" = "OpenAI Whisperモデル。大きいモデルほど精度が高くなります。100以上の言語に対応。";
+"settings.models.whisper.empty" = "利用可能なWhisperモデルがありません。";
+"settings.models.help.cancelDownload" = "ダウンロードをキャンセル";
+"settings.models.help.remove" = "モデルを削除";
+"settings.models.downloaded" = "ダウンロード済み";
+"settings.models.download" = "ダウンロード";
+"settings.models.downloading" = "ダウンロード中...";
+"settings.models.localPostProcessing.title" = "ローカルポストプロセスモデル";
+"settings.models.localPostProcessing.memoryWarning" = "24 GB以上のユニファイドメモリを搭載したMacに推奨されます。速度はチップに依存します — M3/M4 Pro以上でより高速です。";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "今年の単語数";
+"vocabulary.input.placeholder" = "単語を追加するかスニペットを作成";
+"vocabulary.action.addWord" = "単語を追加";
+"vocabulary.action.replaceWith" = "置換先…";
+"vocabulary.action.replace" = "置換";
+"vocabulary.replacement.field.placeholder" = "置換テキスト…";
+"settings.output.autocapitalizeInsert.title" = "挿入時に自動大文字化";
+"settings.output.autocapitalizeInsert.subtitle" = "テキスト挿入時にカーソルのコンテキストに合わせます";
+"settings.output.autocapitalizeInsert.info" = "有効にすると、挿入されたトランスクリプトテキストの最初の単語がカーソルのコンテキスト（文の先頭または中間）に合わせて調整されます。常に小文字で入力するには無効にしてください。";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisperは自動大文字化に必要なカーソルのコンテキストを読み取るためにアクセシビリティ権限が必要です。\n\n「設定を開く」をクリックし、HyperWhisperの横のトグルを押してから再試行してください。";
+"settings.output.removeFillerWords.title" = "フィラーワードを削除";
+"settings.output.removeFillerWords.subtitle" = "AI後処理がオフのとき、未加工のトランスクリプトから「えー」「あー」「うー」を削除します";
+"settings.output.removeFillerWords.info" = "モードがAI後処理をスキップする場合にのみ適用されます。AIで強化されたモードは、プロンプト内でスピーチのクリーンアップを処理します。";
+"sidebar.modelLibrary" = "モデルライブラリ";
+"sidebar.modelLibrary.help" = "すべての音声モデルと後処理モデルを一か所で閲覧できます";
+"settings.shortcuts.quickCapture.enable.title" = "クイックキャプチャ";
+"settings.shortcuts.quickCapture.enable.subtitle" = "アプリをフォーカスせずにすぐ録音してメモに送信できます。";
+"settings.shortcuts.quickCapture.shortcut.title" = "ショートカット";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "どこからでも押して録音しメモに送信。";
+"settings.shortcuts.quickCapture.mode.title" = "モード";
+"settings.shortcuts.quickCapture.mode.subtitle" = "使用する文字起こしモード — モデル、プロンプト、後処理を制御します。";
+"settings.shortcuts.quickCapture.mode.current" = "現在のモード";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisperはメモを操作する権限が必要です。システム設定 → プライバシー → 自動化で許可してください。";
+"settings.section.vocabulary" = "語彙";
+"settings.vocabulary.icloudSync.title" = "iCloud同期";
+"settings.vocabulary.icloudSync.subtitle" = "同じiCloudアカウントにサインインしているすべてのMac間でカスタム語彙を同期します。";
+"settings.vocabulary.icloudSync.info" = "デフォルトはオフです。同期されるのはカスタム語彙のみで、文字起こしや録音はこのMacに残ります。変更は次回HyperWhisperを開いたときに有効になります。";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "変更を適用するにはHyperWhisperを終了してください";
+"vocabulary.icloudSync.restart.message" = "iCloud語彙同期の変更は、次回HyperWhisperを開いたときに有効になります。";
+"vocabulary.icloudSync.restart.quit" = "HyperWhisperを終了";
+"vocabulary.icloudSync.restart.later" = "後で";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "録音の合間もマイクをウォームアップ状態に保つ";
+"settings.sound.keepWarmMicrophone.info" = "HyperWhisperがアイドル中もマイクセッションを開いたままにすることで、プッシュトゥトークの起動遅延を軽減します。macOSはオレンジ色のマイクインジケーターを常時表示し、この機能が有効な間はBluetoothヘッドセットが低品質の通話モードのままになる場合があります。";
+"settings.models.local.inUse" = "このローカルモデルは現在、以下でポスト処理に使用されています：
+
+%@
+
+削除する前に、別のモデルを選択するためにそれらのモードを編集してください。";
+"models.postProcessing.gemma4.e2b.description" = "高速かつ正確。ポストプロセスに最適なオールラウンダー。";
+"models.postProcessing.gemma4.e4b.description" = "より高品質で詳細。長いテキストに適しています。";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts。4Bのアクティブパラメータのみで高速な推論。";
+"models.postProcessing.gemma4.31b.description" = "31B密集モデル。最高品質、18GB以上のRAMが必要。";
+"settings.models.whisper.inUse" = "このモデルは以下のモードで使用されているため削除できません:\n\n%@\n\n削除する前に、これらのモードで別のモデルを選択してください。";
+"settings.models.parakeet.inUse" = "このParakeetモデルは以下のモードで使用されているため削除できません:\n\n%@\n\n削除する前に、これらのモードで別のモデルを選択してください。";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "名称未設定";
+"settings.models.directory.whisper" = "Whisperモデルフォルダ";
+"settings.models.directory.parakeet" = "Parakeetモデルフォルダ";
+"settings.models.directory.local" = "ローカルモデルフォルダ";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — CoreML向けに最適化された多言語音声認識。";
+"settings.models.qwen3asr.languages" = "30言語";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "このQwen3 ASRモデルは以下で使用されているため削除できません:\n\n%@\n\n削除する前に、これらのモードを別のモデルを使用するように更新してください。";
+"settings.models.directory.show" = "Finderで表示";
+"models.error.checksumFailed" = "モデルのチェックサム検証に失敗しました。ダウンロードが破損している可能性があります。";
+
+// MARK: - Statistics View
+"statistics.title" = "統計";
+"statistics.header.title" = "使用統計";
+"statistics.header.subtitle" = "文字起こしの活動とパフォーマンスを追跡します";
+"statistics.card.recordings" = "総録音数";
+"statistics.card.recordings.subtitle" = "完了した文字起こし";
+"statistics.card.duration" = "総時間";
+"statistics.card.duration.subtitle" = "録音に費やした時間";
+"statistics.card.words" = "総単語数";
+"statistics.card.words.subtitle" = "文字起こしされた単語";
+"statistics.card.average" = "平均時間";
+"statistics.card.average.subtitle" = "録音あたり";
+"statistics.graph.title" = "時間経過";
+"statistics.daily.empty" = "まだ録音がありません";
+"statistics.filter.week" = "今週";
+"statistics.filter.month" = "今月";
+"statistics.filter.alltime" = "すべて";
+
+// MARK: - History View
+"history.title" = "履歴";
+"history.search.placeholder" = "検索";
+"history.filter.all" = "すべて";
+"history.filter.today" = "今日";
+"history.filter.week" = "今週";
+"history.filter.month" = "今月";
+"history.empty.title" = "録音が見つかりません";
+"history.empty.subtitle" = "検索条件を調整してください";
+"history.detail.empty" = "録音を選択すると詳細が表示されます";
+"history.multi.selected" = "%d件の録音を選択中";
+"history.multi.delete" = "選択項目を削除";
+"history.context.deleteSelected" = "%d件の録音を削除";
+"history.context.retry" = "文字起こしを再試行";
+"history.context.retryWith" = "指定モードで再試行...";
+"history.context.copy" = "テキストをコピー";
+"history.retrying" = "文字起こしを再試行中...";
+"history.retry.help" = "録音の文字起こしを再実行します";
+"history.section.today" = "今日";
+"history.section.yesterday" = "昨日";
+"history.duration.format" = "%d分%d秒";
+"history.status.failed" = "失敗";
+"history.status.transcription.failed.prefix" = "文字起こしに失敗しました:";
+"history.status.retry.failed.prefix" = "再試行に失敗しました:";
+"history.failure.reason" = "理由: %@";
+"history.mode.default" = "デフォルト";
+"history.audio.showInFinder" = "Finderで表示";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "モードを削除しますか？";
+"modes.delete.confirm.message" = "選択したモードを削除します。この操作は元に戻せません。";
+"modes.header.title" = "モード";
+"modes.header.subtitle" = "用途に合わせたカスタムプロファイルを作成できます";
+"modes.header.create" = "モードを作成";
+"modes.name.unnamed" = "名称未設定";
+"modes.badge.offline" = "オフライン";
+"modes.context.select" = "選択";
+"modes.help.edit" = "モード設定を編集";
+"modes.help.preset" = "このプリセットの詳細";
+"modes.help.model" = "このモデルの詳細";
+"modes.preset.title" = "プリセット";
+"modes.preset.hyper.name" = "ハイパー";
+"modes.preset.message.name" = "メッセージ";
+"modes.preset.mail.name" = "メール";
+"modes.preset.note.name" = "ノート";
+"modes.preset.meeting.name" = "ミーティング";
+"modes.preset.code.name" = "コード";
+"modes.preset.custom.name" = "カスタム";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "メッセージモードは句読点や段落を整え、文法を補正して読みやすい文章に仕上げます。";
+"modes.preset.mail.tooltip" = "メールモードは敬称や段落、締めを含むビジネス向けのメール形式に整えます。";
+"modes.preset.note.tooltip" = "ノートモードは見出しや箇条書きを使って内容を整理します。";
+"modes.preset.meeting.tooltip" = "ミーティングモードは参加者、アクション項目、議論内容を含む議事録形式にまとめます。";
+"modes.preset.code.tooltip" = "コードモードは音声でのプログラミング入力をコード構文に変換します。「オープンブラケット」「バックスラッシュ」「キャメルケース」などと言ってコードを書けます。";
+"modes.preset.custom.tooltip" = "カスタムモードでは、特定の用途に合わせたフォーマットやプロンプトを設定できます。";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "カスタム指示のフォーマットをすべて定義します。";
+"modes.notice.vocabularyUnsupported" = "このプロバイダーのこのモデルではカスタム語彙はサポートされていません。無視されます。";
+"modes.notice.deepgramNova3AutoDetect" = "Deepgram Nova-3 で自動言語検出を使用している場合、カスタム語彙は利用できません。語彙ブーストを有効にするには、特定の言語（例：英語、スペイン語）を設定してください。";
+"modes.language.title" = "言語";
+"modes.language.englishOnly" = "英語専用（最適化済みモデル）";
+"modes.postProcessing.sectionTitle" = "後処理";
+"modes.postProcessing.modeLabel" = "モード";
+"modes.postProcessing.modeTitle" = "後処理";
+"modes.postProcessing.modeDescription" = "文字起こしの処理方法を選択します。\n\n• オフ: 後処理なしで生の文字起こしを使用\n• クラウド (AI): インターネット接続が必要な AI 強化\n• ローカル: Gemma などのローカル LLM を使用\n\nクラウド処理は選択した AI プロバイダーにテキストを送信します。ローカルモードは端末上で完結しますが、ローカルサーバーの起動が必要です。";
+"modes.postProcessing.providerLabel" = "プロバイダー";
+"modes.postProcessing.apiKeyMissing" = "%@ の API キーが設定されていません。後処理を有効にするには設定で追加してください。";
+"modes.postProcessing.configure" = "設定を開く";
+"modes.postProcessing.modelRecommendation" = "速度と品質のバランスには GPT-4.1 Nano の使用をおすすめします。";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "ローカルポスト処理にはダウンロード済みのローカルモデルが必要です。";
+"modes.postProcessing.download" = "設定でダウンロード";
+"modes.postProcessing.localInfo" = "処理はすべて端末内で完結します。モード有効時に同梱の llama.cpp サーバーを自動起動します。";
+"modes.postProcessing.userSystemPrompt.title" = "固定指示";
+"modes.postProcessing.userSystemPrompt.placeholder" = "例: メールは必ず「よろしくお願いします、レイ」で締める";
+"modes.postProcessing.userSystemPrompt.clear" = "クリア";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "固定指示";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "選択したプリセットに常に適用される指示を追加します。";
+"modes.toggle.punctuation.title" = "句読点を追加";
+"modes.toggle.punctuation.subtitle" = "ピリオドやカンマを自動挿入します";
+"modes.toggle.capitalization.title" = "文頭を大文字にする";
+"modes.toggle.capitalization.subtitle" = "文の先頭を自動的に大文字化します";
+"modes.toggle.profanity.title" = "不適切な語を置換";
+"modes.toggle.profanity.subtitle" = "不適切な語句を別の語に置き換えます";
+"modes.toggle.removeTrailingPeriod.title" = "末尾のピリオドを削除";
+"modes.toggle.removeTrailingPeriod.subtitle" = "文字起こしの末尾のピリオドを除去します";
+
+"modes.toggle.screenText.title" = "スクリーンテキスト";
+"modes.toggle.screenText.subtitle" = "見えるスクリーンテキストをキャプチャして、名前や用語の認識精度を向上させます。画面録画の許可が必要です。";
+"modes.screenText.permissionGranted" = "画面録画の許可が付与されました";
+"modes.screenText.permissionRequired" = "画面録画の許可が必要です";
+"modes.screenText.openSettings" = "システム設定を開く";
+"modes.englishSpelling.title" = "英語のスペル";
+"modes.englishSpelling.american" = "アメリカ英語";
+"modes.postProcessing.languageModel" = "言語モデル";
+"modes.postProcessing.localModel" = "モデル";
+"modes.postProcessing.privacyNotice" = "お客様の音声入力は後処理のためにのみ %@ に送信されます。他のサービスには送信されません。";"modes.postProcessing.privacyNotice" = "%@ にのみ文字起こしを送信して後処理します。その他の場所には送信しません。";
+"modes.englishSpelling.british" = "イギリス英語";
+"modes.englishSpelling.australian" = "オーストラリア英語";
+"modes.englishSpelling.canadian" = "カナダ英語";
+"modes.englishSpelling.american.description" = "アメリカ英語のスペルを使用（color、realize、organization、center、traveled）";
+"modes.englishSpelling.british.description" = "イギリス英語のスペルを使用（colour、realise、organisation、centre、travelled）";
+"modes.englishSpelling.australian.description" = "オーストラリア英語のスペルを使用（colour、realise、organisation、centre、travelled）";
+"modes.englishSpelling.canadian.description" = "カナダ英語のスペルを使用（colour、realize、organization、centre、travelled）";
+"modes.gemini.customPrompt.title" = "カスタム指示";
+"modes.gemini.customPrompt.helper" = "任意。例: \"箇条書きで書式設定\", \"フォーマルな言葉を使用\"。言語と語彙の設定は自動的に含まれます。";
+"modes.cloud.apiKeyMissing" = "%@ の API キーが設定されていません。クラウド文字起こしを使用するには設定で追加してください。";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "精度";
+"modes.cloudAccuracy.groqWhisper.label" = "標準 (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "標準 (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "高 (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "高速で手頃。素早い文字起こしに最適。";
+"modes.cloudAccuracy.deepgramNova3.description" = "速度と精度のバランス。ほとんどのユーザーにおすすめ。";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高精度、処理は遅め。重要な文字起こしに最適。";
+"modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高精度、処理は遅め。重要な文字起こしに最適。";
+
+"modes.create.title" = "新しいモードを作成";
+"modes.create.subtitle" = "カスタム文字起こしプロファイルを設定します";
+"modes.section.basic" = "基本設定";
+"modes.section.transcription" = "文字起こしモデル";
+"modes.section.punctuation" = "句読点";
+"modes.field.name" = "名前";
+"modes.field.name.placeholder" = "例: 会議メモ";
+"modes.field.name.editPlaceholder" = "モード名";
+"modes.field.model" = "モデル";
+"modes.field.provider" = "プロバイダー";
+"modes.provider.local" = "ローカル";
+"modes.provider.cloud" = "クラウド";
+"modes.notice.noLocalModels.title" = "ローカルモデルがインストールされていません";
+"modes.notice.noLocalModels.subtitle" = "まず設定でモデルをインストールしてください";
+"modes.model.pricing" = "料金: 1 分あたり $%.6f（秒単位で課金）";
+"modes.button.create" = "モードを作成";
+"modes.button.delete" = "モードを削除";
+"modes.button.save" = "変更を保存";
+"modes.edit.title" = "モードを編集";
+"modes.edit.subtitle" = "文字起こしプロファイルを調整します";
+"mode.editor.cloudModel.previewHint" = "プレビュー";
+"mode.editor.cloudModel.noVocabularyHint" = "カスタム語彙なし";
+"mode.editor.cloudDomain.medical" = "医療";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode アドオン";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "再試行できません: 音声ファイルが見つかりません";
+"transcripts.error.invalidId" = "無効なトランスクリプト ID です";
+"transcripts.delete.single.title" = "録音を削除しますか？";
+"transcripts.delete.single.message" = "この録音と音声ファイルを完全に削除します。";
+"transcripts.delete.multiple.title" = "%d件の録音を削除しますか？";
+"transcripts.delete.multiple.message" = "選択した %d 件の録音と音声ファイルを完全に削除します。\n\nこの操作は元に戻せません。";
+"transcripts.delete.multiple.confirm" = "すべて削除";
+"transcripts.retry.error.title" = "再試行に失敗しました";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "録音フォルダを選択";
+"storage.folder.choose.message" = "新しい録音を保存するフォルダを選択してください。";
+"storage.folder.choose.prompt" = "選択";
+"storage.recovery.title" = "録音フォルダにアクセスできません";
+"storage.recovery.message" = "設定済みの録音フォルダにアクセスできません。別のフォルダを選択して続行できます。";
+"storage.recovery.choose" = "フォルダを選択…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "詳細はこちら";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "文字起こしが完了しました";
+"recording.status.retrying" = "文字起こしを再試行中…";
+"recording.status.postprocessing" = "AIで後処理中…";
+"recording.status.transcribing" = "文字起こし中…";
+"recording.success.pasted" = "貼り付けました！";
+"recording.loading.retrying" = "再試行中…";
+"recording.loading.postprocessing" = "AIで処理中…";
+"recording.loading.starting" = "ストリームを開始しています…";
+"recording.loading.transcribing" = "文字起こし中…";
+
+// Streaming connection states
+"streaming.status.connecting" = "接続中...";
+"streaming.status.ready" = "準備完了 - 話しかけてください";
+"streaming.status.warming" = "ウォームアップ中...";
+"modes.badge.recommended" = "おすすめ";
+"modes.source.label" = "ソース";
+"modes.source.onDevice" = "オンデバイス";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "APIキー";
+"modes.field.engine" = "エンジン";
+"settings.models.localASR.inUse" = "このモデルは以下で使用されているため削除できません：
+
+%@
+
+削除する前に、これらのモードで別のモデルを使用するよう更新してください。";
+"models.postProcessing.gemma4.12b.description" = "中規模の密集モデル。16 GB Macで品質と速度のバランスを実現。";
+"recording.success.savedToNotes" = "メモに保存しました！";
+"modes.provider.needsKey" = "%@は有効なキーが必要です。";
+"modes.provider.manageInLibrary" = "ライブラリで管理 →";
+"streaming.loading.warming" = "ローカルモデルをウォームアップ中...";
+"streaming.status.listening" = "リッスン中...";
+"streaming.status.streaming" = "ストリーミング中...";
+"streaming.status.disconnecting" = "停止中...";
+"streaming.loading.connecting" = "サーバーに接続中...";
+"streaming.loading.ready" = "音声を初期化中...";
+"streaming.loading.streaming" = "音声を待機中...";
+"streaming.state.reconnecting" = "再接続中...";
+"recording.stop.help" = "録音を停止 (%@)";
+"recording.postprocessing.unavailable" = "ポストプロセスは利用できません";
+"recording.postprocessing.missing.single" = "%@ のキーがありません — ポストプロセスなしで録音します";
+"recording.postprocessing.missing.multiple" = "APIキーが不足しています — ポストプロセスなしで録音します";
+"recording.postprocessing.addKey" = "キーを追加";
+"recording.offline.banner" = "インターネットに接続されていません。オンラインになるまでクラウド文字起こしは失敗します。";
+"recording.offline.title" = "インターネットに接続されていません";
+"recording.offline.subtitle" = "再接続するか、オフラインモードに切り替えてください。";
+"recording.error.network" = "ネットワーク接続を確認して再試行してください。";
+"recording.error.timeout" = "タイムアウトしました。回線速度を確認して再試行してください。";
+"recording.error.rateLimit" = "リクエストが多すぎます。しばらく待ってから再試行してください。";
+"recording.error.credits" = "クレジットが不足しています。設定でクレジットを追加してください。";
+"recording.error.apiKey" = "設定で%@のAPIキーを追加してください。";
+"recording.error.server" = "文字起こしサービスに問題が発生しています。しばらくしてからもう一度お試しください。";
+"recording.retry" = "再試行";
+"recording.retry.inProgress" = "再試行中…";
+"recording.retry.count" = "再試行 (%d)";
+"recording.retry.failed.missing" = "再試行に失敗: 音声ファイルが見つかりません";
+"recording.retry.failed.error" = "再試行に失敗: %@";
+"recording.retry.pending" = "再試行できます – クリックして文字起こし";
+"recording.provider.unknown" = "クラウドプロバイダー";
+"recording.cancel.dialog.title" = "録音をキャンセルしますか？";
+"recording.cancel.dialog.message" = "現在の録音は破棄されます。";
+"recording.cancel.dialog.confirm" = "録音をキャンセル";
+"recording.cancel.dialog.resume" = "再開";
+"recording.error.overlay.title" = "ネットワーク接続エラー";
+"recording.error.overlay.message" = "下の「再試行」を押すか、オフラインモードに切り替えて続行してください。";
+"recording.mode.default" = "デフォルト";
+"recording.dialog.window.title" = "録音ダイアログ";
+"recording.button.start" = "録音を開始";
+"recording.button.stop" = "録音を停止";
+"recording.button.disable.checking" = "%@ の状態を確認しています...";
+"recording.button.disable.invalid" = "%@ のAPIキーが無効です。設定で更新してください。";
+"recording.button.disable.unreachable" = "%@ に接続できません。ネットワークを確認して再試行してください。";
+"recording.button.disable.missing" = "%@ のAPIキーを設定で追加してください。";
+"recording.button.disable.install.local" = "ローカルの後処理を使用する前に、設定 → モデルでローカルモデルをダウンロードしてください。";
+"modes.postProcessing.accuracy" = "精度";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "1 日あたり %@ 分の文字起こし上限に達しました。無制限で利用するには HyperWhisper Pro にアップグレードしてください。";
+"recording.error.documentsAccess" = "録音フォルダにアクセスできません。設定 → ストレージで別の場所を選択してください。";
+"recording.error.modeMissing" = "選択したモードが見つかりません。有効なモードを選択してください。";
+"recording.warning.oversizedWAV" = "音声の圧縮に失敗しました。非圧縮の %@ MB ファイルを使用します - 文字起こしに時間がかかる場合があります。";
+
+// MARK: - Audio Manager
+"audio.device.default" = "デフォルトマイク";
+"audio.error.permissionDenied" = "マイクへのアクセスが拒否されています。システム設定で許可してください。";
+"audio.error.fileWatcher.open" = "音声ファイルを監視するためのファイルディスクリプタを開けませんでした。";
+"audio.error.fileWatcher.timeout" = "音声ファイルが書き込まれるまでの待機がタイムアウトしました。";
+"audio.error.fileWatcher.creation" = "音声ファイルが規定時間内に作成されませんでした。";
+"audio.error.microphonePermission" = "マイクの許可が付与されていません";
+"audio.error.microphoneInUse" = "他のアプリがマイクを使用しているため HyperWhisper はマイクにアクセスできません。他の録音や通話を一時停止するか、別の入力を選択してから再度お試しください。";
+"audio.error.createEngine" = "オーディオエンジンの作成に失敗しました";
+"audio.error.noInput" = "利用できるオーディオ入力がありません";
+"audio.error.createFile" = "オーディオファイルの作成に失敗しました";
+"audio.error.managerUnavailable" = "Transcription Manager が構成されていません";
+"audio.error.invalidHardwareFormat" = "ハードウェアのオーディオ形式が無効です。デバイスを確認してください。";
+"audio.error.createFormat" = "録音用のオーディオフォーマット作成に失敗しました";
+"audio.error.createConverter" = "オーディオフォーマット変換器の作成に失敗しました";
+"audio.error.exportM4A" = "音声を m4a 形式に書き出せませんでした";
+"audio.error.readFile" = "録音後に音声ファイルを読み取れませんでした";
+"audio.error.recordingTooShort" = "録音が短すぎます。ボタンを長く押し続けてください。";
+"audio.error.noAudioTrack" = "この動画ファイルには音声トラックが含まれていません。";
+"audio.alert.accessibility.title" = "アクセシビリティアクセスを有効にする";
+"audio.alert.accessibility.message" = "他のアプリに文字起こし結果を貼り付けるにはアクセシビリティ許可が必要です。\n\n「設定を開く」をクリックし、HyperWhisper のトグルをオンにしてから再試行してください。";
+"audio.alert.accessibility.open" = "設定を開く";
+"audio.alert.pasteFailed.title" = "自動貼り付けに失敗しました";
+"audio.alert.pasteFailed.message" = "文字起こし結果はクリップボードにコピーされています。\n\n⌘V を押すか、メニューの［編集］→［ペースト］で手動で貼り付けてください。";
+"accessibility.permission.location.debug" = "Xcode デバッグビルド";
+"accessibility.permission.location.installed" = "インストール済みアプリ";
+"accessibility.permission.info" = "HyperWhisper が他のアプリに文字起こし結果を貼り付けるにはアクセシビリティ権限が必要です。\n\n現在のアプリの場所: %@\n\nシステム設定:\n1. リスト内で「hyperwhisper」または「HyperWhisper」を探します\n2. 異なる場所から実行している場合は複数の項目が表示されることがあります\n3. 次の場所と一致する項目のチェックボックスを有効にします:\n   %@";
+"accessibility.permission.xcodeNote" = "注意: Xcode から実行する場合は、インストール版とは別の権限が必要です。";
+"accessibility.error.paste.commandFailed" = "貼り付けコマンドに失敗しました";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "文字起こしプロバイダを利用できません。設定を確認して再試行してください。";
+"transcription.error.providerNotAvailable.provider" = "%@ を利用できません。設定を確認して再試行してください。";
+"transcription.error.providerNotAvailable.detail" = "%@ を利用できません: %@";
+"transcription.error.modelNotDownloaded" = "まずモデルをダウンロードしてください";
+"transcription.error.modelProtected" = "このモデルは削除できません";
+"transcription.error.audioFileNotFound" = "音声ファイルが見つかりません";
+"transcription.error.network.detail" = "ネットワークエラー: %@";
+"transcription.error.network.generic" = "ネットワーク接続エラー";
+"transcription.error.apiKeyMissing.provider" = "%@ のAPIキーが必要です";
+"transcription.error.apiKeyMissing.generic" = "クラウドプロバイダのAPIキーが必要です";
+"transcription.error.maxRetriesExceeded" = "リトライ回数の上限を超えました";
+"transcription.error.unauthorized.provider" = "認証エラー: %@ APIキーまたは権限が無効です。\n\n設定 → APIキーで資格情報を確認してください。";
+"transcription.error.unauthorized.generic" = "認証エラー: APIキーまたは権限が無効です。\n\n設定 → APIキーで資格情報を確認してください。";
+"transcription.error.invalidRequest" = "無効なリクエストです。音声ファイルや設定を確認してください";
+"transcription.error.streamingInterrupted" = "ストリーミングが中断されました。部分的なテキストを表示します";
+"transcription.error.busy" = "文字起こしサービスが混雑しています";
+"transcription.error.invalidAudioFormat" = "サポートされていない音声形式です";
+"transcription.error.audioConversionFailed" = "必要な形式への音声変換に失敗しました";
+"transcription.error.audioFileTooLarge" = "ファイルが大きすぎます: %@は%@の%@制限を超えています";
+"transcription.error.serverError" = "サーバーエラー (%d): %@";
+"transcription.error.rateLimited.seconds" = "リクエストが多すぎます。%d 秒待ってから再試行してください。";
+"transcription.error.rateLimited.generic" = "リクエストが多すぎます。しばらく待ってから再試行してください。";
+"transcription.error.insufficientCredits" = "クレジットが不足しています。設定でクレジットを追加してください。";
+"transcription.error.quotaExceeded" = "%@ のクォータを超過しました";
+"transcription.error.quotaExceeded.detail" = "%@ のクォータを超過しました: %@";
+"transcription.error.timeout" = "%@ 中にタイムアウトしました。インターネット接続を確認して再試行してください。";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "設定で文字起こしプロバイダが正しく設定されていることを確認してください。";
+"transcription.guidance.providerNotAvailable.provider" = "%@ が正しく設定されていることを確認してください。ローカルモデルの場合はまずモデルをダウンロードしてください。クラウドプロバイダの場合はAPIキーを確認してください。";
+"transcription.guidance.apiKeyMissing.provider" = "%@ のAPIキーを設定で追加してください";
+"transcription.guidance.apiKeyMissing.generic" = "クラウドプロバイダのAPIキーを設定で追加してください";
+"transcription.guidance.modelNotDownloaded" = "モデルを「モデル」セクションからダウンロードしてください";
+"transcription.guidance.modelProtected" = "このモデルは現在使用中です";
+"transcription.guidance.audioFileNotFound" = "音声ファイルが削除または移動されました";
+"transcription.guidance.networkError" = "ネットワーク接続を確認し、再試行してください";
+"transcription.guidance.unauthorized.provider" = "%@ のAPIキーまたはアカウント権限を設定で確認してください";
+"transcription.guidance.unauthorized.generic" = "APIキーまたはアカウント権限を設定で確認してください";
+"transcription.guidance.invalidRequest" = "音声ファイルとモード設定を確認してから再試行してください";
+"transcription.guidance.invalidAudioFormat" = "音声ファイルをMP3またはWAV形式に変換して試してください";
+"transcription.guidance.audioConversionFailed" = "音声ファイルが破損している可能性があります。別のファイルを試してください";
+"transcription.guidance.audioFileTooLarge" = "短い音声ファイルを使用するか分割してください";
+"transcription.guidance.serverError" = "文字起こしサービスで問題が発生しています。時間をおいて再試行してください。";
+"transcription.guidance.rateLimited" = "リクエストが多すぎます。しばらく待ってから再試行してください。";
+"transcription.guidance.insufficientCredits" = "文字起こしを続けるには設定でクレジットを購入してください";
+"transcription.guidance.quotaExceeded" = "%@ のアカウントにクレジットを追加するか、請求設定を更新してください";
+"transcription.guidance.timeout" = "リクエストに時間がかかり過ぎました。ネットワーク速度を確認して再試行してください。";
+"transcription.error.noSpeechDetected" = "録音内に音声が検出されませんでした。";
+"transcription.guidance.noSpeechDetected" = "ヒント:\n• マイクに向かってはっきり話してください\n• 話し始める前にキーを長めに押し続けてください\n• マイクが正常に動作しているか確認してください\n• 正しい入力デバイスが選択されているか確認してください";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "クレジットが不足しています。設定でクレジットを追加してください。";
+"hyperwhisperCloud.error.network" = "ネットワークエラー: %@";
+"hyperwhisperCloud.error.invalidResponse" = "HyperWhisper Cloud から無効な応答が返されました";
+"hyperwhisperCloud.error.server" = "サーバーエラー: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server 実行ファイルが見つかりません。";
+"llama.runtime.error.missingDependencies" = "ランタイムに不足している依存関係: %@";
+"llama.runtime.error.copyFailed" = "ランタイムのコピーに失敗しました: %@";
+"llama.runtime.error.copy.executable" = "実行ファイルをコピーできません: %@";
+"llama.runtime.missing" = "ローカル ランタイムが見つかりません。ローカル後処理を利用するには HyperWhisper を再インストールしてください。";
+"llama.runtime.genericError" = "ローカル ランタイムでエラーが発生しました: %@";
+"runtime.error.llama.missingLib" = "libmtmd.dylib が見つからず ローカル ランタイムが終了しました";
+"runtime.error.llama.reportedMissingLib" = "ローカル ランタイムが libmtmd.dylib の不足を報告しました";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Cloudflare Workersで動作する組み込みのAI後処理。設定不要で利用できます。";
+"models.postProcessing.gpt4.1.nano.description" = "精度92%、超高速（1秒未満）。下書きやカジュアルなメモに適しています。";
+"models.postProcessing.gpt4.1.mini.description" = "精度94%、高速（1〜2秒）。日常的なビジネス文書や標準的なドキュメントに最適です。";
+"models.postProcessing.gpt4.1.description" = "精度96%、中速（3〜4秒）。複雑な書式設定や技術的な内容に最適です。";
+"models.postProcessing.gpt5.nano.description" = "精度95%、最速（1秒）。クイックメモやメッセージ、カジュアルな文字起こしに最適です。";
+"models.postProcessing.gpt5.mini.description" = "精度97%、中速（2〜3秒）。専門的なメール、レポート、会議メモに最適なバランスです。";
+"models.postProcessing.gpt5.description" = "精度99%以上、低速（3〜5秒）。重要文書、法律、医療など正確性が最重要な文字起こしに最適です。";
+"models.postProcessing.gpt5.1.description" = "最先端の精度（98%以上）、中速（2〜3秒）。優れた推論能力により、複雑なタスク、法律文書、技術的な内容に優れています。";
+"models.postProcessing.gpt5.2.description" = "最新のGPT-5シリーズ。推論能力が向上し、高速化されました。高品質なテキスト処理に最適です。";
+"models.postProcessing.claude4.5.haiku.description" = "最新の Claude Haiku 4.5。高速性を維持しつつ推論力が向上しました。";
+"models.postProcessing.claude4.sonnet.description" = "バランスの取れたパフォーマンス。専門文書向けの優れた推論と書式設定能力を発揮します。";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3シリーズ。Flashの速度でPro級の知能を発揮。動的思考機能による高度な推論が可能です。";
+"models.postProcessing.gemini2.5.flash.description" = "コストパフォーマンスに優れています。日常的な用途に十分な精度を保ちながら速度を最適化しています。";
+"models.postProcessing.gemini2.5.flashLite.description" = "超高速でコスト効率と高スループットに最適化されたモデルです。";
+"models.postProcessing.groq.llama33.70b.description" = "高品質な700億パラメータモデル。毎秒280トークン。推奨。";
+"models.postProcessing.groq.llama31.8b.description" = "超高速の80億パラメータモデル。毎秒560トークンで瞬時にテキスト処理。";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAIのオープンソース1200億パラメータモデル。毎秒500トークン。";
+"models.postProcessing.groq.gptoss.20b.description" = "軽量な200億パラメータモデル。毎秒1000トークンで最速処理。";
+"models.postProcessing.cerebras.gptoss.120b.description" = "CerebrasのGPT OSS 120B。毎秒3000トークンの超高速120Bモデル。推奨。";
+"models.postProcessing.cerebras.llama31.8b.description" = "CerebrasのLlama 3.1 8B。軽量で毎秒2200トークンの超高速処理。";
+"models.postProcessing.cerebras.qwen3.235b.description" = "CerebrasのQwen 3 235B。2350億パラメータMoEモデル、毎秒1400トークン。プレビュー版。";
+"models.postProcessing.cerebras.zai.glm47.description" = "CerebrasのZ.ai GLM 4.7。3550億パラメータモデル、毎秒1000トークン。プレビュー版。";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "ヘルプセンター";
+"settings.resources.contact.support" = "サポートに連絡";
+"settings.resources.feedback" = "フィードバック & 提案";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "バックアップ";
+"settings.backup.export.title" = "設定をエクスポート";
+"settings.backup.export.subtitle" = "設定、モード、語彙をファイルに保存";
+"settings.backup.export.button" = "エクスポート...";
+"settings.backup.export.panel.title" = "設定をエクスポート";
+"settings.backup.export.panel.label" = "バックアップファイル:";
+"settings.backup.export.success" = "設定を正常にエクスポートしました";
+"settings.backup.export.error.create" = "バックアップデータの作成に失敗しました";
+"settings.backup.export.error.encode" = "バックアップデータのエンコードに失敗しました";
+"settings.backup.export.error.write" = "バックアップファイルの書き込みに失敗しました";
+"settings.backup.includeAPIKeys.title" = "APIキーを含める";
+"settings.backup.includeAPIKeys.subtitle" = "バックアップファイルにAPIキーを保存（共有は非推奨）";
+"settings.backup.includeLicense.title" = "ライセンスキーを含める";
+"settings.backup.import.title" = "設定をインポート";
+"settings.backup.import.subtitle" = "バックアップファイルから設定を復元";
+"settings.backup.import.button" = "インポート...";
+"settings.backup.import.panel.title" = "設定をインポート";
+"settings.backup.import.success" = "インポート完了: %d モード、%d 語彙項目をインポートしました";
+"settings.backup.import.error.read" = "バックアップファイルの読み込みに失敗しました";
+"settings.backup.import.error.decode" = "無効なバックアップファイル形式です";
+"settings.backup.import.error.decode.keyNotFound" = "必須フィールドがありません: %@";
+"settings.backup.import.error.decode.typeMismatch" = "フィールドの型が正しくありません: %@";
+"settings.backup.import.error.decode.valueNotFound" = "フィールドの値がありません: %@";
+"settings.backup.import.error.decode.corrupted" = "データが破損しています: %@";
+"settings.backup.import.error.decode.corruptedField" = "フィールドの値が破損しています: %@";
+"settings.backup.import.error.version" = "新しいバージョンで作成されたバックアップファイルです";
+"settings.backup.import.error.unknown" = "インポートに失敗しました";
+"settings.backup.import.confirm.title" = "設定をインポートしますか？";
+"settings.backup.import.confirm.message" = "既存のモードと語彙がバックアップファイルの内容に置き換えられます。設定も更新されます。";
+"settings.backup.import.confirm.button" = "インポート";
+"settings.backup.conflict.skip" = "既存をスキップ";
+"settings.backup.conflict.replace" = "既存を置換";
+"settings.backup.conflict.keepBoth" = "両方を保持";
+"settings.backup.security.warning" = "警告: エクスポートされたファイルには機密データが含まれます。安全に保管し、共有しないでください。";
+"settings.backup.info.note" = "バックアップには設定、モード、語彙が含まれます。録音と文字起こしは含まれません。";
+"settings.backup.result.success.title" = "成功";
+"settings.backup.result.error.title" = "エラー";
+"settings.backup.export.choose.subtitle" = "バックアップファイルに含めるものを選択してください";
+"settings.backup.export.section.settings" = "設定";
+"settings.backup.export.section.modes" = "モード";
+"settings.backup.export.section.vocabulary" = "ボキャブラリー";
+"settings.backup.import.importing" = "%@をインポート中";
+"settings.backup.import.contains" = "このファイルに含まれる内容: %@";
+"settings.backup.import.contains.vocabulary" = "ボキャブラリー（%d 語）";
+"settings.backup.import.contains.none" = "なし";
+"settings.backup.import.section.settings" = "設定";
+"settings.backup.import.section.modes" = "モード";
+"settings.backup.import.section.vocabulary" = "ボキャブラリー";
+"settings.backup.import.section.apiKeys" = "APIキー";
+"settings.backup.import.section.license" = "ライセンスキー";
+"settings.backup.import.section.absent" = "— ファイルに含まれていません";
+"settings.backup.import.premerge.summary" = "ボキャブラリー: %d 個追加、%d 個は既に存在します";
+"settings.backup.import.premerge.conflictLabel" = "既に存在する単語に対して:";
+
+// MARK: - File Transcription
+"select.audio.file" = "音声ファイルを選択";
+"transcribe.file.error.title" = "文字起こしエラー";
+"transcribe.file.error.size.title" = "ファイルサイズが大きすぎます";
+"transcribe.file.error.size.message" = "選択したファイル（%@）は%@の%@制限を超えています。";
+"transcribe.file.error.format.title" = "サポートされていない形式";
+"transcribe.file.error.format.message" = ".%@ファイルは%@でサポートされていません。対応形式: %@";
+"transcribe.file.error.read" = "選択したファイルを読み込めません。";
+"transcribe.file.error.copy" = "録音フォルダへのファイルコピーに失敗しました。";
+"transcribe.file.error.video.title" = "動画に音声がありません";
+"transcribe.file.error.video.noAudio" = "この動画ファイルには音声トラックが含まれていません。音声付きの動画または音声ファイルを選択してください。";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "準備中...";
+"file.transcription.transcribing" = "文字起こし中...";
+"file.transcription.finishing" = "完了処理中...";
+"file.transcription.cancel" = "キャンセル";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "自動削除を有効にする";
+"history.autoDelete.enable.subtitle" = "指定期間より古い録音は削除されます";
+"history.autoDelete.duration.prefix" = "経過後";
+"history.autoDelete.unit.minutes" = "分";
+"history.autoDelete.unit.hours" = "時間";
+"history.autoDelete.unit.days" = "日";
+"history.autoDelete.unit.minutes.plural" = "分";
+"history.autoDelete.unit.hours.plural" = "時間";
+"history.autoDelete.unit.days.plural" = "日";
+"history.autoDelete.status.disabled" = "自動削除は無効です";
+"history.autoDelete.status.enabled" = "%d%@より古い録音を削除";
+"history.autoDelete.cleanup.noItems" = "削除する録音はありません";
+"history.autoDelete.cleanup.summary" = "%d件の録音を削除し、%@を解放しました";

@@ -1,0 +1,1365 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>hyperwhisper</title>
+        <item>
+            <title>2.40.0</title>
+            <pubDate>Sat, 20 Jun 2026 02:52:28 +0000</pubDate>
+            <sparkle:version>109</sparkle:version>
+            <sparkle:shortVersionString>2.40.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.40.0.dmg" length="31514619" type="application/octet-stream" sparkle:edSignature="Qt/7MKbdCRHykTWsTa2v6y6A546YysN1/TA6LLrHCvYbQZGpQJnabquXVeaJbo74js4ThRWfHuRvOqKNSq/DDw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Use different AI sources for transcription and post-processing, independently</li><li>Redesigned cloud model picker — browse by provider, then model</li><li>Post-process with OpenAI, Gemini, or Mistral</li><li>Filter the Model Library by language</li><li>Selective backup restore — import only settings, modes, or vocabulary</li><li>Download progress and cancel for Parakeet and Qwen3 models</li><li>Fixed memory spike when trimming silence on long recordings</li><li>More reliable vocabulary replacements (whole-word, literal text)</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.39.0</title>
+            <pubDate>Fri, 12 Jun 2026 07:46:06 +0000</pubDate>
+            <sparkle:version>108</sparkle:version>
+            <sparkle:shortVersionString>2.39.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.39.0.dmg" length="31275904" type="application/octet-stream" sparkle:edSignature="Gk4rMrl+NJw69wr39odGnOHZkXLjNjbDYOSarsRdwreJVEzDLTjxGsJ6Y8/p904zfkjvVgnpRLrm86Oyp28uBA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>New on-device model: NVIDIA Nemotron 3.5 — fast, private transcription without the internet</li><li>New cloud options: Microsoft MAI-Transcribe 1.5 and Google Chirp 3 available as HyperWhisper Cloud accuracy tiers</li><li>Nemotron downloads now resume automatically if interrupted, and queue correctly when multiple are in progress</li><li>Fixed Quick Capture hotkey not releasing when the feature is disabled</li><li>Fixed various transcription reliability issues with local models</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.38.0</title>
+            <pubDate>Sun, 07 Jun 2026 01:42:22 +0000</pubDate>
+            <sparkle:version>107</sparkle:version>
+            <sparkle:shortVersionString>2.38.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.38.0.dmg" length="33623742" type="application/octet-stream" sparkle:edSignature="x7/awXNbwzNBGJS6+LObNNFL9pYnevjELtrBoCx/kGo26M4fHKtgBIUzY+yX5HUdQK7fiB89Ua/Nj3CVpeJkAQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>New: Gemma 4 12B local AI model</li><li>Local AI is faster and uses up to 57% less memory</li><li>New home stats bar shows yearly usage at a glance</li><li>Redesigned vocabulary input</li><li>Fixed local AI crashing after every post-processing request</li><li>Fixed scroll and Sparkle update UI hangs</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.37.0</title>
+            <pubDate>Wed, 03 Jun 2026 07:07:25 +0000</pubDate>
+            <sparkle:version>106</sparkle:version>
+            <sparkle:shortVersionString>2.37.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.37.0.dmg" length="33575659" type="application/octet-stream" sparkle:edSignature="RBQivul87euxVkTI5HYboNrtzYcehNXqqfStZgaGwUR6e5gNXSJpN0Igqwe2kULZFE79Pt7qtCM63eEughNxDA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>New Local API server with MCP support and bearer auth</li><li>Faster settings and menu bar with less lag</li><li>Fixed audio recording and launch-at-login issues</li><li>Removed deprecated Gemini 2.0 Flash models</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.36.0</title>
+            <pubDate>Mon, 01 Jun 2026 08:11:12 +0000</pubDate>
+            <sparkle:version>105</sparkle:version>
+            <sparkle:shortVersionString>2.36.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.36.0.dmg" length="32602365" type="application/octet-stream" sparkle:edSignature="589wZEo1idWYNQ4wRfaPBjb7RuFOYoes+sfOm/rhaceqEFCw1sZFWf1kbexHxEmuh4fu+VwhZiy9A0x7l5e5Cg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Added Gemini 3.5 Flash model option</li><li>Quick Capture now saves to Apple Notes</li><li>Added Autocapitalize Insert</li><li>Fixed app hang on launch and lag when starting recordings</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.35.0</title>
+            <pubDate>Sun, 10 May 2026 01:14:31 +0000</pubDate>
+            <sparkle:version>104</sparkle:version>
+            <sparkle:shortVersionString>2.35.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.35.0.dmg" length="32492353" type="application/octet-stream" sparkle:edSignature="a0+MwXhmS5xXq7rcUCrXaRFSXUAEZOXInExnYVgvbI2jzXpMsiER3ZYZJEuMwIQEaXBmdz2T2Mwbbf2AI/ABCA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>OpenAI Realtime streaming for faster, live transcription</li><li>Model Library redesigned with brand marks, live progress gauges, and cleaner key management</li><li>Remove filler words toggle</li><li>Bug fixes for audio resume, recording start, and wake-from-sleep device errors</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.34.0</title>
+            <pubDate>Thu, 30 Apr 2026 08:45:52 +0000</pubDate>
+            <sparkle:version>103</sparkle:version>
+            <sparkle:shortVersionString>2.34.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.34.0.dmg" length="32082391" type="application/octet-stream" sparkle:edSignature="HD6+7JNFa6ke/1zkm0fTykbn1oCVUyH9pvRXFH6niyxZx9DhKzcAxzGzsCHDhtrjgfWfkUOFWWFSuBN0K8xiCQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Added on-device Parakeet real-time streaming transcription</li><li>Added xAI Grok and AssemblyAI Medical transcription options</li><li>Improved terminal dictation with floating preview and safer paste</li><li>Faster cloud startup with better connection recovery</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.33.1</title>
+            <pubDate>Sun, 12 Apr 2026 12:16:36 +0000</pubDate>
+            <sparkle:version>102</sparkle:version>
+            <sparkle:shortVersionString>2.33.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.33.1.dmg" length="31867455" type="application/octet-stream" sparkle:edSignature="Ie5fNNSCjQjMLxLyAd2rpjh9rsTRG+izaK5JPUUyKFoRLY3frIZbsfkWoF4n20GoFUn1XGq7V4aCvZFUILB0Dg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Fixed post-processing provider resetting when editing custom modes</li><li>Fixed a crash loop that could make the app unresponsive after failures</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.33.0</title>
+            <pubDate>Sat, 11 Apr 2026 06:25:03 +0000</pubDate>
+            <sparkle:version>101</sparkle:version>
+            <sparkle:shortVersionString>2.33.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.33.0.dmg" length="31858728" type="application/octet-stream" sparkle:edSignature="vrZopU6Xh17TVPXnw0S0A1O5dEuJtgvolotTOS6W0frXp8c/NG+qOqMdCrlTY/HIDpK9LJYYe9otniYRr3mFDA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>iCloud vocabulary sync — opt-in via Settings, syncs your words across devices</li><li>Smarter error messages and fewer false alerts</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.32.2</title>
+            <pubDate>Fri, 10 Apr 2026 01:39:02 +0000</pubDate>
+            <sparkle:version>100</sparkle:version>
+            <sparkle:shortVersionString>2.32.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.32.2.dmg" length="31792713" type="application/octet-stream" sparkle:edSignature="nNpjSWQdedykXf3i1JqRtrnxNRp+nWHX8sQoNxtX/jFlgQMO+zFjx9LTY2TN67DguYExvoS6kKGUi4teGM94BA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Improved compatibility with macOS Sonoma and Sequoia</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.32.1</title>
+            <pubDate>Thu, 09 Apr 2026 09:44:42 +0000</pubDate>
+            <sparkle:version>99</sparkle:version>
+            <sparkle:shortVersionString>2.32.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.32.1.dmg" length="31252180" type="application/octet-stream" sparkle:edSignature="vok1jwaidowMIClik2qQsDGyKNaxI6m5a2yypVzMR7Qsy1RTJa9EZHsBTebHvLcdMPJcAfcoINj24TFCqdWlCQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Fixed local AI post-processing failing to start (Gemma 4)</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.32.0</title>
+            <pubDate>Thu, 09 Apr 2026 04:03:31 +0000</pubDate>
+            <sparkle:version>98</sparkle:version>
+            <sparkle:shortVersionString>2.32.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.32.0.dmg" length="31252064" type="application/octet-stream" sparkle:edSignature="Dg4aM+3aQMYB+G62e8xMKsQrAnE46ruMiSsQmDnXRa/rYxq4HQMOl5RsJu5uRt55KH9cfxEoc5ZGhfxNGmicAg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Gemma 4 replaces Qwen 3.5 as the built-in local AI model. Requires re-downloading. Use Ollama if you prefer other models</li><li>New combo push-to-talk modes: FN+Control and FN+Left Option</li><li>Filler word removal (uh, um, er) now works without post-processing</li><li>Fixed stop button now transcribes audio instead of discarding it</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.31.0</title>
+            <pubDate>Sat, 04 Apr 2026 00:59:37 +0000</pubDate>
+            <sparkle:version>97</sparkle:version>
+            <sparkle:shortVersionString>2.31.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.31.0.dmg" length="34742875" type="application/octet-stream" sparkle:edSignature="G931u2O0eqth3Y0JNRvbzpgF3pOqs+8Nm32N5EHMHd0aFH3I1fnfBTCiRzQ62FvuLFlnrt/NQ8W2BKia5q32BQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Smarter vocabulary matching for Parakeet transcription</li><li>Fixed rare app hang when checking microphone permissions</li><li>Fixed recording failures when audio device isn't ready</li><li>Improved reliability of cloud transcription requests</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.30.0</title>
+            <pubDate>Sat, 28 Mar 2026 07:35:58 +0000</pubDate>
+            <sparkle:version>96</sparkle:version>
+            <sparkle:shortVersionString>2.30.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.30.0.dmg" length="33441946" type="application/octet-stream" sparkle:edSignature="KHX2u4NHqx8By9b4xdZeTqwlq3z6IF6WmLJtuhYnAlD+DQXWinwhclpTwoXtSdiJyA3g37KRC+C/rNEUVYddAw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>New HyperWhisper Cloud post-processing accuracy selector for each mode</li><li>Added Qwen3 ASR 0.6B local transcription model</li><li>Fixed app hang and crash on model selection</li><li>Improved recording stability and threading reliability</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.29.0</title>
+            <pubDate>Sat, 21 Mar 2026 05:39:00 +0000</pubDate>
+            <sparkle:version>95</sparkle:version>
+            <sparkle:shortVersionString>2.29.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.29.0.dmg" length="28364448" type="application/octet-stream" sparkle:edSignature="cwP5KdVWmOWn/5NN27h6T0p1b2IngYT7AsUz3Tq4VjZe/KdYObJz81ze8bgUp6W3p4MNZcDmn73s65PP8CseBA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Added Soniox cloud transcription provider</li><li>Removed Gemma local models — use Qwen instead, or run Gemma via Ollama/LM Studio</li><li>Fixed error messages showing actual details instead of "No internet connection"</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.28.2</title>
+            <pubDate>Mon, 16 Mar 2026 06:16:38 +0000</pubDate>
+            <sparkle:version>94</sparkle:version>
+            <sparkle:shortVersionString>2.28.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.28.2.dmg" length="28500405" type="application/octet-stream" sparkle:edSignature="YAeqkUArzjmCCihzD9ZMIMVNbQ/JA/2rpZLhzxuWwx1ZHJwY5g8K4Uh/mn1arl/v+uvan27w6+FgHPnhwaXNBQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Fixed Apple Speech local model not appearing on macOS 26 devices</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.28.0</title>
+            <pubDate>Sat, 14 Mar 2026 07:21:29 +0000</pubDate>
+            <sparkle:version>92</sparkle:version>
+            <sparkle:shortVersionString>2.28.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.28.0.dmg" length="28861771" type="application/octet-stream" sparkle:edSignature="HsHIqm5n1ddyJQEhx1JLjk02GEFolBnlzJerRAXub1YM1BlJLuvCIVKAgTQMhH7ta0qmsjSlG4+X/cJ2XFIRDA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Apple Speech: new free on-device transcription — requires macOS 26 or later</li><li>Improved Gemma and Qwen local model reliability and accuracy</li><li>Fixed post-processing instructions sometimes being ignored</li><li>Fixed switching modes during active transcription</li><li>Fixed AssemblyAI transcription errors</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.27.0</title>
+            <pubDate>Sun, 09 Mar 2026 16:00:00 +0000</pubDate>
+            <sparkle:version>91</sparkle:version>
+            <sparkle:shortVersionString>2.27.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.27.0.dmg" length="28576211" type="application/octet-stream" sparkle:edSignature="l+HdxzNTjQZGkbVkmoPUchBYXbJwEe4ns+KkJCNpO3TMU/egA4CUODVzPra6DKbuyuy/E5JbSCjOTcDj2fOGAA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Google Gemini added as a cloud transcription provider</li><li>Qwen 3.5 local models for on-device post-processing</li><li>Latest Gemini model options for post-processing</li><li>Fixed hotkeys not responding on first launch</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.26.1</title>
+            <pubDate>Thu, 26 Feb 2026 23:49:22 +0000</pubDate>
+            <sparkle:version>90</sparkle:version>
+            <sparkle:shortVersionString>2.26.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.26.1.dmg" length="23268800" type="application/octet-stream" sparkle:edSignature="bswlp5Eb9fRaCJgSCdlBrPU68bbLI4FLG9MPEIyv6/Yi9ku3tVtbNG7ag8iGdW9VsZsNnRv0+UoDCBz55qLLBw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Fixed hotkeys not working on first launch</li><li>Numbers in transcripts now formatted as digits</li><li>Improved cloud transcription reliability</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.26.0</title>
+            <pubDate>Wed, 25 Feb 2026 09:20:14 +0000</pubDate>
+            <sparkle:version>89</sparkle:version>
+            <sparkle:shortVersionString>2.26.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.26.0.dmg" length="23257820" type="application/octet-stream" sparkle:edSignature="wF6JnD3r6ivzQAnPz/5RT6XuC7XtxhCYyX9G01Y0AE3ZGbu1cbLz58qfN2CPHLmeyi4wzu7r9yRg1rQ0faIgDQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Screen Text OCR reads on-screen content for smarter transcription accuracy</li><li>Redesigned punctuation controls in the mode editor</li><li>Faster post-processing with optimized prompt caching</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.25.4</title>
+            <pubDate>Mon, 24 Feb 2026 04:18:15 +0000</pubDate>
+            <sparkle:version>88</sparkle:version>
+            <sparkle:shortVersionString>2.25.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.25.4.dmg" length="23217761" type="application/octet-stream" sparkle:edSignature="pOxMdQRViTMXT1KdFloXPIr8dELvV1u3naWa5csRwIE8JgIgbT2C5pl+P5t78TXNqPsDrM4qkCCEJ4S2jo7JAg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Faster, smoother History view with paging</li><li>Fixed duplicate transcripts flickering during processing</li><li>Reduced UI lag when opening or closing recordings</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.25.3</title>
+            <pubDate>Sun, 22 Feb 2026 10:40:38 +0000</pubDate>
+            <sparkle:version>87</sparkle:version>
+            <sparkle:shortVersionString>2.25.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.25.3.dmg" length="23174721" type="application/octet-stream" sparkle:edSignature="yDikhRyZCFAjTZQj7PfO4mBen3XQxgFU1XfH/SX945vlVkiuzNlqqGojR0q0akIbCNB8zx2RjRj4AcUv2aPMBQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Added Apple Silicon architecture check for local AI processing</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.25.2</title>
+            <pubDate>Sun, 22 Feb 2026 05:48:01 +0000</pubDate>
+            <sparkle:version>86</sparkle:version>
+            <sparkle:shortVersionString>2.25.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.25.2.dmg" length="20323166" type="application/octet-stream" sparkle:edSignature="QKa3paYBWjnqav7o03Bf2962pDQCboFNNn6osozl8aJFea3x75qZA8DuevzZylNAVEO/coPNIPkT/aKTQKG9Aw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Improved AI post-processing accuracy with better application context awareness</li><li>Added auto email formatting in Hyper mode for webmail and email clients</li><li>Fixed recording start delay by removing 350ms blocking pause</li><li>Fixed streaming language dropdown showing all languages with incorrect width</li><li>Fixed status bar incorrectly showing provider on first launch</li><li>Fixed double-press toggle cancelling the stop flow mid-flight</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.25.1</title>
+            <pubDate>Fri, 20 Feb 2026 05:15:51 +0000</pubDate>
+            <sparkle:version>85</sparkle:version>
+            <sparkle:shortVersionString>2.25.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.25.1.dmg" length="19522505" type="application/octet-stream" sparkle:edSignature="h8v2IhQVtPlQj8s71Z3XA94I5LTtVMyL4CpXYSvQzcA382R/TpOy7kxfZCN3x5PnvBZN/3Mqr/6291pO6YAGBg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Typo fixes</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.25.0</title>
+            <pubDate>Fri, 20 Feb 2026 04:33:27 +0000</pubDate>
+            <sparkle:version>84</sparkle:version>
+            <sparkle:shortVersionString>2.25.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.25.0.dmg" length="19522602" type="application/octet-stream" sparkle:edSignature="W3ByPfvETNv4r3Ero90a0eJV/ppqdi0ui9UAXizAapH3PEbmYMTrEeM+EDrs2qDqoOmTzjQgfSKMb+kOPLk1Ag=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>New status bar in the content area shows local model download and loading state</li><li>Preset picker polished with clearer provider hints and improved layout</li><li>Fixed streaming WebSocket failures that could leave the app in a hung state</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.24.4</title>
+            <pubDate>Thu, 19 Feb 2026 12:00:38 +0900</pubDate>
+            <sparkle:version>82</sparkle:version>
+            <sparkle:shortVersionString>2.24.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.24.4.dmg" length="21558208" type="application/octet-stream" sparkle:edSignature="DDUGh59MuxuSp+9xv2cRRxx9E+NV0ODGB0/Ij1b+vlGdc4n5n0relVS0zQZ3qcW1L8il1/Qdo9Y9KlW1WkgYCA=="/>
+            <description>
+                <![CDATA[
+                <b>Performance, Bug Fixes, and Claude Sonnet 4.6</b>
+                <ul>
+                    <li>Claude Sonnet 4.6 added as a post-processing model option</li>
+                    <li>Fixed memory bloat that built up over many transcriptions in a session</li>
+                    <li>Copy button now correctly copies the transcription instead of the previously restored clipboard</li>
+                    <li>Removed hidden shortcuts that were blocking other apps</li>
+                    <li>History text edits are now saved properly when tapping Done</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.24.3</title>
+            <pubDate>Mon, 16 Feb 2026 23:51:26 +0900</pubDate>
+            <sparkle:version>81</sparkle:version>
+            <sparkle:shortVersionString>2.24.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.24.3.dmg" length="21542391" type="application/octet-stream" sparkle:edSignature="GhOpro4TmtRbcncxSawczwkQzSxkXDrCi0znW6pJWZ4+n+3RFvsP26uLAELCvdWNCqn64l2/TWrNbb9v1cRHCQ=="/>
+            <description>
+                <![CDATA[
+                <b>Vocabulary Editing, New Models, and Transcription Tweaks</b>
+                <ul>
+                    <li>Vocabulary entries can now be edited directly in the settings</li>
+                    <li>Gemma 3 12B and 27B added as Gemini post-processing model options</li>
+                    <li>New "Remove trailing period" toggle in mode settings</li>
+                    <li>Renamed "Append System Prompt" to "Persistent Instructions" for clarity</li>
+                    <li>Updated Anthropic model list with latest Claude model IDs</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.24.2</title>
+            <pubDate>Sun, 15 Feb 2026 09:23:26 +0900</pubDate>
+            <sparkle:version>80</sparkle:version>
+            <sparkle:shortVersionString>2.24.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.24.2.dmg" length="21464461" type="application/octet-stream" sparkle:edSignature="56LGRytqZ9eSu7npPrsaVgEcIq4dXZSC9ye+PC3XRdeEd2cOvVY8PxGxO7j38W5yuOS+NLe/Hmv2JyDIIip3Dw=="/>
+            <description>
+                <![CDATA[
+                <b>Screen Sharing Fixes</b>
+                <ul>
+                    <li>Support for repeated dictation into Screen Sharing sessions</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.24.1</title>
+            <pubDate>Sat, 14 Feb 2026 10:45:36 +0900</pubDate>
+            <sparkle:version>79</sparkle:version>
+            <sparkle:shortVersionString>2.24.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.24.1.dmg" length="21468802" type="application/octet-stream" sparkle:edSignature="BJc1fpBQzhpGTbMf7dnC+9z3Q3QFY2aCCTZBy5wQe99QZPkCZ6OV/mnWBhEEhnV0gfZwhCz00y7b6HzBOmqiAg=="/>
+            <description>
+                <![CDATA[
+                <b>Getting Started Progress and Audio Refinements</b>
+                <ul>
+                    <li>Getting Started section now persists progress and hides upon completion for cleaner interface</li>
+                    <li>Audio improvements including normalized sound effects, streaming sounds, and 1-hour max duration limit for streaming sessions</li>
+                    <li>Settings view stability improvements with opaque rendering</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.24.0</title>
+            <pubDate>Fri, 13 Feb 2026 15:12:57 +0900</pubDate>
+            <sparkle:version>78</sparkle:version>
+            <sparkle:shortVersionString>2.24.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.24.0.dmg" length="21541328" type="application/octet-stream" sparkle:edSignature="S0yaqpHdn5K38JQxLAVMb21g2KLZmTtzITvjf3aVgtb58QgYtQobshEchgM+n5ynp4xVuGKLMd77fRFNdAQ0BA=="/>
+            <description>
+                <![CDATA[
+                <b>Sound Effects and Global Localization Expansion</b>
+                <ul>
+                    <li>Added sound effects toggle for recording start/stop with customizable audio feedback</li>
+                    <li>Expanded to 39 languages with new translations for Thai, Vietnamese, Traditional Chinese, Turkish, Ukrainian, and 30+ other languages</li>
+                    <li>Improved transcription accuracy with prompt synchronization across platforms and marker stripping</li>
+                    <li>Enhanced mode change toast positioning for better visibility during recording</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.23.0</title>
+            <pubDate>Thu, 12 Feb 2026 11:57:57 +0900</pubDate>
+            <sparkle:version>77</sparkle:version>
+            <sparkle:shortVersionString>2.23.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.23.0.dmg" length="20290114" type="application/octet-stream" sparkle:edSignature="6HapKpAzM4jLWCCvBfxflJhZG6yQbxCTsZ1Y+hdY7a7IugxNwcgWcwNrGKLhxsUv9QYQ2K3lwgUjpEXwpQJDAw=="/>
+            <description>
+                <![CDATA[
+                <b>Enhanced Streaming Support</b>
+                <ul>
+                    <li>Added support for multiple streaming transcription providers (HyperWhisper Cloud, Deepgram, ElevenLabs)</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.22.1</title>
+            <pubDate>Tue, 10 Feb 2026 17:03:56 +0900</pubDate>
+            <sparkle:version>76</sparkle:version>
+            <sparkle:shortVersionString>2.22.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.22.1-new.dmg" length="20214234" type="application/octet-stream" sparkle:edSignature="ktcKsVbp90yQJCZWedB/gBT1eFQsHA96Eh0d5LMuAnVzTp/4tz4qeypmLLlp4eC9WrmN4TajqNBrxYiOCdSxCA=="/>
+            <description>
+                <![CDATA[
+                <b>Clipboard Control and IDE Accessibility Improvements</b>
+                <ul>
+                    <li>Option to hide transcriptions from clipboard history in Settings → Text Output</li>
+                    <li>Recording dialog position now persists across sessions</li>
+                    <li>Removed "Developer Mode" preview feature again</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.22.0</title>
+            <pubDate>Sat, 07 Feb 2026 10:06:07 +0900</pubDate>
+            <sparkle:version>74</sparkle:version>
+            <sparkle:shortVersionString>2.22.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.22.0.dmg" length="20411083" type="application/octet-stream" sparkle:edSignature="MhocqmevYjDJZ/1Z5lPecQovkhMilGbwgQO6UT4N8k86H5Xqr92ELgcS/0s16C27dbNG9ROmYtpLqLDnJ4b6CQ=="/>
+            <description>
+                <![CDATA[
+                <b>Enhanced IDE Support and Audio Improvements</b>
+                <ul>
+                    <li>Restore application to v2.18.3 with selective re-application of 10 features/fixes from subsequent releases</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.21.0</title>
+            <pubDate>Thu, 05 Feb 2026 13:12:07 +0900</pubDate>
+            <sparkle:version>73</sparkle:version>
+            <sparkle:shortVersionString>2.21.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.21.0.dmg" length="20293079" type="application/octet-stream" sparkle:edSignature="wrRt207Ej9bvi0A4cIbJc2pQPtuepfb7BvjGGqOS12UwtZoMPu7oPwUc3gR8SdVvYowdwqmKqgBQzjZJPs0iDA=="/>
+            <description>
+                <![CDATA[
+                <b>Simplified and Streamlined Experience</b>
+                <ul>
+                    <li>Removed Developer Mode preview feature</li>
+                    <li>Removed USB foot pedal push-to-talk due to incompatibility issues</li>
+                    <li>Enhanced thread safety with improved MainActor isolation</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.20.5</title>
+            <pubDate>Wed, 04 Feb 2026 11:34:56 +0900</pubDate>
+            <sparkle:version>72</sparkle:version>
+            <sparkle:shortVersionString>2.20.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.20.5.dmg" length="20571821" type="application/octet-stream" sparkle:edSignature="miM98Pnqo59p4H0MU/eYNTHSw24iRM/1X7DpoCORwUbTlkRYdvw5MTRkU+luAWR8fmEiI+ZwoxNiI6XT5X05BA=="/>
+            <description>
+                <![CDATA[
+                <b>Recording Dialog Positioning and Stability Improvements</b>
+                <ul>
+                    <li>Persistent recording dialog position remembers window location between sessions</li>
+                    <li>Refined prompt formatting for better AI accuracy</li>
+                    <li>Critical MainActor refactoring to prevent stack overflow crashes</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.20.4</title>
+            <pubDate>Sun, 01 Feb 2026 21:21:18 +0900</pubDate>
+            <sparkle:version>71</sparkle:version>
+            <sparkle:shortVersionString>2.20.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.20.4.dmg" length="20566952" type="application/octet-stream" sparkle:edSignature="wPg8a2xLgHWkXCqLsnwtQcgwgsK1rGO90urebT8f6lJmEeuJDBmym22ndhvN47c+sp4SHpt0XV2LU85wzX9qBg=="/>
+            <description>
+                <![CDATA[
+                <b>Fixed Anthropic Provider Issue</b>
+                <ul>
+                    <li>Fixed Anthropic provider issue for post-processing transcripts</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.20.3</title>
+            <pubDate>Sun, 01 Feb 2026 20:19:56 +0900</pubDate>
+            <sparkle:version>70</sparkle:version>
+            <sparkle:shortVersionString>2.20.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.20.3.dmg" length="20540320" type="application/octet-stream" sparkle:edSignature="Ctp86RUImhN54MXwUd6dFSfm0esWErW6FlDaPtZnIovi6PRULrlE+WLW3SQYXrgOLyAXy7C4yCsjkUTihklsBA=="/>
+            <description>
+                <![CDATA[
+                <b>Stability Improvements</b>
+                <ul>
+                    <li>Added one-time startup migration for legacy language model IDs</li>
+                    <li>Refined mode toast visibility and positioning during active recording</li>
+                    <li>Enhanced settings state management for improved stability</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.20.2</title>
+            <pubDate>Fri, 31 Jan 2026 14:13:20 +0900</pubDate>
+            <sparkle:version>69</sparkle:version>
+            <sparkle:shortVersionString>2.20.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.20.2.dmg" length="20567847" type="application/octet-stream" sparkle:edSignature="dwg6zrwqR6CVPE7geZG2szAvu/MnejD5NmN018w/TC85+OsCI4K/hAy2h6MLu0/5a8O5QZ4wn9RbdYaXk7CCDg=="/>
+            <description>
+                <![CDATA[
+                <b>Stability Improvements</b>
+                <ul>
+                    <li>Improved mode toast positioning and visibility during active recording</li>
+                    <li>Enhanced launch at login reliability using native system integration</li>
+                    <li>Critical stability fixes for macOS 26.2 compatibility</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.20.1</title>
+            <pubDate>Wed, 28 Jan 2026 17:33:06 +0900</pubDate>
+            <sparkle:version>68</sparkle:version>
+            <sparkle:shortVersionString>2.20.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.20.1.dmg" length="20577124" type="application/octet-stream" sparkle:edSignature="A7yykywB30eIT+i4aBLhmRYWmLgkPkUuBVa4kAdclXoOd9ktX/otoA0cw27DfkMWo/YZwerd+uIku1sn4CD7Bg=="/>
+            <description>
+                <![CDATA[
+                <b>Homebrew Support and IDE Compatibility</b>
+                <ul>
+                    <li>Auto-disable Sparkle updates for Homebrew installations to prevent conflicts</li>
+                    <li>Fixed auto-paste for JetBrains IDEs (IntelliJ, PyCharm, etc.)</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.20.0</title>
+            <pubDate>Wed, 28 Jan 2026 12:24:46 +0900</pubDate>
+            <sparkle:version>67</sparkle:version>
+            <sparkle:shortVersionString>2.20.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.20.0.dmg" length="20577196" type="application/octet-stream" sparkle:edSignature="tsS7qRHGUKd/gfDZqzfDm1ECJVmkdblfpSJ9M0rPnCx4fsnPuysfajoFr72T74R9BWFsW63yu8jnpuU6YMNqCQ=="/>
+            <description>
+                <![CDATA[
+                <b>Improved HyperWhisper Cloud & Apple Music Blocker</b>
+                <ul>
+                    <li>Upgraded to HyperWhisper Cloud v2 with enhanced infrastructure hosted on 17 regions across the globe for lower latency and improved reliability. For corporate networks, whitelist transcribe-prod-v2.hyperwhisper.com</li>
+                    <li>Apple Music blocker option prevents unexpected app launches during recording</li>
+                    <li>Critical stability fixes for Settings access and MainActor isolation</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.19.0</title>
+            <pubDate>Wed, 22 Jan 2026 21:59:41 +0800</pubDate>
+            <sparkle:version>65</sparkle:version>
+            <sparkle:shortVersionString>2.19.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.19.0.dmg" length="20540850" type="application/octet-stream" sparkle:edSignature="SxWTHU127eY+GK/fjuGOTiKrYAjZNo4cKQywMwO1vFTjhMyfUvKatYMb4TGOmuLF36Fx+M0tuqPY/2KtNYk/Cg=="/>
+            <description>
+                <![CDATA[
+                <b>USB Foot Pedal and Streaming Improvements</b>
+                <ul>
+                    <li>Add native USB foot pedal support for Push-to-Talk recording control</li>
+                    <li>Enhanced clipboard visibility with improved privacy handling</li>
+                    <li>Better multi-channel audio processing for diverse input devices</li>
+                    <li>Improved text insertion reliability with unified paste approach for streaming input</li>
+                    <li>FN key warning messages for better accessibility permission guidance</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.18.3</title>
+            <pubDate>Sat, 17 Jan 2026 18:10:05 +0900</pubDate>
+            <sparkle:version>64</sparkle:version>
+            <sparkle:shortVersionString>2.18.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.18.3.dmg" length="20224792" type="application/octet-stream" sparkle:edSignature="8Mw57b/ved4hJDd8hhDVZJ6EfZGy7x+Q5xg94ILxOF0j8kwRtAIS2jQW8cEkrdppyk/0IEHODivaXoDCtAT9Dw=="/>
+            <description>
+                <![CDATA[
+                <b>Streaming Improvements and Localization</b>
+                <ul>
+                    <li>New "new line" voice command for streaming transcription</li>
+                    <li>Added Spanish and Simplified Chinese localizations</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.18.2</title>
+            <pubDate>Fri, 16 Jan 2026 18:18:57 +0900</pubDate>
+            <sparkle:version>63</sparkle:version>
+            <sparkle:shortVersionString>2.18.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.18.2.dmg" length="20156143" type="application/octet-stream" sparkle:edSignature="yZcESS9NNScbnYIVGFs0P+F4cn/7q+b+gmjK1ker8vVOJA7ZgIz/G/iRloNzpcLe1WUwIT8h2LKEkC9NvyjECg=="/>
+            <description>
+                <![CDATA[
+                <b>Streaming Transcription and Keyboard Improvements</b>
+                <ul>
+                    <li>Real-time streaming transcription in beta</li>
+                    <li>Fixed auto-paste for non-QWERTY keyboards (Dvorak, Colemak, and others)</li>
+                    <li>Enhanced paste compatibility with browser address bars and terminals</li>
+                    <li>Accuracy tier selection with STT provider routing for cloud transcription</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.18.1</title>
+            <pubDate>Fri, 16 Jan 2026 17:08:25 +0900</pubDate>
+            <sparkle:version>62</sparkle:version>
+            <sparkle:shortVersionString>2.18.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.18.1.dmg" length="20157221" type="application/octet-stream" sparkle:edSignature="FEB1iJdfGTrggjt1GLiMLE4gr4bgmXiAxQluRth+xkY5FfCoDh7KFpcQORb+8U5bVM2DFqo5UWlaySbtYCO8AQ=="/>
+            <description>
+                <![CDATA[
+                <b>Streaming Status Visibility</b>
+                <ul>
+                    <li>Added WebSocket connection state visibility for streaming transcription</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.18.0</title>
+            <pubDate>Thu, 16 Jan 2026 16:10:20 +0900</pubDate>
+            <sparkle:version>61</sparkle:version>
+            <sparkle:shortVersionString>2.18.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.18.0.dmg" length="20177078" type="application/octet-stream" sparkle:edSignature="X9IOWD/cXeuSWg6RFWIcu8uV28pB7w2W2w4NwR4ZaKm6fzE+AFN6eK0ni1RB8bNjUoGEU+CeweNc+ibMUCIvCQ=="/>
+            <description>
+                <![CDATA[
+                <b>Streaming Transcription and Keyboard Improvements</b>
+                <ul>
+                    <li>Real-time streaming transcription in beta</li>
+                    <li>Fixed auto-paste for non-QWERTY keyboards (Dvorak, Colemak, and others)</li>
+                    <li>Enhanced paste compatibility with browser address bars and terminals</li>
+                    <li>Accuracy tier selection with STT provider routing for cloud transcription</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.17.1</title>
+            <pubDate>Sun, 11 Jan 2026 18:08:01 +0900</pubDate>
+            <sparkle:version>59</sparkle:version>
+            <sparkle:shortVersionString>2.17.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.17.1.dmg" length="19997612" type="application/octet-stream" sparkle:edSignature="zfZNOn+Iv4TQMpXYYVBeMsVc/e8CYXA2nlvGustDM38vuIQ4pvg45x1qtCfsUEhlkZKL0s45rxYJKUXcEO64Bg=="/>
+            <description>
+                <![CDATA[
+                <b>Custom Vocabulary for ElevenLabs Scribe v2</b>
+                <ul>
+                    <li>Add custom terms to improve transcription accuracy for names, acronyms, and jargon</li>
+                    <li>Removed experimental Scribe v1 in favor of improved v2 with keyterm prompting</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.17.0</title>
+            <pubDate>Tue, 06 Jan 2026 11:37:49 +0900</pubDate>
+            <sparkle:version>58</sparkle:version>
+            <sparkle:shortVersionString>2.17.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.17.0.dmg" length="19995059" type="application/octet-stream" sparkle:edSignature="2Q77ezJp+3nWXxGPb0Q0l3Y0qGwCQK3sayl1FbxsIMovSS2qQ+9HwlzQKh24LVrPwErOvltPkCeW6/TPKCnRBQ=="/>
+            <description>
+                <![CDATA[
+                <b>Custom AI Endpoints and Enhanced Error Handling</b>
+                <ul>
+                    <li>Add custom OpenAI-compatible endpoints (Ollama, LMStudio, OpenRouter) with automatic model discovery</li>
+                    <li>Enhanced error notifications with inline toasts and quick access to settings</li>
+                    <li>Fix llama-server orphaned processes consuming memory after app termination</li>
+                    <li>Fix mode cycling shortcut triggering twice per keypress</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.16.2</title>
+            <pubDate>Wed, 24 Dec 2025 20:27:29 +0900</pubDate>
+            <sparkle:version>57</sparkle:version>
+            <sparkle:shortVersionString>2.16.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.16.2.dmg" length="19831764" type="application/octet-stream" sparkle:edSignature="sTtaprY6CLBjtS2CnryIufFI7k7rVqdfQBe4Dg+8nQi3oTtpzf1HML3hKHMr4jXEWMx3ikyw9lmyrJKIon17Bw=="/>
+            <description>
+                <![CDATA[
+                <b>Memory Management and AI Improvements</b>
+                <ul>
+                    <li>Fixed orphaned llama-server processes consuming memory after crashes or force quit</li>
+                    <li>Enhanced AI post-processor date format understanding for English variants</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.16.1</title>
+            <pubDate>Mon, 22 Dec 2025 23:14:34 +0900</pubDate>
+            <sparkle:version>56</sparkle:version>
+            <sparkle:shortVersionString>2.16.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.16.1.dmg" length="19830432" type="application/octet-stream" sparkle:edSignature="C7k4+7gZaPlVWlRKN1+FaftPEaJOwNcw3HFWb2WUQrPBcKcK5KGyvBreTGMc5afyMDosJEK+4OCC1JD0dSlSDQ=="/>
+            <description>
+                <![CDATA[
+                <b>License Key Privacy and Device Tracking</b>
+                <ul>
+                    <li>Transitioned to fair usage license policy</li>
+                    <li>Improved license deactivation handling for orphaned activations</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.15.1</title>
+            <pubDate>Fri, 12 Dec 2025 14:02:19 +0900</pubDate>
+            <sparkle:version>54</sparkle:version>
+            <sparkle:shortVersionString>2.15.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.15.1.dmg" length="19753151" type="application/octet-stream" sparkle:edSignature="p1xLDM/dH3kpWKLZkGs+TALz2TnfJdmcur0TVq8jgC1xp71ABlytW3+RPK7WAF8TcZKzP7yST8GjmfRcl7A7Cg=="/>
+            <description>
+                <![CDATA[
+                <b>Performance Optimizations and UI Fixes</b>
+                <ul>
+                    <li>Eliminated waveform lag on HistoryView with Core Animation rendering</li>
+                    <li>Fixed menu bar shortcut display not updating when toggling shortcuts</li>
+                    <li>Reduced minimum clipboard restore delay from 3 to 1 second for finer control</li>
+                    <li>Removed local file size limit for transcription with Whisper v3</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.15.0</title>
+            <pubDate>Wed, 10 Dec 2025 17:05:30 +0900</pubDate>
+            <sparkle:version>53</sparkle:version>
+            <sparkle:shortVersionString>2.15.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.15.0.dmg" length="19753050" type="application/octet-stream" sparkle:edSignature="M7VyMJ9DX+IuD0ykui1c6zan3XYbbn1l1BqxNFB8cwNHPqhdm/Qj/0a0bB9MhnymYKcdHUjjAJFT7YsO989VBA=="/>
+            <description>
+                <![CDATA[
+                <b>Video Transcription and File Import Progress</b>
+                <ul>
+                    <li>Import MP4 and MOV video files with automatic audio extraction</li>
+                    <li>Real-time progress popup for file transcription with cancellation support</li>
+                    <li>Fixed clipboard setting being ignored when auto-paste fails</li>
+                    <li>Fixed Gemma model dropdown not appearing in Local mode</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.14.0</title>
+            <pubDate>Tue, 09 Dec 2025 15:25:45 +0900</pubDate>
+            <sparkle:version>52</sparkle:version>
+            <sparkle:shortVersionString>2.14.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.14.0.dmg" length="19708856" type="application/octet-stream" sparkle:edSignature="8VXpoqVrhlYol1yNn/vzZ4FxxbDMRyjVR6ePFwlFUXy6piRIfYm4OwsAyFvDmnZRUMnev/9LVDCs4jYGsraKBA=="/>
+            <description>
+                <![CDATA[
+                <b>VAD, Better Error Messages, and Improved Audio Handling</b>
+                <ul>
+                    <li>Voice Activity Detection automatically trims silence to reduce API costs and improve accuracy</li>
+                    <li>Error notifications now appear as non-intrusive inline toasts that auto-dismiss</li>
+                    <li>Fixed compressed audio imports (M4A, MP3) and empty transcript handling</li>
+                    <li>Add Groq as post-processing provider for typo correction</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.13.1</title>
+            <pubDate>Fri, 05 Dec 2025 23:20:40 +0900</pubDate>
+            <sparkle:version>51</sparkle:version>
+            <sparkle:shortVersionString>2.13.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.13.1.dmg" length="18767572" type="application/octet-stream" sparkle:edSignature="jqp99tbnU5beEQ1xjoYVzfbNDiLQg/1NQBLrWBAQzwwTYJe1uZAXwhFmf+PVx2m6yC7E+RBlDLRoYe3q73mGBw=="/>
+            <description>
+                <![CDATA[
+                <b>Double-Tap Lock Stability Fix</b>
+                <ul>
+                    <li>Fixed intermittent "Transcription failed" error when using Fn key double-tap to lock</li>
+                    <li>Added 1-second cooldown after locking to prevent key bounce from triggering unlock</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.13.0</title>
+            <pubDate>Fri, 05 Dec 2025 20:35:52 +0900</pubDate>
+            <sparkle:version>50</sparkle:version>
+            <sparkle:shortVersionString>2.13.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.13.0.dmg" length="18766830" type="application/octet-stream" sparkle:edSignature="04YXyCG2xOIqi0FoUp2Xmmz/XyvIBJli7e4fv0gyKKJiZpnWVsXY5817m51oip3k+hDykM6dxGMkhzqWAqzdDw=="/>
+            <description>
+                <![CDATA[
+                <b>File Transcription and Performance Improvements</b>
+                <ul>
+                    <li>Import and transcribe audio files directly from the top right menu</li>
+                    <li>Flexible post-processing - use HyperWhisper Cloud with any transcription provider</li>
+                    <li>Performance optimizations to reduce UI lag during focus changes</li>
+                    <li>Fixed post-processing language to respect mode settings</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.12.0</title>
+            <pubDate>Thu, 04 Dec 2025 18:36:24 +0900</pubDate>
+            <sparkle:version>49</sparkle:version>
+            <sparkle:shortVersionString>2.12</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.12.0.dmg" length="18696738" type="application/octet-stream" sparkle:edSignature="owiGTmhLD/KlY4Zpplo9dUFagmXJnnX5w1c0AcbV8mjOxdXEiHMvGSfJlRijLiFJ5Bpih/QnE/VJl7FdriLXCw=="/>
+            <description>
+                <![CDATA[
+                <b>Settings Backup and Enhanced Transcription</b>
+                <ul>
+                    <li>Settings backup and restore - export/import complete app configuration</li>
+                    <li>Upgraded to Deepgram Nova-3 with improved accuracy and custom vocabulary support</li>
+                    <li>Statistics chart pagination with 30-day display and navigation controls</li>
+                    <li>Improved Push to Talk reliability with better double-tap timing</li>
+                    <li>Performance optimizations for smoother UI animations</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.11.0</title>
+            <pubDate>Sun, 30 Nov 2025 09:21:42 +0900</pubDate>
+            <sparkle:version>48</sparkle:version>
+            <sparkle:shortVersionString>2.11.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.11.0.dmg" length="18549929" type="application/octet-stream" sparkle:edSignature="CB81u6cE+cx0tMdiRqk931gWjh6+a8O8uXF3MQiIlqEmRluPGp/4aUh16o5JAe7VNjuloup8aNeOE18FRWI5Dw=="/>
+            <description>
+                <![CDATA[
+                <b>New Provider Support and Enhanced Audio Controls</b>
+                <ul>
+                    <li>Added Mistral Voxtral Mini and ElevenLabs Scribe v2 transcription providers</li>
+                    <li>Introduced Parakeet V2 (English-only) model support with improved language badges</li>
+                    <li>Media control dropdown with pause/mute options for system audio during recording</li>
+                    <li>Auto-increase microphone volume feature and persistent microphone selection</li>
+                    <li>Faster recording startup with improved error handling</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.10.1</title>
+            <pubDate>Wed, 26 Nov 2025 16:42:24 +0900</pubDate>
+            <sparkle:version>47</sparkle:version>
+            <sparkle:shortVersionString>2.10.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.10.1.dmg" length="17761423" type="application/octet-stream" sparkle:edSignature="mQuAK0zvi4zDBzfHdSJBh430CsqPpNQE2PGX09bl1FMS1MD7Ds0fpTQ8IePqcGZJ04jYe4NIJO0AnFd0h2vwBA=="/>
+            <description>
+                <![CDATA[
+                <b>Improved Design</b>
+                <ul>
+                    <li>New Preview Features settings with opt-in Developer Mode toggle</li>
+                    <li>Standardized UI headers and improved spacing consistency across all views</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.10</title>
+            <pubDate>Wed, 26 Nov 2025 14:01:40 +0900</pubDate>
+            <sparkle:version>46</sparkle:version>
+            <sparkle:shortVersionString>2.10</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.10.0.dmg" length="17754197" type="application/octet-stream" sparkle:edSignature="0jzTkKDY96dK96d/rjTwvKPllI9EO2m84oklZ2oizd6q3iriO9etnZiRtEjprTaT6aZPbcg4vVrlF1rzZlE6Dw=="/>
+            <description>
+                <![CDATA[
+                <b>Faster API Processing and Optional M4A</b>
+                <ul>
+                    <li>Increased responsiveness from all API and cloud providers</li>
+                    <li>Intelligent WAV fallback conversion when M4A compression fails, ensuring transcription success</li>
+                    <li>Settings for automatic WAV to M4A compression after transcription to reduce storage usage</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.9.5</title>
+            <pubDate>Mon, 24 Nov 2025 01:58:18 +0900</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>2.9.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.9.5.dmg" length="17703020" type="application/octet-stream" sparkle:edSignature="AYr6TVA630SiMkgfi7l5CEjNJNgkkRBVJ6mA2leqnxci4HD0Lgek0Xvp/aOsmwrV+PziHNxaJF9W539mgdfdBg=="/>
+            <description>
+                <![CDATA[
+                <b>Error Handling and Transcription Improvements</b>
+                <ul>
+                    <li>Non-activating error toast notifications for improved visibility when app is minimized</li>
+                    <li>Retry functionality for failed audio transcriptions with easy recovery</li>
+                    <li>Fixed transcript editing textarea</li>
+                    <li>Fixed Push to Talk toggle behavior to prevent accidental recording cancellation</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.9.4</title>
+            <pubDate>Sat, 22 Nov 2025 22:05:20 +0900</pubDate>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>2.9.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.9.4.dmg" length="17651599" type="application/octet-stream" sparkle:edSignature="5eNv0AYfozBpDeKgZiz/Qm67ZKLbB9EWMsgbllpYyvVvTCBGuoe9GaFijB+F2hUnOix1cNkzcQ0HTjrmOkKFAQ=="/>
+            <description>
+                <![CDATA[
+                <b>Keyboard Shortcut and Settings Improvements</b>
+                <ul>
+                    <li>Enhanced toggle recording shortcut with state tracking to prevent conflicts with Push to Talk and modifier keys</li>
+                    <li>Improved API Keys settings section with cleaner status display</li>
+                    <li>Better application window management and restoration</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.9.3</title>
+            <pubDate>Fri, 21 Nov 2025 06:03:22 +0900</pubDate>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>2.9.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.9.3.dmg" length="17646226" type="application/octet-stream" sparkle:edSignature="xzJyKCcDKFPNePIv444dJfhQ7QlemSK2RKnrQ0q1EqgdOBI6PBK8ScGBabL3sQjSob2cQGA2a2MKKV/CEjI+CA=="/>
+            <description>
+                <![CDATA[
+                <b>License Activation Improvements</b>
+                <ul>
+                    <li>Improved license activation process with better error handling</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.9.2</title>
+            <pubDate>Thu, 20 Nov 2025 22:38:39 +0900</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>2.9.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.9.2.dmg" length="17638216" type="application/octet-stream" sparkle:edSignature="u145U+KlyPrGklvEMOIlWv1vHxbWvTPyyEizGgQSaeiyNznX0MvRlSa5EoKXzVrioWCUCSdMZON8eUuEJRbkBw=="/>
+            <description>
+                <![CDATA[
+                <b>Critical macOS 26.1 Compatibility Update</b>
+                <ul>
+                    <li>Fixed app crashes on macOS 26.1 (Sequoia) for button handlers</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.9.1</title>
+            <pubDate>Thu, 20 Nov 2025 11:44:54 +0900</pubDate>
+            <sparkle:version>40</sparkle:version>
+            <sparkle:shortVersionString>2.9.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.9.1.dmg" length="17643835" type="application/octet-stream" sparkle:edSignature="+u1Qo0kkLtGHFYzP2RBcGojsOOzZUsVa4OqSq9fu9UD329chDAHgl6w3zrCbSv7dcQDXaMHhxFFfqX9QbO+8BA=="/>
+            <description>
+                <![CDATA[
+                <b>Cancellation Controls and Menu Refinements</b>
+                <ul>
+                    <li>Immediate transcription cancellation via keyboard shortcut</li>
+                    <li>Enhanced Push to Talk reliability with adjusted double-press timing</li>
+                    <li>Better Dock visibility management on window close</li>
+                    <li>Streamlined menu system for cleaner workflow</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.9.0</title>
+            <pubDate>Thu, 20 Nov 2025 10:28:20 +0900</pubDate>
+            <sparkle:version>38</sparkle:version>
+            <sparkle:shortVersionString>2.9.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.9.0.dmg" length="17641811" type="application/octet-stream" sparkle:edSignature="8+uFpTyqytkMuo4Ko/BQCjcILhYMIyC26Oh6RJjsHFloEeKalgl8sZ16y7uaDt7pbGv/JLzcImoXLH85bLu7DQ=="/>
+            <description>
+                <![CDATA[
+                <b>Advanced Push to Talk and Model Updates</b>
+                <ul>
+                    <li>Advanced Push to Talk system with flexible modifier key support (FN, Control, Command, Custom)</li>
+                    <li>Double-press locking for continuous hands-free recording</li>
+                    <li>GPT-5.1 model support</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.8.0</title>
+            <pubDate>Wed, 12 Nov 2025 17:58:11 +0900</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>2.8.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.8.0.dmg" length="17599295" type="application/octet-stream" sparkle:edSignature="N3FZwRWDLQqhDqBBXBcnrc0iLJmNm/L31hMkcf/wnYdwn3loEAuljjuy4FC34CNovx/YIQV/K6uzGVAdK6RkBQ=="/>
+        <description>
+            <![CDATA[
+            <b>Developer Mode and Audio Improvements</b>
+            <ul>
+                <li>Real-time audio device discovery with automatic microphone detection</li>
+                <li>Transcription error retry button for immediate recovery from failures</li>
+                <li>Audio session management to mute system audio during recording</li>
+            </ul>
+            ]]>
+        </description>
+        </item>
+        <item>
+            <title>2.7.1</title>
+            <pubDate>Sun, 26 Oct 2025 14:10:31 +0900</pubDate>
+            <sparkle:version>36</sparkle:version>
+            <sparkle:shortVersionString>2.7.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.7.1.dmg" length="17563419" type="application/octet-stream" sparkle:edSignature="d9bh+mIAU9+ZVi92D+yoGdYyzoAE4DFL7LbXSj1evRNyWp0Dv5ji4Q+Oo+rbMvEh8Gc11qN2v6DbBJ+74oXuBw==" />
+            <description>
+                <![CDATA[
+                <b>Stability Improvements</b>
+                <ul>
+                    <li>Fixed audio engine preparation to run off main thread, preventing UI freezing when starting recordings</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.7.0</title>
+            <pubDate>Fri, 24 Oct 2025 11:15:43 +0900</pubDate>
+            <sparkle:version>35</sparkle:version>
+            <sparkle:shortVersionString>2.7.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.7.0.dmg" length="17170565" type="application/octet-stream" sparkle:edSignature="UeTh8yC0ol8kbQ1Ub5Q9aDGCgbQ+yYyPg23PNf4gAUmMiOUc0947rS4aFeNNCTwg4Gl9p/66mVIF0TH8hG5aDA=="/>
+            <description>
+                <![CDATA[
+                <b>Compact UI and Premium Animations</b>
+                <ul>
+                    <li>Redesigned recording dialog to be smaller and sleeker</li>
+                    <li>Provider tracking in history shows which transcription service was used</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.6.1</title>
+            <pubDate>Fri, 24 Oct 2025 08:55:46 +0900</pubDate>
+            <sparkle:version>34</sparkle:version>
+            <sparkle:shortVersionString>2.6.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.6.1.dmg" length="17131300" type="application/octet-stream" sparkle:edSignature="Tz21TJbN2n4TzEaERYfShijEC5bX06Jq6D+qaqGoJKuTajrhXzaL5e5fViqMtZFTE0WMeHs2LI6rhgM04r47DA==" />
+            <description>
+                <![CDATA[
+                <b>Audio Reliability Improvements</b>
+                <ul>
+                    <li>Improved audio conversion reliability with validation, retries, and intelligent fallback mechanisms</li>
+                    <li>Fixed stale file path issue in subsequent recordings</li>
+                    <li>Enhanced email formatting rules for better AI post-processing results</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.6.0</title>
+            <pubDate>Thu, 23 Oct 2025 16:47:20 +0900</pubDate>
+            <sparkle:version>33</sparkle:version>
+            <sparkle:shortVersionString>2.6.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.6.0.dmg" length="17148556" type="application/octet-stream" sparkle:edSignature="FohO1YNAXidFuscYSvFHZSjqJUF6cUW/WDfajwxvR/GFnqJIsN/nxDk0fdYsJGAgDctrayu4UhPiHrYE/cQeCg==" />
+            <description>
+                <![CDATA[
+                <b>Enhanced UI and Clipboard Management</b>
+                <ul>
+                    <li>In-app Recent Updates section showing release history and notes</li>
+                    <li>Custom system prompts for AI post-processing modes</li>
+                    <li>Normalized keyboard shortcut display with readable labels</li>
+                    <li>Major code refactoring for improved stability and maintainability</li>
+                    <li>Added support for images to clipboard restoration</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.5.2</title>
+            <pubDate>Wed, 15 Oct 2025 09:26:48 +0900</pubDate>
+            <sparkle:version>31</sparkle:version>
+            <sparkle:shortVersionString>2.5.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.5.2.dmg" length="16926964" type="application/octet-stream" sparkle:edSignature="CKPGxQQ/NCvgHtJmrpoHXsCT7WpeZxjDivqlOOYunudxI8FzWTn+KjlEZkPRN507B+WZInhgEu1ZGvawXuaPAQ==" />
+            <description>
+                
+                &lt;b&gt;Audio Permission Error Improvements&lt;/b&gt;
+                &lt;ul&gt;
+                    &lt;li&gt;Enhanced error logging for audio-related operations&lt;/li&gt;
+                    &lt;li&gt;Improved microphone permission error detection&lt;/li&gt;
+                    &lt;li&gt;Prevented unnecessary crash reports for expected permission-related scenarios&lt;/li&gt;
+                &lt;/ul&gt;
+                
+            </description>
+        </item>
+        <item>
+            <title>2.5.1</title>
+            <pubDate>Sun, 12 Oct 2025 11:52:35 +0900</pubDate>
+            <sparkle:version>30</sparkle:version>
+            <sparkle:shortVersionString>2.5.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.5.1.dmg" length="16926355" type="application/octet-stream" sparkle:edSignature="9dwZPm889/DmzGSOx5F3VHvCgO/scUBpj2+SYu/S8+p80r6vBisDGFkXAzFWyxeZvWiT7nbu4YH9bYbAkNCSDA==" />
+        </item>
+        <item>
+            <title>2.4.4</title>
+            <pubDate>Tue, 07 Oct 2025 22:57:23 +0900</pubDate>
+            <sparkle:version>29</sparkle:version>
+            <sparkle:shortVersionString>2.4.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.4.4.dmg" length="16776490" type="application/octet-stream" sparkle:edSignature="A5zl62TEWJeztTYMxjUrr/BCYLBR4QvouxEgcVe+ipqjJptz/lXCp0IM+rFSkgS3m9c1WeXiWYJAQocmXgioAw==" />
+        </item>
+        <item>
+            <title>2.4.3</title>
+            <pubDate>Sun, 05 Oct 2025 23:41:12 +0900</pubDate>
+            <sparkle:version>28</sparkle:version>
+            <sparkle:shortVersionString>2.4.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.4.3.dmg" length="15680864" type="application/octet-stream" sparkle:edSignature="N+UNfwFtRxDu2c5DAIKc5qNnNfanj37rdyzahk/uqD1nZyE2tTFrWGrnEh/S+knnLCLI1+OZYJriOgYxyiavBA==" />
+        </item>
+        <item>
+            <title>2.4.2</title>
+            <pubDate>Sun, 05 Oct 2025 23:02:53 +0900</pubDate>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>2.4.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.4.2.dmg" length="15682039" type="application/octet-stream" sparkle:edSignature="33xbx/upMTnGT18e1VhayWaJ/s5M3Oui/25O1krRS1jrvnFQfMF2NCxFgbADE3Nri/JJjpYJTOELpPyZ3DAdCQ==" />
+        </item>
+        <item>
+            <title>2.4.1</title>
+            <pubDate>Sat, 04 Oct 2025 22:56:01 +0900</pubDate>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>2.4.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.4.1.dmg" length="15681457" type="application/octet-stream" sparkle:edSignature="JYtQe6KOuymvd90XvWE6WR22+grKEL5+9sGPffs4c9+tMUBxNccJeUFO0DRyV4dJd8QZphKuAfbhW5rowmOECw==" />
+        </item>
+        <item>
+            <title>2.4.0</title>
+            <pubDate>Thu, 02 Oct 2025 09:56:41 +0900</pubDate>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>2.4.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.4.0.dmg" length="15642013" type="application/octet-stream" sparkle:edSignature="8yNdLGBbMmGd6W5B13olq1E7hRLpQdSUTOjsw1QcscyS4ahx1vjfpA/NYSiUQyVnmDt9Wse3E+oqiSNOAtTeCw==" />
+        </item>
+        <item>
+            <title>2.2.0</title>
+            <pubDate>Mon, 22 Sep 2025 13:18:22 +0900</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>2.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.2.0.dmg" length="8467316" type="application/octet-stream" sparkle:edSignature="6gIt52yKCOTMQfSwQFucEOZEtLn5JQVs/gVi4k3bs6nGtv/32oNCqhDVugsgGd2vgdZLOwhCGDaSpfv4w7tBAQ==" />
+        </item>
+        <item>
+            <title>2.1.2</title>
+            <pubDate>Thu, 18 Sep 2025 17:50:09 +0900</pubDate>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>2.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.1.2.dmg" length="8517821" type="application/octet-stream" sparkle:edSignature="LS5Olq6OaYFrWncMR+m4jp/KqokTjyQ1CxM0ytr3C/70KTuI9Tkaf8jYi8qStvKOx+JEuZg40ftZrFXt5y0hDQ==" />
+        </item>
+        <item>
+            <title>2.0.5</title>
+            <pubDate>Sat, 06 Sep 2025 07:22:21 +0900</pubDate>
+            <sparkle:version>19</sparkle:version>
+            <sparkle:shortVersionString>2.0.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.0.5.dmg" length="8471122" type="application/octet-stream" sparkle:edSignature="3hGcanlX2r0eUUcJ02JS17XT6YrF55biOjYNkTbf6Y3nadT9MMtcz6vkAAoQoCJHRbaotq43nEJlhd7EDSk7Aw==" />
+        </item>
+        <item>
+            <title>2.0.4</title>
+            <pubDate>Thu, 04 Sep 2025 16:49:57 +0900</pubDate>
+            <sparkle:version>18</sparkle:version>
+            <sparkle:shortVersionString>2.0.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.0.4.dmg" length="8477781" type="application/octet-stream" sparkle:edSignature="z5qFd6oXrsqUnfYjYQnO2C0uI7y9xAo5TToh7yoq0Ir9Jbuh7PZuW5hysQFw/fPIhr2MaxQ8yJWAZKKq20VDBA==" />
+        </item>
+        <item>
+            <title>2.0.3</title>
+            <pubDate>Thu, 04 Sep 2025 16:21:27 +0900</pubDate>
+            <sparkle:version>17</sparkle:version>
+            <sparkle:shortVersionString>2.0.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.0.3.dmg" length="142307347" type="application/octet-stream" sparkle:edSignature="JvnrZvE9UfZNsiTv9bi7yUvuwG48J3jT77JWuEyyN0qVFisReEwTeerNfYFp+uoGwE7OJp8dxicYz/u+MfNBBQ==" />
+        </item>
+        <item>
+            <title>1.4.2</title>
+            <pubDate>Tue, 02 Sep 2025 15:41:49 +0900</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>1.4.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.4.2.dmg" length="142301983" type="application/octet-stream" sparkle:edSignature="bBhRiPod2rvoYdus1ZNRP5kwUJPIvwDf5qFWy8HG1yn7zPp32lCMd7ARzpyRM07H/kXLkxIkbvDCamSn1uDgCg==" />
+        </item>
+        <item>
+            <title>1.4.0</title>
+            <pubDate>Tue, 02 Sep 2025 13:58:33 +0900</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.4.0.dmg" length="142184803" type="application/octet-stream" sparkle:edSignature="SIX0TOOcvhmr/GuOSCpNPIM4aE542bZLhdujyst0edRaK2gN8CZEufXvj/aqyGKtOIaYYAz4QoHiZz0O5dpWBQ==" />
+        </item>
+        <item>
+            <title>1.3.0</title>
+            <pubDate>Sun, 31 Aug 2025 17:42:38 +0900</pubDate>
+            <sparkle:version>10</sparkle:version>
+            <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.3.0.dmg" length="141729612" type="application/octet-stream" sparkle:edSignature="SkuvKIhSz53P1+9tQWAJpEjlE2EH567E5t+vp9U/OWP+ShSpv+SqRRqVbtcaL7vdNrLjmbivSrc1M/278HpJBA==" />
+        </item>
+        <item>
+            <title>1.2.3</title>
+            <pubDate>Sat, 30 Aug 2025 21:05:10 +0900</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>1.2.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.2.3.dmg" length="141592094" type="application/octet-stream" sparkle:edSignature="1wqleGdsfxKPkTRR8QbSsC9XOreE+F2MUlYm5Gh+FjPAaXLs3ezyU1etatcc+ghbw1b6uCGw3rX08f/ywZ1FAg==" />
+        </item>
+        <item>
+            <title>1.2.2</title>
+            <pubDate>Fri, 29 Aug 2025 19:25:19 +0900</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>1.2.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.2.2.dmg" length="140802165" type="application/octet-stream" sparkle:edSignature="Uou63lrkcv6+Dm+sA+ioTOwGJXOJOnYaogrocp9yCmIpejfWaMde1GwuEvCuAKryi/uvNtiuUhl5XnNWZiOZBA==" />
+        </item>
+        <item>
+            <title>1.2.0</title>
+            <pubDate>Fri, 29 Aug 2025 16:45:11 +0900</pubDate>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.2.0.dmg" length="140809996" type="application/octet-stream" sparkle:edSignature="pkO+wKxOv3wyJBHhBLEzNl1z2zD1YHhNeH8XEVDp8dcYBTd6x/jxOH2GM8imerqHmV5jZiyG9HgTRdW1s0/2Cw==" />
+        </item> 
+        <item>
+            <title>1.0.5</title>
+            <pubDate>Tue, 26 Aug 2025 22:28:52 +0900</pubDate>
+            <sparkle:version>5</sparkle:version>
+            <sparkle:shortVersionString>1.0.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.0.5.dmg" length="6664286" type="application/octet-stream" sparkle:edSignature="8Hylhhix0dtyzV65IKqjXXSMcFbJQY2xO+GnCeduQTXJ++hPTn65DMgpL5QLduNyrYr/+xas8IZ9UdkaFQXyCQ==" />
+        </item>
+        <item>
+            <title>1.0.3</title>
+            <pubDate>Thu, 21 Aug 2025 20:53:50 +0900</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.0.3.dmg" length="6656410" type="application/octet-stream" sparkle:edSignature="u02pK2m0kk7Pk746ZZJyDvBHtRna3Gxtm6dWEcihr9tGWfTC7urbqrFqPrHkmOpwCuE+0HgZSrgnksP5IUuRCQ==" />
+        </item>
+        <item>
+            <title>1.0.2</title>
+            <pubDate>Thu, 21 Aug 2025 19:36:04 +0900</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.0.2.dmg" length="6558093" type="application/octet-stream" sparkle:edSignature="n1iGBEX7RnOaZQZetpYEx4hJC6vZO+hILsRumREAjsYpyUMrCfy3PcNmgvEvnrHY7w8Qgcy5+n1xGBoPONGKCg==" />
+        </item>
+        <item>
+            <title>1.0.1</title>
+            <pubDate>Thu, 21 Aug 2025 16:41:11 +0900</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.0.1.dmg" length="6494983" type="application/octet-stream" sparkle:edSignature="G+88bm/zx6JCbHE1V2uBfKoxkYLIScujOl25t5HkuF7cclUOH5oyH/wExPuRYvJ7X/IC7D1fb9K1hALzFgqYAg==" />
+        </item>
+        <item>
+            <title>1.0.0</title>
+            <pubDate>Thu, 21 Aug 2025 15:01:24 +0900</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-1.0.0.dmg" length="8622051" type="application/octet-stream" sparkle:edSignature="qL7pWgSpvpdsZqMZPXDmeCn8WVcFn7vbbwfW2wOUAMuph4MvRUX3fV719pbSOB2n/h/RlP2IbuqL9gVeRcLeBA==" />
+        </item>
+    </channel>
+</rss>

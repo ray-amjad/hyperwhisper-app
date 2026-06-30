@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Build the universal macOS static lib and install it into the macOS app's
+# Libraries/ dir (already on LIBRARY_SEARCH_PATHS). See README.md.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+DEST="../app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a"
+
+echo "==> building aarch64-apple-darwin"
+cargo build --release --target aarch64-apple-darwin
+echo "==> building x86_64-apple-darwin"
+cargo build --release --target x86_64-apple-darwin
+
+echo "==> lipo -> $DEST"
+lipo -create \
+  target/aarch64-apple-darwin/release/libhyperwhisper_core.a \
+  target/x86_64-apple-darwin/release/libhyperwhisper_core.a \
+  -output "$DEST"
+
+lipo -info "$DEST"
+echo "==> done"

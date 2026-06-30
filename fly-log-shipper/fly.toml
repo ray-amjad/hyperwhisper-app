@@ -1,0 +1,14 @@
+app = 'hyperwhisper-log-shipper'
+primary_region = 'sjc'
+
+[build]
+  image = 'flyio/log-shipper:latest'
+
+[env]
+  ORG = 'studyspaceglobal'
+  SUBJECT = 'logs.>'
+  AXIOM_DATASET = 'hyperwhisper-fly'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'

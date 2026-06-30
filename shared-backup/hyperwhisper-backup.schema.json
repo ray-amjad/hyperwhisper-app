@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperwhisper.com/schemas/backup/v2",
+  "title": "HyperWhisper Universal Backup",
+  "description": "Cross-platform backup format for HyperWhisper (macOS & Windows). Version 2 of the backup schema. Shared top-level objects are intentionally strict so schema validation catches accidental contract drift; future platform-specific or provider-specific data must live under platformExtensions or apiKeys, which remain open extension points.",
+  "type": "object",
+  "required": ["schemaVersion", "exportDate", "appVersion", "platform"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 2,
+      "description": "Schema version. Always 2 for the universal format."
+    },
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of when the backup was created."
+    },
+    "appVersion": {
+      "type": "string",
+      "description": "App version that created the backup (e.g. '2.28.0')."
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["macos", "windows", "ios", "android"],
+      "description": "Platform that created the backup."
+    },
+    "settings": {
+      "$ref": "#/$defs/Settings"
+    },
+    "modes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Mode" },
+      "description": "All transcription modes."
+    },
+    "vocabulary": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/VocabularyItem" },
+      "description": "Custom vocabulary items."
+    },
+    "apiKeys": {
+      "$ref": "#/$defs/ApiKeys"
+    },
+    "licenseKey": {
+      "type": ["string", "null"],
+      "description": "Optional license key (opt-in on export)."
+    },
+    "platformExtensions": {
+      "type": "object",
+      "description": "Platform-specific data. Keys are platform names (macos, windows). Preserve unknown keys for round-trip fidelity; this is the sanctioned escape hatch for platform-only fields rejected by strict shared objects. The macOS settings blob is category-keyed: platformExtensions.macos.settings.{audio,general,storage,advanced,shortcuts,aiModel}. Each platform also preserves the OTHER platform's per-mode platformExtensions slice across a round-trip.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Settings": {
+      "type": "object",
+      "description": "App settings grouped by category. Only cross-platform settings are included at the top level. Platform-specific settings go into platformExtensions; unknown shared setting fields are rejected intentionally.",
+      "properties": {
+        "general": {
+          "type": "object",
+          "properties": {
+            "launchMinimized": { "type": "boolean" },
+            "showRecordingWindow": { "type": "boolean" },
+            "checkForUpdatesAutomatically": { "type": "boolean" },
+            "enableErrorLogging": { "type": "boolean" },
+            "enableSoundEffects": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "textOutput": {
+          "type": "object",
+          "properties": {
+            "pasteResultText": { "type": "boolean" },
+            "removeFillerWords": { "type": "boolean" },
+            "restoreClipboardAfterPaste": { "type": "boolean" },
+            "hideFromClipboardHistory": { "type": "boolean" },
+            "clipboardRestoreDelaySeconds": { "type": "number" },
+            "autocapitalizeInsert": { "type": "boolean" },
+            "storeWordTimestamps": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "keepAudioFiles": { "type": "boolean" },
+            "storeAsM4A": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "streaming": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "provider": {
+              "type": ["string", "null"],
+              "description": "Streaming transcription provider, for example 'hyperwhisperCloud', 'deepgram', 'elevenLabs', 'openAI', or 'xai'."
+            },
+            "language": {
+              "type": ["string", "null"],
+              "description": "Streaming language code or 'auto'."
+            },
+            "deepgramModel": {
+              "type": ["string", "null"],
+              "description": "Deepgram streaming model ID."
+            },
+            "fastFormatting": { "type": "boolean" },
+            "shortcut": {
+              "type": ["string", "null"],
+              "description": "Platform-specific persisted keyboard shortcut for starting or stopping streaming."
+            }
+          },
+          "additionalProperties": false
+        },
+        "advanced": {
+          "type": "object",
+          "properties": {
+            "maxRecordingDuration": { "type": "integer" },
+            "typingSpeedWPM": { "type": "integer" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "Mode": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier (UUID)."
+        },
+        "name": {
+          "type": "string",
+          "description": "User-visible mode name."
+        },
+        "preset": {
+          "type": "string",
+          "description": "Preset type (e.g. 'hyper', 'meeting', 'custom')."
+        },
+        "language": {
+          "type": "string",
+          "description": "ISO language code or 'auto'."
+        },
+        "model": {
+          "type": ["string", "null"],
+          "description": "Local transcription model ID (e.g. 'base', 'large-v3-turbo')."
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "punctuation": {
+          "type": "boolean"
+        },
+        "capitalization": {
+          "type": "boolean"
+        },
+        "profanityFilter": {
+          "type": "boolean"
+        },
+        "removeTrailingPeriod": {
+          "type": ["boolean", "null"]
+        },
+        "englishSpelling": {
+          "type": ["string", "null"],
+          "description": "English spelling variant: 'american', 'british', etc."
+        },
+        "cloudProvider": {
+          "type": ["string", "null"],
+          "description": "Cloud transcription provider (e.g. 'hyperwhisper', 'openai', 'groq', 'grok')."
+        },
+        "cloudTranscriptionModel": {
+          "type": ["string", "null"],
+          "description": "Cloud transcription model ID (HyperWhisper Cloud X-STT-Model; empty/null = provider default)."
+        },
+        "cloudTranscriptionDomain": {
+          "type": ["string", "null"],
+          "description": "Cloud transcription domain (HyperWhisper Cloud X-STT-Domain). Currently 'medical' or null."
+        },
+        "postProcessingMode": {
+          "type": "integer",
+          "description": "0=off, 1=cloud, 2=local."
+        },
+        "postProcessingProvider": {
+          "type": ["string", "null"],
+          "description": "Post-processing provider (e.g. 'hyperwhisper', 'openai', 'anthropic', 'groq')."
+        },
+        "languageModel": {
+          "type": ["string", "null"],
+          "description": "Language model for post-processing (e.g. 'gpt-4.1-nano')."
+        },
+        "localPostProcessingModel": {
+          "type": ["string", "null"],
+          "description": "Local LLM model ID for on-device post-processing."
+        },
+        "userSystemPrompt": {
+          "type": ["string", "null"],
+          "description": "User-supplied system prompt for post-processing."
+        },
+        "customInstructions": {
+          "type": ["string", "null"],
+          "description": "Custom instructions for 'custom' preset."
+        },
+        "geminiCustomPrompt": {
+          "type": ["string", "null"],
+          "description": "Custom transcription prompt for Gemini provider."
+        },
+        "cloudAccuracyTier": {
+          "type": ["string", "null"],
+          "description": "HyperWhisper Cloud transcription tier, for example 'groqWhisper', 'deepgramNova3', 'elevenLabsScribeV2', 'grokStt', 'azureMaiTranscribe', or 'googleChirp3'."
+        },
+        "cloudPostProcessingModel": {
+          "type": ["string", "null"],
+          "description": "HyperWhisper Cloud post-processing engine+model, stored as a provider-qualified key '<engineId>:<modelId>' sourced from shared-app-classification/cloud-pp-catalog.json (e.g. 'cerebras:gpt-oss-120b', 'groq:openai/gpt-oss-120b', 'anthropic:claude-haiku-4-5', 'grok:grok-4.3', 'openai:gpt-5-mini', 'gemini:gemini-2.5-flash', 'mistral:mistral-small-latest'). Legacy values 'cerebrasGptOss120B', 'groqGptOss120B', 'grokFast', 'claudeHaiku' are still accepted and migrated on import. Free-string field — no enum constraint."
+        },
+        "platformExtensions": {
+          "type": "object",
+          "description": "Platform-specific mode fields keyed by platform name (windows, macos). Each platform writes its own slice and PRESERVES the other platform's slice across a round-trip (persisted natively as foreignPlatformExtensions / ForeignPlatformExtensions). Preserve unknown keys.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "VocabularyItem": {
+      "type": "object",
+      "required": ["id", "word"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "word": {
+          "type": "string",
+          "description": "Word or phrase to recognize/boost."
+        },
+        "replacement": {
+          "type": ["string", "null"],
+          "description": "Optional replacement text."
+        },
+        "sortOrder": {
+          "type": "integer"
+        },
+        "source": {
+          "type": ["string", "null"],
+          "description": "Optional source marker, for example manual or auto-learn."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ApiKeys": {
+      "type": "object",
+      "description": "API keys by lowercase provider name. Optional, opt-in on export. Unknown provider keys are allowed for forward compatibility and silently ignored on import if the app does not recognize them.",
+      "properties": {
+        "openai": { "type": ["string", "null"] },
+        "groq": { "type": ["string", "null"] },
+        "grok": { "type": ["string", "null"] },
+        "fireworks": { "type": ["string", "null"], "deprecated": true, "description": "Fireworks AI is no longer a supported provider. This field is retained only so older backups that still contain a Fireworks API key restore without error; new backups no longer write it." },
+        "anthropic": { "type": ["string", "null"] },
+        "gemini": { "type": ["string", "null"] },
+        "deepgram": { "type": ["string", "null"] },
+        "assemblyai": { "type": ["string", "null"] },
+        "elevenlabs": { "type": ["string", "null"] },
+        "mistral": { "type": ["string", "null"] },
+        "cerebras": { "type": ["string", "null"] },
+        "soniox": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
+  }
+}

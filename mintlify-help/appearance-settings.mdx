@@ -1,0 +1,68 @@
+---
+title: Appearance Settings
+description: How to change HyperWhisper's color theme between light, dark, and system default on Windows and iOS.
+---
+
+HyperWhisper lets you choose your preferred color scheme — light, dark, or system default — on **Windows** and **iOS**. The macOS app follows your system appearance automatically and does not have a dedicated appearance setting.
+
+<Tabs>
+  <Tab title="Windows">
+    ## Opening Appearance Settings
+
+    Go to **Settings → Appearance**.
+
+    You'll see a **Theme** card with three options:
+
+    | Option | What it does |
+    |---|---|
+    | **System default** | Automatically switches between light and dark based on your Windows settings |
+    | **Light** | Always uses the light theme with bright backgrounds |
+    | **Dark** | Always uses the dark theme for reduced eye strain |
+
+    ## Changing the theme
+
+    Select the radio button next to your preferred option. A dialog titled **Restart Required** appears:
+
+    > The application needs to restart for the theme change to take effect.
+    > Do you want to restart now?
+
+    - Choose **Yes** to save the selection and restart immediately.
+    - Choose **No** to cancel — your previous theme is restored and nothing is saved.
+
+    <Note>
+      A restart is required by design. HyperWhisper prompts you to restart when you change the theme rather than applying it on the fly — if you choose **No**, your previous theme is kept and nothing is saved.
+    </Note>
+
+    ## Where the setting is saved
+
+    Your theme choice is stored in `%LOCALAPPDATA%\HyperWhisper\settings.json` and persists across updates and restarts.
+  </Tab>
+
+  <Tab title="iOS">
+    ## Opening Appearance Settings
+
+    Go to **Settings** (gear icon) and tap **Appearance** near the top of the settings list. An inline menu appears with three options:
+
+    | Option | What it does |
+    |---|---|
+    | **System** | Follows iOS system appearance (default) |
+    | **Light** | Forces light mode regardless of system setting |
+    | **Dark** | Forces dark mode regardless of system setting |
+
+    ## Changing the theme
+
+    Tap your preferred option in the picker. The change applies immediately — no restart required. The entire app updates to the selected color scheme right away.
+
+    ## Where the setting is saved
+
+    Your selection is stored in `UserDefaults` under the key `appearanceMode` and persists across launches.
+  </Tab>
+
+  <Tab title="macOS">
+    ## macOS
+
+    The macOS app does not have an Appearance setting. It follows your macOS system appearance automatically — if your Mac is set to Dark Mode, HyperWhisper uses dark colors; if it's set to Light Mode, it uses light colors.
+
+    To change the appearance on macOS, update your system setting in **System Settings → Appearance**.
+  </Tab>
+</Tabs>

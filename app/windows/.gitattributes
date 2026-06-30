@@ -1,0 +1,20 @@
+# Windows app (C# / WPF on .NET) - pin source EOL to CRLF so diffs stay
+# deterministic and Visual Studio / dotnet don't ping-pong line endings.
+# See issue #760: a whole-file CRLF renormalization of UpdateService.cs
+# inflated a review diff because no .gitattributes enforced EOL for .cs files.
+
+# C# and project/build files
+*.cs        text eol=crlf
+*.csproj    text eol=crlf
+*.sln       text eol=crlf
+*.props     text eol=crlf
+*.targets   text eol=crlf
+*.config    text eol=crlf
+
+# WPF / XAML UI
+*.xaml      text eol=crlf
+*.resx      text eol=crlf
+
+# Windows scripts and installer definitions
+*.ps1       text eol=crlf
+*.iss       text eol=crlf

@@ -1,0 +1,80 @@
+[
+  {
+    "id": "069538f2f06a",
+    "source": "sweep-01",
+    "text": "Hey, can you remember into the future that I like to use dark themes?",
+    "bucket": "5to20s"
+  },
+  {
+    "id": "36c32da16434",
+    "source": "sweep-01",
+    "text": "I just released an update. Do you-",
+    "bucket": "lt5s"
+  },
+  {
+    "id": "420c6e7a09cd",
+    "source": "sweep-01",
+    "text": "Online with Exa MCP server, can you basically figure out a way to... Searching online with the Exa MCP server, can you basically figure out a way to add local models to the Windows application? Kind of like the Gemma models. Would they be running on a GPU or something? How could they be easily integrated? Uh, basically search pretty extensively and heavily until you find, like, a pretty good solution or approach here. Uh, give me a couple of different recommendations about which one you f- uh, think is the best, and let me decide at the end of the day. Search it hard and vast and wide and stuff like that",
+    "bucket": "20to60s"
+  },
+  {
+    "id": "521a29cf3ccb",
+    "source": "sweep-01",
+    "text": "Now, a skill that I find really handy",
+    "bucket": "lt5s"
+  },
+  {
+    "id": "7fa0c1f6633f",
+    "source": "sweep-01",
+    "text": "I definitely want to make a video about compact engineering, compound engineering",
+    "bucket": "5to20s"
+  },
+  {
+    "id": "9806c316d1d0",
+    "source": "sweep-01",
+    "text": "For the homepage, can you remove the thing that says like two kinds of work? I noticed something weird about codex's slash goal command. For the second slide where it says example notion integration, like that seems-- Uh, remove the part about every story is known upfront. Uh, actually leave that part about every story is known upfront. For the unfolding, um, this is really good for, uh, this seems pretty good for the a goal must be verifiable. This also seems pretty good. Compaction makes the thread richer. As for the compaction is what makes, uh, hashtag eight possible, like remove that part, um, because I don't think that part is required. Also, for the fonts, we have this like weird italic font. Can we have like a normal font instead? Uh, I mean, like, like still the handwritten font, but like go for a different style instead. Uh, maybe you can make a page that shows me like five, ten different styles, and I pick the one that I like. Uh, can we remove the part about ralph leads to this for breakfast? For the goal carries a hypothesis, I feel like this could be added somewhere else. Peak without breaking the flow is also pretty good. The hybrid also seems, uh, good as well. And I think I want to add another slide and another point and basically say like, okay, so, um, when it comes to unfolding, like unfolding can be good, but you can get like a suboptimal solution, in which case you may wanna-- like this leads to idea of like a scrappy copy first, where you basically make this copy, and you should be willing to throw it away and then re-implement it, um, in a way that works better with the rest of the code base. I want to explore this idea in, in a bit more detail. Can you like help explore it with me, uh, somehow?",
+    "bucket": "gt60s"
+  },
+  {
+    "id": "a1a5c3b61e2f",
+    "source": "sweep-01",
+    "text": "Can you make a deck with a whole bunch of slides all about this? Have slides with like different representations, so it should be like each slide has three variations, and I can pick the ones that I like, and then you will like make a final version of the slides with all these concepts kind of attached in a order, and then we can use this instead. And then I can just have like talking off points instead. Um, I think this seems like a much better approach because, yeah, it seems like a better approach moving forwards. Uh, do the things that we discussed about here, basically, yeah",
+    "bucket": "20to60s"
+  },
+  {
+    "id": "a883a4831dfd",
+    "source": "sweep-01",
+    "text": "Okay, we have a workflow-like skill. Can we like describe some of the capabilities to this like skill? So it's like, is like slightly better at actually making these, uh, in a way",
+    "bucket": "5to20s"
+  },
+  {
+    "id": "b4bd4fe156c2",
+    "source": "sweep-01",
+    "text": "Okay, now let's talk about... Okay, now let's talk about designing artifacts with Claude Code. Okay, now let's talk about designing artif- Okay, so I previously talked about designing components with Claude Code. There's a video linked down below for that. And essentially, the way that we did this is by making an artifact that contained a... Okay, so we previously talked about designing components with Claude Code. There will be a video linked down below for that. And essentially what we did is we created a artifact, HTML artifact, with the different design variations that we wanted, and then just picked the one we liked, and then gave it back to Claude Code, and it integrated it into the rest of the application. Now, we can take this one step further and make our artifacts interactive, and this can be especially handy for making more difficult decisions. So there are a couple ways that we can make it interactive, but let's go through the first way. So there are a couple ways that we can make integra- So there are a couple ways that we can make it interactive, but let's go through the first way. Now, let's use the same example of designing components. So I have this page of the application over here, and it could look better. I don't really know what better looks like, so I will tell Claude Code to make 10 variations of this page",
+    "bucket": "gt60s"
+  },
+  {
+    "id": "d0036702401b",
+    "source": "sweep-01",
+    "text": "So I also added the following domain to Bento. Can you send the feature emails from there instead? And also for the newsletter confirm thing, we should be using the new domain and sending them back to that. And also, uh, can we have, like, the homepage automatically redirect to this page on which the actual thing is in a way? So they would go back to the wait list, uh, and yeah, they would be basically be subscribing from there essentially. And then can you also come up with a design for the email so it's like, kind of follows this new design that we're going after for agentengineer.pro?",
+    "bucket": "20to60s"
+  },
+  {
+    "source": "synthetic",
+    "id": "synth_code_dictation",
+    "bucket": "synthetic",
+    "text": "okay so let's create a function called process underscore data that takes a list parameter and returns a sorted version. make sure to handle the empty case by returning an empty list. use the sorted built-in with a key argument lambda x colon x dot timestamp"
+  },
+  {
+    "source": "synthetic",
+    "id": "synth_email_draft",
+    "bucket": "synthetic",
+    "text": "Hey Sarah comma new paragraph just a heads up that the meeting moved from Tuesday to Wednesday at 3pm. Conference room is now Atlas instead of Beacon. Let me know if that works for you. new paragraph Thanks comma new paragraph John"
+  },
+  {
+    "source": "synthetic",
+    "id": "synth_meeting_bullets",
+    "bucket": "synthetic",
+    "text": "Action items from the standup. First, Mike is going to look into the auth bug. Second, we need to push the migration to staging by Friday. Third, Lisa is doing the API audit next sprint and will report back at the next sync."
+  }
+]

@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - Chuyển giọng nói thành văn bản bằng AI cho macOS & Windows",
+    "description": "Viết nhanh hơn 5x với tính năng chuyển giọng nói thành văn bản bằng AI. HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng trên macOS và Windows. Nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức."
+  },
+  "navbar": {
+    "features": "Tính năng",
+    "pricing": "Giá",
+    "faq": "Câu hỏi thường gặp",
+    "support": "Hỗ trợ",
+    "download": "Tải xuống",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Đổi ngôn ngữ"
+    }
+  },
+  "hero": {
+    "logoAlt": "Logo HyperWhisper",
+    "headline": "Viết, soạn thảo và sáng tạo",
+    "headlineAccent": "nhanh hơn 5x với AI",
+    "subheadline": "HyperWhisper chuyển giọng nói của bạn với độ chính xác ấn tượng. Chỉ cần nói tự nhiên và xem từ ngữ xuất hiện ngay lập tức.",
+    "downloadCta": "Tải xuống ngay",
+    "demoCta": "Xem demo",
+    "availableOn": "Có trên",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Xây dựng cho chuyên gia",
+    "subtitle": "Mọi tính năng đều được thiết kế để giúp bạn làm việc nhanh hơn và hiệu quả hơn",
+    "customVocabulary": {
+      "title": "Từ vựng tùy chỉnh",
+      "description": "Thêm tên riêng, từ viết tắt và thuật ngữ chuyên biệt để đạt độ chính xác hoàn hảo mỗi lần."
+    },
+    "languages": {
+      "title": "100+ ngôn ngữ",
+      "description": "Chuyển giọng nói thành văn bản với hơn 100 ngôn ngữ và tự động nhận diện ngôn ngữ."
+    },
+    "offline": {
+      "title": "Hỗ trợ offline",
+      "description": "Hoạt động hoàn toàn ngoại tuyến. Dữ liệu của bạn không bao giờ rời khỏi thiết bị."
+    },
+    "privacy": {
+      "title": "Ưu tiên quyền riêng tư",
+      "description": "Không cần tài khoản. Không theo dõi. Dữ liệu giọng nói của bạn ở lại trên Mac hoặc PC của bạn."
+    },
+    "hybridProcessing": {
+      "title": "Xử lý kết hợp",
+      "description": "Chọn mô hình cục bộ để bảo mật hoặc API đám mây để tăng tốc. Tốt nhất của cả hai thế giới."
+    },
+    "customizable": {
+      "title": "Tùy biến cao",
+      "description": "Chọn từ hơn 9 nhà cung cấp API và hơn 30 mô hình chuyển giọng nói."
+    },
+    "realTime": {
+      "title": "Luồng thời gian thực",
+      "description": "Xem từ ngữ xuất hiện ngay khi bạn nói. Độ chính xác hàng đầu ngành với độ trễ dưới 700ms."
+    },
+    "fileImport": {
+      "title": "Nhập tệp",
+      "description": "Nhập tệp âm thanh hoặc video để chuyển văn bản. Hỗ trợ tất cả định dạng phổ biến với phát hiện khoảng lặng tự động."
+    },
+    "screenOcr": {
+      "title": "OCR màn hình",
+      "description": "Cho phép HyperWhisper nhìn thấy màn hình của bạn để có thể viết chính xác mọi thứ."
+    },
+    "mcpServer": {
+      "title": "API cục bộ và máy chủ MCP",
+      "description": "Máy chủ MCP tích hợp cho phép Claude, Cursor và các tác nhân AI khác điều khiển HyperWhisper. API HTTP chỉ chạy trên máy với xác thực bearer, dùng cho script và tự động hóa."
+    },
+    "modes": {
+      "title": "Chế độ cho mọi tình huống",
+      "description": "Chuyển giữa các chế độ chuyển giọng nói được tối ưu cho họp, ghi chú, email, lập trình và hơn thế nữa. Mỗi chế độ dùng prompt tùy chỉnh để định dạng văn bản hoàn hảo.",
+      "meeting": "Họp",
+      "email": "Email",
+      "note": "Ghi chú",
+      "code": "Mã",
+      "legal": "Pháp lý",
+      "medical": "Y tế",
+      "presetModes": "Chế độ có sẵn",
+      "customModes": "Chế độ tùy chỉnh"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Nhanh hơn gõ phím",
+    "accuracyRate": "Tỷ lệ chính xác",
+    "languagesSupported": "Ngôn ngữ hỗ trợ",
+    "providersSupported": "Nhà cung cấp hỗ trợ"
+  },
+  "pricing": {
+    "title": "Không đăng ký. Mãi mãi.",
+    "subtitle": "Trả một lần, dùng mãi mãi. Chúng tôi cũng ghét đăng ký hàng tháng.",
+    "guarantee": "Hoàn tiền trong 14 ngày",
+    "guaranteeExtended": "nếu bạn không hoàn toàn hài lòng.",
+    "learnMore": "Tìm hiểu thêm",
+    "free": {
+      "name": "Miễn phí",
+      "price": "$0",
+      "period": "mãi mãi",
+      "description": "Hoàn hảo để thử HyperWhisper",
+      "cta": "Tải Miễn Phí",
+      "features": {
+        "transcriptionLimit": "5 phút chuyển giọng nói mỗi ngày",
+        "basicModes": "Các chế độ chuyển giọng nói cơ bản",
+        "offlineTranscription": "Chuyển giọng nói offline",
+        "apiTranscription": "Chuyển giọng nói qua API (dùng khóa của bạn)",
+        "postProcessing": "Hậu xử lý văn bản",
+        "providers": "9+ nhà cung cấp để lựa chọn",
+        "lifetimeUpdates": "Cập nhật trọn đời",
+        "cloudLimited": "HyperWhisper Cloud (giới hạn sử dụng)",
+        "customVocabulary": "Từ vựng tùy chỉnh",
+        "prioritySupport": "Hỗ trợ ưu tiên"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "trọn đời",
+      "description": "Mua một lần, sức mạnh không giới hạn mãi mãi",
+      "cta": "Mua Ngay - Truy Cập Trọn Đời",
+      "mostPopular": "Phổ biến nhất",
+      "features": {
+        "unlimitedTranscription": "Chuyển giọng nói không giới hạn",
+        "allModes": "Tất cả chế độ chuyển giọng nói",
+        "offlineTranscription": "Chuyển giọng nói offline",
+        "apiTranscription": "Chuyển giọng nói qua API (dùng khóa của bạn)",
+        "postProcessing": "Hậu xử lý văn bản",
+        "providers": "9+ nhà cung cấp để lựa chọn",
+        "lifetimeUpdates": "Cập nhật trọn đời",
+        "cloudCredits": "HyperWhisper Cloud ($5 tín dụng)",
+        "customVocabulary": "Từ vựng tùy chỉnh",
+        "prioritySupport": "Hỗ trợ ưu tiên"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise & Báo giá tùy chỉnh",
+      "description": "Chiết khấu theo số lượng, SSO, hỗ trợ ưu tiên, lưu trữ nội bộ và tích hợp tùy chỉnh",
+      "cta": "Liên hệ Sales"
+    }
+  },
+  "faq": {
+    "title": "Câu hỏi thường gặp",
+    "subtitle": "Mọi điều bạn cần biết về HyperWhisper",
+    "contactPrompt": "Vẫn còn câu hỏi? Hãy email cho chúng tôi tại",
+    "questions": {
+      "accuracy": {
+        "question": "Độ chính xác của bản chuyển là bao nhiêu?",
+        "answer": "Chúng tôi đạt độ chính xác 99% hàng đầu ngành với các mô hình AI tiên tiến. Bạn có thể tăng độ chính xác hơn nữa bằng cách thêm từ vựng tùy chỉnh cho thuật ngữ kỹ thuật, tên riêng và biệt ngữ chuyên ngành."
+      },
+      "offline": {
+        "question": "Tôi có thể dùng khi không có internet không?",
+        "answer": "Chắc chắn. HyperWhisper có thể dùng hoàn toàn offline trên Mac của bạn với mô hình AI cục bộ - không cần internet. Với người dùng muốn độ chính xác và tốc độ tối đa, chúng tôi cũng cung cấp xử lý đám mây tùy chọn qua nhiều nhà cung cấp khác nhau."
+      },
+      "apiKey": {
+        "question": "Tôi có cần trả phí để dùng API không?",
+        "answer": "Bạn dùng API key của riêng mình cho các nhà cung cấp sau: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral và Google Gemini. Một số nhà cung cấp có tín dụng miễn phí cho người dùng mới; Deepgram tặng $200, AssemblyAI tặng $50. Về lâu dài, chi phí này rẻ hơn đáng kể so với bất kỳ gói đăng ký nào. \n\nBạn cũng có thể dùng HyperWhisper Cloud (tích hợp sẵn), không cần API key và tính phí theo mức sử dụng.\n\nNhưng hãy nhớ, chế độ offline cục bộ hoạt động không cần API key và hoàn toàn miễn phí."
+      },
+      "languages": {
+        "question": "Hỗ trợ những ngôn ngữ nào?",
+        "answer": "Hơn 100 ngôn ngữ được hỗ trợ ngay từ đầu, từ tiếng Anh và tiếng Tây Ban Nha đến tiếng Quan Thoại và tiếng Ả Rập. Hầu hết mô hình có thể tự động nhận diện ngôn ngữ bạn đang nói và chuyển đổi mượt mà."
+      },
+      "offlineModels": {
+        "question": "Có những mô hình offline nào?",
+        "answer": "Cho chuyển giọng nói offline, chúng tôi cung cấp nhiều kích cỡ mô hình Whisper (do OpenAI phát triển, hỗ trợ 99+ ngôn ngữ). Chúng tôi cũng cung cấp các mô hình Parakeet của NVidia (hỗ trợ 25+ ngôn ngữ).\n      \n      Cho hậu xử lý offline, chúng tôi cung cấp nhiều kích cỡ mô hình Gemma 3 (do Google phát triển)."
+      },
+      "compatibility": {
+        "question": "Có hoạt động với mọi ứng dụng Mac và Windows không?",
+        "answer": "Có, hoạt động ở bất cứ đâu bạn có thể gõ. Dù bạn viết email, tài liệu, code hay chat. Chỉ cần nhấn phím tắt, nói và xem từ ngữ hiện ra ngay lập tức."
+      },
+      "privacy": {
+        "question": "Quyền riêng tư của tôi được bảo vệ như thế nào?",
+        "answer": "Khi dùng chế độ cục bộ, không có dữ liệu nào rời khỏi Mac của bạn.\n\nKhi dùng chuyển giọng nói trên cloud, dữ liệu của bạn sẽ được gửi đến nhà cung cấp cloud bạn chọn (ví dụ OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs hoặc Mistral).\n\nBạn có thể tự kiểm chứng bằng trình giám sát mạng như [Proxyman](https://proxyman.io) hoặc trình theo dõi mạng như [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "HyperWhisper Cloud là gì?",
+        "answer": "HyperWhisper Cloud là dịch vụ chuyển giọng nói trên cloud tích hợp sẵn, hướng đến người dùng ít kỹ thuật muốn bắt đầu nhanh.\n\nDịch vụ hoạt động theo mô hình pay as you go. Mua license sẽ có $5 tín dụng chuyển giọng nói. Bạn có thể nạp thêm tín dụng sau.\n    \nChúng tôi cung cấp ba mức độ chính xác: Medium (nhanh nhất, dùng Groq), High (khuyến nghị, dùng Deepgram) và Highest (chất lượng cao nhất, dùng xAI Grok STT). Hậu xử lý là tự động. Chúng tôi không lưu gì ngoài số tín dụng bạn đã dùng.\n\nBạn trả đúng bằng mức chúng tôi trả cho các nhà cung cấp này. Không có markup.\n\nĐể yên tâm, bạn có thể xem mã nguồn HyperWhisper Cloud [tại đây](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Dữ liệu giọng nói của tôi có được dùng để huấn luyện mô hình AI không?",
+        "answer": "HyperWhisper Cloud từ chối việc dùng dữ liệu của bạn để huấn luyện mô hình ở mọi nhà cung cấp mà chúng tôi sử dụng. Khi dùng khóa API của riêng bạn, việc từ chối là trách nhiệm của bạn — xem [hướng dẫn về quyền riêng tư dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi."
+      },
+      "lifetime": {
+        "question": "Vì sao giá trọn đời thay vì đăng ký?",
+        "answer": "Chúng tôi tin vào mức giá đơn giản và công bằng. Trả một lần $39 và dùng HyperWhisper mãi mãi. Không phí hàng tháng, không bất ngờ. Bản miễn phí cho phép bạn thử các tính năng chính với 3 phút chuyển giọng nói mỗi ngày."
+      },
+      "deviceLimit": {
+        "question": "Tôi có thể dùng license trên bao nhiêu thiết bị?",
+        "answer": "Bạn có thể dùng license trên bao nhiêu thiết bị tùy ý, theo Chính sách Sử dụng Hợp lý được nêu trong [Điều khoản Dịch vụ](/legal/terms-of-service). Chính sách này được thiết kế linh hoạt cho nhu cầu cá nhân và doanh nghiệp hợp pháp, đồng thời ngăn chặn lạm dụng."
+      },
+      "requirements": {
+        "question": "Yêu cầu hệ thống là gì?",
+        "answer": "Với Mac: macOS 14 trở lên, hỗ trợ cả Apple Silicon và Intel. Với Windows: Windows 10/11, x64 hoặc ARM64. Khuyến nghị 8GB RAM để đạt hiệu năng tối ưu."
+      },
+      "windowsStatus": {
+        "question": "Bản Windows có đầy đủ tính năng như macOS không?",
+        "answer": "Bản Windows mới được phát hành gần đây, nên có thể chưa có đầy đủ tính năng như trên macOS. Chúng tôi đang tích cực làm việc để đạt sự tương đương tính năng hoàn chỉnh trên cả hai nền tảng."
+      },
+      "madeBy": {
+        "question": "Ai đã tạo ra sản phẩm này?",
+        "answer": "Sản phẩm này được tạo bởi YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Trung tâm hỗ trợ",
+    "subtitle": "Chúng tôi ở đây để giúp bạn tận dụng tối đa HyperWhisper",
+    "getInTouch": "Liên hệ",
+    "description": "Đối với hỗ trợ kỹ thuật, vấn đề giấy phép hoặc bất kỳ câu hỏi nào về HyperWhisper, đội ngũ của chúng tôi luôn sẵn sàng hỗ trợ.",
+    "emailUsAt": "Email cho chúng tôi tại:",
+    "openInClient": "Mở trong ứng dụng email của bạn:",
+    "defaultClient": "Ứng dụng Email Mặc Định",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Chúng tôi thường phản hồi trong vòng 24 giờ vào ngày làm việc.",
+    "emailTemplate": {
+      "subject": "Yêu cầu Hỗ trợ HyperWhisper",
+      "body": "Xin chào,\n\nPhiên bản: \n[bạn có thể kiểm tra trong Settings > About]\n\nVấn đề: \n[Mô tả vấn đề của bạn]\n\nChi tiết: \n[Cung cấp chi tiết liên quan, bạn đã làm gì trước khi bị crash]\n\n[Tin nhắn của bạn ở đây]\n\nTrân trọng,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "Logo HyperWhisper",
+    "title": "Tải xuống HyperWhisper",
+    "emailPlaceholder": "Email",
+    "description": "Chúng tôi sẽ gửi cho bạn liên kết tải xuống và video hướng dẫn ngắn để bạn bắt đầu nhanh. Không spam.",
+    "downloadButton": "Tải xuống HyperWhisper",
+    "errorGeneric": "Đã xảy ra lỗi. Vui lòng thử lại.",
+    "errorNetwork": "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại.",
+    "thankYouTitle": "Cảm ơn!",
+    "downloadStarted": "Bản tải xuống của bạn sẽ tự động bắt đầu.",
+    "manualDownload": "Chưa bắt đầu tải? Bấm vào đây",
+    "skipAndDownloadButton": "Bỏ qua và tải xuống"
+  },
+  "downloadPage": {
+    "title": "Tải xuống HyperWhisper",
+    "countdownText": "Bắt đầu sau {seconds}...",
+    "downloadStarted": "Kiểm tra thư mục Downloads của bạn",
+    "downloadNow": "Tải ngay",
+    "downloadAgain": "Tải lại",
+    "selectArchitecture": "Chọn kiến trúc của bạn",
+    "downloadX64": "Tải cho x64",
+    "downloadArm64": "Tải cho ARM64",
+    "orDivider": "HOẶC",
+    "homebrewTitle": "Cài qua Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép!"
+  },
+  "purchaseSuccess": {
+    "title": "Mua hàng thành công!",
+    "subtitle": "Chào mừng bạn đến với HyperWhisper Pro! License trọn đời của bạn đã sẵn sàng.",
+    "checkEmail": {
+      "title": "Kiểm tra Email của bạn",
+      "description": "Chúng tôi đã gửi khóa license và hướng dẫn tải xuống đến địa chỉ email của bạn. Email sẽ đến trong vài phút tới."
+    },
+    "whatsNext": {
+      "title": "Bước tiếp theo",
+      "step1": {
+        "title": "Kiểm tra hộp thư đến",
+        "description": "Tìm email từ HyperWhisper"
+      },
+      "step2": {
+        "title": "Sao chép khóa license",
+        "description": "Bạn sẽ cần khóa này để kích hoạt ứng dụng"
+      },
+      "step3": {
+        "title": "Tải HyperWhisper",
+        "description": "Cài ứng dụng và nhập khóa license"
+      }
+    },
+    "downloadButton": "Tải xuống HyperWhisper",
+    "returnHome": "Quay lại Trang chủ",
+    "noEmail": "Không nhận được email? Hãy kiểm tra thư mục spam hoặc",
+    "contactSupport": "liên hệ hỗ trợ",
+    "loading": "Đang tải..."
+  },
+  "footer": {
+    "tagline": "Viết nhanh hơn 5x với chuyển giọng nói thành văn bản bằng AI cho macOS & Windows.",
+    "product": "Sản phẩm",
+    "resources": "Tài nguyên",
+    "company": "Công ty",
+    "legal": "Pháp lý",
+    "links": {
+      "features": "Tính năng",
+      "pricing": "Giá",
+      "download": "Tải xuống",
+      "roadmap": "Lộ trình",
+      "helpCenter": "Trung tâm trợ giúp",
+      "manageBilling": "Quản lý Thanh toán",
+      "customerPortal": "Cổng Khách hàng",
+      "olderVersions": "Phiên bản cũ",
+      "blog": "Blog",
+      "about": "Giới thiệu",
+      "support": "Hỗ trợ",
+      "privacyPolicy": "Chính sách Quyền riêng tư",
+      "termsOfService": "Điều khoản Dịch vụ",
+      "refundPolicy": "Chính sách Hoàn tiền",
+      "dataTraining": "Quyền riêng tư dữ liệu"
+    },
+    "copyright": "© 2026 HyperWhisper. Đã đăng ký mọi quyền.",
+    "linkedinAria": "LinkedIn"
+  }
+}

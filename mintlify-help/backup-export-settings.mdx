@@ -1,0 +1,158 @@
+---
+title: Backup & Export Settings
+description: Export your settings, modes, vocabulary, and API keys to a file and restore them on another device or after a reinstall.
+---
+
+HyperWhisper can export your configuration to a file and import it back later — on the same machine, a different one, or across platforms. You choose exactly what the file contains: settings, modes, vocabulary, and optionally API keys or your license key.
+
+## Exporting a backup
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open Backup settings">
+        Go to **Settings → Backup**.
+      </Step>
+      <Step title="Choose what to include">
+        Three sections are toggled on by default: **Settings**, **Modes**, and **Vocabulary**. Toggle any off to exclude them.
+
+        Two additional optional items are **off by default** for security reasons:
+
+        - **Include API Keys** — embeds your cloud provider API keys in the file.
+        - **Include License Key** — embeds your HyperWhisper license key.
+
+        A warning banner appears if either of those is turned on, reminding you to store the file securely.
+
+        You must have at least one section selected for the Export button to become active.
+      </Step>
+      <Step title="Export">
+        Click **Export**. A save dialog opens; choose a name and location. The file is saved as a `.json` file (for example, `HyperWhisper-Backup-YYYY-MM-DD.json`). A vocabulary-only export uses the `.hwbackup.json` extension instead.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open Backup settings">
+        Go to **Settings → Backup**.
+      </Step>
+      <Step title="Choose what to include">
+        Three sections are checked by default: **Settings**, **Modes**, and **Vocabulary** (the Vocabulary checkbox shows the current word count).
+
+        One additional optional item is **unchecked by default**: **Include API Keys** — tick it to embed your cloud provider API keys in the file.
+
+        The Export button becomes inactive if nothing is checked.
+      </Step>
+      <Step title="Export">
+        Click **Export Backup**. A save dialog opens with a default file name (`HyperWhisper-Backup-YYYY-MM-DD`). For a vocabulary-only export the name becomes `HyperWhisper Vocabulary YYYY-MM-DD`. The file is saved as `.hwbackup.json`.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+<Note>
+  API keys and license keys are **not** included by default. Keep any file that contains them in a secure location — treat it like a password.
+</Note>
+
+## Importing a backup
+
+Import is always **merge-only**: existing data is never wiped. Modes and vocabulary from the file are added to what you already have. Only sections present in the chosen file can be restored, and you can deselect any of them before committing.
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open Backup settings">
+        Go to **Settings → Backup**.
+      </Step>
+      <Step title="Pick a file">
+        Click **Import** and select a backup file. The open dialog accepts `.json` files, which covers both the standard full-backup format and vocabulary-only `.hwbackup.json` files. HyperWhisper reads the file before showing any options.
+
+        If the file is invalid or unreadable, an error is shown and no changes are made.
+      </Step>
+      <Step title="Review what the file contains">
+        An import sheet slides up showing a summary of what the file holds. For a standard full-backup (`.json`) the summary may include Settings, Modes, Vocabulary, and API keys. For a vocabulary-only `.hwbackup.json` file only the Vocabulary section is shown; Settings, Modes, and API keys are not present and cannot be selected. Each section present in the file is checked on; sections absent from the file appear dimmed and cannot be selected.
+
+        Uncheck any section you do not want to restore.
+      </Step>
+      <Step title="Resolve vocabulary conflicts (if applicable)">
+        If the file contains vocabulary and you have it selected, the sheet shows a pre-merge count: how many words are **new** (will be added) and how many **already exist** in your list. If there are conflicts, choose one:
+
+        - **Skip** — keep your existing entries unchanged (default).
+        - **Replace** — overwrite conflicting entries with the values from the file.
+
+        Words that do not exist in your list are always added regardless of this choice.
+      </Step>
+      <Step title="Confirm">
+        Click **Import**. A confirmation shows how many modes and vocabulary items were imported. Nothing changes until you click this button.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open Backup settings">
+        Go to **Settings → Backup**.
+      </Step>
+      <Step title="Pick a file">
+        Click **Choose File** and select a `.hwbackup.json` file. HyperWhisper inspects the file and reveals an import panel below the button.
+
+        If the file is invalid, an error appears inline and no panel is shown.
+      </Step>
+      <Step title="Review what the file contains">
+        The import panel lists the sections found in the file. Each present section is checked on and enabled; absent sections are unchecked and greyed out.
+
+        Uncheck any section you do not want to restore.
+      </Step>
+      <Step title="Resolve vocabulary conflicts (if applicable)">
+        When the file contains vocabulary and it is selected, a conflict-resolution option appears:
+
+        - **Skip** — keep your existing entries unchanged (default; reset to Skip for each newly loaded file).
+        - **Replace** — overwrite conflicting entries with the values from the file.
+
+        If vocabulary is selected, a confirmation dialog appears before import runs, showing how many words will be added and how many conflicts were found.
+      </Step>
+      <Step title="Confirm">
+        Click **Import Selected**. The panel closes and a status line confirms how many modes and vocabulary items were imported.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## What each section covers
+
+| Section | What is backed up |
+|---|---|
+| **Settings** | App preferences (audio input, transcription provider, post-processing, display options, etc.) |
+| **Modes** | All custom transcription modes you have created |
+| **Vocabulary** | Your custom word list including replacements |
+| **API Keys** | Cloud provider API keys (optional — off by default) |
+| **License Key** | Your HyperWhisper license key (macOS only — optional, off by default) |
+
+## Vocabulary merge behavior
+
+Vocabulary import never deletes words already in your list.
+
+| Incoming word | Result |
+|---|---|
+| Not in your list | Added as a new entry |
+| Already in your list (case-insensitive match) | Skipped, or replacement updated — your choice |
+
+## Cross-platform compatibility
+
+A backup exported on macOS can be imported on Windows, and vice versa. Both platforms use the same universal `.hwbackup.json` format (`schemaVersion: 2`).
+
+When importing a backup from the other platform:
+
+- Shared settings (paste behavior, filler words, recording options, etc.) are applied directly.
+- Platform-specific settings that have no equivalent on the receiving platform are ignored and preserved for round-trip fidelity — if you later re-export from the original platform, those settings come back.
+- Modes are imported using the shared mode fields. Platform-specific mode details (for example, local engine choices on Windows) are preserved across round-trips even if the other platform does not display them.
+- Vocabulary is merged by word text (case-insensitive). Cross-platform UUIDs from the originating device do not create duplicates.
+
+<Note>
+  A vocabulary-only `.hwbackup.json` file (containing only the `vocabulary` key) is the smallest portable format — useful for sharing a word list without bundling settings or modes. A standard legacy macOS full-backup (`.json`) cannot be imported on Windows because the Windows app requires `schemaVersion: 2`.
+</Note>
+
+## What is not included
+
+- **Audio recordings** — recording files on disk are never exported.
+- **Transcription history** — past transcripts are stored locally and not included in the backup.
+
+For more on vocabulary and how it affects transcription, see [Custom Vocabulary](/vocabulary).

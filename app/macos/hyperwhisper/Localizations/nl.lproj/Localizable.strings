@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Woordenlijst";
+"vocabulary.description" = "Dit helpt de software om namen, acroniemen, slang, of woorden uit andere talen herkennen wanneer je talen mengt.";
+"vocabulary.input.title" = "Invoer";
+"vocabulary.new.word.placeholder" = "Nieuw woord of zin";
+"vocabulary.replacement.placeholder" = "Vervangen door...";
+"vocabulary.add.button" = "Toevoegen aan woordenlijst";
+"vocabulary.edit.title" = "Woordenschatitem bewerken";
+"vocabulary.update.button" = "Bijwerken";
+"vocabulary.cancel.button" = "Annuleren";
+"vocabulary.word.column" = "Woord/Zin";
+"vocabulary.replacement.column" = "Vervanging";
+"vocabulary.empty.title" = "Nog geen woordenlijstwoorden";
+"vocabulary.empty.subtitle" = "Voeg aangepaste woorden toe om de nauwkeurigheid van transcriptie te verbeteren";
+"vocabulary.duplicate.title" = "Dubbele vermelding";
+"vocabulary.duplicate.message" = "%@ bestaat al in je woordenlijst. Elk woord kan maar eenmaal worden toegevoegd.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Limiet voor trefwoorden overschreden";
+"vocabulary.limit.message" = "Je hebt %d woorden, maar alleen de eerste %d worden gebruikt voor versterking van transcriptie.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streaming (Beta)";
+"streaming.description" = "Real-time transcriptie terwijl je spreekt. Tekst wordt direct in de gefocuste applicatie getypt.";
+"streaming.enable.title" = "Streaming inschakelen";
+"streaming.provider.picker.title" = "Provider";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 Algemeen";
+"streaming.model.nova3medical" = "Nova 3 Medisch";
+"streaming.fastFormatting.title" = "Snelle opmaak";
+"streaming.fastFormatting.description" = "Vermindert slimme opmaakavertraging voor sneller typen";
+"streaming.warning.vocabAutoDetect" = "Aangepaste woordenlijst is uitgeschakeld in modus voor automatische detectie";
+"streaming.warning.vocabUnsupported" = "Aangepaste woordenlijst wordt niet ondersteund bij %@ streaming";
+"streaming.warning.apiKeyRequired" = "%@ API-sleutel vereist";
+"streaming.warning.apiKeyRequired.action" = "Configureren";
+"streaming.warning.apiKeyInvalid" = "%@ API-sleutel werkt niet. Werk deze bij in Instellingen > API-sleutels.";
+"streaming.warning.apiKeyInvalid.action" = "Sleutel bijwerken";
+"streaming.language.title" = "Taal";
+"streaming.shortcut.title" = "Sneltoets";
+
+// MARK: - Home View
+"home.get.started" = "Aan de slag";
+"home.open.system.settings" = "Systeeminstellingen openen";
+
+// MARK: - API Keys
+"api.key.required" = "API-sleutel vereist";
+"api.keys.required" = "API-sleutels vereist";
+"api.key.configure.message" = "Configureer je API-sleutels om transcriptie in te schakelen.";
+"api.key.internet.required" = "Internet-verbinding vereist";
+"api.key.internet.message" = "Cloud-transcriptie vereist een internetverbinding.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Annuleren";
+"common.delete" = "Verwijderen";
+"common.edit" = "Bewerken";
+"common.done" = "Klaar";
+"common.copy" = "Kopiëren";
+"common.back" = "Terug";
+"common.skip" = "Overslaan";
+"common.settings" = "Instellingen";
+"common.error" = "Fout";
+"common.retry" = "Opnieuw proberen";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Startpagina";
+"sidebar.statistics" = "Statistieken";
+"sidebar.modes" = "Modi";
+"sidebar.vocabulary" = "Woordenlijst";
+"sidebar.streaming" = "Streaming";
+"sidebar.history" = "Geschiedenis";
+"sidebar.settings" = "Instellingen";
+
+// MARK: - App Messages
+"app.unknown.error" = "Er is een onbekende fout opgetreden";
+"app.microphone.permission.message" = "HyperWhisper heeft toegang nodig tot je microfoon om audio te transcriberen.\n\nGa naar Systeeminstellingen > Privacy & Beveiliging > Microfoon en schakel toegang in voor HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper slaat opnamen op in een map in je Documenten, dus je kunt ze gemakkelijk vinden: Documents/hyperwhisper/recordings. macOS kan de eerste keer toestemming vragen om daar op te slaan. Als je liever geen toegang geeft, kunnen we opnamen in plaats daarvan in een privéappmap opslaan.";
+"app.upgrade.to.pro" = "Upgrade naar Pro";
+"app.enter.license.key" = "Voer licentsleutel in";
+"accessibility.upgrade.pro" = "Upgrade naar HyperWhisper Pro";
+"accessibility.enter.license" = "Voer licentsleutel in";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Voeg je %@ API-sleutels toe om de geselecteerde modus in te schakelen.";
+"home.api.keys.missing.single" = "Voeg je %@ API-sleutel toe om de geselecteerde modus in te schakelen.";
+"home.getting.started.recording.title" = "Opnemen starten";
+"home.getting.started.recording.description" = "Zet je stem met één klik om in tekst.";
+"home.getting.started.shortcuts.title" = "Pas je sneltoetsen aan";
+"home.getting.started.shortcuts.description" = "Wijzig de sneltoetsen voor HyperWhisper.";
+"home.getting.started.mode.title" = "Een modus maken";
+"home.getting.started.mode.description" = "Bouw de perfecte modus voor je werkstroom.";
+"home.getting.started.vocabulary.title" = "Voeg woordenlijst toe";
+"home.getting.started.vocabulary.description" = "Leer HyperWhisper aangepaste woorden, namen, of branchetermijnen.";
+"home.add.api.key" = "API-sleutel toevoegen";
+"home.accessibility.enable.title" = "Toegankelijkheid inschakelen";
+"home.accessibility.enable.description" = "Sta HyperWhisper toe om automatisch in apps die je gebruikt in te plakken.";
+"home.accessibility.waiting" = "Wachten...";
+"home.accessibility.open.settings" = "Instellingen openen";
+"home.accessibility.restart.after.permission" = "App opnieuw starten na toestemming te hebben gegeven";
+"home.getting.started.completed" = "✓ Voltooid";
+"home.whatsnew.badge" = "NIEUW";
+"home.whatsnew.title" = "Wat is er nieuw?";
+"home.whatsnew.update1.date" = "3 juli";
+"home.whatsnew.update1.title" = "Parakeet is nu beschikbaar";
+"home.whatsnew.update1.description" = "Download het rechtstreeks uit de taalmodellenlijst in Moduscreatie om het vandaag uit te proberen.";
+"home.whatsnew.update2.date" = "5 juni";
+"home.whatsnew.update2.title" = "Ondersteuning voor alle OpenAI-compatibele aangepaste modellen";
+"home.whatsnew.update2.description" = "Je kunt nu elke OpenAI-compatibele API aan je lijst met modellen toevoegen.";
+"home.whatsnew.update3.date" = "27 mei";
+"home.whatsnew.update3.title" = "Gloednieuw Mini-opnamevenster";
+"home.whatsnew.update3.description" = "Een strakke, minimale opnameinterface die niet in de weg zit.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Recente updates";
+"home.recent.updates.error" = "Kan updates niet laden";
+"home.recent.updates.retry" = "Opnieuw proberen";
+"home.recent.updates.empty" = "Geen recente updates beschikbaar";
+"home.recent.updates.version" = "Versie %@";
+"home.recent.updates.new.badge" = "NIEUW";
+"home.recent.updates.no.notes" = "Geen opmerkingen uitgebracht beschikbaar";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Spatiebalk";
+"keyboard.option.space" = "⌥Spatiebalk";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Microfoontoegangvereist";
+"common.open.settings" = "Instellingen openen";
+"alerts.api.local.mode" = "Gebruik lokale modus";
+"alerts.documents.permission.title" = "Opslaan in Documenten?";
+"common.continue" = "Doorgaan";
+"alerts.documents.permission.use.another" = "Gebruik een andere locatie";
+"alerts.api.configure.generic" = "Configureer je API-sleutels in Instellingen.";
+"alerts.api.internet.offline" = "Cloud-transcriptie vereist een internetverbinding. Controleer je netwerkinstellingen of selecteer een modus voor lokale transcriptie.";
+"alerts.api.configure.header.multiple" = "Configureer de volgende API-sleutels in Instellingen om de geselecteerde modus te gebruiken:";
+"alerts.api.configure.header.single" = "Configureer de volgende API-sleutel in Instellingen om de geselecteerde modus te gebruiken:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Probeer het opnieuw nadat je de ontbrekende sleutels hebt toegevoegd.";
+"alerts.export.failed.title" = "Export mislukt";
+"alerts.export.logs.failed.message" = "Kan updatelogboeken niet exporteren. Probeer het opnieuw.";
+"alerts.export.logs.success.title" = "Logboeken geëxporteerd";
+"alerts.export.logs.success.message" = "Updatelogboeken zijn met succes geëxporteerd.";
+"alerts.export.logs.saveFailed.message" = "Kan logboeken niet opslaan op de geselecteerde locatie: %@";
+"alerts.export.diagnostics.failed.message" = "Kan diagnostische gegevens niet exporteren. Probeer het opnieuw.";
+"alerts.export.diagnostics.success.title" = "Diagnostische gegevens geëxporteerd";
+"alerts.export.diagnostics.success.message" = "Alle diagnostische logboeken zijn met succes geëxporteerd.";
+"alerts.export.diagnostics.saveFailed.message" = "Kan diagnostische gegevens niet opslaan op de geselecteerde locatie: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Updatelogboeken exporteren voor ondersteuning";
+"panels.export.diagnostics.message" = "Alle diagnostische logboeken exporteren";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Aan de slag met HyperWhisper";
+"sidebar.statistics.help" = "Bekijk gebruiksstatistieken en analyses";
+"sidebar.modes.help" = "Beheer transcriptiemodi voor verschillende contexten";
+"sidebar.vocabulary.help" = "Voeg aangepaste woorden en zinnen toe voor betere herkenning";
+"sidebar.streaming.help" = "Instellingen voor real-time streamingtranscriptie (vereist internet)";
+"sidebar.history.help" = "Bekijk en doorzoek je transcriptiegeschiedenis";
+"sidebar.settings.help" = "Configureer app-instellingen en voorkeuren";
+
+// MARK: - Recording State
+"recording.state.ready" = "Klaar om op te nemen";
+"recording.state.recording" = "Opnemen...";
+"recording.state.processing" = "Audio verwerken...";
+"recording.state.transcribing" = "Transcriberen...";
+"recording.state.postprocessing" = "Nabewerking met AI...";
+"recording.state.complete" = "Transcriptie voltooid: %@";
+"recording.state.error" = "Fout: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Opnamen starten of stoppen";
+"menu.recording.stop" = "Opnamen stoppen";
+"menu.recording.toggle" = "Opnamen starten/stoppen";
+"menu.history" = "Geschiedenis...";
+"menu.settings" = "Instellingen...";
+"menu.microphone" = "Microfoon";
+"menu.select.mode" = "Selecteer modus";
+"menu.transcribe.file" = "Bestand transcriberen";
+"menu.mode.unnamed" = "Naamloos";
+"menu.version.label" = "Versie %@";
+"common.quit" = "Afsluiten";
+"menu.microphone.default" = "Standaard";
+"menu.microphone.system.default" = "Standaard";
+"menu.bar.state.recording" = "Opnemen";
+"menu.bar.state.processing" = "Verwerken";
+"menu.bar.state.idle" = "Niet-actief";
+"menu.command.check.updates" = "Controleren op updates…";
+"menu.debug.title" = "Foutopsporing";
+"menu.command.export.logs" = "Updatelogboeken exporteren…";
+"menu.command.export.diagnostics" = "Diagnostische gegevens exporteren…";
+"menu.command.help.website" = "Website met hulp";
+"menu.command.contact.support" = "Contact opnemen met ondersteuning";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Algemeen";
+"settings.section.sound" = "Geluid";
+"settings.section.license" = "Licentie";
+"settings.section.credits" = "Dankbetuigingen";
+"settings.section.storage" = "Opslag";
+"settings.section.models" = "Modellen";
+"settings.section.api.keys" = "API-sleutels";
+"settings.section.shortcuts" = "Sneltoetsen op het toetsenbord";
+"settings.section.output" = "Tekstuitvoer";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Engels)";
+"onboarding.model.pro.multilingual" = "Pro (Meertalig)";
+"onboarding.model.downloading.progress" = "Downloaden... %d%%";
+"onboarding.accessibility.title" = "Toegankelijkheid inschakelen voor automatische plakken";
+"onboarding.accessibility.subtitle" = "Sta HyperWhisper toe om getranscribeerde tekst automatisch in je toepassingen in te plakken.";
+"onboarding.accessibility.instructions" = "Systeeminstellingen → Privacy & Beveiliging → Toegankelijkheid";
+"onboarding.accessibility.status.granted" = "Toegankelijkheidstoestemming verleend";
+"onboarding.accessibility.status.pending" = "Toegankelijkheidstoestemming nog niet verleend";
+"onboarding.accessibility.waiting" = "Wacht op toestemming...";
+"onboarding.accessibility.open.preferences" = "Open voorkeurenvenster Toegankelijkheid";
+"onboarding.accessibility.restart" = "Start HyperWhisper na toestemming opnieuw.";
+"onboarding.model.recommendation.title" = "We bevelen het Pro-model aan";
+"onboarding.model.recommendation.subtitle" = "Gebaseerd op je systeemtaal en de mogelijkheden van je Mac.";
+"onboarding.model.recommendation.note" = "Download door op de onderstaande knop te klikken.";
+"onboarding.model.downloaded" = "Gedownload";
+"onboarding.model.metric.speed" = "Snelheid";
+"onboarding.model.metric.accuracy" = "Nauwkeurigheid";
+"onboarding.model.metric.size" = "Grootte";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Of kies een ander spraakmodel";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (Engels)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Model downloaden";
+"onboarding.audio.title" = "Welk audioopnameapparaat wil je gebruiken?";
+"onboarding.audio.subtitle" = "Zorg ervoor dat je geluidsinvoervolume is ingesteld en volume registreert.";
+"onboarding.audio.input.label" = "Invoerapparaat";
+"onboarding.audio.picker.label" = "Apparaat";
+"onboarding.audio.use.system.default" = "Gebruik standaardapparaat van systeem";
+"onboarding.audio.level" = "Geluidsniveau";
+"onboarding.audio.open.sound" = "Voorkeurenvenster Geluid openen";
+"onboarding.microphone.title" = "Opnametoestemming vereist";
+"onboarding.microphone.subtitle" = "Voor audioopnamen hebben we toegang tot je microfoon nodig.";
+"onboarding.microphone.status.granted" = "Microfoontoestemming verleend";
+"onboarding.microphone.status.pending" = "Microfoontoestemming nog niet verleend";
+"onboarding.microphone.grant" = "Toestemming verlenen";
+"onboarding.test.title" = "Alles is ingesteld, laten we je eerste opname starten";
+"onboarding.test.press.prefix" = "Druk op";
+"onboarding.test.press.suffix" = "om te beginnen";
+"onboarding.test.status.recording" = "Opnemen...";
+"onboarding.test.status.speak" = "Spreek nu...";
+"onboarding.test.stop" = "Opnamen stoppen";
+"onboarding.test.success.title" = "Prima! Je opname was succesvol.";
+"onboarding.test.success.subtitle" = "Je transcriptie wordt in de app weergegeven.";
+"onboarding.test.start.cta" = "Klik om opnamen te starten";
+"onboarding.test.start.shortcut" = "Of druk op je sneltoets";
+"onboarding.settings.title" = "Prima! Laten we nu Instellingen openen";
+"onboarding.settings.subtitle" = "Klik met rechts op het HyperWhisper-pictogram en selecteer Instellingen...";
+"onboarding.settings.menu.startStop" = "Opnamen starten/stoppen";
+"onboarding.settings.menu.history" = "Geschiedenis...";
+"onboarding.settings.menu.settings" = "Instellingen...";
+"onboarding.settings.menu.quit" = "Afsluiten";
+"onboarding.settings.info" = "In Instellingen kunt je sneltoetsen aanpassen, API-sleutels beheren, en HyperWhisper naar wens configureren.";
+"onboarding.completion.title" = "Klaar!";
+"onboarding.completion.subtitle" = "Als je problemen of vragen hebt, neem contact met ons op via e-mail of Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-mail";
+"onboarding.completion.resources.title" = "Aanvullende bronnen";
+"onboarding.completion.resources.documentation" = "Documentatie";
+"onboarding.completion.resources.videos" = "Videotutorials";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Onboarding voltooid";
+"onboarding.error.model.notFound" = "Model niet gevonden in catalogus.";
+"onboarding.error.microphone.denied" = "Microfoontoestemming geweigerd. Verleen toestemming in Systeeminstellingen.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Starten bij aanmelden";
+"settings.general.launchAtLogin.info" = "Start HyperWhisper automatisch wanneer je je aanmeldt.";
+"settings.general.launchMinimized.title" = "Geminimaliseerd starten";
+"settings.general.launchMinimized.info" = "Start HyperWhisper met het hoofdvenster verborgen. De app is toegankelijk via de menubalk.";
+"settings.general.showInDock.title" = "Toon in Dock";
+"settings.general.showInDock.info" = "Toon het app-pictogram in de Dock.";
+"settings.general.showRecordingWindow.title" = "Opnamevenster weergeven";
+"settings.general.showRecordingWindow.info" = "Geef het zwevende golfvormvenster weer tijdens het opnemen en verwerken.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Uit";
+"settings.general.mediaControl.mode.mute" = "Audio dempen";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Foutregistratie";
+"settings.general.errorLogging.info" = "Vang fouten automatisch op en stuur foutmeldingen om de app te verbeteren.";
+"settings.general.autoUpdate.title" = "Automatisch bijwerken";
+"settings.general.autoUpdate.info" = "Controleer automatisch op nieuwe versies van HyperWhisper en download deze.";
+"settings.general.support.title" = "Hulp nodig?";
+"settings.version.detail" = "Versie %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Geluidseffecten afspelen";
+"settings.sound.soundEffects.info" = "Geluidssignalen afspelen wanneer de opname start en stopt.";
+"settings.sound.mediaControl.title" = "Mediabesturing tijdens opnemen";
+"settings.sound.mediaControl.info" = "Kies hoe HyperWhisper andere audio afhandelt terwijl je opneemt. 'Uit' laat audio onveranderd, 'Audio dempen' zwijgt systeemuitvoer tijdens het opnemen en herstelt het daarna.";
+"settings.sound.autoIncreaseMicVolume.title" = "Volume microfoon automatisch verhogen";
+"settings.sound.autoIncreaseMicVolume.info" = "Stelt het microfooninvoervolume automatisch in op maximum wanneer opnamen wordt gestart, en herstelt vervolgens het originele niveau wanneer opnamen stopt. Geldt alleen bij gebruik van het standaardinvoerapparaat van het systeem.";
+"settings.sound.vad.title" = "Stilte voor transcriptie verwijderen";
+"settings.sound.vad.info" = "Detecteert en verwijdert automatisch vooraan- en achterliggende stilte met behulp van AI-stemdetectie. Dit kan de nauwkeurigheid van transcriptie verbeteren en verwerkingstijd verkorten.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Map voor opnamen";
+"settings.storage.showFolder.title" = "Map met opnamen weergeven";
+"settings.storage.showFolder.button" = "Toon in Finder";
+"settings.storage.notice" = "Het wijzigen van de opnamemap heeft alleen invloed op nieuwe opnamen. Bestaande opnamen blijven op hun originele locatie.";
+"settings.storage.choose.button" = "Kies...";
+"settings.storage.dialog.select" = "Map selecteren";
+"settings.storage.dialog.message" = "Kies een map voor het opslaan van opnamen";
+"settings.storage.storeAsM4A.title" = "Comprimeer opnamen naar M4A";
+"settings.storage.storeAsM4A.subtitle" = "Zet WAV-opnamen na transcriptie om in kleinere bestanden. Uit om originele WAV-bestanden (groter maar verliesvrij) te behouden.";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Resultaat automatisch plakken";
+"settings.output.paste.subtitle" = "Geplakt getranscribeerde tekst automatisch in de actieve toepassing";
+"settings.output.paste.info" = "Indien ingeschakeld, wordt de tekst in de meest actieve app geplakt.";
+"settings.output.restoreClipboard.title" = "Klembord na plakken herstellen";
+"settings.output.restoreClipboard.subtitle" = "Vorige klembordinhoud na plakken herstellen";
+"settings.output.restoreClipboard.info" = "Herstelt je vorige klembordinhoud nadat de app de transcriptie heeft geplakt.";
+"settings.output.restore.after" = "Herstellen na";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Vertraging bij klembord herstellen";
+"settings.output.hideClipboardHistory.title" = "Verbergen uit klembordgeschiedenis";
+"settings.output.hideClipboardHistory.subtitle" = "Zorg ervoor dat transcripties niet in klembordgeschiedeniapps verschijnen";
+"settings.output.hideClipboardHistory.info" = "Wanneer ingeschakeld, wordt getranscribeerde tekst niet opgeslagen door klembordmanagers zoals Paste, Maccy of Alfred.";
+"settings.output.clipboard.header" = "Klembord";
+"settings.output.removeFillers.title" = "Opvulwoorden verwijderen";
+"settings.output.removeFillers.subtitle" = "Verwijdert 'uh', 'um' en 'er' uit ruwe transcripties.";
+"settings.output.removeFillers.info" = "Wanneer dit is ingeschakeld, verwijdert HyperWhisper veelvoorkomende opvulwoorden uit ruwe transcripties vóór de uitvoer.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Opnemen in-/uitschakelen";
+"settings.shortcuts.toggleRecording.subtitle" = "Opnamen starten en stoppen";
+"settings.shortcuts.cancelRecording.title" = "Opnamen annuleren";
+"settings.shortcuts.cancelRecording.subtitle" = "Huidige opnamen verwijderen";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push-to-Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Houd een toets ingedrukt om op te nemen, loslaten als je klaar bent";
+"settings.shortcuts.pushToTalk.enable.info" = "Schakelt Push-to-Talk-modus in voor snelle opnamen met een enkele toetsaanslag.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Opnammodus";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Kies welke toets je wilt gebruiken";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Uitgeschakeld";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN-toets";
+"settings.shortcuts.pushToTalk.mode.control" = "Controletoets";
+"settings.shortcuts.pushToTalk.mode.custom" = "Aangepaste sneltoets";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Dubbel drukken om opnamen vast te zetten";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Druk twee keer snel om te blijven opnemen zonder ingedrukt te houden";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Aangepaste sneltoets";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Druk op de toetscombinatie om te gebruiken";
+
+
+"settings.shortcuts.changeMode.title" = "Modus wijzigen";
+"settings.shortcuts.changeMode.subtitle" = "Werkt alleen bij opnamen";
+
+"settings.shortcuts.reset.button" = "Standaardwaarden herstellen";
+"settings.shortcuts.reset.dialog.title" = "Sneltoetsen opnieuw instellen";
+"settings.shortcuts.reset.confirm" = "Opnieuw instellen";
+"settings.shortcuts.reset.dialog.message" = "Hiermee worden alle sneltoetsen op hun standaardwaarden ingesteld.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API-sleutels worden veilig op je apparaat opgeslagen en worden alleen naar de provider gestuurd wanneer nodig.";
+"settings.api.help.link" = "Hulp met API-sleutels";
+"settings.api.transcription.title" = "Transcriptie";
+"settings.api.transcription.subtitle" = "API-sleutels voor cloudbased speech-to-text services.";
+"settings.api.postProcessing.title" = "Nabewerking";
+"settings.api.postProcessing.subtitle" = "API-sleutels voor AI-aangedreven tekstverbetering en opmaak.";
+"settings.api.placeholder" = "Voer je %@ API-sleutel in";
+"settings.api.openLink" = "Open %@ API-sleutelpagina";
+"settings.api.status.accessibility" = "%@ status: %@";
+"settings.api.status.unknown" = "Providerstatus onbekend";
+"settings.api.status.checking" = "Statuscontrole in uitvoering";
+"settings.api.status.unauthorized" = "API-sleutel door provider geweigerd";
+"settings.api.status.unreachable" = "Provider is momenteel onbereikbaar";
+"settings.api.status.notInstalled" = "Provider SDK niet geïnstalleerd";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Onbekend";
+"provider.status.checking" = "Controleren…";
+"provider.status.healthy" = "Klaar";
+"provider.status.unauthorized" = "Ongeldige sleutel";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Niet geïnstalleerd";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licentie geactiveerd";
+"alerts.license.deactivated.title" = "Licentie gedeactiveerd";
+"alerts.license.activated.message" = "Je licentie is met succes geactiveerd. Geniet van onbeperkte toegang tot alle functies!";
+"alerts.license.deactivated.message" = "Je licentie is op dit apparaat gedeactiveerd. Je kunt het nu elders activeren.";
+"alerts.license.failed.title" = "Bewerking mislukt";
+"alerts.license.failed.message" = "Bewerking mislukt. Probeer het opnieuw.";
+"license.button.deactivate" = "Apparaat deactiveren";
+"license.button.deactivating" = "Deactiveren...";
+"license.button.manageBilling" = "Facturering beheren";
+"license.button.activate" = "Activeren";
+"license.button.activating" = "Activeren...";
+"license.status.label" = "Status: %@";
+"license.status.trial.title" = "Proefversie";
+"license.status.active.title" = "Actief";
+"license.status.expired.title" = "Verlopen";
+"license.status.invalid.title" = "Ongeldig";
+"license.status.trial.description" = "Gratis proefversie (5 min/dag, %d modellen)";
+"license.status.active.description" = "Gelicentieerd – Volledige toegang";
+"license.status.expired.description" = "Licentie verlopen";
+"license.status.invalid.description" = "Ongeldige licentie";
+"settings.license.key.title" = "Licentiesleutel";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Plakken uit klembord";
+"settings.license.clearInput" = "Wissen";
+"settings.license.recovery.prompt" = "Licentiesleutel vergeten?";
+"settings.license.recovery.button" = "Ga naar klantportaal";
+"settings.license.daily.title" = "Dagelijkse transcriptie";
+"settings.license.daily.usage" = "%@ van %@ gebruikt";
+"settings.license.limitReached" = "Limiet bereikt";
+"settings.license.models.title" = "Offlinemodellen";
+"settings.license.models.progress" = "%d van %d modellen gedownload";
+"settings.license.models.progress.one" = "%d van %d model gedownload";
+"settings.license.upgrade.text" = "Upgrade voor onbeperkte transcriptie en modeldownloads";
+"settings.license.upgrade.button" = "Upgrade";
+"license.error.invalidResponse" = "Ongeldig responsformaat";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud-tegoed";
+"settings.credits.refresh" = "Vernieuwen";
+"settings.credits.subtitle" = "Bewaak je transcriptietegoed en gebruik";
+"settings.credits.manage" = "Beheer tegoed";
+"settings.credits.timeRemaining" = "Resterende transcriptietijd";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minuten";
+"settings.credits.creditsRemaining" = "%@ tegoed resterend";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Gratis dagelijkse limiet (100 tegoed)";
+"settings.credits.resets" = "Ingesteld op %@";
+"settings.credits.warning.low" = "Tegoed is bijna op. Overweeg een licentie aan te schaffen voor extra tegoed.";
+"settings.credits.warning.exhausted.daily" = "Dagelijkse limiet bereikt. Koop een licentie voor onbeperkt gebruik of wacht tot reset.";
+"settings.credits.warning.exhausted" = "Tegoed uitgeput. Koop meer tegoed om HyperWhisper Cloud te blijven gebruiken.";
+"settings.credits.accountInfo" = "Accountgegevens";
+"settings.credits.stat.creditsRemaining" = "Tegoed resterend";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minuten resterend";
+"settings.credits.stat.accountType" = "Accounttype";
+"settings.credits.accountType.licensed" = "Gelicentieerd";
+"settings.credits.accountType.anonymous" = "Anoniem";
+"settings.credits.accountType.trial" = "Proefversie";
+"settings.credits.stat.customerId" = "Klant-ID";
+"settings.credits.stat.dailyLimit" = "Dagelijkse limiet";
+"settings.credits.dailyLimit.value" = "100 tegoed";
+"settings.credits.loading" = "Tegodsaldo laden...";
+"settings.credits.error.title" = "Kan tegodsaldo niet laden";
+"settings.credits.error.retry" = "Opnieuw proberen";
+"settings.credits.empty.title" = "Geen tegodinformatie beschikbaar";
+"settings.credits.empty.subtitle" = "Klik op vernieuwen om je tegodsaldo te laden";
+"settings.credits.empty.button" = "Tegoed laden";
+"settings.credits.error.insufficient" = "Onvoldoende tegoed. Je hebt %d tegoed resterend.";
+"settings.credits.error.network" = "Netwerkfout: %@";
+"settings.credits.error.invalidResponse" = "Ongeldige respons van server. Probeer het opnieuw.";
+"settings.credits.error.server" = "Serverfout: %@";
+"settings.models.alert.limit.title" = "Modeldownloadlimiet bereikt";
+"settings.models.alert.limit.message" = "Proefversies bevatten %d modeldownloads. Upgrade je licentie voor onbeperkte downloads.";
+"settings.models.alert.cannotDelete.title" = "Kan model niet verwijderen";
+"settings.models.parakeet.title" = "Parakeetmodellen";
+"settings.models.parakeet.subtitle" = "Aanbevolen voor de meeste gebruikers. Meertalig model ondersteunt 25 talen.";
+"settings.models.parakeet.empty" = "Geen Parakeetmodellen beschikbaar.";
+"settings.models.whisper.title" = "Whisper-modellen";
+"settings.models.whisper.subtitle" = "OpenAI Whisper-modellen. Grotere modellen zijn nauwkeuriger. Ondersteunt meer dan 100 talen.";
+"settings.models.whisper.empty" = "Geen Whisper-modellen beschikbaar.";
+"settings.models.help.cancelDownload" = "Download annuleren";
+"settings.models.help.remove" = "Model verwijderen";
+"settings.models.downloaded" = "Gedownload";
+"settings.models.download" = "Download";
+"settings.models.downloading" = "Downloaden…";
+"settings.models.localPostProcessing.title" = "Lokale nabewerkingsmodellen";
+"settings.models.localPostProcessing.memoryWarning" = "Aanbevolen voor Mac met 24 GB unified memory of meer. De snelheid hangt af van de chip — sneller op M3/M4 Pro en hoger.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Woorden dit jaar";
+"vocabulary.input.placeholder" = "Voeg een woord toe of maak een fragment";
+"vocabulary.action.addWord" = "Woord toevoegen";
+"vocabulary.action.replaceWith" = "Vervangen door…";
+"vocabulary.action.replace" = "Vervangen";
+"vocabulary.replacement.field.placeholder" = "Vervangende tekst…";
+"settings.output.autocapitalizeInsert.title" = "Automatische hoofdletter bij invoegen";
+"settings.output.autocapitalizeInsert.subtitle" = "Cursorcontext afstemmen bij het invoegen van tekst";
+"settings.output.autocapitalizeInsert.info" = "Indien ingeschakeld, wordt het eerste woord van de ingevoegde transcriptietekst aangepast aan de cursorcontext (begin of midden van de zin). Schakel dit uit voor altijd-kleine-letters-dictatie.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper heeft toegankelijkheidsmachtiging nodig om de cursorcontext te lezen die vereist is voor automatische hoofdletters.\n\nKlik op \"Instellingen openen\", druk op de schakelaar naast HyperWhisper en probeer het opnieuw.";
+"settings.output.removeFillerWords.title" = "Vulwoorden verwijderen";
+"settings.output.removeFillerWords.subtitle" = "Verwijder \"eh\", \"um\" en \"er\" uit ruwe transcripties wanneer AI-nabewerking is uitgeschakeld";
+"settings.output.removeFillerWords.info" = "Alleen van toepassing wanneer een modus AI-nabewerking overslaat. AI-verbeterde modi verwerken spraakopruiming in de prompt.";
+"sidebar.modelLibrary" = "Modellenbibliotheek";
+"sidebar.modelLibrary.help" = "Blader door alle spraak- en nabewerkingsmodellen op één plek";
+"settings.shortcuts.quickCapture.enable.title" = "Snel vastleggen";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Neem op en stuur de transcriptie naar Notities — zonder de app eerst te hoeven focussen.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Sneltoets";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Druk overal om op te nemen en naar Notities te sturen.";
+"settings.shortcuts.quickCapture.mode.title" = "Modus";
+"settings.shortcuts.quickCapture.mode.subtitle" = "De gebruikte transcriptiemodus — beheert model, prompt en nabewerking.";
+"settings.shortcuts.quickCapture.mode.current" = "Huidige modus";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper heeft toestemming nodig om Notities te beheren. Verleen deze via Systeeminstellingen → Privacy → Automatisering.";
+"settings.section.vocabulary" = "Woordenschat";
+"settings.vocabulary.icloudSync.title" = "iCloud-synchronisatie";
+"settings.vocabulary.icloudSync.subtitle" = "Synchroniseer uw aangepaste woordenschat op alle Macs die zijn aangemeld bij hetzelfde iCloud-account.";
+"settings.vocabulary.icloudSync.info" = "Standaard uitgeschakeld. Alleen uw aangepaste woordenschat wordt gesynchroniseerd — transcripties en opnamen blijven op deze Mac. Wijzigingen worden van kracht de volgende keer dat u HyperWhisper opent.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Sluit HyperWhisper af om wijzigingen toe te passen";
+"vocabulary.icloudSync.restart.message" = "Wijzigingen in iCloud-woordenschatsynchronisatie worden van kracht de volgende keer dat u HyperWhisper opent.";
+"vocabulary.icloudSync.restart.quit" = "HyperWhisper afsluiten";
+"vocabulary.icloudSync.restart.later" = "Later";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Houd microfoon warm tussen opnames";
+"settings.sound.keepWarmMicrophone.info" = "Vermindert de push-to-talk opstartvertraging door de microfoonsessie open te houden terwijl HyperWhisper inactief is. macOS toont de oranje microfoonindicator continu, en Bluetooth-headsets kunnen in de lagere kwaliteit belmodus blijven zolang dit is ingeschakeld.";
+"settings.models.local.inUse" = "Dit lokale model wordt momenteel gebruikt voor nabewerking door:
+
+%@
+
+Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
+"models.postProcessing.gemma4.e2b.description" = "Snel en nauwkeurig. Uitstekende allrounder voor nabewerking.";
+"models.postProcessing.gemma4.e4b.description" = "Hogere kwaliteit met meer detail. Goed voor langere teksten.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Snelle inferentie met slechts 4B actieve parameters.";
+"models.postProcessing.gemma4.31b.description" = "31B dicht model. Hoogste kwaliteit, vereist 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Dit model kan niet worden verwijderd omdat het wordt gebruikt door:\n\n%@\n\nWerk deze modi bij om een ander model te gebruiken voordat je dit verwijdert.";
+"settings.models.parakeet.inUse" = "Dit Parakeetmodel kan niet worden verwijderd omdat het wordt gebruikt door:\n\n%@\n\nWerk deze modi bij om een ander model te gebruiken voordat je dit verwijdert.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Onbekend";
+"settings.models.directory.whisper" = "Map Whisper-modellen";
+"settings.models.directory.parakeet" = "Map Parakeetmodellen";
+"settings.models.directory.local" = "Map met lokale modellen";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — meertalige spraakherkenning geoptimaliseerd voor CoreML.";
+"settings.models.qwen3asr.languages" = "30 talen";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Dit Qwen3 ASR-model kan niet worden verwijderd omdat het wordt gebruikt door:\n\n%@\n\nWijzig deze modi om een ander model te gebruiken voordat je verwijdert.";
+"settings.models.directory.show" = "Toon in Finder";
+"models.error.checksumFailed" = "Verificatie van modelcontrolesom mislukt. De download is mogelijk beschadigd.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistieken";
+"statistics.header.title" = "Je gebruiksstatistieken";
+"statistics.header.subtitle" = "Volg je transcriptieactiviteit en prestaties";
+"statistics.card.recordings" = "Totale opnamen";
+"statistics.card.recordings.subtitle" = "Voltooide transcripties";
+"statistics.card.duration" = "Totale tijd";
+"statistics.card.duration.subtitle" = "Tijd besteed aan opnamen";
+"statistics.card.words" = "Totale woorden";
+"statistics.card.words.subtitle" = "Getranscribeerde woorden";
+"statistics.card.average" = "Gemiddelde duur";
+"statistics.card.average.subtitle" = "Per opname";
+"statistics.graph.title" = "Activiteit in de loop van de tijd";
+"statistics.daily.empty" = "Nog geen opnamen";
+"statistics.filter.week" = "Deze week";
+"statistics.filter.month" = "Deze maand";
+"statistics.filter.alltime" = "Altijd";
+
+// MARK: - History View
+"history.title" = "Geschiedenis";
+"history.search.placeholder" = "Zoeken";
+"history.filter.all" = "Alle";
+"history.filter.today" = "Vandaag";
+"history.filter.week" = "Deze week";
+"history.filter.month" = "Deze maand";
+"history.empty.title" = "Geen opnamen gevonden";
+"history.empty.subtitle" = "Probeer je zoekopdracht aan te passen";
+"history.detail.empty" = "Selecteer een opname om details weer te geven";
+"history.multi.selected" = "%d opnamen geselecteerd";
+"history.multi.delete" = "Geselecteerde verwijderen";
+"history.context.deleteSelected" = "%d opnamen verwijderen";
+"history.context.retry" = "Transcriptie opnieuw proberen";
+"history.context.retryWith" = "Opnieuw proberen met...";
+"history.context.copy" = "Tekst kopiëren";
+"history.retrying" = "Transcriptie opnieuw proberen...";
+"history.retry.help" = "De transcriptie opnieuw proberen";
+"history.section.today" = "Vandaag";
+"history.section.yesterday" = "Gisteren";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Mislukt";
+"history.status.transcription.failed.prefix" = "Transcriptie mislukt:";
+"history.status.retry.failed.prefix" = "Poging mislukt:";
+"history.failure.reason" = "Reden: %@";
+"history.mode.default" = "Standaard";
+"history.audio.showInFinder" = "Toon in Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Modus verwijderen?";
+"modes.delete.confirm.message" = "Hiermee wordt de geselecteerde modus verwijderd. Dit kan niet ongedaan worden gemaakt.";
+"modes.header.title" = "Modi";
+"modes.header.subtitle" = "Maak aangepaste profielen voor verschillende contexten en werkstromen";
+"modes.header.create" = "Modus maken";
+"modes.name.unnamed" = "Naamloos";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Selecteren";
+"modes.help.edit" = "Modusinstellingen bewerken";
+"modes.help.preset" = "Meer informatie over deze voorinstelling";
+"modes.help.model" = "Meer informatie over dit model";
+"modes.preset.title" = "Voorinstelling";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Bericht";
+"modes.preset.mail.name" = "E-mail";
+"modes.preset.note.name" = "Opmerking";
+"modes.preset.meeting.name" = "Vergadering";
+"modes.preset.code.name" = "Code";
+"modes.preset.custom.name" = "Aangepast";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Berichtmodus ruimt je gedicteerde bericht op, herstelt interpunctie, vormt paragrafen en verhelpt grammaticale fouten.";
+"modes.preset.mail.tooltip" = "E-mailmodus formatteert je dictaat in een professionele e-mailstructuur, met juiste groeten, alinea's en afsluiting.";
+"modes.preset.note.tooltip" = "Opmerking-modus organiseert je gedicteerde inhoud in een duidelijke opmerking-indeling met headers, opsommingstekens en gestructureerde secties.";
+"modes.preset.meeting.tooltip" = "Vergaderingmodus structureert je dictaat in notulenindeling met deelnemers, actiepunten en belangrijke discussiepunten.";
+"modes.preset.code.tooltip" = "Codemodus zet gesproken programmeerdictaat om in codesyntaxis. Zeg 'open haakje', 'backslash', 'camelcase' enzovoort om code per stem te schrijven.";
+"modes.preset.custom.tooltip" = "Aangepaste modus stelt je in staat om je eigen opmaakreg els en prompts voor specifieke gebruiksgevallen te definiëren.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Definieer de volledige opmaakinstructies voor deze voorinstelling.";
+"modes.notice.vocabularyUnsupported" = "Aangepaste woordenlijst wordt niet ondersteund door deze provider voor dit model. Dit wordt genegeerd.";
+"modes.notice.deepgramNova3AutoDetect" = "Aangepaste woordenlijst is niet beschikbaar wanneer je Deepgram Nova-3 gebruikt met automatische taaldetectie. Stel een specifieke taal in (bijv. Engels, Spaans) om woordenlijstversterking in te schakelen.";
+"modes.language.title" = "Taal";
+"modes.language.englishOnly" = "Alleen Engels (geoptimaliseerd model)";
+"modes.postProcessing.sectionTitle" = "Nabewerking";
+"modes.postProcessing.modeLabel" = "Modus";
+"modes.postProcessing.modeTitle" = "Nabewerking";
+"modes.postProcessing.modeDescription" = "Kies hoe transcripties worden verwerkt:\n\n• Uit: Geen nabewerking, onbewerkte transcriptie\n• Cloud (AI): AI-aangedreven verbetering (vereist internet)\n• Lokaal: Gebruikt een on-device LLM zoals Gemma via llama.cpp\n\nCloudverwerking stuurt tekst naar je geselecteerde AI-provider. Lokale modus blijft op je machine maar vereist dat de lokale server wordt uitgevoerd.";
+"modes.postProcessing.providerLabel" = "Provider";
+"modes.postProcessing.apiKeyMissing" = "%@ API-sleutel niet geconfigureerd. Voeg dit toe in Instellingen om nabewerking in te schakelen.";
+"modes.postProcessing.configure" = "Configureren in Instellingen";
+"modes.postProcessing.modelRecommendation" = "We raden GPT-4.1 Nano aan voor de beste balans tussen snelheid en kwaliteit.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Lokale nabewerking vereist een gedownload lokaal model.";
+"modes.postProcessing.download" = "Download in Instellingen";
+"modes.postProcessing.localInfo" = "Werkt volledig op apparaat. HyperWhisper lanceert automatisch de gebundelde llama.cpp-server wanneer deze modus actief is.";
+"modes.postProcessing.userSystemPrompt.title" = "Vaste instructies";
+"modes.postProcessing.userSystemPrompt.placeholder" = "bijv. Sluit e-mails altijd af met 'Met vriendelijke groet, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Wissen";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Vaste instructies";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Voeg instructies toe die altijd gelden bovenop de geselecteerde voorinstelling.";
+"modes.toggle.punctuation.title" = "Voeg interpunctie toe";
+"modes.toggle.punctuation.subtitle" = "Voeg automatisch punten en komma's toe";
+"modes.toggle.capitalization.title" = "Zinnen uitschrijven";
+"modes.toggle.capitalization.subtitle" = "Eerste letter van zinnen in hoofdletters";
+"modes.toggle.profanity.title" = "Filter schuttingtaal";
+"modes.toggle.profanity.subtitle" = "Vervang ongepaste woorden";
+"modes.toggle.removeTrailingPeriod.title" = "Eindpunt verwijderen";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Verwijdert de laatste punt uit transcripties";
+"modes.postProcessing.privacyNotice" = "Je transcriptie wordt ALLEEN naar %@ gestuurd voor nabewerking. Nooit ergens anders naartoe.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Taalmodel";
+"modes.englishSpelling.title" = "Engelse spelling";
+"modes.englishSpelling.american" = "Amerikaans";
+"modes.englishSpelling.british" = "Brits";
+"modes.englishSpelling.australian" = "Australisch";
+"modes.englishSpelling.canadian" = "Canadees";
+"modes.englishSpelling.american.description" = "Gebruik Amerikaanse Engelse spelling (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Gebruik Britse Engelse spelling (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Gebruik Australische Engelse spelling (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Gebruik Canadese Engelse spelling (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Aangepaste instructies";
+"modes.gemini.customPrompt.helper" = "Optioneel. Bijv. \"Opmaak als opsommingstekens\", \"Gebruik formele taal\". Uw taal- en woordenschatinstellingen worden automatisch meegenomen.";
+"modes.cloud.apiKeyMissing" = "%@ API-sleutel niet geconfigureerd. Voeg dit toe in Instellingen om cloudtranscriptie te gebruiken.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Nauwkeurigheid";
+"modes.cloudAccuracy.groqWhisper.label" = "Gemiddeld (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Gemiddeld (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Hoog (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Snel en betaalbaar. Het beste voor snelle transcripties.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Evenwichtige snelheid en nauwkeurigheid. Aanbevolen voor de meeste gebruikers.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+
+"modes.create.title" = "Nieuwe modus maken";
+"modes.create.subtitle" = "Configureer een aangepast transcriptieprofiel";
+"modes.section.basic" = "Basisinstellingen";
+"modes.section.transcription" = "Transcriptiemodel";
+"modes.section.punctuation" = "Interpunctie";
+"modes.toggle.screenText.title" = "Schermtekst";
+"modes.toggle.screenText.subtitle" = "Leg zichtbare schermtekst vast om de nauwkeurigheid van namen en termen te verbeteren. Vereist schermopnametoegang.";
+"modes.screenText.openSettings" = "Open Systeeminstellingen";
+"modes.screenText.permissionGranted" = "Schermopnametoegang verleend";
+"modes.screenText.permissionRequired" = "Schermopnametoegang vereist";
+"modes.field.name" = "Naam";
+"modes.field.name.placeholder" = "bijv. Vergaderingnotities";
+"modes.field.name.editPlaceholder" = "Modusnaam";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Provider";
+"modes.provider.local" = "Lokaal";
+"modes.provider.cloud" = "Cloud";
+"modes.notice.noLocalModels.title" = "Geen lokale modellen geïnstalleerd";
+"modes.notice.noLocalModels.subtitle" = "Installeer eerst een model in Instellingen";
+"modes.model.pricing" = "Prijzen: $%.6f / minuut (gefactureerd per seconde)";
+"modes.button.create" = "Modus maken";
+"modes.button.delete" = "Modus verwijderen";
+"modes.button.save" = "Wijzigingen opslaan";
+"modes.edit.title" = "Modus bewerken";
+"modes.edit.subtitle" = "Wijzig instellingen voor transcriptieprofiel";
+"mode.editor.cloudModel.previewHint" = "Voorbeeld";
+"mode.editor.cloudModel.noVocabularyHint" = "Geen aangepaste woordenschat";
+"mode.editor.cloudDomain.medical" = "Medisch";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode-add-on";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Kan niet opnieuw proberen: Audiobestand niet gevonden";
+"transcripts.error.invalidId" = "Ongeldig transcript-ID";
+"transcripts.delete.single.title" = "Opname verwijderen?";
+"transcripts.delete.single.message" = "Hiermee wordt deze opname en het bijbehorende audiobestand permanent verwijderd.";
+"transcripts.delete.multiple.title" = "%d opnamen verwijderen?";
+"transcripts.delete.multiple.message" = "Hiermee worden %d opnamen en hun audiobestanden permanent verwijderd.\n\nDit kan niet ongedaan worden gemaakt.";
+"transcripts.delete.multiple.confirm" = "Alles verwijderen";
+"transcripts.retry.error.title" = "Opnieuw proberen mislukt";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Map voor opnamen kiezen";
+"storage.folder.choose.message" = "Selecteer een map voor het opslaan van nieuwe opnamen.";
+"storage.folder.choose.prompt" = "Kiezen";
+"storage.recovery.title" = "Kan geen toegang krijgen tot de opnamemap";
+"storage.recovery.message" = "HyperWhisper kon geen toegang krijgen tot de geconfigureerde opnamemap. Je kunt een andere map kiezen om door te gaan.";
+"storage.recovery.choose" = "Map kiezen…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Meer informatie";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transcriptie voltooid";
+"recording.status.retrying" = "Transcriptie opnieuw proberen…";
+"recording.status.postprocessing" = "Nabewerking met AI…";
+"recording.status.transcribing" = "Transcriberen…";
+"recording.success.pasted" = "Geplakt!";
+"recording.loading.retrying" = "Opnieuw proberen…";
+"recording.loading.postprocessing" = "Verwerken met AI…";
+"recording.loading.starting" = "Stream starten…";
+"recording.loading.transcribing" = "Transcriberen…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Verbinden...";
+"streaming.status.ready" = "Klaar - Begin met spreken";
+"streaming.status.warming" = "Opwarmen...";
+"modes.badge.recommended" = "Aanbevolen";
+"modes.source.label" = "Bron";
+"modes.source.onDevice" = "Op apparaat";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-sleutel";
+"modes.field.engine" = "Engine";
+"settings.models.localASR.inUse" = "Dit model kan niet worden verwijderd omdat het wordt gebruikt door:
+
+%@
+
+Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
+"models.postProcessing.gemma4.12b.description" = "Middelgroot dicht model. Balanceert kwaliteit en snelheid op 16 GB Macs.";
+"recording.success.savedToNotes" = "Opgeslagen in Notities!";
+"modes.provider.needsKey" = "%@ heeft een werkende sleutel nodig.";
+"modes.provider.manageInLibrary" = "Beheren in bibliotheek →";
+"streaming.loading.warming" = "Lokaal model opwarmen...";
+"streaming.status.listening" = "Luisteren...";
+"streaming.status.streaming" = "Streamen...";
+"streaming.status.disconnecting" = "Stoppen...";
+"streaming.loading.connecting" = "Verbinden met server...";
+"streaming.loading.ready" = "Audio initialiseren...";
+"streaming.loading.streaming" = "Wacht op spraak...";
+"streaming.state.reconnecting" = "Opnieuw verbinden...";
+"recording.stop.help" = "Opnamen stoppen (%@)";
+"recording.postprocessing.unavailable" = "Nabewerking niet beschikbaar";
+"recording.postprocessing.missing.single" = "%@ sleutel ontbreekt – opnemen zonder nabewerking";
+"recording.postprocessing.missing.multiple" = "API-sleutels ontbreken – opnemen zonder nabewerking";
+"recording.postprocessing.addKey" = "Sleutel toevoegen";
+"recording.offline.banner" = "Geen internetverbinding. Cloudtranscriptie zal mislukken totdat je online bent.";
+"recording.offline.title" = "Geen internetverbinding";
+"recording.offline.subtitle" = "Herverbind of schakel over naar een offline-modus.";
+"recording.error.network" = "Controleer je internetverbinding en probeer het opnieuw.";
+"recording.error.timeout" = "Aanvraag time-out. Controleer je verbindingssnelheid en probeer opnieuw.";
+"recording.error.rateLimit" = "Je hebt te veel aanvragen ingediend. Wacht even en probeer opnieuw.";
+"recording.error.credits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";
+"recording.error.apiKey" = "Voeg je %@ API-sleutel toe in Instellingen.";
+"recording.error.server" = "De transcriptieservice ondervindt problemen. Probeer het over een moment opnieuw.";
+"recording.retry" = "Opnieuw proberen";
+"recording.retry.inProgress" = "Opnieuw proberen…";
+"recording.retry.count" = "Opnieuw proberen (%d)";
+"recording.retry.failed.missing" = "Opnieuw proberen mislukt: Audiobestand niet gevonden";
+"recording.retry.failed.error" = "Opnieuw proberen mislukt: %@";
+"recording.retry.pending" = "Klaar om opnieuw te proberen – klik om te transcriberen";
+"recording.provider.unknown" = "cloudprovider";
+"recording.cancel.dialog.title" = "Opnamen annuleren?";
+"recording.cancel.dialog.message" = "Hiermee wordt de huidige opname verwijderd.";
+"recording.cancel.dialog.confirm" = "Opnamen annuleren";
+"recording.cancel.dialog.resume" = "Hervatten";
+"recording.error.overlay.title" = "Netwerkverbindingsfout";
+"recording.error.overlay.message" = "Druk op 'Opnieuw proberen' hieronder of schakel over naar een offline-modus om door te gaan.";
+"recording.mode.default" = "Standaard";
+"recording.dialog.window.title" = "Dialoogvenster opnemen";
+"recording.button.start" = "Opnamen starten";
+"recording.button.stop" = "Opnamen stoppen";
+"recording.button.disable.checking" = "%@ status controleren...";
+"recording.button.disable.invalid" = "Ongeldige %@ API-sleutel. Werk deze bij in Instellingen.";
+"recording.button.disable.unreachable" = "%@ is onbereikbaar. Controleer je verbinding en probeer opnieuw.";
+"recording.button.disable.missing" = "Voeg je %@ API-sleutel toe in Instellingen.";
+"recording.button.disable.install.local" = "Download een lokaal model in Instellingen → Modellen voordat je lokale nabewerking gebruikt.";
+"modes.postProcessing.accuracy" = "Nauwkeurigheid";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Je hebt je dagelijkse limiet van %@ minuten transcriptie bereikt. Upgrade naar HyperWhisper Pro voor onbeperkte transcriptie.";
+"recording.error.documentsAccess" = "Kan geen toegang krijgen tot de opnamemap. Kies een ander locatie in Instellingen → Opslag.";
+"recording.error.modeMissing" = "Geselecteerde modus niet gevonden. Selecteer een geldige modus.";
+"recording.warning.oversizedWAV" = "Audiocompressie mislukt. Gebruikt ongecomprimeerd bestand van %@ MB - transcriptie kan langzamer zijn.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Standaardmicrofoon";
+"audio.error.permissionDenied" = "Microfoontoegand geweigerd. Schakel in in Systeeminstellingen.";
+"audio.error.fileWatcher.open" = "Kon geen bestanddescriptor openen om het audiobestand te bewaken.";
+"audio.error.fileWatcher.timeout" = "De bewerking time-out terwijl op het schrijven van het audiobestand werd gewacht.";
+"audio.error.fileWatcher.creation" = "Het audiobestand werd niet op tijd gemaakt.";
+"audio.error.microphonePermission" = "Microfoontoestemming niet verleend";
+"audio.error.microphoneInUse" = "HyperWhisper kan geen toegang krijgen tot de microfoon omdat een andere app deze momenteel gebruikt. Onderbreek de andere app of schakel invoer in en probeer het opnieuw.";
+"audio.error.createEngine" = "Kan audiomotor niet maken";
+"audio.error.noInput" = "Geen audio-ingang beschikbaar";
+"audio.error.createFile" = "Kan audiobestand niet maken";
+"audio.error.managerUnavailable" = "Transcriptiemanager niet geconfigureerd";
+"audio.error.invalidHardwareFormat" = "Ongeldig hardwareaudioformaat gedetecteerd. Controleer je audioapparaat.";
+"audio.error.createFormat" = "Kan audioformaat voor opnamen niet maken";
+"audio.error.createConverter" = "Kan audioformaatconverter niet maken";
+"audio.error.exportM4A" = "Kan audio niet naar m4a-formaat exporteren";
+"audio.error.readFile" = "Audiobestand kon na opnamen niet worden gelezen.";
+"audio.error.recordingTooShort" = "Opname was te kort. Houd de knop langer ingedrukt om audio in te vangen.";
+"audio.error.noAudioTrack" = "Dit videobestand bevat geen audiopunt.";
+"audio.alert.accessibility.title" = "Toegankelijkheidstoegang inschakelen";
+"audio.alert.accessibility.message" = "HyperWhisper heeft Toegankelijkheidstoestemming nodig om getranscribeerde tekst in andere toepassingen in te plakken.\n\nKlik op \"Instellingen openen\", schakel de wisselknop naast HyperWhisper in, en probeer het opnieuw.";
+"audio.alert.accessibility.open" = "Instellingen openen";
+"audio.alert.pasteFailed.title" = "Automatisch plakken mislukt";
+"audio.alert.pasteFailed.message" = "De getranscribeerde tekst is naar je klembord gekopieerd.\n\nDruk ⌘V om het handmatig in te plakken, of kies Bewerken → Plakken uit het menu.";
+"accessibility.permission.location.debug" = "Xcode-foutopsporingsbuild";
+"accessibility.permission.location.installed" = "Geïnstalleerde app";
+"accessibility.permission.info" = "HyperWhisper heeft Toegankelijkheidstoestemming nodig om getranscribeerde tekst in andere toepassingen in te plakken.\n\nHuidge app-locatie: %@\n\nIn Systeeminstellingen:\n1. Zoek naar 'hyperwhisper' of 'HyperWhisper' in de lijst\n2. Je kunt meerdere vermeldingen zien als je van verschillende locaties hebt uitgevoerd\n3. Schakel het selectievakje in voor het item dat overeenkomt met:\n   %@";
+"accessibility.permission.xcodeNote" = "Opmerking: Uitvoering van Xcode vereist een ander toestemming dan de geïnstalleerde app.";
+"accessibility.error.paste.commandFailed" = "Plakopdrachtmislukt";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transcriptieprovider is niet beschikbaar. Controleer je instellingen en probeer het opnieuw.";
+"transcription.error.providerNotAvailable.provider" = "%@ is niet beschikbaar. Controleer je instellingen en probeer het opnieuw.";
+"transcription.error.providerNotAvailable.detail" = "%@ is niet beschikbaar: %@";
+"transcription.error.modelNotDownloaded" = "Download eerst een model";
+"transcription.error.modelProtected" = "Dit model kan niet worden verwijderd";
+"transcription.error.audioFileNotFound" = "Audiobestand niet gevonden";
+"transcription.error.network.detail" = "Netwerkfout: %@";
+"transcription.error.network.generic" = "Netwerkverbindingsfout";
+"transcription.error.apiKeyMissing.provider" = "%@ API-sleutel is vereist voor transcriptie";
+"transcription.error.apiKeyMissing.generic" = "Een cloudzondersleuteleapi-sleutel is vereist voor transcriptie";
+"transcription.error.maxRetriesExceeded" = "Maximale aantalpoging pogingen bereikt";
+"transcription.error.unauthorized.provider" = "Niet gemachtigd: ongeldige %@ API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
+"transcription.error.unauthorized.generic" = "Niet gemachtigd: ongeldige API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
+"transcription.error.invalidRequest" = "Ongeldige aanvraag: controleer audiobestand of instellingen";
+"transcription.error.streamingInterrupted" = "Streaming onderbroken; gedeeltelijke tekst weergegeven";
+"transcription.error.busy" = "De transcriptieservice is momenteel bezet";
+"transcription.error.invalidAudioFormat" = "Niet-ondersteund audioformaat";
+"transcription.error.audioConversionFailed" = "Kon audio niet naar vereist formaat converteren";
+"transcription.error.audioFileTooLarge" = "Bestand te groot: %@ overschrijdt limiet van %@ voor %@";
+"transcription.error.serverError" = "Serverfout (%d): %@";
+"transcription.error.rateLimited.seconds" = "Frequentielimiet: Te veel aanvragen. Wacht %d seconden en probeer opnieuw.";
+"transcription.error.rateLimited.generic" = "Frequentielimiet: Te veel aanvragen. Wacht even en probeer opnieuw.";
+"transcription.error.insufficientCredits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";
+"transcription.error.quotaExceeded" = "%@ quota overschreden";
+"transcription.error.quotaExceeded.detail" = "%@ quota overschreden: %@";
+"transcription.error.timeout" = "Aanvraag time-out tijdens %@. Controleer je internetverbinding en probeer opnieuw.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Zorg ervoor dat je transcriptieprovider correct in Instellingen is geconfigureerd.";
+"transcription.guidance.providerNotAvailable.provider" = "Zorg ervoor dat %@ correct is geconfigureerd. Voor lokale modellen downloadt u eerst een model. Voor cloudproviders controleert u uw API-sleutel.";
+"transcription.guidance.apiKeyMissing.provider" = "Voeg je %@ API-sleutel toe in Instellingen";
+"transcription.guidance.apiKeyMissing.generic" = "Voeg je API-sleutel van de cloudprovider toe in Instellingen";
+"transcription.guidance.modelNotDownloaded" = "Download een model uit de sectie Modellen";
+"transcription.guidance.modelProtected" = "Dit model wordt momenteel gebruikt";
+"transcription.guidance.audioFileNotFound" = "Het audiobestand is verwijderd of verplaatst";
+"transcription.guidance.networkError" = "Controleer je internetverbinding en probeer het opnieuw";
+"transcription.guidance.unauthorized.provider" = "Controleer je %@ API-sleutel of accounttoestemmingen in Instellingen";
+"transcription.guidance.unauthorized.generic" = "Controleer je API-sleutel of accounttoestemmingen in Instellingen";
+"transcription.guidance.invalidRequest" = "Verifieer het audiobestand en modusinstellingen en probeer opnieuw";
+"transcription.guidance.invalidAudioFormat" = "Probeer het audiobestand naar MP3- of WAV-formaat om te zetten";
+"transcription.guidance.audioConversionFailed" = "Het audiobestand is mogelijk beschadigd. Probeer een ander bestand";
+"transcription.guidance.audioFileTooLarge" = "Gebruik een korter audiobestand of verdeel dit in kleinere segmenten";
+"transcription.guidance.serverError" = "De transcriptieservice ondervindt problemen. Probeer het later opnieuw.";
+"transcription.guidance.rateLimited" = "Je hebt te veel aanvragen ingediend. Wacht even voordat je het opnieuw probeert.";
+"transcription.guidance.insufficientCredits" = "Koop meer tegoed in Instellingen om door te gaan met transcriberen";
+"transcription.guidance.quotaExceeded" = "Voeg tegoed toe aan je %@ account of werk je factureringsgegevens bij";
+"transcription.guidance.timeout" = "Het verzoek duurde te lang. Controleer je internetsnelheid en probeer het opnieuw.";
+"transcription.error.noSpeechDetected" = "Geen spraak gedetecteerd in de opname.";
+"transcription.guidance.noSpeechDetected" = "Tips:\n• Spreek duidelijk in de microfoon\n• Houd de toets langer vast voordat je spreekt\n• Controleer of je microfoon werkt\n• Zorg ervoor dat het juiste invoerapparaat is geselecteerd";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";
+"hyperwhisperCloud.error.network" = "Netwerkfout: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Ongeldig antwoord van HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Serverfout: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server-uitvoerbaar kon niet worden gevonden.";
+"llama.runtime.error.missingDependencies" = "Runtime mist afhankelijkheden: %@";
+"llama.runtime.error.copyFailed" = "Runtime kan niet worden gekopieerd: %@";
+"llama.runtime.error.copy.executable" = "Kan uitvoerbaar bestand niet kopiëren: %@";
+"llama.runtime.missing" = "Lokale-runtime ontbreekt in deze installatie. Installeer HyperWhisper opnieuw om lokale nabewerking te herstellen.";
+"llama.runtime.genericError" = "Lokale-runtime fout: %@";
+"runtime.error.llama.missingLib" = "Lokale-runtime beëindigd na missing libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Lokale-runtime rapporteerde missing libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Ingebouwde AI-nabewerking op Cloudflare Workers. Geen configuratie nodig.";
+"models.postProcessing.gpt4.1.nano.description" = "Gemiddelde nauwkeurigheid (92%), zeer hoge snelheid (<1s). Geschikt voor snelle concepten en informele notities.";
+"models.postProcessing.gpt4.1.mini.description" = "Hoge nauwkeurigheid (94%), snelle snelheid (~1-2s). Goed voor dagelijkse zakencommunicatie en standaarddocumenten.";
+"models.postProcessing.gpt4.1.description" = "Zeer hoge nauwkeurigheid (96%), gemiddelde snelheid (~3-4s). Geweldig voor complexe opmaak en technische inhoud.";
+"models.postProcessing.gpt5.nano.description" = "Goede nauwkeurigheid (95%), snelste snelheid (~1s). Perfect voor snelle aantekeningen, berichten en terloopse transcripties.";
+"models.postProcessing.gpt5.mini.description" = "Uitstekende nauwkeurigheid (97%), gemiddelde snelheid (~2-3s). Ideale balans voor professionele e-mails, rapporten en vergaderingnotities.";
+"models.postProcessing.gpt5.description" = "Hoogste nauwkeurigheid (99%+), langzaamste snelheid (~3-5s). Het beste voor kritieke documenten, juridische en medische transcripties waarbij precisie van het grootste belang is.";
+"models.postProcessing.gpt5.1.description" = "Zeer geavanceerde nauwkeurigheid (98%+), gemiddelde snelheid (~2-3s). Uitstekend voor complexe taken, juridische documenten en technische inhoud met superieure reasoning.";
+"models.postProcessing.gpt5.2.description" = "Nieuwste GPT-5 serie met verbeterde reasoning en snellere interferentie. Beste algehele keuze voor high-quality tekstverwerking.";
+"models.postProcessing.claude4.5.haiku.description" = "Nieuwste Claude Haiku met verbeterde reasoning terwijl reactietijden snel blijven.";
+"models.postProcessing.claude4.sonnet.description" = "Evenwichtige prestaties. Superieure reasoning en opmaakmogelijkheden voor professionele documenten.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3-serie met Pro-level intelligentie bij Flashsnelheid. Geavanceerde reasoning met dynamische thouroghinking mogelijkheden.";
+"models.postProcessing.gemini2.5.flash.description" = "Het beste wat betreft prijs-prestatiegraad. Geoptimaliseerd voor snelheid terwijl goede nauwkeurigheid voor dagelijks gebruik wordt behouden.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultrasnelmodelgeoptimaliseerd voor kostenefficiency en hoge doorvoer.";
+"models.postProcessing.groq.llama33.70b.description" = "Veelzijdig 70B-model met uitstekende kwaliteit. ~280 tokens/sec. Aanbevolen.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultrasnelmodel van 8B. ~560 tokens/sec voor directe tekstverwerking.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI's open-source 120B-model. ~500 tokens/sec voor tekstverwerking van hoge kwaliteit.";
+"models.postProcessing.groq.gptoss.20b.description" = "Lichtgewicht 20B-model. ~1000 tokens/sec voor snelste verwerking.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B op Cerebras. Ultrasnelmodel van 120B op ~3000 tokens/sec. Aanbevolen.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B op Cerebras. Lichtgewicht en ultrasnelheid ~2200 tokens/sec.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B op Cerebras. Massief 235B MoE-model op ~1400 tokens/sec. Alleen in preview.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 op Cerebras. 355B parametermodel op ~1000 tokens/sec. Alleen in preview.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Helpcentrum";
+"settings.resources.contact.support" = "Contact opnemen met ondersteuning";
+"settings.resources.feedback" = "Feedback & suggesties";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Back-up";
+"settings.backup.export.title" = "Instellingen exporteren";
+"settings.backup.export.subtitle" = "Sla je instellingen, modi en woordenlijst op in een bestand";
+"settings.backup.export.button" = "Exporteren...";
+"settings.backup.export.panel.title" = "Instellingen exporteren";
+"settings.backup.export.panel.label" = "Back-upbestand:";
+"settings.backup.export.success" = "Instellingen met succes geëxporteerd";
+"settings.backup.export.error.create" = "Kan back-upgegevens niet maken";
+"settings.backup.export.error.encode" = "Kan back-upgegevens niet coderen";
+"settings.backup.export.error.write" = "Kan back-upbestand niet schrijven";
+"settings.backup.includeAPIKeys.title" = "API-sleutels opnemen";
+"settings.backup.includeAPIKeys.subtitle" = "Sla API-sleutels op in het back-upbestand (niet aanbevolen voor delen)";
+"settings.backup.includeLicense.title" = "Licentiesleutel opnemen";
+"settings.backup.import.title" = "Instellingen importeren";
+"settings.backup.import.subtitle" = "Herstel instellingen uit een back-upbestand";
+"settings.backup.import.button" = "Importeren...";
+"settings.backup.import.panel.title" = "Instellingen importeren";
+"settings.backup.import.success" = "Importeren voltooid: %d modi, %d woordenlijstitems geïmporteerd";
+"settings.backup.import.error.read" = "Kan back-upbestand niet lezen";
+"settings.backup.import.error.decode" = "Ongeldige back-upbestandsindeling";
+"settings.backup.import.error.decode.keyNotFound" = "Verplicht veld ontbreekt: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Verkeerd type voor veld: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Ontbrekende waarde voor veld: %@";
+"settings.backup.import.error.decode.corrupted" = "Beschadigde gegevens: %@";
+"settings.backup.import.error.decode.corruptedField" = "Beschadigde waarde voor veld: %@";
+"settings.backup.import.error.version" = "Back-upbestand is van een nieuwere versie";
+"settings.backup.import.error.unknown" = "Importeren mislukt";
+"settings.backup.import.confirm.title" = "Instellingen importeren?";
+"settings.backup.import.confirm.message" = "Dit vervangt je bestaande modi en woordenlijst met de items uit het back-upbestand. Instellingen worden ook bijgewerkt.";
+"settings.backup.import.confirm.button" = "Importeren";
+"settings.backup.conflict.skip" = "Bestaande overslaan";
+"settings.backup.conflict.replace" = "Bestaande vervangen";
+"settings.backup.conflict.keepBoth" = "Beiden behouden";
+"settings.backup.security.warning" = "Waarschuwing: Het geëxporteerde bestand bevat gevoelige gegevens. Bewaar het veilig en deel het niet.";
+"settings.backup.info.note" = "Back-ups bevatten instellingen, modi en woordenlijst. Opnamen en transcripties zijn niet inbegrepen.";
+"settings.backup.result.success.title" = "Succes";
+"settings.backup.result.error.title" = "Fout";
+"settings.backup.export.choose.subtitle" = "Kies wat u in het back-upbestand wilt opnemen";
+"settings.backup.export.section.settings" = "Instellingen";
+"settings.backup.export.section.modes" = "Modi";
+"settings.backup.export.section.vocabulary" = "Woordenschat";
+"settings.backup.import.importing" = "%@ importeren";
+"settings.backup.import.contains" = "Dit bestand bevat: %@";
+"settings.backup.import.contains.vocabulary" = "Woordenschat (%d woorden)";
+"settings.backup.import.contains.none" = "niets";
+"settings.backup.import.section.settings" = "Instellingen";
+"settings.backup.import.section.modes" = "Modi";
+"settings.backup.import.section.vocabulary" = "Woordenschat";
+"settings.backup.import.section.apiKeys" = "API-sleutels";
+"settings.backup.import.section.license" = "Licentiesleutel";
+"settings.backup.import.section.absent" = "— niet in het bestand";
+"settings.backup.import.premerge.summary" = "Woordenschat: %d nieuw toevoegen, %d bestaan al";
+"settings.backup.import.premerge.conflictLabel" = "Voor woorden die al bestaan:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Audiobestand selecteren";
+"transcribe.file.error.title" = "Transcriptiefout";
+"transcribe.file.error.size.title" = "Bestand te groot";
+"transcribe.file.error.size.message" = "Het geselecteerde bestand (%@) overschrijdt de limiet van %@ voor %@.";
+"transcribe.file.error.format.title" = "Niet-ondersteund formaat";
+"transcribe.file.error.format.message" = ".%@ bestanden worden niet ondersteund door %@. Ondersteunde formaten: %@";
+"transcribe.file.error.read" = "Kan het geselecteerde bestand niet lezen.";
+"transcribe.file.error.copy" = "Kan bestand niet naar opnamemap kopiëren.";
+"transcribe.file.error.video.title" = "Geen audio in video";
+"transcribe.file.error.video.noAudio" = "Dit videobestand bevat geen audiopunt. Selecteer een video met audio of een audiobestand.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Voorbereiden...";
+"file.transcription.transcribing" = "Transcriberen...";
+"file.transcription.finishing" = "Voltooien...";
+"file.transcription.cancel" = "Annuleren";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Automatische verwijdering inschakelen";
+"history.autoDelete.enable.subtitle" = "Opnamen ouder dan de opgegeven duur worden verwijderd";
+"history.autoDelete.duration.prefix" = "Na";
+"history.autoDelete.unit.minutes" = "Minuten";
+"history.autoDelete.unit.hours" = "Uren";
+"history.autoDelete.unit.days" = "Dagen";
+"history.autoDelete.unit.minutes.plural" = "minuten";
+"history.autoDelete.unit.hours.plural" = "uren";
+"history.autoDelete.unit.days.plural" = "dagen";
+"history.autoDelete.status.disabled" = "Automatische verwijdering is uitgeschakeld";
+"history.autoDelete.status.enabled" = "Verwijder opnamen ouder dan %d %@";
+"history.autoDelete.cleanup.noItems" = "Geen opnamen om te verwijderen";
+"history.autoDelete.cleanup.summary" = "Verwijderd %d opname(n) en %@ vrijgemaakt";

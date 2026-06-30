@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - macOS 與 Windows 上的 AI 語音轉寫",
+    "description": "用 AI 語音轉寫讓寫作速度提升 5 倍。HyperWhisper 在 macOS 與 Windows 上以驚人的準確度轉寫你的語音。自然開口，文字立刻出現。"
+  },
+  "navbar": {
+    "features": "功能",
+    "pricing": "定價",
+    "faq": "常見問題",
+    "support": "支援",
+    "download": "下載",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "切換語言"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper 標誌",
+    "headline": "寫作、構思、創作",
+    "headlineAccent": "AI 加持快 5 倍",
+    "subheadline": "HyperWhisper 以驚人的準確度轉寫你的語音。只需自然說話，文字立刻出現。",
+    "downloadCta": "立即下載",
+    "demoCta": "觀看示範",
+    "availableOn": "適用於",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "為專業人士打造",
+    "subtitle": "每一項功能都為更快、更高效的工作而設計",
+    "customVocabulary": {
+      "title": "自訂詞彙",
+      "description": "加入人名、縮寫與專業術語，始終維持高準確度。"
+    },
+    "languages": {
+      "title": "支援 100+ 種語言",
+      "description": "可轉寫 100 多種語言，並自動偵測語言。"
+    },
+    "offline": {
+      "title": "離線支援",
+      "description": "完全離線運作，資料永不離開裝置。"
+    },
+    "privacy": {
+      "title": "隱私優先",
+      "description": "無需帳號、無追蹤，語音資料只留在你的 Mac 或 PC。"
+    },
+    "hybridProcessing": {
+      "title": "混合處理",
+      "description": "可選本機模型保障隱私，或雲端 API 追求速度，兩者兼得。"
+    },
+    "customizable": {
+      "title": "高度可自訂",
+      "description": "可在 9+ API 供應商與 30+ 轉寫模型中自由選擇。"
+    },
+    "realTime": {
+      "title": "即時串流轉寫",
+      "description": "開口即見字，業界領先準確度，延遲低於 700ms。"
+    },
+    "fileImport": {
+      "title": "檔案匯入",
+      "description": "匯入音訊或影片進行轉寫，支援主流格式並自動偵測靜音。"
+    },
+    "screenOcr": {
+      "title": "螢幕 OCR",
+      "description": "允許 HyperWhisper 查看你的螢幕，讓它能準確拼寫所有內容。"
+    },
+    "mcpServer": {
+      "title": "本機 API 與 MCP 伺服器",
+      "description": "內建 MCP 伺服器，讓 Claude、Cursor 等 AI 代理可驅動 HyperWhisper。僅本機的 HTTP API，搭配 bearer 驗證，適用於指令稿與自動化。"
+    },
+    "modes": {
+      "title": "適合各種情境的模式",
+      "description": "在會議、筆記、郵件、程式開發等模式間切換。每個模式都使用自訂提示詞，讓文字格式恰到好處。",
+      "meeting": "會議",
+      "email": "郵件",
+      "note": "筆記",
+      "code": "程式碼",
+      "legal": "法律",
+      "medical": "醫療",
+      "presetModes": "預設模式",
+      "customModes": "自訂模式"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "比打字更快",
+    "accuracyRate": "準確率",
+    "languagesSupported": "支援語言",
+    "providersSupported": "支援供應商"
+  },
+  "pricing": {
+    "title": "無需訂閱，永久使用。",
+    "subtitle": "一次購買，永久使用。我們也討厭訂閱。",
+    "guarantee": "14 天退款保證",
+    "guaranteeExtended": "如果你不完全滿意。",
+    "learnMore": "了解更多",
+    "free": {
+      "name": "免費",
+      "price": "$0",
+      "period": "永久",
+      "description": "適合體驗 HyperWhisper",
+      "cta": "免費下載",
+      "features": {
+        "transcriptionLimit": "每天 5 分鐘轉寫",
+        "basicModes": "基礎轉寫模式",
+        "offlineTranscription": "離線轉寫",
+        "apiTranscription": "API 轉寫（自備金鑰）",
+        "postProcessing": "文字後處理",
+        "providers": "可選 9+ 供應商",
+        "lifetimeUpdates": "終身更新",
+        "cloudLimited": "HyperWhisper Cloud（有限使用）",
+        "customVocabulary": "自訂詞彙",
+        "prioritySupport": "優先支援"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "終身",
+      "description": "一次購買，永久解鎖全部能力",
+      "cta": "立即購買 - 終身存取",
+      "mostPopular": "最受歡迎",
+      "features": {
+        "unlimitedTranscription": "無限轉寫",
+        "allModes": "全部轉寫模式",
+        "offlineTranscription": "離線轉寫",
+        "apiTranscription": "API 轉寫（自備金鑰）",
+        "postProcessing": "文字後處理",
+        "providers": "可選 9+ 供應商",
+        "lifetimeUpdates": "終身更新",
+        "cloudCredits": "HyperWhisper Cloud（$5 額度）",
+        "customVocabulary": "自訂詞彙",
+        "prioritySupport": "優先支援"
+      }
+    },
+    "enterprise": {
+      "title": "企業與客製化定價",
+      "description": "批量折扣、SSO、優先支援、內部部署託管與客製整合",
+      "cta": "聯絡銷售"
+    }
+  },
+  "faq": {
+    "title": "常見問題",
+    "subtitle": "關於 HyperWhisper 你需要了解的一切",
+    "contactPrompt": "還有問題？請寄信至",
+    "questions": {
+      "accuracy": {
+        "question": "轉寫有多準確？",
+        "answer": "我們使用最先進的 AI 模型，達到業界領先的 99% 準確率。你還可以透過加入自訂詞彙（技術術語、姓名、產業用語）進一步提升準確度。"
+      },
+      "offline": {
+        "question": "沒有網路也能用嗎？",
+        "answer": "當然可以。HyperWhisper 可在你的 Mac 上以本機 AI 模型完全離線使用，無需連網。對於想要更高準確度與速度的使用者，我們也提供可選的雲端處理，支援多家雲端供應商。"
+      },
+      "apiKey": {
+        "question": "需要為 API 存取付費嗎？",
+        "answer": "以下供應商需要你自備 API 金鑰：Groq、OpenAI、Deepgram、AssemblyAI、ElevenLabs。部分供應商會給新使用者免費額度；Deepgram 提供 $200，AssemblyAI 提供 $50。長期來看，這比任何訂閱都更划算。\n\n你也可以使用內建的 HyperWhisper Cloud，無需 API 金鑰，採按量計費。\n\n同時，本機離線模式不需要任何 API 金鑰，而且完全免費。"
+      },
+      "languages": {
+        "question": "支援哪些語言？",
+        "answer": "預設支援 100 多種語言，從英語、西班牙語到中文與阿拉伯語。多數模型能自動辨識你正在說的語言並無縫切換。"
+      },
+      "offlineModels": {
+        "question": "有哪些離線模型可用？",
+        "answer": "離線轉寫提供多種大小的 Whisper 模型（OpenAI 出品，支援 99+ 種語言），也提供 NVIDIA 的 Parakeet 模型（支援 25+ 種語言）。\n      \n      離線後處理提供多種大小的 Gemma 3 模型（Google 出品）。"
+      },
+      "compatibility": {
+        "question": "能在所有 Mac 和 Windows 應用程式中使用嗎？",
+        "answer": "可以，只要能輸入文字的地方都能用。不管是寫郵件、文件、程式碼還是聊天。按下快捷鍵，開口說話即可看到文字即時出現。"
+      },
+      "privacy": {
+        "question": "我的隱私如何保障？",
+        "answer": "使用本機模式時，資料不會離開你的 Mac。\n\n使用雲端轉寫時，資料會傳送到你選擇的雲端供應商（例如 OpenAI、Groq、Deepgram、AssemblyAI、ElevenLabs 或 Mistral）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等網路封包工具或 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等網路監控工具自行驗證。"
+      },
+      "cloud": {
+        "question": "什麼是 HyperWhisper Cloud？",
+        "answer": "HyperWhisper Cloud 是內建的雲端轉寫服務，面向不太技術化但想快速上手的使用者。\n\n它採按量計費。購買授權後會贈送 $5 轉寫額度，之後可再儲值。\n    \n我們提供三種準確度等級：中（最快，由 Groq 提供）、高（推薦，由 Deepgram 提供）、最高（最佳品質，由 xAI Grok STT 提供）。後處理會自動完成。我們只記錄你消耗的額度，不保存其他內容。\n\n你支付的價格與我們向這些供應商支付的成本完全一致，不加價。\n\n為了安心，你可以在 [這裡](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "我的語音資料會被用於訓練 AI 模型嗎？",
+        "answer": "HyperWhisper Cloud 會在我們使用的每個上游供應商處為你退出模型訓練。使用你自己的 API 金鑰時，退出由你自行負責——請參閱我們的[資料隱私指南](https://hyperwhisper.com/docs/data-privacy)。"
+      },
+      "lifetime": {
+        "question": "為什麼是終身價格而不是訂閱？",
+        "answer": "我們相信簡單、公平的定價。一次支付 $39，即可永久使用 HyperWhisper。沒有月費，沒有意外開銷。免費版每天 5 分鐘轉寫，足以體驗關鍵功能。"
+      },
+      "deviceLimit": {
+        "question": "我的授權可以在多少台裝置上使用？",
+        "answer": "只要遵守我們 [服務條款](/legal/terms-of-service) 中的公平使用政策，你的授權可以在任意數量的裝置上使用。此政策旨在兼顧合法的個人與商業使用，同時防止濫用。"
+      },
+      "requirements": {
+        "question": "系統需求是什麼？",
+        "answer": "Mac：macOS 14 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。建議 8GB 記憶體以獲得最佳效能。"
+      },
+      "windowsStatus": {
+        "question": "Windows 版本是否具備 macOS 版本的全部功能？",
+        "answer": "Windows 版本是最近發布的，因此可能尚未具備 macOS 版本的所有功能。我們正在積極開發，努力讓兩個平台的功能保持一致。"
+      },
+      "madeBy": {
+        "question": "這是誰做的？",
+        "answer": "由 YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "支援中心",
+    "subtitle": "我們會幫助你更好地使用 HyperWhisper",
+    "getInTouch": "聯絡我們",
+    "description": "無論是技術支援、授權問題，或任何關於 HyperWhisper 的疑問，我們都願意協助。",
+    "emailUsAt": "請寄信至：",
+    "openInClient": "在你的郵件用戶端中開啟：",
+    "defaultClient": "預設郵件用戶端",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "我們通常會在工作日 24 小時內回覆。",
+    "emailTemplate": {
+      "subject": "HyperWhisper 支援請求",
+      "body": "你好，\n\n版本：\n[可在 設定 > 關於 中查看]\n\n問題：\n[描述你的問題]\n\n詳情：\n[提供相關細節，當機前你在做什麼]\n\n[你的訊息]\n\n此致,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper 標誌",
+    "title": "下載 HyperWhisper",
+    "emailPlaceholder": "Email",
+    "description": "我們會寄送下載連結和簡短教學影片，幫你快速上手。絕不發送垃圾郵件。",
+    "downloadButton": "下載 HyperWhisper",
+    "errorGeneric": "出了點問題，請再試一次。",
+    "errorNetwork": "網路錯誤。請檢查連線後再試一次。",
+    "thankYouTitle": "謝謝！",
+    "downloadStarted": "下載應會自動開始。",
+    "manualDownload": "下載尚未開始？點這裡",
+    "skipAndDownloadButton": "略過並下載"
+  },
+  "downloadPage": {
+    "title": "下載 HyperWhisper",
+    "countdownText": "{seconds} 秒後開始...",
+    "downloadStarted": "請查看你的「下載」資料夾",
+    "downloadNow": "立即下載",
+    "downloadAgain": "再次下載",
+    "selectArchitecture": "選擇你的架構",
+    "downloadX64": "下載 x64 版本",
+    "downloadArm64": "下載 ARM64 版本",
+    "orDivider": "或",
+    "homebrewTitle": "透過 Homebrew 安裝",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "複製",
+    "copied": "已複製！"
+  },
+  "purchaseSuccess": {
+    "title": "購買成功！",
+    "subtitle": "歡迎加入 HyperWhisper Pro！你的終身授權已就緒。",
+    "checkEmail": {
+      "title": "請檢查你的信箱",
+      "description": "我們已將授權金鑰與下載說明寄到你的電子郵件地址。幾分鐘內應會收到。"
+    },
+    "whatsNext": {
+      "title": "接下來做什麼？",
+      "step1": {
+        "title": "查看收件匣",
+        "description": "尋找來自 HyperWhisper 的郵件"
+      },
+      "step2": {
+        "title": "複製授權金鑰",
+        "description": "啟用應用程式時會用到"
+      },
+      "step3": {
+        "title": "下載 HyperWhisper",
+        "description": "安裝應用程式並輸入授權金鑰"
+      }
+    },
+    "downloadButton": "下載 HyperWhisper",
+    "returnHome": "返回首頁",
+    "noEmail": "沒收到郵件？請檢查垃圾郵件資料夾或",
+    "contactSupport": "聯絡支援",
+    "loading": "載入中..."
+  },
+  "footer": {
+    "tagline": "面向 macOS 與 Windows 的 AI 語音轉寫，讓寫作速度提升 5 倍。",
+    "product": "產品",
+    "resources": "資源",
+    "company": "公司",
+    "legal": "法律",
+    "links": {
+      "features": "功能",
+      "pricing": "定價",
+      "download": "下載",
+      "roadmap": "路線圖",
+      "helpCenter": "幫助中心",
+      "manageBilling": "管理帳單",
+      "customerPortal": "客戶入口",
+      "olderVersions": "舊版本",
+      "blog": "部落格",
+      "about": "關於",
+      "support": "支援",
+      "privacyPolicy": "隱私權政策",
+      "termsOfService": "服務條款",
+      "refundPolicy": "退款政策",
+      "dataTraining": "資料隱私"
+    },
+    "copyright": "© 2026 HyperWhisper. 保留所有權利。",
+    "linkedinAria": "LinkedIn"
+  }
+}

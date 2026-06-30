@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23231" systemVersion="24B83" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Mode" representedClassName="Mode" syncable="YES" codeGenerationType="class">
+        <attribute name="capitalization" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="createdDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="customInstructions" optional="YES" attributeType="String"/>
+        <attribute name="userSystemPrompt" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isDefault" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isSystemProvided" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="language" attributeType="String" defaultValueString="en"/>
+        <attribute name="model" attributeType="String" defaultValueString="base"/>
+        <attribute name="modifiedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="preset" attributeType="String" defaultValueString="hyper"/>
+        <attribute name="profanityFilter" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="punctuation" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="sortOrder" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="languageModel" optional="YES" attributeType="String" defaultValueString="gpt-4.1-nano"/>
+        <attribute name="cloudTranscriptionModel" optional="YES" attributeType="String" defaultValueString="whisper-1"/>
+        <attribute name="cloudProvider" optional="YES" attributeType="String" defaultValueString="openai"/>
+        <attribute name="postProcessingMode" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="postProcessingProvider" optional="YES" attributeType="String" defaultValueString="openai"/>
+        <attribute name="englishSpelling" optional="YES" attributeType="String" defaultValueString="american"/>
+        <attribute name="useStreamingTranscription" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="cloudAccuracyTier" optional="YES" attributeType="String" defaultValueString="elevenLabsScribeV2"/>
+        <attribute name="removeTrailingPeriod" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="enableScreenOCR" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="geminiCustomPrompt" optional="YES" attributeType="String"/>
+        <attribute name="cloudTranscriptionDomain" optional="YES" attributeType="String"/>
+        <attribute name="cloudPostProcessingModel" optional="YES" attributeType="String" defaultValueString="claudeHaiku"/>
+        <relationship name="transcripts" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Transcript" inverseName="modeRelationship" inverseEntity="Transcript"/>
+    </entity>
+    <entity name="RecordingSession" representedClassName="RecordingSession" syncable="YES" codeGenerationType="class">
+        <attribute name="audioFilePath" optional="YES" attributeType="String"/>
+        <attribute name="audioFormat" attributeType="String" defaultValueString="PCM"/>
+        <attribute name="channelCount" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="deviceId" attributeType="String"/>
+        <attribute name="deviceName" attributeType="String"/>
+        <attribute name="durationInSeconds" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="errorMessage" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="retryCount" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="sampleRate" attributeType="Double" defaultValueString="48000" usesScalarValueType="YES"/>
+        <attribute name="startTime" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="status" attributeType="String" defaultValueString="recording"/>
+        <relationship name="transcript" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="Transcript" inverseName="recordingSession" inverseEntity="Transcript"/>
+    </entity>
+    <entity name="Transcript" representedClassName="Transcript" syncable="YES" codeGenerationType="class">
+        <attribute name="audioFilePath" optional="YES" attributeType="String"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="duration" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="failedReason" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastRetryDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="mode" optional="YES" attributeType="String"/>
+        <attribute name="postProcessedText" optional="YES" attributeType="String"/>
+        <attribute name="postProcessingProvider" optional="YES" attributeType="String"/>
+        <attribute name="retryCount" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="status" optional="YES" attributeType="String" defaultValueString="completed"/>
+        <attribute name="text" attributeType="String"/>
+        <attribute name="transcribedText" optional="YES" attributeType="String"/>
+        <attribute name="transcriptionProvider" optional="YES" attributeType="String"/>
+        <attribute name="trimmedAudioFilePath" optional="YES" attributeType="String"/>
+        <attribute name="wordTimestampsJSON" optional="YES" attributeType="String"/>
+        <relationship name="modeRelationship" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Mode" inverseName="transcripts" inverseEntity="Mode"/>
+        <relationship name="recordingSession" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="RecordingSession" inverseName="transcript" inverseEntity="RecordingSession"/>
+    </entity>
+    <entity name="Vocabulary" representedClassName="Vocabulary" syncable="YES" codeGenerationType="class">
+        <attribute name="createdDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="replacement" optional="YES" attributeType="String"/>
+        <attribute name="sortOrder" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="source" optional="YES" attributeType="String"/>
+        <attribute name="word" optional="YES" attributeType="String"/>
+    </entity>
+    <entity name="UsageTracking" representedClassName="UsageTracking" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="dailyTranscriptionSeconds" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lastResetDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="totalModelsDownloaded" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="firstUsageDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="licenseActivatedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="customerEmail" optional="YES" attributeType="String"/>
+        <attribute name="licenseStatus" attributeType="String" defaultValueString="trial"/>
+        <attribute name="lastValidationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+    <configuration name="Local">
+        <memberEntity name="Mode"/>
+        <memberEntity name="RecordingSession"/>
+        <memberEntity name="Transcript"/>
+        <memberEntity name="UsageTracking"/>
+    </configuration>
+    <configuration name="Cloud" usedWithCloudKit="YES">
+        <memberEntity name="Vocabulary"/>
+    </configuration>
+</model>

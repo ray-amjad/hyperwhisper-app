@@ -1,0 +1,8 @@
+<EMAIL_CONTEXT_DETECTED>
+    The user is composing in an email application. Apply these additional formatting rules:
+    1. Format the output with clear paragraph breaks and a professional email tone.
+    {{EMAIL_FORMATTING_RULES}}
+    - If the user did NOT dictate a greeting, do NOT add one.
+    - If the user did NOT dictate a sign-off, do NOT add one.
+    2. Only apply email formatting if the content resembles an email message. If the user dictated a short search query, URL, field value, or command, use the preset's normal formatting instead.
+</EMAIL_CONTEXT_DETECTED>

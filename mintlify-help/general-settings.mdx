@@ -1,0 +1,113 @@
+---
+title: General Settings
+description: Configure how HyperWhisper launches, behaves in the background, handles updates, and reports errors.
+---
+
+General Settings is the first sidebar section in HyperWhisper's Settings window. It controls app-level behavior — how the app starts, how it appears on screen, whether it checks for updates, and how it handles error reporting.
+
+## Opening General Settings
+
+<Tabs>
+  <Tab title="macOS">
+    Click the HyperWhisper menu bar icon, then choose **Settings**. The General sidebar section opens automatically.
+  </Tab>
+  <Tab title="Windows">
+    Click the HyperWhisper tray icon (or open the main window), then navigate to **Settings** and select **General** in the sidebar.
+  </Tab>
+</Tabs>
+
+---
+
+## Application Behavior
+
+### Launch on login / Launch at startup
+
+When enabled, HyperWhisper starts automatically when you log in to your computer. On macOS this uses the system's native login item service (`SMAppService`); on Windows it registers a startup entry.
+
+<Tabs>
+  <Tab title="macOS">
+    Labeled **Launch on login**. If macOS rejects the change (for example, because the app is unsigned or you denied the system prompt), the toggle snaps back to its actual state automatically.
+  </Tab>
+  <Tab title="Windows">
+    Labeled **Launch at startup**. If enabling or disabling fails, an error message is shown explaining that you may need to check your startup permissions.
+  </Tab>
+</Tabs>
+
+### Launch minimized
+
+When enabled alongside **Launch on login / Launch at startup**, HyperWhisper starts in the background without showing its main window.
+
+<Tabs>
+  <Tab title="macOS">
+    The app is accessible via the menu bar icon. The main window stays hidden until you open it manually.
+  </Tab>
+  <Tab title="Windows">
+    The app launches hidden in the system tray. Click the tray icon to open the main window.
+  </Tab>
+</Tabs>
+
+### Show in Dock
+
+<Note>
+  This setting is macOS only.
+</Note>
+
+When enabled, the HyperWhisper app icon appears in the macOS Dock. When disabled, the app runs as a menu-bar-only app with no Dock presence. Changing this takes effect immediately.
+
+### Minimize to system tray
+
+<Note>
+  This setting is Windows only.
+</Note>
+
+When enabled, closing the HyperWhisper window minimizes it to the system tray rather than quitting the app. The app continues running in the background; click the tray icon to restore the window.
+
+### Show recording window
+
+When enabled, a floating overlay appears on screen while you are recording and while HyperWhisper is processing your audio. Both macOS and Windows show an animated waveform.
+
+Disable this if you find the overlay distracting or if you prefer a more discreet recording experience.
+
+---
+
+## Logging and Updates
+
+### Error logging / Send error reports
+
+<Tabs>
+  <Tab title="macOS">
+    Labeled **Error logging**. When enabled, HyperWhisper automatically captures and sends error reports to help improve the app.
+  </Tab>
+  <Tab title="Windows">
+    Labeled **Send error reports**. When enabled, crash reports are sent automatically. Your transcriptions are never included in these reports.
+  </Tab>
+</Tabs>
+
+You can turn this off at any time if you prefer not to share diagnostic data.
+
+### Auto update / Check for updates automatically
+
+<Tabs>
+  <Tab title="macOS">
+    Labeled **Auto update**. When enabled, HyperWhisper automatically checks for and downloads new versions.
+  </Tab>
+  <Tab title="Windows">
+    Labeled **Check for updates automatically**. When enabled, HyperWhisper silently checks for new versions on startup.
+  </Tab>
+</Tabs>
+
+See [Updates](/updates) for details on the update process.
+
+---
+
+## Support
+
+The **Need help?** row in General Settings opens the HyperWhisper support page in your browser, where you can contact the support team directly.
+
+You can also reach support at [support@hyperwhisper.com](mailto:support@hyperwhisper.com) or via the [support page](https://www.hyperwhisper.com/support).
+
+---
+
+## App version
+
+The current version and build number are shown at the bottom of the General Settings panel. This is useful when contacting support or checking whether you have the latest release.

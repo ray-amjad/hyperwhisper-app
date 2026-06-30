@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Ordforråd";
+"vocabulary.description" = "Dette hjelper programvaren med å gjenkjenne navn, akronymer, slang eller ord fra andre språk når du blander språk.";
+"vocabulary.input.title" = "Inndata";
+"vocabulary.new.word.placeholder" = "Nytt ord eller frase";
+"vocabulary.replacement.placeholder" = "Erstatt med...";
+"vocabulary.add.button" = "Legg til i ordforråd";
+"vocabulary.edit.title" = "Rediger ordforrådoppføring";
+"vocabulary.update.button" = "Oppdater";
+"vocabulary.cancel.button" = "Avbryt";
+"vocabulary.word.column" = "Ord/Setning";
+"vocabulary.replacement.column" = "Erstatning";
+"vocabulary.empty.title" = "Ingen ordforrådsord ennå";
+"vocabulary.empty.subtitle" = "Legg til tilpassede ord for å forbedre transkripsjonsnøyaktighet";
+"vocabulary.duplicate.title" = "Duplisert oppføring";
+"vocabulary.duplicate.message" = "%@ finnes allerede i ordforrådet ditt. Hvert ord kan bare legges til én gang.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Grense for nøkkelord overskredet";
+"vocabulary.limit.message" = "Du har %d ord, men bare de første %d vil bli brukt til transkripsjonsforbedring.";
+
+// MARK: - Streaming View
+"streaming.title" = "Strømming (Beta)";
+"streaming.description" = "Sanntidstranskripsjon mens du snakker. Tekst skrives direkte inn i den fokuserte applikasjonen.";
+"streaming.enable.title" = "Aktiver strømming";
+"streaming.provider.picker.title" = "Leverandør";
+"streaming.model.title" = "Modell";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Rask formatering";
+"streaming.fastFormatting.description" = "Reduserer forsinkelse i smart formatering for raskere skriving";
+"streaming.warning.vocabAutoDetect" = "Tilpasset ordforråd er deaktivert i autodetekteringsmodus";
+"streaming.warning.vocabUnsupported" = "Tilpasset ordforråd støttes ikke med %@ strømming";
+"streaming.warning.apiKeyRequired" = "%@ API-nøkkel kreves";
+"streaming.warning.apiKeyRequired.action" = "Konfigurer";
+"streaming.warning.apiKeyInvalid" = "%@ API-nøkkel fungerer ikke. Oppdater den i Innstillinger > API-nøkler.";
+"streaming.warning.apiKeyInvalid.action" = "Oppdater nøkkel";
+"streaming.language.title" = "Språk";
+"streaming.shortcut.title" = "Snarvei";
+
+// MARK: - Home View
+"home.get.started" = "Kom i gang";
+"home.open.system.settings" = "Åpne systeminnstillinger";
+
+// MARK: - API Keys
+"api.key.required" = "API-nøkkel kreves";
+"api.keys.required" = "API-nøkler kreves";
+"api.key.configure.message" = "Konfigurer API-nøklene dine for å aktivere transkripsjon.";
+"api.key.internet.required" = "Internettforbindelse kreves";
+"api.key.internet.message" = "Skytranskripsjon krever en internettforbindelse.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Avbryt";
+"common.delete" = "Slett";
+"common.edit" = "Rediger";
+"common.done" = "Ferdig";
+"common.copy" = "Kopier";
+"common.back" = "Tilbake";
+"common.skip" = "Hopp over";
+"common.settings" = "Innstillinger";
+"common.error" = "Feil";
+"common.retry" = "Prøv igjen";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Hjem";
+"sidebar.statistics" = "Statistikk";
+"sidebar.modes" = "Moduser";
+"sidebar.vocabulary" = "Ordforråd";
+"sidebar.streaming" = "Strømming";
+"sidebar.history" = "Historikk";
+"sidebar.settings" = "Innstillinger";
+
+// MARK: - App Messages
+"app.unknown.error" = "En ukjent feil oppstod";
+"app.microphone.permission.message" = "HyperWhisper trenger tilgang til mikrofonen din for å transkribere lyd.\n\nGå til Systeminnstillinger > Personvern og sikkerhet > Mikrofon og aktiver tilgang for HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper lagrer opptak til en mappe i Dokumenter slik at de er enkle å finne: Dokumenter/hyperwhisper/recordings. macOS kan be om tillatelse første gang vi prøver å lagre der. Hvis du heller ikke vil gi tilgang, kan vi lagre opptak i en privat appmappe i stedet.";
+"app.upgrade.to.pro" = "Oppgrader til Pro";
+"app.enter.license.key" = "Oppgi lisensnøkkel";
+"accessibility.upgrade.pro" = "Oppgrader til HyperWhisper Pro";
+"accessibility.enter.license" = "Oppgi lisensnøkkel";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Legg til dine %@ API-nøkler for å aktivere valgt modus.";
+"home.api.keys.missing.single" = "Legg til din %@ API-nøkkel for å aktivere valgt modus.";
+"home.getting.started.recording.title" = "Start opptak";
+"home.getting.started.recording.description" = "Gjør stemmen din om til tekst med ett enkelt klikk.";
+"home.getting.started.shortcuts.title" = "Tilpass snarveiene dine";
+"home.getting.started.shortcuts.description" = "Endre tastatursnarveiene for HyperWhisper.";
+"home.getting.started.mode.title" = "Opprett en modus";
+"home.getting.started.mode.description" = "Bygg den perfekte modusen for arbeidsflyten din.";
+"home.getting.started.vocabulary.title" = "Legg til ordforråd";
+"home.getting.started.vocabulary.description" = "Lær HyperWhisper tilpassede ord, navn eller bransjevilkår.";
+"home.add.api.key" = "Legg til API-nøkkel";
+"home.accessibility.enable.title" = "Aktiver tilgjengelighet";
+"home.accessibility.enable.description" = "Tillat HyperWhisper å automatisk lime inn i apper du bruker.";
+"home.accessibility.waiting" = "Venter...";
+"home.accessibility.open.settings" = "Åpne innstillinger";
+"home.accessibility.restart.after.permission" = "Start appen på nytt etter å ha gitt tillatelse";
+"home.getting.started.completed" = "✓ Fullført";
+"home.whatsnew.badge" = "NYTT";
+"home.whatsnew.title" = "Hva er nytt?";
+"home.whatsnew.update1.date" = "3. jul";
+"home.whatsnew.update1.title" = "Parakeet er nå tilgjengelig";
+"home.whatsnew.update1.description" = "Last den ned direkte fra listen over språkmodeller i Modus-oppretting for å prøve den i dag.";
+"home.whatsnew.update2.date" = "5. jun";
+"home.whatsnew.update2.title" = "Støtte for alle OpenAI-kompatible tilpassede modeller";
+"home.whatsnew.update2.description" = "Du kan nå legge til alle OpenAI-kompatible API-er til modellisten din.";
+"home.whatsnew.update3.date" = "27. mai";
+"home.whatsnew.update3.title" = "Helt nytt minivindu for opptak";
+"home.whatsnew.update3.description" = "Et elegant, minimalt opptaksgrensesnitt som holder seg unna veien.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Nylige oppdateringer";
+"home.recent.updates.error" = "Kunne ikke laste oppdateringer";
+"home.recent.updates.retry" = "Prøv igjen";
+"home.recent.updates.empty" = "Ingen nylige oppdateringer tilgjengelig";
+"home.recent.updates.version" = "Versjon %@";
+"home.recent.updates.new.badge" = "NYTT";
+"home.recent.updates.no.notes" = "Ingen utgivelsesnotater tilgjengelig";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Mellomrom";
+"keyboard.option.space" = "⌥Mellomrom";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Mikrofontilgang kreves";
+"common.open.settings" = "Åpne innstillinger";
+"alerts.api.local.mode" = "Bruk lokal modus";
+"alerts.documents.permission.title" = "Lagre til Dokumenter?";
+"common.continue" = "Fortsett";
+"alerts.documents.permission.use.another" = "Bruk en annen plassering";
+"alerts.api.configure.generic" = "Vennligst konfigurer API-nøklene dine i Innstillinger.";
+"alerts.api.internet.offline" = "Skytranskripsjon krever en internettforbindelse. Vennligst sjekk nettverksinnstillingene dine eller velg en lokal transkripsjonsmodus.";
+"alerts.api.configure.header.multiple" = "For å bruke valgt modus, vennligst konfigurer følgende API-nøkler i Innstillinger:";
+"alerts.api.configure.header.single" = "For å bruke valgt modus, vennligst konfigurer følgende API-nøkkel i Innstillinger:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Etter å ha lagt til de manglende nøklene, prøv igjen.";
+"alerts.export.failed.title" = "Eksport mislyktes";
+"alerts.export.logs.failed.message" = "Kunne ikke eksportere oppdateringslogger. Vennligst prøv igjen.";
+"alerts.export.logs.success.title" = "Logger eksportert";
+"alerts.export.logs.success.message" = "Oppdateringslogger er eksportert vellykket.";
+"alerts.export.logs.saveFailed.message" = "Kunne ikke lagre logger til valgt plassering: %@";
+"alerts.export.diagnostics.failed.message" = "Kunne ikke eksportere diagnostikk. Vennligst prøv igjen.";
+"alerts.export.diagnostics.success.title" = "Diagnostikk eksportert";
+"alerts.export.diagnostics.success.message" = "Alle diagnostikklogger er eksportert vellykket.";
+"alerts.export.diagnostics.saveFailed.message" = "Kunne ikke lagre diagnostikk til valgt plassering: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Eksporter oppdateringslogger for støtte";
+"panels.export.diagnostics.message" = "Eksporter alle diagnostikklogger";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Kom i gang med HyperWhisper";
+"sidebar.statistics.help" = "Vis bruksstatistikk og analyser";
+"sidebar.modes.help" = "Administrer transkripsjonsmodi for ulike kontekster";
+"sidebar.vocabulary.help" = "Legg til tilpassede ord og fraser for bedre gjenkjenning";
+"sidebar.streaming.help" = "Sanntids strømmetranskripsjon innstillinger (krever internett)";
+"sidebar.history.help" = "Vis og søk i transkripsjonhistorikken din";
+"sidebar.settings.help" = "Konfigurer appinnstillinger og preferanser";
+
+// MARK: - Recording State
+"recording.state.ready" = "Klar til opptak";
+"recording.state.recording" = "Tar opp...";
+"recording.state.processing" = "Behandler lyd...";
+"recording.state.transcribing" = "Transkriberer...";
+"recording.state.postprocessing" = "Etterbehandler med AI...";
+"recording.state.complete" = "Transkripsjon fullført: %@";
+"recording.state.error" = "Feil: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Start eller stopp opptak";
+"menu.recording.stop" = "Stopp opptak";
+"menu.recording.toggle" = "Start/Stopp opptak";
+"menu.history" = "Historikk...";
+"menu.settings" = "Innstillinger...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Velg modus";
+"menu.transcribe.file" = "Transkripsjon av fil";
+"menu.mode.unnamed" = "Uten navn";
+"menu.version.label" = "Versjon %@";
+"common.quit" = "Avslutt";
+"menu.microphone.default" = "Standard";
+"menu.microphone.system.default" = "Standard";
+"menu.bar.state.recording" = "Tar opp";
+"menu.bar.state.processing" = "Behandler";
+"menu.bar.state.idle" = "Inaktiv";
+"menu.command.check.updates" = "Søk etter oppdateringer…";
+"menu.debug.title" = "Feilsøk";
+"menu.command.export.logs" = "Eksporter oppdateringslogger…";
+"menu.command.export.diagnostics" = "Eksporter diagnostikk…";
+"menu.command.help.website" = "Nettside for hjelp";
+"menu.command.contact.support" = "Kontakt støtte";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Generelt";
+"settings.section.sound" = "Lyd";
+"settings.section.license" = "Lisens";
+"settings.section.credits" = "Kreditter";
+"settings.section.storage" = "Lagring";
+"settings.section.models" = "Modeller";
+"settings.section.api.keys" = "API-nøkler";
+"settings.section.shortcuts" = "Tastatursnarveier";
+"settings.section.output" = "Tekstutdata";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (engelsk)";
+"onboarding.model.pro.multilingual" = "Pro (flerspråklig)";
+"onboarding.model.downloading.progress" = "Laster ned... %d%%";
+"onboarding.accessibility.title" = "Aktiver tilgjengelighet for automatisk innliming";
+"onboarding.accessibility.subtitle" = "Tillat HyperWhisper å automatisk lime inn transkribert tekst i applikasjonene dine.";
+"onboarding.accessibility.instructions" = "Systeminnstillinger → Personvern og sikkerhet → Tilgjengelighet";
+"onboarding.accessibility.status.granted" = "Tilgjengelighetstillatelse gitt";
+"onboarding.accessibility.status.pending" = "Tilgjengelighetstillatelse ikke gitt ennå";
+"onboarding.accessibility.waiting" = "Venter på tillatelse...";
+"onboarding.accessibility.open.preferences" = "Åpne tilgjengelighetsinnstillinger";
+"onboarding.accessibility.restart" = "Etter å ha gitt tillatelse, start HyperWhisper på nytt.";
+"onboarding.model.recommendation.title" = "Vi anbefaler Pro-modellen";
+"onboarding.model.recommendation.subtitle" = "Basert på systemspråket ditt og Mac-ens kapasitet.";
+"onboarding.model.recommendation.note" = "Last ned ved å klikke på knappen nedenfor.";
+"onboarding.model.downloaded" = "Nedlastet";
+"onboarding.model.metric.speed" = "Hastighet";
+"onboarding.model.metric.accuracy" = "Nøyaktighet";
+"onboarding.model.metric.size" = "Størrelse";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Eller velg en annen talemodell";
+"onboarding.model.picker.title" = "Modell";
+"onboarding.model.option.proEnglish" = "Pro (engelsk)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Last ned modell";
+"onboarding.audio.title" = "Hvilken lydinngangsenhet vil du bruke?";
+"onboarding.audio.subtitle" = "Sørg for at inndatavolumet for lyden din er skrudd opp og registrerer volum.";
+"onboarding.audio.input.label" = "Inngangsenhet";
+"onboarding.audio.picker.label" = "Enhet";
+"onboarding.audio.use.system.default" = "Bruk systemets standardenhet";
+"onboarding.audio.level" = "Lydnivå";
+"onboarding.audio.open.sound" = "Åpne lydinnstillinger";
+"onboarding.microphone.title" = "Opptakstillatelse kreves";
+"onboarding.microphone.subtitle" = "For å ta opp lyd, trenger vi tilgang til mikrofonen din.";
+"onboarding.microphone.status.granted" = "Mikrofontillatelse gitt";
+"onboarding.microphone.status.pending" = "Mikrofontillatelse ikke gitt ennå";
+"onboarding.microphone.grant" = "Gi tillatelse";
+"onboarding.test.title" = "Alt klart, la oss starte ditt første opptak";
+"onboarding.test.press.prefix" = "Trykk";
+"onboarding.test.press.suffix" = "for å starte";
+"onboarding.test.status.recording" = "Tar opp...";
+"onboarding.test.status.speak" = "Snakk nå...";
+"onboarding.test.stop" = "Stopp opptak";
+"onboarding.test.success.title" = "Flott! Opptaket ditt var vellykket.";
+"onboarding.test.success.subtitle" = "Transkripsjonen din vil vises i appen.";
+"onboarding.test.start.cta" = "Klikk for å starte opptak";
+"onboarding.test.start.shortcut" = "Eller trykk på tastatursnarvei";
+"onboarding.settings.title" = "Godt gjort! Nå, la oss åpne Innstillinger";
+"onboarding.settings.subtitle" = "Høyreklikk på HyperWhisper-ikonet og velg Innstillinger...";
+"onboarding.settings.menu.startStop" = "Start/Stopp opptak";
+"onboarding.settings.menu.history" = "Historikk...";
+"onboarding.settings.menu.settings" = "Innstillinger...";
+"onboarding.settings.menu.quit" = "Avslutt";
+"onboarding.settings.info" = "I Innstillinger kan du tilpasse snarveier, administrere API-nøkler og konfigurere HyperWhisper etter dine preferanser.";
+"onboarding.completion.title" = "Du er ferdig!";
+"onboarding.completion.subtitle" = "Hvis du støter på problemer eller spørsmål, ta kontakt via e-post eller Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-post";
+"onboarding.completion.resources.title" = "Ekstra ressurser";
+"onboarding.completion.resources.documentation" = "Dokumentasjon";
+"onboarding.completion.resources.videos" = "Videoveiledninger";
+"onboarding.completion.resources.blog" = "Blogg";
+"onboarding.done.button" = "Fullfør introduksjon";
+"onboarding.error.model.notFound" = "Modell ikke funnet i katalog.";
+"onboarding.error.microphone.denied" = "Mikrofontillatelse nektet. Vennligst gi tillatelse i Systeminnstillinger.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Start ved pålogging";
+"settings.general.launchAtLogin.info" = "Start HyperWhisper automatisk når du logger på.";
+"settings.general.launchMinimized.title" = "Start minimert";
+"settings.general.launchMinimized.info" = "Start HyperWhisper med hovedvinduet skjult. Appen vil være tilgjengelig via menylinjen.";
+"settings.general.showInDock.title" = "Vis i Dock";
+"settings.general.showInDock.info" = "Vis appikonet i Dock.";
+"settings.general.showRecordingWindow.title" = "Vis opptaksvindu";
+"settings.general.showRecordingWindow.info" = "Vis det flytende bølgeformvinduet under opptak og behandling.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Av";
+"settings.general.mediaControl.mode.mute" = "Demp lyd";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Feillogging";
+"settings.general.errorLogging.info" = "Fang automatisk opp og send feilrapporter for å forbedre appen.";
+"settings.general.autoUpdate.title" = "Automatisk oppdatering";
+"settings.general.autoUpdate.info" = "Søk automatisk etter og last ned nye versjoner av HyperWhisper.";
+"settings.general.support.title" = "Trenger du hjelp?";
+"settings.version.detail" = "Versjon %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Spill av lydeffekter";
+"settings.sound.soundEffects.info" = "Spill av lydsignaler når opptak starter og stopper.";
+"settings.sound.mediaControl.title" = "Mediekontroll under opptak";
+"settings.sound.mediaControl.info" = "Velg hvordan HyperWhisper håndterer annen lyd mens du tar opp. 'Av' lar lyden være uendret, 'Demp lyd' demper systemutgangen under opptak og gjenoppretter den etterpå.";
+"settings.sound.autoIncreaseMicVolume.title" = "Øk mikrofonvolumet automatisk";
+"settings.sound.autoIncreaseMicVolume.info" = "Setter automatisk mikrofoninngangsvolum til maks når opptak starter, og gjenoppretter deretter det opprinnelige nivået når opptak stopper. Gjelder bare når du bruker systemets standardinngangsenhet.";
+"settings.sound.vad.title" = "Fjern stillhet før transkripsjon";
+"settings.sound.vad.info" = "Detekterer og fjerner automatisk ledende og etterfølgende stillhet ved hjelp av AI-stemmedeteksjon. Dette kan forbedre transkripsjonsnøyaktighet og redusere behandlingstid.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Opptaksmappe";
+"settings.storage.showFolder.title" = "Vis opptaksmappe";
+"settings.storage.showFolder.button" = "Vis i Finder";
+"settings.storage.notice" = "Endring av opptaksmappe påvirker bare nye opptak. Eksisterende opptak forblir på sin opprinnelige plassering.";
+"settings.storage.choose.button" = "Velg...";
+"settings.storage.dialog.select" = "Velg mappe";
+"settings.storage.dialog.message" = "Velg en mappe for å lagre opptak";
+"settings.storage.storeAsM4A.title" = "Komprimer opptak til M4A";
+"settings.storage.storeAsM4A.subtitle" = "Konverterer WAV-opptak til mindre filer etter transkripsjon. Slå av for å beholde originale WAV-filer (større men tapsfrie).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Lim inn resultat automatisk";
+"settings.output.paste.subtitle" = "Lim automatisk inn transkribert tekst i den aktive applikasjonen";
+"settings.output.paste.info" = "Hvis aktivert, limes teksten inn i appen i forgrunnen.";
+"settings.output.restoreClipboard.title" = "Gjenopprett utklippstavle etter innliming";
+"settings.output.restoreClipboard.subtitle" = "Gjenopprett tidligere utklippstavleinnhold etter innliming";
+"settings.output.restoreClipboard.info" = "Gjenoppretter tidligere utklippstavleinnhold etter at appen limer inn transkripsjonen.";
+"settings.output.restore.after" = "Gjenopprett etter";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Forsinkelse for gjenoppretting av utklippstavle";
+"settings.output.hideClipboardHistory.title" = "Skjul fra utklippstavlehistorikk";
+"settings.output.hideClipboardHistory.subtitle" = "Hindre transkripsjoner fra å vises i utklippstavlehistorikkapper";
+"settings.output.hideClipboardHistory.info" = "Når aktivert, blir ikke transkribert tekst lagret av utklippstavleadministratorer som Paste, Maccy eller Alfred.";
+"settings.output.clipboard.header" = "Utklippstavle";
+"settings.output.removeFillers.title" = "Fjern fyllord";
+"settings.output.removeFillers.subtitle" = "Fjerner 'uh', 'um' og 'er' fra rå transkripsjoner.";
+"settings.output.removeFillers.info" = "Når dette er aktivert, fjerner HyperWhisper vanlige fyllord fra rå transkripsjoner før utdata.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Veksle opptak";
+"settings.shortcuts.toggleRecording.subtitle" = "Starter og stopper opptak";
+"settings.shortcuts.cancelRecording.title" = "Avbryt opptak";
+"settings.shortcuts.cancelRecording.subtitle" = "Forkaster det aktive opptaket";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Hold en tast for å ta opp, slipp når ferdig";
+"settings.shortcuts.pushToTalk.enable.info" = "Aktiverer Push to Talk-modus for rask opptak med ett tastetrykk.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Opptaksmodus";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Velg hvilken tast som skal brukes";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Deaktivert";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN-tast";
+"settings.shortcuts.pushToTalk.mode.control" = "Control-tast";
+"settings.shortcuts.pushToTalk.mode.custom" = "Tilpasset snarvei";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Dobbelttrykk for å låse opptak";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Trykk to ganger raskt for å fortsette opptak uten å holde";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Tilpasset snarvei";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Trykk på tastekombinasjonen som skal brukes";
+
+
+"settings.shortcuts.changeMode.title" = "Endre modus";
+"settings.shortcuts.changeMode.subtitle" = "Fungerer bare under opptak";
+
+"settings.shortcuts.reset.button" = "Tilbakestill til standardverdier";
+"settings.shortcuts.reset.dialog.title" = "Tilbakestill tastatursnarveier";
+"settings.shortcuts.reset.confirm" = "Tilbakestill";
+"settings.shortcuts.reset.dialog.message" = "Dette vil tilbakestille alle tastatursnarveier til standardverdiene.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API-nøkler lagres sikkert på enheten din og sendes bare til leverandøren ved behov.";
+"settings.api.help.link" = "Hjelp med API-nøkler";
+"settings.api.transcription.title" = "Transkripsjon";
+"settings.api.transcription.subtitle" = "API-nøkler for skybaserte tale-til-tekst-tjenester.";
+"settings.api.postProcessing.title" = "Etterbehandling";
+"settings.api.postProcessing.subtitle" = "API-nøkler for AI-drevet tekstforbedring og formatering.";
+"settings.api.placeholder" = "Oppgi din %@ API-nøkkel";
+"settings.api.openLink" = "Åpne %@ API-nøkkelside";
+"settings.api.status.accessibility" = "%@ status: %@";
+"settings.api.status.unknown" = "Leverandørstatus ukjent";
+"settings.api.status.checking" = "Helsesjekk pågår";
+"settings.api.status.unauthorized" = "API-nøkkel avvist av leverandør";
+"settings.api.status.unreachable" = "Leverandør er for øyeblikket ikke tilgjengelig";
+"settings.api.status.notInstalled" = "Leverandør-SDK ikke installert";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Ukjent";
+"provider.status.checking" = "Sjekker…";
+"provider.status.healthy" = "Klar";
+"provider.status.unauthorized" = "Ugyldig nøkkel";
+"provider.status.unreachable" = "Frakoblet";
+"provider.status.notInstalled" = "Ikke installert";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Lisens aktivert";
+"alerts.license.deactivated.title" = "Lisens deaktivert";
+"alerts.license.activated.message" = "Lisensen din er aktivert vellykket. Nyt ubegrenset tilgang til alle funksjoner!";
+"alerts.license.deactivated.message" = "Lisensen din er deaktivert på denne enheten. Du kan nå aktivere den andre steder.";
+"alerts.license.failed.title" = "Operasjon mislyktes";
+"alerts.license.failed.message" = "Operasjon mislyktes. Vennligst prøv igjen.";
+"license.button.deactivate" = "Deaktiver enhet";
+"license.button.deactivating" = "Deaktiverer...";
+"license.button.manageBilling" = "Administrer fakturering";
+"license.button.activate" = "Aktiver";
+"license.button.activating" = "Aktiverer...";
+"license.status.label" = "Status: %@";
+"license.status.trial.title" = "Prøveversjon";
+"license.status.active.title" = "Aktiv";
+"license.status.expired.title" = "Utløpt";
+"license.status.invalid.title" = "Ugyldig";
+"license.status.trial.description" = "Gratis prøveversjon (5 min/dag, %d modeller)";
+"license.status.active.description" = "Lisensiert – Full tilgang";
+"license.status.expired.description" = "Lisens utløpt";
+"license.status.invalid.description" = "Ugyldig lisens";
+"settings.license.key.title" = "Lisensnøkkel";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Lim inn fra utklippstavle";
+"settings.license.clearInput" = "Tøm";
+"settings.license.recovery.prompt" = "Glemt lisensnøkkelen din?";
+"settings.license.recovery.button" = "Gå til kundeportal";
+"settings.license.daily.title" = "Daglig transkripsjon";
+"settings.license.daily.usage" = "%@ av %@ brukt";
+"settings.license.limitReached" = "Grense nådd";
+"settings.license.models.title" = "Frakoblede modeller";
+"settings.license.models.progress" = "%d av %d modeller lastet ned";
+"settings.license.models.progress.one" = "%d av %d modell lastet ned";
+"settings.license.upgrade.text" = "Oppgrader for ubegrenset transkripsjon og modellnedlastinger";
+"settings.license.upgrade.button" = "Oppgrader";
+"license.error.invalidResponse" = "Ugyldig responsformat";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud-kreditter";
+"settings.credits.refresh" = "Oppdater";
+"settings.credits.subtitle" = "Overvåk dine transkripsjonskreditter og bruk";
+"settings.credits.manage" = "Administrer kreditter";
+"settings.credits.timeRemaining" = "Gjenværende transkripsjonsstid";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minutter";
+"settings.credits.creditsRemaining" = "%@ kreditter gjenstår";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Gratis daglig grense (100 kreditter)";
+"settings.credits.resets" = "Tilbakestilles %@";
+"settings.credits.warning.low" = "Kreditter på lave nivåer. Vurder å kjøpe en lisens for flere kreditter.";
+"settings.credits.warning.exhausted.daily" = "Daglig grense oppbrukt. Kjøp en lisens for ubegrenset bruk eller vent på tilbakestilling.";
+"settings.credits.warning.exhausted" = "Kreditter oppbrukt. Kjøp flere kreditter for å fortsette å bruke HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Kontoinformasjon";
+"settings.credits.stat.creditsRemaining" = "Kreditter gjenstår";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minutter gjenstår";
+"settings.credits.stat.accountType" = "Kontotype";
+"settings.credits.accountType.licensed" = "Lisensiert";
+"settings.credits.accountType.anonymous" = "Anonym";
+"settings.credits.accountType.trial" = "Prøveversjon";
+"settings.credits.stat.customerId" = "Kunde-ID";
+"settings.credits.stat.dailyLimit" = "Daglig grense";
+"settings.credits.dailyLimit.value" = "100 kreditter";
+"settings.credits.loading" = "Laster kredittsaldo...";
+"settings.credits.error.title" = "Kunne ikke laste kredittsaldo";
+"settings.credits.error.retry" = "Prøv igjen";
+"settings.credits.empty.title" = "Ingen kredittinformasjon tilgjengelig";
+"settings.credits.empty.subtitle" = "Klikk oppdater for å laste kredittsaldoen din";
+"settings.credits.empty.button" = "Last kreditter";
+"settings.credits.error.insufficient" = "Utilstrekkelige kreditter. Du har %d kreditter gjenstående.";
+"settings.credits.error.network" = "Nettverksfeil: %@";
+"settings.credits.error.invalidResponse" = "Ugyldig respons fra server. Vennligst prøv igjen.";
+"settings.credits.error.server" = "Serverfeil: %@";
+"settings.models.alert.limit.title" = "Grense for modellnedlasting nådd";
+"settings.models.alert.limit.message" = "Prøveversjoner inkluderer %d modellnedlastinger. Oppgrader lisensen din for ubegrensede nedlastinger.";
+"settings.models.alert.cannotDelete.title" = "Kan ikke slette modell";
+"settings.models.parakeet.title" = "Parakeet-modeller";
+"settings.models.parakeet.subtitle" = "Anbefalt for de fleste brukere. Flerspråklig modell støtter 25 språk.";
+"settings.models.parakeet.empty" = "Ingen Parakeet-modeller tilgjengelig.";
+"settings.models.whisper.title" = "Whisper-modeller";
+"settings.models.whisper.subtitle" = "OpenAI Whisper-modeller. Større modeller er mer nøyaktige. Støtter 100+ språk.";
+"settings.models.whisper.empty" = "Ingen Whisper-modeller tilgjengelig.";
+"settings.models.help.cancelDownload" = "Avbryt nedlasting";
+"settings.models.help.remove" = "Fjern modell";
+"settings.models.downloaded" = "Nedlastet";
+"settings.models.download" = "Last ned";
+"settings.models.downloading" = "Laster ned…";
+"settings.models.localPostProcessing.title" = "Lokale etterbehandlingsmodeller";
+"settings.models.localPostProcessing.memoryWarning" = "Anbefalt for Mac med 24 GB unified memory eller mer. Hastigheten avhenger av brikken — raskere på M3/M4 Pro og høyere.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Ord i år";
+"vocabulary.input.placeholder" = "Legg til et ord eller opprett et utdrag";
+"vocabulary.action.addWord" = "Legg til ord";
+"vocabulary.action.replaceWith" = "Erstatt med…";
+"vocabulary.action.replace" = "Erstatt";
+"vocabulary.replacement.field.placeholder" = "Erstatningstekst…";
+"settings.output.autocapitalizeInsert.title" = "Automatisk stor forbokstav ved innsetting";
+"settings.output.autocapitalizeInsert.subtitle" = "Tilpass markørkontekst ved innsetting av tekst";
+"settings.output.autocapitalizeInsert.info" = "Hvis aktivert, justeres det første ordet i den innsatte transkripssjonsteksten for å matche markørkonteksten (setningsstart eller midten av setning). Slå av for alltid-med-små-bokstaver-diktering.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper trenger tilgjengelighetstillatelse for å lese markørkonteksten som kreves for automatisk stor forbokstav.\n\nKlikk på \"Åpne innstillinger\", trykk på knappen ved siden av HyperWhisper og prøv igjen.";
+"settings.output.removeFillerWords.title" = "Fjern fyllord";
+"settings.output.removeFillerWords.subtitle" = "Fjern \"øh\", \"um\" og \"er\" fra rå transkripsjoner når AI-etterbehandling er slått av";
+"settings.output.removeFillerWords.info" = "Gjelder kun når en modus hopper over AI-etterbehandling. AI-forbedrede modi håndterer talerensing i prompten.";
+"sidebar.modelLibrary" = "Modellbibliotek";
+"sidebar.modelLibrary.help" = "Bla gjennom alle tale- og etterbehandlingsmodeller på ett sted";
+"settings.shortcuts.quickCapture.enable.title" = "Hurtigopptak";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Ta opp og send transkripsjon til Notater — uten å måtte fokusere appen først.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Snarvei";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Trykk hvor som helst for å ta opp og sende til Notater.";
+"settings.shortcuts.quickCapture.mode.title" = "Modus";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Transkripsjonsmodusen som brukes — styrer modell, ledetekst og etterbehandling.";
+"settings.shortcuts.quickCapture.mode.current" = "Gjeldende modus";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper trenger tillatelse til å styre Notater. Gi det i Systeminnstillinger → Personvern → Automatisering.";
+"settings.section.vocabulary" = "Ordforråd";
+"settings.vocabulary.icloudSync.title" = "iCloud-synkronisering";
+"settings.vocabulary.icloudSync.subtitle" = "Synkroniser ditt egendefinerte ordforråd på tvers av Macs som er logget på den samme iCloud-kontoen.";
+"settings.vocabulary.icloudSync.info" = "Av som standard. Bare ditt egendefinerte ordforråd synkroniseres — transkripsjoner og opptak forblir på denne Macen. Endringer trer i kraft neste gang du åpner HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Avslutt HyperWhisper for å bruke endringer";
+"vocabulary.icloudSync.restart.message" = "Endringer i iCloud-ordboksynkronisering trer i kraft neste gang du åpner HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Avslutt HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Senere";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Hold mikrofon varm mellom opptak";
+"settings.sound.keepWarmMicrophone.info" = "Reduserer push-to-talk oppstartsforsinkelse ved å holde mikrofonøkten åpen mens HyperWhisper er inaktiv. macOS vil vise den oransje mikrofonindikatoren kontinuerlig, og Bluetooth-hodetelefoner kan forbli i lavere kvalitets samtalemodus mens dette er aktivert.";
+"settings.models.local.inUse" = "Denne lokale modellen brukes for øyeblikket til etterbehandling av:
+
+%@
+
+Rediger disse modusene for å velge en annen modell før du fjerner den.";
+"models.postProcessing.gemma4.e2b.description" = "Rask og nøyaktig. Utmerket allrounder for etterbehandling.";
+"models.postProcessing.gemma4.e4b.description" = "Høyere kvalitet med mer detalj. Bra for lengre tekster.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Rask inferens med kun 4B aktive parametere.";
+"models.postProcessing.gemma4.31b.description" = "31B tett modell. Høyeste kvalitet, krever 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Denne modellen kan ikke slettes fordi den brukes av:\n\n%@\n\nOppdater disse modusene for å bruke en annen modell før du sletter.";
+"settings.models.parakeet.inUse" = "Denne Parakeet-modellen kan ikke slettes fordi den brukes av:\n\n%@\n\nOppdater disse modusene for å bruke en annen modell før du sletter.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Ukjent";
+"settings.models.directory.whisper" = "Whisper-modellmappe";
+"settings.models.directory.parakeet" = "Parakeet-modellmappe";
+"settings.models.directory.local" = "Mappe for lokale modeller";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — flerspråklig talegjenkjenning optimalisert for CoreML.";
+"settings.models.qwen3asr.languages" = "30 språk";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Denne Qwen3 ASR-modellen kan ikke slettes fordi den brukes av:\n\n%@\n\nOppdater disse modusene til å bruke en annen modell før du sletter.";
+"settings.models.directory.show" = "Vis i Finder";
+"models.error.checksumFailed" = "Modellsjekksumverifisering mislyktes. Nedlastingen kan være korrupt.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistikk";
+"statistics.header.title" = "Din bruksstatistikk";
+"statistics.header.subtitle" = "Spor transkripsjonaktivitet og ytelse";
+"statistics.card.recordings" = "Totalt antall opptak";
+"statistics.card.recordings.subtitle" = "Fullførte transkripsjoner";
+"statistics.card.duration" = "Totaltid";
+"statistics.card.duration.subtitle" = "Tid brukt på opptak";
+"statistics.card.words" = "Totalt antall ord";
+"statistics.card.words.subtitle" = "Ord transkribert";
+"statistics.card.average" = "Gjennomsnittlig varighet";
+"statistics.card.average.subtitle" = "Per opptak";
+"statistics.graph.title" = "Aktivitet over tid";
+"statistics.daily.empty" = "Ingen opptak ennå";
+"statistics.filter.week" = "Denne uken";
+"statistics.filter.month" = "Denne måneden";
+"statistics.filter.alltime" = "All tid";
+
+// MARK: - History View
+"history.title" = "Historikk";
+"history.search.placeholder" = "Søk";
+"history.filter.all" = "Alt";
+"history.filter.today" = "I dag";
+"history.filter.week" = "Denne uken";
+"history.filter.month" = "Denne måneden";
+"history.empty.title" = "Ingen opptak funnet";
+"history.empty.subtitle" = "Prøv å justere søket ditt";
+"history.detail.empty" = "Velg et opptak for å vise detaljer";
+"history.multi.selected" = "%d opptak valgt";
+"history.multi.delete" = "Slett valgte";
+"history.context.deleteSelected" = "Slett %d opptak";
+"history.context.retry" = "Prøv transkripsjon på nytt";
+"history.context.retryWith" = "Prøv igjen med...";
+"history.context.copy" = "Kopier tekst";
+"history.retrying" = "Prøver transkripsjon på nytt...";
+"history.retry.help" = "Prøv transkripsjonen på nytt";
+"history.section.today" = "I dag";
+"history.section.yesterday" = "I går";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Mislyktes";
+"history.status.transcription.failed.prefix" = "Transkripsjon mislyktes:";
+"history.status.retry.failed.prefix" = "Nytt forsøk mislyktes:";
+"history.failure.reason" = "Årsak: %@";
+"history.mode.default" = "Standard";
+"history.audio.showInFinder" = "Vis i Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Slett modus?";
+"modes.delete.confirm.message" = "Dette vil fjerne den valgte modusen. Denne handlingen kan ikke angres.";
+"modes.header.title" = "Moduser";
+"modes.header.subtitle" = "Opprett tilpassede profiler for ulike kontekster og arbeidsflyter";
+"modes.header.create" = "Opprett modus";
+"modes.name.unnamed" = "Uten navn";
+"modes.badge.offline" = "Frakoblet";
+"modes.context.select" = "Velg";
+"modes.help.edit" = "Rediger modusinnstillinger";
+"modes.help.preset" = "Lær mer om denne forhåndsinnstillingen";
+"modes.help.model" = "Lær mer om denne modellen";
+"modes.preset.title" = "Forhåndsinnstilling";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Melding";
+"modes.preset.mail.name" = "E-post";
+"modes.preset.note.name" = "Notat";
+"modes.preset.meeting.name" = "Møte";
+"modes.preset.code.name" = "Kode";
+"modes.preset.custom.name" = "Tilpasset";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Meldingsmodus rydder opp i den dikterte meldingen din, fikser tegnsetting, deler opp i avsnitt og retter grammatiske feil.";
+"modes.preset.mail.tooltip" = "E-postmodus formaterer dikteringen din til en profesjonell e-poststruktur, med passende hilsener, avsnittsvisning og avslutning.";
+"modes.preset.note.tooltip" = "Notatmodus organiserer diktert innhold til et tydelig notatformat med overskrifter, punktlister og strukturerte seksjoner.";
+"modes.preset.meeting.tooltip" = "Møtemodus strukturerer dikteringen din til møtereferat med deltakere, handlingspunkter og viktige diskusjonspunkter.";
+"modes.preset.code.tooltip" = "Kodemodus konverterer diktering av programmering til kodesyntaks. Si 'åpen parentes', 'omvendt skråstrek', 'kamelbokstav' og mer for å skrive kode med stemmen.";
+"modes.preset.custom.tooltip" = "Tilpasset modus lar deg definere egne formateringsregler og instruksjoner for spesifikke brukstilfeller.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Definer de fullstendige formateringsinstruksjonene for denne forhåndsinnstillingen.";
+"modes.notice.vocabularyUnsupported" = "Tilpasset ordforråd støttes ikke av denne leverandøren for denne modellen. Det vil bli ignorert.";
+"modes.notice.deepgramNova3AutoDetect" = "Tilpasset ordforråd er ikke tilgjengelig når du bruker Deepgram Nova-3 med automatisk språkdeteksjon. For å aktivere ordforrådsforbedring, sett et spesifikt språk (f.eks. engelsk, spansk).";
+"modes.language.title" = "Språk";
+"modes.language.englishOnly" = "Bare engelsk (optimalisert modell)";
+"modes.postProcessing.sectionTitle" = "Etterbehandling";
+"modes.postProcessing.modeLabel" = "Modus";
+"modes.postProcessing.modeTitle" = "Etterbehandling";
+"modes.postProcessing.modeDescription" = "Velg hvordan transkripsjoner behandles:\n\n• Av: Ingen etterbehandling, rå transkripsjon\n• Sky (AI): AI-drevet forbedring (krever internett)\n• Lokal: Bruker en enhetsintern LLM som Gemma via llama.cpp\n\nSkybehandling sender tekst til den valgte AI-leverandøren. Lokal modus forblir på maskinen din, men krever at den lokale serveren kjører.";
+"modes.postProcessing.providerLabel" = "Leverandør";
+"modes.postProcessing.apiKeyMissing" = "%@ API-nøkkel ikke konfigurert. Legg den til i Innstillinger for å aktivere etterbehandling.";
+"modes.postProcessing.configure" = "Konfigurer i Innstillinger";
+"modes.postProcessing.modelRecommendation" = "Vi anbefaler å bruke GPT-4.1 Nano for den beste balansen mellom hastighet og kvalitet.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Lokal etterbehandling krever en nedlastet lokal modell.";
+"modes.postProcessing.download" = "Last ned i Innstillinger";
+"modes.postProcessing.localInfo" = "Kjører helt på enheten. HyperWhisper starter den medfølgende llama.cpp-serveren automatisk når denne modusen er aktiv.";
+"modes.postProcessing.userSystemPrompt.title" = "Faste instruksjoner";
+"modes.postProcessing.userSystemPrompt.placeholder" = "f.eks. Avslutt alltid e-poster med 'Hilsen, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Tøm";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Faste instruksjoner";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Legg til instruksjoner som alltid gjelder i tillegg til den valgte forhåndsinnstillingen.";
+"modes.toggle.punctuation.title" = "Legg til tegnsetting";
+"modes.toggle.punctuation.subtitle" = "Legg automatisk til punktum og kommaer";
+"modes.toggle.capitalization.title" = "Bruk stor forbokstav i setninger";
+"modes.toggle.capitalization.subtitle" = "Bruk stor forbokstav i begynnelsen av setninger";
+"modes.toggle.profanity.title" = "Filtrer banning";
+"modes.toggle.profanity.subtitle" = "Erstatt upassende ord";
+"modes.toggle.removeTrailingPeriod.title" = "Fjern avsluttende punktum";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Fjerner siste punktum fra transkripsjoner";
+"modes.postProcessing.privacyNotice" = "Transkripsjonen din sendes KUN til %@ for etterbehandling. Aldri noe annet sted.";
+"modes.postProcessing.localModel" = "Modell";
+"modes.postProcessing.languageModel" = "Språkmodell";
+"modes.englishSpelling.title" = "Engelsk stavemåte";
+"modes.englishSpelling.american" = "Amerikansk";
+"modes.englishSpelling.british" = "Britisk";
+"modes.englishSpelling.australian" = "Australsk";
+"modes.englishSpelling.canadian" = "Kanadisk";
+"modes.englishSpelling.american.description" = "Bruk amerikansk engelsk stavemåte (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Bruk britisk engelsk stavemåte (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Bruk australsk engelsk stavemåte (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Bruk kanadisk engelsk stavemåte (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Egendefinerte instruksjoner";
+"modes.gemini.customPrompt.helper" = "Valgfritt. F.eks. \"Formater som punktliste\", \"Bruk formelt språk\". Språk- og ordforrådsinnstillingene dine inkluderes automatisk.";
+"modes.cloud.apiKeyMissing" = "%@ API-nøkkel ikke konfigurert. Legg den til i Innstillinger for å bruke skytranskripsjon.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Nøyaktighet";
+"modes.cloudAccuracy.groqWhisper.label" = "Middels (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Middels (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Høy (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Rask og rimelig. Best for raske transkripsjoner.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Balansert hastighet og nøyaktighet. Anbefalt for de fleste brukere.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
+"modes.cloudAccuracy.grokStt.label" = "Høyest (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
+
+"modes.create.title" = "Opprett ny modus";
+"modes.create.subtitle" = "Konfigurer en tilpasset transkirpsjonsprofil";
+"modes.section.basic" = "Grunnleggende innstillinger";
+"modes.section.transcription" = "Transkripsjonmodell";
+"modes.section.punctuation" = "Tegnsetting";
+"modes.toggle.screenText.title" = "Skjermtekst";
+"modes.toggle.screenText.subtitle" = "Fang synlig skjermtekst for å forbedre nøyaktigheten av navn og termer. Krever tilllatelse for skjermopptak.";
+"modes.screenText.openSettings" = "Åpne Systeminnstillinger";
+"modes.screenText.permissionGranted" = "Tilllatelse for skjermopptak gitt";
+"modes.screenText.permissionRequired" = "Tilllatelse for skjermopptak kreves";
+"modes.field.name" = "Navn";
+"modes.field.name.placeholder" = "f.eks. møtenotater";
+"modes.field.name.editPlaceholder" = "Modusnavn";
+"modes.field.model" = "Modell";
+"modes.field.provider" = "Leverandør";
+"modes.provider.local" = "Lokal";
+"modes.provider.cloud" = "Sky";
+"modes.notice.noLocalModels.title" = "Ingen lokale modeller installert";
+"modes.notice.noLocalModels.subtitle" = "Installer en modell i Innstillinger først";
+"modes.model.pricing" = "Prising: $%.6f / minutt (faktureres per sekund)";
+"modes.button.create" = "Opprett modus";
+"modes.button.delete" = "Slett modus";
+"modes.button.save" = "Lagre endringer";
+"modes.edit.title" = "Rediger modus";
+"modes.edit.subtitle" = "Endre innstillinger for transkirpsjonsprofil";
+"mode.editor.cloudModel.previewHint" = "Forhåndsvisning";
+"mode.editor.cloudModel.noVocabularyHint" = "Ingen tilpasset ordliste";
+"mode.editor.cloudDomain.medical" = "Medisinsk";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode-tillegg";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Kan ikke prøve på nytt: Lydfil ikke funnet";
+"transcripts.error.invalidId" = "Ugyldig transkripsjon-ID";
+"transcripts.delete.single.title" = "Slett opptak?";
+"transcripts.delete.single.message" = "Dette vil permanent slette dette opptaket og lydfilen.";
+"transcripts.delete.multiple.title" = "Slett %d opptak?";
+"transcripts.delete.multiple.message" = "Dette vil permanent slette %d opptak og deres lydfiler.\n\nDenne handlingen kan ikke angres.";
+"transcripts.delete.multiple.confirm" = "Slett alle";
+"transcripts.retry.error.title" = "Nytt forsøk mislyktes";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Velg opptaksmappe";
+"storage.folder.choose.message" = "Velg en mappe for å lagre nye opptak.";
+"storage.folder.choose.prompt" = "Velg";
+"storage.recovery.title" = "Får ikke tilgang til opptaksmappen";
+"storage.recovery.message" = "HyperWhisper kunne ikke få tilgang til den konfigurerte opptaksmappen. Du kan velge en annen mappe for å fortsette.";
+"storage.recovery.choose" = "Velg mappe…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Lær mer";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkripsjon fullført";
+"recording.status.retrying" = "Prøver transkripsjon på nytt…";
+"recording.status.postprocessing" = "Etterbehandler med AI…";
+"recording.status.transcribing" = "Transkriberer…";
+"recording.success.pasted" = "Limt inn!";
+"recording.loading.retrying" = "Prøver på nytt…";
+"recording.loading.postprocessing" = "Behandler med AI…";
+"recording.loading.starting" = "Starter strøm…";
+"recording.loading.transcribing" = "Transkriberer…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Kobler til...";
+"streaming.status.ready" = "Klar - start å snakke";
+"streaming.status.warming" = "Varmer opp...";
+"modes.badge.recommended" = "Anbefalt";
+"modes.source.label" = "Kilde";
+"modes.source.onDevice" = "På enheten";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-nøkkel";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Denne modellen kan ikke slettes fordi den brukes av:
+
+%@
+
+Oppdater disse modusene til å bruke en annen modell før du sletter.";
+"models.postProcessing.gemma4.12b.description" = "Mellomstort tett modell. Balanserer kvalitet og hastighet på 16 GB Macs.";
+"recording.success.savedToNotes" = "Lagret i Notater!";
+"modes.provider.needsKey" = "%@ trenger en fungerende nøkkel.";
+"modes.provider.manageInLibrary" = "Administrer i biblioteket →";
+"streaming.loading.warming" = "Varmer opp lokal modell...";
+"streaming.status.listening" = "Lytter...";
+"streaming.status.streaming" = "Strømmer...";
+"streaming.status.disconnecting" = "Stopper...";
+"streaming.loading.connecting" = "Kobler til server...";
+"streaming.loading.ready" = "Initialiserer lyd...";
+"streaming.loading.streaming" = "Venter på tale...";
+"streaming.state.reconnecting" = "Kobler til på nytt...";
+"recording.stop.help" = "Stopp opptak (%@)";
+"recording.postprocessing.unavailable" = "Etterbehandling ikke tilgjengelig";
+"recording.postprocessing.missing.single" = "%@ nøkkel mangler – tar opp uten etterbehandling";
+"recording.postprocessing.missing.multiple" = "API-nøkler mangler – tar opp uten etterbehandling";
+"recording.postprocessing.addKey" = "Legg til nøkkel";
+"recording.offline.banner" = "Ingen internettforbindelse. Skytranskripsjon vil mislykkes til du er tilkoblet.";
+"recording.offline.title" = "Ingen internettforbindelse";
+"recording.offline.subtitle" = "Koble til på nytt for å fortsette eller bytt til en frakoblet modus.";
+"recording.error.network" = "Sjekk internettforbindelsen din og prøv igjen.";
+"recording.error.timeout" = "Forespørsel tidsavbrutt. Sjekk tilkoblingshastigheten din og prøv på nytt.";
+"recording.error.rateLimit" = "Du har gjort for mange forespørsler. Vent litt og prøv på nytt.";
+"recording.error.credits" = "Utilstrekkelige kreditter. Legg til flere kreditter i Innstillinger.";
+"recording.error.apiKey" = "Legg til din %@ API-nøkkel i Innstillinger.";
+"recording.error.server" = "Transkripsjonserveren opplever problemer. Vennligst prøv igjen om litt.";
+"recording.retry" = "Prøv igjen";
+"recording.retry.inProgress" = "Prøver på nytt…";
+"recording.retry.count" = "Prøv igjen (%d)";
+"recording.retry.failed.missing" = "Nytt forsøk mislyktes: Lydfil ikke funnet";
+"recording.retry.failed.error" = "Nytt forsøk mislyktes: %@";
+"recording.retry.pending" = "Klar til å prøve på nytt – klikk for å transkribere";
+"recording.provider.unknown" = "skyleverandør";
+"recording.cancel.dialog.title" = "Avbryt opptak?";
+"recording.cancel.dialog.message" = "Dette vil forkaste det nåværende opptaket.";
+"recording.cancel.dialog.confirm" = "Avbryt opptak";
+"recording.cancel.dialog.resume" = "Gjenoppta";
+"recording.error.overlay.title" = "Nettverkstilkoblingsfeil";
+"recording.error.overlay.message" = "Trykk 'Prøv igjen' nedenfor eller bytt til en frakoblet modus for å fortsette.";
+"recording.mode.default" = "Standard";
+"recording.dialog.window.title" = "Opptaksdialog";
+"recording.button.start" = "Start opptak";
+"recording.button.stop" = "Stopp opptak";
+"recording.button.disable.checking" = "Sjekker %@ status...";
+"recording.button.disable.invalid" = "Ugyldig %@ API-nøkkel. Oppdater den i Innstillinger.";
+"recording.button.disable.unreachable" = "%@ er ikke tilgjengelig. Sjekk forbindelsen din og prøv igjen.";
+"recording.button.disable.missing" = "Legg til din %@ API-nøkkel i Innstillinger.";
+"recording.button.disable.install.local" = "Last ned en lokal modell i Innstillinger → Modeller før du bruker lokal etterbehandling.";
+"modes.postProcessing.accuracy" = "Nøyaktighet";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Du har nådd din daglige %@-minutters transkripsjongrense. Oppgrader til HyperWhisper Pro for ubegrenset transkripsjon.";
+"recording.error.documentsAccess" = "Får ikke tilgang til opptaksmappen. Velg en annen plassering i Innstillinger → Lagring.";
+"recording.error.modeMissing" = "Valgt modus ikke funnet. Vennligst velg en gyldig modus.";
+"recording.warning.oversizedWAV" = "Lydkomprimering mislyktes. Bruker ukomprimert %@ MB-fil - transkripsjon kan være tregere.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Standardmikrofon";
+"audio.error.permissionDenied" = "Mikrofontilgang nektet. Vennligst aktiver i Systeminnstillinger.";
+"audio.error.fileWatcher.open" = "Kunne ikke åpne en fildeskriptor for å overvåke lydfilen.";
+"audio.error.fileWatcher.timeout" = "Operasjonen tidsavbrutt mens den ventet på at lydfilen skulle skrives.";
+"audio.error.fileWatcher.creation" = "Lydfilen ble ikke opprettet i tide.";
+"audio.error.microphonePermission" = "Mikrofontillatelse ikke gitt";
+"audio.error.microphoneInUse" = "HyperWhisper får ikke tilgang til mikrofonen fordi en annen app for øyeblikket bruker den. Pause den andre appen eller bytt inngangskilder, og prøv deretter igjen.";
+"audio.error.createEngine" = "Kunne ikke opprette lydmotor";
+"audio.error.noInput" = "Ingen lydinngang tilgjengelig";
+"audio.error.createFile" = "Kunne ikke opprette lydfil";
+"audio.error.managerUnavailable" = "Transkripsjonadministrator ikke konfigurert";
+"audio.error.invalidHardwareFormat" = "Ugyldig maskinvarelydformat oppdaget. Vennligst sjekk lydenheten din.";
+"audio.error.createFormat" = "Kunne ikke opprette lydformat for opptak";
+"audio.error.createConverter" = "Kunne ikke opprette lydformatkonverter";
+"audio.error.exportM4A" = "Kunne ikke eksportere lyd til m4a-format";
+"audio.error.readFile" = "Lydfil kunne ikke leses etter opptak.";
+"audio.error.recordingTooShort" = "Opptaket var for kort. Vennligst hold knappen lengre for å fange lyd.";
+"audio.error.noAudioTrack" = "Denne videofilen inneholder ikke et lydspor.";
+"audio.alert.accessibility.title" = "Aktiver tilgjengelighetstilgang";
+"audio.alert.accessibility.message" = "HyperWhisper trenger tilgjengelighetstillatelse for å lime inn transkribert tekst i andre applikasjoner.\n\nKlikk \"Åpne innstillinger\", trykk på bryteren ved siden av HyperWhisper, og prøv deretter igjen.";
+"audio.alert.accessibility.open" = "Åpne innstillinger";
+"audio.alert.pasteFailed.title" = "Automatisk innliming mislyktes";
+"audio.alert.pasteFailed.message" = "Den transkriberte teksten er kopiert til utklippstavlen din.\n\nTrykk ⌘V for å lime den inn manuelt, eller velg Rediger → Lim inn fra menyen.";
+"accessibility.permission.location.debug" = "Xcode-feilsøkingsbygg";
+"accessibility.permission.location.installed" = "Installert app";
+"accessibility.permission.info" = "HyperWhisper trenger tilgjengelighetstillatelse for å lime inn transkribert tekst i andre applikasjoner.\n\nNåværende apploaksjon: %@\n\nI Systeminnstillinger:\n1. Se etter 'hyperwhisper' eller 'HyperWhisper' i listen\n2. Du kan se flere oppføringer hvis du har kjørt fra ulike plasseringer\n3. Aktiver avkryssingsboksen for oppføringen som samsvarer med:\n   %@";
+"accessibility.permission.xcodeNote" = "Merk: Kjøring fra Xcode krever annen tillatelse enn den installerte appen.";
+"accessibility.error.paste.commandFailed" = "Lim inn-kommando mislyktes";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transkirpsjonsleverandør er ikke tilgjengelig. Sjekk innstillingene dine og prøv igjen.";
+"transcription.error.providerNotAvailable.provider" = "%@ er ikke tilgjengelig. Sjekk innstillingene dine og prøv igjen.";
+"transcription.error.providerNotAvailable.detail" = "%@ er ikke tilgjengelig: %@";
+"transcription.error.modelNotDownloaded" = "Vennligst last ned en modell først";
+"transcription.error.modelProtected" = "Denne modellen kan ikke slettes";
+"transcription.error.audioFileNotFound" = "Lydfil ikke funnet";
+"transcription.error.network.detail" = "Nettverksfeil: %@";
+"transcription.error.network.generic" = "Nettverkstilkoblingsfeil";
+"transcription.error.apiKeyMissing.provider" = "%@ API-nøkkel kreves for transkripsjon";
+"transcription.error.apiKeyMissing.generic" = "En skyleverandør API-nøkkel kreves for transkripsjon";
+"transcription.error.maxRetriesExceeded" = "Maksimalt antall gjenforsøk overskredet";
+"transcription.error.unauthorized.provider" = "Uautorisert: ugyldig %@ API-nøkkel eller tillatelser.\n\nÅpne Innstillinger → API-nøkler for å bekrefte legitimasjonen din.";
+"transcription.error.unauthorized.generic" = "Uautorisert: ugyldig API-nøkkel eller tillatelser.\n\nÅpne Innstillinger → API-nøkler for å bekrefte legitimasjonen din.";
+"transcription.error.invalidRequest" = "Ugyldig forespørsel: sjekk lydfil eller innstillinger";
+"transcription.error.streamingInterrupted" = "Strømming avbrutt; delvis tekst vist";
+"transcription.error.busy" = "Transkripsjonserveren er for øyeblikket opptatt";
+"transcription.error.invalidAudioFormat" = "Ustøttet lydformat";
+"transcription.error.audioConversionFailed" = "Kunne ikke konvertere lyd til nødvendig format";
+"transcription.error.audioFileTooLarge" = "Fil for stor: %@ overskrider %@ grense for %@";
+"transcription.error.serverError" = "Serverfeil (%d): %@";
+"transcription.error.rateLimited.seconds" = "Ratebegrenset: For mange forespørsler. Vennligst vent %d sekunder og prøv igjen.";
+"transcription.error.rateLimited.generic" = "Ratebegrenset: For mange forespørsler. Vennligst vent litt og prøv igjen.";
+"transcription.error.insufficientCredits" = "Utilstrekkelige kreditter. Legg til flere kreditter i Innstillinger.";
+"transcription.error.quotaExceeded" = "%@ kvote overskredet";
+"transcription.error.quotaExceeded.detail" = "%@ kvote overskredet: %@";
+"transcription.error.timeout" = "Forespørsel tidsavbrutt under %@. Sjekk internettforbindelsen din og prøv igjen.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Sørg for at transkirpsjonsleverandøren din er riktig konfigurert i Innstillinger.";
+"transcription.guidance.providerNotAvailable.provider" = "Sørg for at %@ er riktig konfigurert. For lokale modeller, last ned en modell først. For skyleverandører, bekreft API-nøkkelen din.";
+"transcription.guidance.apiKeyMissing.provider" = "Legg til din %@ API-nøkkel i Innstillinger";
+"transcription.guidance.apiKeyMissing.generic" = "Legg til skyleverandør API-nøkkelen din i Innstillinger";
+"transcription.guidance.modelNotDownloaded" = "Last ned en modell fra Modeller-seksjonen";
+"transcription.guidance.modelProtected" = "Denne modellen er for øyeblikket i bruk";
+"transcription.guidance.audioFileNotFound" = "Lydfilen ble slettet eller flyttet";
+"transcription.guidance.networkError" = "Sjekk internettforbindelsen din og prøv igjen";
+"transcription.guidance.unauthorized.provider" = "Sjekk din %@ API-nøkkel eller kontotillatelser i Innstillinger";
+"transcription.guidance.unauthorized.generic" = "Sjekk API-nøkkelen din eller kontotillatelser i Innstillinger";
+"transcription.guidance.invalidRequest" = "Bekreft lydfilen og modusinnstillingene, og prøv deretter igjen";
+"transcription.guidance.invalidAudioFormat" = "Prøv å konvertere lydfilen til MP3 eller WAV-format";
+"transcription.guidance.audioConversionFailed" = "Lydfilen kan være korrupt. Prøv en annen fil";
+"transcription.guidance.audioFileTooLarge" = "Bruk en kortere lydfil eller del den opp i mindre segmenter";
+"transcription.guidance.serverError" = "Transkripsjonserveren opplever problemer. Vennligst prøv igjen.";
+"transcription.guidance.rateLimited" = "Du har gjort for mange forespørsler. Vent litt før du prøver igjen.";
+"transcription.guidance.insufficientCredits" = "Kjøp flere kreditter i Innstillinger for å fortsette å transkribere";
+"transcription.guidance.quotaExceeded" = "Legg til kreditter til din %@ konto eller oppdater faktureringsdetaljene dine";
+"transcription.guidance.timeout" = "Forespørselen tok for lang tid. Sjekk internettshastigheten din og prøv igjen.";
+"transcription.error.noSpeechDetected" = "Ingen tale oppdaget i opptaket.";
+"transcription.guidance.noSpeechDetected" = "Tips:\n• Snakk tydelig inn i mikrofonen\n• Hold tasten lengre før du snakker\n• Sjekk at mikrofonen din fungerer\n• Sørg for at riktig inngangsenhet er valgt";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Utilstrekkelige kreditter. Legg til flere kreditter i Innstillinger.";
+"hyperwhisperCloud.error.network" = "Nettverksfeil: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Ugyldig respons fra HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Serverfeil: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server-kjørbar kunne ikke lokaliseres.";
+"llama.runtime.error.missingDependencies" = "Kjøretid mangler avhengigheter: %@";
+"llama.runtime.error.copyFailed" = "Kunne ikke kopiere kjøretid: %@";
+"llama.runtime.error.copy.executable" = "Kunne ikke kopiere kjørbar: %@";
+"llama.runtime.missing" = "Lokal-kjøretid mangler fra denne installasjonen. Installer HyperWhisper på nytt for å gjenopprette lokal etterbehandling.";
+"llama.runtime.genericError" = "Lokal-kjøretidsfeil: %@";
+"runtime.error.llama.missingLib" = "Lokal-kjøretid avsluttet etter manglende libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Lokal-kjøretid rapporterte manglende libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Innebygd AI-etterbehandling som kjører på Cloudflare Workers. Ingen konfigurasjonsesdig.";
+"models.postProcessing.gpt4.1.nano.description" = "Moderat nøyaktighet (92%), veldig rask hastighet (<1s). Egnet for raske utkast og uformelle notater.";
+"models.postProcessing.gpt4.1.mini.description" = "Høy nøyaktighet (94%), rask hastighet (~1-2s). Bra for daglig forretningskommunikasjon og standarddokumenter.";
+"models.postProcessing.gpt4.1.description" = "Veldig høy nøyaktighet (96%), moderat hastighet (~3-4s). Flott for kompleks formatering og teknisk innhold.";
+"models.postProcessing.gpt5.nano.description" = "God nøyaktighet (95%), raskest hastighet (~1s). Perfekt for raske notater, meldinger og tilfeldige transkripsjoner.";
+"models.postProcessing.gpt5.mini.description" = "Utmerket nøyaktighet (97%), moderat hastighet (~2-3s). Ideell balanse for profesjonelle e-poster, rapporter og møtenotater.";
+"models.postProcessing.gpt5.description" = "Høyeste nøyaktighet (99%+), tregeste hastighet (~3-5s). Best for kritiske dokumenter, juridiske, medisinske transkripsjoner hvor presisjon er avgjørende.";
+"models.postProcessing.gpt5.1.description" = "Toppmoderne nøyaktighet (98%+), moderat hastighet (~2-3s). Utmerket for komplekse oppgaver, juridiske dokumenter og teknisk innhold med overlegen resonnering.";
+"models.postProcessing.gpt5.2.description" = "Nyeste GPT-5-serie med forbedret resonnering og raskere inferens. Beste generelle valg for tekstbehandling av høy kvalitet.";
+"models.postProcessing.claude4.5.haiku.description" = "Nyeste Claude Haiku med forbedret resonnering mens responstidene holdes raske.";
+"models.postProcessing.claude4.sonnet.description" = "Balansert ytelse. Overlegne resonnerings- og formateringsmuligheter for profesjonelle dokumenter.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3-serie med Pro-nivå intelligens på Flash-hastighet. Avansert resonnering med dynamiske tankefunksjoner.";
+"models.postProcessing.gemini2.5.flash.description" = "Best når det gjelder pris-ytelse. Optimalisert for hastighet samtidig som god nøyaktighet opprettholdes for daglig bruk.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultrarask modell optimalisert for kostnadseffektivitet og høy gjennomstrømming.";
+"models.postProcessing.groq.llama33.70b.description" = "Allsidig 70B-modell med utmerket kvalitet. ~280 tokens/sek. Anbefalt.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultrarask 8B-modell. ~560 tokens/sek for øyeblikkelig tekstbehandling.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAIs åpen kildekode 120B-modell. ~500 tokens/sek for tekstbehandling av høy kvalitet.";
+"models.postProcessing.groq.gptoss.20b.description" = "Lettvekts 20B-modell. ~1000 tokens/sek for raskest behandling.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B på Cerebras. Ultrarask 120B-modell på ~3000 tokens/sek. Anbefalt.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B på Cerebras. Lettvekts og ultrarask på ~2200 tokens/sek.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B på Cerebras. Massiv 235B MoE-modell på ~1400 tokens/sek. Bare forhåndsvisning.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 på Cerebras. 355B-parametermodell på ~1000 tokens/sek. Bare forhåndsvisning.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Hjelpesenter";
+"settings.resources.contact.support" = "Kontakt støtte";
+"settings.resources.feedback" = "Tilbakemelding og forslag";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Sikkerhetskopi";
+"settings.backup.export.title" = "Eksporter innstillinger";
+"settings.backup.export.subtitle" = "Lagre innstillingene, modusene og ordforrådet til en fil";
+"settings.backup.export.button" = "Eksporter...";
+"settings.backup.export.panel.title" = "Eksporter innstillinger";
+"settings.backup.export.panel.label" = "Sikkerhetskopifil:";
+"settings.backup.export.success" = "Innstillinger eksportert vellykket";
+"settings.backup.export.error.create" = "Kunne ikke opprette sikkerhetskopidataer";
+"settings.backup.export.error.encode" = "Kunne ikke kode sikkerhetskopidataer";
+"settings.backup.export.error.write" = "Kunne ikke skrive sikkerhetskopifil";
+"settings.backup.includeAPIKeys.title" = "Inkluder API-nøkler";
+"settings.backup.includeAPIKeys.subtitle" = "Lagre API-nøkler i sikkerhetskopifilen (anbefales ikke for deling)";
+"settings.backup.includeLicense.title" = "Inkluder lisensnøkkel";
+"settings.backup.import.title" = "Importer innstillinger";
+"settings.backup.import.subtitle" = "Gjenopprett innstillinger fra en sikkerhetskopifil";
+"settings.backup.import.button" = "Importer...";
+"settings.backup.import.panel.title" = "Importer innstillinger";
+"settings.backup.import.success" = "Import fullført: %d moduser, %d ordforrådelementer importert";
+"settings.backup.import.error.read" = "Kunne ikke lese sikkerhetskopifil";
+"settings.backup.import.error.decode" = "Ugyldig sikkerhetskopfilformat";
+"settings.backup.import.error.decode.keyNotFound" = "Mangler påkrevd felt: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Feil type for felt: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Mangler verdi for felt: %@";
+"settings.backup.import.error.decode.corrupted" = "Skadede data: %@";
+"settings.backup.import.error.decode.corruptedField" = "Skadet verdi for felt: %@";
+"settings.backup.import.error.version" = "Sikkerhetskopifil er fra en nyere versjon";
+"settings.backup.import.error.unknown" = "Import mislyktes";
+"settings.backup.import.confirm.title" = "Importer innstillinger?";
+"settings.backup.import.confirm.message" = "Dette vil erstatte eksisterende moduser og ordforråd med de fra sikkerhetskopifilen. Innstillinger vil også bli oppdatert.";
+"settings.backup.import.confirm.button" = "Importer";
+"settings.backup.conflict.skip" = "Hopp over eksisterende";
+"settings.backup.conflict.replace" = "Erstatt eksisterende";
+"settings.backup.conflict.keepBoth" = "Behold begge";
+"settings.backup.security.warning" = "Advarsel: Den eksporterte filen vil inneholde sensitiv data. Hold den sikker og ikke del den.";
+"settings.backup.info.note" = "Sikkerhetskopier inkluderer innstillinger, moduser og ordforråd. Opptak og transkripsjoner er ikke inkludert.";
+"settings.backup.result.success.title" = "Vellykket";
+"settings.backup.result.error.title" = "Feil";
+"settings.backup.export.choose.subtitle" = "Velg hva som skal inkluderes i sikkerhetskopifilen";
+"settings.backup.export.section.settings" = "Innstillinger";
+"settings.backup.export.section.modes" = "Modi";
+"settings.backup.export.section.vocabulary" = "Ordforråd";
+"settings.backup.import.importing" = "Importerer %@";
+"settings.backup.import.contains" = "Denne filen inneholder: %@";
+"settings.backup.import.contains.vocabulary" = "Ordforråd (%d ord)";
+"settings.backup.import.contains.none" = "ingenting";
+"settings.backup.import.section.settings" = "Innstillinger";
+"settings.backup.import.section.modes" = "Modi";
+"settings.backup.import.section.vocabulary" = "Ordforråd";
+"settings.backup.import.section.apiKeys" = "API-nøkler";
+"settings.backup.import.section.license" = "Lisensnøkkel";
+"settings.backup.import.section.absent" = "— ikke i filen";
+"settings.backup.import.premerge.summary" = "Ordforråd: legg til %d nye, %d finnes allerede";
+"settings.backup.import.premerge.conflictLabel" = "For ord som allerede finnes:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Velg lydfil";
+"transcribe.file.error.title" = "Transkirpsjonsfeil";
+"transcribe.file.error.size.title" = "Fil for stor";
+"transcribe.file.error.size.message" = "Den valgte filen (%@) overskrider %@ grensen for %@.";
+"transcribe.file.error.format.title" = "Ustøttet format";
+"transcribe.file.error.format.message" = ".%@ filer støttes ikke av %@. Støttede formater: %@";
+"transcribe.file.error.read" = "Kan ikke lese den valgte filen.";
+"transcribe.file.error.copy" = "Kunne ikke kopiere fil til opptaksmappe.";
+"transcribe.file.error.video.title" = "Ingen lyd i video";
+"transcribe.file.error.video.noAudio" = "Denne videofilen inneholder ikke et lydspor. Vennligst velg en video med lyd eller en lydfil.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Forbereder...";
+"file.transcription.transcribing" = "Transkriberer...";
+"file.transcription.finishing" = "Fullfører...";
+"file.transcription.cancel" = "Avbryt";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Aktiver automatisk sletting";
+"history.autoDelete.enable.subtitle" = "Opptak eldre enn den angitte varigheten vil bli slettet";
+"history.autoDelete.duration.prefix" = "Etter";
+"history.autoDelete.unit.minutes" = "Minutter";
+"history.autoDelete.unit.hours" = "Timer";
+"history.autoDelete.unit.days" = "Dager";
+"history.autoDelete.unit.minutes.plural" = "minutter";
+"history.autoDelete.unit.hours.plural" = "timer";
+"history.autoDelete.unit.days.plural" = "dager";
+"history.autoDelete.status.disabled" = "Automatisk sletting er deaktivert";
+"history.autoDelete.status.enabled" = "Slett opptak eldre enn %d %@";
+"history.autoDelete.cleanup.noItems" = "Ingen opptak å slette";
+"history.autoDelete.cleanup.summary" = "Slettet %d opptak og frigjorde %@";

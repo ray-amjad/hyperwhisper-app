@@ -1,0 +1,145 @@
+---
+title: Transcribe a File
+description: Import an existing audio or video file and transcribe it with any HyperWhisper mode.
+---
+
+In addition to live recording, HyperWhisper can transcribe audio files you already have on disk. The flow is the same on both platforms — pick a file from the menu, watch a progress popup, and the result lands in your History — but the supported formats and provider limits differ. Pick your platform below.
+
+<Tabs>
+  <Tab title="macOS">
+    ## Open the file picker
+
+    Click the HyperWhisper menu bar icon, hover **Transcribe File**, and choose the mode you want to use. A standard macOS file picker opens immediately.
+
+    ![HyperWhisper menu bar with Transcribe File submenu open](/images/transcribe-file-menu-macos.png)
+
+    Each mode in your library shows up as a submenu item, so you can transcribe with **Hyper**, **Voice to text**, **Meeting**, or any custom mode without changing your default first.
+
+    ## Supported formats
+
+    HyperWhisper accepts most common audio containers, plus the two main video containers — for video files, the audio track is extracted locally before transcription.
+
+    | Type | Extensions |
+    | --- | --- |
+    | Audio | `.wav`, `.mp3`, `.m4a`, `.aiff`, `.webm`, `.ogg`, `.flac` |
+    | Video (audio extracted) | `.mp4`, `.mov`, `.m4v` |
+
+    <Note>
+      Cloud providers each support a different subset of audio formats. If you select a format the provider does not accept, HyperWhisper catches it before upload and tells you which formats that provider supports — so you do not have to wait for a cryptic API error after a long upload.
+    </Note>
+
+    ## File size limits
+
+    Local models have no file size limit. Cloud providers each have their own cap, enforced by HyperWhisper before upload:
+
+    | Provider | Max file size |
+    | --- | --- |
+    | LibWhisper / Parakeet (local) | No limit |
+    | HyperWhisper Cloud | 2 GB |
+    | Deepgram | 2 GB |
+    | AssemblyAI | 2.2 GB |
+    | ElevenLabs | 3 GB |
+    | Mistral | 100 MB |
+    | OpenAI | 25 MB |
+    | Groq | 25 MB |
+
+    If the file is too large for the selected mode's provider, you get a friendly error showing the file size, the provider's limit, and the provider name — switch the mode to a different provider (for example, HyperWhisper Cloud or a local model) to transcribe larger files.
+
+    ## What happens during transcription
+
+    A floating progress popup appears as soon as you pick the file. It walks through three stages:
+
+    <Steps>
+      <Step title="Preparing (0–15%)">
+        HyperWhisper validates the file size and format, copies the file into your recordings folder, extracts the audio track if it is a video, and runs **VAD silence trimming** if you have it enabled and the file is at least 30 seconds long.
+      </Step>
+      <Step title="Transcribing (15–85%)">
+        The audio is sent to the local model or cloud provider configured by your mode. The progress bar animates while the provider works.
+      </Step>
+      <Step title="Finishing (85–100%)">
+        Post-processing rules from the mode (formatting, vocabulary, custom prompt) are applied, the transcript is saved, and the main window jumps to **History** so you can copy or edit the result.
+      </Step>
+    </Steps>
+
+    You can cancel at any point with the **Cancel** button on the popup. If you cancel, the copied file is cleaned up and no transcript is saved.
+
+    ## VAD trimming
+
+    If you have **Voice Activity Detection** enabled in settings and the imported file is 30 seconds or longer, HyperWhisper trims leading and trailing silence before sending it to the provider. The trimmed version is what gets transcribed, but the original audio is preserved — you can toggle between the two from the History view.
+  </Tab>
+
+  <Tab title="Windows">
+    ## Open the file picker
+
+    Right-click the HyperWhisper tray icon and choose **Transcribe Audio File**. A standard Windows file dialog opens. Unlike macOS, Windows uses your **currently selected mode** — change the mode from the tray menu first if you want to transcribe with something other than the default.
+
+    ## Supported formats
+
+    The Windows app currently supports three audio formats:
+
+    | Type | Extensions |
+    | --- | --- |
+    | Audio | `.wav`, `.mp3`, `.m4a` |
+
+    <Note>
+      Video files (`.mp4`, `.mov`) are not yet supported on Windows — extract the audio track first with a tool like ffmpeg if you need to transcribe a video.
+    </Note>
+
+    ## File size limits
+
+    File size caps follow the provider attached to the selected mode (same as macOS):
+
+    | Provider | Max file size |
+    | --- | --- |
+    | WhisperNet (local) | No limit |
+    | HyperWhisper Cloud | 2 GB |
+    | Deepgram | 2 GB |
+    | AssemblyAI | 2.2 GB |
+    | ElevenLabs | 3 GB |
+    | Mistral | 100 MB |
+    | OpenAI | 25 MB |
+    | Groq | 25 MB |
+
+    If the file exceeds the limit, you get a toast notification with the maximum size for that provider before any upload happens.
+
+    ## What happens during transcription
+
+    A progress window appears with the file name and a cancel button:
+
+    <Steps>
+      <Step title="Preparing (0–15%)">
+        HyperWhisper validates the file. If your mode uses a **local** model (WhisperNet), the file is converted to a 16 kHz mono WAV in your temp folder — this is the format Whisper expects, and HyperWhisper handles resampling and stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, the original file is sent as-is, so MP3 and M4A are uploaded without re-encoding.
+      </Step>
+      <Step title="Transcribing (15–85%)">
+        The audio is sent to WhisperNet (with DirectCompute GPU acceleration if available) or to the cloud provider configured by your mode.
+      </Step>
+      <Step title="Finishing (85–100%)">
+        Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result. The transcribed text is also smart-pasted or copied to your clipboard depending on your settings.
+      </Step>
+    </Steps>
+
+    Press **Cancel** at any time to abort. The progress window closes and no transcript is saved.
+
+    ## Local model format conversion
+
+    The local WhisperNet engine requires 16 kHz mono WAV input. If you import an MP3, an M4A, or a WAV at a different sample rate or channel count, HyperWhisper converts it on the fly using NAudio:
+
+    1. Reads the source file with `AudioFileReader` (handles MP3 / M4A via Windows Media Foundation).
+    2. Downmixes stereo to mono if needed.
+    3. Resamples to 16 kHz with `WdlResamplingSampleProvider`.
+    4. Writes a temporary 16 kHz mono WAV used only for that transcription.
+
+    The original file you imported is preserved in your History — only the temp WAV used for the model is converted.
+  </Tab>
+</Tabs>
+
+## After transcription
+
+On both platforms the result appears in **History** with the original audio attached. From there you can:
+
+- Re-copy the text or post-processed version to your clipboard
+- Re-run a different mode against the same file
+- Edit the transcript inline
+- Delete the entry along with the saved audio
+
+If a transcription fails partway through, the entry is still created in History with an error so you can retry without re-importing the file.

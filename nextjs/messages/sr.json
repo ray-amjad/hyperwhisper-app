@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI transkripcija glasa za macOS i Windows",
+    "description": "Pišite 5x brže uz AI transkripciju glasa. HyperWhisper transkribuje vaš glas sa neverovatnom preciznošću na macOS-u i Windows-u. Govorite prirodno i gledajte kako se vaše reči pojavljuju odmah."
+  },
+  "navbar": {
+    "features": "Funkcije",
+    "pricing": "Cene",
+    "faq": "ČPP",
+    "support": "Podrška",
+    "download": "Preuzmi",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Promeni jezik"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper logo",
+    "headline": "Pišite, sastavljajte i stvarajte",
+    "headlineAccent": "5x brže uz AI",
+    "subheadline": "HyperWhisper transkribuje vaš glas sa neverovatnom preciznošću. Samo govorite prirodno i gledajte kako se vaše reči pojavljuju odmah.",
+    "downloadCta": "Preuzmi sada",
+    "demoCta": "Pogledaj demo",
+    "availableOn": "Dostupno na",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Napravljeno za profesionalce",
+    "subtitle": "Svaka funkcija je osmišljena da vam pomogne da radite brže i efikasnije",
+    "customVocabulary": {
+      "title": "Prilagođeni rečnik",
+      "description": "Dodajte imena, skraćenice i posebne termine za savršenu preciznost svaki put."
+    },
+    "languages": {
+      "title": "100+ jezika",
+      "description": "Transkribujte na više od 100 jezika uz automatsko prepoznavanje jezika."
+    },
+    "offline": {
+      "title": "Offline podrška",
+      "description": "Radi potpuno offline. Vaši podaci nikada ne napuštaju vaš uređaj."
+    },
+    "privacy": {
+      "title": "Fokus na privatnost",
+      "description": "Nije potreban nalog. Bez praćenja. Vaši glasovni podaci ostaju na vašem Mac-u ili PC-ju."
+    },
+    "hybridProcessing": {
+      "title": "Hibridna obrada",
+      "description": "Birajte između lokalnih modela za privatnost ili cloud API-ja za brzinu. Najbolje iz oba sveta."
+    },
+    "customizable": {
+      "title": "Visoko prilagodljivo",
+      "description": "Birajte između 9+ API provajdera i 30+ modela transkripcije."
+    },
+    "realTime": {
+      "title": "Strimovanje u realnom vremenu",
+      "description": "Gledajte kako se vaše reči pojavljuju odmah dok govorite. Vodeća preciznost u industriji uz latenciju ispod 700ms."
+    },
+    "fileImport": {
+      "title": "Uvoz fajlova",
+      "description": "Uvezite audio ili video fajlove za transkripciju. Podržani su svi glavni formati uz automatsko prepoznavanje tišine."
+    },
+    "screenOcr": {
+      "title": "OCR екрана",
+      "description": "Омогућите HyperWhisper-у да види ваш екран како би све тачно написао."
+    },
+    "mcpServer": {
+      "title": "Локални API и MCP сервер",
+      "description": "Уграђени MCP сервер омогућава Claude-у, Cursor-у и другим AI агентима да управљају HyperWhisper-ом. Само локални HTTP API са bearer аутентификацијом за скрипте и аутоматизације."
+    },
+    "modes": {
+      "title": "Režimi za svaku situaciju",
+      "description": "Prebacujte se između različitih režima transkripcije optimizovanih za sastanke, beleške, emailove, programiranje i još mnogo toga. Svaki režim koristi prilagođene promptove da savršeno formatira vaš tekst.",
+      "meeting": "Sastanak",
+      "email": "Email",
+      "note": "Beleška",
+      "code": "Kod",
+      "legal": "Pravno",
+      "medical": "Medicinski",
+      "presetModes": "Unapred podešeni režimi",
+      "customModes": "Prilagođeni režimi"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Brže od kucanja",
+    "accuracyRate": "Stopa preciznosti",
+    "languagesSupported": "Podržani jezici",
+    "providersSupported": "Podržani provajderi"
+  },
+  "pricing": {
+    "title": "Bez pretplata. Nikad.",
+    "subtitle": "Platite jednom, koristite zauvek. I mi mrzimo pretplate.",
+    "guarantee": "14-dnevna garancija povrata novca",
+    "guaranteeExtended": "ako niste potpuno zadovoljni.",
+    "learnMore": "Saznajte više",
+    "free": {
+      "name": "Besplatno",
+      "price": "$0",
+      "period": "zauvek",
+      "description": "Idealno za isprobavanje HyperWhispera",
+      "cta": "Preuzmi besplatno",
+      "features": {
+        "transcriptionLimit": "5 minuta transkripcije dnevno",
+        "basicModes": "Osnovni režimi transkripcije",
+        "offlineTranscription": "Offline transkripcija",
+        "apiTranscription": "API transkripcija (koristite sopstvene ključeve)",
+        "postProcessing": "Naknadna obrada teksta",
+        "providers": "9+ provajdera za izbor",
+        "lifetimeUpdates": "Doživotna ažuriranja",
+        "cloudLimited": "HyperWhisper Cloud (ograničena upotreba)",
+        "customVocabulary": "Prilagođeni rečnik",
+        "prioritySupport": "Prioritetna podrška"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "doživotno",
+      "description": "Jednokratna kupovina, neograničena snaga zauvek",
+      "cta": "Kupi sada - Doživotni pristup",
+      "mostPopular": "Najpopularniji",
+      "features": {
+        "unlimitedTranscription": "Neograničena transkripcija",
+        "allModes": "Svi režimi transkripcije",
+        "offlineTranscription": "Offline transkripcija",
+        "apiTranscription": "API transkripcija (koristite sopstvene ključeve)",
+        "postProcessing": "Naknadna obrada teksta",
+        "providers": "9+ provajdera za izbor",
+        "lifetimeUpdates": "Doživotna ažuriranja",
+        "cloudCredits": "HyperWhisper Cloud ($5 kredita)",
+        "customVocabulary": "Prilagođeni rečnik",
+        "prioritySupport": "Prioritetna podrška"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise i prilagođene cene",
+      "description": "Količinski popusti, SSO, prioritetna podrška, interni hosting i prilagođene integracije",
+      "cta": "Kontaktirajte prodaju"
+    }
+  },
+  "faq": {
+    "title": "Često postavljana pitanja",
+    "subtitle": "Sve što treba da znate o HyperWhisperu",
+    "contactPrompt": "I dalje imate pitanja? Pišite nam na",
+    "questions": {
+      "accuracy": {
+        "question": "Koliko je precizna transkripcija?",
+        "answer": "Postižemo vodeću preciznost od 99% u industriji koristeći najsavremenije AI modele. Preciznost možete dodatno povećati dodavanjem sopstvenog prilagođenog rečnika za tehničke termine, imena i specijalizovani žargon."
+      },
+      "offline": {
+        "question": "Mogu li da koristim bez interneta?",
+        "answer": "Apsolutno. HyperWhisper može da se koristi potpuno offline na vašem Mac-u uz lokalne AI modele - internet nije potreban. Za korisnike koji žele maksimalnu preciznost i brzinu, nudimo i opcionu cloud obradu preko različitih provajdera."
+      },
+      "apiKey": {
+        "question": "Da li moram da plaćam API pristup?",
+        "answer": "Koristite sopstveni API ključ za sledeće provajdere: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral i Google Gemini. Neki provajderi nude besplatne kredite novim korisnicima; Deepgram nudi $200, AssemblyAI nudi $50. Dugoročno, ovo je značajno jeftinije od bilo koje pretplate. \n\nMožete koristiti i HyperWhisper Cloud (ugrađen), koji ne zahteva API ključ i radi po modelu plaćanja po potrošnji.\n\nAli zapamtite, lokalni offline režim radi bez API ključa i potpuno je besplatan."
+      },
+      "languages": {
+        "question": "Koje jezike podržava?",
+        "answer": "Podržano je više od 100 jezika odmah, od engleskog i španskog do mandarinskog i arapskog. Većina modela može automatski da prepozna kojim jezikom govorite i neprimetno se prebaci."
+      },
+      "offlineModels": {
+        "question": "Koji offline modeli su dostupni?",
+        "answer": "Za offline transkripciju nudimo više veličina Whisper modela (napravljen od OpenAI, podržava 99+ jezika). Nudimo i NVidia Parakeet modele (podržavaju 25+ jezika).\n      \n      Za offline naknadnu obradu nudimo više veličina Gemma 3 modela (napravljen od Google)."
+      },
+      "compatibility": {
+        "question": "Da li radi sa svim Mac i Windows aplikacijama?",
+        "answer": "Da, radi svuda gde možete da kucate. Bilo da pišete emailove, dokumente, kod ili ćaskate. Samo pritisnite prečicu, govorite i gledajte kako se vaše reči pojavljuju odmah."
+      },
+      "privacy": {
+        "question": "Kako je zaštićena moja privatnost?",
+        "answer": "Kada koristite lokalni režim, nijedan podatak ne napušta vaš Mac.\n\nKada koristite cloud transkripciju, vaši podaci se šalju cloud provajderu kojeg izaberete (npr. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs ili Mistral).\n\nOvo možete i sami proveriti pomoću mrežnog inspektora kao što je [Proxyman](https://proxyman.io) ili mrežnog monitora kao što je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Šta je HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud je ugrađena cloud transkripcija namenjena manje tehničkim korisnicima koji žele brzo da počnu.\n\nRadi po modelu pay as you go. Kupovina licence daje vam $5 kredita za transkripciju. Kasnije možete dodati još kredita.\n    \nNudimo tri nivoa preciznosti: Medium (najbrže, pokreće Groq), High (preporučeno, pokreće Deepgram) i Highest (najbolji kvalitet, pokreće xAI Grok STT). Naknadna obrada je automatska. Ne čuvamo ništa osim koliko ste kredita potrošili.\n\nPlaćate tačno koliko i mi plaćamo tim provajderima. Ne naplaćujemo maržu.\n\nZa mirnu savest, možete pogledati izvorni kod HyperWhisper Clouda [ovde](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Да ли ће моји гласовни подаци бити коришћени за обуку АИ модела?",
+        "answer": "HyperWhisper Cloud вас искључује из обуке модела код сваког добављача који користимо. Са сопственим API кључем, искључивање је ваша одговорност — погледајте наш [водич за приватност података](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Zašto doživotna cena umesto pretplate?",
+        "answer": "Verujemo u jednostavne i fer cene. Platite jednom $39 i koristite HyperWhisper zauvek. Bez mesečnih naknada, bez iznenađenja. Besplatna verzija vam omogućava da isprobate ključne funkcije sa 3 minuta dnevne transkripcije."
+      },
+      "deviceLimit": {
+        "question": "Na koliko uređaja mogu da koristim svoju licencu?",
+        "answer": "Licencu možete koristiti na koliko god uređaja želite, u skladu sa našom Politikom fer korišćenja kako je navedeno u [Uslovima korišćenja](/legal/terms-of-service). Ova politika je osmišljena da bude fleksibilna za legitimnu ličnu i poslovnu upotrebu, uz sprečavanje zloupotreba."
+      },
+      "requirements": {
+        "question": "Koji su sistemski zahtevi?",
+        "answer": "Za Mac: macOS 14 ili noviji, uz podršku za Apple Silicon i Intel. Za Windows: Windows 10/11, x64 ili ARM64. Za optimalne performanse preporučeno je 8GB RAM-a."
+      },
+      "windowsStatus": {
+        "question": "Da li Windows verzija ima sve iste funkcije kao macOS?",
+        "answer": "Windows verzija je nedavno objavljena, pa možda još nema sve funkcije dostupne na macOS-u. Aktivno radimo na punoj funkcionalnoj usklađenosti između platformi."
+      },
+      "madeBy": {
+        "question": "Ko je ovo napravio?",
+        "answer": "Ovo je napravio YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Centar za podršku",
+    "subtitle": "Tu smo da vam pomognemo da izvučete maksimum iz HyperWhispera",
+    "getInTouch": "Kontaktirajte nas",
+    "description": "Za tehničku podršku, probleme sa licencom ili bilo kakva pitanja o HyperWhisperu, naš tim je tu da pomogne.",
+    "emailUsAt": "Pišite nam na:",
+    "openInClient": "Otvori u svom email klijentu:",
+    "defaultClient": "Podrazumevani Email Klijent",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Obično odgovaramo u roku od 24 sata tokom radnih dana.",
+    "emailTemplate": {
+      "subject": "Zahtev za HyperWhisper podršku",
+      "body": "Ćao,\n\nVerzija: \n[možete proveriti u Podešavanja > O aplikaciji]\n\nProblem: \n[Opišite svoj problem]\n\nDetalji: \n[Navedite relevantne detalje, šta ste radili pre rušenja]\n\n[Vaša poruka ovde]\n\nPozdrav,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper logo",
+    "title": "Preuzmi HyperWhisper",
+    "emailPlaceholder": "Email",
+    "description": "Poslaćemo vam link za preuzimanje i kratak video tutorijal da biste brzo počeli. Bez spama.",
+    "downloadButton": "Preuzmi HyperWhisper",
+    "errorGeneric": "Nešto je pošlo po zlu. Molimo pokušajte ponovo.",
+    "errorNetwork": "Mrežna greška. Proverite vezu i pokušajte ponovo.",
+    "thankYouTitle": "Hvala!",
+    "downloadStarted": "Preuzimanje bi trebalo automatski da počne.",
+    "manualDownload": "Preuzimanje nije počelo? Kliknite ovde",
+    "skipAndDownloadButton": "Preskoči i preuzmi"
+  },
+  "downloadPage": {
+    "title": "Preuzmi HyperWhisper",
+    "countdownText": "Počinje za {seconds}...",
+    "downloadStarted": "Proverite Downloads folder",
+    "downloadNow": "Preuzmi sada",
+    "downloadAgain": "Preuzmi ponovo",
+    "selectArchitecture": "Izaberite arhitekturu",
+    "downloadX64": "Preuzmi za x64",
+    "downloadArm64": "Preuzmi za ARM64",
+    "orDivider": "ILI",
+    "homebrewTitle": "Instaliraj preko Homebrew-a",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopiraj",
+    "copied": "Kopirano!"
+  },
+  "purchaseSuccess": {
+    "title": "Kupovina uspešna!",
+    "subtitle": "Dobrodošli u HyperWhisper Pro! Vaša doživotna licenca je spremna.",
+    "checkEmail": {
+      "title": "Proverite svoj email",
+      "description": "Poslali smo vaš licencni ključ i uputstva za preuzimanje na vašu email adresu. Trebalo bi da stigne u narednih nekoliko minuta."
+    },
+    "whatsNext": {
+      "title": "Šta je sledeće?",
+      "step1": {
+        "title": "Proverite inbox",
+        "description": "Potražite email od HyperWhispera"
+      },
+      "step2": {
+        "title": "Kopirajte licencni ključ",
+        "description": "Biće vam potreban za aktivaciju aplikacije"
+      },
+      "step3": {
+        "title": "Preuzmite HyperWhisper",
+        "description": "Instalirajte aplikaciju i unesite licencni ključ"
+      }
+    },
+    "downloadButton": "Preuzmi HyperWhisper",
+    "returnHome": "Vrati se na početnu stranicu",
+    "noEmail": "Niste primili email? Proverite spam folder ili",
+    "contactSupport": "kontaktirajte podršku",
+    "loading": "Učitavanje..."
+  },
+  "footer": {
+    "tagline": "Pišite 5x brže uz AI transkripciju glasa za macOS i Windows.",
+    "product": "Proizvod",
+    "resources": "Resursi",
+    "company": "Kompanija",
+    "legal": "Pravno",
+    "links": {
+      "features": "Funkcije",
+      "pricing": "Cene",
+      "download": "Preuzmi",
+      "roadmap": "Plan razvoja",
+      "helpCenter": "Centar za pomoć",
+      "manageBilling": "Upravljanje naplatom",
+      "customerPortal": "Korisnički portal",
+      "olderVersions": "Starije verzije",
+      "blog": "Blog",
+      "about": "O nama",
+      "support": "Podrška",
+      "privacyPolicy": "Politika privatnosti",
+      "termsOfService": "Uslovi korišćenja",
+      "refundPolicy": "Politika povraćaja",
+      "dataTraining": "Приватност података"
+    },
+    "copyright": "© 2026 HyperWhisper. Sva prava zadržana.",
+    "linkedinAria": "LinkedIn"
+  }
+}

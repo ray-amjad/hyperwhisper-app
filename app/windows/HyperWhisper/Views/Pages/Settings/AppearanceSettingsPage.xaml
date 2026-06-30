@@ -1,0 +1,99 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.AppearanceSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.appearance.title}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <!-- Theme Mode Card -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="{loc:Loc settings.appearance.theme.title}" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{loc:Loc settings.appearance.theme.subtitle}"
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,16"/>
+
+                    <!-- Theme Options -->
+                    <StackPanel>
+                        <!-- System Default -->
+                        <Border x:Name="ThemeSystemBorder" Background="{DynamicResource InputBackgroundBrush}"
+                                CornerRadius="{StaticResource InputCornerRadius}" Padding="12" Margin="0,0,0,8"
+                                Cursor="Hand" MouseLeftButtonDown="ThemeSystem_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <RadioButton x:Name="ThemeSystemRadio" GroupName="Theme"
+                                             VerticalAlignment="Center" Margin="0,0,12,0"
+                                             Checked="ThemeSystemRadio_Checked"/>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Loc settings.appearance.theme.system}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{loc:Loc settings.appearance.theme.system.subtitle}"
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Light Mode -->
+                        <Border x:Name="ThemeLightBorder" Background="{DynamicResource InputBackgroundBrush}"
+                                CornerRadius="{StaticResource InputCornerRadius}" Padding="12" Margin="0,0,0,8"
+                                Cursor="Hand" MouseLeftButtonDown="ThemeLight_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <RadioButton x:Name="ThemeLightRadio" GroupName="Theme"
+                                             VerticalAlignment="Center" Margin="0,0,12,0"
+                                             Checked="ThemeLightRadio_Checked"/>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Loc settings.appearance.theme.light}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{loc:Loc settings.appearance.theme.light.subtitle}"
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Dark Mode -->
+                        <Border x:Name="ThemeDarkBorder" Background="{DynamicResource InputBackgroundBrush}"
+                                CornerRadius="{StaticResource InputCornerRadius}" Padding="12"
+                                Cursor="Hand" MouseLeftButtonDown="ThemeDark_Click">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <RadioButton x:Name="ThemeDarkRadio" GroupName="Theme"
+                                             VerticalAlignment="Center" Margin="0,0,12,0"
+                                             Checked="ThemeDarkRadio_Checked"/>
+
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{loc:Loc settings.appearance.theme.dark}" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{loc:Loc settings.appearance.theme.dark.subtitle}"
+                                               FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,186 @@
+---
+title: Custom OpenAI-Compatible Endpoints
+description: Add any OpenAI-compatible server — Ollama, LM Studio, OpenRouter, or your own — as a post-processing provider in HyperWhisper.
+---
+
+HyperWhisper can send your transcripts to any server that speaks the OpenAI chat-completions API for AI post-processing. This means you can use a local model running on your own machine, a self-hosted server, or a hosted gateway like OpenRouter — no changes to your Modes needed once the endpoint is configured.
+
+## What custom endpoints do
+
+Custom endpoints are an alternative **post-processing** provider. When a Mode has AI cleanup enabled and its provider is set to a custom endpoint, HyperWhisper POSTs the raw transcript to your server using the standard OpenAI chat-completions format and uses the reply as the cleaned-up output.
+
+They are not used for transcription itself — only for the AI cleanup/formatting pass that runs after speech recognition.
+
+## Adding an endpoint
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open the Model Library">
+        Open HyperWhisper and navigate to **Model Library** in the sidebar.
+      </Step>
+      <Step title="Find the OpenAI-compatible endpoints card">
+        Scroll to the **OpenAI-compatible endpoints** card near the bottom of the page. Click **Add endpoint**.
+      </Step>
+      <Step title="Choose a provider tab">
+        The sheet has three tabs:
+
+        - **LMStudio** — pre-fills the base URL `http://localhost:1234/v1` and name "LMStudio"; fetches your running models automatically.
+        - **Ollama** — pre-fills `http://localhost:11434` and name "Ollama"; fetches your running models automatically.
+        - **Custom** — for OpenRouter, other hosted APIs, or any other OpenAI-compatible server; you enter the base URL and model name manually.
+      </Step>
+      <Step title="Fill in the fields">
+        | Field | What to enter |
+        |---|---|
+        | Name | A label you recognize, e.g. "My Ollama Server" or "OpenRouter GPT-4o" |
+        | Base URL | The base URL of your server (see [URL format](#url-format)) |
+        | Model | The model identifier your server expects, e.g. `llama3.2` or `mistral-7b-instruct` |
+        | API Key | Optional. Leave blank for local servers that don't require authentication. |
+
+        For LMStudio and Ollama tabs, HyperWhisper queries the server's models list automatically — pick from the dropdown if models load, or type a model name manually as a fallback.
+      </Step>
+      <Step title="Test the connection (recommended)">
+        Click **Test connection** before saving. HyperWhisper sends a small request to your server and shows the response. A green indicator means the endpoint is reachable and responding correctly.
+      </Step>
+      <Step title="Save">
+        Click **Add Endpoint** (or **Save Changes** when editing). The endpoint appears in the card list.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open the Model Library">
+        Open HyperWhisper and navigate to **Model Library** in the sidebar.
+      </Step>
+      <Step title="Add a custom endpoint">
+        Click **Add endpoint** in the Custom Endpoints section.
+      </Step>
+      <Step title="Choose a provider tab">
+        The window has three tabs:
+
+        - **LMStudio** — pre-fills the base URL `http://localhost:1234/v1` and name "LMStudio"; fetches your running models automatically.
+        - **Ollama** — pre-fills `http://localhost:11434` and name "Ollama"; fetches your running models automatically.
+        - **Custom** — for OpenRouter, other hosted APIs, or any other OpenAI-compatible server; you enter the base URL and model name manually.
+      </Step>
+      <Step title="Fill in the fields">
+        | Field | What to enter |
+        |---|---|
+        | Name | A label you recognize, e.g. "My Ollama Server" or "OpenRouter GPT-4o" |
+        | Base URL | The base URL of your server (see [URL format](#url-format)) |
+        | Model | The model identifier your server expects, e.g. `llama3.2` or `mistral-7b-instruct` |
+        | API Key | Optional. Leave blank for local servers that don't require authentication. |
+
+        For LMStudio and Ollama tabs, HyperWhisper queries the server's models list automatically — pick from the dropdown if models load, or type a model name manually as a fallback.
+      </Step>
+      <Step title="Test the connection (recommended)">
+        Click **Test connection** before saving. HyperWhisper sends a small request to your server and shows the response. A green indicator means the endpoint is reachable and responding correctly.
+      </Step>
+      <Step title="Save">
+        Click **Add Endpoint** (or **Save Changes** when editing). The endpoint appears in the model list.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## URL format
+
+Enter the **base URL** of your server. For Ollama and LMStudio tabs, HyperWhisper appends the correct path automatically. For the Custom tab, see the platform notes below:
+
+| Provider tab | Path appended | Example full URL stored |
+|---|---|---|
+| Ollama | `/v1/chat/completions` | `http://localhost:11434/v1/chat/completions` |
+| LMStudio | `/chat/completions` | `http://localhost:1234/v1/chat/completions` |
+| Custom (Windows) | `/chat/completions` (if not already present) | `https://openrouter.ai/api/v1/chat/completions` |
+| Custom (macOS) | *(none — URL used verbatim)* | `https://openrouter.ai/api/v1/chat/completions` |
+
+On **Windows**, the **Custom** tab appends `/chat/completions` if your URL does not already end with it. On **macOS**, the URL you enter is stored exactly as-is, so include the full path if your server requires it.
+
+## API key storage
+
+API keys are stored securely and never in plain text:
+
+- **macOS** — keys are stored in the system **Keychain**.
+- **Windows** — keys are stored in **Windows Credential Manager**.
+
+To update or remove a key, edit the endpoint and change the API Key field. Leaving the field blank when editing removes the stored key.
+
+## Testing an endpoint
+
+The test button is available both when adding a new endpoint and when editing an existing one. It sends a minimal request to your server:
+
+```
+POST <your endpoint URL>
+{ "model": "<your model>", "messages": [{"role": "user", "content": "Say hello in one word."}], "max_tokens": 10, "temperature": 0.0 }
+```
+
+HyperWhisper expects a standard OpenAI-compatible response — a JSON object with a `choices[0].message.content` field. The last test result (pass or fail) is saved and shown next to the endpoint name so you can see at a glance whether it was working the last time you checked.
+
+The test result is cleared automatically if you change the endpoint URL, since the prior result no longer applies to the new address.
+
+## Using a custom endpoint in a Mode
+
+Once an endpoint is saved, it appears as a provider option when you edit a Mode's post-processing settings. Select it the same way you would select any built-in AI provider.
+
+See [Transcription Modes](/transcription-modes) for how to configure post-processing on a Mode.
+
+## Managing endpoints
+
+Each endpoint in the list has three actions:
+
+| Action | What it does |
+|---|---|
+| Edit (pencil) | Change the name, URL, model, or API key |
+| Duplicate | Creates a copy with a new name — useful for trying different models on the same server without re-entering the URL |
+| Delete | Permanently removes the endpoint and its stored API key |
+
+Duplicating an endpoint copies the test status along with the settings, since the URL and model are the same. The API key is also copied securely to the new entry. If the key copy fails for any reason, the test status is cleared so you know to verify the duplicate before relying on it.
+
+<Note>
+  Deleting an endpoint removes it from the list and erases the stored API key. Any Modes that were using that endpoint will need to be updated to a different post-processing provider.
+</Note>
+
+## Common providers
+
+Here are base URLs for popular OpenAI-compatible services. Use the **Custom** tab for all of these:
+
+| Provider | Base URL |
+|---|---|
+| OpenRouter | `https://openrouter.ai/api/v1` |
+| Ollama (local) | `http://localhost:11434` |
+| LM Studio (local) | `http://localhost:1234/v1` |
+| Together AI | `https://api.together.xyz/v1` |
+| Groq (OpenAI-compatible endpoint) | `https://api.groq.com/openai/v1` |
+
+For local servers (Ollama, LM Studio), use the **Ollama** or **LMStudio** tabs instead of Custom so that model auto-detection works.
+
+## Endpoint format
+
+Custom endpoints must implement the OpenAI chat completions API shape:
+
+```
+POST <your-url>
+Authorization: Bearer <api-key>   (omitted if no key)
+Content-Type: application/json
+
+{
+  "model": "<your-model>",
+  "messages": [{ "role": "user", "content": "..." }],
+  ...
+}
+```
+
+The response must match the standard OpenAI format:
+
+```json
+{
+  "choices": [
+    {
+      "message": {
+        "content": "..."
+      }
+    }
+  ]
+}
+```
+
+Any server compatible with this format will work — Ollama, LM Studio, vLLM, llama.cpp server, OpenRouter, and similar.

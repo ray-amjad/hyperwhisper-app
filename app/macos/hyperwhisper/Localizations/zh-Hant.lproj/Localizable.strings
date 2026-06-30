@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "詞彙";
+"vocabulary.description" = "這有助於軟件識別名字、首字母縮寫詞、俚語或混合語言時使用的其他語言的詞語。";
+"vocabulary.input.title" = "輸入";
+"vocabulary.new.word.placeholder" = "新詞彙或短語";
+"vocabulary.replacement.placeholder" = "替換為...";
+"vocabulary.add.button" = "新增到詞彙";
+"vocabulary.edit.title" = "編輯詞彙項目";
+"vocabulary.update.button" = "更新";
+"vocabulary.cancel.button" = "取消";
+"vocabulary.word.column" = "詞語/片語";
+"vocabulary.replacement.column" = "替換";
+"vocabulary.empty.title" = "還沒有詞彙詞語";
+"vocabulary.empty.subtitle" = "新增自訂詞語以提高轉錄準確性";
+"vocabulary.duplicate.title" = "重複項目";
+"vocabulary.duplicate.message" = "%@ 已存在於您的詞彙中。每個詞只能新增一次。";
+"vocabulary.ok.button" = "確定";
+"vocabulary.limit.title" = "關鍵詞限制已超過";
+"vocabulary.limit.message" = "您有 %d 個詞，但轉錄增強功能只會使用前 %d 個。";
+
+// MARK: - Streaming View
+"streaming.title" = "即時串流 (試驗版)";
+"streaming.description" = "當您說話時進行即時轉錄。文字會直接輸入到焦點應用程式中。";
+"streaming.enable.title" = "啟用串流";
+"streaming.provider.picker.title" = "提供商";
+"streaming.model.title" = "模型";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "快速格式化";
+"streaming.fastFormatting.description" = "減少聰明格式化延遲以加快輸入速度";
+"streaming.warning.vocabAutoDetect" = "自動偵測模式中自訂詞彙已停用";
+"streaming.warning.vocabUnsupported" = "%@ 串流不支援自訂詞彙";
+"streaming.warning.apiKeyRequired" = "需要 %@ API 金鑰";
+"streaming.warning.apiKeyRequired.action" = "設定";
+"streaming.warning.apiKeyInvalid" = "%@ API 金鑰無法運作。請在設定 > API 金鑰中更新它。";
+"streaming.warning.apiKeyInvalid.action" = "更新金鑰";
+"streaming.language.title" = "語言";
+"streaming.shortcut.title" = "快捷鍵";
+
+// MARK: - Home View
+"home.get.started" = "開始使用";
+"home.open.system.settings" = "開啟系統設定";
+
+// MARK: - API Keys
+"api.key.required" = "需要 API 金鑰";
+"api.keys.required" = "需要 API 金鑰";
+"api.key.configure.message" = "設定您的 API 金鑰以啟用轉錄功能。";
+"api.key.internet.required" = "需要網際網路連線";
+"api.key.internet.message" = "雲端轉錄需要網際網路連線。";
+
+// MARK: - Common UI
+"common.ok" = "確定";
+"common.cancel" = "取消";
+"common.delete" = "刪除";
+"common.edit" = "編輯";
+"common.done" = "完成";
+"common.copy" = "複製";
+"common.back" = "返回";
+"common.skip" = "跳過";
+"common.settings" = "設定";
+"common.error" = "錯誤";
+"common.retry" = "重試";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "主頁";
+"sidebar.statistics" = "統計";
+"sidebar.modes" = "模式";
+"sidebar.vocabulary" = "詞彙";
+"sidebar.streaming" = "串流";
+"sidebar.history" = "歷史記錄";
+"sidebar.settings" = "設定";
+
+// MARK: - App Messages
+"app.unknown.error" = "發生未知錯誤";
+"app.microphone.permission.message" = "HyperWhisper 需要存取您的麥克風以轉錄音頻。\n\n請前往系統設定 > 隱私與安全 > 麥克風，並為 HyperWhisper 啟用存取權限。";
+"app.recordings.location.message" = "HyperWhisper 將錄音儲存在您文件資料夾中的一個資料夾中，使其易於找到：Documents/hyperwhisper/recordings。第一次嘗試儲存時，macOS 可能會要求許可。如果您不想授予存取權限，我們可以將錄音儲存在私密應用資料夾中。";
+"app.upgrade.to.pro" = "升級至 Pro";
+"app.enter.license.key" = "輸入授權金鑰";
+"accessibility.upgrade.pro" = "升級至 HyperWhisper Pro";
+"accessibility.enter.license" = "輸入授權金鑰";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "新增您的 %@ API 金鑰以啟用選定的模式。";
+"home.api.keys.missing.single" = "新增您的 %@ API 金鑰以啟用選定的模式。";
+"home.getting.started.recording.title" = "開始錄音";
+"home.getting.started.recording.description" = "只需點擊一下，就能將您的聲音轉換為文字。";
+"home.getting.started.shortcuts.title" = "自訂您的快捷鍵";
+"home.getting.started.shortcuts.description" = "更改 HyperWhisper 的鍵盤快捷鍵。";
+"home.getting.started.mode.title" = "建立模式";
+"home.getting.started.mode.description" = "為您的工作流程建立完美的模式。";
+"home.getting.started.vocabulary.title" = "新增詞彙";
+"home.getting.started.vocabulary.description" = "教 HyperWhisper 自訂詞語、名字或行業術語。";
+"home.add.api.key" = "新增 API 金鑰";
+"home.accessibility.enable.title" = "啟用無障礙功能";
+"home.accessibility.enable.description" = "允許 HyperWhisper 自動貼入您正在使用的應用程式。";
+"home.accessibility.waiting" = "等待中...";
+"home.accessibility.open.settings" = "開啟設定";
+"home.accessibility.restart.after.permission" = "授予許可後重新啟動應用程式";
+"home.getting.started.completed" = "✓ 已完成";
+"home.whatsnew.badge" = "新";
+"home.whatsnew.title" = "有什麼新功能？";
+"home.whatsnew.update1.date" = "7 月 3 日";
+"home.whatsnew.update1.title" = "Parakeet 現已推出";
+"home.whatsnew.update1.description" = "直接從模式建立中的語言模型清單下載它，今天就試試看。";
+"home.whatsnew.update2.date" = "6 月 5 日";
+"home.whatsnew.update2.title" = "支援每個 OpenAI 相容的自訂模型";
+"home.whatsnew.update2.description" = "您現在可以將任何 OpenAI 相容 API 新增到您的模型清單中。";
+"home.whatsnew.update3.date" = "5 月 27 日";
+"home.whatsnew.update3.title" = "全新迷你錄音視窗";
+"home.whatsnew.update3.description" = "一個光滑、最小化的錄音介面，不會佔用您的空間。";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "最近更新";
+"home.recent.updates.error" = "無法載入更新";
+"home.recent.updates.retry" = "重試";
+"home.recent.updates.empty" = "沒有可用的最近更新";
+"home.recent.updates.version" = "版本 %@";
+"home.recent.updates.new.badge" = "新";
+"home.recent.updates.no.notes" = "沒有可用的發行說明";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "需要麥克風存取權限";
+"common.open.settings" = "開啟設定";
+"alerts.api.local.mode" = "使用本地模式";
+"alerts.documents.permission.title" = "儲存到文件？";
+"common.continue" = "繼續";
+"alerts.documents.permission.use.another" = "使用另一個位置";
+"alerts.api.configure.generic" = "請在設定中設定您的 API 金鑰。";
+"alerts.api.internet.offline" = "雲端轉錄需要網際網路連線。請檢查您的網路設定或選擇本地轉錄模式。";
+"alerts.api.configure.header.multiple" = "若要使用選定的模式，請在設定中設定下列 API 金鑰：";
+"alerts.api.configure.header.single" = "若要使用選定的模式，請在設定中設定下列 API 金鑰：";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "新增遺漏的金鑰後，請再試一次。";
+"alerts.export.failed.title" = "匯出失敗";
+"alerts.export.logs.failed.message" = "無法匯出更新日誌。請再試一次。";
+"alerts.export.logs.success.title" = "日誌已匯出";
+"alerts.export.logs.success.message" = "更新日誌已成功匯出。";
+"alerts.export.logs.saveFailed.message" = "無法將日誌儲存到選定位置：%@";
+"alerts.export.diagnostics.failed.message" = "無法匯出診斷資訊。請再試一次。";
+"alerts.export.diagnostics.success.title" = "診斷已匯出";
+"alerts.export.diagnostics.success.message" = "所有診斷日誌已成功匯出。";
+"alerts.export.diagnostics.saveFailed.message" = "無法將診斷儲存到選定位置：%@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "匯出更新日誌以取得支援";
+"panels.export.diagnostics.message" = "匯出所有診斷日誌";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "開始使用 HyperWhisper";
+"sidebar.statistics.help" = "檢視使用統計和分析";
+"sidebar.modes.help" = "管理不同內容的轉錄模式";
+"sidebar.vocabulary.help" = "新增自訂詞語和短語以提高識別率";
+"sidebar.streaming.help" = "即時串流轉錄設定（需要網際網路）";
+"sidebar.history.help" = "檢視和搜尋您的轉錄歷史記錄";
+"sidebar.settings.help" = "設定應用程式設定和偏好設定";
+
+// MARK: - Recording State
+"recording.state.ready" = "準備錄音";
+"recording.state.recording" = "錄音中...";
+"recording.state.processing" = "處理音頻中...";
+"recording.state.transcribing" = "轉錄中...";
+"recording.state.postprocessing" = "使用 AI 進行後處理中...";
+"recording.state.complete" = "轉錄完成：%@";
+"recording.state.error" = "錯誤：%@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "開始或停止錄音";
+"menu.recording.stop" = "停止錄音";
+"menu.recording.toggle" = "開始/停止錄音";
+"menu.history" = "歷史記錄...";
+"menu.settings" = "設定...";
+"menu.microphone" = "麥克風";
+"menu.select.mode" = "選擇模式";
+"menu.transcribe.file" = "轉錄檔案";
+"menu.mode.unnamed" = "未命名";
+"menu.version.label" = "版本 %@";
+"common.quit" = "結束";
+"menu.microphone.default" = "預設";
+"menu.microphone.system.default" = "預設";
+"menu.bar.state.recording" = "錄音中";
+"menu.bar.state.processing" = "處理中";
+"menu.bar.state.idle" = "閒置";
+"menu.command.check.updates" = "檢查更新…";
+"menu.debug.title" = "偵錯";
+"menu.command.export.logs" = "匯出更新日誌…";
+"menu.command.export.diagnostics" = "匯出診斷…";
+"menu.command.help.website" = "說明網站";
+"menu.command.contact.support" = "聯絡支援團隊";
+
+// MARK: - Settings Sections
+"settings.section.general" = "一般";
+"settings.section.sound" = "音效";
+"settings.section.license" = "授權";
+"settings.section.credits" = "額度";
+"settings.section.storage" = "儲存";
+"settings.section.models" = "模型";
+"settings.section.api.keys" = "API 金鑰";
+"settings.section.shortcuts" = "鍵盤快捷鍵";
+"settings.section.output" = "文字輸出";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (英文)";
+"onboarding.model.pro.multilingual" = "Pro (多語言)";
+"onboarding.model.downloading.progress" = "下載中... %d%%";
+"onboarding.accessibility.title" = "為自動貼入啟用無障礙功能";
+"onboarding.accessibility.subtitle" = "允許 HyperWhisper 自動將轉錄的文字貼入您的應用程式。";
+"onboarding.accessibility.instructions" = "系統設定 → 隱私與安全 → 無障礙";
+"onboarding.accessibility.status.granted" = "已授予無障礙權限";
+"onboarding.accessibility.status.pending" = "尚未授予無障礙權限";
+"onboarding.accessibility.waiting" = "等待許可中...";
+"onboarding.accessibility.open.preferences" = "開啟無障礙偏好設定";
+"onboarding.accessibility.restart" = "授予許可後，重新啟動 HyperWhisper。";
+"onboarding.model.recommendation.title" = "我們推薦 Pro 模型";
+"onboarding.model.recommendation.subtitle" = "根據您的系統語言和您的 Mac 功能。";
+"onboarding.model.recommendation.note" = "按下方按鈕下載。";
+"onboarding.model.downloaded" = "已下載";
+"onboarding.model.metric.speed" = "速度";
+"onboarding.model.metric.accuracy" = "準確性";
+"onboarding.model.metric.size" = "大小";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "或者，選擇不同的語音模型";
+"onboarding.model.picker.title" = "模型";
+"onboarding.model.option.proEnglish" = "Pro (英文)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "下載模型";
+"onboarding.audio.title" = "您想使用哪個音頻錄音裝置？";
+"onboarding.audio.subtitle" = "確保您的音頻輸入音量已調高並顯示音量。";
+"onboarding.audio.input.label" = "輸入裝置";
+"onboarding.audio.picker.label" = "裝置";
+"onboarding.audio.use.system.default" = "使用系統預設裝置";
+"onboarding.audio.level" = "音頻等級";
+"onboarding.audio.open.sound" = "開啟音效偏好設定";
+"onboarding.microphone.title" = "需要錄音許可";
+"onboarding.microphone.subtitle" = "若要錄製音頻，我們需要存取您的麥克風。";
+"onboarding.microphone.status.granted" = "已授予麥克風許可";
+"onboarding.microphone.status.pending" = "尚未授予麥克風許可";
+"onboarding.microphone.grant" = "授予許可";
+"onboarding.test.title" = "準備好了，讓我們開始您的第一次錄音";
+"onboarding.test.press.prefix" = "按下";
+"onboarding.test.press.suffix" = "開始";
+"onboarding.test.status.recording" = "錄音中...";
+"onboarding.test.status.speak" = "現在說話...";
+"onboarding.test.stop" = "停止錄音";
+"onboarding.test.success.title" = "太棒了！您的錄音成功。";
+"onboarding.test.success.subtitle" = "您的轉錄將出現在應用程式中。";
+"onboarding.test.start.cta" = "按一下開始錄音";
+"onboarding.test.start.shortcut" = "或按下您的鍵盤快捷鍵";
+"onboarding.settings.title" = "做得好！現在，讓我們開啟設定";
+"onboarding.settings.subtitle" = "用滑鼠右鍵按一下 HyperWhisper 圖示，並選擇設定...";
+"onboarding.settings.menu.startStop" = "開始/停止錄音";
+"onboarding.settings.menu.history" = "歷史記錄...";
+"onboarding.settings.menu.settings" = "設定...";
+"onboarding.settings.menu.quit" = "結束";
+"onboarding.settings.info" = "在設定中，您可以自訂快捷鍵、管理 API 金鑰，並根據您的喜好設定 HyperWhisper。";
+"onboarding.completion.title" = "完成了！";
+"onboarding.completion.subtitle" = "如果您遇到問題或有疑問，請透過電子郵件或 Discord 聯絡我們。";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "電子郵件";
+"onboarding.completion.resources.title" = "其他資源";
+"onboarding.completion.resources.documentation" = "文件";
+"onboarding.completion.resources.videos" = "影片教學";
+"onboarding.completion.resources.blog" = "部落格";
+"onboarding.done.button" = "完成入門";
+"onboarding.error.model.notFound" = "在目錄中找不到模型。";
+"onboarding.error.microphone.denied" = "麥克風許可被拒絕。請在系統設定中授予許可。";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "登入時啟動";
+"settings.general.launchAtLogin.info" = "登入時自動啟動 HyperWhisper。";
+"settings.general.launchMinimized.title" = "最小化啟動";
+"settings.general.launchMinimized.info" = "啟動 HyperWhisper 時主視窗隱藏。應用程式可透過功能表列存取。";
+"settings.general.showInDock.title" = "在 Dock 中顯示";
+"settings.general.showInDock.info" = "在 Dock 中顯示應用程式圖示。";
+"settings.general.showRecordingWindow.title" = "顯示錄音視窗";
+"settings.general.showRecordingWindow.info" = "錄音和處理時顯示浮動波形視窗。";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "關閉";
+"settings.general.mediaControl.mode.mute" = "靜音";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "錯誤日誌";
+"settings.general.errorLogging.info" = "自動擷取並傳送錯誤報告以協助改進應用程式。";
+"settings.general.autoUpdate.title" = "自動更新";
+"settings.general.autoUpdate.info" = "自動檢查和下載 HyperWhisper 的新版本。";
+"settings.general.support.title" = "需要幫助？";
+"settings.version.detail" = "版本 %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "播放音效";
+"settings.sound.soundEffects.info" = "在錄音開始和停止時播放音訊提示。";
+"settings.sound.mediaControl.title" = "錄音時的媒體控制";
+"settings.sound.mediaControl.info" = "選擇 HyperWhisper 在您錄音時如何處理其他音頻。「關閉」保持音頻不變，「靜音」會在錄音期間將系統輸出靜音并在之後恢復。";
+"settings.sound.autoIncreaseMicVolume.title" = "自動增加麥克風音量";
+"settings.sound.autoIncreaseMicVolume.info" = "錄音開始時自動將麥克風輸入音量設定為最大，錄音停止時恢復原始等級。僅在使用系統預設輸入裝置時適用。";
+"settings.sound.vad.title" = "在轉錄前移除靜音";
+"settings.sound.vad.info" = "使用 AI 語音偵測自動偵測並移除前導和尾隨靜音。這可以提高轉錄準確性並減少處理時間。";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "錄音資料夾";
+"settings.storage.showFolder.title" = "顯示錄音資料夾";
+"settings.storage.showFolder.button" = "在 Finder 中顯示";
+"settings.storage.notice" = "變更錄音資料夾只會影響新錄音。現有錄音會保留在其原始位置。";
+"settings.storage.choose.button" = "選擇...";
+"settings.storage.dialog.select" = "選擇資料夾";
+"settings.storage.dialog.message" = "選擇用於儲存錄音的資料夾";
+"settings.storage.storeAsM4A.title" = "將錄音壓縮為 M4A";
+"settings.storage.storeAsM4A.subtitle" = "轉錄後將 WAV 錄音轉換為較小的檔案。關閉以保持原始 WAV 檔案（較大但無損）。";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "自動貼上結果";
+"settings.output.paste.subtitle" = "自動將轉錄的文字貼入活躍應用程式";
+"settings.output.paste.info" = "如果啟用，文字會貼入最前面的應用程式。";
+"settings.output.restoreClipboard.title" = "貼上後恢復剪貼板";
+"settings.output.restoreClipboard.subtitle" = "貼上後恢復先前的剪貼板內容";
+"settings.output.restoreClipboard.info" = "應用程式貼上轉錄後恢復您先前的剪貼板內容。";
+"settings.output.restore.after" = "恢復於";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "剪貼板恢復延遲";
+"settings.output.hideClipboardHistory.title" = "隱藏在剪貼板歷史記錄中";
+"settings.output.hideClipboardHistory.subtitle" = "防止轉錄出現在剪貼板歷史記錄應用程式中";
+"settings.output.hideClipboardHistory.info" = "啟用時，轉錄的文字不會由 Paste、Maccy 或 Alfred 等剪貼板管理員儲存。";
+"settings.output.clipboard.header" = "剪貼板";
+"settings.output.removeFillers.title" = "移除填充詞";
+"settings.output.removeFillers.subtitle" = "從原始轉寫中移除 'uh'、'um' 和 'er'。";
+"settings.output.removeFillers.info" = "啟用後，HyperWhisper 會在輸出前從原始轉寫中移除常見填充詞。";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "切換錄音";
+"settings.shortcuts.toggleRecording.subtitle" = "開始和停止錄音";
+"settings.shortcuts.cancelRecording.title" = "取消錄音";
+"settings.shortcuts.cancelRecording.subtitle" = "捨棄活躍錄音";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "按住說話";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "按住按鍵錄音，完成後釋放";
+"settings.shortcuts.pushToTalk.enable.info" = "啟用按住說話模式以單次按鍵快速錄音。";
+
+"settings.shortcuts.pushToTalk.mode.title" = "錄音模式";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "選擇要使用的按鍵";
+"settings.shortcuts.pushToTalk.mode.disabled" = "已停用";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN 按鍵";
+"settings.shortcuts.pushToTalk.mode.control" = "Control 按鍵";
+"settings.shortcuts.pushToTalk.mode.custom" = "自訂快捷鍵";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "雙擊鎖定錄音";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "快速按兩次以在不按住的情況下保持錄音";
+
+"settings.shortcuts.pushToTalk.custom.title" = "自訂快捷鍵";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "按下要使用的按鍵組合";
+
+
+"settings.shortcuts.changeMode.title" = "變更模式";
+"settings.shortcuts.changeMode.subtitle" = "僅在錄音時運作";
+
+"settings.shortcuts.reset.button" = "重設為預設值";
+"settings.shortcuts.reset.dialog.title" = "重設鍵盤快捷鍵";
+"settings.shortcuts.reset.confirm" = "重設";
+"settings.shortcuts.reset.dialog.message" = "這會將所有鍵盤快捷鍵重設為預設值。";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API 金鑰安全地儲存在您的裝置上，只在需要時傳送給提供商。";
+"settings.api.help.link" = "API 金鑰說明";
+"settings.api.transcription.title" = "轉錄";
+"settings.api.transcription.subtitle" = "雲端語音轉文字服務的 API 金鑰。";
+"settings.api.postProcessing.title" = "後處理";
+"settings.api.postProcessing.subtitle" = "AI 驅動的文字增強和格式化的 API 金鑰。";
+"settings.api.placeholder" = "輸入您的 %@ API 金鑰";
+"settings.api.openLink" = "開啟 %@ API 金鑰頁面";
+"settings.api.status.accessibility" = "%@ 狀態：%@";
+"settings.api.status.unknown" = "提供商狀態未知";
+"settings.api.status.checking" = "健康狀況檢查進行中";
+"settings.api.status.unauthorized" = "提供商拒絕了 API 金鑰";
+"settings.api.status.unreachable" = "提供商目前無法連線";
+"settings.api.status.notInstalled" = "提供商 SDK 未安裝";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "未知";
+"provider.status.checking" = "檢查中…";
+"provider.status.healthy" = "準備就緒";
+"provider.status.unauthorized" = "無效金鑰";
+"provider.status.unreachable" = "離線";
+"provider.status.notInstalled" = "未安裝";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "授權已啟用";
+"alerts.license.deactivated.title" = "授權已停用";
+"alerts.license.activated.message" = "您的授權已成功啟用。享受對所有功能的無限制存取！";
+"alerts.license.deactivated.message" = "您的授權已在此裝置上停用。您現在可以在其他地方啟用它。";
+"alerts.license.failed.title" = "操作失敗";
+"alerts.license.failed.message" = "操作失敗。請再試一次。";
+"license.button.deactivate" = "停用裝置";
+"license.button.deactivating" = "停用中...";
+"license.button.manageBilling" = "管理帳單";
+"license.button.activate" = "啟用";
+"license.button.activating" = "啟用中...";
+"license.status.label" = "狀態：%@";
+"license.status.trial.title" = "試用版";
+"license.status.active.title" = "活躍";
+"license.status.expired.title" = "已過期";
+"license.status.invalid.title" = "無效";
+"license.status.trial.description" = "免費試用（每天 5 分鐘，%d 個模型）";
+"license.status.active.description" = "已授權 – 完全存取";
+"license.status.expired.description" = "授權已過期";
+"license.status.invalid.description" = "無效授權";
+"settings.license.key.title" = "授權金鑰";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "從剪貼板貼上";
+"settings.license.clearInput" = "清除";
+"settings.license.recovery.prompt" = "忘記您的授權金鑰？";
+"settings.license.recovery.button" = "前往客戶入口";
+"settings.license.daily.title" = "每日轉錄";
+"settings.license.daily.usage" = "使用 %@ 個（共 %@）";
+"settings.license.limitReached" = "已達到限制";
+"settings.license.models.title" = "離線模型";
+"settings.license.models.progress" = "%d 個模型已下載（共 %d 個）";
+"settings.license.models.progress.one" = "%d 個模型已下載（共 %d 個）";
+"settings.license.upgrade.text" = "升級以取得無限轉錄和模型下載";
+"settings.license.upgrade.button" = "升級";
+"license.error.invalidResponse" = "無效的回應格式";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper 雲端額度";
+"settings.credits.refresh" = "重新整理";
+"settings.credits.subtitle" = "監控您的轉錄額度和使用情況";
+"settings.credits.manage" = "管理額度";
+"settings.credits.timeRemaining" = "轉錄時間剩餘";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "分鐘";
+"settings.credits.creditsRemaining" = "%@ 額度剩餘";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "免費每日限制 (100 額度)";
+"settings.credits.resets" = "於 %@ 重設";
+"settings.credits.warning.low" = "額度即將耗盡。考慮購買授權以取得額外額度。";
+"settings.credits.warning.exhausted.daily" = "每日限制已耗盡。購買授權以取得無限使用，或等待重設。";
+"settings.credits.warning.exhausted" = "額度已耗盡。購買更多額度以繼續使用 HyperWhisper 雲端。";
+"settings.credits.accountInfo" = "帳戶資訊";
+"settings.credits.stat.creditsRemaining" = "額度剩餘";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "分鐘剩餘";
+"settings.credits.stat.accountType" = "帳戶類型";
+"settings.credits.accountType.licensed" = "已授權";
+"settings.credits.accountType.anonymous" = "匿名";
+"settings.credits.accountType.trial" = "試用版";
+"settings.credits.stat.customerId" = "客戶編號";
+"settings.credits.stat.dailyLimit" = "每日限制";
+"settings.credits.dailyLimit.value" = "100 額度";
+"settings.credits.loading" = "載入額度餘額中...";
+"settings.credits.error.title" = "無法載入額度餘額";
+"settings.credits.error.retry" = "重試";
+"settings.credits.empty.title" = "沒有可用的額度資訊";
+"settings.credits.empty.subtitle" = "按一下重新整理以載入您的額度餘額";
+"settings.credits.empty.button" = "載入額度";
+"settings.credits.error.insufficient" = "額度不足。您有 %d 額度剩餘。";
+"settings.credits.error.network" = "網路錯誤：%@";
+"settings.credits.error.invalidResponse" = "伺服器回應無效。請再試一次。";
+"settings.credits.error.server" = "伺服器錯誤：%@";
+"settings.models.alert.limit.title" = "已達到模型下載限制";
+"settings.models.alert.limit.message" = "試用版包含 %d 個模型下載。升級您的授權以取得無限下載。";
+"settings.models.alert.cannotDelete.title" = "無法刪除模型";
+"settings.models.parakeet.title" = "Parakeet 模型";
+"settings.models.parakeet.subtitle" = "為大多數用戶推薦。多語言模型支援 25 種語言。";
+"settings.models.parakeet.empty" = "沒有可用的 Parakeet 模型。";
+"settings.models.whisper.title" = "Whisper 模型";
+"settings.models.whisper.subtitle" = "OpenAI Whisper 模型。較大的模型準確性更高。支援 100+ 種語言。";
+"settings.models.whisper.empty" = "沒有可用的 Whisper 模型。";
+"settings.models.help.cancelDownload" = "取消下載";
+"settings.models.help.remove" = "移除模型";
+"settings.models.downloaded" = "已下載";
+"settings.models.download" = "下載";
+"settings.models.downloading" = "下載中…";
+"settings.models.localPostProcessing.title" = "本地後處理模型";
+"settings.models.localPostProcessing.memoryWarning" = "建議配備 24 GB 統一記憶體或更多的 Mac 使用。速度取決於晶片 — 在 M3/M4 Pro 及以上機型上更快。";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "今年的字數";
+"vocabulary.input.placeholder" = "新增單詞或建立片段";
+"vocabulary.action.addWord" = "新增單詞";
+"vocabulary.action.replaceWith" = "取代為…";
+"vocabulary.action.replace" = "取代";
+"vocabulary.replacement.field.placeholder" = "取代文字…";
+"settings.output.autocapitalizeInsert.title" = "插入時自動大寫";
+"settings.output.autocapitalizeInsert.subtitle" = "插入文字時匹配游標上下文";
+"settings.output.autocapitalizeInsert.info" = "啟用後，插入的轉錄文字的第一個單字會根據游標上下文（句子開頭或中間）進行調整。若要始終小寫聽寫，請關閉此選項。";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper 需要輔助使用權限來讀取自動大寫所需的游標上下文。\n\n點選「打開設定」，按下 HyperWhisper 旁邊的開關，然後重試。";
+"settings.output.removeFillerWords.title" = "刪除填充詞";
+"settings.output.removeFillerWords.subtitle" = "當 AI 後處理關閉時，從原始轉錄中刪除「呃」、「嗯」等填充詞";
+"settings.output.removeFillerWords.info" = "僅在模式跳過 AI 後處理時適用。AI 增強模式會在提示中處理語音清理。";
+"sidebar.modelLibrary" = "模型庫";
+"sidebar.modelLibrary.help" = "在一個地方瀏覽所有語音和後處理模型";
+"settings.shortcuts.quickCapture.enable.title" = "快速擷取";
+"settings.shortcuts.quickCapture.enable.subtitle" = "錄音並將轉錄傳送至備忘錄，無需先聚焦應用程式。";
+"settings.shortcuts.quickCapture.shortcut.title" = "快速鍵";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "在任意位置按下即可錄音並傳送至備忘錄。";
+"settings.shortcuts.quickCapture.mode.title" = "模式";
+"settings.shortcuts.quickCapture.mode.subtitle" = "使用的轉錄模式，控制模型、提示詞和後處理。";
+"settings.shortcuts.quickCapture.mode.current" = "目前模式";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper 需要控制備忘錄的權限。請至系統設定 → 隱私權與安全性 → 自動化中授權。";
+"settings.section.vocabulary" = "詞彙";
+"settings.vocabulary.icloudSync.title" = "iCloud 同步";
+"settings.vocabulary.icloudSync.subtitle" = "在登入相同 iCloud 帳號的所有 Mac 上同步您的自訂詞彙。";
+"settings.vocabulary.icloudSync.info" = "預設關閉。僅同步您的自訂詞彙——轉錄文字和錄音保留在此 Mac 上。變更將在下次開啟 HyperWhisper 時生效。";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "結束 HyperWhisper 以套用變更";
+"vocabulary.icloudSync.restart.message" = "iCloud 詞彙同步變更將在下次開啟 HyperWhisper 時生效。";
+"vocabulary.icloudSync.restart.quit" = "結束 HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "稍後";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "在錄音間隙保持麥克風熱啟動狀態";
+"settings.sound.keepWarmMicrophone.info" = "透過在 HyperWhisper 閒置時保持麥克風工作階段開啟，減少一鍵通啟動延遲。macOS 將持續顯示橙色麥克風指示燈，啟用時藍牙耳機可能會保持在較低音質的通話模式。";
+"settings.models.local.inUse" = "此本機模型目前正被以下功能用於後處理：
+
+%@
+
+請先編輯這些模式以選擇其他模型，再將其移除。";
+"models.postProcessing.gemma4.e2b.description" = "快速且精確。後處理的優秀全能型選擇。";
+"models.postProcessing.gemma4.e4b.description" = "更高品質，更多細節。適合較長的文字。";
+"models.postProcessing.gemma4.26b.moe.description" = "26B 混合專家模型。僅需 4B 活躍參數即可快速推理。";
+"models.postProcessing.gemma4.31b.description" = "31B 稠密模型。最高品質，需要 18+ GB 記憶體。";
+"settings.models.whisper.inUse" = "無法刪除此模型，因為它用於：\n\n%@\n\n更新這些模式以使用不同的模型後再刪除。";
+"settings.models.parakeet.inUse" = "無法刪除此 Parakeet 模型，因為它用於：\n\n%@\n\n更新這些模式以使用不同的模型後再刪除。";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "未知";
+"settings.models.directory.whisper" = "Whisper 模型資料夾";
+"settings.models.directory.parakeet" = "Parakeet 模型資料夾";
+"settings.models.directory.local" = "本機模型資料夾";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — 針對 CoreML 最佳化的多語言語音辨識。";
+"settings.models.qwen3asr.languages" = "30 種語言";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "此 Qwen3 ASR 模型無法刪除，因為它正被以下內容使用：\n\n%@\n\n請在刪除前將這些模式更新為使用其他模型。";
+"settings.models.directory.show" = "在 Finder 中顯示";
+"models.error.checksumFailed" = "模型校驗和驗證失敗。下載可能已損毀。";
+
+// MARK: - Statistics View
+"statistics.title" = "統計";
+"statistics.header.title" = "您的使用統計";
+"statistics.header.subtitle" = "追蹤您的轉錄活動和效能";
+"statistics.card.recordings" = "總錄音數";
+"statistics.card.recordings.subtitle" = "已完成的轉錄";
+"statistics.card.duration" = "總時間";
+"statistics.card.duration.subtitle" = "錄音花費時間";
+"statistics.card.words" = "總詞數";
+"statistics.card.words.subtitle" = "轉錄的詞";
+"statistics.card.average" = "平均時長";
+"statistics.card.average.subtitle" = "每次錄音";
+"statistics.graph.title" = "一段時間內的活動";
+"statistics.daily.empty" = "還沒有錄音";
+"statistics.filter.week" = "本週";
+"statistics.filter.month" = "本月";
+"statistics.filter.alltime" = "全部時間";
+
+// MARK: - History View
+"history.title" = "歷史記錄";
+"history.search.placeholder" = "搜尋";
+"history.filter.all" = "全部";
+"history.filter.today" = "今天";
+"history.filter.week" = "本週";
+"history.filter.month" = "本月";
+"history.empty.title" = "找不到錄音";
+"history.empty.subtitle" = "嘗試調整您的搜尋";
+"history.detail.empty" = "選擇錄音以檢視詳細資訊";
+"history.multi.selected" = "%d 個錄音已選擇";
+"history.multi.delete" = "刪除選定項目";
+"history.context.deleteSelected" = "刪除 %d 個錄音";
+"history.context.retry" = "重試轉錄";
+"history.context.retryWith" = "重試...";
+"history.context.copy" = "複製文字";
+"history.retrying" = "重試轉錄中...";
+"history.retry.help" = "重試轉錄";
+"history.section.today" = "今天";
+"history.section.yesterday" = "昨天";
+"history.duration.format" = "%d 分 %d 秒";
+"history.status.failed" = "失敗";
+"history.status.transcription.failed.prefix" = "轉錄失敗：";
+"history.status.retry.failed.prefix" = "重試失敗：";
+"history.failure.reason" = "原因：%@";
+"history.mode.default" = "預設";
+"history.audio.showInFinder" = "在 Finder 中顯示";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "刪除模式？";
+"modes.delete.confirm.message" = "這將移除選定的模式。此操作無法復原。";
+"modes.header.title" = "模式";
+"modes.header.subtitle" = "為不同的內容和工作流程建立自訂設定檔";
+"modes.header.create" = "建立模式";
+"modes.name.unnamed" = "未命名";
+"modes.badge.offline" = "離線";
+"modes.context.select" = "選擇";
+"modes.help.edit" = "編輯模式設定";
+"modes.help.preset" = "深入瞭解此預設";
+"modes.help.model" = "深入瞭解此模型";
+"modes.preset.title" = "預設";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "訊息";
+"modes.preset.mail.name" = "郵件";
+"modes.preset.note.name" = "備註";
+"modes.preset.meeting.name" = "會議";
+"modes.preset.code.name" = "程式碼";
+"modes.preset.custom.name" = "自訂";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "訊息模式清理您的口述訊息，修正標點、分段落和排序語法錯誤。";
+"modes.preset.mail.tooltip" = "電子郵件模式將您的口述內容格式化為專業電子郵件結構，具有正確的敬語、分段落和簽名。";
+"modes.preset.note.tooltip" = "備註模式將您的口述內容組織為清晰的備註格式，包括標題、項目符號和結構化部分。";
+"modes.preset.meeting.tooltip" = "會議模式將您的口述內容結構化為會議紀錄格式，包括參加者、操作項目和關鍵討論重點。";
+"modes.preset.code.tooltip" = "代碼模式將口述程式設計轉換為代碼語法。說「開括號」、「反斜線」、「駝峰大小寫」等以用語音編寫代碼。";
+"modes.preset.custom.tooltip" = "自訂模式允許您為特定用例定義自己的格式化規則和提示。";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "為此預設定義完整的格式設定說明。";
+"modes.notice.vocabularyUnsupported" = "此提供商的此模型不支援自訂詞彙。它將被忽略。";
+"modes.notice.deepgramNova3AutoDetect" = "使用 Deepgram Nova-3 自動偵測語言時，自訂詞彙不可用。若要啟用詞彙增強，請設定特定語言（例如，英文、西班牙文）。";
+"modes.language.title" = "語言";
+"modes.language.englishOnly" = "僅英文（最佳化模型）";
+"modes.postProcessing.sectionTitle" = "後處理";
+"modes.postProcessing.modeLabel" = "模式";
+"modes.postProcessing.modeTitle" = "後處理";
+"modes.postProcessing.modeDescription" = "選擇如何處理轉錄：\n\n• 關閉：無後處理，原始轉錄\n• 雲端 (AI)：AI 驅動增強（需要網際網路）\n• 本地：使用裝置上的 LLM，如透過 llama.cpp 的 Gemma\n\n雲端處理會將文字傳送到您選定的 AI 提供商。本地模式保留在您的機器上，但需要本地伺服器執行。";
+"modes.postProcessing.providerLabel" = "提供商";
+"modes.postProcessing.apiKeyMissing" = "%@ API 金鑰未設定。請在設定中新增它以啟用後處理。";
+"modes.postProcessing.configure" = "在設定中設定";
+"modes.postProcessing.modelRecommendation" = "我們建議使用 GPT-4.1 Nano 以取得最佳的速度和品質平衡。";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "本機後處理需要已下載的本機模型。";
+"modes.postProcessing.download" = "在設定中下載";
+"modes.postProcessing.localInfo" = "完全在裝置上執行。此模式為活躍時，HyperWhisper 會自動啟動捆綁的 llama.cpp 伺服器。";
+"modes.postProcessing.userSystemPrompt.title" = "固定指令";
+"modes.postProcessing.userSystemPrompt.placeholder" = "例如：郵件結尾始終使用「此致，Ray」";
+"modes.postProcessing.userSystemPrompt.clear" = "清除";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "固定指令";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "新增始終在所選預設之上套用的指令。";
+"modes.toggle.punctuation.title" = "新增標點";
+"modes.toggle.punctuation.subtitle" = "自動新增句號和逗號";
+"modes.toggle.capitalization.title" = "句子首字母大寫";
+"modes.toggle.capitalization.subtitle" = "句子首字母大寫";
+"modes.toggle.profanity.title" = "篩選不當語言";
+"modes.toggle.profanity.subtitle" = "替換不適當的詞語";
+"modes.toggle.removeTrailingPeriod.title" = "移除結尾句號";
+"modes.toggle.removeTrailingPeriod.subtitle" = "去除轉寫文字結尾的句號";
+"modes.postProcessing.privacyNotice" = "您的轉錄僅傳送至 %@ 以進行後處理。不會傳送到其他地方。";
+"modes.postProcessing.localModel" = "模型";
+"modes.postProcessing.languageModel" = "語言模型";
+"modes.englishSpelling.title" = "英文拼寫";
+"modes.englishSpelling.american" = "美式英文";
+"modes.englishSpelling.british" = "英式英文";
+"modes.englishSpelling.australian" = "澳洲英文";
+"modes.englishSpelling.canadian" = "加拿大英文";
+"modes.englishSpelling.american.description" = "使用美式英文拼寫（color、realize、organization、center、traveled）";
+"modes.englishSpelling.british.description" = "使用英式英文拼寫（colour、realise、organisation、centre、travelled）";
+"modes.englishSpelling.australian.description" = "使用澳洲英文拼寫（colour、realise、organisation、centre、travelled）";
+"modes.englishSpelling.canadian.description" = "使用加拿大英文拼寫（colour、realize、organization、centre、travelled）";
+"modes.gemini.customPrompt.title" = "自訂指令";
+"modes.gemini.customPrompt.helper" = "選填。例如\"格式化為要點\"、\"使用正式語言\"。您的語言和詞彙設定會自動包含。";
+"modes.cloud.apiKeyMissing" = "%@ API 金鑰未設定。請在設定中新增它以使用雲端轉錄。";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "準確性";
+"modes.cloudAccuracy.groqWhisper.label" = "中 (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "中 (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "高 (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "快速且價廉。最適合快速轉錄。";
+"modes.cloudAccuracy.deepgramNova3.description" = "速度和準確性平衡。為大多數用戶推薦。";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高準確性，處理較慢。最適合重要轉錄。";
+"modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高準確性，處理較慢。最適合重要轉錄。";
+
+"modes.create.title" = "建立新模式";
+"modes.create.subtitle" = "設定自訂轉錄設定檔";
+"modes.section.basic" = "基本設定";
+"modes.section.transcription" = "轉錄模型";
+"modes.section.punctuation" = "標點符號";
+"modes.toggle.screenText.title" = "螢幕文字";
+"modes.toggle.screenText.subtitle" = "擷取可見的螢幕文字以改善名稱和術語的準確度。需要螢幕錄製權限。";
+"modes.screenText.openSettings" = "開啟系統設定";
+"modes.screenText.permissionGranted" = "已授予螢幕錄製權限";
+"modes.screenText.permissionRequired" = "需要螢幕錄製權限";
+"modes.field.name" = "名稱";
+"modes.field.name.placeholder" = "例如，會議筆記";
+"modes.field.name.editPlaceholder" = "模式名稱";
+"modes.field.model" = "模型";
+"modes.field.provider" = "提供商";
+"modes.provider.local" = "本地";
+"modes.provider.cloud" = "雲端";
+"modes.notice.noLocalModels.title" = "未安裝本地模型";
+"modes.notice.noLocalModels.subtitle" = "請先在設定中安裝模型";
+"modes.model.pricing" = "定價：$%.6f / 分鐘（按秒計費）";
+"modes.button.create" = "建立模式";
+"modes.button.delete" = "刪除模式";
+"modes.button.save" = "儲存變更";
+"modes.edit.title" = "編輯模式";
+"modes.edit.subtitle" = "修改轉錄設定檔設定";
+"mode.editor.cloudModel.previewHint" = "預覽";
+"mode.editor.cloudModel.noVocabularyHint" = "無自訂詞彙";
+"mode.editor.cloudDomain.medical" = "醫療";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode 附加元件";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "無法重試：找不到音頻檔案";
+"transcripts.error.invalidId" = "無效的文字記錄 ID";
+"transcripts.delete.single.title" = "刪除錄音？";
+"transcripts.delete.single.message" = "這將永久刪除此錄音及其音頻檔案。";
+"transcripts.delete.multiple.title" = "刪除 %d 個錄音？";
+"transcripts.delete.multiple.message" = "這將永久刪除 %d 個錄音及其音頻檔案。\n\n此操作無法復原。";
+"transcripts.delete.multiple.confirm" = "全部刪除";
+"transcripts.retry.error.title" = "重試失敗";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "選擇錄音資料夾";
+"storage.folder.choose.message" = "選擇用於儲存新錄音的資料夾。";
+"storage.folder.choose.prompt" = "選擇";
+"storage.recovery.title" = "無法存取錄音資料夾";
+"storage.recovery.message" = "HyperWhisper 無法存取設定的錄音資料夾。您可以選擇不同的資料夾以繼續。";
+"storage.recovery.choose" = "選擇資料夾…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "深入瞭解";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "轉錄完成";
+"recording.status.retrying" = "重試轉錄中…";
+"recording.status.postprocessing" = "使用 AI 進行後處理中…";
+"recording.status.transcribing" = "轉錄中…";
+"recording.success.pasted" = "已貼上！";
+"recording.loading.retrying" = "重試中…";
+"recording.loading.postprocessing" = "使用 AI 進行處理中…";
+"recording.loading.starting" = "啟動串流中…";
+"recording.loading.transcribing" = "轉錄中…";
+
+// Streaming connection states
+"streaming.status.connecting" = "連線中...";
+"streaming.status.ready" = "準備就緒 - 開始說話";
+"streaming.status.warming" = "正在預熱...";
+"modes.badge.recommended" = "推薦";
+"modes.source.label" = "來源";
+"modes.source.onDevice" = "本地";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API 金鑰";
+"modes.field.engine" = "引擎";
+"settings.models.localASR.inUse" = "此模型無法刪除，因為它正在被以下模式使用：
+
+%@
+
+請先將這些模式更新為使用其他模型，然後再刪除。";
+"models.postProcessing.gemma4.12b.description" = "中等規模稠密模型。在 16 GB Mac 上兼顧品質與速度。";
+"recording.success.savedToNotes" = "已儲存至備忘錄！";
+"modes.provider.needsKey" = "%@ 需要一個有效的金鑰。";
+"modes.provider.manageInLibrary" = "在庫中管理 →";
+"streaming.loading.warming" = "正在預熱本機模型...";
+"streaming.status.listening" = "聆聽中...";
+"streaming.status.streaming" = "串流中...";
+"streaming.status.disconnecting" = "停止中...";
+"streaming.loading.connecting" = "連線到伺服器中...";
+"streaming.loading.ready" = "初始化音頻中...";
+"streaming.loading.streaming" = "等待語音中...";
+"streaming.state.reconnecting" = "重新連線中...";
+"recording.stop.help" = "停止錄音 (%@)";
+"recording.postprocessing.unavailable" = "後處理不可用";
+"recording.postprocessing.missing.single" = "%@ 金鑰遺漏 – 在沒有後處理的情況下錄音";
+"recording.postprocessing.missing.multiple" = "API 金鑰遺漏 – 在沒有後處理的情況下錄音";
+"recording.postprocessing.addKey" = "新增金鑰";
+"recording.offline.banner" = "沒有網際網路連線。雲端轉錄將失敗，直到您上線。";
+"recording.offline.title" = "沒有網際網路連線";
+"recording.offline.subtitle" = "重新連線以繼續或切換到離線模式。";
+"recording.error.network" = "檢查您的網際網路連線並再試一次。";
+"recording.error.timeout" = "請求逾時。檢查您的連線速度並重試。";
+"recording.error.rateLimit" = "您的請求過於頻繁。稍候片刻並重試。";
+"recording.error.credits" = "額度不足。請在設定中新增更多額度。";
+"recording.error.apiKey" = "在設定中新增您的 %@ API 金鑰。";
+"recording.error.server" = "轉錄服務遇到問題。請稍後再試。";
+"recording.retry" = "重試";
+"recording.retry.inProgress" = "重試中…";
+"recording.retry.count" = "重試 (%d)";
+"recording.retry.failed.missing" = "重試失敗：找不到音頻檔案";
+"recording.retry.failed.error" = "重試失敗：%@";
+"recording.retry.pending" = "準備好重試 – 按一下轉錄";
+"recording.provider.unknown" = "雲端提供商";
+"recording.cancel.dialog.title" = "取消錄音？";
+"recording.cancel.dialog.message" = "這將捨棄目前的錄音。";
+"recording.cancel.dialog.confirm" = "取消錄音";
+"recording.cancel.dialog.resume" = "繼續";
+"recording.error.overlay.title" = "網路連線錯誤";
+"recording.error.overlay.message" = "按下方「重試」或切換到離線模式以繼續。";
+"recording.mode.default" = "預設";
+"recording.dialog.window.title" = "錄音對話";
+"recording.button.start" = "開始錄音";
+"recording.button.stop" = "停止錄音";
+"recording.button.disable.checking" = "檢查 %@ 狀態中...";
+"recording.button.disable.invalid" = "無效的 %@ API 金鑰。請在設定中更新它。";
+"recording.button.disable.unreachable" = "%@ 無法連線。檢查您的連線並再試一次。";
+"recording.button.disable.missing" = "在設定中新增您的 %@ API 金鑰。";
+"recording.button.disable.install.local" = "使用本機後處理前，請在設定 → 模型中下載一個本機模型。";
+"modes.postProcessing.accuracy" = "精確度";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "您已達到每日 %@ 分鐘的轉錄限制。升級至 HyperWhisper Pro 以取得無限轉錄。";
+"recording.error.documentsAccess" = "無法存取錄音資料夾。請在設定 → 儲存中選擇不同位置。";
+"recording.error.modeMissing" = "找不到選定的模式。請選擇有效的模式。";
+"recording.warning.oversizedWAV" = "音頻壓縮失敗。使用未壓縮 %@ MB 檔案 - 轉錄可能較慢。";
+
+// MARK: - Audio Manager
+"audio.device.default" = "預設麥克風";
+"audio.error.permissionDenied" = "麥克風存取被拒。請在系統設定中啟用。";
+"audio.error.fileWatcher.open" = "無法開啟檔案描述符以監控音頻檔案。";
+"audio.error.fileWatcher.timeout" = "在等待音頻檔案寫入時操作逾時。";
+"audio.error.fileWatcher.creation" = "音頻檔案未及時建立。";
+"audio.error.microphonePermission" = "未授予麥克風許可";
+"audio.error.microphoneInUse" = "HyperWhisper 無法存取麥克風，因為另一個應用程式目前正在使用它。暫停另一個應用程式或切換輸入，然後再試一次。";
+"audio.error.createEngine" = "無法建立音頻引擎";
+"audio.error.noInput" = "沒有可用的音頻輸入";
+"audio.error.createFile" = "無法建立音頻檔案";
+"audio.error.managerUnavailable" = "轉錄管理器未設定";
+"audio.error.invalidHardwareFormat" = "偵測到無效的硬體音頻格式。請檢查您的音頻裝置。";
+"audio.error.createFormat" = "無法為錄音建立音頻格式";
+"audio.error.createConverter" = "無法建立音頻格式轉換器";
+"audio.error.exportM4A" = "無法將音頻匯出為 m4a 格式";
+"audio.error.readFile" = "錄音後無法讀取音頻檔案。";
+"audio.error.recordingTooShort" = "錄音太短。請按住按鍵較長時間以擷取音頻。";
+"audio.error.noAudioTrack" = "此影片檔案不包含音頻軌道。";
+"audio.alert.accessibility.title" = "啟用無障礙存取";
+"audio.alert.accessibility.message" = "HyperWhisper 需要無障礙權限才能將轉錄的文字貼入其他應用程式。\n\n按一下「開啟設定」，按一下 HyperWhisper 旁邊的切換，然後再試一次。";
+"audio.alert.accessibility.open" = "開啟設定";
+"audio.alert.pasteFailed.title" = "自動貼上失敗";
+"audio.alert.pasteFailed.message" = "轉錄的文字已複製到您的剪貼板。\n\n按 ⌘V 手動貼上，或從功能表中選擇編輯 → 貼上。";
+"accessibility.permission.location.debug" = "Xcode 偵錯組建";
+"accessibility.permission.location.installed" = "已安裝的應用程式";
+"accessibility.permission.info" = "HyperWhisper 需要無障礙權限才能將轉錄的文字貼入其他應用程式。\n\n目前應用程式位置：%@\n\n在系統設定中：\n1. 在清單中尋找「hyperwhisper」或「HyperWhisper」\n2. 如果您已從不同位置執行，可能會看到多個項目\n3. 啟用與以下內容相符的項目的核取方塊：\n   %@";
+"accessibility.permission.xcodeNote" = "注意：從 Xcode 執行需要不同於已安裝應用程式的許可。";
+"accessibility.error.paste.commandFailed" = "貼上命令失敗";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "轉錄提供商不可用。檢查您的設定並再試一次。";
+"transcription.error.providerNotAvailable.provider" = "%@ 不可用。檢查您的設定並再試一次。";
+"transcription.error.providerNotAvailable.detail" = "%@ 不可用：%@";
+"transcription.error.modelNotDownloaded" = "請先下載模型";
+"transcription.error.modelProtected" = "此模型無法刪除";
+"transcription.error.audioFileNotFound" = "找不到音頻檔案";
+"transcription.error.network.detail" = "網路錯誤：%@";
+"transcription.error.network.generic" = "網路連線錯誤";
+"transcription.error.apiKeyMissing.provider" = "轉錄需要 %@ API 金鑰";
+"transcription.error.apiKeyMissing.generic" = "轉錄需要雲端提供商 API 金鑰";
+"transcription.error.maxRetriesExceeded" = "超過最大重試次數";
+"transcription.error.unauthorized.provider" = "未授權：無效的 %@ API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
+"transcription.error.unauthorized.generic" = "未授權：無效的 API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
+"transcription.error.invalidRequest" = "無效的請求：檢查音頻檔案或設定";
+"transcription.error.streamingInterrupted" = "串流中斷；顯示部分文字";
+"transcription.error.busy" = "轉錄服務目前忙碌中";
+"transcription.error.invalidAudioFormat" = "不支援的音頻格式";
+"transcription.error.audioConversionFailed" = "無法將音頻轉換為所需格式";
+"transcription.error.audioFileTooLarge" = "檔案過大：%@ 超過 %@ 對 %@ 的限制";
+"transcription.error.serverError" = "伺服器錯誤 (%d)：%@";
+"transcription.error.rateLimited.seconds" = "速率受限：請求過多。請等待 %d 秒並重試。";
+"transcription.error.rateLimited.generic" = "速率受限：請求過多。請稍候片刻後重試。";
+"transcription.error.insufficientCredits" = "額度不足。請在設定中新增更多額度。";
+"transcription.error.quotaExceeded" = "%@ 配額已超過";
+"transcription.error.quotaExceeded.detail" = "%@ 配額已超過：%@";
+"transcription.error.timeout" = "在 %@ 期間請求逾時。檢查您的網際網路連線並重試。";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "確保您的轉錄提供商在設定中正確設定。";
+"transcription.guidance.providerNotAvailable.provider" = "確保 %@ 正確設定。對於本地模型，請先下載模型。對於雲端提供商，請驗證您的 API 金鑰。";
+"transcription.guidance.apiKeyMissing.provider" = "在設定中新增您的 %@ API 金鑰";
+"transcription.guidance.apiKeyMissing.generic" = "在設定中新增您的雲端提供商 API 金鑰";
+"transcription.guidance.modelNotDownloaded" = "從模型部分下載模型";
+"transcription.guidance.modelProtected" = "此模型目前正在使用中";
+"transcription.guidance.audioFileNotFound" = "音頻檔案已刪除或移動";
+"transcription.guidance.networkError" = "檢查您的網際網路連線並再試一次";
+"transcription.guidance.unauthorized.provider" = "檢查設定中的 %@ API 金鑰或帳戶權限";
+"transcription.guidance.unauthorized.generic" = "檢查設定中的 API 金鑰或帳戶權限";
+"transcription.guidance.invalidRequest" = "驗證音頻檔案和模式設定，然後重試";
+"transcription.guidance.invalidAudioFormat" = "嘗試將音頻檔案轉換為 MP3 或 WAV 格式";
+"transcription.guidance.audioConversionFailed" = "音頻檔案可能已損毀。嘗試不同的檔案";
+"transcription.guidance.audioFileTooLarge" = "使用較短的音頻檔案或將其分割成較小的部分";
+"transcription.guidance.serverError" = "轉錄服務遇到問題。請再試一次。";
+"transcription.guidance.rateLimited" = "您的請求過於頻繁。稍候片刻後重試。";
+"transcription.guidance.insufficientCredits" = "在設定中購買更多額度以繼續轉錄";
+"transcription.guidance.quotaExceeded" = "向您的 %@ 帳戶新增額度或更新您的帳單詳細資訊";
+"transcription.guidance.timeout" = "請求耗時過長。檢查您的網際網路速度並重試。";
+"transcription.error.noSpeechDetected" = "在錄音中未偵測到語音。";
+"transcription.guidance.noSpeechDetected" = "提示：\n• 清楚地對著麥克風說話\n• 在說話前按住按鍵較長時間\n• 檢查您的麥克風是否運作正常\n• 確保選擇了正確的輸入裝置";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "額度不足。請在設定中新增更多額度。";
+"hyperwhisperCloud.error.network" = "網路錯誤：%@";
+"hyperwhisperCloud.error.invalidResponse" = "來自 HyperWhisper 雲端的無效回應";
+"hyperwhisperCloud.error.server" = "伺服器錯誤：%@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "找不到 llama-server 可執行檔。";
+"llama.runtime.error.missingDependencies" = "執行時遺漏的依賴：%@";
+"llama.runtime.error.copyFailed" = "無法複製執行時：%@";
+"llama.runtime.error.copy.executable" = "無法複製可執行檔：%@";
+"llama.runtime.missing" = "此安裝中遺漏 本機 執行時。重新安裝 HyperWhisper 以恢復本地後處理。";
+"llama.runtime.genericError" = "本機 執行時錯誤：%@";
+"runtime.error.llama.missingLib" = "遺漏 libmtmd.dylib 後 本機 執行時已終止";
+"runtime.error.llama.reportedMissingLib" = "本機 執行時報告遺漏 libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "內建 AI 後處理在 Cloudflare Workers 上執行。無需設定。";
+"models.postProcessing.gpt4.1.nano.description" = "中等準確性 (92%)，非常快速 (<1s)。適合快速草稿和非正式筆記。";
+"models.postProcessing.gpt4.1.mini.description" = "高準確性 (94%)，快速 (~1-2s)。適合日常商務溝通和標準文件。";
+"models.postProcessing.gpt4.1.description" = "非常高準確性 (96%)，中等速度 (~3-4s)。適合複雜格式化和技術內容。";
+"models.postProcessing.gpt5.nano.description" = "良好準確性 (95%)，最快速度 (~1s)。完美適合快速筆記、訊息和隨意轉錄。";
+"models.postProcessing.gpt5.mini.description" = "卓越準確性 (97%)，中等速度 (~2-3s)。專業電子郵件、報告和會議筆記的理想選擇。";
+"models.postProcessing.gpt5.description" = "最高準確性 (99%+)，最慢速度 (~3-5s)。最適合關鍵文件、法律、醫療轉錄（精確性至關重要）。";
+"models.postProcessing.gpt5.1.description" = "最先進的準確性 (98%+)，中等速度 (~2-3s)。適合複雜任務、法律文件和具有卓越推理的技術內容。";
+"models.postProcessing.gpt5.2.description" = "最新 GPT-5 系列，具有增強的推理和更快的推理。高品質文字處理的最佳整體選擇。";
+"models.postProcessing.claude4.5.haiku.description" = "最新 Claude Haiku，改進的推理同時保持快速響應時間。";
+"models.postProcessing.claude4.sonnet.description" = "平衡效能。為專業文件提供卓越的推理和格式化功能。";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 系列具有 Pro 級智能的閃速。具有動態思考功能的高級推理。";
+"models.postProcessing.gemini2.5.flash.description" = "價格效能方面最佳。優化速度，同時為日常使用維持良好的準確性。";
+"models.postProcessing.gemini2.5.flashLite.description" = "超快速模型，經過優化以提高成本效率和高吞吐量。";
+"models.postProcessing.groq.llama33.70b.description" = "多功能 70B 模型，品質卓越。~280 tokens/sec。推薦。";
+"models.postProcessing.groq.llama31.8b.description" = "超快速 8B 模型。~560 tokens/sec 進行即時文字處理。";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI 的開源 120B 模型。~500 tokens/sec 進行高品質處理。";
+"models.postProcessing.groq.gptoss.20b.description" = "輕量級 20B 模型。~1000 tokens/sec 進行最快速的處理。";
+"models.postProcessing.cerebras.gptoss.120b.description" = "Cerebras 上的 GPT OSS 120B。超快速 120B 模型，~3000 tokens/sec。推薦。";
+"models.postProcessing.cerebras.llama31.8b.description" = "Cerebras 上的 Llama 3.1 8B。輕量級且超快速，~2200 tokens/sec。";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Cerebras 上的 Qwen 3 235B。大型 235B MoE 模型，~1400 tokens/sec。僅預覽。";
+"models.postProcessing.cerebras.zai.glm47.description" = "Cerebras 上的 Z.ai GLM 4.7。355B 參數模型，~1000 tokens/sec。僅預覽。";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "說明中心";
+"settings.resources.contact.support" = "聯絡支援團隊";
+"settings.resources.feedback" = "意見反映與建議";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "備份";
+"settings.backup.export.title" = "匯出設定";
+"settings.backup.export.subtitle" = "將您的設定、模式和詞彙儲存到檔案";
+"settings.backup.export.button" = "匯出...";
+"settings.backup.export.panel.title" = "匯出設定";
+"settings.backup.export.panel.label" = "備份檔案：";
+"settings.backup.export.success" = "設定已成功匯出";
+"settings.backup.export.error.create" = "無法建立備份資料";
+"settings.backup.export.error.encode" = "無法編碼備份資料";
+"settings.backup.export.error.write" = "無法寫入備份檔案";
+"settings.backup.includeAPIKeys.title" = "包含 API 金鑰";
+"settings.backup.includeAPIKeys.subtitle" = "在備份檔案中儲存 API 金鑰（不建議分享）";
+"settings.backup.includeLicense.title" = "包含授權金鑰";
+"settings.backup.import.title" = "匯入設定";
+"settings.backup.import.subtitle" = "從備份檔案恢復設定";
+"settings.backup.import.button" = "匯入...";
+"settings.backup.import.panel.title" = "匯入設定";
+"settings.backup.import.success" = "匯入完成：%d 個模式，%d 個詞彙項目已匯入";
+"settings.backup.import.error.read" = "無法讀取備份檔案";
+"settings.backup.import.error.decode" = "無效的備份檔案格式";
+"settings.backup.import.error.decode.keyNotFound" = "缺少必填欄位：%@";
+"settings.backup.import.error.decode.typeMismatch" = "欄位類型錯誤：%@";
+"settings.backup.import.error.decode.valueNotFound" = "缺少欄位值：%@";
+"settings.backup.import.error.decode.corrupted" = "資料已損毀：%@";
+"settings.backup.import.error.decode.corruptedField" = "欄位值已損毀：%@";
+"settings.backup.import.error.version" = "備份檔案來自較新版本";
+"settings.backup.import.error.unknown" = "匯入失敗";
+"settings.backup.import.confirm.title" = "匯入設定？";
+"settings.backup.import.confirm.message" = "這將用備份檔案中的模式和詞彙替換您現有的模式和詞彙。設定也會更新。";
+"settings.backup.import.confirm.button" = "匯入";
+"settings.backup.conflict.skip" = "跳過現有";
+"settings.backup.conflict.replace" = "替換現有";
+"settings.backup.conflict.keepBoth" = "保留兩者";
+"settings.backup.security.warning" = "警告：匯出的檔案將包含敏感資料。請妥善保管，不要分享。";
+"settings.backup.info.note" = "備份包括設定、模式和詞彙。不包括錄音和文字記錄。";
+"settings.backup.result.success.title" = "成功";
+"settings.backup.result.error.title" = "錯誤";
+"settings.backup.export.choose.subtitle" = "選擇要包含在備份檔案中的內容";
+"settings.backup.export.section.settings" = "設定";
+"settings.backup.export.section.modes" = "模式";
+"settings.backup.export.section.vocabulary" = "詞彙";
+"settings.backup.import.importing" = "正在匯入 %@";
+"settings.backup.import.contains" = "此檔案包含：%@";
+"settings.backup.import.contains.vocabulary" = "詞彙（%d 個詞）";
+"settings.backup.import.contains.none" = "無";
+"settings.backup.import.section.settings" = "設定";
+"settings.backup.import.section.modes" = "模式";
+"settings.backup.import.section.vocabulary" = "詞彙";
+"settings.backup.import.section.apiKeys" = "API 金鑰";
+"settings.backup.import.section.license" = "授權金鑰";
+"settings.backup.import.section.absent" = "— 檔案中不存在";
+"settings.backup.import.premerge.summary" = "詞彙：新增 %d 個，%d 個已存在";
+"settings.backup.import.premerge.conflictLabel" = "對於已存在的詞：";
+
+// MARK: - File Transcription
+"select.audio.file" = "選擇音頻檔案";
+"transcribe.file.error.title" = "轉錄錯誤";
+"transcribe.file.error.size.title" = "檔案過大";
+"transcribe.file.error.size.message" = "選定的檔案 (%@) 超過 %@ 對 %@ 的限制。";
+"transcribe.file.error.format.title" = "不支援的格式";
+"transcribe.file.error.format.message" = ".%@ 檔案不被 %@ 支援。支援的格式：%@";
+"transcribe.file.error.read" = "無法讀取選定的檔案。";
+"transcribe.file.error.copy" = "無法將檔案複製到錄音資料夾。";
+"transcribe.file.error.video.title" = "影片中沒有音頻";
+"transcribe.file.error.video.noAudio" = "此影片檔案不包含音頻軌道。請選擇有音頻的影片或音頻檔案。";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "準備中...";
+"file.transcription.transcribing" = "轉錄中...";
+"file.transcription.finishing" = "完成中...";
+"file.transcription.cancel" = "取消";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "啟用自動刪除";
+"history.autoDelete.enable.subtitle" = "超過指定時間的舊錄音將被刪除";
+"history.autoDelete.duration.prefix" = "於";
+"history.autoDelete.unit.minutes" = "分鐘";
+"history.autoDelete.unit.hours" = "小時";
+"history.autoDelete.unit.days" = "天";
+"history.autoDelete.unit.minutes.plural" = "分鐘";
+"history.autoDelete.unit.hours.plural" = "小時";
+"history.autoDelete.unit.days.plural" = "天";
+"history.autoDelete.status.disabled" = "自動刪除已停用";
+"history.autoDelete.status.enabled" = "刪除早於 %d %@ 的錄音";
+"history.autoDelete.cleanup.noItems" = "沒有錄音要刪除";
+"history.autoDelete.cleanup.summary" = "已刪除 %d 個錄音並釋放 %@";

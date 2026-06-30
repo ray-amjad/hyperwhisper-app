@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - تحويل الصوت إلى نص بالذكاء الاصطناعي على macOS وWindows",
+    "description": "اكتب بسرعة أكبر 5 مرات مع تحويل الصوت إلى نص بالذكاء الاصطناعي. يقوم HyperWhisper بتحويل صوتك بدقة مذهلة على macOS وWindows. تحدث بشكل طبيعي وشاهد كلماتك تظهر فورًا."
+  },
+  "navbar": {
+    "features": "المزايا",
+    "pricing": "الأسعار",
+    "faq": "الأسئلة الشائعة",
+    "support": "الدعم",
+    "download": "تنزيل",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "تغيير اللغة"
+    }
+  },
+  "hero": {
+    "logoAlt": "شعار HyperWhisper",
+    "headline": "اكتب وأنشئ وابتكر",
+    "headlineAccent": "أسرع 5 مرات مع الذكاء الاصطناعي",
+    "subheadline": "يقوم HyperWhisper بتحويل صوتك إلى نص بدقة مذهلة. فقط تحدث بشكل طبيعي وشاهد كلماتك تظهر فورًا.",
+    "downloadCta": "نزّل الآن",
+    "demoCta": "شاهد العرض",
+    "availableOn": "متاح على",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "مصمم للمحترفين",
+    "subtitle": "كل ميزة مصممة لمساعدتك على العمل بسرعة وكفاءة أكبر",
+    "customVocabulary": {
+      "title": "مفردات مخصصة",
+      "description": "أضف الأسماء والاختصارات والمصطلحات الخاصة للحصول على دقة مثالية في كل مرة."
+    },
+    "languages": {
+      "title": "أكثر من 100 لغة",
+      "description": "حوّل الكلام إلى نص بأكثر من 100 لغة مع اكتشاف تلقائي للغة."
+    },
+    "offline": {
+      "title": "دعم العمل دون اتصال",
+      "description": "يعمل بالكامل دون اتصال. بياناتك لا تغادر جهازك أبدًا."
+    },
+    "privacy": {
+      "title": "الخصوصية أولًا",
+      "description": "لا حاجة إلى حساب. لا تتبع. تبقى بيانات صوتك على جهاز Mac أو PC الخاص بك."
+    },
+    "hybridProcessing": {
+      "title": "معالجة هجينة",
+      "description": "اختر بين النماذج المحلية للخصوصية أو واجهات API السحابية للسرعة. أفضل ما في العالمين."
+    },
+    "customizable": {
+      "title": "قابل للتخصيص بدرجة عالية",
+      "description": "اختر من بين أكثر من 9 مزود API وأكثر من 30 نموذج تحويل."
+    },
+    "realTime": {
+      "title": "بث لحظي",
+      "description": "شاهد كلماتك تظهر فورًا أثناء التحدث. دقة رائدة بزمن استجابة أقل من 700 مللي ثانية."
+    },
+    "fileImport": {
+      "title": "استيراد الملفات",
+      "description": "استورد ملفات الصوت أو الفيديو لتحويلها إلى نص. يدعم أهم الصيغ مع اكتشاف تلقائي للصمت."
+    },
+    "screenOcr": {
+      "title": "التعرّف البصري على الشاشة",
+      "description": "اسمح لـ HyperWhisper برؤية شاشتك حتى يتمكن من تهجئة كل شيء بدقة."
+    },
+    "mcpServer": {
+      "title": "واجهة برمجة محلية وخادم MCP",
+      "description": "يتيح خادم MCP المدمج لـ Claude وCursor وغيرها من وكلاء الذكاء الاصطناعي تشغيل HyperWhisper. واجهة HTTP محلية فقط مع مصادقة Bearer للنصوص البرمجية والأتمتة."
+    },
+    "modes": {
+      "title": "أوضاع لكل حالة",
+      "description": "بدّل بين أوضاع تحويل مختلفة محسنة للاجتماعات والملاحظات والبريد الإلكتروني والبرمجة والمزيد. يستخدم كل وضع مطالبات مخصصة لتنسيق النص بشكل مثالي.",
+      "meeting": "اجتماع",
+      "email": "بريد إلكتروني",
+      "note": "ملاحظة",
+      "code": "برمجة",
+      "legal": "قانوني",
+      "medical": "طبي",
+      "presetModes": "أوضاع جاهزة",
+      "customModes": "أوضاع مخصصة"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "أسرع من الكتابة",
+    "accuracyRate": "معدل الدقة",
+    "languagesSupported": "اللغات المدعومة",
+    "providersSupported": "المزودون المدعومون"
+  },
+  "pricing": {
+    "title": "بدون اشتراكات. أبدًا.",
+    "subtitle": "ادفع مرة واحدة، واستخدمه إلى الأبد. نحن أيضًا نكره الاشتراكات.",
+    "guarantee": "ضمان استرداد لمدة 14 يومًا",
+    "guaranteeExtended": "إذا لم تكن راضيًا تمامًا.",
+    "learnMore": "اعرف المزيد",
+    "free": {
+      "name": "مجاني",
+      "price": "$0",
+      "period": "إلى الأبد",
+      "description": "مثالي لتجربة HyperWhisper",
+      "cta": "تنزيل مجاني",
+      "features": {
+        "transcriptionLimit": "5 دقائق تحويل يوميًا",
+        "basicModes": "أوضاع تحويل أساسية",
+        "offlineTranscription": "تحويل دون اتصال",
+        "apiTranscription": "تحويل عبر API (استخدم مفاتيحك الخاصة)",
+        "postProcessing": "معالجة النص بعد التحويل",
+        "providers": "أكثر من 9 مزودًا للاختيار",
+        "lifetimeUpdates": "تحديثات مدى الحياة",
+        "cloudLimited": "HyperWhisper Cloud (استخدام محدود)",
+        "customVocabulary": "مفردات مخصصة",
+        "prioritySupport": "دعم أولوية"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "مدى الحياة",
+      "description": "شراء مرة واحدة، قوة غير محدودة إلى الأبد",
+      "cta": "اشترِ الآن - وصول مدى الحياة",
+      "mostPopular": "الأكثر شيوعًا",
+      "features": {
+        "unlimitedTranscription": "تحويل غير محدود",
+        "allModes": "كل أوضاع التحويل",
+        "offlineTranscription": "تحويل دون اتصال",
+        "apiTranscription": "تحويل عبر API (استخدم مفاتيحك الخاصة)",
+        "postProcessing": "معالجة النص بعد التحويل",
+        "providers": "أكثر من 9 مزودًا للاختيار",
+        "lifetimeUpdates": "تحديثات مدى الحياة",
+        "cloudCredits": "HyperWhisper Cloud (رصيد $5)",
+        "customVocabulary": "مفردات مخصصة",
+        "prioritySupport": "دعم أولوية"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise وتسعير مخصص",
+      "description": "خصومات للكميات، SSO، دعم أولوية، استضافة داخلية، وتكاملات مخصصة",
+      "cta": "تواصل مع المبيعات"
+    }
+  },
+  "faq": {
+    "title": "الأسئلة الشائعة",
+    "subtitle": "كل ما تحتاج معرفته عن HyperWhisper",
+    "contactPrompt": "ما زالت لديك أسئلة؟ راسلنا على",
+    "questions": {
+      "accuracy": {
+        "question": "ما مدى دقة التحويل؟",
+        "answer": "نحقق دقة رائدة في المجال تصل إلى 99% باستخدام أحدث نماذج الذكاء الاصطناعي. ويمكنك رفع الدقة أكثر بإضافة مفرداتك المخصصة للمصطلحات التقنية والأسماء والجمل المتخصصة."
+      },
+      "offline": {
+        "question": "هل يمكنني استخدامه بدون إنترنت؟",
+        "answer": "بالتأكيد. يمكن استخدام HyperWhisper بالكامل دون اتصال على جهاز Mac عبر نماذج ذكاء اصطناعي محلية، دون الحاجة للإنترنت. ولمن يريد أعلى دقة وسرعة، نوفر أيضًا معالجة سحابية اختيارية عبر مزودين مختلفين."
+      },
+      "apiKey": {
+        "question": "هل أحتاج للدفع مقابل الوصول إلى API؟",
+        "answer": "أنت تستخدم مفتاح API الخاص بك للمزودين التاليين: Groq وxAI Grok وOpenAI وDeepgram وAssemblyAI وElevenLabs وMistral وGoogle Gemini. بعض المزودين يقدمون أرصدة مجانية للمستخدمين الجدد؛ Deepgram يمنح $200 وAssemblyAI يمنح $50. على المدى الطويل، هذا أوفر بكثير من أي اشتراك. \n\nيمكنك أيضًا استخدام HyperWhisper Cloud (المضمن)، والذي لا يتطلب مفتاح API ويعمل بنظام الدفع حسب الاستخدام.\n\nوتذكّر: الوضع المحلي دون اتصال يعمل بدون أي مفتاح API وهو مجاني بالكامل."
+      },
+      "languages": {
+        "question": "ما اللغات التي يدعمها؟",
+        "answer": "يدعم أكثر من 100 لغة مباشرة، من الإنجليزية والإسبانية إلى المندرين والعربية. يمكن لمعظم النماذج اكتشاف اللغة التي تتحدث بها تلقائيًا والتبديل بسلاسة."
+      },
+      "offlineModels": {
+        "question": "ما النماذج المتاحة دون اتصال؟",
+        "answer": "للتحويل دون اتصال، نوفر عدة أحجام من نموذج Whisper (من OpenAI ويدعم 99+ لغة). كما نوفر نماذج Parakeet من NVidia (تدعم 25+ لغة).\n      \n      وللمعالجة اللاحقة دون اتصال، نوفر عدة أحجام من نموذج Gemma 3 (من Google)."
+      },
+      "compatibility": {
+        "question": "هل يعمل مع جميع تطبيقات Mac وWindows؟",
+        "answer": "نعم، يعمل في أي مكان يمكنك الكتابة فيه. سواء كنت تكتب بريدًا إلكترونيًا أو مستندات أو كودًا أو تتحدث في الدردشة. اضغط الاختصار وتحدث وشاهد كلماتك تظهر فورًا."
+      },
+      "privacy": {
+        "question": "كيف يتم حماية خصوصيتي؟",
+        "answer": "عند استخدام الوضع المحلي، لا تغادر أي بيانات جهاز Mac الخاص بك.\n\nعند استخدام التحويل السحابي، تُرسل بياناتك إلى مزود السحابة الذي تختاره (مثل OpenAI أوGroq أو Deepgram أو AssemblyAI أو ElevenLabs أو Mistral).\n\nيمكنك التحقق من ذلك بنفسك باستخدام أداة فحص الشبكة مثل [Proxyman](https://proxyman.io) أو مراقب شبكة مثل [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "ما هو HyperWhisper Cloud؟",
+        "answer": "HyperWhisper Cloud هو تحويل سحابي مدمج موجّه للمستخدمين الأقل خبرة تقنية الذين يريدون البدء بسرعة.\n\nيعتمد على الدفع حسب الاستخدام. عند شراء الترخيص تحصل على $5 كرصيد تحويل. ويمكنك إضافة رصيد لاحقًا.\n    \nنوفر ثلاثة مستويات للدقة: Medium (الأسرع، يعمل عبر Groq)، وHigh (موصى به، يعمل عبر Deepgram)، وHighest (أفضل جودة، يعمل عبر xAI Grok STT). المعالجة اللاحقة تلقائية. لا نخزن أي شيء سوى مقدار الرصيد الذي استهلكته.\n\nأنت تدفع تمامًا ما ندفعه نحن لهؤلاء المزودين. لا نضيف أي هامش.\n\nوللاطمئنان، يمكنك الاطلاع على كود HyperWhisper Cloud [هنا](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "هل ستُستخدم بيانات صوتي لتدريب نماذج الذكاء الاصطناعي؟",
+        "answer": "يقوم HyperWhisper Cloud بإلغاء اشتراكك في تدريب النماذج لدى كل مزوّد نعتمد عليه. أما عند استخدام مفتاح API الخاص بك، فإن إلغاء الاشتراك يقع على عاتقك — راجع [دليل خصوصية البيانات](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "لماذا تسعير مدى الحياة بدل الاشتراك؟",
+        "answer": "نؤمن بتسعير بسيط وعادل. ادفع $39 مرة واحدة واستخدم HyperWhisper إلى الأبد. بدون رسوم شهرية وبدون مفاجآت. النسخة المجانية تتيح لك استخدام الميزات الأساسية مع 5 دقائق تحويل يوميًا."
+      },
+      "deviceLimit": {
+        "question": "على كم جهاز يمكنني استخدام الترخيص؟",
+        "answer": "يمكنك استخدام الترخيص على عدد الأجهزة الذي تريده، وفق سياسة الاستخدام العادل الموضحة في [شروط الخدمة](/legal/terms-of-service). صُممت هذه السياسة لتكون مرنة للاستخدام الشخصي والعملي المشروع مع منع إساءة الاستخدام."
+      },
+      "requirements": {
+        "question": "ما متطلبات النظام؟",
+        "answer": "على Mac: macOS 14 أو أحدث، مع دعم Apple Silicon وIntel. على Windows: Windows 10/11، x64 أو ARM64. نوصي بذاكرة RAM بحجم 8GB لأفضل أداء."
+      },
+      "windowsStatus": {
+        "question": "هل نسخة Windows تحتوي على كل ميزات macOS نفسها؟",
+        "answer": "تم إصدار نسخة Windows مؤخرًا، لذلك قد لا تتوفر فيها بعد كل الميزات الموجودة في macOS. نعمل باستمرار للوصول إلى تكافؤ كامل في الميزات بين المنصتين."
+      },
+      "madeBy": {
+        "question": "من الذي صنع هذا؟",
+        "answer": "هذا من صنع اليوتيوبر [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "مركز الدعم",
+    "subtitle": "نحن هنا لمساعدتك على تحقيق أقصى استفادة من HyperWhisper",
+    "getInTouch": "تواصل معنا",
+    "description": "للدعم الفني أو مشاكل الترخيص أو أي سؤال حول HyperWhisper، فريقنا جاهز لمساعدتك.",
+    "emailUsAt": "راسلنا على:",
+    "openInClient": "افتح في عميل البريد لديك:",
+    "defaultClient": "عميل البريد الافتراضي",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "نرد عادة خلال 24 ساعة في أيام العمل.",
+    "emailTemplate": {
+      "subject": "طلب دعم HyperWhisper",
+      "body": "مرحبًا،\n\nالإصدار: \n[يمكنك التحقق من الإعدادات > حول]\n\nالمشكلة: \n[صف مشكلتك]\n\nالتفاصيل: \n[اذكر أي تفاصيل ذات صلة، ماذا كنت تفعل قبل حدوث التعطل]\n\n[رسالتك هنا]\n\nمع التحية،"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "شعار HyperWhisper",
+    "title": "تنزيل HyperWhisper",
+    "emailPlaceholder": "البريد الإلكتروني",
+    "description": "سنرسل لك رابط التنزيل وفيديو تعليمي قصير عبر البريد لتبدأ بسرعة. بدون رسائل مزعجة.",
+    "downloadButton": "تنزيل HyperWhisper",
+    "errorGeneric": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    "errorNetwork": "خطأ في الشبكة. تحقق من الاتصال وحاول مرة أخرى.",
+    "thankYouTitle": "شكرًا!",
+    "downloadStarted": "يجب أن يبدأ التنزيل تلقائيًا.",
+    "manualDownload": "لم يبدأ التنزيل؟ اضغط هنا",
+    "skipAndDownloadButton": "تخطي والتنزيل"
+  },
+  "downloadPage": {
+    "title": "تنزيل HyperWhisper",
+    "countdownText": "يبدأ خلال {seconds}...",
+    "downloadStarted": "تحقق من مجلد التنزيلات",
+    "downloadNow": "تنزيل الآن",
+    "downloadAgain": "تنزيل مرة أخرى",
+    "selectArchitecture": "اختر المعمارية",
+    "downloadX64": "تنزيل لإصدار x64",
+    "downloadArm64": "تنزيل لإصدار ARM64",
+    "orDivider": "أو",
+    "homebrewTitle": "التثبيت عبر Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "نسخ",
+    "copied": "تم النسخ!"
+  },
+  "purchaseSuccess": {
+    "title": "تمت عملية الشراء بنجاح!",
+    "subtitle": "مرحبًا بك في HyperWhisper Pro! ترخيصك مدى الحياة جاهز.",
+    "checkEmail": {
+      "title": "تحقق من بريدك الإلكتروني",
+      "description": "لقد أرسلنا مفتاح الترخيص وتعليمات التنزيل إلى بريدك الإلكتروني. من المفترض أن يصلك خلال الدقائق القادمة."
+    },
+    "whatsNext": {
+      "title": "ما الخطوة التالية؟",
+      "step1": {
+        "title": "تحقق من البريد الوارد",
+        "description": "ابحث عن رسالة من HyperWhisper"
+      },
+      "step2": {
+        "title": "انسخ مفتاح الترخيص",
+        "description": "ستحتاج إليه لتفعيل التطبيق"
+      },
+      "step3": {
+        "title": "نزّل HyperWhisper",
+        "description": "ثبت التطبيق وأدخل مفتاح الترخيص"
+      }
+    },
+    "downloadButton": "تنزيل HyperWhisper",
+    "returnHome": "العودة إلى الصفحة الرئيسية",
+    "noEmail": "لم تستلم البريد؟ تحقق من مجلد الرسائل المزعجة أو",
+    "contactSupport": "تواصل مع الدعم",
+    "loading": "جارٍ التحميل..."
+  },
+  "footer": {
+    "tagline": "اكتب أسرع 5 مرات مع تحويل الصوت إلى نص بالذكاء الاصطناعي على macOS وWindows.",
+    "product": "المنتج",
+    "resources": "الموارد",
+    "company": "الشركة",
+    "legal": "قانوني",
+    "links": {
+      "features": "المزايا",
+      "pricing": "الأسعار",
+      "download": "تنزيل",
+      "roadmap": "خارطة الطريق",
+      "helpCenter": "مركز المساعدة",
+      "manageBilling": "إدارة الفوترة",
+      "customerPortal": "بوابة العملاء",
+      "olderVersions": "الإصدارات الأقدم",
+      "blog": "المدونة",
+      "about": "حول",
+      "support": "الدعم",
+      "privacyPolicy": "سياسة الخصوصية",
+      "termsOfService": "شروط الخدمة",
+      "refundPolicy": "سياسة الاسترداد",
+      "dataTraining": "خصوصية البيانات"
+    },
+    "copyright": "© 2026 HyperWhisper. جميع الحقوق محفوظة.",
+    "linkedinAria": "LinkedIn"
+  }
+}

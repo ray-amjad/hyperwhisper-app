@@ -1,0 +1,905 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		716D3E1C2E52BB340018DCF5 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 716D3DE12E52B8910018DCF5 /* KeyboardShortcuts */; };
+		71805AD02EDDE90D00E7A29A /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 71805ACF2EDDE90D00E7A29A /* LaunchAtLogin */; };
+		719EC7D22E5343A600880D18 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 719EC7D12E5343A600880D18 /* Sparkle */; };
+		71A82C002E9542830068427B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 71A82BFF2E9542830068427B /* Sentry */; };
+		71AEEF022E5D123400ABCDEF /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 71AEEF012E5D123400ABCDEF /* FluidAudio */; };
+		71APPCLS2F0A000000000002 /* shared-app-classification in Resources */ = {isa = PBXBuildFile; fileRef = 71APPCLS2F0A000000000001 /* shared-app-classification */; };
+		71SHMODL2F0A000000000002 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
+		71SHMODL2F0A000000000003 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
+		71SHMODL2F0A000000000004 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
+		71D234382FD01F260053A8B4 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 71FLYFOX2F0B000000000002 /* FlyingFox */; };
+		71D982782ED74E1400A377A6 /* MediaRemoteAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = 71D982772ED74E1400A377A6 /* MediaRemoteAdapter */; };
+		71D982792ED74E1400A377A6 /* MediaRemoteAdapter in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 71D982772ED74E1400A377A6 /* MediaRemoteAdapter */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		71D98B662ED7E42A00A377A6 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = 71ATOMIC2EF8B00000000002 /* Atomics */; };
+		71SHPROM2F0A000000000002 /* shared-prompts in Resources */ = {isa = PBXBuildFile; fileRef = 71SHPROM2F0A000000000001 /* shared-prompts */; };
+		9FE695711C6C4BC6814E7706 /* whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DC36D0393491E7AE3B3A38B6 /* whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BCDA8BC9FE1EEA1C2909F0CE /* whisper.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = DC36D0393491E7AE3B3A38B6 /* whisper.xcframework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7142EF1E2E50808B00DA9A2D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7142EF072E50808900DA9A2D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7142EF0E2E50808900DA9A2D;
+			remoteInfo = hyperwhisper;
+		};
+		7142EF282E50808B00DA9A2D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7142EF072E50808900DA9A2D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7142EF0E2E50808900DA9A2D;
+			remoteInfo = hyperwhisper;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7279611A8379BE6EE84AA5EB /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				9FE695711C6C4BC6814E7706 /* whisper.xcframework in Embed Frameworks */,
+				71D982792ED74E1400A377A6 /* MediaRemoteAdapter in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		7142EF0F2E50808900DA9A2D /* HyperWhisper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HyperWhisper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7142EF1D2E50808B00DA9A2D /* hyperwhisperTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hyperwhisperTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7142EF272E50808B00DA9A2D /* hyperwhisperUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hyperwhisperUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		71APPCLS2F0A000000000001 /* shared-app-classification */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "shared-app-classification"; path = "../../shared-app-classification"; sourceTree = "<group>"; };
+		71SHMODL2F0A000000000001 /* shared-models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "shared-models"; path = "../../shared-models"; sourceTree = "<group>"; };
+		71SHPROM2F0A000000000001 /* shared-prompts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "shared-prompts"; path = "../../shared-prompts"; sourceTree = "<group>"; };
+		DC36D0393491E7AE3B3A38B6 /* whisper.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; path = whisper.xcframework; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7188B5762E56E33100385D09 /* Exceptions for "hyperwhisper" folder in "hyperwhisper" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 7142EF0E2E50808900DA9A2D /* hyperwhisper */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7142EF112E50808900DA9A2D /* hyperwhisper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7188B5762E56E33100385D09 /* Exceptions for "hyperwhisper" folder in "hyperwhisper" target */,
+			);
+			path = hyperwhisper;
+			sourceTree = "<group>";
+		};
+		7142EF202E50808B00DA9A2D /* hyperwhisperTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = hyperwhisperTests;
+			sourceTree = "<group>";
+		};
+		7142EF2A2E50808B00DA9A2D /* hyperwhisperUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = hyperwhisperUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7142EF0C2E50808900DA9A2D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71D234382FD01F260053A8B4 /* FlyingFox in Frameworks */,
+				71805AD02EDDE90D00E7A29A /* LaunchAtLogin in Frameworks */,
+				71D98B662ED7E42A00A377A6 /* Atomics in Frameworks */,
+				716D3E1C2E52BB340018DCF5 /* KeyboardShortcuts in Frameworks */,
+				719EC7D22E5343A600880D18 /* Sparkle in Frameworks */,
+				71AEEF022E5D123400ABCDEF /* FluidAudio in Frameworks */,
+				71D982782ED74E1400A377A6 /* MediaRemoteAdapter in Frameworks */,
+				BCDA8BC9FE1EEA1C2909F0CE /* whisper.xcframework in Frameworks */,
+				71A82C002E9542830068427B /* Sentry in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7142EF1A2E50808B00DA9A2D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7142EF242E50808B00DA9A2D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		7142EF062E50808900DA9A2D = {
+			isa = PBXGroup;
+			children = (
+				7142EF112E50808900DA9A2D /* hyperwhisper */,
+				7142EF202E50808B00DA9A2D /* hyperwhisperTests */,
+				7142EF2A2E50808B00DA9A2D /* hyperwhisperUITests */,
+				7142EF102E50808900DA9A2D /* Products */,
+				DC36D0393491E7AE3B3A38B6 /* whisper.xcframework */,
+				71SHPROM2F0A000000000001 /* shared-prompts */,
+				71APPCLS2F0A000000000001 /* shared-app-classification */,
+				71SHMODL2F0A000000000001 /* shared-models */,
+				71A82BFE2E9542830068427B /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		7142EF102E50808900DA9A2D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7142EF0F2E50808900DA9A2D /* HyperWhisper.app */,
+				7142EF1D2E50808B00DA9A2D /* hyperwhisperTests.xctest */,
+				7142EF272E50808B00DA9A2D /* hyperwhisperUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		71A82BFE2E9542830068427B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7142EF0E2E50808900DA9A2D /* hyperwhisper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7142EF312E50808B00DA9A2D /* Build configuration list for PBXNativeTarget "hyperwhisper" */;
+			buildPhases = (
+				7142EF0B2E50808900DA9A2D /* Sources */,
+				7142EF0C2E50808900DA9A2D /* Frameworks */,
+				7142EF0D2E50808900DA9A2D /* Resources */,
+				71F2A2E82E5E4B1C0048B2D4 /* Copy Runtime Artifacts */,
+				71F2A2E92E5E4B1D0048B2D5 /* Code Sign Runtime Binaries */,
+				7279611A8379BE6EE84AA5EB /* Embed Frameworks */,
+				71A82D012E9A5C7F00684272 /* Upload dSYMs to Sentry */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7142EF112E50808900DA9A2D /* hyperwhisper */,
+			);
+			name = hyperwhisper;
+			packageProductDependencies = (
+				716D3DE12E52B8910018DCF5 /* KeyboardShortcuts */,
+				719EC7D12E5343A600880D18 /* Sparkle */,
+				71AEEF012E5D123400ABCDEF /* FluidAudio */,
+				71A82BFF2E9542830068427B /* Sentry */,
+				71D982772ED74E1400A377A6 /* MediaRemoteAdapter */,
+				71ATOMIC2EF8B00000000002 /* Atomics */,
+				71805ACF2EDDE90D00E7A29A /* LaunchAtLogin */,
+				71FLYFOX2F0B000000000002 /* FlyingFox */,
+			);
+			productName = hyperwhisper;
+			productReference = 7142EF0F2E50808900DA9A2D /* HyperWhisper.app */;
+			productType = "com.apple.product-type.application";
+		};
+		7142EF1C2E50808B00DA9A2D /* hyperwhisperTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7142EF342E50808B00DA9A2D /* Build configuration list for PBXNativeTarget "hyperwhisperTests" */;
+			buildPhases = (
+				7142EF192E50808B00DA9A2D /* Sources */,
+				7142EF1A2E50808B00DA9A2D /* Frameworks */,
+				7142EF1B2E50808B00DA9A2D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7142EF1F2E50808B00DA9A2D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7142EF202E50808B00DA9A2D /* hyperwhisperTests */,
+			);
+			name = hyperwhisperTests;
+			productName = hyperwhisperTests;
+			productReference = 7142EF1D2E50808B00DA9A2D /* hyperwhisperTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7142EF262E50808B00DA9A2D /* hyperwhisperUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7142EF372E50808B00DA9A2D /* Build configuration list for PBXNativeTarget "hyperwhisperUITests" */;
+			buildPhases = (
+				7142EF232E50808B00DA9A2D /* Sources */,
+				7142EF242E50808B00DA9A2D /* Frameworks */,
+				7142EF252E50808B00DA9A2D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7142EF292E50808B00DA9A2D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7142EF2A2E50808B00DA9A2D /* hyperwhisperUITests */,
+			);
+			name = hyperwhisperUITests;
+			productName = hyperwhisperUITests;
+			productReference = 7142EF272E50808B00DA9A2D /* hyperwhisperUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7142EF072E50808900DA9A2D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					7142EF0E2E50808900DA9A2D = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					7142EF1C2E50808B00DA9A2D = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 7142EF0E2E50808900DA9A2D;
+					};
+					7142EF262E50808B00DA9A2D = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 7142EF0E2E50808900DA9A2D;
+					};
+				};
+			};
+			buildConfigurationList = 7142EF0A2E50808900DA9A2D /* Build configuration list for PBXProject "hyperwhisper" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				es,
+				ja,
+				"zh-Hans",
+				Base,
+				de,
+				he,
+				ar,
+				el,
+				uk,
+				nb,
+				is,
+				sl,
+				da,
+				et,
+				it,
+				bg,
+				sk,
+				sr,
+				ms,
+				sv,
+				cs,
+				ko,
+				"zh-Hant",
+				hu,
+				tr,
+				pl,
+				vi,
+				lv,
+				lt,
+				ru,
+				fr,
+				fi,
+				id,
+				nl,
+				th,
+				pt,
+				ro,
+				hr,
+				hi,
+				ca,
+			);
+			mainGroup = 7142EF062E50808900DA9A2D;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				716D3DE02E52B8910018DCF5 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				719EC7CF2E53428100880D18 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				712082922E5409BB00212D08 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+				7118D5CA2E5E8E39000F525A /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				71AEEF202E5D123400ABCDEF /* XCRemoteSwiftPackageReference "FluidAudio" */,
+				71D982762ED74D8800A377A6 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */,
+				71ATOMIC2EF8B00000000001 /* XCRemoteSwiftPackageReference "swift-atomics" */,
+				718C2CFD2EDDE83A00A255D5 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
+				71FLYFOX2F0B000000000001 /* XCRemoteSwiftPackageReference "FlyingFox" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 7142EF102E50808900DA9A2D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7142EF0E2E50808900DA9A2D /* hyperwhisper */,
+				7142EF1C2E50808B00DA9A2D /* hyperwhisperTests */,
+				7142EF262E50808B00DA9A2D /* hyperwhisperUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7142EF0D2E50808900DA9A2D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71SHPROM2F0A000000000002 /* shared-prompts in Resources */,
+				71APPCLS2F0A000000000002 /* shared-app-classification in Resources */,
+				71SHMODL2F0A000000000002 /* shared-models in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7142EF1B2E50808B00DA9A2D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71SHMODL2F0A000000000003 /* shared-models in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7142EF252E50808B00DA9A2D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				71SHMODL2F0A000000000004 /* shared-models in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		71A82D012E9A5C7F00684272 /* Upload dSYMs to Sentry */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Upload dSYMs to Sentry";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/scripts/xcode_auto_upload_dsyms.sh\"\n";
+		};
+		71F2A2E82E5E4B1C0048B2D4 /* Copy Runtime Artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Runtime Artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nRUNTIME_SRC=\"$SRCROOT/hyperwhisper/Runtime\"\nRUNTIME_DST=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Runtime\"\nif [ -d \"$RUNTIME_SRC\" ]; then\n  /bin/mkdir -p \"$RUNTIME_DST\"\n  /usr/bin/ditto \"$RUNTIME_SRC\" \"$RUNTIME_DST\"\n\n  echo \"Normalizing runtime loader paths\"\n  find \"$RUNTIME_DST\" -type f \\( -name \"llama-server\" -o -name \"*.dylib\" \\) | while read -r binary; do\n    /usr/bin/otool -l \"$binary\" | \\\n      /usr/bin/awk '/cmd LC_RPATH/ { getline; getline; if ($1 == \"path\") print $2 }' | \\\n      while read -r rpath; do\n        case \"$rpath\" in\n          @*) ;;\n          *) /usr/bin/install_name_tool -delete_rpath \"$rpath\" \"$binary\" || true ;;\n        esac\n      done\n    if ! /usr/bin/otool -l \"$binary\" | /usr/bin/grep -q \"@loader_path\"; then\n      /usr/bin/install_name_tool -add_rpath \"@loader_path\" \"$binary\"\n    fi\n  done\nfi\n";
+		};
+		71F2A2E92E5E4B1D0048B2D5 /* Code Sign Runtime Binaries */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Code Sign Runtime Binaries";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\n# Code sign all Runtime binaries (llama-server and dylibs) with Hardened Runtime\nRUNTIME_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Runtime\"\nRESOURCES_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n\nif [ -d \"$RUNTIME_DIR\" ]; then\n  echo \"Code signing Runtime binaries in $RUNTIME_DIR\"\n  \n  # Sign all dylibs\n  find \"$RUNTIME_DIR\" -name \"*.dylib\" -type f | while read binary; do\n    echo \"Code signing $binary with Hardened Runtime\"\n    /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp \"$binary\" || true\n  done\n  \n  # Sign llama-server in Runtime/\n  find \"$RUNTIME_DIR\" -name \"llama-server\" -type f | while read binary; do\n    echo \"Code signing $binary with Hardened Runtime\"\n    /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp \"$binary\" || true\n  done\n  \n  echo \"Runtime binaries code signing complete\"\nfi\n\n# Also sign top-level llama-server if Xcode copied it to Resources/\nif [ -f \"$RESOURCES_DIR/llama-server\" ]; then\n  echo \"Code signing top-level llama-server in Resources\"\n  /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp \"$RESOURCES_DIR/llama-server\" || true\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7142EF0B2E50808900DA9A2D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7142EF192E50808B00DA9A2D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7142EF232E50808B00DA9A2D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7142EF1F2E50808B00DA9A2D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7142EF0E2E50808900DA9A2D /* hyperwhisper */;
+			targetProxy = 7142EF1E2E50808B00DA9A2D /* PBXContainerItemProxy */;
+		};
+		7142EF292E50808B00DA9A2D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7142EF0E2E50808900DA9A2D /* hyperwhisper */;
+			targetProxy = 7142EF282E50808B00DA9A2D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7142EF2F2E50808B00DA9A2D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		7142EF302E50808B00DA9A2D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		7142EF322E50808B00DA9A2D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = "hyperwhisper/hyperwhisper-dev.entitlements";
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 109;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)";
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/whisper.xcframework/macos-arm64_x86_64/whisper.framework/Headers";
+				INFOPLIST_FILE = hyperwhisper/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HyperWhisper;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSInputMonitoringUsageDescription = "HyperWhisper needs input monitoring to let you record global keyboard shortcuts.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "HyperWhisper needs access to your microphone to transcribe audio to text.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "HyperWhisper uses speech recognition to transcribe your voice recordings.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../Resources/Runtime",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/hyperwhisper/Runtime",
+					"$(PROJECT_DIR)/hyperwhisper/Libraries",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 2.40.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisper;
+				PRODUCT_NAME = HyperWhisper;
+				PROVISIONING_PROFILE_SPECIFIER = "HyperWhisper Developer ID";
+				REGISTER_APP_GROUPS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/hyperwhisper/HyperWhisper-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7142EF332E50808B00DA9A2D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = "hyperwhisper/hyperwhisper-release.entitlements";
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 109;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)";
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/whisper.xcframework/macos-arm64_x86_64/whisper.framework/Headers";
+				INFOPLIST_FILE = hyperwhisper/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HyperWhisper;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSInputMonitoringUsageDescription = "HyperWhisper needs input monitoring to let you record global keyboard shortcuts.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "HyperWhisper needs access to your microphone to transcribe audio to text.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "HyperWhisper uses speech recognition to transcribe your voice recordings.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../Resources/Runtime",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/hyperwhisper/Runtime",
+					"$(PROJECT_DIR)/hyperwhisper/Libraries",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 2.40.0;
+				OTHER_CODE_SIGN_FLAGS = "--deep --timestamp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisper;
+				PRODUCT_NAME = HyperWhisper;
+				PROVISIONING_PROFILE_SPECIFIER = "HyperWhisper Developer ID";
+				REGISTER_APP_GROUPS = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/hyperwhisper/HyperWhisper-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7142EF352E50808B00DA9A2D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 2.40.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisperTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HyperWhisper.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HyperWhisper";
+			};
+			name = Debug;
+		};
+		7142EF362E50808B00DA9A2D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 2.40.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisperTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HyperWhisper.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HyperWhisper";
+			};
+			name = Release;
+		};
+		7142EF382E50808B00DA9A2D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 2.40.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisperUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = hyperwhisper;
+			};
+			name = Debug;
+		};
+		7142EF392E50808B00DA9A2D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 2.40.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisperUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = hyperwhisper;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7142EF0A2E50808900DA9A2D /* Build configuration list for PBXProject "hyperwhisper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7142EF2F2E50808B00DA9A2D /* Debug */,
+				7142EF302E50808B00DA9A2D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7142EF312E50808B00DA9A2D /* Build configuration list for PBXNativeTarget "hyperwhisper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7142EF322E50808B00DA9A2D /* Debug */,
+				7142EF332E50808B00DA9A2D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7142EF342E50808B00DA9A2D /* Build configuration list for PBXNativeTarget "hyperwhisperTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7142EF352E50808B00DA9A2D /* Debug */,
+				7142EF362E50808B00DA9A2D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7142EF372E50808B00DA9A2D /* Build configuration list for PBXNativeTarget "hyperwhisperUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7142EF382E50808B00DA9A2D /* Debug */,
+				7142EF392E50808B00DA9A2D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7118D5CA2E5E8E39000F525A /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.55.0;
+			};
+		};
+		712082922E5409BB00212D08 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.19;
+			};
+		};
+		716D3DE02E52B8910018DCF5 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.3.0;
+			};
+		};
+		718C2CFD2EDDE83A00A255D5 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+		719EC7CF2E53428100880D18 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.1;
+			};
+		};
+		71AEEF202E5D123400ABCDEF /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.15.2;
+			};
+		};
+		71ATOMIC2EF8B00000000001 /* XCRemoteSwiftPackageReference "swift-atomics" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-atomics.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
+		71D982762ED74D8800A377A6 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ejbills/mediaremote-adapter.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		71FLYFOX2F0B000000000001 /* XCRemoteSwiftPackageReference "FlyingFox" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/swhitty/FlyingFox.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.21.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		716D3DE12E52B8910018DCF5 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 716D3DE02E52B8910018DCF5 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+		71805ACF2EDDE90D00E7A29A /* LaunchAtLogin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 718C2CFD2EDDE83A00A255D5 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */;
+			productName = LaunchAtLogin;
+		};
+		719EC7D12E5343A600880D18 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 719EC7CF2E53428100880D18 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+		71A82BFF2E9542830068427B /* Sentry */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7118D5CA2E5E8E39000F525A /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
+			productName = Sentry;
+		};
+		71AEEF012E5D123400ABCDEF /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 71AEEF202E5D123400ABCDEF /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
+		};
+		71ATOMIC2EF8B00000000002 /* Atomics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 71ATOMIC2EF8B00000000001 /* XCRemoteSwiftPackageReference "swift-atomics" */;
+			productName = Atomics;
+		};
+		71D982772ED74E1400A377A6 /* MediaRemoteAdapter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 71D982762ED74D8800A377A6 /* XCRemoteSwiftPackageReference "mediaremote-adapter" */;
+			productName = MediaRemoteAdapter;
+		};
+		71FLYFOX2F0B000000000002 /* FlyingFox */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 71FLYFOX2F0B000000000001 /* XCRemoteSwiftPackageReference "FlyingFox" */;
+			productName = FlyingFox;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 7142EF072E50808900DA9A2D /* Project object */;
+}

@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Vocabular";
+"vocabulary.description" = "Aceasta ajută software-ul să recunoască nume, acronime, argou sau cuvinte din alte limbi atunci când amestecați limbile.";
+"vocabulary.input.title" = "Intrare";
+"vocabulary.new.word.placeholder" = "Cuvânt sau expresie nouă";
+"vocabulary.replacement.placeholder" = "Înlocuiți cu...";
+"vocabulary.add.button" = "Adăugați la vocabular";
+"vocabulary.edit.title" = "Editați intrarea din vocabular";
+"vocabulary.update.button" = "Actualizare";
+"vocabulary.cancel.button" = "Anulare";
+"vocabulary.word.column" = "Cuvânt/Expresie";
+"vocabulary.replacement.column" = "Înlocuire";
+"vocabulary.empty.title" = "Niciun cuvânt de vocabular încă";
+"vocabulary.empty.subtitle" = "Adăugați cuvinte personalizate pentru a îmbunătăți precizia transcrierii";
+"vocabulary.duplicate.title" = "Intrare duplicată";
+"vocabulary.duplicate.message" = "%@ există deja în vocabularul dvs. Fiecare cuvânt poate fi adăugat o singură dată.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Limită de cuvinte cheie depășită";
+"vocabulary.limit.message" = "Aveți %d cuvinte, dar doar primele %d vor fi folosite pentru amplificarea transcrierii.";
+
+// MARK: - Streaming View
+"streaming.title" = "Streaming (Beta)";
+"streaming.description" = "Transcriere în timp real pe măsură ce vorbiți. Textul este introdus direct în aplicația focalizată.";
+"streaming.enable.title" = "Activați Streaming";
+"streaming.provider.picker.title" = "Furnizor";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Formatare rapidă";
+"streaming.fastFormatting.description" = "Reduce întârzierea de formatare inteligentă pentru o dactilografiere mai rapidă";
+"streaming.warning.vocabAutoDetect" = "Vocabularul personalizat este dezactivat în modul de detectare automată";
+"streaming.warning.vocabUnsupported" = "Vocabularul personalizat nu este acceptat cu streaming %@";
+"streaming.warning.apiKeyRequired" = "Cheia API %@ este necesară";
+"streaming.warning.apiKeyRequired.action" = "Configurați";
+"streaming.warning.apiKeyInvalid" = "Cheia API %@ nu funcționează. Actualizați-o în Setări > Chei API.";
+"streaming.warning.apiKeyInvalid.action" = "Actualizați cheia";
+"streaming.language.title" = "Limbă";
+"streaming.shortcut.title" = "Scurtătură";
+
+// MARK: - Home View
+"home.get.started" = "Porniți";
+"home.open.system.settings" = "Deschideți Setări de sistem";
+
+// MARK: - API Keys
+"api.key.required" = "Cheie API necesară";
+"api.keys.required" = "Chei API necesare";
+"api.key.configure.message" = "Configurați cheile API pentru a activa transcriere.";
+"api.key.internet.required" = "Conexiune Internet necesară";
+"api.key.internet.message" = "Transcriere în cloud necesită o conexiune internet.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Anulați";
+"common.delete" = "Ștergeți";
+"common.edit" = "Editați";
+"common.done" = "Gata";
+"common.copy" = "Copiați";
+"common.back" = "Înapoi";
+"common.skip" = "Omiteți";
+"common.settings" = "Setări";
+"common.error" = "Eroare";
+"common.retry" = "Reîncercați";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Acasă";
+"sidebar.statistics" = "Statistici";
+"sidebar.modes" = "Moduri";
+"sidebar.vocabulary" = "Vocabular";
+"sidebar.streaming" = "Streaming";
+"sidebar.history" = "Istoric";
+"sidebar.settings" = "Setări";
+
+// MARK: - App Messages
+"app.unknown.error" = "A apărut o eroare necunoscută";
+"app.microphone.permission.message" = "HyperWhisper necesită acces la microfonul dvs. pentru a transcrie audio.\n\nVă rugăm să accesați Setări de sistem > Confidențialitate și securitate > Microfon și activați accesul pentru HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper salvează înregistrări într-un folder din Documente pentru a le găsi ușor: Documents/hyperwhisper/recordings. macOS poate solicita permisiune prima dată când încercăm să salvez acolo. Dacă preferați să nu acordați acces, putem stoca înregistrări într-un folder privat al aplicației.";
+"app.upgrade.to.pro" = "Upgrade la Pro";
+"app.enter.license.key" = "Introduceți cheia de licență";
+"accessibility.upgrade.pro" = "Upgrade la HyperWhisper Pro";
+"accessibility.enter.license" = "Introduceți cheia de licență";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Adăugați cheile API %@ pentru a activa modul selectat.";
+"home.api.keys.missing.single" = "Adăugați cheia API %@ pentru a activa modul selectat.";
+"home.getting.started.recording.title" = "Porniți înregistrarea";
+"home.getting.started.recording.description" = "Transformați vocea în text cu un singur clic.";
+"home.getting.started.shortcuts.title" = "Personalizați scurtăturile";
+"home.getting.started.shortcuts.description" = "Modificați scurtăturile de tastatură pentru HyperWhisper.";
+"home.getting.started.mode.title" = "Creați un mod";
+"home.getting.started.mode.description" = "Construiți modul perfect pentru fluxul de lucru.";
+"home.getting.started.vocabulary.title" = "Adăugați vocabular";
+"home.getting.started.vocabulary.description" = "Învățați HyperWhisper cuvinte personalizate, nume sau termeni din industrie.";
+"home.add.api.key" = "Adăugați cheia API";
+"home.accessibility.enable.title" = "Activați Accesibilitatea";
+"home.accessibility.enable.description" = "Permiteți HyperWhisper să lipească automat în aplicațiile pe care le utilizați.";
+"home.accessibility.waiting" = "Se așteaptă...";
+"home.accessibility.open.settings" = "Deschideți Setări";
+"home.accessibility.restart.after.permission" = "Redeschideți aplicația după acordarea permisiunii";
+"home.getting.started.completed" = "✓ Finalizat";
+"home.whatsnew.badge" = "NOU";
+"home.whatsnew.title" = "Ce se întâmplă nou?";
+"home.whatsnew.update1.date" = "3 iul";
+"home.whatsnew.update1.title" = "Parakeet este acum disponibil";
+"home.whatsnew.update1.description" = "Descărcați-l direct din lista Modele lingvistice în crearea modurilor pentru a-l încerca azi.";
+"home.whatsnew.update2.date" = "5 iun";
+"home.whatsnew.update2.title" = "Suport pentru fiecare model personalizat compatibil cu OpenAI";
+"home.whatsnew.update2.description" = "Puteți adăuga acum orice API-uri compatibile cu OpenAI la lista modelelor.";
+"home.whatsnew.update3.date" = "27 mai";
+"home.whatsnew.update3.title" = "Fereastră Mini-recording complet nouă";
+"home.whatsnew.update3.description" = "O interfață de înregistrare elegantă și minimalistă care nu intrude.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Actualizări recente";
+"home.recent.updates.error" = "Nu s-au putut încărca actualizări";
+"home.recent.updates.retry" = "Reîncercați";
+"home.recent.updates.empty" = "Nicio actualizare recentă disponibilă";
+"home.recent.updates.version" = "Versiunea %@";
+"home.recent.updates.new.badge" = "NOU";
+"home.recent.updates.no.notes" = "Nicio notă de lansare disponibilă";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Acces microfon necesar";
+"common.open.settings" = "Deschideți Setări";
+"alerts.api.local.mode" = "Utilizați modul local";
+"alerts.documents.permission.title" = "Salvați în Documente?";
+"common.continue" = "Continuați";
+"alerts.documents.permission.use.another" = "Utilizați o altă locație";
+"alerts.api.configure.generic" = "Vă rugăm configurați cheile API în Setări.";
+"alerts.api.internet.offline" = "Transcriere în cloud necesită o conexiune internet. Vă rugăm verificați setările de rețea sau selectați un mod de transcriere local.";
+"alerts.api.configure.header.multiple" = "Pentru a utiliza modul selectat, vă rugăm configurați următoarele chei API în Setări:";
+"alerts.api.configure.header.single" = "Pentru a utiliza modul selectat, vă rugăm configurați următoarea cheie API în Setări:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "După adăugarea cheilor lipsă, încercați din nou.";
+"alerts.export.failed.title" = "Exportul a eșuat";
+"alerts.export.logs.failed.message" = "Nu s-au putut exporta jurnalele de actualizare. Vă rugăm încercați din nou.";
+"alerts.export.logs.success.title" = "Jurnale exportate";
+"alerts.export.logs.success.message" = "Jurnalele de actualizare au fost exportate cu succes.";
+"alerts.export.logs.saveFailed.message" = "Nu s-au putut salva jurnalele în locația selectată: %@";
+"alerts.export.diagnostics.failed.message" = "Nu s-au putut exporta diagnosticele. Vă rugăm încercați din nou.";
+"alerts.export.diagnostics.success.title" = "Diagnostice exportate";
+"alerts.export.diagnostics.success.message" = "Toate jurnalele de diagnosticare au fost exportate cu succes.";
+"alerts.export.diagnostics.saveFailed.message" = "Nu s-au putut salva diagnosticele în locația selectată: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Exportați jurnalele de actualizare pentru suport";
+"panels.export.diagnostics.message" = "Exportați toate jurnalele de diagnosticare";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Porniți cu HyperWhisper";
+"sidebar.statistics.help" = "Vizualizați statisticile de utilizare și analitica";
+"sidebar.modes.help" = "Gestionați moduri de transcriere pentru contexte diferite";
+"sidebar.vocabulary.help" = "Adăugați cuvinte și expresii personalizate pentru o recunoaștere mai bună";
+"sidebar.streaming.help" = "Setări de transcriere de streaming în timp real (necesită Internet)";
+"sidebar.history.help" = "Vizualizați și căutați istoria transcrierii";
+"sidebar.settings.help" = "Configurați setările și preferințele aplicației";
+
+// MARK: - Recording State
+"recording.state.ready" = "Pregătit pentru înregistrare";
+"recording.state.recording" = "Se înregistrează...";
+"recording.state.processing" = "Se procesează audio...";
+"recording.state.transcribing" = "Se transcrie...";
+"recording.state.postprocessing" = "Post-procesare cu AI...";
+"recording.state.complete" = "Transcriere completă: %@";
+"recording.state.error" = "Eroare: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Porniți sau opriți înregistrarea";
+"menu.recording.stop" = "Opriți înregistrarea";
+"menu.recording.toggle" = "Porniți/Opriți înregistrarea";
+"menu.history" = "Istoric...";
+"menu.settings" = "Setări...";
+"menu.microphone" = "Microfon";
+"menu.select.mode" = "Selectați modul";
+"menu.transcribe.file" = "Transcrieți fișier";
+"menu.mode.unnamed" = "Fără nume";
+"menu.version.label" = "Versiunea %@";
+"common.quit" = "Ieșiți";
+"menu.microphone.default" = "Implicit";
+"menu.microphone.system.default" = "Implicit";
+"menu.bar.state.recording" = "Se înregistrează";
+"menu.bar.state.processing" = "Se procesează";
+"menu.bar.state.idle" = "Inactiv";
+"menu.command.check.updates" = "Căutați actualizări…";
+"menu.debug.title" = "Debug";
+"menu.command.export.logs" = "Exportați jurnalele de actualizare…";
+"menu.command.export.diagnostics" = "Exportați diagnostice…";
+"menu.command.help.website" = "Site-ul de ajutor";
+"menu.command.contact.support" = "Contactați suportul";
+
+// MARK: - Settings Sections
+"settings.section.general" = "General";
+"settings.section.sound" = "Sunet";
+"settings.section.license" = "Licență";
+"settings.section.credits" = "Credite";
+"settings.section.storage" = "Stocare";
+"settings.section.models" = "Modele";
+"settings.section.api.keys" = "Chei API";
+"settings.section.shortcuts" = "Scurtături de tastatură";
+"settings.section.output" = "Ieșire text";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (Engleză)";
+"onboarding.model.pro.multilingual" = "Pro (Multilingv)";
+"onboarding.model.downloading.progress" = "Se descarcă... %d%%";
+"onboarding.accessibility.title" = "Activați accesibilitatea pentru lipire automată";
+"onboarding.accessibility.subtitle" = "Permiteți HyperWhisper să lipească automat textul transcris în aplicații.";
+"onboarding.accessibility.instructions" = "Setări de sistem → Confidențialitate și securitate → Accesibilitate";
+"onboarding.accessibility.status.granted" = "Permisiunea de accesibilitate acordată";
+"onboarding.accessibility.status.pending" = "Permisiunea de accesibilitate nu a fost acordată încă";
+"onboarding.accessibility.waiting" = "Se așteaptă permisiunea...";
+"onboarding.accessibility.open.preferences" = "Deschideți preferințele de accesibilitate";
+"onboarding.accessibility.restart" = "După acordarea permisiunii, redeschideți HyperWhisper.";
+"onboarding.model.recommendation.title" = "Recomandăm modelul Pro";
+"onboarding.model.recommendation.subtitle" = "Pe baza limbii sistemului și a capacităților Mac-ului dvs.";
+"onboarding.model.recommendation.note" = "Descărcați făcând clic pe butonul de mai jos.";
+"onboarding.model.downloaded" = "Descărcat";
+"onboarding.model.metric.speed" = "Viteză";
+"onboarding.model.metric.accuracy" = "Precizie";
+"onboarding.model.metric.size" = "Mărime";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "Sau, alegeți un alt model de voce";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (Engleză)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Descărcați modelul";
+"onboarding.audio.title" = "Ce dispozitiv de înregistrare audio doriți să utilizați?";
+"onboarding.audio.subtitle" = "Asigurați-vă că volumul de intrare audio este ridicat și înregistrează volum.";
+"onboarding.audio.input.label" = "Dispozitiv de intrare";
+"onboarding.audio.picker.label" = "Dispozitiv";
+"onboarding.audio.use.system.default" = "Utilizați dispozitivul implicit al sistemului";
+"onboarding.audio.level" = "Nivel audio";
+"onboarding.audio.open.sound" = "Deschideți preferințele de sunet";
+"onboarding.microphone.title" = "Permisiune de înregistrare necesară";
+"onboarding.microphone.subtitle" = "Pentru a înregistra audio, avem nevoie de acces la microfonul dvs.";
+"onboarding.microphone.status.granted" = "Permisiunea de microfon acordată";
+"onboarding.microphone.status.pending" = "Permisiunea de microfon nu a fost acordată încă";
+"onboarding.microphone.grant" = "Acordați permisiunea";
+"onboarding.test.title" = "Gata, să porniți prima înregistrare";
+"onboarding.test.press.prefix" = "Apăsați";
+"onboarding.test.press.suffix" = "pentru a porni";
+"onboarding.test.status.recording" = "Se înregistrează...";
+"onboarding.test.status.speak" = "Vorbiți acum...";
+"onboarding.test.stop" = "Opriți înregistrarea";
+"onboarding.test.success.title" = "Grozav! Înregistrarea dvs. a reușit.";
+"onboarding.test.success.subtitle" = "Transcriere va apărea în aplicație.";
+"onboarding.test.start.cta" = "Faceți clic pentru a porni înregistrarea";
+"onboarding.test.start.shortcut" = "Sau apăsați scurtătura de tastatură";
+"onboarding.settings.title" = "Bravo! Acum, deschideți Setări";
+"onboarding.settings.subtitle" = "Faceți clic dreapta pe pictograma HyperWhisper și selectați Setări...";
+"onboarding.settings.menu.startStop" = "Porniți/Opriți înregistrarea";
+"onboarding.settings.menu.history" = "Istoric...";
+"onboarding.settings.menu.settings" = "Setări...";
+"onboarding.settings.menu.quit" = "Ieșiți";
+"onboarding.settings.info" = "În Setări, puteți personaliza scurtăturile, gestiona chei API și configura HyperWhisper după preferință.";
+"onboarding.completion.title" = "Gata!";
+"onboarding.completion.subtitle" = "Dacă întâmpinați probleme sau aveți întrebări, contactați-ne prin email sau Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Email";
+"onboarding.completion.resources.title" = "Resurse suplimentare";
+"onboarding.completion.resources.documentation" = "Documentație";
+"onboarding.completion.resources.videos" = "Tutoriale video";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Onboarding complet";
+"onboarding.error.model.notFound" = "Model nu a fost găsit în catalog.";
+"onboarding.error.microphone.denied" = "Permisiunea de microfon refuzată. Vă rugăm acordați permisiunea în Setări de sistem.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Porniți la autentificare";
+"settings.general.launchAtLogin.info" = "Porniți HyperWhisper automat la autentificare.";
+"settings.general.launchMinimized.title" = "Porniți minimizat";
+"settings.general.launchMinimized.info" = "Porniți HyperWhisper cu fereastra principală ascunsă. Aplicația va fi accesibilă din bara de meniu.";
+"settings.general.showInDock.title" = "Afișați în Dock";
+"settings.general.showInDock.info" = "Afișați pictograma aplicației în Dock.";
+"settings.general.showRecordingWindow.title" = "Afișați fereastra de înregistrare";
+"settings.general.showRecordingWindow.info" = "Afișați fereastra plutitoare cu forma de undă în timp ce înregistrați și procesați.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Oprit";
+"settings.general.mediaControl.mode.mute" = "Asmuțiți audio";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Înregistrare erori";
+"settings.general.errorLogging.info" = "Capturați și trimiteți automat rapoarte de eroare pentru a ajuta la îmbunătățirea aplicației.";
+"settings.general.autoUpdate.title" = "Actualizare automată";
+"settings.general.autoUpdate.info" = "Verificați și descărcați automat versiuni noi ale HyperWhisper.";
+"settings.general.support.title" = "Aveți nevoie de ajutor?";
+"settings.version.detail" = "Versiunea %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Redă efecte sonore";
+"settings.sound.soundEffects.info" = "Redă indicii audio la începerea și oprirea înregistrării.";
+"settings.sound.mediaControl.title" = "Control media în timp ce înregistrați";
+"settings.sound.mediaControl.info" = "Aleţeţi cum gestionează HyperWhisper alt audio în timp ce înregistraţi. 'Oprit' lasă audio neschimbat, 'Asmuţiţi audio' taie ieşirea sistemului în timp ce înregistraţi şi o restaurează după aceea.";
+"settings.sound.autoIncreaseMicVolume.title" = "Măriți automat volumul microfonului";
+"settings.sound.autoIncreaseMicVolume.info" = "Setează automat volumul de intrare al microfonului la maxim la pornirea înregistrării, apoi restabilește nivelul inițial la oprire. Se aplică doar la utilizarea dispozitivului implicit de intrare al sistemului.";
+"settings.sound.vad.title" = "Eliminați tăcerea înainte de transcriere";
+"settings.sound.vad.info" = "Detectează și elimină automat tăcerea din față și din spate utilizând detectarea vocii AI. Aceasta poate îmbunătăți precizia transcrierii și reduce timpul de procesare.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Folder înregistrări";
+"settings.storage.showFolder.title" = "Afișați folderul înregistrări";
+"settings.storage.showFolder.button" = "Afișați în Finder";
+"settings.storage.notice" = "Schimbarea folderului de înregistrări afectează doar înregistrări noi. Înregistrările existente rămân în locația lor originală.";
+"settings.storage.choose.button" = "Alegeți...";
+"settings.storage.dialog.select" = "Selectați folder";
+"settings.storage.dialog.message" = "Alegeți un folder pentru a stoca înregistrări";
+"settings.storage.storeAsM4A.title" = "Comprimați înregistrări la M4A";
+"settings.storage.storeAsM4A.subtitle" = "Convertește înregistrări WAV în fișiere mai mici după transcriere. Opriți pentru a păstra fișierele WAV originale (mai mari dar fără pierderi).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Lipeți rezultatul automat";
+"settings.output.paste.subtitle" = "Lipeți automat textul transcris în aplicația activă";
+"settings.output.paste.info" = "Dacă este activat, textul este lipit în aplicația frontală.";
+"settings.output.restoreClipboard.title" = "Restabiliți clipboard după lipire";
+"settings.output.restoreClipboard.subtitle" = "Restabiliți conținutul anterior al clipboard după lipire";
+"settings.output.restoreClipboard.info" = "Restabilește conținutul anterior al clipboard după ce aplicația lipește transcriere.";
+"settings.output.restore.after" = "Restabiliți după";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Întârziere de restaurare a clipboard";
+"settings.output.hideClipboardHistory.title" = "Ascundeți din istoricul clipboard";
+"settings.output.hideClipboardHistory.subtitle" = "Evitați apariția transcrierii în istoricul clipboard";
+"settings.output.hideClipboardHistory.info" = "Când este activat, textul transcris nu va fi salvat de managerii de clipboard precum Paste, Maccy sau Alfred.";
+"settings.output.clipboard.header" = "Clipboard";
+"settings.output.removeFillers.title" = "Elimină cuvintele de umplutură";
+"settings.output.removeFillers.subtitle" = "Elimină 'uh', 'um' și 'er' din transcrierile brute.";
+"settings.output.removeFillers.info" = "Când este activat, HyperWhisper elimină cuvintele de umplutură obișnuite din transcrierile brute înainte de ieșire.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Comutați înregistrarea";
+"settings.shortcuts.toggleRecording.subtitle" = "Pornește și oprește înregistrări";
+"settings.shortcuts.cancelRecording.title" = "Anulați înregistrarea";
+"settings.shortcuts.cancelRecording.subtitle" = "Renunțați la înregistrarea activă";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Țineți o tastă pentru a înregistra, eliberați când terminați";
+"settings.shortcuts.pushToTalk.enable.info" = "Activează modul Push to Talk pentru înregistrare rapidă cu o singură apăsare de tastă.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Mod de înregistrare";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Alegeți care tastă să utilizați";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Dezactivat";
+"settings.shortcuts.pushToTalk.mode.fn" = "Tastă FN";
+"settings.shortcuts.pushToTalk.mode.control" = "Tastă Control";
+"settings.shortcuts.pushToTalk.mode.custom" = "Scurtătură personalizată";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Apăsare dublă pentru a bloca înregistrarea";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Apăsați de două ori rapid pentru a continua înregistrarea fără a ține apăsat";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Scurtătură personalizată";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Apăsați combinația de taste pe care doriți să o utilizați";
+
+
+"settings.shortcuts.changeMode.title" = "Schimbați modul";
+"settings.shortcuts.changeMode.subtitle" = "Funcționează doar în timp ce înregistrați";
+
+"settings.shortcuts.reset.button" = "Resetați la implicit";
+"settings.shortcuts.reset.dialog.title" = "Resetați scurtăturile de tastatură";
+"settings.shortcuts.reset.confirm" = "Resetați";
+"settings.shortcuts.reset.dialog.message" = "Aceasta va reseta toate scurtăturile de tastatură la valorile implicite.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "Cheile API sunt stocate în siguranță pe dispozitiv și trimise doar furnizorului când este necesar.";
+"settings.api.help.link" = "Ajutor cu cheile API";
+"settings.api.transcription.title" = "Transcriere";
+"settings.api.transcription.subtitle" = "Chei API pentru servicii de vorbire în text bazate pe cloud.";
+"settings.api.postProcessing.title" = "Post-procesare";
+"settings.api.postProcessing.subtitle" = "Chei API pentru îmbunătățire și formatare text bazată pe AI.";
+"settings.api.placeholder" = "Introduceți cheia API %@";
+"settings.api.openLink" = "Deschideți pagina cheii API %@";
+"settings.api.status.accessibility" = "Stare %@: %@";
+"settings.api.status.unknown" = "Stare furnizor necunoscută";
+"settings.api.status.checking" = "Verificare sănătate în curs";
+"settings.api.status.unauthorized" = "Cheie API respingă de furnizor";
+"settings.api.status.unreachable" = "Furnizor inaccesibil în prezent";
+"settings.api.status.notInstalled" = "SDK furnizor neinstalat";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Necunoscut";
+"provider.status.checking" = "Se verifică…";
+"provider.status.healthy" = "Pregătit";
+"provider.status.unauthorized" = "Cheie nevalidă";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Neinstalat";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licență activată";
+"alerts.license.deactivated.title" = "Licență dezactivată";
+"alerts.license.activated.message" = "Licența dvs. a fost activată cu succes. Bucurați-vă de acces nelimitat la toate caracteristicile!";
+"alerts.license.deactivated.message" = "Licența dvs. a fost dezactivată pe acest dispozitiv. Îl puteți activa în altă parte.";
+"alerts.license.failed.title" = "Operație eșuată";
+"alerts.license.failed.message" = "Operație eșuată. Vă rugăm încercați din nou.";
+"license.button.deactivate" = "Dezactivați dispozitivul";
+"license.button.deactivating" = "Se dezactivează...";
+"license.button.manageBilling" = "Gestionați facturare";
+"license.button.activate" = "Activați";
+"license.button.activating" = "Se activează...";
+"license.status.label" = "Stare: %@";
+"license.status.trial.title" = "Versiune de probă";
+"license.status.active.title" = "Activ";
+"license.status.expired.title" = "Expirat";
+"license.status.invalid.title" = "Nevalid";
+"license.status.trial.description" = "Versiune de probă gratuită (5 min/zi, %d modele)";
+"license.status.active.description" = "Cu licență – Acces complet";
+"license.status.expired.description" = "Licența a expirat";
+"license.status.invalid.description" = "Licență nevalidă";
+"settings.license.key.title" = "Cheie de licență";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Lipeți din clipboard";
+"settings.license.clearInput" = "Ștergeți";
+"settings.license.recovery.prompt" = "Ați uitat cheia de licență?";
+"settings.license.recovery.button" = "Accesați portalul clienților";
+"settings.license.daily.title" = "Transcriere zilnică";
+"settings.license.daily.usage" = "%@ din %@ utilizat";
+"settings.license.limitReached" = "Limită atinsă";
+"settings.license.models.title" = "Modele offline";
+"settings.license.models.progress" = "%d din %d modele descărcate";
+"settings.license.models.progress.one" = "%d din %d model descărcat";
+"settings.license.upgrade.text" = "Upgrade pentru transcriere nelimitată și descărcări de model";
+"settings.license.upgrade.button" = "Upgrade";
+"license.error.invalidResponse" = "Format de răspuns nevalid";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Credite HyperWhisper Cloud";
+"settings.credits.refresh" = "Actualizați";
+"settings.credits.subtitle" = "Monitorizați creditele și utilizarea transcrierii";
+"settings.credits.manage" = "Gestionați creditele";
+"settings.credits.timeRemaining" = "Timp de transcriere rămas";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minute";
+"settings.credits.creditsRemaining" = "%@ credite rămase";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Limită zilnică gratuită (100 credite)";
+"settings.credits.resets" = "Se resetează %@";
+"settings.credits.warning.low" = "Creditele se termină. Considerați achiziționarea unei licențe pentru credite suplimentare.";
+"settings.credits.warning.exhausted.daily" = "Limita zilnică a fost depășită. Achiziționați o licență pentru utilizare nelimitată sau așteptați resetare.";
+"settings.credits.warning.exhausted" = "Creditele s-au epuizat. Achiziționați mai multe credite pentru a continua utilizarea HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Informații cont";
+"settings.credits.stat.creditsRemaining" = "Credite rămase";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minute rămase";
+"settings.credits.stat.accountType" = "Tip cont";
+"settings.credits.accountType.licensed" = "Cu licență";
+"settings.credits.accountType.anonymous" = "Anonim";
+"settings.credits.accountType.trial" = "Versiune de probă";
+"settings.credits.stat.customerId" = "ID client";
+"settings.credits.stat.dailyLimit" = "Limită zilnică";
+"settings.credits.dailyLimit.value" = "100 credite";
+"settings.credits.loading" = "Se încarcă soldul de credite...";
+"settings.credits.error.title" = "Nu se poate încărca soldul de credite";
+"settings.credits.error.retry" = "Reîncercați";
+"settings.credits.empty.title" = "Nicio informație de credit disponibilă";
+"settings.credits.empty.subtitle" = "Faceți clic pe actualizare pentru a încărca soldul de credite";
+"settings.credits.empty.button" = "Încărcați creditele";
+"settings.credits.error.insufficient" = "Credite insuficiente. Aveți %d credite rămase.";
+"settings.credits.error.network" = "Eroare de rețea: %@";
+"settings.credits.error.invalidResponse" = "Răspuns nevalid de la server. Vă rugăm încercați din nou.";
+"settings.credits.error.server" = "Eroare de server: %@";
+"settings.models.alert.limit.title" = "Limită de descărcare de modele atinsă";
+"settings.models.alert.limit.message" = "Versiunile de probă includ %d descărcări de modele. Upgrade licența pentru descărcări nelimitate.";
+"settings.models.alert.cannotDelete.title" = "Nu se poate șterge modelul";
+"settings.models.parakeet.title" = "Modele Parakeet";
+"settings.models.parakeet.subtitle" = "Recomandat pentru cei mai mulți utilizatori. Model multilingv suportă 25 de limbi.";
+"settings.models.parakeet.empty" = "Niciun model Parakeet disponibil.";
+"settings.models.whisper.title" = "Modele Whisper";
+"settings.models.whisper.subtitle" = "Modele OpenAI Whisper. Modelele mai mari sunt mai precise. Suportă 100+ limbi.";
+"settings.models.whisper.empty" = "Niciun model Whisper disponibil.";
+"settings.models.help.cancelDownload" = "Anulați descărcarea";
+"settings.models.help.remove" = "Eliminați modelul";
+"settings.models.downloaded" = "Descărcat";
+"settings.models.download" = "Descărcați";
+"settings.models.downloading" = "Se descarcă…";
+"settings.models.localPostProcessing.title" = "Modele locale de post-procesare";
+"settings.models.localPostProcessing.memoryWarning" = "Recomandat pentru Mac cu 24 GB de memorie unificată sau mai mult. Viteza depinde de cip — mai rapid pe M3/M4 Pro și superioare.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Cuvinte în acest an";
+"vocabulary.input.placeholder" = "Adaugă un cuvânt sau creează un fragment";
+"vocabulary.action.addWord" = "Adaugă cuvânt";
+"vocabulary.action.replaceWith" = "Înlocuiește cu…";
+"vocabulary.action.replace" = "Înlocuiește";
+"vocabulary.replacement.field.placeholder" = "Text de înlocuire…";
+"settings.output.autocapitalizeInsert.title" = "Literă mare automată la inserare";
+"settings.output.autocapitalizeInsert.subtitle" = "Potriviți contextul cursorului la inserarea textului";
+"settings.output.autocapitalizeInsert.info" = "Dacă este activat, primul cuvânt al textului de transcriere inserat este ajustat pentru a se potrivi cu contextul cursorului (început sau mijloc de propoziție). Dezactivați pentru dictare întotdeauna cu litere mici.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper are nevoie de permisiunea de accesibilitate pentru a citi contextul cursorului necesar pentru majusculele automate.\n\nFaceți clic pe \"Deschide Setări\", apăsați comutatorul de lângă HyperWhisper, apoi încercați din nou.";
+"settings.output.removeFillerWords.title" = "Eliminați cuvintele de umplutură";
+"settings.output.removeFillerWords.subtitle" = "Eliminați \"ă\", \"um\" și \"er\" din transcrierile brute când postprocesarea AI este dezactivată";
+"settings.output.removeFillerWords.info" = "Se aplică numai atunci când un mod sare postprocesarea AI. Modurile îmbunătățite cu AI gestionează curățarea vorbirii în prompt.";
+"sidebar.modelLibrary" = "Biblioteca de modele";
+"sidebar.modelLibrary.help" = "Răsfoiți toate modelele vocale și de postprocesare într-un singur loc";
+"settings.shortcuts.quickCapture.enable.title" = "Captură rapidă";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Înregistrează și trimite transcrierea la Note — fără a fi nevoie să focalizezi mai întâi aplicația.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Comandă rapidă";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Apasă oriunde pentru a înregistra și a trimite la Note.";
+"settings.shortcuts.quickCapture.mode.title" = "Mod";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Modul de transcriere folosit — controlează modelul, promptul și postprocesarea.";
+"settings.shortcuts.quickCapture.mode.current" = "Mod curent";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper are nevoie de permisiunea de a controla Note. Acordați-o în Setările sistemului → Confidențialitate → Automatizare.";
+"settings.section.vocabulary" = "Vocabular";
+"settings.vocabulary.icloudSync.title" = "Sincronizare iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Sincronizați vocabularul personalizat pe toate Mac-urile conectate la același cont iCloud.";
+"settings.vocabulary.icloudSync.info" = "Dezactivat implicit. Numai vocabularul personalizat este sincronizat — transcrierile și înregistrările rămân pe acest Mac. Modificările intră în vigoare la următoarea deschidere a HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Închideți HyperWhisper pentru a aplica modificările";
+"vocabulary.icloudSync.restart.message" = "Modificările sincronizării vocabularului iCloud intră în vigoare la următoarea deschidere a HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Închide HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Mai târziu";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Menține microfonul activ între înregistrări";
+"settings.sound.keepWarmMicrophone.info" = "Reduce întârzierea de pornire push-to-talk menținând sesiunea microfonului deschisă în timp ce HyperWhisper este inactiv. macOS va afișa continuu indicatorul portocaliu al microfonului, iar căștile Bluetooth pot rămâne în modul de apel de calitate inferioară cât timp aceasta este activată.";
+"settings.models.local.inUse" = "Acest model local este utilizat în prezent pentru post-procesare de către:
+
+%@
+
+Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
+"models.postProcessing.gemma4.e2b.description" = "Rapid și precis. Excelent ca model universal pentru post-procesare.";
+"models.postProcessing.gemma4.e4b.description" = "Calitate superioară cu mai multe detalii. Bun pentru texte mai lungi.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Inferență rapidă cu doar 4B parametri activi.";
+"models.postProcessing.gemma4.31b.description" = "Model dens 31B. Cea mai înaltă calitate, necesită 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Acest model nu poate fi șters pentru că este folosit de:\n\n%@\n\nActualizați aceste moduri pentru a utiliza un model diferit înainte de a șterge.";
+"settings.models.parakeet.inUse" = "Acest model Parakeet nu poate fi șters pentru că este folosit de:\n\n%@\n\nActualizați aceste moduri pentru a utiliza un model diferit înainte de a șterge.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Necunoscut";
+"settings.models.directory.whisper" = "Folder modele Whisper";
+"settings.models.directory.parakeet" = "Folder modele Parakeet";
+"settings.models.directory.local" = "Dosar modele locale";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — recunoaștere vocală multilingvă optimizată pentru CoreML.";
+"settings.models.qwen3asr.languages" = "30 limbi";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Acest model Qwen3 ASR nu poate fi șters deoarece este folosit de:\n\n%@\n\nActualizați aceste moduri pentru a folosi un alt model înainte de ștergere.";
+"settings.models.directory.show" = "Afișați în Finder";
+"models.error.checksumFailed" = "Verificarea sumei de control a modelului a eșuat. Descărcarea poate fi coruptă.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistici";
+"statistics.header.title" = "Statisticile dvs. de utilizare";
+"statistics.header.subtitle" = "Urmăriți activitatea și performanța transcrierii";
+"statistics.card.recordings" = "Total înregistrări";
+"statistics.card.recordings.subtitle" = "Transcrieri completate";
+"statistics.card.duration" = "Timp total";
+"statistics.card.duration.subtitle" = "Timp petrecut înregistrând";
+"statistics.card.words" = "Total cuvinte";
+"statistics.card.words.subtitle" = "Cuvinte transcrise";
+"statistics.card.average" = "Durată medie";
+"statistics.card.average.subtitle" = "Per înregistrare";
+"statistics.graph.title" = "Activitate în timp";
+"statistics.daily.empty" = "Nicio înregistrare încă";
+"statistics.filter.week" = "Săptămâna aceasta";
+"statistics.filter.month" = "Luna aceasta";
+"statistics.filter.alltime" = "Tot timpul";
+
+// MARK: - History View
+"history.title" = "Istoric";
+"history.search.placeholder" = "Căutare";
+"history.filter.all" = "Toate";
+"history.filter.today" = "Azi";
+"history.filter.week" = "Săptămâna aceasta";
+"history.filter.month" = "Luna aceasta";
+"history.empty.title" = "Nicio înregistrare găsită";
+"history.empty.subtitle" = "Încercați să ajustați căutarea";
+"history.detail.empty" = "Selectați o înregistrare pentru a vedea detalii";
+"history.multi.selected" = "%d înregistrări selectate";
+"history.multi.delete" = "Ștergeți selectate";
+"history.context.deleteSelected" = "Ștergeți %d înregistrări";
+"history.context.retry" = "Reîncercați transcriere";
+"history.context.retryWith" = "Reîncercați cu...";
+"history.context.copy" = "Copiați text";
+"history.retrying" = "Se reîncearcă transcriere...";
+"history.retry.help" = "Reîncercați transcriere";
+"history.section.today" = "Azi";
+"history.section.yesterday" = "Ieri";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Eșuat";
+"history.status.transcription.failed.prefix" = "Transcriere eșuată:";
+"history.status.retry.failed.prefix" = "Reîncercare eșuată:";
+"history.failure.reason" = "Motiv: %@";
+"history.mode.default" = "Implicit";
+"history.audio.showInFinder" = "Afișați în Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Ștergeți modul?";
+"modes.delete.confirm.message" = "Aceasta va elimina modul selectat. Această acțiune nu poate fi anulată.";
+"modes.header.title" = "Moduri";
+"modes.header.subtitle" = "Creați profiluri personalizate pentru contexte și fluxuri de lucru diferite";
+"modes.header.create" = "Creați modul";
+"modes.name.unnamed" = "Fără nume";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Selectați";
+"modes.help.edit" = "Editați setări mod";
+"modes.help.preset" = "Aflați mai multe despre acest preset";
+"modes.help.model" = "Aflați mai multe despre acest model";
+"modes.preset.title" = "Preset";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Mesaj";
+"modes.preset.mail.name" = "E-mail";
+"modes.preset.note.name" = "Notă";
+"modes.preset.meeting.name" = "Întâlnire";
+"modes.preset.code.name" = "Cod";
+"modes.preset.custom.name" = "Personalizat";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Modul mesaj curață mesajul dictat, corectând punctuația, împărțind în paragrafe și rezolvând erorile gramaticale.";
+"modes.preset.mail.tooltip" = "Modul e-mail formatează dictarea în structură de e-mail profesional, cu salutări potrivite, paragrafiere și încheiere.";
+"modes.preset.note.tooltip" = "Modul notă organizează conținutul dictat într-un format de notă clar cu anteturi, puncte și secțiuni structurate.";
+"modes.preset.meeting.tooltip" = "Modul întâlnire structurează dictarea în format de minute de întâlnire cu participanți, elemente de acțiune și puncte de discuție cheie.";
+"modes.preset.code.tooltip" = "Modul cod convertește dictarea de programare rostit în sintaxă de cod. Spuneți 'deschidere paranteză', 'backslash', 'caz cămilă' și altele pentru a scrie cod cu voce.";
+"modes.preset.custom.tooltip" = "Modul personalizat vă permite să definiți propriile reguli de formatare și indicații pentru cazuri de utilizare specifice.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Definiți instrucțiunile complete de formatare pentru această presetare.";
+"modes.notice.vocabularyUnsupported" = "Vocabularul personalizat nu este acceptat de acest furnizor pentru acest model. Va fi ignorat.";
+"modes.notice.deepgramNova3AutoDetect" = "Vocabularul personalizat nu este disponibil la utilizarea Deepgram Nova-3 cu detectare automată a limbii. Pentru a activa amplificarea vocabularului, setați o limbă specifică (de ex., engleză, spaniolă).";
+"modes.language.title" = "Limbă";
+"modes.language.englishOnly" = "Doar engleză (model optimizat)";
+"modes.postProcessing.sectionTitle" = "Post-procesare";
+"modes.postProcessing.modeLabel" = "Mod";
+"modes.postProcessing.modeTitle" = "Post-procesare";
+"modes.postProcessing.modeDescription" = "Alegeți cum sunt procesate transcrierea:\n\n• Oprit: Nicio post-procesare, transcriere brută\n• Cloud (AI): Îmbunătățire cu putere AI (necesită internet)\n• Local: Utilizează un LLM pe dispozitiv precum Gemma via llama.cpp\n\nProcesarea cloud trimite text furnizorului AI selectat. Modul local rămâne pe mașina dvs. dar necesită serverul local care rulează.";
+"modes.postProcessing.providerLabel" = "Furnizor";
+"modes.postProcessing.apiKeyMissing" = "Cheia API %@ nu este configurată. Adăugați-o în Setări pentru a activa post-procesare.";
+"modes.postProcessing.configure" = "Configurați în Setări";
+"modes.postProcessing.modelRecommendation" = "Recomandăm să utilizați GPT-4.1 Nano pentru cel mai bun echilibru dintre viteză și calitate.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Post-procesarea locală necesită un model local descărcat.";
+"modes.postProcessing.download" = "Descărcați în Setări";
+"modes.postProcessing.localInfo" = "Rulează complet pe dispozitiv. HyperWhisper lansează automat serverul llama.cpp inclus când este activ acest mod.";
+"modes.postProcessing.userSystemPrompt.title" = "Instrucțiuni persistente";
+"modes.postProcessing.userSystemPrompt.placeholder" = "de ex., Încheie întotdeauna e-mailurile cu 'Cu stimă, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Ștergeți";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Instrucțiuni persistente";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Adăugați instrucțiuni care se aplică întotdeauna peste presetarea selectată.";
+"modes.toggle.punctuation.title" = "Adăugați punctuație";
+"modes.toggle.punctuation.subtitle" = "Adăugați automat puncte și virgule";
+"modes.toggle.capitalization.title" = "Capitalizați propoziții";
+"modes.toggle.capitalization.subtitle" = "Majusculă litera inițială a propozițiilor";
+"modes.toggle.profanity.title" = "Filtrați profanitate";
+"modes.toggle.profanity.subtitle" = "Înlocuiți cuvinte inadecvate";
+"modes.toggle.removeTrailingPeriod.title" = "Elimină punctul final";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Elimină ultimul punct din transcrieri";
+"modes.postProcessing.privacyNotice" = "Transcriere dvs. este DOAR trimisă la %@ pentru post-procesare. Niciodată altundeva.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Model lingvistic";
+"modes.englishSpelling.title" = "Ortografie engleză";
+"modes.englishSpelling.american" = "American";
+"modes.englishSpelling.british" = "British";
+"modes.englishSpelling.australian" = "Australian";
+"modes.englishSpelling.canadian" = "Canadian";
+"modes.englishSpelling.american.description" = "Utilizați ortografia engleză americană (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Utilizați ortografia engleză britanică (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Utilizați ortografia engleză australiană (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Utilizați ortografia engleză canadiană (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Instrucțiuni personalizate";
+"modes.gemini.customPrompt.helper" = "Opțional. Ex. \"Formatați ca puncte\", \"Utilizați limbaj formal\". Setările de limbă și vocabular sunt incluse automat.";
+"modes.cloud.apiKeyMissing" = "Cheia API %@ nu este configurată. Adăugați-o în Setări pentru a utiliza transcriere cloud.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Precizie";
+"modes.cloudAccuracy.groqWhisper.label" = "Mediu (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Mediu (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Înalt (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Rapid și accesibil. Cel mai bun pentru transcrieri rapide.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Echilibru între viteză și precizie. Recomandat pentru cei mai mulți utilizatori.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
+"modes.cloudAccuracy.grokStt.label" = "Cel mai înalt (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
+
+"modes.create.title" = "Creați mod nou";
+"modes.create.subtitle" = "Configurați un profil de transcriere personalizat";
+"modes.section.basic" = "Setări de bază";
+"modes.section.transcription" = "Model de transcriere";
+"modes.section.punctuation" = "Punctuație";
+"modes.toggle.screenText.title" = "Text de pe ecran";
+"modes.toggle.screenText.subtitle" = "Capturați textul vizibil de pe ecran pentru a îmbunătăți acuratețea numelor și termenilor. Necesită permisiunea pentru Înregistrare ecran.";
+"modes.screenText.openSettings" = "Deschideți Preferințele de sistem";
+"modes.screenText.permissionGranted" = "Permisiunea pentru Înregistrare ecran acordată";
+"modes.screenText.permissionRequired" = "Permisiunea pentru Înregistrare ecran necesară";
+"modes.field.name" = "Nume";
+"modes.field.name.placeholder" = "de ex., Note de întâlnire";
+"modes.field.name.editPlaceholder" = "Nume mod";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Furnizor";
+"modes.provider.local" = "Local";
+"modes.provider.cloud" = "Cloud";
+"modes.notice.noLocalModels.title" = "Niciun model local instalat";
+"modes.notice.noLocalModels.subtitle" = "Instalați mai întâi un model în Setări";
+"modes.model.pricing" = "Preț: $%.6f / minut (facturat per secundă)";
+"modes.button.create" = "Creați modul";
+"modes.button.delete" = "Ștergeți modul";
+"modes.button.save" = "Salvați modificările";
+"modes.edit.title" = "Editați modul";
+"modes.edit.subtitle" = "Modificați setări profil de transcriere";
+"mode.editor.cloudModel.previewHint" = "Previzualizare";
+"mode.editor.cloudModel.noVocabularyHint" = "Fără vocabular personalizat";
+"mode.editor.cloudDomain.medical" = "Medical";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ supliment Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Nu se poate reîncerca: Fișier audio nu a fost găsit";
+"transcripts.error.invalidId" = "ID transcript nevalid";
+"transcripts.delete.single.title" = "Ștergeți înregistrare?";
+"transcripts.delete.single.message" = "Aceasta va șterge permanent această înregistrare și fișierul audio.";
+"transcripts.delete.multiple.title" = "Ștergeți %d înregistrări?";
+"transcripts.delete.multiple.message" = "Aceasta va șterge permanent %d înregistrări și fișierele audio.\n\nAceastă acțiune nu poate fi anulată.";
+"transcripts.delete.multiple.confirm" = "Ștergeți toate";
+"transcripts.retry.error.title" = "Reîncercare eșuată";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Alegeți folderul înregistrări";
+"storage.folder.choose.message" = "Selectați un folder pentru salvarea noilor înregistrări.";
+"storage.folder.choose.prompt" = "Alegeți";
+"storage.recovery.title" = "Nu se poate accesa folderul înregistrări";
+"storage.recovery.message" = "HyperWhisper nu a putut accesa folderul de înregistrări configurat. Puteți alege un folder diferit pentru a continua.";
+"storage.recovery.choose" = "Alegeți folder…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Aflați mai multe";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transcriere completă";
+"recording.status.retrying" = "Se reîncearcă transcriere...";
+"recording.status.postprocessing" = "Post-procesare cu AI...";
+"recording.status.transcribing" = "Se transcrie...";
+"recording.success.pasted" = "Lipit!";
+"recording.loading.retrying" = "Se reîncearcă...";
+"recording.loading.postprocessing" = "Se procesează cu AI...";
+"recording.loading.starting" = "Se pornește streaming...";
+"recording.loading.transcribing" = "Se transcrie...";
+
+// Streaming connection states
+"streaming.status.connecting" = "Se conectează...";
+"streaming.status.ready" = "Pregătit - Porniți să vorbiți";
+"streaming.status.warming" = "Încălzire...";
+"modes.badge.recommended" = "Recomandat";
+"modes.source.label" = "Sursă";
+"modes.source.onDevice" = "Pe dispozitiv";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "Cheie API";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Acest model nu poate fi șters deoarece este utilizat de:
+
+%@
+
+Actualizați aceste moduri pentru a utiliza un model diferit înainte de ștergere.";
+"models.postProcessing.gemma4.12b.description" = "Model dens de dimensiune medie. Echilibrează calitatea și viteza pe Mac-uri de 16 GB.";
+"recording.success.savedToNotes" = "Salvat în Note!";
+"modes.provider.needsKey" = "%@ necesită o cheie funcțională.";
+"modes.provider.manageInLibrary" = "Gestionați în Bibliotecă →";
+"streaming.loading.warming" = "Încălzirea modelului local...";
+"streaming.status.listening" = "Se ascultă...";
+"streaming.status.streaming" = "Se transmite...";
+"streaming.status.disconnecting" = "Se oprește...";
+"streaming.loading.connecting" = "Se conectează la server...";
+"streaming.loading.ready" = "Se inițializează audio...";
+"streaming.loading.streaming" = "Se așteaptă vorbire...";
+"streaming.state.reconnecting" = "Se reconectează...";
+"recording.stop.help" = "Opriți înregistrarea (%@)";
+"recording.postprocessing.unavailable" = "Post-procesare indisponibilă";
+"recording.postprocessing.missing.single" = "Cheie %@ lipsă – înregistrare fără post-procesare";
+"recording.postprocessing.missing.multiple" = "Chei API lipsă – înregistrare fără post-procesare";
+"recording.postprocessing.addKey" = "Adăugați cheia";
+"recording.offline.banner" = "Nicio conexiune internet. Transcriere cloud va eșua până nu sunteți online.";
+"recording.offline.title" = "Nicio conexiune internet";
+"recording.offline.subtitle" = "Reconectați pentru a continua sau comutați la un mod offline.";
+"recording.error.network" = "Verificați conexiunea internet și încercați din nou.";
+"recording.error.timeout" = "Cerere expirată. Verificați viteza conexiunii și reîncercați.";
+"recording.error.rateLimit" = "Ați făcut prea multe cereri. Așteptați o clipă și reîncercați.";
+"recording.error.credits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";
+"recording.error.apiKey" = "Adăugați cheia API %@ în Setări.";
+"recording.error.server" = "Serviciul de transcriere are probleme. Vă rugăm încercați din nou în curând.";
+"recording.retry" = "Reîncercați";
+"recording.retry.inProgress" = "Se reîncearcă...";
+"recording.retry.count" = "Reîncercați (%d)";
+"recording.retry.failed.missing" = "Reîncercare eșuată: Fișier audio nu a fost găsit";
+"recording.retry.failed.error" = "Reîncercare eșuată: %@";
+"recording.retry.pending" = "Pregătit pentru reîncercare – faceți clic pentru a transcrie";
+"recording.provider.unknown" = "furnizor cloud";
+"recording.cancel.dialog.title" = "Anulați înregistrare?";
+"recording.cancel.dialog.message" = "Aceasta va renunța la înregistrarea curentă.";
+"recording.cancel.dialog.confirm" = "Anulați înregistrare";
+"recording.cancel.dialog.resume" = "Reluați";
+"recording.error.overlay.title" = "Eroare de conexiune la rețea";
+"recording.error.overlay.message" = "Apăsați 'Reîncercați' mai jos sau comutați la un mod offline pentru a continua.";
+"recording.mode.default" = "Implicit";
+"recording.dialog.window.title" = "Dialog de înregistrare";
+"recording.button.start" = "Porniți înregistrarea";
+"recording.button.stop" = "Opriți înregistrarea";
+"recording.button.disable.checking" = "Se verifică starea %@...";
+"recording.button.disable.invalid" = "Cheie API %@ nevalidă. Actualizați-o în Setări.";
+"recording.button.disable.unreachable" = "%@ este inaccesibil. Verificați conexiunea și încercați din nou.";
+"recording.button.disable.missing" = "Adăugați cheia API %@ în Setări.";
+"recording.button.disable.install.local" = "Descarcă un model local în Setări → Modele înainte de a folosi post-procesarea locală.";
+"modes.postProcessing.accuracy" = "Precizie";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Ați atins limita de transcriere zilnică de %@ minute. Upgrade la HyperWhisper Pro pentru transcriere nelimitată.";
+"recording.error.documentsAccess" = "Nu se poate accesa folderul înregistrări. Alegeți o locație diferită în Setări → Stocare.";
+"recording.error.modeMissing" = "Modul selectat nu a fost găsit. Vă rugăm selectați un mod valid.";
+"recording.warning.oversizedWAV" = "Comprimarea audio a eșuat. Se utilizează fișier necomprimat %@ MB - transcriere poate fi mai lentă.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Microfon implicit";
+"audio.error.permissionDenied" = "Acces microfon refuzat. Vă rugăm activați în Setări de sistem.";
+"audio.error.fileWatcher.open" = "Nu s-a putut deschide un descriptor de fișier pentru a monitoriza fișierul audio.";
+"audio.error.fileWatcher.timeout" = "Operația a expirat în timp ce aștepta ca fișierul audio să fie scris.";
+"audio.error.fileWatcher.creation" = "Fișierul audio nu a fost creat la timp.";
+"audio.error.microphonePermission" = "Permisiune microfon nu a fost acordată";
+"audio.error.microphoneInUse" = "HyperWhisper nu poate accesa microfonul pentru că o altă aplicație o folosește în prezent. Pauzați cealaltă aplicație sau comutați intrări, apoi încercați din nou.";
+"audio.error.createEngine" = "Nu s-a putut crea motor audio";
+"audio.error.noInput" = "Nicio intrare audio disponibilă";
+"audio.error.createFile" = "Nu s-a putut crea fișier audio";
+"audio.error.managerUnavailable" = "Manager de transcriere nu este configurat";
+"audio.error.invalidHardwareFormat" = "Format audio hardware nevalid detectat. Vă rugăm verificați dispozitivul audio.";
+"audio.error.createFormat" = "Nu s-a putut crea format audio pentru înregistrare";
+"audio.error.createConverter" = "Nu s-a putut crea convertor format audio";
+"audio.error.exportM4A" = "Nu s-a putut exporta audio în format m4a";
+"audio.error.readFile" = "Fișierul audio nu a putut fi citit după înregistrare.";
+"audio.error.recordingTooShort" = "Înregistrare prea scurtă. Vă rugăm țineti butonul mai mult pentru a captura audio.";
+"audio.error.noAudioTrack" = "Acest fișier video nu conține o pistă audio.";
+"audio.alert.accessibility.title" = "Activați acces de accesibilitate";
+"audio.alert.accessibility.message" = "HyperWhisper necesită permisiunea de accesibilitate pentru a lipi textul transcris în alte aplicații.\n\nFaceți clic pe \"Deschideți Setări\", apăsați comutatorul lângă HyperWhisper, apoi încercați din nou.";
+"audio.alert.accessibility.open" = "Deschideți Setări";
+"audio.alert.pasteFailed.title" = "Lipire automată eșuată";
+"audio.alert.pasteFailed.message" = "Textul transcris a fost copiat în clipboard.\n\nApăsați ⌘V pentru a-l lipi manual, sau alegeți Editare → Lipeți din meniu.";
+"accessibility.permission.location.debug" = "Build debug Xcode";
+"accessibility.permission.location.installed" = "Aplicație instalată";
+"accessibility.permission.info" = "HyperWhisper necesită permisiunea de accesibilitate pentru a lipi textul transcris în alte aplicații.\n\nLocație aplicație curentă: %@\n\nÎn Setări de sistem:\n1. Căutați 'hyperwhisper' sau 'HyperWhisper' în listă\n2. Ați putea vedea intrări multiple dacă ați rulat din locații diferite\n3. Activați caseta de selectare pentru intrarea care se potrivește cu:\n   %@";
+"accessibility.permission.xcodeNote" = "Notă: Rularea din Xcode necesită permisiune diferită decât aplicația instalată.";
+"accessibility.error.paste.commandFailed" = "Comanda de lipire a eșuat";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Furnizor de transcriere nu este disponibil. Verificați setări și încercați din nou.";
+"transcription.error.providerNotAvailable.provider" = "%@ nu este disponibil. Verificați setări și încercați din nou.";
+"transcription.error.providerNotAvailable.detail" = "%@ nu este disponibil: %@";
+"transcription.error.modelNotDownloaded" = "Vă rugăm descărcați mai întâi un model";
+"transcription.error.modelProtected" = "Acest model nu poate fi șters";
+"transcription.error.audioFileNotFound" = "Fișier audio nu a fost găsit";
+"transcription.error.network.detail" = "Eroare de rețea: %@";
+"transcription.error.network.generic" = "Eroare de conexiune la rețea";
+"transcription.error.apiKeyMissing.provider" = "Cheia API %@ este necesară pentru transcriere";
+"transcription.error.apiKeyMissing.generic" = "O cheie API a furnizorului cloud este necesară pentru transcriere";
+"transcription.error.maxRetriesExceeded" = "Depășit numărul maxim de reîncercări";
+"transcription.error.unauthorized.provider" = "Neautorizat: cheie API %@ nevalidă sau permisiuni.\n\nDeschideți Setări → Chei API pentru a verifica credențialele.";
+"transcription.error.unauthorized.generic" = "Neautorizat: cheie API nevalidă sau permisiuni.\n\nDeschideți Setări → Chei API pentru a verifica credențialele.";
+"transcription.error.invalidRequest" = "Cerere nevalidă: verificați fișierul audio sau setări";
+"transcription.error.streamingInterrupted" = "Streaming întrerupt; text parțial afișat";
+"transcription.error.busy" = "Serviciul de transcriere este în prezent ocupat";
+"transcription.error.invalidAudioFormat" = "Format audio nesuportat";
+"transcription.error.audioConversionFailed" = "Nu s-a putut converti audio la format necesar";
+"transcription.error.audioFileTooLarge" = "Fișier prea mare: %@ depășește limita %@ pentru %@";
+"transcription.error.serverError" = "Eroare de server (%d): %@";
+"transcription.error.rateLimited.seconds" = "Rate limited: Prea multe cereri. Vă rugăm așteptați %d secunde și reîncercați.";
+"transcription.error.rateLimited.generic" = "Rate limited: Prea multe cereri. Vă rugăm așteptați o clipă și reîncercați.";
+"transcription.error.insufficientCredits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";
+"transcription.error.quotaExceeded" = "Cotă %@ depășită";
+"transcription.error.quotaExceeded.detail" = "Cotă %@ depășită: %@";
+"transcription.error.timeout" = "Cerere expiră în timp ce se %@. Verificați conexiunea internet și încercați din nou.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Asigurați-vă că furnizor de transcriere este configurată corect în Setări.";
+"transcription.guidance.providerNotAvailable.provider" = "Asigurați-vă că %@ este configurat corect. Pentru modele locale, descărcați mai întâi un model. Pentru furnizori cloud, verificați cheia API.";
+"transcription.guidance.apiKeyMissing.provider" = "Adăugați cheia API %@ în Setări";
+"transcription.guidance.apiKeyMissing.generic" = "Adăugați cheia API a furnizorului cloud în Setări";
+"transcription.guidance.modelNotDownloaded" = "Descărcați un model din secțiunea Modele";
+"transcription.guidance.modelProtected" = "Acest model este folosit în prezent";
+"transcription.guidance.audioFileNotFound" = "Fișierul audio a fost șters sau mutat";
+"transcription.guidance.networkError" = "Verificați conexiunea internet și încercați din nou";
+"transcription.guidance.unauthorized.provider" = "Verificați cheia API %@ sau permisiunile de cont în Setări";
+"transcription.guidance.unauthorized.generic" = "Verificați cheia API sau permisiunile de cont în Setări";
+"transcription.guidance.invalidRequest" = "Verificați fișierul audio și setări mod, apoi reîncercați";
+"transcription.guidance.invalidAudioFormat" = "Încercați conversia fișierului audio la format MP3 sau WAV";
+"transcription.guidance.audioConversionFailed" = "Fișierul audio poate fi corupt. Încercați cu un alt fișier";
+"transcription.guidance.audioFileTooLarge" = "Utilizați un fișier audio mai scurt sau împărțiți în segmente mai mici";
+"transcription.guidance.serverError" = "Serviciul de transcriere are probleme. Vă rugăm încercați din nou.";
+"transcription.guidance.rateLimited" = "Ați făcut prea multe cereri. Așteptați o clipă înainte de a reîncerca.";
+"transcription.guidance.insufficientCredits" = "Achiziționați mai multe credite în Setări pentru a continua transcrierea";
+"transcription.guidance.quotaExceeded" = "Adăugați credite la contul %@ sau actualizați detaliile de facturare";
+"transcription.guidance.timeout" = "Cererea a durat prea mult. Verificați viteza internetului și reîncercați.";
+"transcription.error.noSpeechDetected" = "Nicio vorbire detectată în înregistrare.";
+"transcription.guidance.noSpeechDetected" = "Sfaturi:\n• Vorbiți clar în microfon\n• Țineti cheia mai mult înainte de a vorbi\n• Verificați că microfonul funcționează\n• Asigurați-vă că dispozitivul de intrare corect este selectat";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";
+"hyperwhisperCloud.error.network" = "Eroare de rețea: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Răspuns nevalid de la HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Eroare de server: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "Executabilul llama-server nu a putut fi localizat.";
+"llama.runtime.error.missingDependencies" = "Runtime lipsesc dependențe: %@";
+"llama.runtime.error.copyFailed" = "Nu s-a putut copia runtime: %@";
+"llama.runtime.error.copy.executable" = "Nu se poate copia executabil: %@";
+"llama.runtime.missing" = "Runtime Local lipsă din această instalație. Reinstalați HyperWhisper pentru a restabili post-procesare locală.";
+"llama.runtime.genericError" = "Eroare runtime Local: %@";
+"runtime.error.llama.missingLib" = "Runtime Local terminat după ce lipsă libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Runtime Local a raportat libmtmd.dylib lipsă";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Post-procesare AI încorporată rulând pe Cloudflare Workers. Nicio configurare necesară.";
+"models.postProcessing.gpt4.1.nano.description" = "Precizie moderată (92%), viteză foarte rapidă (<1s). Potrivit pentru schițe rapide și note informale.";
+"models.postProcessing.gpt4.1.mini.description" = "Precizie înaltă (94%), viteză rapidă (~1-2s). Bun pentru comunicări de afaceri zilnice și documente standard.";
+"models.postProcessing.gpt4.1.description" = "Precizie foarte înaltă (96%), viteză moderată (~3-4s). Excelent pentru formatare complexă și conținut tehnic.";
+"models.postProcessing.gpt5.nano.description" = "Precizie bună (95%), viteză cea mai rapidă (~1s). Perfect pentru note rapide, mesaje și transcrieri ocazionale.";
+"models.postProcessing.gpt5.mini.description" = "Precizie excelentă (97%), viteză moderată (~2-3s). Echilibru ideal pentru e-mailuri profesionale, rapoarte și note de întâlnire.";
+"models.postProcessing.gpt5.description" = "Precizie maximă (99%+), viteză cea mai lentă (~3-5s). Cel mai bun pentru documente critice, juridice, transcrieri medicale unde precizia este paramount.";
+"models.postProcessing.gpt5.1.description" = "Precizie de ultimă generație (98%+), viteză moderată (~2-3s). Excelent pentru sarcini complexe, documente juridice și conținut tehnic cu raționament superior.";
+"models.postProcessing.gpt5.2.description" = "Cea mai nouă serie GPT-5 cu raționament îmbunătățit și inferență mai rapidă. Cea mai bună alegere generală pentru procesare text de înaltă calitate.";
+"models.postProcessing.claude4.5.haiku.description" = "Cel mai nou Claude Haiku cu raționament îmbunătățit menținând timp de răspuns rapid.";
+"models.postProcessing.claude4.sonnet.description" = "Performanță echilibrată. Capabilități superioare de raționament și formatare pentru documente profesionale.";
+"models.postProcessing.gemini3.flash.description" = "Serie Gemini 3 cu inteligență la nivel Pro la viteză Flash. Raționament avansat cu capacități de gândire dinamică.";
+"models.postProcessing.gemini2.5.flash.description" = "Cel mai bun în ceea ce privește raportul preț-performanță. Optimizat pentru viteză menținând precizie bună pentru utilizare zilnică.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Model ultra rapid optimizat pentru eficiență de cost și debit ridicat.";
+"models.postProcessing.groq.llama33.70b.description" = "Model versatil 70B cu calitate excelentă. ~280 tokeni/sec. Recomandat.";
+"models.postProcessing.groq.llama31.8b.description" = "Model ultra rapid 8B. ~560 tokeni/sec pentru procesare text instantanee.";
+"models.postProcessing.groq.gptoss.120b.description" = "Model open-source 120B al OpenAI. ~500 tokeni/sec pentru procesare de înaltă calitate.";
+"models.postProcessing.groq.gptoss.20b.description" = "Model ușor 20B. ~1000 tokeni/sec pentru procesare cea mai rapidă.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B pe Cerebras. Model ultra rapid 120B la ~3000 tokeni/sec. Recomandat.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B pe Cerebras. Ușor și ultra rapid la ~2200 tokeni/sec.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B pe Cerebras. Model masiv 235B MoE la ~1400 tokeni/sec. Numai previzualizare.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 pe Cerebras. Model cu 355B parametri la ~1000 tokeni/sec. Numai previzualizare.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Centru ajutor";
+"settings.resources.contact.support" = "Contactați suportul";
+"settings.resources.feedback" = "Feedback și sugestii";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Copie de siguranță";
+"settings.backup.export.title" = "Exportați setări";
+"settings.backup.export.subtitle" = "Salvați setări, moduri și vocabular într-un fișier";
+"settings.backup.export.button" = "Exportați...";
+"settings.backup.export.panel.title" = "Exportați setări";
+"settings.backup.export.panel.label" = "Fișier copie de siguranță:";
+"settings.backup.export.success" = "Setări exportate cu succes";
+"settings.backup.export.error.create" = "Nu s-au putut crea date de copie de siguranță";
+"settings.backup.export.error.encode" = "Nu s-au putut codifica date de copie de siguranță";
+"settings.backup.export.error.write" = "Nu s-a putut scrie fișier copie de siguranță";
+"settings.backup.includeAPIKeys.title" = "Includeți chei API";
+"settings.backup.includeAPIKeys.subtitle" = "Stocați chei API în fișierul de copie de siguranță (nu se recomandă pentru partajare)";
+"settings.backup.includeLicense.title" = "Includeți cheia de licență";
+"settings.backup.import.title" = "Importați setări";
+"settings.backup.import.subtitle" = "Restabiliți setări dintr-un fișier de copie de siguranță";
+"settings.backup.import.button" = "Importați...";
+"settings.backup.import.panel.title" = "Importați setări";
+"settings.backup.import.success" = "Import complet: %d moduri, %d elemente de vocabular importate";
+"settings.backup.import.error.read" = "Nu s-a putut citi fișier copie de siguranță";
+"settings.backup.import.error.decode" = "Format de fișier copie de siguranță nevalid";
+"settings.backup.import.error.decode.keyNotFound" = "Lipsește un câmp obligatoriu: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Tip incorect pentru câmp: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Lipsește valoarea câmpului: %@";
+"settings.backup.import.error.decode.corrupted" = "Date corupte: %@";
+"settings.backup.import.error.decode.corruptedField" = "Valoare coruptă pentru câmp: %@";
+"settings.backup.import.error.version" = "Fișier copie de siguranță din versiune mai nouă";
+"settings.backup.import.error.unknown" = "Import eșuat";
+"settings.backup.import.confirm.title" = "Importați setări?";
+"settings.backup.import.confirm.message" = "Aceasta va înlocui modurile și vocabularul existent cu cel din fișierul de copie de siguranță. Setările vor fi de asemenea actualizate.";
+"settings.backup.import.confirm.button" = "Importați";
+"settings.backup.conflict.skip" = "Omiteți existent";
+"settings.backup.conflict.replace" = "Înlocuiți existent";
+"settings.backup.conflict.keepBoth" = "Păstrați ambele";
+"settings.backup.security.warning" = "Avertisment: Fișierul exportat va conține date sensibile. Păstrați-l în siguranță și nu-l partajați.";
+"settings.backup.info.note" = "Copiile de siguranță includ setări, moduri și vocabular. Înregistrări și transcrieri nu sunt incluse.";
+"settings.backup.result.success.title" = "Succes";
+"settings.backup.result.error.title" = "Eroare";
+"settings.backup.export.choose.subtitle" = "Alegeți ce să includeți în fișierul de rezervă";
+"settings.backup.export.section.settings" = "Setări";
+"settings.backup.export.section.modes" = "Moduri";
+"settings.backup.export.section.vocabulary" = "Vocabular";
+"settings.backup.import.importing" = "Se importă %@";
+"settings.backup.import.contains" = "Acest fișier conține: %@";
+"settings.backup.import.contains.vocabulary" = "Vocabular (%d cuvinte)";
+"settings.backup.import.contains.none" = "nimic";
+"settings.backup.import.section.settings" = "Setări";
+"settings.backup.import.section.modes" = "Moduri";
+"settings.backup.import.section.vocabulary" = "Vocabular";
+"settings.backup.import.section.apiKeys" = "Chei API";
+"settings.backup.import.section.license" = "Cheie de licență";
+"settings.backup.import.section.absent" = "— nu este în fișier";
+"settings.backup.import.premerge.summary" = "Vocabular: adăugați %d noi, %d există deja";
+"settings.backup.import.premerge.conflictLabel" = "Pentru cuvintele care există deja:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Selectați fișier audio";
+"transcribe.file.error.title" = "Eroare de transcriere";
+"transcribe.file.error.size.title" = "Fișier prea mare";
+"transcribe.file.error.size.message" = "Fișierul selectat (%@) depășește limita %@ pentru %@.";
+"transcribe.file.error.format.title" = "Format nesuportat";
+"transcribe.file.error.format.message" = "Fișierele .%@ nu sunt acceptate de %@. Formate acceptate: %@";
+"transcribe.file.error.read" = "Nu se poate citi fișierul selectat.";
+"transcribe.file.error.copy" = "Nu s-a putut copia fișier în folderul înregistrări.";
+"transcribe.file.error.video.title" = "Nicio audio în video";
+"transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Se pregătește...";
+"file.transcription.transcribing" = "Se transcrie...";
+"file.transcription.finishing" = "Se termină...";
+"file.transcription.cancel" = "Anulați";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Activați ștergere automată";
+"history.autoDelete.enable.subtitle" = "Înregistrări mai vechi decât durata specificată vor fi șterse";
+"history.autoDelete.duration.prefix" = "După";
+"history.autoDelete.unit.minutes" = "Minute";
+"history.autoDelete.unit.hours" = "Ore";
+"history.autoDelete.unit.days" = "Zile";
+"history.autoDelete.unit.minutes.plural" = "minute";
+"history.autoDelete.unit.hours.plural" = "ore";
+"history.autoDelete.unit.days.plural" = "zile";
+"history.autoDelete.status.disabled" = "Ștergere automată este dezactivată";
+"history.autoDelete.status.enabled" = "Ștergeți înregistrări mai vechi decât %d %@";
+"history.autoDelete.cleanup.noItems" = "Nicio înregistrare de șters";
+"history.autoDelete.cleanup.summary" = "Șterse %d înregistrări și eliberate %@";

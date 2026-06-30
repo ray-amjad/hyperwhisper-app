@@ -1,0 +1,7 @@
+<CODE_CONTEXT_DETECTED>
+    The user is working in a code editor or technical environment. Apply these additional formatting rules:
+    1. Preserve identifiers, filenames, commands, API names, package names, and casing aggressively.
+    2. Prefer spellings from screen context for technical terms and symbols that sound similar.
+    3. Do not rewrite prose into code unless the selected preset is Code or the user explicitly dictated code syntax.
+    4. Avoid changing punctuation in a way that could alter code, paths, shell commands, or configuration values.
+</CODE_CONTEXT_DETECTED>

@@ -1,0 +1,102 @@
+---
+title: Text Output & Formatting
+description: Control how HyperWhisper delivers transcribed text — auto-paste, filler-word removal, smart capitalization, and clipboard behavior.
+---
+
+HyperWhisper's **Text Output** settings determine what happens the moment a recording finishes: whether the text is pasted automatically, how it is cleaned up before delivery, and how the clipboard is managed during and after the process.
+
+Open the settings panel and navigate to **Text Output** to find these options.
+
+<Note>
+  For a quick overview of how Auto Paste works and troubleshooting steps, see [Auto Paste & Clipboard Behavior](/auto-paste).
+</Note>
+
+## Auto Paste
+
+When **Paste result automatically** is enabled, HyperWhisper copies the transcript to the clipboard and immediately issues a paste keystroke into the frontmost application — you don't have to switch focus or press anything.
+
+<Note>
+  Auto Paste requires Accessibility permission so HyperWhisper can issue the paste keystroke on your behalf. On macOS, the home screen shows an accessibility prompt whenever Accessibility permission has not been granted — this is independent of whether Auto Paste is enabled. On Windows, no extra permission step is required for Auto Paste itself.
+</Note>
+
+### Granting Accessibility permission
+
+<Tabs>
+  <Tab title="macOS">
+    1. Go to **System Settings → Privacy & Security → Accessibility**.
+    2. Unlock the list and enable the toggle next to HyperWhisper.
+    3. Restart the app if you changed the setting while it was running.
+  </Tab>
+  <Tab title="Windows">
+    Auto Paste uses standard UI Automation on Windows. No extra permission step is required in most cases. If the app warns that UI Automation is unavailable in your environment, the toggle can remain on and will work in applications where UIA is accessible.
+  </Tab>
+</Tabs>
+
+## Remove Filler Words
+
+Enable **Remove filler words** to strip common speech fillers — "uh", "um", and "er" — from the raw transcript before it is delivered.
+
+<Note>
+  This setting applies only when a mode is not using AI post-processing. When AI post-processing is active, the AI model handles transcript cleanup through the mode's prompt, so this toggle has no additional effect.
+</Note>
+
+## Autocapitalize Insert
+
+**Autocapitalize Insert** adjusts the capitalization of the first word of your transcript to match the context of the cursor in the target text field.
+
+- If the cursor is **mid-sentence** (preceded by regular text), the first letter is lowercased so the inserted text flows naturally.
+- If the cursor is at the **start of a sentence** (preceded by a sentence-ending character such as `.`, `!`, or `?`, or at the beginning of a field), the transcript is left unchanged.
+- **Acronyms are preserved** — if the first word begins with two or more uppercase letters (for example, "API" or "USA"), it is never lowercased.
+
+<Tabs>
+  <Tab title="macOS">
+    Autocapitalize Insert reads cursor position using the Accessibility API. Enabling the toggle for the first time will prompt you to grant Accessibility permission if it hasn't been granted yet. If you cancel the prompt, the toggle reverts to off.
+
+    Turn this off if you always want dictated text inserted exactly as transcribed, regardless of cursor position.
+  </Tab>
+  <Tab title="Windows">
+    Autocapitalize Insert reads cursor context using UI Automation. It works in most native editors and Microsoft Office applications. In some applications — such as web browsers and Electron-based apps — the focused text field is not exposed to UIA; in those cases the feature passes the text through unchanged without error.
+
+    Unlike macOS, enabling the toggle on Windows does not revert if UIA is unavailable — an informational message is shown, and the toggle stays on.
+  </Tab>
+</Tabs>
+
+## Clipboard Settings
+
+The **Clipboard** section controls what happens to your clipboard before and after Auto Paste runs.
+
+### Restore clipboard after paste
+
+When enabled, HyperWhisper saves your clipboard contents before pasting the transcript, then restores them afterwards. This means pasting a transcription does not permanently overwrite whatever you had copied previously.
+
+#### Restore delay
+
+When clipboard restore is enabled, a delay control appears. You can set the restore delay from **1 to 60 seconds**. A longer delay gives slow-responding applications time to complete the paste before the clipboard is overwritten with your previous content.
+
+<Tabs>
+  <Tab title="macOS">
+    Use the stepper control to increase or decrease the delay in one-second steps.
+  </Tab>
+  <Tab title="Windows">
+    Use the **−** and **+** buttons to adjust the delay in one-second steps.
+  </Tab>
+</Tabs>
+
+### Hide from clipboard history
+
+When **Hide from clipboard history** is enabled, transcribed text is written to the clipboard in a way that tells clipboard manager applications not to save it.
+
+This is useful if you dictate sensitive content — passwords, private notes, confidential messages — and don't want those entries appearing in tools like Paste, Maccy, Alfred, or Windows Clipboard History.
+
+<Tabs>
+  <Tab title="macOS">
+    The transcript is placed on the clipboard with a type marking that instructs clipboard managers supporting the convention (Paste, Maccy, Alfred, and others) to skip saving it.
+  </Tab>
+  <Tab title="Windows">
+    The transcript is placed on the clipboard using the Windows clipboard exclusion API, which prevents it from appearing in Windows Clipboard History (`Win + V`) and compatible third-party clipboard managers.
+  </Tab>
+</Tabs>
+
+<Note>
+  Clipboard manager exclusion depends on each manager's support for the convention. Managers that do not respect the exclusion flag will still save the entry.
+</Note>

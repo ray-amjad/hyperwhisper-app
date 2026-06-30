@@ -1,0 +1,5 @@
+// Sentry Configuration (Debug)
+// Copy this file to Debug.xcconfig and fill in your DSN.
+// Leave SENTRY_DSN blank to run without error reporting.
+SENTRY_DSN = https://your-key@sentry.io/project-id
+SENTRY_ENVIRONMENT = development

@@ -1,0 +1,248 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <RootNamespace>HyperWhisper</RootNamespace>
+    <AssemblyName>HyperWhisper</AssemblyName>
+
+    <!-- Release workflow publishes the next appcast item from this version after
+         signing produces installer sizes/signatures. Between releases, this may
+         intentionally be newer than appcast-windows.xml. -->
+    <!-- Prevent .NET 8+ from appending +git-hash to AssemblyInformationalVersion,
+         which causes NetSparkle to treat the same version as a new update -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Version>1.7.0</Version>
+    <AssemblyVersion>1.7.0.0</AssemblyVersion>
+    <FileVersion>1.7.0.0</FileVersion>
+    <!-- Scratch/workstream builds sometimes leave alternate intermediate folders
+         inside the project tree. Keep SDK globs from compiling their generated
+         WPF sources and duplicate assembly attributes. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj-*\**;obj-*/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- Sentry Debug Symbol Upload Configuration -->
+  <!-- Release builds default to no symbol upload so raw dotnet publish works locally.
+       CI/release environments enable upload automatically when Sentry credentials exist. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <SentryUploadSymbols Condition="'$(SentryUploadSymbols)' == ''">false</SentryUploadSymbols>
+    <SentryUploadSources Condition="'$(SentryUploadSources)' == ''">false</SentryUploadSources>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(SENTRY_AUTH_TOKEN)' != '' And '$(SENTRY_ORG)' != '' And '$(SENTRY_PROJECT)' != ''">
+    <SentryUploadSymbols>true</SentryUploadSymbols>
+    <SentryUploadSources>true</SentryUploadSources>
+    <SentryOrg>$(SENTRY_ORG)</SentryOrg>
+    <SentryProject>$(SENTRY_PROJECT)</SentryProject>
+  </PropertyGroup>
+
+  <!-- Sentry DSN baked into the assembly at build time so it ships in releases
+       without living in source. Supplied via the SENTRY_DSN env var (CI); when
+       unset, no attribute is emitted and SentryService no-ops on the blank DSN,
+       so open-source builds run with crash reporting simply disabled. -->
+  <ItemGroup Condition="'$(SENTRY_DSN)' != ''">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>SentryDsn</_Parameter1>
+      <_Parameter2>$(SENTRY_DSN)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!-- Existing dependencies -->
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Whisper.net" Version="1.9.0" />
+    <!-- Whisper.net Runtimes:
+         - Runtime: Standard CPU runtime with AVX optimizations (x64)
+         - Runtime.NoAvx: For CPUs without AVX support (ARM64, older x64)
+         - Runtime.Vulkan: Vulkan GPU acceleration (vendor-agnostic: NVIDIA, AMD, Intel) -->
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.0" />
+    <PackageReference Include="Whisper.net.Runtime.NoAvx" Version="1.9.0" />
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.0" />
+    <PackageReference Include="LLamaSharp" Version="0.27.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.27.0" />
+    <PackageReference Include="System.Management" Version="9.0.0" />
+    <PackageReference Include="GregsStack.InputSimulatorStandard" Version="1.3.5" />
+  </ItemGroup>
+
+  <!-- New WPF/MVVM dependencies -->
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Local HTTP API (Settings → Local API) -->
+  <!-- Kestrel/minimal-API host bound to 127.0.0.1; bearer token stored via
+       DPAPI (System.Security.Cryptography.ProtectedData ships in-box on
+       net10.0-windows). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- Error tracking and monitoring -->
+  <!-- Sentry CLI is bundled in this package and will auto-upload PDB symbols on Release builds -->
+  <!-- when SentryUploadSymbols is true and SENTRY_AUTH_TOKEN env var is set -->
+  <ItemGroup>
+    <PackageReference Include="Sentry" Version="4.12.1" />
+  </ItemGroup>
+
+  <!-- Auto-update framework -->
+  <!-- NetSparkle checks appcast-windows.xml for new versions and shows update dialog -->
+  <!-- Uses Ed25519 signature verification for security -->
+  <ItemGroup>
+    <PackageReference Include="NetSparkleUpdater.SparkleUpdater" Version="3.0.4" />
+  </ItemGroup>
+
+  <!-- Copy app icon to output directory -->
+  <ItemGroup>
+    <None Update="Assets\app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Sound effect WAV files (embedded resources) -->
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\Sounds\start1.wav" LogicalName="HyperWhisper.Assets.Sounds.start1.wav" />
+    <EmbeddedResource Include="Assets\Sounds\start2.wav" LogicalName="HyperWhisper.Assets.Sounds.start2.wav" />
+    <EmbeddedResource Include="Assets\Sounds\start3.wav" LogicalName="HyperWhisper.Assets.Sounds.start3.wav" />
+    <EmbeddedResource Include="Assets\Sounds\start4.wav" LogicalName="HyperWhisper.Assets.Sounds.start4.wav" />
+    <EmbeddedResource Include="Assets\Sounds\stop1.wav" LogicalName="HyperWhisper.Assets.Sounds.stop1.wav" />
+    <EmbeddedResource Include="Assets\Sounds\stop2.wav" LogicalName="HyperWhisper.Assets.Sounds.stop2.wav" />
+    <EmbeddedResource Include="Assets\Sounds\stop3.wav" LogicalName="HyperWhisper.Assets.Sounds.stop3.wav" />
+    <EmbeddedResource Include="Assets\Sounds\stop4.wav" LogicalName="HyperWhisper.Assets.Sounds.stop4.wav" />
+  </ItemGroup>
+
+  <!-- Provider brand marks used by the Windows Model Library. -->
+  <ItemGroup>
+    <Resource Include="Assets\Providers\*.png" />
+  </ItemGroup>
+
+  <!-- Parakeet/Qwen3/Nemotron engine daemon and runtime dependencies. -->
+  <!-- x64 files are pre-built and placed in Resources/parakeet-engine/x64/. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'win-x64'">
+    <Content Include="Resources\parakeet-engine\x64\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>parakeet-engine\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+  <!-- ARM64 Parakeet/Qwen3/Nemotron daemon. The folder is produced by
+       tools\build-parakeet-engine.bat arm64. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64' And Exists('Resources\parakeet-engine\arm64')">
+    <Content Include="Resources\parakeet-engine\arm64\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>parakeet-engine\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+  <!-- HyperWhisper shared Rust core (hw-core / UniFFI). The generated binding
+       (Generated/RustCore/hyperwhisper_core.cs) P/Invokes hyperwhisper_core.dll,
+       so the DLL is copied to the OUTPUT ROOT (next to the .exe) where the
+       default native-library resolver can find it. The DLL is built from
+       shared-core-rs (see shared-core-rs/README.md and the README in
+       Resources/rust-core/) and placed in Resources/rust-core/<arch>/. The
+       Exists() guards keep the build green before the DLL has been produced. -->
+  <ItemGroup Condition="('$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'win-x64') And Exists('Resources\rust-core\x64\hyperwhisper_core.dll')">
+    <Content Include="Resources\rust-core\x64\hyperwhisper_core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>hyperwhisper_core.dll</Link>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64' And Exists('Resources\rust-core\arm64\hyperwhisper_core.dll')">
+    <Content Include="Resources\rust-core\arm64\hyperwhisper_core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>hyperwhisper_core.dll</Link>
+    </Content>
+  </ItemGroup>
+
+  <!-- Fail-loud guard (D2): the Content blocks above are Exists()-guarded, so a
+       clean build with no DLL present used to SILENTLY ship without
+       hyperwhisper_core.dll → DllNotFoundException at startup (LicenseUsageTracker
+       static init). Error at real build/publish time instead. Skipped for
+       design-time/restore builds so the IDE and `dotnet restore` stay green. -->
+  <Target Name="EnsureRustCoreDll" BeforeTargets="Build;Publish"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="('$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'win-x64') And !Exists('Resources\rust-core\x64\hyperwhisper_core.dll')"
+           Text="hyperwhisper_core.dll (x64) is missing from Resources\rust-core\x64\. Build it from shared-core-rs (cargo build --release --target x86_64-pc-windows-msvc) and copy it there, or let CI produce it. See Resources/rust-core/README.md." />
+    <Error Condition="'$(RuntimeIdentifier)' == 'win-arm64' And !Exists('Resources\rust-core\arm64\hyperwhisper_core.dll')"
+           Text="hyperwhisper_core.dll (arm64) is missing from Resources\rust-core\arm64\. Build it from shared-core-rs (cargo build --release --target aarch64-pc-windows-msvc) and copy it there, or let CI produce it. See Resources/rust-core/README.md." />
+  </Target>
+
+  <!-- Localization resource files -->
+  <!-- Satellite assemblies are automatically generated for each culture -->
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Strings.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <Compile Update="Resources\Strings.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Strings.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <!-- Shared prompt templates (linked from repo root shared-prompts/) -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\hyper.txt" Link="SharedPrompts\presets\hyper.txt" LogicalName="HyperWhisper.SharedPrompts.presets.hyper.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\message.txt" Link="SharedPrompts\presets\message.txt" LogicalName="HyperWhisper.SharedPrompts.presets.message.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\mail.txt" Link="SharedPrompts\presets\mail.txt" LogicalName="HyperWhisper.SharedPrompts.presets.mail.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\note.txt" Link="SharedPrompts\presets\note.txt" LogicalName="HyperWhisper.SharedPrompts.presets.note.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\meeting.txt" Link="SharedPrompts\presets\meeting.txt" LogicalName="HyperWhisper.SharedPrompts.presets.meeting.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\code.txt" Link="SharedPrompts\presets\code.txt" LogicalName="HyperWhisper.SharedPrompts.presets.code.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\presets\custom.txt" Link="SharedPrompts\presets\custom.txt" LogicalName="HyperWhisper.SharedPrompts.presets.custom.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\email-formatting-rules.txt" Link="SharedPrompts\fragments\email-formatting-rules.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.email-formatting-rules.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\anti-reply-directive.txt" Link="SharedPrompts\fragments\anti-reply-directive.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.anti-reply-directive.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\override-directive.txt" Link="SharedPrompts\fragments\override-directive.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.override-directive.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\number-formatting.txt" Link="SharedPrompts\fragments\number-formatting.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.number-formatting.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\email.txt" Link="SharedPrompts\contextual\email.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.email.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\work-message.txt" Link="SharedPrompts\contextual\work-message.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.work-message.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\personal-message.txt" Link="SharedPrompts\contextual\personal-message.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.personal-message.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\document.txt" Link="SharedPrompts\contextual\document.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.document.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\code.txt" Link="SharedPrompts\contextual\code.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.code.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\terminal.txt" Link="SharedPrompts\contextual\terminal.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.terminal.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\flags\punctuation.txt" Link="SharedPrompts\flags\punctuation.txt" LogicalName="HyperWhisper.SharedPrompts.flags.punctuation.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\flags\capitalization.txt" Link="SharedPrompts\flags\capitalization.txt" LogicalName="HyperWhisper.SharedPrompts.flags.capitalization.txt" />
+    <EmbeddedResource Include="..\..\..\shared-prompts\flags\profanity-filter.txt" Link="SharedPrompts\flags\profanity-filter.txt" LogicalName="HyperWhisper.SharedPrompts.flags.profanity-filter.txt" />
+    <EmbeddedResource Include="..\..\..\shared-app-classification\app-type-catalog.json" Link="SharedAppClassification\app-type-catalog.json" LogicalName="HyperWhisper.SharedAppClassification.app-type-catalog.json" />
+    <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-stt-catalog.json" Link="SharedAppClassification\cloud-stt-catalog.json" LogicalName="HyperWhisper.SharedAppClassification.cloud-stt-catalog.json" />
+    <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-pp-catalog.json" Link="SharedAppClassification\cloud-pp-catalog.json" LogicalName="HyperWhisper.SharedAppClassification.cloud-pp-catalog.json" />
+    <EmbeddedResource Include="..\..\..\shared-models\models-catalog.json" Link="SharedModels\models-catalog.json" LogicalName="HyperWhisper.SharedModels.models-catalog.json" />
+  </ItemGroup>
+
+  <Target Name="FilterNativeRuntimeAssetsForWindowsRid" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <!-- NuGet native runtime packages can carry Linux/macOS assets even in Windows publishes. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](linux|linux-musl|osx)-'))" />
+
+      <!-- Whisper.net nested runtime folders include non-target assets under noavx/vulkan. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]noavx[\\/](linux-[^\\/]+|win-x86)[\\/]'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]vulkan[\\/]linux-[^\\/]+[\\/]'))" />
+
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'$(RuntimeIdentifier)' == 'win-x64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]win-(arm64|x86)[\\/]'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'$(RuntimeIdentifier)' == 'win-arm64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](win-x64|win-x86|noavx|vulkan)[\\/]'))" />
+    </ItemGroup>
+  </Target>
+
+</Project>
+
+
+
+
+

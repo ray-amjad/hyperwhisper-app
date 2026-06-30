@@ -1,0 +1,1056 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Vocabulary";
+"vocabulary.description" = "This helps the software to recognize names, acronyms, slang, or words from other languages when mixing languages.";
+"vocabulary.input.title" = "Input";
+"vocabulary.new.word.placeholder" = "New word or phrase";
+"vocabulary.replacement.placeholder" = "Replace with...";
+"vocabulary.add.button" = "Add to vocabulary";
+"vocabulary.edit.title" = "Edit vocabulary entry";
+"vocabulary.input.placeholder" = "Add a word or create a snippet";
+"vocabulary.action.addWord" = "Add word";
+"vocabulary.action.replaceWith" = "Replace with…";
+"vocabulary.action.replace" = "Replace";
+"vocabulary.replacement.field.placeholder" = "Replacement text…";
+"vocabulary.update.button" = "Update";
+"vocabulary.cancel.button" = "Cancel";
+"vocabulary.word.column" = "Word/Phrase";
+"vocabulary.replacement.column" = "Replacement";
+"vocabulary.empty.title" = "No vocabulary words yet";
+"vocabulary.empty.subtitle" = "Add custom words to improve transcription accuracy";
+"vocabulary.duplicate.title" = "Duplicate Entry";
+"vocabulary.duplicate.message" = "%@ already exists in your vocabulary. Each word can only be added once.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Keyword Limit Exceeded";
+"vocabulary.limit.message" = "You have %d words, but only the first %d will be used for transcription boosting.";
+"vocabulary.icloudSync.restart.title" = "Quit HyperWhisper to apply";
+"vocabulary.icloudSync.restart.message" = "iCloud vocabulary sync changes take effect the next time you open HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Quit HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Later";
+
+// MARK: - Streaming View
+"streaming.title" = "Streaming (Beta)";
+"streaming.description" = "Real-time transcription as you speak. Text is typed directly into the focused application.";
+"streaming.enable.title" = "Enable Streaming";
+"streaming.provider.picker.title" = "Provider";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Fast Formatting";
+"streaming.fastFormatting.description" = "Reduces smart formatting delay for faster typing";
+"streaming.warning.vocabAutoDetect" = "Custom vocabulary is disabled in auto-detect mode";
+"streaming.warning.vocabUnsupported" = "Custom vocabulary is not supported with %@ streaming";
+"streaming.warning.apiKeyRequired" = "%@ API key required";
+"streaming.warning.apiKeyRequired.action" = "Configure";
+"streaming.warning.apiKeyInvalid" = "%@ API key is not working. Update it in Settings > API Keys.";
+"streaming.warning.apiKeyInvalid.action" = "Update Key";
+"streaming.language.title" = "Language";
+"streaming.shortcut.title" = "Shortcut";
+
+// MARK: - Home View
+"home.get.started" = "Get started";
+"home.open.system.settings" = "Open System Settings";
+
+// MARK: - API Keys
+"api.key.required" = "API Key Required";
+"api.keys.required" = "API Keys Required";
+"api.key.configure.message" = "Configure your API keys to enable transcription.";
+"api.key.internet.required" = "Internet Connection Required";
+"api.key.internet.message" = "Cloud transcription requires an internet connection.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Cancel";
+"common.delete" = "Delete";
+"common.edit" = "Edit";
+"common.done" = "Done";
+"common.copy" = "Copy";
+"common.back" = "Back";
+"common.skip" = "Skip";
+"common.settings" = "Settings";
+"common.error" = "Error";
+"common.retry" = "Retry";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Home";
+"sidebar.modes" = "Modes";
+"sidebar.vocabulary" = "Vocabulary";
+"sidebar.modelLibrary" = "Model Library";
+"sidebar.streaming" = "Streaming";
+"sidebar.history" = "History";
+"sidebar.settings" = "Settings";
+
+// MARK: - App Messages
+"app.unknown.error" = "An unknown error occurred";
+"app.microphone.permission.message" = "HyperWhisper needs access to your microphone to transcribe audio.\n\nPlease go to System Settings > Privacy & Security > Microphone and enable access for HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper saves recordings to a folder in your Documents so they're easy to find: Documents/hyperwhisper/recordings. macOS may ask for permission the first time we try to save there. If you'd rather not grant access, we can store recordings in a private app folder instead.";
+"app.upgrade.to.pro" = "Upgrade to Pro";
+"app.enter.license.key" = "Enter License Key";
+"accessibility.upgrade.pro" = "Upgrade to HyperWhisper Pro";
+"accessibility.enter.license" = "Enter License Key";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Add your %@ API keys to enable the selected mode.";
+"home.api.keys.missing.single" = "Add your %@ API key to enable the selected mode.";
+"home.getting.started.recording.title" = "Start recording";
+"home.getting.started.recording.description" = "Turn your voice to text with a single click.";
+"home.getting.started.shortcuts.title" = "Customize your shortcuts";
+"home.getting.started.shortcuts.description" = "Change the keyboard shortcuts for HyperWhisper.";
+"home.getting.started.mode.title" = "Create a mode";
+"home.getting.started.mode.description" = "Build the perfect mode for your workflow.";
+"home.getting.started.vocabulary.title" = "Add vocabulary";
+"home.getting.started.vocabulary.description" = "Teach HyperWhisper custom words, names, or industry terms.";
+"home.add.api.key" = "Add API Key";
+"home.accessibility.enable.title" = "Enable Accessibility";
+"home.accessibility.enable.description" = "Allow HyperWhisper to auto-paste into apps you're using.";
+"home.accessibility.waiting" = "Waiting...";
+"home.accessibility.open.settings" = "Open Settings";
+"home.accessibility.restart.after.permission" = "Restart app after granting permission";
+"home.getting.started.completed" = "✓ Completed";
+"home.whatsnew.badge" = "NEW";
+"home.whatsnew.title" = "What's new?";
+"home.whatsnew.update1.date" = "Jul 3";
+"home.whatsnew.update1.title" = "Parakeet is now available";
+"home.whatsnew.update1.description" = "Download it directly from the Language Models list in Mode creation to try it today.";
+"home.whatsnew.update2.date" = "Jun 5";
+"home.whatsnew.update2.title" = "Support for every OpenAI-compatible custom model";
+"home.whatsnew.update2.description" = "You can now add any OpenAI compatible APIs to your list of models.";
+"home.whatsnew.update3.date" = "May 27";
+"home.whatsnew.update3.title" = "Brand new Mini-recording window";
+"home.whatsnew.update3.description" = "A sleek, minimal recording interface that stays out of your way.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Recent Updates";
+"home.recent.updates.error" = "Failed to load updates";
+"home.recent.updates.retry" = "Retry";
+"home.recent.updates.empty" = "No recent updates available";
+"home.recent.updates.version" = "Version %@";
+"home.recent.updates.new.badge" = "NEW";
+"home.recent.updates.no.notes" = "No release notes available";
+
+// MARK: - Home Stats Bar
+"home.stats.speed" = "Average speed";
+"home.stats.words.week" = "Words this week";
+"home.stats.words.month" = "Words this month";
+"home.stats.words.year" = "Words this year";
+"home.stats.saved.week" = "Saved this week";
+"home.stats.minutes.value" = "%d minutes";
+"home.stats.typing.speed.help" = "Adjust assumed typing speed (WPM) used to estimate time saved.";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Microphone Access Required";
+"common.open.settings" = "Open Settings";
+"alerts.api.local.mode" = "Use Local Mode";
+"alerts.documents.permission.title" = "Save to Documents?";
+"common.continue" = "Continue";
+"alerts.documents.permission.use.another" = "Use another location";
+"alerts.api.configure.generic" = "Please configure your API keys in Settings.";
+"alerts.api.internet.offline" = "Cloud transcription requires an internet connection. Please check your network settings or select a local transcription mode.";
+"alerts.api.configure.header.multiple" = "To use the selected mode, please configure the following API keys in Settings:";
+"alerts.api.configure.header.single" = "To use the selected mode, please configure the following API key in Settings:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "After adding the missing keys, try again.";
+"alerts.export.failed.title" = "Export Failed";
+"alerts.export.logs.failed.message" = "Could not export update logs. Please try again.";
+"alerts.export.logs.success.title" = "Logs Exported";
+"alerts.export.logs.success.message" = "Update logs have been exported successfully.";
+"alerts.export.logs.saveFailed.message" = "Could not save logs to the selected location: %@";
+"alerts.export.diagnostics.failed.message" = "Could not export diagnostics. Please try again.";
+"alerts.export.diagnostics.success.title" = "Diagnostics Exported";
+"alerts.export.diagnostics.success.message" = "All diagnostic logs have been exported successfully.";
+"alerts.export.diagnostics.saveFailed.message" = "Could not save diagnostics to the selected location: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Export update logs for support";
+"panels.export.diagnostics.message" = "Export all diagnostic logs";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Get started with HyperWhisper";
+"sidebar.modes.help" = "Manage transcription modes for different contexts";
+"sidebar.vocabulary.help" = "Add custom words and phrases for better recognition";
+"sidebar.modelLibrary.help" = "Browse every voice and post-processing model in one place";
+"sidebar.streaming.help" = "Real-time streaming transcription settings (requires Internet)";
+"sidebar.history.help" = "View and search your transcription history";
+"sidebar.settings.help" = "Configure app settings and preferences";
+
+// MARK: - Recording State
+"recording.state.ready" = "Ready to record";
+"recording.state.recording" = "Recording...";
+"recording.state.processing" = "Processing audio...";
+"recording.state.transcribing" = "Transcribing...";
+"recording.state.postprocessing" = "Enhancing...";
+"recording.state.complete" = "Transcription complete: %@";
+"recording.state.error" = "Error: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Start or stop recording";
+"menu.recording.stop" = "Stop Recording";
+"menu.recording.toggle" = "Start/Stop Recording";
+"menu.history" = "History...";
+"menu.settings" = "Settings...";
+"menu.microphone" = "Microphone";
+"menu.select.mode" = "Select Mode";
+"menu.transcribe.file" = "Transcribe File";
+"menu.mode.unnamed" = "Unnamed";
+"menu.version.label" = "Version %@";
+"common.quit" = "Quit";
+"menu.microphone.default" = "Default";
+"menu.microphone.system.default" = "Default";
+"menu.bar.state.recording" = "Recording";
+"menu.bar.state.processing" = "Processing";
+"menu.bar.state.idle" = "Idle";
+"menu.command.check.updates" = "Check for Updates…";
+"menu.debug.title" = "Debug";
+"menu.command.export.logs" = "Export Update Logs…";
+"menu.command.export.diagnostics" = "Export Diagnostics…";
+"menu.command.help.website" = "Help Website";
+"menu.command.contact.support" = "Contact Support";
+
+// MARK: - Settings Sections
+"settings.section.general" = "General";
+"settings.section.sound" = "Sound";
+"settings.section.license" = "License";
+"settings.section.credits" = "Credits";
+"settings.section.storage" = "Storage";
+"settings.section.models" = "Models";
+"settings.section.api.keys" = "API Keys";
+"settings.section.shortcuts" = "Keyboard Shortcuts";
+"settings.section.vocabulary" = "Vocabulary";
+"settings.section.output" = "Text Output";
+
+// MARK: - Settings > Vocabulary
+"settings.vocabulary.icloudSync.title" = "iCloud Sync";
+"settings.vocabulary.icloudSync.subtitle" = "Sync your custom vocabulary across Macs signed into the same iCloud account.";
+"settings.vocabulary.icloudSync.info" = "Off by default. Only your custom vocabulary is synced — transcripts and recordings stay on this Mac. Changes take effect the next time you open HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (English)";
+"onboarding.model.pro.multilingual" = "Pro (Multilingual)";
+"onboarding.model.downloading.progress" = "Downloading... %d%%";
+"onboarding.accessibility.title" = "Enable Accessibility for Automatic Paste";
+"onboarding.accessibility.subtitle" = "Allow HyperWhisper to automatically paste transcribed text into your applications.";
+"onboarding.accessibility.instructions" = "System Settings → Privacy & Security → Accessibility";
+"onboarding.accessibility.status.granted" = "Accessibility permission granted";
+"onboarding.accessibility.status.pending" = "Accessibility permission not yet granted";
+"onboarding.accessibility.waiting" = "Waiting for permission...";
+"onboarding.accessibility.open.preferences" = "Open Accessibility Preferences";
+"onboarding.accessibility.restart" = "After granting permission, restart HyperWhisper.";
+"onboarding.model.recommendation.title" = "We recommend the Pro model";
+"onboarding.model.recommendation.subtitle" = "Based on your system language and your Mac's capabilities.";
+"onboarding.model.recommendation.note" = "Download by clicking the button below.";
+"onboarding.model.downloaded" = "Downloaded";
+"onboarding.model.metric.speed" = "Speed";
+"onboarding.model.metric.accuracy" = "Accuracy";
+"onboarding.model.metric.size" = "Size";
+"onboarding.model.metric.size.value" = "1.5 GB";
+"onboarding.model.alternatives" = "Or, choose a different voice model";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (English)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Download Model";
+"onboarding.audio.title" = "Which audio recording device would you like to use?";
+"onboarding.audio.subtitle" = "Make sure your audio input volume is turned up and registering volume.";
+"onboarding.audio.input.label" = "Input Device";
+"onboarding.audio.picker.label" = "Device";
+"onboarding.audio.use.system.default" = "Use system default device";
+"onboarding.audio.level" = "Audio Level";
+"onboarding.audio.open.sound" = "Open Sound Preferences";
+"onboarding.microphone.title" = "Recording Permission Required";
+"onboarding.microphone.subtitle" = "To record audio, we need to access your microphone.";
+"onboarding.microphone.status.granted" = "Microphone permission granted";
+"onboarding.microphone.status.pending" = "Microphone permission not yet granted";
+"onboarding.microphone.grant" = "Grant Permission";
+"onboarding.test.title" = "All set, let's start your first recording";
+"onboarding.test.press.prefix" = "Press";
+"onboarding.test.press.suffix" = "to start";
+"onboarding.test.status.recording" = "Recording...";
+"onboarding.test.status.speak" = "Speak now...";
+"onboarding.test.stop" = "Stop Recording";
+"onboarding.test.success.title" = "Great! Your recording was successful.";
+"onboarding.test.success.subtitle" = "Your transcription will appear in the app.";
+"onboarding.test.start.cta" = "Click to Start Recording";
+"onboarding.test.start.shortcut" = "Or press your keyboard shortcut";
+"onboarding.settings.title" = "Well done! Now, let's open Settings";
+"onboarding.settings.subtitle" = "Right click on the HyperWhisper icon & select Settings...";
+"onboarding.settings.menu.startStop" = "Start/Stop Recording";
+"onboarding.settings.menu.history" = "History...";
+"onboarding.settings.menu.settings" = "Settings...";
+"onboarding.settings.menu.quit" = "Quit";
+"onboarding.settings.info" = "In Settings, you can customize shortcuts, manage API keys, and configure HyperWhisper to your liking.";
+"onboarding.completion.title" = "You're done!";
+"onboarding.completion.subtitle" = "If you run into issues or questions, reach out via email or Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Email";
+"onboarding.completion.resources.title" = "Additional Resources";
+"onboarding.completion.resources.documentation" = "Documentation";
+"onboarding.completion.resources.videos" = "Video Tutorials";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Done Onboarding";
+"onboarding.error.model.notFound" = "Model not found in catalog.";
+"onboarding.error.microphone.denied" = "Microphone permission denied. Please grant permission in System Settings.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Launch on login";
+"settings.general.launchAtLogin.info" = "Start HyperWhisper automatically when you log in.";
+"settings.general.launchMinimized.title" = "Launch minimized";
+"settings.general.launchMinimized.info" = "Start HyperWhisper with the main window hidden. The app will be accessible via the menu bar.";
+"settings.general.showInDock.title" = "Show in Dock";
+"settings.general.showInDock.info" = "Show the app icon in the Dock.";
+"settings.general.showRecordingWindow.title" = "Show recording window";
+"settings.general.showRecordingWindow.info" = "Display the floating waveform window while recording and processing.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Off";
+"settings.general.mediaControl.mode.mute" = "Mute Audio";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Error logging";
+"settings.general.errorLogging.info" = "Automatically capture and send error reports to help improve the app.";
+"settings.general.autoUpdate.title" = "Auto update";
+"settings.general.autoUpdate.info" = "Automatically check for and download new versions of HyperWhisper.";
+"settings.general.support.title" = "Need help?";
+"settings.version.detail" = "Version %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Play sound effects";
+"settings.sound.soundEffects.info" = "Play audio cues when recording starts and stops.";
+"settings.sound.mediaControl.title" = "Media control while recording";
+"settings.sound.mediaControl.info" = "Choose how HyperWhisper handles other audio while you record. 'Off' leaves audio unchanged, 'Mute Audio' silences your system output while recording and restores it afterward.";
+"settings.sound.autoIncreaseMicVolume.title" = "Automatically increase microphone volume";
+"settings.sound.autoIncreaseMicVolume.info" = "Automatically sets microphone input volume to max when recording starts, then restores the original level when recording stops. Only applies when using the system default input device.";
+"settings.sound.keepWarmMicrophone.title" = "Keep microphone warm between recordings";
+"settings.sound.keepWarmMicrophone.info" = "Reduces push-to-talk startup delay by keeping the microphone session open while HyperWhisper is idle. macOS will show the orange microphone indicator continuously, and Bluetooth headsets may stay in lower-quality call mode while this is enabled.";
+"settings.sound.vad.title" = "Remove silence before transcription";
+"settings.sound.vad.info" = "Automatically detects and removes leading and trailing silence using AI voice detection. This can improve transcription accuracy and reduce processing time.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Recordings Folder";
+"settings.storage.showFolder.title" = "Show recordings folder";
+"settings.storage.showFolder.button" = "Show in Finder";
+"settings.storage.notice" = "Changing the recordings folder only affects new recordings. Existing recordings remain in their original location.";
+"settings.storage.choose.button" = "Choose...";
+"settings.storage.dialog.select" = "Select Folder";
+"settings.storage.dialog.message" = "Choose a folder to store recordings";
+"settings.storage.storeAsM4A.title" = "Compress recordings to M4A";
+"settings.storage.storeAsM4A.subtitle" = "Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files (larger but lossless).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Paste result automatically";
+"settings.output.paste.subtitle" = "Automatically paste transcribed text to the active application";
+"settings.output.paste.info" = "If enabled, the text is pasted into the frontmost app.";
+"settings.output.removeFillerWords.title" = "Remove filler words";
+"settings.output.removeFillerWords.subtitle" = "Strip \"uh\", \"um\", and \"er\" from raw transcripts when AI post-processing is off";
+"settings.output.removeFillerWords.info" = "Applies only when a mode skips AI post-processing. AI-enhanced modes handle speech cleanup in the prompt.";
+"settings.output.restoreClipboard.title" = "Restore clipboard after paste";
+"settings.output.restoreClipboard.subtitle" = "Restore previous clipboard content after pasting";
+"settings.output.restoreClipboard.info" = "Restores your previous clipboard content after the app pastes the transcription.";
+"settings.output.restore.after" = "Restore after";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Clipboard restore delay";
+"settings.output.hideClipboardHistory.title" = "Hide from clipboard history";
+"settings.output.hideClipboardHistory.subtitle" = "Prevent transcriptions from appearing in clipboard history apps";
+"settings.output.hideClipboardHistory.info" = "When enabled, transcribed text won't be saved by clipboard managers like Paste, Maccy, or Alfred.";
+"settings.output.clipboard.header" = "Clipboard";
+"settings.output.autocapitalizeInsert.title" = "Autocapitalize Insert";
+"settings.output.autocapitalizeInsert.subtitle" = "Match cursor context when inserting text";
+"settings.output.autocapitalizeInsert.info" = "If enabled, the first word of inserted transcript text is adjusted to match cursor context (start of sentence or mid-sentence). Turn this off for always-lowercase dictation.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper needs Accessibility permission to read the cursor context required for autocapitalization.\n\nClick \"Open Settings\", press the toggle next to HyperWhisper, then try again.";
+"settings.output.removeFillers.title" = "Remove fillers";
+"settings.output.removeFillers.subtitle" = "Strips 'uh', 'um', 'er' from raw transcripts.";
+"settings.output.removeFillers.info" = "When enabled, HyperWhisper removes common fillers from raw transcripts before output.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Toggle Recording";
+"settings.shortcuts.toggleRecording.subtitle" = "Starts and stops recordings";
+"settings.shortcuts.cancelRecording.title" = "Cancel Recording";
+"settings.shortcuts.cancelRecording.subtitle" = "Discards the active recording";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Push to Talk";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Hold a key to record, release when done";
+"settings.shortcuts.pushToTalk.enable.info" = "Enables Push to Talk mode for quick recording with a single key press.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Recording Mode";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Choose which key to use";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Disabled";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN Key";
+"settings.shortcuts.pushToTalk.mode.control" = "Control Key";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.custom" = "Custom Shortcut";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Double press to lock recording";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Press twice quickly to keep recording without holding";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Custom Shortcut";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Press the key combination to use";
+
+
+"settings.shortcuts.changeMode.title" = "Change Mode";
+"settings.shortcuts.changeMode.subtitle" = "Only works when recording";
+
+// MARK: - Quick Capture (Settings · Shortcuts)
+"settings.shortcuts.quickCapture.enable.title" = "Quick Capture";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Record and send transcription to Apple Notes. No need to focus the app first.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Shortcut";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Press anywhere to record and send to Apple Notes.";
+"settings.shortcuts.quickCapture.mode.title" = "Mode";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Controls model, prompt, and processing.";
+"settings.shortcuts.quickCapture.mode.current" = "Selected mode";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper needs permission to control Notes. Grant it in System Settings → Privacy → Automation.";
+
+"settings.shortcuts.reset.button" = "Reset to Defaults";
+"settings.shortcuts.reset.dialog.title" = "Reset Keyboard Shortcuts";
+"settings.shortcuts.reset.confirm" = "Reset";
+"settings.shortcuts.reset.dialog.message" = "This will reset all keyboard shortcuts to their default values.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API keys are stored securely on your device and only sent to the provider when needed.";
+"settings.api.help.link" = "Help with API Keys";
+"settings.api.transcription.title" = "Transcription";
+"settings.api.transcription.subtitle" = "API keys for cloud-based speech-to-text services.";
+"settings.api.postProcessing.title" = "Post-processing";
+"settings.api.postProcessing.subtitle" = "API keys for AI-powered text enhancement and formatting.";
+"settings.api.placeholder" = "Enter your %@ API key";
+"settings.api.openLink" = "Open %@ API key page";
+"settings.api.status.accessibility" = "%@ status: %@";
+"settings.api.status.unknown" = "Provider status unknown";
+"settings.api.status.checking" = "Health check in progress";
+"settings.api.status.unauthorized" = "API key rejected by provider";
+"settings.api.status.unreachable" = "Provider is currently unreachable";
+"settings.api.status.notInstalled" = "Provider SDK not installed";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Unknown";
+"provider.status.checking" = "Checking…";
+"provider.status.healthy" = "Ready";
+"provider.status.unauthorized" = "Invalid key";
+"provider.status.unreachable" = "Offline";
+"provider.status.notInstalled" = "Not installed";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "License Activated";
+"alerts.license.deactivated.title" = "License Deactivated";
+"alerts.license.activated.message" = "Your license has been successfully activated. Enjoy unlimited access to all features!";
+"alerts.license.deactivated.message" = "Your license has been deactivated on this device. You can now activate it elsewhere.";
+"alerts.license.failed.title" = "Operation Failed";
+"alerts.license.failed.message" = "Operation failed. Please try again.";
+"license.button.deactivate" = "Deactivate Device";
+"license.button.deactivating" = "Deactivating...";
+"license.button.manageBilling" = "Manage Billing";
+"license.button.activate" = "Activate";
+"license.button.activating" = "Activating...";
+"license.status.label" = "Status: %@";
+"license.status.trial.title" = "Trial";
+"license.status.active.title" = "Active";
+"license.status.expired.title" = "Expired";
+"license.status.invalid.title" = "Invalid";
+"license.status.trial.description" = "Free Trial (5 min/day, %d models)";
+"license.status.active.description" = "Licensed – Full Access";
+"license.status.expired.description" = "License Expired";
+"license.status.invalid.description" = "Invalid License";
+"settings.license.key.title" = "License Key";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Paste from Clipboard";
+"settings.license.clearInput" = "Clear";
+"settings.license.recovery.prompt" = "Forgot your license key?";
+"settings.license.recovery.button" = "Go to customer portal";
+"settings.license.daily.title" = "Daily Transcription";
+"settings.license.daily.usage" = "%@ of %@ used";
+"settings.license.limitReached" = "Limit Reached";
+"settings.license.models.title" = "Offline Models";
+"settings.license.models.progress" = "%d of %d models downloaded";
+"settings.license.models.progress.one" = "%d of %d model downloaded";
+"settings.license.upgrade.text" = "Upgrade for unlimited transcription and model downloads";
+"settings.license.upgrade.button" = "Upgrade";
+"license.error.invalidResponse" = "Invalid response format";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud Credits";
+"settings.credits.refresh" = "Refresh";
+"settings.credits.subtitle" = "Monitor your transcription credits and usage";
+"settings.credits.manage" = "Manage Credits";
+"settings.credits.timeRemaining" = "Transcription Time Remaining";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minutes";
+"settings.credits.creditsRemaining" = "%@ credits remaining";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Free Daily Limit (100 credits)";
+"settings.credits.resets" = "Resets %@";
+"settings.credits.warning.low" = "Credits running low. Consider purchasing a license for additional credits.";
+"settings.credits.warning.exhausted.daily" = "Daily limit exhausted. Purchase a license for unlimited usage or wait for reset.";
+"settings.credits.warning.exhausted" = "Credits exhausted. Purchase more credits to continue using HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Account Information";
+"settings.credits.stat.creditsRemaining" = "Credits Remaining";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minutes Remaining";
+"settings.credits.stat.accountType" = "Account Type";
+"settings.credits.accountType.licensed" = "Licensed";
+"settings.credits.accountType.anonymous" = "Anonymous";
+"settings.credits.accountType.trial" = "Trial";
+"settings.credits.stat.customerId" = "Customer ID";
+"settings.credits.stat.dailyLimit" = "Daily Limit";
+"settings.credits.dailyLimit.value" = "100 credits";
+"settings.credits.loading" = "Loading credit balance...";
+"settings.credits.error.title" = "Unable to load credit balance";
+"settings.credits.error.retry" = "Retry";
+"settings.credits.empty.title" = "No credit information available";
+"settings.credits.empty.subtitle" = "Click refresh to load your credit balance";
+"settings.credits.empty.button" = "Load Credits";
+"settings.credits.error.insufficient" = "Insufficient credits. You have %d credits remaining.";
+"settings.credits.error.network" = "Network error: %@";
+"settings.credits.error.invalidResponse" = "Invalid response from server. Please try again.";
+"settings.credits.error.server" = "Server error: %@";
+"settings.models.alert.limit.title" = "Model download limit reached";
+"settings.models.alert.limit.message" = "Trials include %d model downloads. Upgrade your license for unlimited downloads.";
+"settings.models.alert.cannotDelete.title" = "Cannot Delete Model";
+"settings.models.parakeet.title" = "Parakeet Models";
+"settings.models.parakeet.subtitle" = "Recommended for most users. Multilingual model supports 25 languages.";
+"settings.models.parakeet.empty" = "No Parakeet models available.";
+"settings.models.whisper.title" = "Whisper Models";
+"settings.models.whisper.subtitle" = "OpenAI Whisper models. Larger models are more accurate. Supports 100+ languages.";
+"settings.models.whisper.empty" = "No Whisper models available.";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — multilingual speech recognition optimized for CoreML.";
+"settings.models.qwen3asr.languages" = "30 Languages";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.help.cancelDownload" = "Cancel download";
+"settings.models.help.remove" = "Remove model";
+"settings.models.downloaded" = "Downloaded";
+"settings.models.download" = "Download";
+"settings.models.downloading" = "Downloading…";
+"settings.models.localPostProcessing.title" = "Local Post-Processing Models";
+"settings.models.localPostProcessing.memoryWarning" = "Recommended for Macs with 24 GB of unified memory or more. Speed depends on your chip — faster on M3/M4 Pro and above.";
+"settings.models.local.inUse" = "This model is currently used for post-processing by:\n\n%@\n\nEdit those modes to select a different model before removing it.";
+"models.postProcessing.gemma4.e2b.description" = "Fast and accurate. Great all-rounder for post-processing.";
+"models.postProcessing.gemma4.e4b.description" = "Higher quality with more detail. Good for longer texts.";
+"models.postProcessing.gemma4.12b.description" = "Mid-size dense model. Balances quality and speed on 16 GB Macs.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Fast inference with only 4B active parameters.";
+"models.postProcessing.gemma4.31b.description" = "31B dense model. Highest quality, requires 18+ GB RAM.";
+"settings.models.whisper.inUse" = "This model cannot be deleted because it's used by:\n\n%@\n\nUpdate these modes to use a different model before deleting.";
+"settings.models.parakeet.inUse" = "This Parakeet model cannot be deleted because it's used by:\n\n%@\n\nUpdate these modes to use a different model before deleting.";
+"settings.models.qwen3asr.inUse" = "This Qwen3 ASR model cannot be deleted because it's used by:\n\n%@\n\nUpdate these modes to use a different model before deleting.";
+"settings.models.localASR.inUse" = "This model cannot be deleted because it's used by:\n\n%@\n\nUpdate these modes to use a different model before deleting.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Unknown";
+"settings.models.directory.whisper" = "Whisper models folder";
+"settings.models.directory.parakeet" = "Parakeet models folder";
+"settings.models.directory.show" = "Show in Finder";
+"settings.models.directory.local" = "Local models folder";
+"models.error.checksumFailed" = "Model checksum verification failed. The download may be corrupted.";
+
+// MARK: - History View
+"history.title" = "History";
+"history.search.placeholder" = "Search";
+"history.filter.all" = "All";
+"history.filter.today" = "Today";
+"history.filter.week" = "This Week";
+"history.filter.month" = "This Month";
+"history.empty.title" = "No recordings found";
+"history.empty.subtitle" = "Try adjusting your search";
+"history.detail.empty" = "Select a recording to view details";
+"history.multi.selected" = "%d recordings selected";
+"history.multi.delete" = "Delete Selected";
+"history.context.deleteSelected" = "Delete %d Recordings";
+"history.context.retry" = "Retry Transcription";
+"history.context.retryWith" = "Retry with...";
+"history.context.copy" = "Copy Text";
+"history.retrying" = "Retrying transcription...";
+"history.retry.help" = "Retry the transcription";
+"history.section.today" = "Today";
+"history.section.yesterday" = "Yesterday";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Failed";
+"history.status.transcription.failed.prefix" = "Transcription failed:";
+"history.status.retry.failed.prefix" = "Retry failed:";
+"history.failure.reason" = "Reason: %@";
+"history.mode.default" = "Default";
+"history.audio.showInFinder" = "Show in Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Delete mode?";
+"modes.delete.confirm.message" = "This will remove the selected mode. This action cannot be undone.";
+"modes.header.title" = "Modes";
+"modes.header.subtitle" = "Create custom profiles for different contexts and workflows";
+"modes.header.create" = "Create Mode";
+"modes.name.unnamed" = "Unnamed";
+"modes.badge.offline" = "Offline";
+"modes.context.select" = "Select";
+"modes.help.edit" = "Edit mode settings";
+"modes.help.preset" = "Learn more about this preset";
+"modes.help.model" = "Learn more about this model";
+"modes.preset.title" = "Preset";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Message";
+"modes.preset.mail.name" = "Mail";
+"modes.preset.note.name" = "Note";
+"modes.preset.meeting.name" = "Meeting";
+"modes.preset.code.name" = "Code";
+"modes.preset.custom.name" = "Custom";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Message mode cleans up your dictated message, fixing punctuation, turning into paragraphs and sorting out grammatical errors.";
+"modes.preset.mail.tooltip" = "Email mode formats your dictation into a professional email structure, with proper salutations, paragraphing, and sign-off.";
+"modes.preset.note.tooltip" = "Note mode organizes your dictated content into a clear note format with headers, bullet points, and structured sections.";
+"modes.preset.meeting.tooltip" = "Meeting mode structures your dictation into meeting minutes format with attendees, action items, and key discussion points.";
+"modes.preset.code.tooltip" = "Code mode converts spoken programming dictation into code syntax. Say 'open bracket', 'backslash', 'camel case' and more to write code by voice.";
+"modes.preset.custom.tooltip" = "Custom mode allows you to define your own formatting rules and prompts for specific use cases.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Define the full formatting instructions for this preset.";
+"modes.notice.vocabularyUnsupported" = "Custom vocabulary is not supported by this provider for this model. It will be ignored.";
+"modes.notice.deepgramNova3AutoDetect" = "Custom vocabulary is not available when using Deepgram Nova-3 with auto-detect language. To enable vocabulary boosting, set a specific language (e.g., English, Spanish).";
+"modes.language.title" = "Language";
+"modes.language.englishOnly" = "English only (optimized model)";
+"modes.postProcessing.sectionTitle" = "Post Processing";
+"modes.postProcessing.modeLabel" = "Mode";
+"modes.postProcessing.modeTitle" = "Post-Processing";
+"modes.postProcessing.modeDescription" = "Choose how transcriptions are processed:\n\n• Off: No post-processing, raw transcription\n• Cloud (AI): AI-powered enhancement (requires internet)\n• Local: Uses an on-device LLM such as Gemma via llama.cpp\n\nCloud processing sends text to your selected AI provider. Local mode stays on your machine but needs the local server running.";
+"modes.postProcessing.providerLabel" = "Provider";
+"modes.postProcessing.apiKeyMissing" = "%@ API key not configured. Add it in Settings to enable post-processing.";
+"modes.postProcessing.configure" = "Configure in Settings";
+"modes.provider.needsKey" = "%@ needs a working key.";
+"modes.provider.manageInLibrary" = "Manage in Library →";
+"modes.postProcessing.modelRecommendation" = "We recommend using GPT-4.1 Nano for the best balance of speed and quality.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Local post-processing requires a downloaded model.";
+"modes.postProcessing.download" = "Download in Settings";
+"modes.postProcessing.localInfo" = "Runs entirely on-device. HyperWhisper launches the bundled llama.cpp server automatically when this mode is active.";
+"modes.postProcessing.userSystemPrompt.title" = "Persistent Instructions";
+"modes.postProcessing.userSystemPrompt.placeholder" = "e.g., Always sign off emails with 'Best, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Clear";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Persistent Instructions";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Add instructions that always apply on top of the selected preset.";
+"modes.toggle.punctuation.title" = "Add punctuation";
+"modes.toggle.punctuation.subtitle" = "Automatically add periods and commas";
+"modes.toggle.capitalization.title" = "Capitalize sentences";
+"modes.toggle.capitalization.subtitle" = "Uppercase first letter of sentences";
+"modes.toggle.profanity.title" = "Filter profanity";
+"modes.toggle.profanity.subtitle" = "Replace inappropriate words";
+"modes.toggle.removeTrailingPeriod.title" = "Remove trailing period";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Strip the final full stop from transcriptions";
+"modes.toggle.screenText.title" = "Screen Text";
+"modes.toggle.screenText.subtitle" = "Capture visible screen text to improve accuracy of names and terms. Requires Screen Recording permission.";
+"modes.screenText.permissionGranted" = "Screen Recording permission granted";
+"modes.screenText.permissionRequired" = "Screen Recording permission required";
+"modes.screenText.openSettings" = "Open System Settings";
+"modes.postProcessing.privacyNotice" = "Your transcription is ONLY sent to %@ for post-processing. Never anywhere else.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Language Model";
+"modes.englishSpelling.title" = "English Spelling";
+"modes.englishSpelling.american" = "American";
+"modes.englishSpelling.british" = "British";
+"modes.englishSpelling.australian" = "Australian";
+"modes.englishSpelling.canadian" = "Canadian";
+"modes.englishSpelling.american.description" = "Use American English spelling (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Use British English spelling (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Use Australian English spelling (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Use Canadian English spelling (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Custom Instructions";
+"modes.gemini.customPrompt.helper" = "Optional. E.g. \"Format as bullet points\", \"Use formal language\". Your language and vocabulary settings are automatically included.";
+"modes.cloud.apiKeyMissing" = "%@ API key not configured. Add it in Settings to use cloud transcription.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Accuracy";
+"modes.cloudAccuracy.groqWhisper.label" = "Medium (Groq)";
+"modes.cloudAccuracy.groqWhisper.description" = "Fastest transcription, lowest cost. Great for quick notes.";
+"modes.cloudAccuracy.deepgramNova3.label" = "Medium (Deepgram Nova 3)";
+"modes.cloudAccuracy.deepgramNova3.description" = "Balanced speed and accuracy. Recommended for most users.";
+"modes.cloudAccuracy.grokStt.label" = "High (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - high-accuracy transcription with strong multilingual coverage.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 languages with contextual biasing.";
+"modes.cloudAccuracy.googleChirp3.label" = "High (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 with Chirp 3. Multilingual with phrase adaptation.";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Highest (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - highest accuracy transcription. Best for important transcriptions.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
+"modes.postProcessing.accuracy" = "Accuracy";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+
+"modes.create.title" = "Create New Mode";
+"modes.create.subtitle" = "Configure a custom transcription profile";
+"modes.section.basic" = "Basic Settings";
+"modes.section.transcription" = "Transcription Model";
+"modes.section.punctuation" = "Punctuation";
+"modes.field.name" = "Name";
+"modes.field.name.placeholder" = "e.g., Meeting Notes";
+"modes.field.name.editPlaceholder" = "Mode name";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Provider";
+"modes.field.engine" = "Engine";
+"modes.provider.local" = "Local";
+"modes.provider.cloud" = "Cloud";
+"modes.source.label" = "Source";
+"modes.source.onDevice" = "On-device";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API key";
+"modes.badge.recommended" = "Recommended";
+"modes.notice.noLocalModels.title" = "No local models installed";
+"modes.notice.noLocalModels.subtitle" = "Install a model in Settings first";
+"modes.model.pricing" = "Pricing: $%.6f / minute (billed per second)";
+"modes.button.create" = "Create Mode";
+"modes.button.delete" = "Delete Mode";
+"modes.button.save" = "Save Changes";
+"modes.edit.title" = "Edit Mode";
+"modes.edit.subtitle" = "Modify transcription profile settings";
+
+// HyperWhisper Cloud model picker badges / toggle (key names mirror the Windows resx)
+"mode.editor.cloudModel.previewHint" = "Preview";
+"mode.editor.cloudModel.noVocabularyHint" = "No custom vocabulary";
+"mode.editor.cloudDomain.medical" = "Medical";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode add-on";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Cannot retry: Audio file not found";
+"transcripts.error.invalidId" = "Invalid transcript ID";
+"transcripts.delete.single.title" = "Delete Recording?";
+"transcripts.delete.single.message" = "This will permanently delete this recording and its audio file.";
+"transcripts.delete.multiple.title" = "Delete %d Recordings?";
+"transcripts.delete.multiple.message" = "This will permanently delete %d recordings and their audio files.\n\nThis action cannot be undone.";
+"transcripts.delete.multiple.confirm" = "Delete All";
+"transcripts.retry.error.title" = "Retry Failed";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Choose Recordings Folder";
+"storage.folder.choose.message" = "Select a folder for saving new recordings.";
+"storage.folder.choose.prompt" = "Choose";
+"storage.recovery.title" = "Can't access the recordings folder";
+"storage.recovery.message" = "HyperWhisper couldn't access the configured recordings folder. You can choose a different folder to continue.";
+"storage.recovery.choose" = "Choose Folder…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Learn more";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transcription Complete";
+"recording.status.retrying" = "Retrying Transcription…";
+"recording.status.postprocessing" = "Enhancing…";
+"recording.status.transcribing" = "Transcribing…";
+"recording.success.pasted" = "Pasted!";
+"recording.success.savedToNotes" = "Saved to Notes!";
+"recording.loading.retrying" = "Retrying…";
+"recording.loading.postprocessing" = "Enhancing…";
+"recording.loading.starting" = "Starting stream…";
+"recording.loading.transcribing" = "Transcribing…";
+
+// Streaming connection states
+"streaming.status.warming" = "Warming up...";
+"streaming.status.connecting" = "Connecting...";
+"streaming.status.ready" = "Ready - Start Speaking";
+"streaming.status.listening" = "Listening...";
+"streaming.status.streaming" = "Streaming...";
+"streaming.status.disconnecting" = "Stopping...";
+"streaming.loading.warming" = "Warming up local model...";
+"streaming.loading.connecting" = "Connecting to server...";
+"streaming.loading.ready" = "Initializing audio...";
+"streaming.loading.streaming" = "Waiting for speech...";
+"streaming.state.reconnecting" = "Reconnecting...";
+"recording.stop.help" = "Stop Recording (%@)";
+"recording.postprocessing.unavailable" = "Post-processing unavailable";
+"recording.postprocessing.missing.single" = "%@ key missing – recording without post-processing";
+"recording.postprocessing.missing.multiple" = "API keys missing – recording without post-processing";
+"recording.postprocessing.addKey" = "Add Key";
+"recording.offline.banner" = "No internet connection. Cloud transcription will fail until you're online.";
+"recording.offline.title" = "No internet connection";
+"recording.offline.subtitle" = "Reconnect to continue or switch to an offline mode.";
+"recording.error.network" = "Check your internet connection and try again.";
+"recording.error.timeout" = "Request timed out. Check your connection speed and retry.";
+"recording.error.rateLimit" = "You've made too many requests. Wait a moment and retry.";
+"recording.error.credits" = "Insufficient credits. Add more credits in Settings.";
+"recording.error.apiKey" = "Add your %@ API key in Settings.";
+"recording.error.server" = "The transcription service is experiencing issues. Please try again in a moment.";
+"recording.retry" = "Retry";
+"recording.retry.inProgress" = "Retrying…";
+"recording.retry.count" = "Retry (%d)";
+"recording.retry.failed.missing" = "Retry failed: Audio file not found";
+"recording.retry.failed.error" = "Retry failed: %@";
+"recording.retry.pending" = "Ready to retry – click to transcribe";
+"recording.provider.unknown" = "cloud provider";
+"recording.cancel.dialog.title" = "Cancel Recording?";
+"recording.cancel.dialog.message" = "This will discard the current recording.";
+"recording.cancel.dialog.confirm" = "Cancel Recording";
+"recording.cancel.dialog.resume" = "Resume";
+"recording.error.overlay.title" = "Network connection error";
+"recording.error.overlay.message" = "Press ‘Retry’ below or switch to an offline mode to continue.";
+"recording.mode.default" = "Default";
+"recording.dialog.window.title" = "Recording Dialog";
+"recording.button.start" = "Start Recording";
+"recording.button.stop" = "Stop Recording";
+"recording.button.disable.checking" = "Checking %@ status...";
+"recording.button.disable.invalid" = "Invalid %@ API key. Update it in Settings.";
+"recording.button.disable.unreachable" = "%@ is unreachable. Check your connection and try again.";
+"recording.button.disable.missing" = "Add your %@ API key in Settings.";
+"recording.button.disable.install.local" = "Download a local model in Settings → Models before using local post-processing.";
+"recording.error.dailyLimit" = "You've reached your daily %@-minute transcription limit. Upgrade to HyperWhisper Pro for unlimited transcription.";
+"recording.error.documentsAccess" = "Cannot access the recordings folder. Choose a different location in Settings → Storage.";
+"recording.error.modeMissing" = "Selected mode not found. Please select a valid mode.";
+"recording.warning.oversizedWAV" = "Audio compression failed. Using uncompressed %@ MB file - transcription may be slower.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Default Microphone";
+"audio.error.permissionDenied" = "Microphone access denied. Please enable in System Settings.";
+"audio.error.fileWatcher.open" = "Could not open a file descriptor to monitor the audio file.";
+"audio.error.fileWatcher.timeout" = "The operation timed out while waiting for the audio file to be written.";
+"audio.error.fileWatcher.creation" = "The audio file was not created in time.";
+"audio.error.microphonePermission" = "Microphone permission not granted";
+"audio.error.microphoneInUse" = "HyperWhisper can't access the microphone because another app is currently using it. Pause the other app or switch inputs, then try again.";
+"audio.error.createEngine" = "Failed to create audio engine";
+"audio.error.noInput" = "No audio input available";
+"audio.error.createFile" = "Failed to create audio file";
+"audio.error.managerUnavailable" = "Transcription manager not configured";
+"audio.error.invalidHardwareFormat" = "Invalid hardware audio format detected. Please check your audio device.";
+"audio.error.createFormat" = "Failed to create audio format for recording";
+"audio.error.createConverter" = "Failed to create audio format converter";
+"audio.error.exportM4A" = "Failed to export audio to m4a format";
+"audio.error.readFile" = "Audio file could not be read after recording.";
+"audio.error.recordingTooShort" = "Recording was too short. Please hold the button longer to capture audio.";
+"audio.error.noAudioTrack" = "This video file doesn't contain an audio track.";
+"audio.alert.accessibility.title" = "Enable Accessibility Access";
+"audio.alert.accessibility.message" = "HyperWhisper needs Accessibility permission to paste transcribed text into other applications.\n\nClick \"Open Settings\", press the toggle next to HyperWhisper, then try again.";
+"audio.alert.accessibility.open" = "Open Settings";
+"audio.alert.pasteFailed.title" = "Automatic paste failed";
+"audio.alert.pasteFailed.message" = "The transcribed text has been copied to your clipboard.\n\nPress ⌘V to paste it manually, or choose Edit → Paste from the menu.";
+"accessibility.permission.location.debug" = "Xcode Debug Build";
+"accessibility.permission.location.installed" = "Installed App";
+"accessibility.permission.info" = "HyperWhisper needs Accessibility permission to paste transcribed text into other applications.\n\nCurrent app location: %@\n\nIn System Settings:\n1. Look for 'hyperwhisper' or 'HyperWhisper' in the list\n2. You may see multiple entries if you've run from different locations\n3. Enable the checkbox for the entry matching:\n   %@";
+"accessibility.permission.xcodeNote" = "Note: Running from Xcode requires different permission than the installed app.";
+"accessibility.error.paste.commandFailed" = "Paste command failed";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transcription provider is not available. Check your settings and try again.";
+"transcription.error.providerNotAvailable.provider" = "%@ is not available. Check your settings and try again.";
+"transcription.error.providerNotAvailable.detail" = "%@ is not available: %@";
+"transcription.error.modelNotDownloaded" = "Please download a model first";
+"transcription.error.modelProtected" = "This model cannot be deleted";
+"transcription.error.audioFileNotFound" = "Audio file not found";
+"transcription.error.network.detail" = "Network error: %@";
+"transcription.error.network.generic" = "Network connection error";
+"transcription.error.apiKeyMissing.provider" = "%@ API key is required for transcription";
+"transcription.error.apiKeyMissing.generic" = "A cloud provider API key is required for transcription";
+"transcription.error.maxRetriesExceeded" = "Maximum retry attempts exceeded";
+"transcription.error.unauthorized.provider" = "Unauthorized: invalid %@ API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
+"transcription.error.unauthorized.generic" = "Unauthorized: invalid API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
+"transcription.error.invalidRequest" = "Invalid request: check audio file or settings";
+"transcription.error.streamingInterrupted" = "Streaming interrupted; partial text shown";
+"transcription.error.busy" = "The transcription service is currently busy";
+"transcription.error.invalidAudioFormat" = "Unsupported audio format";
+"transcription.error.audioConversionFailed" = "Failed to convert audio to required format";
+"transcription.error.audioFileTooLarge" = "File too large: %@ exceeds %@ limit for %@";
+"transcription.error.serverError" = "Server error (%d): %@";
+"transcription.error.rateLimited.seconds" = "Rate limited: Too many requests. Please wait %d seconds and try again.";
+"transcription.error.rateLimited.generic" = "Rate limited: Too many requests. Please wait a moment and try again.";
+"transcription.error.insufficientCredits" = "Insufficient credits. Add more credits in Settings.";
+"transcription.error.quotaExceeded" = "%@ quota exceeded";
+"transcription.error.quotaExceeded.detail" = "%@ quota exceeded: %@";
+"transcription.error.timeout" = "Request timed out during %@. Check your internet connection and try again.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Ensure your transcription provider is properly configured in Settings.";
+"transcription.guidance.providerNotAvailable.provider" = "Ensure %@ is properly configured. For local models, download a model first. For cloud providers, verify your API key.";
+"transcription.guidance.apiKeyMissing.provider" = "Add your %@ API key in Settings";
+"transcription.guidance.apiKeyMissing.generic" = "Add your cloud provider API key in Settings";
+"transcription.guidance.modelNotDownloaded" = "Download a model from the Models section";
+"transcription.guidance.modelProtected" = "This model is currently in use";
+"transcription.guidance.audioFileNotFound" = "The audio file was deleted or moved";
+"transcription.guidance.networkError" = "Check your internet connection and try again";
+"transcription.guidance.unauthorized.provider" = "Check your %@ API key or account permissions in Settings";
+"transcription.guidance.unauthorized.generic" = "Check your API key or account permissions in Settings";
+"transcription.guidance.invalidRequest" = "Verify the audio file and mode settings, then try again";
+"transcription.guidance.invalidAudioFormat" = "Try converting the audio file to MP3 or WAV format";
+"transcription.guidance.audioConversionFailed" = "The audio file may be corrupted. Try a different file";
+"transcription.guidance.audioFileTooLarge" = "Use a shorter audio file or split it into smaller segments";
+"transcription.guidance.serverError" = "The transcription service is experiencing issues. Please try again.";
+"transcription.guidance.rateLimited" = "You've made too many requests. Wait a moment before trying again.";
+"transcription.guidance.insufficientCredits" = "Purchase more credits in Settings to continue transcribing";
+"transcription.guidance.quotaExceeded" = "Add credits to your %@ account or update your billing details";
+"transcription.guidance.timeout" = "The request took too long. Check your internet speed and try again.";
+"transcription.error.noSpeechDetected" = "No speech detected in the recording.";
+"transcription.guidance.noSpeechDetected" = "Tips:\n• Speak clearly into the microphone\n• Hold the key longer before speaking\n• Check that your microphone is working\n• Ensure the correct input device is selected";
+"transcription.error.localRuntimeUnavailable" = "Local AI couldn't finish — your raw transcript was kept.";
+"transcription.guidance.localRuntimeUnavailable" = "Try again, or choose a smaller local model in your Mode settings.";
+"transcription.guidance.needsNativeRelaunch" = "Quit and reopen HyperWhisper natively to use local post-processing.";
+
+// MARK: - Model Library (local capability gate)
+"modelLibrary.local.requiresAppleSilicon" = "Requires Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Relaunch natively";
+
+// MARK: - Backup restore: local-model re-download prompt
+"settings.backup.localDownload.title" = "Download local models?";
+"settings.backup.localDownload.message" = "%d of your restored modes use on-device AI models that aren't downloaded yet.";
+"settings.backup.localDownload.downloadAll" = "Download All";
+"settings.backup.localDownload.dismiss" = "Dismiss";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Insufficient credits. Add more credits in Settings.";
+"hyperwhisperCloud.error.network" = "Network error: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Invalid response from HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Server error: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server executable could not be located.";
+"llama.runtime.error.missingDependencies" = "Runtime missing dependencies: %@";
+"llama.runtime.error.copyFailed" = "Failed to copy runtime: %@";
+"llama.runtime.error.copy.executable" = "Unable to copy executable: %@";
+"llama.runtime.missing" = "Local runtime is missing from this install. Reinstall HyperWhisper to restore local post-processing.";
+"llama.runtime.genericError" = "Local runtime error: %@";
+"runtime.error.llama.missingLib" = "Local runtime terminated after missing libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Local runtime reported missing libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Built-in AI post-processing running on Cloudflare Workers. No configuration needed.";
+"models.postProcessing.gpt4.1.nano.description" = "Moderate accuracy (92%), very fast speed (<1s). Suitable for quick drafts and informal notes.";
+"models.postProcessing.gpt4.1.mini.description" = "High accuracy (94%), fast speed (~1-2s). Good for everyday business communications and standard documents.";
+"models.postProcessing.gpt4.1.description" = "Very high accuracy (96%), moderate speed (~3-4s). Great for complex formatting and technical content.";
+"models.postProcessing.gpt5.nano.description" = "Good accuracy (95%), fastest speed (~1s). Perfect for quick notes, messages, and casual transcriptions.";
+"models.postProcessing.gpt5.mini.description" = "Excellent accuracy (97%), moderate speed (~2-3s). Ideal balance for professional emails, reports, and meeting notes.";
+"models.postProcessing.gpt5.description" = "Highest accuracy (99%+), slowest speed (~3-5s). Best for critical documents, legal, medical transcriptions where precision is paramount.";
+"models.postProcessing.gpt5.1.description" = "State-of-the-art accuracy (98%+), moderate speed (~2-3s). Excellent for complex tasks, legal documents, and technical content with superior reasoning.";
+"models.postProcessing.gpt5.2.description" = "Latest GPT-5 series with enhanced reasoning and faster inference. Best overall choice for high-quality text processing.";
+"models.postProcessing.claude4.5.haiku.description" = "Latest Claude Haiku with improved reasoning while keeping response times snappy.";
+"models.postProcessing.claude4.sonnet.description" = "Balanced performance. Superior reasoning and formatting capabilities for professional documents.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 series with Pro-level intelligence at Flash speed. Advanced reasoning with dynamic thinking capabilities.";
+"models.postProcessing.gemini2.5.flash.description" = "Best in terms of price-performance. Optimized for speed while maintaining good accuracy for everyday use.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultra fast model optimized for cost-efficiency and high throughput.";
+"models.postProcessing.groq.llama33.70b.description" = "Versatile 70B model with excellent quality. ~280 tokens/sec. Recommended.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultra-fast 8B model. ~560 tokens/sec for instant text processing.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI's open-source 120B model. ~500 tokens/sec for high-quality processing.";
+"models.postProcessing.groq.gptoss.20b.description" = "Lightweight 20B model. ~1000 tokens/sec for fastest processing.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B on Cerebras. Ultra-fast 120B model at ~3000 tokens/sec. Recommended.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B on Cerebras. Lightweight and ultra-fast at ~2200 tokens/sec.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B on Cerebras. Massive 235B MoE model at ~1400 tokens/sec. Preview only.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 on Cerebras. 355B parameter model at ~1000 tokens/sec. Preview only.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Help Center";
+"settings.resources.contact.support" = "Contact Support";
+"settings.resources.feedback" = "Feedback & Suggestions";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Backup";
+"settings.backup.export.title" = "Export Settings";
+"settings.backup.export.subtitle" = "Save your settings, modes, and vocabulary to a file";
+"settings.backup.export.button" = "Export...";
+"settings.backup.export.panel.title" = "Export Settings";
+"settings.backup.export.panel.label" = "Backup File:";
+"settings.backup.export.success" = "Settings exported successfully";
+"settings.backup.export.error.create" = "Failed to create backup data";
+"settings.backup.export.error.encode" = "Failed to encode backup data";
+"settings.backup.export.error.write" = "Failed to write backup file";
+"settings.backup.includeAPIKeys.title" = "Include API Keys";
+"settings.backup.includeAPIKeys.subtitle" = "Store API keys in the backup file (not recommended for sharing)";
+"settings.backup.includeLicense.title" = "Include License Key";
+"settings.backup.import.title" = "Import Settings";
+"settings.backup.import.subtitle" = "Restore settings from a backup file";
+"settings.backup.import.button" = "Import...";
+"settings.backup.import.panel.title" = "Import Settings";
+"settings.backup.import.success" = "Import complete: %d modes, %d vocabulary items imported";
+"settings.backup.import.error.read" = "Failed to read backup file";
+"settings.backup.import.error.decode" = "Invalid backup file format";
+"settings.backup.import.error.decode.keyNotFound" = "Missing required field: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Wrong type for field: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Missing value for field: %@";
+"settings.backup.import.error.decode.corrupted" = "Corrupted data: %@";
+"settings.backup.import.error.decode.corruptedField" = "Corrupted value for field: %@";
+"settings.backup.import.error.version" = "Backup file is from a newer version";
+"settings.backup.import.error.unknown" = "Import failed";
+"settings.backup.import.confirm.title" = "Import Settings?";
+"settings.backup.import.confirm.message" = "This will replace your existing modes and vocabulary with the ones from the backup file. Settings will also be updated.";
+"settings.backup.import.confirm.button" = "Import";
+"settings.backup.conflict.skip" = "Skip existing";
+"settings.backup.conflict.replace" = "Replace existing";
+"settings.backup.conflict.keepBoth" = "Keep both";
+"settings.backup.security.warning" = "Warning: The exported file will contain sensitive data. Keep it secure and do not share it.";
+"settings.backup.info.note" = "Choose which sections to export or restore. Backups can include settings, modes, and vocabulary. Recordings and transcripts are not included.";
+"settings.backup.result.success.title" = "Success";
+"settings.backup.result.error.title" = "Error";
+// Section-selectable backup (export)
+"settings.backup.export.choose.subtitle" = "Choose what to include in the backup file";
+"settings.backup.export.section.settings" = "Settings";
+"settings.backup.export.section.modes" = "Modes";
+"settings.backup.export.section.vocabulary" = "Vocabulary";
+// Section-selectable backup (import, auto-detect)
+"settings.backup.import.importing" = "Importing %@";
+"settings.backup.import.contains" = "This file contains: %@";
+"settings.backup.import.contains.vocabulary" = "Vocabulary (%d words)";
+"settings.backup.import.contains.none" = "nothing";
+"settings.backup.import.section.settings" = "Settings";
+"settings.backup.import.section.modes" = "Modes";
+"settings.backup.import.section.vocabulary" = "Vocabulary";
+"settings.backup.import.section.apiKeys" = "API keys";
+"settings.backup.import.section.license" = "License key";
+"settings.backup.import.section.absent" = "— not in file";
+"settings.backup.import.premerge.summary" = "Vocabulary: add %d new, %d already exist";
+"settings.backup.import.premerge.conflictLabel" = "For words that already exist:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Select Audio File";
+"transcribe.file.error.title" = "Transcription Error";
+"transcribe.file.error.size.title" = "File Too Large";
+"transcribe.file.error.size.message" = "The selected file (%@) exceeds the %@ limit for %@.";
+"transcribe.file.error.format.title" = "Unsupported Format";
+"transcribe.file.error.format.message" = ".%@ files are not supported by %@. Supported formats: %@";
+"transcribe.file.error.read" = "Cannot read the selected file.";
+"transcribe.file.error.copy" = "Failed to copy file to recordings folder.";
+"transcribe.file.error.video.title" = "No Audio in Video";
+"transcribe.file.error.video.noAudio" = "This video file doesn't contain an audio track. Please select a video with audio or an audio file.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Preparing...";
+"file.transcription.transcribing" = "Transcribing...";
+"file.transcription.finishing" = "Finishing...";
+"file.transcription.cancel" = "Cancel";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Enable automatic deletion";
+"history.autoDelete.enable.subtitle" = "Recordings older than the specified duration will be deleted";
+"history.autoDelete.duration.prefix" = "After";
+"history.autoDelete.unit.minutes" = "Minutes";
+"history.autoDelete.unit.hours" = "Hours";
+"history.autoDelete.unit.days" = "Days";
+"history.autoDelete.unit.minutes.plural" = "minutes";
+"history.autoDelete.unit.hours.plural" = "hours";
+"history.autoDelete.unit.days.plural" = "days";
+"history.autoDelete.status.disabled" = "Automatic deletion is disabled";
+"history.autoDelete.status.enabled" = "Delete recordings older than %d %@";
+"history.autoDelete.cleanup.noItems" = "No recordings to delete";
+"history.autoDelete.cleanup.summary" = "Deleted %d recording(s) and freed %@";

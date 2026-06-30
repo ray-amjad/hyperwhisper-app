@@ -1,0 +1,274 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.ShortcutsSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.section.shortcuts}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <!-- Shortcut Conflict Warning Banner (visibility set in code-behind) -->
+            <Border x:Name="ShortcutConflictBanner" Margin="0,0,0,16" Padding="12" CornerRadius="{StaticResource CardCornerRadius}"
+                    Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Shortcut Conflict" FontWeight="SemiBold" FontSize="13"
+                               Foreground="{DynamicResource WarningForegroundBrush}" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="ShortcutConflictText"
+                               Foreground="{DynamicResource WarningForegroundBrush}" FontSize="12"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Global Shortcuts Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="240"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.toggle.label}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBox x:Name="ToggleShortcutBox"
+                                     Padding="10,6"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     IsReadOnly="True"
+                                     PreviewKeyDown="ShortcutBox_PreviewKeyDown"
+                                     PreviewKeyUp="ShortcutBox_PreviewKeyUp"
+                                     Tag="Toggle"
+                                     ToolTip="{loc:Loc settings.shortcuts.tooltip}"/>
+                            <TextBlock x:Name="ToggleErrorText"
+                                       Text=""
+                                       Foreground="{DynamicResource ErrorForegroundBrush}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Visibility="Collapsed"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="240"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.cancel.label}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBox x:Name="CancelShortcutBox"
+                                     Padding="10,6"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     IsReadOnly="True"
+                                     PreviewKeyDown="ShortcutBox_PreviewKeyDown"
+                                     PreviewKeyUp="ShortcutBox_PreviewKeyUp"
+                                     Tag="Cancel"
+                                     ToolTip="{loc:Loc settings.shortcuts.tooltip}"/>
+                            <TextBlock x:Name="CancelErrorText"
+                                       Text=""
+                                       Foreground="{DynamicResource ErrorForegroundBrush}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Visibility="Collapsed"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="240"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.changeMode.label}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBox x:Name="ChangeModeShortcutBox"
+                                     Padding="10,6"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     IsReadOnly="True"
+                                     PreviewKeyDown="ShortcutBox_PreviewKeyDown"
+                                     PreviewKeyUp="ShortcutBox_PreviewKeyUp"
+                                     Tag="ChangeMode"
+                                     ToolTip="{loc:Loc settings.shortcuts.tooltip}"/>
+                            <TextBlock x:Name="ChangeModeErrorText"
+                                       Text=""
+                                       Foreground="{DynamicResource ErrorForegroundBrush}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Visibility="Collapsed"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,14,0,14"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="240"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.streaming.label}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBox x:Name="StreamingShortcutBox"
+                                     Padding="10,6"
+                                     Background="{DynamicResource InputBackgroundBrush}"
+                                     Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderBrush}"
+                                     IsReadOnly="True"
+                                     PreviewKeyDown="ShortcutBox_PreviewKeyDown"
+                                     PreviewKeyUp="ShortcutBox_PreviewKeyUp"
+                                     Tag="Streaming"
+                                     ToolTip="{loc:Loc settings.shortcuts.tooltip}"/>
+                            <TextBlock x:Name="StreamingErrorText"
+                                       Text=""
+                                       Foreground="{DynamicResource ErrorForegroundBrush}"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       Visibility="Collapsed"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Push to Talk Card -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="200"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <ComboBox x:Name="PushToTalkModeBox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  SelectionChanged="PushToTalkModeBox_SelectionChanged">
+                            <ComboBoxItem Content="{loc:Loc settings.shortcuts.mode.disabled}" Tag="Disabled"/>
+                            <ComboBoxItem Content="{loc:Loc settings.shortcuts.mode.modifier}" Tag="Modifier"/>
+                            <ComboBoxItem Content="{loc:Loc settings.shortcuts.mode.custom}" Tag="Custom"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <Grid x:Name="PushToTalkModifierRow" Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="200"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.modifier.label}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <ComboBox x:Name="PushToTalkModifierBox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  SelectionChanged="PushToTalkModifierBox_SelectionChanged">
+                            <ComboBoxItem Content="{loc:Loc keyboard.leftAlt}" Tag="LeftAlt"/>
+                            <ComboBoxItem Content="{loc:Loc keyboard.rightAlt}" Tag="RightAlt"/>
+                            <ComboBoxItem Content="{loc:Loc keyboard.shift}" Tag="Shift"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <Grid x:Name="PushToTalkCustomRow" Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="200"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.custom.label}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.custom.tooltip}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <TextBox x:Name="PushToTalkCustomBox" Grid.Column="1"
+                                 Padding="10,6"
+                                 Background="{DynamicResource InputBackgroundBrush}"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderBrush}"
+                                 IsReadOnly="True"
+                                 PreviewKeyDown="ShortcutBox_PreviewKeyDown"
+                                 PreviewKeyUp="ShortcutBox_PreviewKeyUp"
+                                 Tag="PushToTalkCustom"
+                                 ToolTip="{loc:Loc settings.shortcuts.pushToTalk.custom.tooltip}"/>
+                    </Grid>
+
+                    <Grid x:Name="PushToTalkDoublePressPanel" Margin="0,14,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.doublePress}"
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.shortcuts.pushToTalk.doublePress.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <CheckBox x:Name="PushToTalkDoublePressBox"
+                                  Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="PushToTalkDoublePressBox_Checked"
+                                  Unchecked="PushToTalkDoublePressBox_Unchecked"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <Button Content="{loc:Loc settings.shortcuts.reset.button}"
+                    HorizontalAlignment="Left"
+                    Click="ResetShortcuts_Click"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

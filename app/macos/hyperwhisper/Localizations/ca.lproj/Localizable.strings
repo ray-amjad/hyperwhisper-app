@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Vocabulari";
+"vocabulary.description" = "Això ajuda el programari a reconèixer noms, acrònims, argot o paraules d'altres idiomes quan es barregen idiomes.";
+"vocabulary.input.title" = "Entrada";
+"vocabulary.new.word.placeholder" = "Nova paraula o frase";
+"vocabulary.replacement.placeholder" = "Substituir per...";
+"vocabulary.add.button" = "Afegir al vocabulari";
+"vocabulary.edit.title" = "Editar entrada de vocabulari";
+"vocabulary.update.button" = "Actualitzar";
+"vocabulary.cancel.button" = "Cancelar";
+"vocabulary.word.column" = "Paraula/Frase";
+"vocabulary.replacement.column" = "Substitució";
+"vocabulary.empty.title" = "Encara no hi ha paraules al vocabulari";
+"vocabulary.empty.subtitle" = "Afegiu paraules personalitzades per millorar la precisió de la transcripció";
+"vocabulary.duplicate.title" = "Entrada duplicada";
+"vocabulary.duplicate.message" = "%@ ja existeix al vostre vocabulari. Cada paraula només es pot afegir una vegada.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Límit de paraules superat";
+"vocabulary.limit.message" = "Teniu %d paraules, però només les primeres %d s'utilitzaran per millorar la transcripció.";
+
+// MARK: - Streaming View
+"streaming.title" = "Transmissió en temps real (Beta)";
+"streaming.description" = "Transcripció en temps real mentre parleu. El text s'escriu directament a l'aplicació activa.";
+"streaming.enable.title" = "Activar la transmissió en temps real";
+"streaming.provider.picker.title" = "Proveïdor";
+"streaming.model.title" = "Model";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Format ràpid";
+"streaming.fastFormatting.description" = "Redueix el retard del format intel·ligent per escriure més ràpid";
+"streaming.warning.vocabAutoDetect" = "El vocabulari personalitzat està desactivat en mode de detecció automàtica";
+"streaming.warning.vocabUnsupported" = "El vocabulari personalitzat no és compatible amb la transmissió de %@";
+"streaming.warning.apiKeyRequired" = "Es requereix la clau API de %@";
+"streaming.warning.apiKeyRequired.action" = "Configurar";
+"streaming.warning.apiKeyInvalid" = "La clau API de %@ no funciona. Actualitzeu-la a Configuració > Claus API.";
+"streaming.warning.apiKeyInvalid.action" = "Actualitzar clau";
+"streaming.language.title" = "Idioma";
+"streaming.shortcut.title" = "Drecera";
+
+// MARK: - Home View
+"home.get.started" = "Comenceu";
+"home.open.system.settings" = "Obrir Configuració del sistema";
+
+// MARK: - API Keys
+"api.key.required" = "Es requereix la clau API";
+"api.keys.required" = "Es requereixen les claus API";
+"api.key.configure.message" = "Configureu les vostres claus API per activar la transcripció.";
+"api.key.internet.required" = "Es requereix connexió a Internet";
+"api.key.internet.message" = "La transcripció al núvol requereix connexió a Internet.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Cancel·lar";
+"common.delete" = "Eliminar";
+"common.edit" = "Editar";
+"common.done" = "Fet";
+"common.copy" = "Copiar";
+"common.back" = "Enrere";
+"common.skip" = "Ometre";
+"common.settings" = "Configuració";
+"common.error" = "Error";
+"common.retry" = "Reintentar";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Inici";
+"sidebar.statistics" = "Estadístiques";
+"sidebar.modes" = "Modes";
+"sidebar.vocabulary" = "Vocabulari";
+"sidebar.streaming" = "Transmissió en temps real";
+"sidebar.history" = "Historial";
+"sidebar.settings" = "Configuració";
+
+// MARK: - App Messages
+"app.unknown.error" = "S'ha produït un error desconegut";
+"app.microphone.permission.message" = "HyperWhisper necessita accés al vostre micròfon per transcriure àudio.\n\nAneu a Configuració del sistema > Privacitat i seguretat > Micròfon i activeu l'accés per a HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper desa les gravacions en una carpeta als vostres Documents perquè siguin fàcils de trobar: Documents/hyperwhisper/recordings. macOS pot demanar permís la primera vegada que intentem desar-hi. Si preferiu no concedir accés, podem emmagatzemar les gravacions en una carpeta privada de l'aplicació.";
+"app.upgrade.to.pro" = "Actualitzar a Pro";
+"app.enter.license.key" = "Introduir clau de llicència";
+"accessibility.upgrade.pro" = "Actualitzar a HyperWhisper Pro";
+"accessibility.enter.license" = "Introduir clau de llicència";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Afegiu les vostres claus API de %@ per activar el mode seleccionat.";
+"home.api.keys.missing.single" = "Afegiu la vostra clau API de %@ per activar el mode seleccionat.";
+"home.getting.started.recording.title" = "Començar a gravar";
+"home.getting.started.recording.description" = "Convertiu la vostra veu en text amb un sol clic.";
+"home.getting.started.shortcuts.title" = "Personalitzeu les vostres dreceres";
+"home.getting.started.shortcuts.description" = "Canvieu les dreceres de teclat de HyperWhisper.";
+"home.getting.started.mode.title" = "Crear un mode";
+"home.getting.started.mode.description" = "Creeu el mode perfecte per al vostre flux de treball.";
+"home.getting.started.vocabulary.title" = "Afegir vocabulari";
+"home.getting.started.vocabulary.description" = "Ensenyeu a HyperWhisper paraules personalitzades, noms o termes del sector.";
+"home.add.api.key" = "Afegir clau API";
+"home.accessibility.enable.title" = "Activar l'accessibilitat";
+"home.accessibility.enable.description" = "Permeteu que HyperWhisper enganxi automàticament a les aplicacions que esteu utilitzant.";
+"home.accessibility.waiting" = "Esperant...";
+"home.accessibility.open.settings" = "Obrir Configuració";
+"home.accessibility.restart.after.permission" = "Reinicieu l'aplicació després de concedir el permís";
+"home.getting.started.completed" = "✓ Completat";
+"home.whatsnew.badge" = "NOU";
+"home.whatsnew.title" = "Què hi ha de nou?";
+"home.whatsnew.update1.date" = "3 de jul.";
+"home.whatsnew.update1.title" = "Parakeet ja està disponible";
+"home.whatsnew.update1.description" = "Descarregueu-lo directament des de la llista de Models de llenguatge a la creació de Mode per provar-lo avui.";
+"home.whatsnew.update2.date" = "5 de juny";
+"home.whatsnew.update2.title" = "Suport per a tots els models personalitzats compatibles amb OpenAI";
+"home.whatsnew.update2.description" = "Ara podeu afegir qualsevol API compatible amb OpenAI a la vostra llista de models.";
+"home.whatsnew.update3.date" = "27 de maig";
+"home.whatsnew.update3.title" = "Nova finestra de gravació Mini";
+"home.whatsnew.update3.description" = "Una interfície de gravació elegant i minimalista que no us molesta.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Actualitzacions recents";
+"home.recent.updates.error" = "No s'han pogut carregar les actualitzacions";
+"home.recent.updates.retry" = "Reintentar";
+"home.recent.updates.empty" = "No hi ha actualitzacions recents disponibles";
+"home.recent.updates.version" = "Versió %@";
+"home.recent.updates.new.badge" = "NOU";
+"home.recent.updates.no.notes" = "No hi ha notes de la versió disponibles";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Es requereix accés al micròfon";
+"common.open.settings" = "Obrir Configuració";
+"alerts.api.local.mode" = "Utilitzar mode local";
+"alerts.documents.permission.title" = "Desar a Documents?";
+"common.continue" = "Continuar";
+"alerts.documents.permission.use.another" = "Utilitzar una altra ubicació";
+"alerts.api.configure.generic" = "Configureu les vostres claus API a la Configuració.";
+"alerts.api.internet.offline" = "La transcripció al núvol requereix connexió a Internet. Comproveu la configuració de xarxa o seleccioneu un mode de transcripció local.";
+"alerts.api.configure.header.multiple" = "Per utilitzar el mode seleccionat, configureu les següents claus API a la Configuració:";
+"alerts.api.configure.header.single" = "Per utilitzar el mode seleccionat, configureu la següent clau API a la Configuració:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Després d'afegir les claus que falten, torneu-ho a provar.";
+"alerts.export.failed.title" = "Error d'exportació";
+"alerts.export.logs.failed.message" = "No s'han pogut exportar els registres d'actualització. Torneu-ho a provar.";
+"alerts.export.logs.success.title" = "Registres exportats";
+"alerts.export.logs.success.message" = "Els registres d'actualització s'han exportat correctament.";
+"alerts.export.logs.saveFailed.message" = "No s'han pogut desar els registres a la ubicació seleccionada: %@";
+"alerts.export.diagnostics.failed.message" = "No s'han pogut exportar els diagnòstics. Torneu-ho a provar.";
+"alerts.export.diagnostics.success.title" = "Diagnòstics exportats";
+"alerts.export.diagnostics.success.message" = "Tots els registres de diagnòstic s'han exportat correctament.";
+"alerts.export.diagnostics.saveFailed.message" = "No s'han pogut desar els diagnòstics a la ubicació seleccionada: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Exportar registres d'actualització per a suport";
+"panels.export.diagnostics.message" = "Exportar tots els registres de diagnòstic";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Comenceu amb HyperWhisper";
+"sidebar.statistics.help" = "Visualitzeu estadístiques d'ús i analítiques";
+"sidebar.modes.help" = "Gestioneu els modes de transcripció per a diferents contextos";
+"sidebar.vocabulary.help" = "Afegiu paraules i frases personalitzades per a un millor reconeixement";
+"sidebar.streaming.help" = "Configuració de la transmissió en temps real (requereix Internet)";
+"sidebar.history.help" = "Visualitzeu i cerqueu el vostre historial de transcripcions";
+"sidebar.settings.help" = "Configureu les preferències de l'aplicació";
+
+// MARK: - Recording State
+"recording.state.ready" = "Preparat per gravar";
+"recording.state.recording" = "Gravant...";
+"recording.state.processing" = "Processant àudio...";
+"recording.state.transcribing" = "Transcrivint...";
+"recording.state.postprocessing" = "Post-processant amb IA...";
+"recording.state.complete" = "Transcripció completada: %@";
+"recording.state.error" = "Error: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Iniciar o aturar la gravació";
+"menu.recording.stop" = "Aturar gravació";
+"menu.recording.toggle" = "Iniciar/Aturar gravació";
+"menu.history" = "Historial...";
+"menu.settings" = "Configuració...";
+"menu.microphone" = "Micròfon";
+"menu.select.mode" = "Seleccionar mode";
+"menu.transcribe.file" = "Transcriure fitxer";
+"menu.mode.unnamed" = "Sense nom";
+"menu.version.label" = "Versió %@";
+"common.quit" = "Sortir";
+"menu.microphone.default" = "Per defecte";
+"menu.microphone.system.default" = "Per defecte";
+"menu.bar.state.recording" = "Gravant";
+"menu.bar.state.processing" = "Processant";
+"menu.bar.state.idle" = "Inactiu";
+"menu.command.check.updates" = "Comprovar actualitzacions…";
+"menu.debug.title" = "Depuració";
+"menu.command.export.logs" = "Exportar registres d'actualització…";
+"menu.command.export.diagnostics" = "Exportar diagnòstics…";
+"menu.command.help.website" = "Lloc web d'ajuda";
+"menu.command.contact.support" = "Contactar amb el suport";
+
+// MARK: - Settings Sections
+"settings.section.general" = "General";
+"settings.section.sound" = "So";
+"settings.section.license" = "Llicència";
+"settings.section.credits" = "Crèdits";
+"settings.section.storage" = "Emmagatzematge";
+"settings.section.models" = "Models";
+"settings.section.api.keys" = "Claus API";
+"settings.section.shortcuts" = "Dreceres de teclat";
+"settings.section.output" = "Sortida de text";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (anglès)";
+"onboarding.model.pro.multilingual" = "Pro (multilingüe)";
+"onboarding.model.downloading.progress" = "Descarregant... %d%%";
+"onboarding.accessibility.title" = "Activeu l'accessibilitat per a l'enganxat automàtic";
+"onboarding.accessibility.subtitle" = "Permeteu que HyperWhisper enganxi automàticament el text transcrit a les vostres aplicacions.";
+"onboarding.accessibility.instructions" = "Configuració del sistema → Privacitat i seguretat → Accessibilitat";
+"onboarding.accessibility.status.granted" = "Permís d'accessibilitat concedit";
+"onboarding.accessibility.status.pending" = "Permís d'accessibilitat encara no concedit";
+"onboarding.accessibility.waiting" = "Esperant el permís...";
+"onboarding.accessibility.open.preferences" = "Obrir preferències d'accessibilitat";
+"onboarding.accessibility.restart" = "Després de concedir el permís, reinicieu HyperWhisper.";
+"onboarding.model.recommendation.title" = "Us recomanem el model Pro";
+"onboarding.model.recommendation.subtitle" = "Basat en l'idioma del vostre sistema i les capacitats del vostre Mac.";
+"onboarding.model.recommendation.note" = "Descarregueu-lo fent clic al botó de sota.";
+"onboarding.model.downloaded" = "Descarregat";
+"onboarding.model.metric.speed" = "Velocitat";
+"onboarding.model.metric.accuracy" = "Precisió";
+"onboarding.model.metric.size" = "Mida";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "O trieu un model de veu diferent";
+"onboarding.model.picker.title" = "Model";
+"onboarding.model.option.proEnglish" = "Pro (anglès)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Descarregar model";
+"onboarding.audio.title" = "Quin dispositiu de gravació d'àudio voleu utilitzar?";
+"onboarding.audio.subtitle" = "Assegureu-vos que el volum d'entrada d'àudio estigui activat i registri volum.";
+"onboarding.audio.input.label" = "Dispositiu d'entrada";
+"onboarding.audio.picker.label" = "Dispositiu";
+"onboarding.audio.use.system.default" = "Utilitzar el dispositiu predeterminat del sistema";
+"onboarding.audio.level" = "Nivell d'àudio";
+"onboarding.audio.open.sound" = "Obrir preferències de so";
+"onboarding.microphone.title" = "Es requereix permís de gravació";
+"onboarding.microphone.subtitle" = "Per gravar àudio, necessitem accedir al vostre micròfon.";
+"onboarding.microphone.status.granted" = "Permís de micròfon concedit";
+"onboarding.microphone.status.pending" = "Permís de micròfon encara no concedit";
+"onboarding.microphone.grant" = "Concedir permís";
+"onboarding.test.title" = "Tot a punt, comencem la primera gravació";
+"onboarding.test.press.prefix" = "Premeu";
+"onboarding.test.press.suffix" = "per començar";
+"onboarding.test.status.recording" = "Gravant...";
+"onboarding.test.status.speak" = "Parleu ara...";
+"onboarding.test.stop" = "Aturar gravació";
+"onboarding.test.success.title" = "Genial! La vostra gravació ha estat correcta.";
+"onboarding.test.success.subtitle" = "La vostra transcripció apareixerà a l'aplicació.";
+"onboarding.test.start.cta" = "Feu clic per començar a gravar";
+"onboarding.test.start.shortcut" = "O premeu la vostra drecera de teclat";
+"onboarding.settings.title" = "Molt bé! Ara, obrim la Configuració";
+"onboarding.settings.subtitle" = "Feu clic dret a la icona de HyperWhisper i seleccioneu Configuració...";
+"onboarding.settings.menu.startStop" = "Iniciar/Aturar gravació";
+"onboarding.settings.menu.history" = "Historial...";
+"onboarding.settings.menu.settings" = "Configuració...";
+"onboarding.settings.menu.quit" = "Sortir";
+"onboarding.settings.info" = "A la Configuració, podeu personalitzar dreceres, gestionar claus API i configurar HyperWhisper al vostre gust.";
+"onboarding.completion.title" = "Heu acabat!";
+"onboarding.completion.subtitle" = "Si teniu problemes o preguntes, contacteu-nos per correu electrònic o Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "Correu electrònic";
+"onboarding.completion.resources.title" = "Recursos addicionals";
+"onboarding.completion.resources.documentation" = "Documentació";
+"onboarding.completion.resources.videos" = "Tutorials en vídeo";
+"onboarding.completion.resources.blog" = "Blog";
+"onboarding.done.button" = "Incorporació completada";
+"onboarding.error.model.notFound" = "Model no trobat al catàleg.";
+"onboarding.error.microphone.denied" = "Permís de micròfon denegat. Concediu el permís a la Configuració del sistema.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Iniciar en iniciar sessió";
+"settings.general.launchAtLogin.info" = "Iniciar HyperWhisper automàticament quan inicieu sessió.";
+"settings.general.launchMinimized.title" = "Iniciar minimitzat";
+"settings.general.launchMinimized.info" = "Iniciar HyperWhisper amb la finestra principal oculta. L'aplicació serà accessible des de la barra de menú.";
+"settings.general.showInDock.title" = "Mostrar al Dock";
+"settings.general.showInDock.info" = "Mostra la icona de l'aplicació al Dock.";
+"settings.general.showRecordingWindow.title" = "Mostrar finestra de gravació";
+"settings.general.showRecordingWindow.info" = "Mostra la finestra flotant amb la forma d'ona durant la gravació i el processament.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Desactivat";
+"settings.general.mediaControl.mode.mute" = "Silenciar àudio";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Registre d'errors";
+"settings.general.errorLogging.info" = "Captura i envia automàticament informes d'error per ajudar a millorar l'aplicació.";
+"settings.general.autoUpdate.title" = "Actualització automàtica";
+"settings.general.autoUpdate.info" = "Comprova i descarrega automàticament noves versions de HyperWhisper.";
+"settings.general.support.title" = "Necessiteu ajuda?";
+"settings.version.detail" = "Versió %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Reproduir efectes de so";
+"settings.sound.soundEffects.info" = "Reprodueix senyals sonors quan la gravació comença i s'atura.";
+"settings.sound.mediaControl.title" = "Control de mitjans durant la gravació";
+"settings.sound.mediaControl.info" = "Trieu com HyperWhisper gestiona altres àudios mentre graveu. 'Desactivat' deixa l'àudio sense canvis, 'Silenciar àudio' silencia la sortida del sistema mentre graveu i la restaura posteriorment.";
+"settings.sound.autoIncreaseMicVolume.title" = "Augmentar automàticament el volum del micròfon";
+"settings.sound.autoIncreaseMicVolume.info" = "Estableix automàticament el volum d'entrada del micròfon al màxim quan comença la gravació i restaura el nivell original quan s'atura. Només s'aplica quan s'utilitza el dispositiu d'entrada predeterminat del sistema.";
+"settings.sound.vad.title" = "Eliminar silenci abans de la transcripció";
+"settings.sound.vad.info" = "Detecta i elimina automàticament el silenci inicial i final mitjançant la detecció de veu per IA. Això pot millorar la precisió de la transcripció i reduir el temps de processament.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Carpeta de gravacions";
+"settings.storage.showFolder.title" = "Mostrar carpeta de gravacions";
+"settings.storage.showFolder.button" = "Mostrar al Finder";
+"settings.storage.notice" = "Canviar la carpeta de gravacions només afecta les noves gravacions. Les gravacions existents romanen a la seva ubicació original.";
+"settings.storage.choose.button" = "Triar...";
+"settings.storage.dialog.select" = "Seleccionar carpeta";
+"settings.storage.dialog.message" = "Trieu una carpeta per emmagatzemar gravacions";
+"settings.storage.storeAsM4A.title" = "Comprimir gravacions a M4A";
+"settings.storage.storeAsM4A.subtitle" = "Converteix les gravacions WAV a fitxers més petits després de la transcripció. Desactiveu-ho per conservar els fitxers WAV originals (més grans però sense pèrdua).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Enganxar el resultat automàticament";
+"settings.output.paste.subtitle" = "Enganxa automàticament el text transcrit a l'aplicació activa";
+"settings.output.paste.info" = "Si està activat, el text s'enganxa a l'aplicació en primer pla.";
+"settings.output.restoreClipboard.title" = "Restaurar el porta-retalls després d'enganxar";
+"settings.output.restoreClipboard.subtitle" = "Restaurar el contingut anterior del porta-retalls després d'enganxar";
+"settings.output.restoreClipboard.info" = "Restaura el contingut anterior del porta-retalls després que l'aplicació enganxi la transcripció.";
+"settings.output.restore.after" = "Restaurar després de";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Retard de restauració del porta-retalls";
+"settings.output.hideClipboardHistory.title" = "Amagar de l'historial del porta-retalls";
+"settings.output.hideClipboardHistory.subtitle" = "Evitar que les transcripcions apareguin a les aplicacions d'historial del porta-retalls";
+"settings.output.hideClipboardHistory.info" = "Quan està activat, el text transcrit no serà desat pels gestors del porta-retalls com Paste, Maccy o Alfred.";
+"settings.output.clipboard.header" = "Porta-retalls";
+"settings.output.removeFillers.title" = "Elimina farciments";
+"settings.output.removeFillers.subtitle" = "Elimina 'uh', 'um' i 'er' de les transcripcions en brut.";
+"settings.output.removeFillers.info" = "Quan està activat, HyperWhisper elimina els farciments habituals de les transcripcions en brut abans de generar la sortida.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Commutar gravació";
+"settings.shortcuts.toggleRecording.subtitle" = "Inicia i atura les gravacions";
+"settings.shortcuts.cancelRecording.title" = "Cancel·lar gravació";
+"settings.shortcuts.cancelRecording.subtitle" = "Descarta la gravació activa";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Prémer per parlar";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Manteniu una tecla premuda per gravar, deixeu-la anar quan hàgiu acabat";
+"settings.shortcuts.pushToTalk.enable.info" = "Activa el mode Prémer per parlar per a gravacions ràpides amb una sola tecla.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Mode de gravació";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Trieu quina tecla utilitzar";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Desactivat";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN Key";
+"settings.shortcuts.pushToTalk.mode.control" = "Tecla Control";
+"settings.shortcuts.pushToTalk.mode.custom" = "Drecera personalitzada";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Doble pulsació per bloquejar la gravació";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Premeu dues vegades ràpidament per continuar gravant sense mantenir";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Drecera personalitzada";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Premeu la combinació de tecles que voleu utilitzar";
+
+
+"settings.shortcuts.changeMode.title" = "Canviar mode";
+"settings.shortcuts.changeMode.subtitle" = "Només funciona durant la gravació";
+
+"settings.shortcuts.reset.button" = "Restablir als valors predeterminats";
+"settings.shortcuts.reset.dialog.title" = "Restablir dreceres de teclat";
+"settings.shortcuts.reset.confirm" = "Restablir";
+"settings.shortcuts.reset.dialog.message" = "Això restablirà totes les dreceres de teclat als seus valors predeterminats.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "Les claus API s'emmagatzemen de forma segura al vostre dispositiu i només s'envien al proveïdor quan cal.";
+"settings.api.help.link" = "Ajuda amb les claus API";
+"settings.api.transcription.title" = "Transcripció";
+"settings.api.transcription.subtitle" = "Claus API per a serveis de reconeixement de veu al núvol.";
+"settings.api.postProcessing.title" = "Post-processament";
+"settings.api.postProcessing.subtitle" = "Claus API per a la millora i el format de text amb IA.";
+"settings.api.placeholder" = "Introduïu la vostra clau API de %@";
+"settings.api.openLink" = "Obrir la pàgina de clau API de %@";
+"settings.api.status.accessibility" = "Estat de %@: %@";
+"settings.api.status.unknown" = "Estat del proveïdor desconegut";
+"settings.api.status.checking" = "Comprovació d'estat en curs";
+"settings.api.status.unauthorized" = "Clau API rebutjada pel proveïdor";
+"settings.api.status.unreachable" = "El proveïdor no és accessible actualment";
+"settings.api.status.notInstalled" = "SDK del proveïdor no instal·lat";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Desconegut";
+"provider.status.checking" = "Comprovant…";
+"provider.status.healthy" = "Preparat";
+"provider.status.unauthorized" = "Clau no vàlida";
+"provider.status.unreachable" = "Fora de línia";
+"provider.status.notInstalled" = "No instal·lat";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Llicència activada";
+"alerts.license.deactivated.title" = "Llicència desactivada";
+"alerts.license.activated.message" = "La vostra llicència s'ha activat correctament. Gaudiu d'accés il·limitat a totes les funcionalitats!";
+"alerts.license.deactivated.message" = "La vostra llicència s'ha desactivat en aquest dispositiu. Ara podeu activar-la en un altre lloc.";
+"alerts.license.failed.title" = "Operació fallida";
+"alerts.license.failed.message" = "L'operació ha fallat. Torneu-ho a provar.";
+"license.button.deactivate" = "Desactivar dispositiu";
+"license.button.deactivating" = "Desactivant...";
+"license.button.manageBilling" = "Gestionar facturació";
+"license.button.activate" = "Activar";
+"license.button.activating" = "Activant...";
+"license.status.label" = "Estat: %@";
+"license.status.trial.title" = "Prova";
+"license.status.active.title" = "Activa";
+"license.status.expired.title" = "Caducada";
+"license.status.invalid.title" = "No vàlida";
+"license.status.trial.description" = "Prova gratuïta (5 min/dia, %d models)";
+"license.status.active.description" = "Amb llicència – Accés complet";
+"license.status.expired.description" = "Llicència caducada";
+"license.status.invalid.description" = "Llicència no vàlida";
+"settings.license.key.title" = "Clau de llicència";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Enganxar des del porta-retalls";
+"settings.license.clearInput" = "Netejar";
+"settings.license.recovery.prompt" = "Heu oblidat la vostra clau de llicència?";
+"settings.license.recovery.button" = "Anar al portal del client";
+"settings.license.daily.title" = "Transcripció diària";
+"settings.license.daily.usage" = "%@ de %@ utilitzat";
+"settings.license.limitReached" = "Límit assolit";
+"settings.license.models.title" = "Models fora de línia";
+"settings.license.models.progress" = "%d de %d models descarregats";
+"settings.license.models.progress.one" = "%d de %d model descarregat";
+"settings.license.upgrade.text" = "Actualitzeu per obtenir transcripció i descàrrega de models il·limitades";
+"settings.license.upgrade.button" = "Actualitzar";
+"license.error.invalidResponse" = "Format de resposta no vàlid";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "Crèdits de HyperWhisper Cloud";
+"settings.credits.refresh" = "Actualitzar";
+"settings.credits.subtitle" = "Superviseu els vostres crèdits i ús de transcripció";
+"settings.credits.manage" = "Gestionar crèdits";
+"settings.credits.timeRemaining" = "Temps de transcripció restant";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minuts";
+"settings.credits.creditsRemaining" = "%@ crèdits restants";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Límit diari gratuït (100 crèdits)";
+"settings.credits.resets" = "Es reinicia %@";
+"settings.credits.warning.low" = "Crèdits baixos. Considereu comprar una llicència per a crèdits addicionals.";
+"settings.credits.warning.exhausted.daily" = "Límit diari exhaurit. Compreu una llicència per a ús il·limitat o espereu el reinici.";
+"settings.credits.warning.exhausted" = "Crèdits exhaurits. Compreu més crèdits per continuar utilitzant HyperWhisper Cloud.";
+"settings.credits.accountInfo" = "Informació del compte";
+"settings.credits.stat.creditsRemaining" = "Crèdits restants";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minuts restants";
+"settings.credits.stat.accountType" = "Tipus de compte";
+"settings.credits.accountType.licensed" = "Amb llicència";
+"settings.credits.accountType.anonymous" = "Anònim";
+"settings.credits.accountType.trial" = "Prova";
+"settings.credits.stat.customerId" = "ID de client";
+"settings.credits.stat.dailyLimit" = "Límit diari";
+"settings.credits.dailyLimit.value" = "100 crèdits";
+"settings.credits.loading" = "Carregant saldo de crèdits...";
+"settings.credits.error.title" = "No s'ha pogut carregar el saldo de crèdits";
+"settings.credits.error.retry" = "Reintentar";
+"settings.credits.empty.title" = "No hi ha informació de crèdits disponible";
+"settings.credits.empty.subtitle" = "Feu clic a actualitzar per carregar el vostre saldo de crèdits";
+"settings.credits.empty.button" = "Carregar crèdits";
+"settings.credits.error.insufficient" = "Crèdits insuficients. Teniu %d crèdits restants.";
+"settings.credits.error.network" = "Error de xarxa: %@";
+"settings.credits.error.invalidResponse" = "Resposta no vàlida del servidor. Torneu-ho a provar.";
+"settings.credits.error.server" = "Error del servidor: %@";
+"settings.models.alert.limit.title" = "Límit de descàrrega de models assolit";
+"settings.models.alert.limit.message" = "Les proves inclouen %d descàrregues de models. Actualitzeu la vostra llicència per a descàrregues il·limitades.";
+"settings.models.alert.cannotDelete.title" = "No es pot eliminar el model";
+"settings.models.parakeet.title" = "Models Parakeet";
+"settings.models.parakeet.subtitle" = "Recomanat per a la majoria d'usuaris. El model multilingüe admet 25 idiomes.";
+"settings.models.parakeet.empty" = "No hi ha models Parakeet disponibles.";
+"settings.models.whisper.title" = "Models Whisper";
+"settings.models.whisper.subtitle" = "Models OpenAI Whisper. Els models més grans són més precisos. Admet més de 100 idiomes.";
+"settings.models.whisper.empty" = "No hi ha models Whisper disponibles.";
+"settings.models.help.cancelDownload" = "Cancel·lar descàrrega";
+"settings.models.help.remove" = "Eliminar model";
+"settings.models.downloaded" = "Descarregat";
+"settings.models.download" = "Descarregar";
+"settings.models.downloading" = "Descarregant…";
+"settings.models.localPostProcessing.title" = "Models de post-processament locals";
+"settings.models.localPostProcessing.memoryWarning" = "Recomanat per a Mac amb 24 GB de memòria unificada o més. La velocitat depèn del xip — més ràpid en M3/M4 Pro i superiors.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Paraules enguany";
+"vocabulary.input.placeholder" = "Afegiu una paraula o creeu un fragment";
+"vocabulary.action.addWord" = "Afegir paraula";
+"vocabulary.action.replaceWith" = "Substituir per…";
+"vocabulary.action.replace" = "Substituir";
+"vocabulary.replacement.field.placeholder" = "Text de substitució…";
+"settings.output.autocapitalizeInsert.title" = "Majúscula automàtica en inserir";
+"settings.output.autocapitalizeInsert.subtitle" = "Adapta el context del cursor en inserir text";
+"settings.output.autocapitalizeInsert.info" = "Si s'activa, la primera paraula del text de transcripció inserit s'ajusta al context del cursor (inici o mig de frase). Desactiva-ho per a dictats sempre en minúscules.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper necessita permís d'accessibilitat per llegir el context del cursor necessari per a la majúscula automàtica.\n\nFes clic a \"Obre la configuració\", prem el commutador al costat de HyperWhisper i torna-ho a intentar.";
+"settings.output.removeFillerWords.title" = "Elimina paraules de farciment";
+"settings.output.removeFillerWords.subtitle" = "Elimina \"eh\", \"um\" i \"er\" de les transcripcions en brut quan el postprocessament d'IA és desactivat";
+"settings.output.removeFillerWords.info" = "S'aplica només quan un mode omet el postprocessament d'IA. Els modes millorats per IA gestionen la neteja de la parla en el missatge.";
+"sidebar.modelLibrary" = "Biblioteca de models";
+"sidebar.modelLibrary.help" = "Explora tots els models de veu i postprocessament en un sol lloc";
+"settings.shortcuts.quickCapture.enable.title" = "Captura ràpida";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Enregistra i envia la transcripció a Notes — sense necessitat de centrar l'app primer.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Drecera";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Prem en qualsevol lloc per enregistrar i enviar a Notes.";
+"settings.shortcuts.quickCapture.mode.title" = "Mode";
+"settings.shortcuts.quickCapture.mode.subtitle" = "El mode de transcripció que s'utilitza — controla el model, el missatge i el postprocessament.";
+"settings.shortcuts.quickCapture.mode.current" = "Mode actual";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper necessita permís per controlar Notes. Atorga'l a Configuració del sistema → Privadesa → Automatització.";
+"settings.section.vocabulary" = "Vocabulari";
+"settings.vocabulary.icloudSync.title" = "Sincronització amb iCloud";
+"settings.vocabulary.icloudSync.subtitle" = "Sincronitza el teu vocabulari personalitzat entre els Mac connectats al mateix compte d'iCloud.";
+"settings.vocabulary.icloudSync.info" = "Desactivat per defecte. Només es sincronitza el teu vocabulari personalitzat: les transcripcions i els enregistraments es queden en aquest Mac. Els canvis s'apliquen la propera vegada que obris HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Tanca HyperWhisper per aplicar els canvis";
+"vocabulary.icloudSync.restart.message" = "Els canvis de sincronització del vocabulari amb iCloud s'apliquen la propera vegada que obris HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Tanca HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Més tard";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Mantén el micròfon actiu entre gravacions";
+"settings.sound.keepWarmMicrophone.info" = "Redueix el retard d'inici de push-to-talk mantenint la sessió del micròfon oberta mentre HyperWhisper està inactiu. macOS mostrarà contínuament l'indicador taronja del micròfon, i els auriculars Bluetooth poden romandre en mode de trucada de menor qualitat mentre estigui activat.";
+"settings.models.local.inUse" = "Aquest model local s'utilitza actualment per al postprocessament per:
+
+%@
+
+Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
+"models.postProcessing.gemma4.e2b.description" = "Ràpid i precís. Excel·lent per a postprocessament general.";
+"models.postProcessing.gemma4.e4b.description" = "Qualitat superior amb més detall. Bo per a textos llargs.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B Mixture-of-Experts. Inferència ràpida amb només 4B paràmetres actius.";
+"models.postProcessing.gemma4.31b.description" = "Model dens de 31B. Qualitat màxima, requereix 18+ GB de RAM.";
+"settings.models.whisper.inUse" = "Aquest model no es pot eliminar perquè és utilitzat per:\n\n%@\n\nActualitzeu aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
+"settings.models.parakeet.inUse" = "Aquest model Parakeet no es pot eliminar perquè és utilitzat per:\n\n%@\n\nActualitzeu aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Desconegut";
+"settings.models.directory.whisper" = "Carpeta de models Whisper";
+"settings.models.directory.parakeet" = "Carpeta de models Parakeet";
+"settings.models.directory.local" = "Carpeta de models locals";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — reconeixement de veu multilingüe optimitzat per a CoreML.";
+"settings.models.qwen3asr.languages" = "30 idiomes";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Aquest model Qwen3 ASR no es pot eliminar perquè l'utilitzen:\n\n%@\n\nActualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
+"settings.models.directory.show" = "Mostrar al Finder";
+"models.error.checksumFailed" = "La verificació de la suma de comprovació del model ha fallat. La descàrrega pot estar corrompuda.";
+
+// MARK: - Statistics View
+"statistics.title" = "Estadístiques";
+"statistics.header.title" = "Les vostres estadístiques d'ús";
+"statistics.header.subtitle" = "Feu seguiment de la vostra activitat i rendiment de transcripció";
+"statistics.card.recordings" = "Gravacions totals";
+"statistics.card.recordings.subtitle" = "Transcripcions completades";
+"statistics.card.duration" = "Temps total";
+"statistics.card.duration.subtitle" = "Temps dedicat a gravar";
+"statistics.card.words" = "Paraules totals";
+"statistics.card.words.subtitle" = "Paraules transcrites";
+"statistics.card.average" = "Durada mitjana";
+"statistics.card.average.subtitle" = "Per gravació";
+"statistics.graph.title" = "Activitat al llarg del temps";
+"statistics.daily.empty" = "Encara no hi ha gravacions";
+"statistics.filter.week" = "Aquesta setmana";
+"statistics.filter.month" = "Aquest mes";
+"statistics.filter.alltime" = "Tot el temps";
+
+// MARK: - History View
+"history.title" = "Historial";
+"history.search.placeholder" = "Cercar";
+"history.filter.all" = "Tot";
+"history.filter.today" = "Avui";
+"history.filter.week" = "Aquesta setmana";
+"history.filter.month" = "Aquest mes";
+"history.empty.title" = "No s'han trobat gravacions";
+"history.empty.subtitle" = "Proveu d'ajustar la vostra cerca";
+"history.detail.empty" = "Seleccioneu una gravació per veure'n els detalls";
+"history.multi.selected" = "%d gravacions seleccionades";
+"history.multi.delete" = "Eliminar les seleccionades";
+"history.context.deleteSelected" = "Eliminar %d gravacions";
+"history.context.retry" = "Reintentar transcripció";
+"history.context.retryWith" = "Reintentar amb...";
+"history.context.copy" = "Copiar text";
+"history.retrying" = "Reintentant transcripció...";
+"history.retry.help" = "Reintentar la transcripció";
+"history.section.today" = "Avui";
+"history.section.yesterday" = "Ahir";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Fallat";
+"history.status.transcription.failed.prefix" = "Transcripció fallida:";
+"history.status.retry.failed.prefix" = "Reintent fallat:";
+"history.failure.reason" = "Motiu: %@";
+"history.mode.default" = "Per defecte";
+"history.audio.showInFinder" = "Mostrar al Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Eliminar mode?";
+"modes.delete.confirm.message" = "Això eliminarà el mode seleccionat. Aquesta acció no es pot desfer.";
+"modes.header.title" = "Modes";
+"modes.header.subtitle" = "Creeu perfils personalitzats per a diferents contextos i fluxos de treball";
+"modes.header.create" = "Crear mode";
+"modes.name.unnamed" = "Sense nom";
+"modes.badge.offline" = "Fora de línia";
+"modes.context.select" = "Seleccionar";
+"modes.help.edit" = "Editar la configuració del mode";
+"modes.help.preset" = "Més informació sobre aquest estil de format";
+"modes.help.model" = "Més informació sobre aquest model";
+"modes.preset.title" = "Estil de format";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Missatge";
+"modes.preset.mail.name" = "Correu";
+"modes.preset.note.name" = "Nota";
+"modes.preset.meeting.name" = "Reunió";
+"modes.preset.code.name" = "Codi";
+"modes.preset.custom.name" = "Personalitzat";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "El mode Missatge neteja el vostre missatge dictat, corregint la puntuació, convertint en paràgrafs i arreglant errors gramaticals.";
+"modes.preset.mail.tooltip" = "El mode Correu formata la vostra dictació en una estructura de correu professional, amb salutacions adequades, paràgrafs i comiat.";
+"modes.preset.note.tooltip" = "El mode Nota organitza el vostre contingut dictat en un format de nota clar amb encapçalaments, punts i seccions estructurades.";
+"modes.preset.meeting.tooltip" = "El mode Reunió estructura la vostra dictació en format d'actes de reunió amb assistents, elements d'acció i punts de discussió clau.";
+"modes.preset.code.tooltip" = "El mode Codi converteix la dictació de programació en sintaxi de codi. Digueu 'open bracket', 'backslash', 'camel case' i més per escriure codi per veu.";
+"modes.preset.custom.tooltip" = "El mode Personalitzat us permet definir les vostres pròpies regles de format i instruccions per a casos d'ús específics.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "La IA reestructura el vostre dictat en un missatge net amb paràgrafs adequats, puntuació i correccions gramaticals.";
+"modes.preset.mail.preview" = "La IA formata el vostre dictat en un correu electrònic professional amb salutacions, paràgrafs estructurats i comiat.";
+"modes.preset.note.preview" = "La IA organitza el vostre dictat en notes estructurades amb encapçalaments, vinyetes i seccions clares.";
+"modes.preset.meeting.preview" = "La IA estructura el vostre dictat en actes de reunió amb assistents, punts de discussió i accions a realitzar.";
+"modes.preset.code.preview" = "La IA converteix la dictació de programació parlada en sintaxi de codi, interpretant ordres com 'obre claudàtor' i 'camel case'.";
+"modes.preset.custom.preview" = "Utilitza les vostres instruccions de format personalitzades per processar la transcripció.";
+"modes.customInstructions" = "Definiu les instruccions de format completes per a aquest perfil.";
+"modes.notice.vocabularyUnsupported" = "El vocabulari personalitzat no és compatible amb aquest proveïdor per a aquest model. S'ignorarà.";
+"modes.notice.deepgramNova3AutoDetect" = "El vocabulari personalitzat no està disponible quan s'utilitza Deepgram Nova-3 amb detecció automàtica d'idioma. Per activar la millora de vocabulari, establiu un idioma específic (p. ex., anglès, espanyol).";
+"modes.language.title" = "Idioma";
+"modes.language.englishOnly" = "Només anglès (model optimitzat)";
+"modes.postProcessing.sectionTitle" = "Post-processament";
+"modes.postProcessing.modeLabel" = "Mode";
+"modes.postProcessing.modeTitle" = "Post-processament";
+"modes.postProcessing.modeDescription" = "Trieu com es processen les transcripcions:\n\n• Desactivat: Sense post-processament, transcripció en brut\n• Núvol (IA): Millora amb IA (requereix Internet)\n• Local: Utilitza un LLM local com Gemma via llama.cpp\n\nEl processament al núvol envia el text al vostre proveïdor d'IA seleccionat. El mode local es queda al vostre equip però necessita el servidor local en funcionament.";
+"modes.postProcessing.providerLabel" = "Proveïdor";
+"modes.postProcessing.apiKeyMissing" = "La clau API de %@ no està configurada. Afegiu-la a la Configuració per activar el post-processament.";
+"modes.postProcessing.configure" = "Configurar a la Configuració";
+"modes.postProcessing.modelRecommendation" = "Recomanem utilitzar GPT-4.1 Nano per al millor equilibri entre velocitat i qualitat.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "El post-processament local requereix un model local descarregat.";
+"modes.postProcessing.download" = "Descarregar a la Configuració";
+"modes.postProcessing.localInfo" = "S'executa completament al dispositiu. HyperWhisper llança automàticament el servidor llama.cpp integrat quan aquest mode està actiu.";
+"modes.postProcessing.userSystemPrompt.title" = "Instruccions persistents";
+"modes.postProcessing.userSystemPrompt.placeholder" = "p. ex., Signa sempre els correus amb 'Salutacions, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Netejar";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Instruccions persistents";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Afegiu instruccions que s'apliquen sempre per sobre del perfil seleccionat.";
+"modes.toggle.punctuation.title" = "Afegir puntuació";
+"modes.toggle.punctuation.subtitle" = "Afegir automàticament punts i comes";
+"modes.toggle.capitalization.title" = "Posar en majúscules les frases";
+"modes.toggle.capitalization.subtitle" = "Primera lletra de les frases en majúscula";
+"modes.toggle.profanity.title" = "Filtrar blasfèmies";
+"modes.toggle.profanity.subtitle" = "Substituir paraules inadequades";
+"modes.toggle.removeTrailingPeriod.title" = "Eliminar punt final";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Treure el punt final de les transcripcions";
+"modes.postProcessing.privacyNotice" = "La vostra transcripció NOMÉS s'envia a %@ per al post-processament. Mai a cap altre lloc.";
+"modes.postProcessing.localModel" = "Model";
+"modes.postProcessing.languageModel" = "Model de llenguatge";
+"modes.englishSpelling.title" = "Ortografia anglesa";
+"modes.englishSpelling.american" = "Americà";
+"modes.englishSpelling.british" = "Britànic";
+"modes.englishSpelling.australian" = "Australià";
+"modes.englishSpelling.canadian" = "Canadenc";
+"modes.englishSpelling.american.description" = "Utilitzar l'ortografia de l'anglès americà (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Utilitzar l'ortografia de l'anglès britànic (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Utilitzar l'ortografia de l'anglès australià (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Utilitzar l'ortografia de l'anglès canadenc (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Instruccions personalitzades";
+"modes.gemini.customPrompt.helper" = "Opcional. P. ex. \"Formata com a punts\", \"Utilitza llenguatge formal\". La configuració d'idioma i vocabulari s'inclou automàticament.";
+"modes.cloud.apiKeyMissing" = "La clau API de %@ no està configurada. Afegiu-la a la Configuració per utilitzar la transcripció al núvol.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Precisió";
+"modes.cloudAccuracy.groqWhisper.label" = "Mitjana (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Mitjana (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Alta (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Ràpida i assequible. Ideal per a transcripcions ràpides.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Velocitat i precisió equilibrades. Recomanada per a la majoria d'usuaris.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
+"modes.cloudAccuracy.grokStt.label" = "Màxima (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
+
+"modes.create.title" = "Crear nou mode";
+"modes.create.subtitle" = "Configureu un perfil de transcripció personalitzat";
+"modes.section.basic" = "Configuració bàsica";
+"modes.section.transcription" = "Model de transcripció";
+"modes.section.punctuation" = "Puntuació";
+"modes.toggle.screenText.title" = "Text de pantalla";
+"modes.toggle.screenText.subtitle" = "Captura el text visible de la pantalla per millorar la precisió de noms i termes. Requereix permís d'enregistrament de pantalla.";
+"modes.screenText.openSettings" = "Obrir Configuració del sistema";
+"modes.screenText.permissionGranted" = "Permís d'enregistrament de pantalla atorgat";
+"modes.screenText.permissionRequired" = "Es necessita permís d'enregistrament de pantalla";
+"modes.field.name" = "Nom";
+"modes.field.name.placeholder" = "p. ex., Notes de reunió";
+"modes.field.name.editPlaceholder" = "Nom del mode";
+"modes.field.model" = "Model";
+"modes.field.provider" = "Proveïdor";
+"modes.provider.local" = "Local";
+"modes.provider.cloud" = "Núvol";
+"modes.notice.noLocalModels.title" = "No hi ha models locals instal·lats";
+"modes.notice.noLocalModels.subtitle" = "Instal·leu primer un model a la Configuració";
+"modes.model.pricing" = "Preu: $%.6f / minut (facturat per segon)";
+"modes.button.create" = "Crear mode";
+"modes.button.delete" = "Eliminar mode";
+"modes.button.save" = "Desar canvis";
+"modes.edit.title" = "Editar mode";
+"modes.edit.subtitle" = "Modifiqueu la configuració del perfil de transcripció";
+"mode.editor.cloudModel.previewHint" = "Vista prèvia";
+"mode.editor.cloudModel.noVocabularyHint" = "Sense vocabulari personalitzat";
+"mode.editor.cloudDomain.medical" = "Mèdic";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ complement Medical Mode";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "No es pot reintentar: Fitxer d'àudio no trobat";
+"transcripts.error.invalidId" = "ID de transcripció no vàlid";
+"transcripts.delete.single.title" = "Eliminar gravació?";
+"transcripts.delete.single.message" = "Això eliminarà permanentment aquesta gravació i el seu fitxer d'àudio.";
+"transcripts.delete.multiple.title" = "Eliminar %d gravacions?";
+"transcripts.delete.multiple.message" = "Això eliminarà permanentment %d gravacions i els seus fitxers d'àudio.\n\nAquesta acció no es pot desfer.";
+"transcripts.delete.multiple.confirm" = "Eliminar tot";
+"transcripts.retry.error.title" = "Reintent fallat";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Triar carpeta de gravacions";
+"storage.folder.choose.message" = "Seleccioneu una carpeta per desar les noves gravacions.";
+"storage.folder.choose.prompt" = "Triar";
+"storage.recovery.title" = "No es pot accedir a la carpeta de gravacions";
+"storage.recovery.message" = "HyperWhisper no ha pogut accedir a la carpeta de gravacions configurada. Podeu triar una carpeta diferent per continuar.";
+"storage.recovery.choose" = "Triar carpeta…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Més informació";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transcripció completada";
+"recording.status.retrying" = "Reintentant transcripció…";
+"recording.status.postprocessing" = "Post-processant amb IA…";
+"recording.status.transcribing" = "Transcrivint…";
+"recording.success.pasted" = "Enganxat!";
+"recording.loading.retrying" = "Reintentant…";
+"recording.loading.postprocessing" = "Processant amb IA…";
+"recording.loading.starting" = "Iniciant transmissió…";
+"recording.loading.transcribing" = "Transcrivint…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Connectant...";
+"streaming.status.ready" = "Preparat - Comenceu a parlar";
+"streaming.status.warming" = "Escalfant...";
+"modes.badge.recommended" = "Recomanat";
+"modes.source.label" = "Font";
+"modes.source.onDevice" = "Al dispositiu";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "Clau API";
+"modes.field.engine" = "Motor";
+"settings.models.localASR.inUse" = "Aquest model no es pot eliminar perquè és usat per:
+
+%@
+
+Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
+"models.postProcessing.gemma4.12b.description" = "Model dens de mida mitjana. Equilibra qualitat i velocitat en Macs de 16 GB.";
+"recording.success.savedToNotes" = "Desat a Notes!";
+"modes.provider.needsKey" = "El %@ necessita una clau vàlida.";
+"modes.provider.manageInLibrary" = "Gestiona a la biblioteca →";
+"streaming.loading.warming" = "Escalfant el model local...";
+"streaming.status.listening" = "Escoltant...";
+"streaming.status.streaming" = "Transmetent...";
+"streaming.status.disconnecting" = "Aturant...";
+"streaming.loading.connecting" = "Connectant al servidor...";
+"streaming.loading.ready" = "Inicialitzant àudio...";
+"streaming.loading.streaming" = "Esperant la parla...";
+"streaming.state.reconnecting" = "Reconnectant...";
+"recording.stop.help" = "Aturar gravació (%@)";
+"recording.postprocessing.unavailable" = "Post-processament no disponible";
+"recording.postprocessing.missing.single" = "Falta la clau de %@ – gravant sense post-processament";
+"recording.postprocessing.missing.multiple" = "Falten claus API – gravant sense post-processament";
+"recording.postprocessing.addKey" = "Afegir clau";
+"recording.offline.banner" = "Sense connexió a Internet. La transcripció al núvol fallarà fins que estigueu connectats.";
+"recording.offline.title" = "Sense connexió a Internet";
+"recording.offline.subtitle" = "Reconnecteu-vos per continuar o canvieu a un mode fora de línia.";
+"recording.error.network" = "Comproveu la connexió a Internet i torneu-ho a provar.";
+"recording.error.timeout" = "La sol·licitud ha excedit el temps d'espera. Comproveu la velocitat de connexió i reintenteu.";
+"recording.error.rateLimit" = "Heu fet massa sol·licituds. Espereu un moment i reintenteu.";
+"recording.error.credits" = "Crèdits insuficients. Afegiu més crèdits a la Configuració.";
+"recording.error.apiKey" = "Afegiu la vostra clau API de %@ a la Configuració.";
+"recording.error.server" = "El servei de transcripció té problemes. Torneu-ho a provar en un moment.";
+"recording.retry" = "Reintentar";
+"recording.retry.inProgress" = "Reintentant…";
+"recording.retry.count" = "Reintentar (%d)";
+"recording.retry.failed.missing" = "Reintent fallat: Fitxer d'àudio no trobat";
+"recording.retry.failed.error" = "Reintent fallat: %@";
+"recording.retry.pending" = "Preparat per reintentar – feu clic per transcriure";
+"recording.provider.unknown" = "proveïdor al núvol";
+"recording.cancel.dialog.title" = "Cancel·lar gravació?";
+"recording.cancel.dialog.message" = "Això descartarà la gravació actual.";
+"recording.cancel.dialog.confirm" = "Cancel·lar gravació";
+"recording.cancel.dialog.resume" = "Reprendre";
+"recording.error.overlay.title" = "Error de connexió de xarxa";
+"recording.error.overlay.message" = "Premeu 'Reintentar' a sota o canvieu a un mode fora de línia per continuar.";
+"recording.mode.default" = "Per defecte";
+"recording.dialog.window.title" = "Diàleg de gravació";
+"recording.button.start" = "Iniciar gravació";
+"recording.button.stop" = "Aturar gravació";
+"recording.button.disable.checking" = "Comprovant l'estat de %@...";
+"recording.button.disable.invalid" = "Clau API de %@ no vàlida. Actualitzeu-la a la Configuració.";
+"recording.button.disable.unreachable" = "%@ no és accessible. Comproveu la connexió i torneu-ho a provar.";
+"recording.button.disable.missing" = "Afegiu la vostra clau API de %@ a la Configuració.";
+"recording.button.disable.install.local" = "Descarrega un model local a Configuració → Models abans d'usar el postprocessament local.";
+"modes.postProcessing.accuracy" = "Precisió";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Heu assolit el vostre límit diari de transcripció de %@ minuts. Actualitzeu a HyperWhisper Pro per a transcripció il·limitada.";
+"recording.error.documentsAccess" = "No es pot accedir a la carpeta de gravacions. Trieu una ubicació diferent a Configuració → Emmagatzematge.";
+"recording.error.modeMissing" = "Mode seleccionat no trobat. Seleccioneu un mode vàlid.";
+"recording.warning.oversizedWAV" = "La compressió d'àudio ha fallat. S'utilitza el fitxer sense comprimir de %@ MB – la transcripció pot ser més lenta.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Micròfon per defecte";
+"audio.error.permissionDenied" = "Accés al micròfon denegat. Activeu-lo a la Configuració del sistema.";
+"audio.error.fileWatcher.open" = "No s'ha pogut obrir un descriptor de fitxer per supervisar el fitxer d'àudio.";
+"audio.error.fileWatcher.timeout" = "L'operació ha excedit el temps d'espera mentre esperava que el fitxer d'àudio s'escrigués.";
+"audio.error.fileWatcher.creation" = "El fitxer d'àudio no s'ha creat a temps.";
+"audio.error.microphonePermission" = "Permís de micròfon no concedit";
+"audio.error.microphoneInUse" = "HyperWhisper no pot accedir al micròfon perquè una altra aplicació l'està utilitzant. Poseu en pausa l'altra aplicació o canvieu d'entrada i torneu-ho a provar.";
+"audio.error.createEngine" = "No s'ha pogut crear el motor d'àudio";
+"audio.error.noInput" = "No hi ha entrada d'àudio disponible";
+"audio.error.createFile" = "No s'ha pogut crear el fitxer d'àudio";
+"audio.error.managerUnavailable" = "El gestor de transcripció no està configurat";
+"audio.error.invalidHardwareFormat" = "Format d'àudio del maquinari no vàlid detectat. Comproveu el vostre dispositiu d'àudio.";
+"audio.error.createFormat" = "No s'ha pogut crear el format d'àudio per a la gravació";
+"audio.error.createConverter" = "No s'ha pogut crear el convertidor de format d'àudio";
+"audio.error.exportM4A" = "No s'ha pogut exportar l'àudio a format M4A";
+"audio.error.readFile" = "El fitxer d'àudio no s'ha pogut llegir després de la gravació.";
+"audio.error.recordingTooShort" = "La gravació ha estat massa curta. Manteniu el botó premut més temps per capturar àudio.";
+"audio.error.noAudioTrack" = "Aquest fitxer de vídeo no conté una pista d'àudio.";
+"audio.alert.accessibility.title" = "Activar l'accés d'accessibilitat";
+"audio.alert.accessibility.message" = "HyperWhisper necessita permís d'accessibilitat per enganxar text transcrit a altres aplicacions.\n\nFeu clic a \"Obrir Configuració\", activeu el commutador al costat de HyperWhisper i torneu-ho a provar.";
+"audio.alert.accessibility.open" = "Obrir Configuració";
+"audio.alert.pasteFailed.title" = "L'enganxat automàtic ha fallat";
+"audio.alert.pasteFailed.message" = "El text transcrit s'ha copiat al porta-retalls.\n\nPremeu ⌘V per enganxar-lo manualment, o trieu Editar → Enganxar des del menú.";
+"accessibility.permission.location.debug" = "Compilació de depuració Xcode";
+"accessibility.permission.location.installed" = "Aplicació instal·lada";
+"accessibility.permission.info" = "HyperWhisper necessita permís d'accessibilitat per enganxar text transcrit a altres aplicacions.\n\nUbicació actual de l'aplicació: %@\n\nA la Configuració del sistema:\n1. Busqueu 'hyperwhisper' o 'HyperWhisper' a la llista\n2. Podeu veure diverses entrades si l'heu executat des de diferents ubicacions\n3. Activeu la casella de l'entrada que coincideixi amb:\n   %@";
+"accessibility.permission.xcodeNote" = "Nota: Executar des de Xcode requereix un permís diferent que l'aplicació instal·lada.";
+"accessibility.error.paste.commandFailed" = "L'ordre d'enganxar ha fallat";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "El proveïdor de transcripció no està disponible. Comproveu la configuració i torneu-ho a provar.";
+"transcription.error.providerNotAvailable.provider" = "%@ no està disponible. Comproveu la configuració i torneu-ho a provar.";
+"transcription.error.providerNotAvailable.detail" = "%@ no està disponible: %@";
+"transcription.error.modelNotDownloaded" = "Descarregueu primer un model";
+"transcription.error.modelProtected" = "Aquest model no es pot eliminar";
+"transcription.error.audioFileNotFound" = "Fitxer d'àudio no trobat";
+"transcription.error.network.detail" = "Error de xarxa: %@";
+"transcription.error.network.generic" = "Error de connexió de xarxa";
+"transcription.error.apiKeyMissing.provider" = "Es requereix la clau API de %@ per a la transcripció";
+"transcription.error.apiKeyMissing.generic" = "Es requereix una clau API de proveïdor al núvol per a la transcripció";
+"transcription.error.maxRetriesExceeded" = "S'ha superat el nombre màxim d'intents";
+"transcription.error.unauthorized.provider" = "No autoritzat: clau API o permisos de %@ no vàlids.\n\nObriu Configuració → Claus API per verificar les vostres credencials.";
+"transcription.error.unauthorized.generic" = "No autoritzat: clau API o permisos no vàlids.\n\nObriu Configuració → Claus API per verificar les vostres credencials.";
+"transcription.error.invalidRequest" = "Sol·licitud no vàlida: comproveu el fitxer d'àudio o la configuració";
+"transcription.error.streamingInterrupted" = "Transmissió interrompuda; es mostra text parcial";
+"transcription.error.busy" = "El servei de transcripció està ocupat actualment";
+"transcription.error.invalidAudioFormat" = "Format d'àudio no compatible";
+"transcription.error.audioConversionFailed" = "No s'ha pogut convertir l'àudio al format requerit";
+"transcription.error.audioFileTooLarge" = "Fitxer massa gran: %@ supera el límit de %@ per a %@";
+"transcription.error.serverError" = "Error del servidor (%d): %@";
+"transcription.error.rateLimited.seconds" = "Límit de sol·licituds: Massa sol·licituds. Espereu %d segons i torneu-ho a provar.";
+"transcription.error.rateLimited.generic" = "Límit de sol·licituds: Massa sol·licituds. Espereu un moment i torneu-ho a provar.";
+"transcription.error.insufficientCredits" = "Crèdits insuficients. Afegiu més crèdits a la Configuració.";
+"transcription.error.quotaExceeded" = "Quota de %@ superada";
+"transcription.error.quotaExceeded.detail" = "Quota de %@ superada: %@";
+"transcription.error.timeout" = "La sol·licitud ha excedit el temps d'espera durant %@. Comproveu la connexió a Internet i torneu-ho a provar.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Assegureu-vos que el proveïdor de transcripció estigui correctament configurat a la Configuració.";
+"transcription.guidance.providerNotAvailable.provider" = "Assegureu-vos que %@ estigui correctament configurat. Per a models locals, descarregueu primer un model. Per a proveïdors al núvol, verifiqueu la vostra clau API.";
+"transcription.guidance.apiKeyMissing.provider" = "Afegiu la vostra clau API de %@ a la Configuració";
+"transcription.guidance.apiKeyMissing.generic" = "Afegiu la vostra clau API del proveïdor al núvol a la Configuració";
+"transcription.guidance.modelNotDownloaded" = "Descarregueu un model des de la secció de Models";
+"transcription.guidance.modelProtected" = "Aquest model s'està utilitzant actualment";
+"transcription.guidance.audioFileNotFound" = "El fitxer d'àudio s'ha eliminat o mogut";
+"transcription.guidance.networkError" = "Comproveu la connexió a Internet i torneu-ho a provar";
+"transcription.guidance.unauthorized.provider" = "Comproveu la vostra clau API o permisos del compte de %@ a la Configuració";
+"transcription.guidance.unauthorized.generic" = "Comproveu la vostra clau API o permisos del compte a la Configuració";
+"transcription.guidance.invalidRequest" = "Verifiqueu el fitxer d'àudio i la configuració del mode i torneu-ho a provar";
+"transcription.guidance.invalidAudioFormat" = "Proveu de convertir el fitxer d'àudio a format MP3 o WAV";
+"transcription.guidance.audioConversionFailed" = "El fitxer d'àudio pot estar corromput. Proveu un fitxer diferent";
+"transcription.guidance.audioFileTooLarge" = "Utilitzeu un fitxer d'àudio més curt o dividiu-lo en segments més petits";
+"transcription.guidance.serverError" = "El servei de transcripció té problemes. Torneu-ho a provar.";
+"transcription.guidance.rateLimited" = "Heu fet massa sol·licituds. Espereu un moment abans de tornar-ho a provar.";
+"transcription.guidance.insufficientCredits" = "Compreu més crèdits a la Configuració per continuar transcrivint";
+"transcription.guidance.quotaExceeded" = "Afegiu crèdits al vostre compte de %@ o actualitzeu les dades de facturació";
+"transcription.guidance.timeout" = "La sol·licitud ha trigat massa. Comproveu la velocitat d'Internet i torneu-ho a provar.";
+"transcription.error.noSpeechDetected" = "No s'ha detectat veu a la gravació.";
+"transcription.guidance.noSpeechDetected" = "Consells:\n• Parleu clarament al micròfon\n• Manteniu la tecla premuda més temps abans de parlar\n• Comproveu que el micròfon funcioni\n• Assegureu-vos que el dispositiu d'entrada correcte estigui seleccionat";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Crèdits insuficients. Afegiu més crèdits a la Configuració.";
+"hyperwhisperCloud.error.network" = "Error de xarxa: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Resposta no vàlida de HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Error del servidor: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "No s'ha pogut localitzar l'executable llama-server.";
+"llama.runtime.error.missingDependencies" = "Falten dependències de l'entorn d'execució: %@";
+"llama.runtime.error.copyFailed" = "No s'ha pogut copiar l'entorn d'execució: %@";
+"llama.runtime.error.copy.executable" = "No s'ha pogut copiar l'executable: %@";
+"llama.runtime.missing" = "Falta l'entorn d'execució local en aquesta instal·lació. Reinstal·leu HyperWhisper per restaurar el post-processament local.";
+"llama.runtime.genericError" = "Error de l'entorn d'execució local: %@";
+"runtime.error.llama.missingLib" = "L'entorn d'execució local s'ha tancat per falta de libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "L'entorn d'execució local ha reportat la falta de libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Post-processament amb IA integrat que s'executa a Cloudflare Workers. No requereix configuració.";
+"models.postProcessing.gpt4.1.nano.description" = "Precisió moderada (92%), velocitat molt ràpida (<1s). Adequat per a esborranys ràpids i notes informals.";
+"models.postProcessing.gpt4.1.mini.description" = "Alta precisió (94%), velocitat ràpida (~1-2s). Bo per a comunicacions empresarials quotidianes i documents estàndard.";
+"models.postProcessing.gpt4.1.description" = "Precisió molt alta (96%), velocitat moderada (~3-4s). Ideal per a format complex i contingut tècnic.";
+"models.postProcessing.gpt5.nano.description" = "Bona precisió (95%), velocitat més ràpida (~1s). Perfecte per a notes ràpides, missatges i transcripcions informals.";
+"models.postProcessing.gpt5.mini.description" = "Excel·lent precisió (97%), velocitat moderada (~2-3s). Equilibri ideal per a correus professionals, informes i actes de reunió.";
+"models.postProcessing.gpt5.description" = "Màxima precisió (99%+), velocitat més lenta (~3-5s). Ideal per a documents crítics, transcripcions legals i mèdiques on la precisió és fonamental.";
+"models.postProcessing.gpt5.1.description" = "Precisió d'última generació (98%+), velocitat moderada (~2-3s). Excel·lent per a tasques complexes, documents legals i contingut tècnic amb raonament superior.";
+"models.postProcessing.gpt5.2.description" = "Últim de la sèrie GPT-5 amb raonament millorat i inferència més ràpida. La millor opció general per al processament de text d'alta qualitat.";
+"models.postProcessing.claude4.5.haiku.description" = "Últim Claude Haiku amb raonament millorat mantenint temps de resposta ràpids.";
+"models.postProcessing.claude4.sonnet.description" = "Rendiment equilibrat. Capacitats superiors de raonament i format per a documents professionals.";
+"models.postProcessing.gemini3.flash.description" = "Sèrie Gemini 3 amb intel·ligència de nivell Pro a velocitat Flash. Raonament avançat amb capacitats de pensament dinàmic.";
+"models.postProcessing.gemini2.5.flash.description" = "El millor en relació qualitat-preu. Optimitzat per a velocitat mantenint bona precisió per a l'ús quotidià.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Model ultra ràpid optimitzat per a eficiència de costos i alt rendiment.";
+"models.postProcessing.groq.llama33.70b.description" = "Model versàtil de 70B amb excel·lent qualitat. ~280 tokens/seg. Recomanat.";
+"models.postProcessing.groq.llama31.8b.description" = "Model ultra ràpid de 8B. ~560 tokens/seg per a processament de text instantani.";
+"models.postProcessing.groq.gptoss.120b.description" = "Model de codi obert de 120B d'OpenAI. ~500 tokens/seg per a processament d'alta qualitat.";
+"models.postProcessing.groq.gptoss.20b.description" = "Model lleuger de 20B. ~1000 tokens/seg per al processament més ràpid.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B a Cerebras. Model ultra ràpid de 120B a ~3000 tokens/seg. Recomanat.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B a Cerebras. Lleuger i ultra ràpid a ~2200 tokens/seg.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B a Cerebras. Model massiu MoE de 235B a ~1400 tokens/seg. Només vista prèvia.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 a Cerebras. Model de 355B paràmetres a ~1000 tokens/seg. Només vista prèvia.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Centre d'ajuda";
+"settings.resources.contact.support" = "Contactar amb el suport";
+"settings.resources.feedback" = "Comentaris i suggeriments";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Còpia de seguretat";
+"settings.backup.export.title" = "Exportar configuració";
+"settings.backup.export.subtitle" = "Deseu la vostra configuració, modes i vocabulari a un fitxer";
+"settings.backup.export.button" = "Exportar...";
+"settings.backup.export.panel.title" = "Exportar configuració";
+"settings.backup.export.panel.label" = "Fitxer de còpia de seguretat:";
+"settings.backup.export.success" = "Configuració exportada correctament";
+"settings.backup.export.error.create" = "No s'han pogut crear les dades de còpia de seguretat";
+"settings.backup.export.error.encode" = "No s'han pogut codificar les dades de còpia de seguretat";
+"settings.backup.export.error.write" = "No s'ha pogut escriure el fitxer de còpia de seguretat";
+"settings.backup.includeAPIKeys.title" = "Incloure claus API";
+"settings.backup.includeAPIKeys.subtitle" = "Emmagatzemar les claus API al fitxer de còpia de seguretat (no recomanat per compartir)";
+"settings.backup.includeLicense.title" = "Incloure clau de llicència";
+"settings.backup.import.title" = "Importar configuració";
+"settings.backup.import.subtitle" = "Restaurar la configuració des d'un fitxer de còpia de seguretat";
+"settings.backup.import.button" = "Importar...";
+"settings.backup.import.panel.title" = "Importar configuració";
+"settings.backup.import.success" = "Importació completada: %d modes, %d elements de vocabulari importats";
+"settings.backup.import.error.read" = "No s'ha pogut llegir el fitxer de còpia de seguretat";
+"settings.backup.import.error.decode" = "Format de fitxer de còpia de seguretat no vàlid";
+"settings.backup.import.error.decode.keyNotFound" = "Falta un camp obligatori: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Tipus incorrecte per al camp: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Falta el valor del camp: %@";
+"settings.backup.import.error.decode.corrupted" = "Dades malmeses: %@";
+"settings.backup.import.error.decode.corruptedField" = "Valor malmès del camp: %@";
+"settings.backup.import.error.version" = "El fitxer de còpia de seguretat és d'una versió més nova";
+"settings.backup.import.error.unknown" = "La importació ha fallat";
+"settings.backup.import.confirm.title" = "Importar configuració?";
+"settings.backup.import.confirm.message" = "Això substituirà els vostres modes i vocabulari existents pels del fitxer de còpia de seguretat. La configuració també s'actualitzarà.";
+"settings.backup.import.confirm.button" = "Importar";
+"settings.backup.conflict.skip" = "Ometre els existents";
+"settings.backup.conflict.replace" = "Substituir els existents";
+"settings.backup.conflict.keepBoth" = "Conservar ambdós";
+"settings.backup.security.warning" = "Avís: El fitxer exportat contindrà dades sensibles. Manteniu-lo segur i no el compartiu.";
+"settings.backup.info.note" = "Les còpies de seguretat inclouen configuració, modes i vocabulari. Les gravacions i transcripcions no s'inclouen.";
+"settings.backup.result.success.title" = "Correcte";
+"settings.backup.result.error.title" = "Error";
+"settings.backup.export.choose.subtitle" = "Tria el que vols incloure al fitxer de còpia de seguretat";
+"settings.backup.export.section.settings" = "Configuració";
+"settings.backup.export.section.modes" = "Modes";
+"settings.backup.export.section.vocabulary" = "Vocabulari";
+"settings.backup.import.importing" = "S'està important %@";
+"settings.backup.import.contains" = "Aquest fitxer conté: %@";
+"settings.backup.import.contains.vocabulary" = "Vocabulari (%d paraules)";
+"settings.backup.import.contains.none" = "res";
+"settings.backup.import.section.settings" = "Configuració";
+"settings.backup.import.section.modes" = "Modes";
+"settings.backup.import.section.vocabulary" = "Vocabulari";
+"settings.backup.import.section.apiKeys" = "Claus d'API";
+"settings.backup.import.section.license" = "Clau de llicència";
+"settings.backup.import.section.absent" = "— no hi és al fitxer";
+"settings.backup.import.premerge.summary" = "Vocabulari: afegeix %d nous, %d ja existeix";
+"settings.backup.import.premerge.conflictLabel" = "Per a les paraules que ja existeixen:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Seleccionar fitxer d'àudio";
+"transcribe.file.error.title" = "Error de transcripció";
+"transcribe.file.error.size.title" = "Fitxer massa gran";
+"transcribe.file.error.size.message" = "El fitxer seleccionat (%@) supera el límit de %@ per a %@.";
+"transcribe.file.error.format.title" = "Format no compatible";
+"transcribe.file.error.format.message" = "Els fitxers .%@ no són compatibles amb %@. Formats admesos: %@";
+"transcribe.file.error.read" = "No es pot llegir el fitxer seleccionat.";
+"transcribe.file.error.copy" = "No s'ha pogut copiar el fitxer a la carpeta de gravacions.";
+"transcribe.file.error.video.title" = "Sense àudio al vídeo";
+"transcribe.file.error.video.noAudio" = "Aquest fitxer de vídeo no conté una pista d'àudio. Seleccioneu un vídeo amb àudio o un fitxer d'àudio.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Preparant...";
+"file.transcription.transcribing" = "Transcrivint...";
+"file.transcription.finishing" = "Finalitzant...";
+"file.transcription.cancel" = "Cancel·lar";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Activar l'eliminació automàtica";
+"history.autoDelete.enable.subtitle" = "Les gravacions més antigues que la durada especificada s'eliminaran";
+"history.autoDelete.duration.prefix" = "Després de";
+"history.autoDelete.unit.minutes" = "Minuts";
+"history.autoDelete.unit.hours" = "Hores";
+"history.autoDelete.unit.days" = "Dies";
+"history.autoDelete.unit.minutes.plural" = "minuts";
+"history.autoDelete.unit.hours.plural" = "hores";
+"history.autoDelete.unit.days.plural" = "dies";
+"history.autoDelete.status.disabled" = "L'eliminació automàtica està desactivada";
+"history.autoDelete.status.enabled" = "Eliminar gravacions més antigues de %d %@";
+"history.autoDelete.cleanup.noItems" = "No hi ha gravacions per eliminar";
+"history.autoDelete.cleanup.summary" = "S'han eliminat %d gravació(ns) i s'han alliberat %@";

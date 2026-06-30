@@ -1,0 +1,103 @@
+---
+title: Windows Getting Started
+description: Install HyperWhisper on Windows and make your first recording.
+---
+
+HyperWhisper on Windows is a .NET 10 WPF app that lives in your system tray and transcribes speech on demand — locally or via cloud providers. It runs on Windows 10 and 11, with native installers for both x64 and ARM64.
+
+## Installation
+
+<Steps>
+  <Step title="Download the installer">
+    Go to [hyperwhisper.com](https://www.hyperwhisper.com) and download the installer for your architecture:
+
+    - **`HyperWhisper-X.Y.Z-x64-Setup.exe`** — standard Intel/AMD laptops and desktops
+    - **`HyperWhisper-X.Y.Z-arm64-Setup.exe`** — Snapdragon X and other ARM64 Windows devices
+
+    Not sure which you need? Open **Settings → System → About** and look at the **System type** field.
+  </Step>
+  <Step title="Run the installer">
+    Double-click the downloaded `.exe` and follow the setup wizard.
+
+    - If **.NET 10 Desktop Runtime** is missing, the installer downloads and installs it automatically.
+    - The default install location is `C:\Program Files\HyperWhisper`. The app itself uses about **300 MB** of disk space, not counting any local models you download later.
+    - The installer offers an optional **Create a desktop shortcut** task — it is unchecked by default.
+  </Step>
+  <Step title="Launch HyperWhisper">
+    At the end of the wizard you can tick **Launch HyperWhisper** to start the app immediately.
+  </Step>
+</Steps>
+
+## First launch
+
+When HyperWhisper starts for the first time it automatically registers itself to **start with Windows** — you'll find it in `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`. You can turn this off later in **Settings → General**.
+
+The main window opens on first launch. Closing it sends the app to the system tray (see [System tray behavior](#system-tray-behavior) below) — the app keeps running in the background ready to transcribe.
+
+## Your first recording
+
+<Steps>
+  <Step title="Open the app">
+    If the main window is not already visible, either:
+
+    - **Double-click** the HyperWhisper icon in the system tray, or
+    - Press the default hotkey **Ctrl+Alt** from anywhere on your desktop.
+  </Step>
+  <Step title="Choose a transcription mode">
+    Switch modes via the **Modes** page in the sidebar, the **Ctrl+Shift+.** shortcut, or the **Select Mode** submenu in the tray icon. Modes control which provider, model, and post-processing settings are used for each recording.
+  </Step>
+  <Step title="Start recording">
+    Press **Ctrl+Alt** from anywhere to start recording, or right-click the tray icon and choose **Start/Stop Recording**. A recording overlay appears while audio is being captured.
+  </Step>
+  <Step title="Stop and review">
+    Press **Ctrl+Alt** again (or choose **Start/Stop Recording** from the tray) to stop. Once processing is complete the transcript appears in the **History** section in the sidebar.
+  </Step>
+</Steps>
+
+### Default keyboard shortcuts
+
+| Action | Shortcut |
+| --- | --- |
+| Start / stop recording | **Ctrl+Alt** |
+| Cancel recording | **Esc** |
+| Change mode | **Ctrl+Shift+.** |
+
+You can customize all shortcuts in **Settings → Shortcuts**.
+
+## System tray behavior
+
+HyperWhisper runs in the background with an icon in the Windows system tray (notification area). Right-clicking the icon opens a context menu with quick access to the most common actions:
+
+| Menu item | What it does |
+| --- | --- |
+| **Start/Stop Recording** | Toggle recording without opening the main window |
+| **Microphone** | Switch your active input device |
+| **Select Mode** | Switch the active transcription mode |
+| **Transcribe File** | Open a file for transcription |
+| **History...** | Open the main window on the History page |
+| **Settings...** | Open the main window on the Settings page |
+| **Check for Updates** | Check for a new release |
+| **Quit** | Exit HyperWhisper |
+
+By default, closing the main window hides it to the tray instead of quitting the app. To exit completely, use **Quit** from the tray menu.
+
+<Note>
+  If you enable **Settings → General → Launch Minimized**, the app will hide to the tray at startup and show a balloon notification with your recording hotkey as a reminder.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Keyboard Shortcuts" href="/keyboard-shortcuts">
+    Customize hotkeys for recording, cancelling, and switching modes.
+  </Card>
+  <Card title="Audio Input" href="/audio-input">
+    Select and test your microphone.
+  </Card>
+  <Card title="Transcription Modes" href="/transcription-modes">
+    Create and configure modes for different tasks.
+  </Card>
+  <Card title="Choosing a Provider" href="/choosing-a-provider">
+    Compare local and cloud transcription options.
+  </Card>
+</CardGroup>

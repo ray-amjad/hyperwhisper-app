@@ -1,0 +1,185 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.AboutSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.section.about}"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Margin="0,0,0,20"/>
+
+            <StackPanel>
+                <Border Style="{StaticResource CardStyle}"
+                        Margin="0,0,0,12">
+                    <Grid MinHeight="54">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="38"
+                                Height="38"
+                                CornerRadius="9"
+                                Background="{DynamicResource AccentBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="H"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextOnAccentBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc settings.about.appTitle}"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock x:Name="VersionText"
+                                       Text="Version 1.0.0"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <Border Grid.Column="2"
+                                CornerRadius="9"
+                                Padding="9,4"
+                                Background="{DynamicResource BadgeGrayBackgroundBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="Windows"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource BadgeGrayForegroundBrush}"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}"
+                        Padding="12"
+                        Margin="0,0,0,12">
+                    <Grid MinHeight="42">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="36"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="26"
+                                Height="26"
+                                CornerRadius="7"
+                                Background="{DynamicResource HoverBackgroundBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="&#xE8A5;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc settings.about.openLogFolder}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.about.openLogFolder.description}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2"
+                                Content="{loc:Loc settings.models.directory.show}"
+                                Click="OpenLogFolder_Click"/>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}"
+                        Padding="12"
+                        Margin="0,0,0,12">
+                    <Grid MinHeight="42">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="36"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="26"
+                                Height="26"
+                                CornerRadius="7"
+                                Background="{DynamicResource HoverBackgroundBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="&#xE8F1;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc settings.about.exportDiagnostics}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.about.exportDiagnostics.description}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <Button x:Name="ExportDiagnosticsButton"
+                                Grid.Column="2"
+                                Content="{loc:Loc settings.about.exportDiagnostics}"
+                                Click="ExportDiagnostics_Click"/>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}"
+                        Padding="12">
+                    <Grid MinHeight="42">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="36"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Width="26"
+                                Height="26"
+                                CornerRadius="7"
+                                Background="{DynamicResource HoverBackgroundBrush}"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="&#xE895;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{loc:Loc settings.about.checkUpdates}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.about.checkUpdates.description}"
+                                       FontSize="13"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <Button x:Name="CheckForUpdatesButton"
+                                Grid.Column="2"
+                                Content="{loc:Loc settings.about.checkUpdates}"
+                                Click="CheckForUpdates_Click"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

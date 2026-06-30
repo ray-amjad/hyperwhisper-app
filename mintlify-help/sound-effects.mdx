@@ -1,0 +1,67 @@
+---
+title: Sound Effects
+description: Audio feedback that confirms when HyperWhisper starts and stops recording.
+---
+
+HyperWhisper plays a short chime when you begin recording and a different chime when you stop. This audio feedback lets you know exactly when the app is capturing your voice without having to look at the screen.
+
+## Enabling or disabling sound effects
+
+<Tabs>
+  <Tab title="macOS">
+    <Steps>
+      <Step title="Open Settings">
+        Click the HyperWhisper menu bar icon, then open **Settings**.
+      </Step>
+      <Step title="Go to Sound">
+        Select the **Sound** section.
+      </Step>
+      <Step title="Toggle Sound Effects">
+        Turn **Sound Effects** on or off. When disabled, no audio feedback plays during recording.
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Windows">
+    <Steps>
+      <Step title="Open Settings">
+        Right-click the HyperWhisper tray icon, then choose **Settings**.
+      </Step>
+      <Step title="Go to Sound">
+        Select **Sound** from the sidebar.
+      </Step>
+      <Step title="Toggle Sound Effects">
+        Check or uncheck **Sound Effects**. When unchecked, no audio feedback plays during recording.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## What you'll hear
+
+Two distinct chimes play during normal use:
+
+- **Start recording** — A chime plays as soon as you press your recording hotkey and the app begins capturing audio.
+- **Stop recording** — A different chime plays when you release the hotkey or click stop.
+
+The sounds are pre-loaded at startup so playback is immediate with no perceptible delay.
+
+## Sound themes (macOS only)
+
+Two sound themes are available:
+
+| Theme | Description |
+|-------|-------------|
+| **Classic** | Traditional system sounds |
+| **New** | Modern, subtle sounds |
+
+<Note>
+  The theme selector is stored internally but is not yet exposed in the Settings UI. Theme switching will be added in a future release.
+</Note>
+
+## Sound effects volume (macOS only)
+
+Sound effects volume can be adjusted independently from your system volume on a 0.0–1.0 scale. The volume control is fully implemented but does not yet have a slider in the Settings UI — it defaults to 0.5 (half volume). A volume slider will be added in an upcoming release.
+
+<Note>
+  Windows plays sounds at a fixed volume. Independent volume control for sound effects is not yet available on Windows.
+</Note>

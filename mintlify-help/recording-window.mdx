@@ -1,0 +1,159 @@
+---
+title: The Recording Window
+description: What the recording window shows during a recording and how to interact with it on macOS, Windows, and iOS.
+---
+
+When you start a recording, HyperWhisper displays a compact overlay on screen. It gives you live feedback that recording is active, shows how long you've been recording, and lets you stop or cancel without opening the main app.
+
+## How it appears
+
+<Tabs>
+  <Tab title="macOS">
+    A small pill-shaped floating window (200×40 px) appears on screen. It floats above your other windows and does not steal focus from whatever application you are typing into.
+  </Tab>
+  <Tab title="Windows">
+    An always-on-top pill-shaped overlay window appears. It matches the macOS design and does not activate (take focus) when it appears. You can drag it to any position on screen — the position is saved automatically and restored on the next recording.
+  </Tab>
+  <Tab title="iOS">
+    On iOS 16.1 and later, a Live Activity appears. On devices with a Dynamic Island, recording status shows there. On devices without a Dynamic Island (and on the lock screen), a banner at the top of the screen shows recording status and elapsed time.
+  </Tab>
+</Tabs>
+
+## What it shows during recording
+
+<Tabs>
+  <Tab title="macOS">
+    During an active recording the window contains:
+
+    - **Stop button** — a red circle; click it to end the recording and begin transcription
+    - **Mode badge** — a capsule showing the name of the current transcription mode
+    - **Animated waveform** — 25 vertical bars that react to your microphone input in real time (see [Audio level visualization](#audio-level-visualization))
+    - **Duration timer** — elapsed time in MM:SS format, displayed in a monospaced font
+    - **Streaming indicator** — a small colored dot that appears when you use a streaming transcription mode (see [States](#states-you-ll-see))
+  </Tab>
+  <Tab title="Windows">
+    During an active recording the window contains:
+
+    - **Stop button** — a red circle; click it to end the recording and begin transcription
+    - **Mode badge** — a capsule showing the name of the current transcription mode
+    - **Animated waveform** — 25 vertical bars that react to your microphone input in real time (see [Audio level visualization](#audio-level-visualization))
+    - **Streaming indicator** — a small colored dot visible when using a streaming transcription mode
+  </Tab>
+  <Tab title="iOS">
+    The Live Activity shows:
+
+    - **Mode name and icon** (Dynamic Island expanded view, leading region)
+    - **Status label** — "Recording" or "Transcribing..."
+    - **Duration timer** — counts up from the recording start time (recording state only)
+    - **Progress spinner** — shown during transcription
+    - **Static waveform** — five bars displayed in the Dynamic Island expanded bottom region during recording (Live Activities don't support animated bars)
+    - **Compact mic icon** — shown in the Dynamic Island compact and minimal views; red during recording, blue during transcription
+  </Tab>
+</Tabs>
+
+## States you'll see
+
+The window transitions through several states as your recording progresses.
+
+| State | What you see |
+|---|---|
+| **Recording** | Waveform animates; duration timer counts up; stop button is visible |
+| **Transcribing** | Spinner with a status message; waveform stops |
+| **Post-processing** | Spinner with a status message; shown when AI post-processing is enabled and running after transcription |
+| **Success** | Checkmark icon with "Pasted!" (or "Saved to Notes" if that delivery was used); window closes automatically after a moment |
+| **Copied** | Clipboard icon shown when text was copied to clipboard but not pasted (for example, when a password field is detected) |
+| **Error** | On Windows: error message shown inline; window stays open so you can read it. On macOS: a floating toast appears above the window, then the recording window closes automatically |
+| **Cancel confirmation** | "Cancel?" prompt with **No** and **Yes** buttons |
+
+### Streaming indicator colors
+
+When using a streaming transcription mode, a small dot appears next to the waveform:
+
+| Color | Meaning | Platform |
+|---|---|---|
+| Orange (pulsing) | Connecting or warming up | macOS, Windows |
+| Green | Actively streaming | macOS, Windows |
+| Yellow/orange (pulsing) | Reconnecting | macOS, Windows |
+| Red | Connection error | Windows only (macOS renders no dot in this state) |
+
+## Controls
+
+<Tabs>
+  <Tab title="macOS">
+    | Action | How |
+    |---|---|
+    | Stop recording | Click the red stop button |
+    | Request cancellation | Press **Escape** |
+    | Confirm cancellation (if prompted) | Press **Return** or click **Yes** |
+    | Dismiss cancellation prompt | Press **Escape** again or click **No** |
+  </Tab>
+  <Tab title="Windows">
+    | Action | How |
+    |---|---|
+    | Stop recording | Click the red stop button |
+    | Request cancellation | Press **Escape** |
+    | Confirm cancellation (if prompted) | Press **Enter** or click **Yes** |
+    | Dismiss cancellation prompt | Press **Escape** or click **No** |
+    | Move the window | Click and drag anywhere on the window body |
+  </Tab>
+  <Tab title="iOS">
+    | Action | How |
+    |---|---|
+    | Monitor status | Glance at the Dynamic Island or lock screen |
+    | Return to the app | Tap the Dynamic Island or the lock screen Live Activity |
+
+    Stopping a recording is done from within the app after you tap through.
+  </Tab>
+</Tabs>
+
+## Cancel confirmation
+
+If you press **Escape** during a recording, a "Cancel?" confirmation prompt replaces the normal recording view instead of immediately discarding your audio once your recording is long enough:
+
+- **macOS**: the prompt appears when the recording is **longer than 15 seconds** (strictly greater than); a recording of exactly 15 seconds cancels immediately without a prompt
+- **Windows**: the prompt appears when the recording is **15 seconds or longer** (15 seconds inclusive)
+
+- **No** (or press **Escape** again) — dismisses the prompt and resumes recording
+- **Yes** (or press **Return** / **Enter**) — cancels the recording and discards the audio
+
+If your recording is below the threshold, pressing **Escape** cancels immediately without a prompt.
+
+## Audio level visualization
+
+The animated waveform gives you real-time feedback on what your microphone is picking up.
+
+- The 25 bars are center-peaked: center bars animate to a higher amplitude than outer bars, matching the natural shape of speech energy
+- Bar height scales with your microphone input level — louder speech drives taller bars
+- On Windows, animation speed also increases with louder input; on macOS, animation speed is constant regardless of amplitude
+- The waveform is hidden during the transcribing phase on both macOS and Windows — a spinner replaces it
+
+If the waveform is flat or barely moving while you are speaking, check that the correct microphone is selected in [Settings → Audio Input](/audio-input).
+
+## Window behavior
+
+<Tabs>
+  <Tab title="macOS">
+    - Floats above all other windows without stealing focus
+    - Closes automatically after the success or error state resolves
+    - Your last position is saved and restored on the next recording
+  </Tab>
+  <Tab title="Windows">
+    - Always on top; never activates (doesn't pull focus from your work)
+    - Draggable; your last position is saved and restored next time
+    - Defaults to the bottom center of the screen if no saved position exists, or if the saved position is no longer on screen
+    - Closes after the success or error state resolves, or when you dismiss the result
+  </Tab>
+  <Tab title="iOS">
+    - Live Activity appears automatically when a recording starts
+    - Updates in real time while your phone is locked
+    - Tapping it opens HyperWhisper
+    - The Live Activity ends when transcription completes
+  </Tab>
+</Tabs>
+
+## Tips
+
+- If the waveform shows no movement while you speak, your microphone may be muted or the wrong device may be selected. Check [Microphone Selection](/microphone-selection).
+- On Windows, drag the overlay to a corner of your screen that doesn't cover the area you're working in — the position persists across recordings.
+- For long dictations, glance at the duration timer to confirm the recording is still active before you stop.
+- On iOS, keep an eye on the Dynamic Island during long recordings — it shows whether the recording is still active or has moved to the transcribing phase.

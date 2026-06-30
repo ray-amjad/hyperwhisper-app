@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI tal-í-texta umritun fyrir macOS og Windows",
+    "description": "Skrifaðu 5x hraðar með AI-knúinni tal-í-texta umritun. HyperWhisper umritar röddina þína með ótrúlegri nákvæmni á macOS og Windows. Talaðu eðlilega og sjáðu orðin birtast samstundis."
+  },
+  "navbar": {
+    "features": "Eiginleikar",
+    "pricing": "Verð",
+    "faq": "Algengar spurningar",
+    "support": "Aðstoð",
+    "download": "Sækja",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Skipta um tungumál"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper merki",
+    "headline": "Skrifaðu, semdu og skapaðu",
+    "headlineAccent": "5x hraðar með AI",
+    "subheadline": "HyperWhisper umritar röddina þína með ótrúlegri nákvæmni. Talaðu bara eðlilega og horfðu á orðin birtast samstundis.",
+    "downloadCta": "Sækja núna",
+    "demoCta": "Sjá kynningu",
+    "availableOn": "Í boði fyrir",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Byggt fyrir fagfólk",
+    "subtitle": "Hver eiginleiki er hannaður til að hjálpa þér að vinna hraðar og skilvirkar",
+    "customVocabulary": {
+      "title": "Sérsniðinn orðaforði",
+      "description": "Bættu við nöfnum, skammstöfunum og sértækum hugtökum fyrir fullkomna nákvæmni í hvert skipti."
+    },
+    "languages": {
+      "title": "100+ tungumál",
+      "description": "Umritaðu á yfir 100 tungumálum með sjálfvirkri tungumálagreiningu."
+    },
+    "offline": {
+      "title": "Offline stuðningur",
+      "description": "Virkar alveg offline. Gögnin þín yfirgefa aldrei tækið þitt."
+    },
+    "privacy": {
+      "title": "Áhersla á persónuvernd",
+      "description": "Enginn aðgangur nauðsynlegur. Engin rekjanleiki. Raddgögnin þín eru áfram á Mac eða PC tölvunni þinni."
+    },
+    "hybridProcessing": {
+      "title": "Blönduð vinnsla",
+      "description": "Veldu staðbundin líkön fyrir persónuvernd eða skýja-API fyrir hraða. Það besta úr báðum heimum."
+    },
+    "customizable": {
+      "title": "Mjög sérsniðanlegt",
+      "description": "Veldu úr yfir 9 API veitendum og 30+ umritunarlíkönum."
+    },
+    "realTime": {
+      "title": "Rauntímastreymi",
+      "description": "Sjáðu orðin birtast strax á meðan þú talar. Leiðandi nákvæmni í greininni með undir 700ms biðtíma."
+    },
+    "fileImport": {
+      "title": "Innflutningur skráa",
+      "description": "Flyttu inn hljóð- eða myndskrár til umritunar. Styður öll helstu snið með sjálfvirkri þögnargreiningu."
+    },
+    "screenOcr": {
+      "title": "OCR á skjá",
+      "description": "Leyfðu HyperWhisper að sjá skjáinn þinn svo það geti stafsett allt nákvæmlega."
+    },
+    "mcpServer": {
+      "title": "Staðbundið API og MCP-þjónn",
+      "description": "Innbyggði MCP-þjónninn gerir Claude, Cursor og öðrum gervigreindarumboðum kleift að stýra HyperWhisper. Staðbundið HTTP API með bearer-auðkenningu fyrir skriftur og sjálfvirkni."
+    },
+    "modes": {
+      "title": "Hamir fyrir allar aðstæður",
+      "description": "Skiptu á milli mismunandi umritunarhama sem eru hannaðir fyrir fundi, minnispunkta, tölvupóst, forritun og fleira. Hver hamur notar sérsniðin prompt til að forma textann fullkomlega.",
+      "meeting": "Fundur",
+      "email": "Tölvupóstur",
+      "note": "Minnispunktur",
+      "code": "Kóði",
+      "legal": "Lögfræði",
+      "medical": "Læknisfræði",
+      "presetModes": "Forstilltir hamir",
+      "customModes": "Sérsniðnir hamir"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Hraðara en að slá inn",
+    "accuracyRate": "Nákvæmni",
+    "languagesSupported": "Studd tungumál",
+    "providersSupported": "Studdir veitendur"
+  },
+  "pricing": {
+    "title": "Engar áskriftir. Aldrei.",
+    "subtitle": "Borgaðu einu sinni, notaðu að eilífu. Við hatum líka áskriftir.",
+    "guarantee": "14 daga endurgreiðsluábyrgð",
+    "guaranteeExtended": "ef þú ert ekki fullkomlega sátt(ur).",
+    "learnMore": "Læra meira",
+    "free": {
+      "name": "Ókeypis",
+      "price": "$0",
+      "period": "að eilífu",
+      "description": "Fullkomið til að prófa HyperWhisper",
+      "cta": "Sækja ókeypis",
+      "features": {
+        "transcriptionLimit": "5 mínútur af umritun á dag",
+        "basicModes": "Grunnhamir umritunar",
+        "offlineTranscription": "Offline umritun",
+        "apiTranscription": "API umritun (með þínum eigin lyklum)",
+        "postProcessing": "Eftirvinnsla texta",
+        "providers": "9+ veitendur til að velja úr",
+        "lifetimeUpdates": "Ævilangar uppfærslur",
+        "cloudLimited": "HyperWhisper Cloud (takmörkuð notkun)",
+        "customVocabulary": "Sérsniðinn orðaforði",
+        "prioritySupport": "Forgangsaðstoð"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "ævilangt",
+      "description": "Einskiptiskaup, ótakmörkuð kraftur að eilífu",
+      "cta": "Kaupa núna - Ævilangur aðgangur",
+      "mostPopular": "Vinsælast",
+      "features": {
+        "unlimitedTranscription": "Ótakmörkuð umritun",
+        "allModes": "Allir umritunarhamir",
+        "offlineTranscription": "Offline umritun",
+        "apiTranscription": "API umritun (með þínum eigin lyklum)",
+        "postProcessing": "Eftirvinnsla texta",
+        "providers": "9+ veitendur til að velja úr",
+        "lifetimeUpdates": "Ævilangar uppfærslur",
+        "cloudCredits": "HyperWhisper Cloud ($5 í inneign)",
+        "customVocabulary": "Sérsniðinn orðaforði",
+        "prioritySupport": "Forgangsaðstoð"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise og sérsniðið verð",
+      "description": "Magnafslættir, SSO, forgangsaðstoð, innanhússhýsing og sérsniðnar samþættingar",
+      "cta": "Hafa samband við sölu"
+    }
+  },
+  "faq": {
+    "title": "Algengar spurningar",
+    "subtitle": "Allt sem þú þarft að vita um HyperWhisper",
+    "contactPrompt": "Enn með spurningar? Sendu okkur tölvupóst á",
+    "questions": {
+      "accuracy": {
+        "question": "Hversu nákvæm er umritunin?",
+        "answer": "Við náum 99% nákvæmni sem er meðal þeirra bestu í greininni með nýjustu AI líkönum. Þú getur aukið nákvæmnina enn frekar með því að bæta við sérsniðnum orðaforða fyrir tæknileg hugtök, nöfn og sérhæfðan orðaforða."
+      },
+      "offline": {
+        "question": "Get ég notað þetta án internets?",
+        "answer": "Algjörlega. HyperWhisper er hægt að nota alveg offline á Mac með staðbundnum AI líkönum - ekkert internet þarf. Fyrir notendur sem vilja hámarksnákvæmni og hraða bjóðum við einnig valfrjálsa skýjavinnslu í gegnum ýmsa veitendur."
+      },
+      "apiKey": {
+        "question": "Þarf ég að borga fyrir API aðgang?",
+        "answer": "Þú notar þinn eigin API lykil fyrir eftirfarandi veitendur: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral og Google Gemini. Sumir veitendur bjóða nýjum notendum ókeypis inneign; Deepgram býður $200, AssemblyAI býður $50. Til lengri tíma litið er þetta mun ódýrara en hvaða áskrift sem er. \n\nÞú getur einnig notað HyperWhisper Cloud (innbyggt), sem krefst ekki API lykils og virkar með pay-as-you-go.\n\nMundu að staðbundinn offline hamur virkar án API lykils og er alveg ókeypis."
+      },
+      "languages": {
+        "question": "Hvaða tungumál eru studd?",
+        "answer": "Yfir 100 tungumál eru studd beint úr kassanum, frá ensku og spænsku til mandarín og arabísku. Flest líkön geta sjálfvirkt greint hvaða tungumál þú talar og skipt á milli án vandræða."
+      },
+      "offlineModels": {
+        "question": "Hvaða offline líkön eru í boði?",
+        "answer": "Fyrir offline umritun bjóðum við upp á margar stærðir af Whisper líkaninu (frá OpenAI, styður 99+ tungumál). Við bjóðum einnig Parakeet líkön frá NVidia (styðja 25+ tungumál).\n      \n      Fyrir offline eftirvinnslu bjóðum við upp á margar stærðir af Gemma 3 líkaninu (frá Google)."
+      },
+      "compatibility": {
+        "question": "Virkar þetta með öllum Mac og Windows öppum?",
+        "answer": "Já, þetta virkar alls staðar þar sem þú getur slegið inn texta. Hvort sem þú ert að semja tölvupóst, skrifa skjöl, kóða eða spjalla. Ýttu bara á flýtilykilinn, talaðu og sjáðu orðin birtast samstundis."
+      },
+      "privacy": {
+        "question": "Hvernig er persónuvernd mín tryggð?",
+        "answer": "Þegar þú notar staðbundinn ham fara engin gögn af Mac tölvunni þinni.\n\nÞegar þú notar skýjaumritun eru gögnin send til þess skýjaveitanda sem þú velur (t.d. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs eða Mistral).\n\nÞú getur sannreynt þetta sjálf(ur) með netgreiningartæki eins og [Proxyman](https://proxyman.io) eða netvöktunarforriti eins og [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Hvað er HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud er innbyggð skýjaumritun ætluð notendum sem eru minna tæknivæddir og vilja byrja hratt.\n\nHún virkar með pay as you go. Með leyfiskaupum færðu $5 í umritunarinneign. Þú getur bætt við meiri inneign síðar.\n    \nVið bjóðum þrjú nákvæmnistig: Medium (hraðast, knúið af Groq), High (ráðlagt, knúið af Deepgram), og Highest (best gæði, knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk. Við geymum ekkert annað en hversu mikla inneign þú notaðir.\n\nÞú borgar nákvæmlega það sem við borgum þessum veitendum. Engin álagning.\n\nTil að vera alveg örugg(ur) geturðu skoðað frumkóða HyperWhisper Cloud [hér](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Verða raddgögnin mín notuð til að þjálfa gervigreindarlíkön?",
+        "answer": "HyperWhisper Cloud afskráir þig frá þjálfun líkana hjá öllum þjónustuaðilum sem við notum. Með þínum eigin API-lykli er afskráningin á þína ábyrgð — sjá [leiðbeiningar um gagnafriðhelgi](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Af hverju ævilangt verð í stað áskriftar?",
+        "answer": "Við trúum á einfalt og sanngjarnt verðlag. Borgaðu einu sinni $39 og notaðu HyperWhisper að eilífu. Engin mánaðargjöld, engin óvænt gjöld. Ókeypis útgáfan leyfir þér að prófa lykileiginleika með 3 mínútum af daglegri umritun."
+      },
+      "deviceLimit": {
+        "question": "Á hversu mörgum tækjum má ég nota leyfið mitt?",
+        "answer": "Þú getur notað leyfið á eins mörgum tækjum og þú vilt, með fyrirvara um sanngjarna notkun samkvæmt [þjónustuskilmálum](/legal/terms-of-service). Stefnan er hönnuð til að vera sveigjanleg fyrir lögmæta persónulega og viðskiptalega notkun en koma í veg fyrir misnotkun."
+      },
+      "requirements": {
+        "question": "Hverjar eru kerfiskröfurnar?",
+        "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. 8GB RAM mælt með fyrir bestu afköst."
+      },
+      "windowsStatus": {
+        "question": "Er Windows útgáfan með alla sömu eiginleika og macOS?",
+        "answer": "Windows útgáfan kom nýlega út, þannig að hún gæti ekki enn haft alla eiginleika sem eru á macOS. Við vinnum markvisst að fullri eiginleikasamsvörun milli beggja kerfa."
+      },
+      "madeBy": {
+        "question": "Hver bjó þetta til?",
+        "answer": "Þetta var búið til af YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Aðstoðarmiðstöð",
+    "subtitle": "Við erum hér til að hjálpa þér að fá sem mest út úr HyperWhisper",
+    "getInTouch": "Hafðu samband",
+    "description": "Fyrir tækniaðstoð, leyfisvandamál eða hvaða spurningar sem er um HyperWhisper er teymið okkar hér til að hjálpa.",
+    "emailUsAt": "Sendu okkur póst á:",
+    "openInClient": "Opna í póstforritinu þínu:",
+    "defaultClient": "Sjálfgefið póstforrit",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Við svörum venjulega innan 24 klukkustunda á virkum dögum.",
+    "emailTemplate": {
+      "subject": "HyperWhisper aðstoðarbeiðni",
+      "body": "Hæ,\n\nÚtgáfa: \n[þú getur séð þetta í Settings > About]\n\nVandamál: \n[Lýstu vandamálinu]\n\nNánar: \n[Gefðu viðeigandi upplýsingar, hvað þú varst að gera fyrir hrun]\n\n[Skilaboðin þín hér]\n\nKveðja,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper merki",
+    "title": "Sækja HyperWhisper",
+    "emailPlaceholder": "Tölvupóstur",
+    "description": "Við sendum þér niðurhalstengil og stutt kennslumyndband til að hjálpa þér að byrja. Ekkert ruslpóstur.",
+    "downloadButton": "Sækja HyperWhisper",
+    "errorGeneric": "Eitthvað fór úrskeiðis. Vinsamlegast reyndu aftur.",
+    "errorNetwork": "Netvilla. Athugaðu tenginguna og reyndu aftur.",
+    "thankYouTitle": "Takk!",
+    "downloadStarted": "Niðurhal ætti að hefjast sjálfkrafa.",
+    "manualDownload": "Niðurhal hófst ekki? Smelltu hér",
+    "skipAndDownloadButton": "Sleppa og sækja"
+  },
+  "downloadPage": {
+    "title": "Sækja HyperWhisper",
+    "countdownText": "Byrjar eftir {seconds}...",
+    "downloadStarted": "Athugaðu Downloads möppuna",
+    "downloadNow": "Sækja núna",
+    "downloadAgain": "Sækja aftur",
+    "selectArchitecture": "Veldu arkitektúr",
+    "downloadX64": "Sækja fyrir x64",
+    "downloadArm64": "Sækja fyrir ARM64",
+    "orDivider": "EÐA",
+    "homebrewTitle": "Setja upp með Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Afrita",
+    "copied": "Afritað!"
+  },
+  "purchaseSuccess": {
+    "title": "Kaup tókst!",
+    "subtitle": "Velkomin(n) í HyperWhisper Pro! Ævilangt leyfi þitt er tilbúið.",
+    "checkEmail": {
+      "title": "Athugaðu tölvupóstinn þinn",
+      "description": "Við höfum sent leyfislykilinn þinn og niðurhalsleiðbeiningar á netfangið þitt. Þetta ætti að berast á næstu mínútum."
+    },
+    "whatsNext": {
+      "title": "Hvað næst?",
+      "step1": {
+        "title": "Athugaðu pósthólfið",
+        "description": "Leitaðu að tölvupósti frá HyperWhisper"
+      },
+      "step2": {
+        "title": "Afritaðu leyfislykilinn",
+        "description": "Þú þarft hann til að virkja appið"
+      },
+      "step3": {
+        "title": "Sæktu HyperWhisper",
+        "description": "Settu upp appið og sláðu inn leyfislykilinn"
+      }
+    },
+    "downloadButton": "Sækja HyperWhisper",
+    "returnHome": "Til baka á forsíðu",
+    "noEmail": "Fékkstu ekki tölvupóst? Athugaðu ruslpóstmöppuna eða",
+    "contactSupport": "hafðu samband við aðstoð",
+    "loading": "Hleð inn..."
+  },
+  "footer": {
+    "tagline": "Skrifaðu 5x hraðar með AI tal-í-texta umritun fyrir macOS og Windows.",
+    "product": "Vara",
+    "resources": "Auðlindir",
+    "company": "Fyrirtæki",
+    "legal": "Lagalegt",
+    "links": {
+      "features": "Eiginleikar",
+      "pricing": "Verð",
+      "download": "Sækja",
+      "roadmap": "Vegvísir",
+      "helpCenter": "Hjálparmiðstöð",
+      "manageBilling": "Stjórna greiðslum",
+      "customerPortal": "Viðskiptavinagátt",
+      "olderVersions": "Eldri útgáfur",
+      "blog": "Blogg",
+      "about": "Um okkur",
+      "support": "Aðstoð",
+      "privacyPolicy": "Persónuverndarstefna",
+      "termsOfService": "Þjónustuskilmálar",
+      "refundPolicy": "Endurgreiðslustefna",
+      "dataTraining": "Gagnafriðhelgi"
+    },
+    "copyright": "© 2026 HyperWhisper. Öll réttindi áskilin.",
+    "linkedinAria": "LinkedIn"
+  }
+}

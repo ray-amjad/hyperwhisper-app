@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - Transcripció de veu amb IA per a macOS i Windows",
+    "description": "Escriu 5x més ràpid amb transcripció de veu amb IA. HyperWhisper transcriu la teva veu amb una precisió increïble a macOS i Windows. Parla de manera natural i mira com les teves paraules apareixen a l'instant."
+  },
+  "navbar": {
+    "features": "Funcions",
+    "pricing": "Preus",
+    "faq": "PMF",
+    "support": "Suport",
+    "download": "Descarrega",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Canvia d'idioma"
+    }
+  },
+  "hero": {
+    "logoAlt": "Logotip de HyperWhisper",
+    "headline": "Escriu, compon i crea",
+    "headlineAccent": "5x més ràpid amb IA",
+    "subheadline": "HyperWhisper transcriu la teva veu amb una precisió increïble. Només has de parlar de manera natural i veure com apareixen les teves paraules a l'instant.",
+    "downloadCta": "Descarrega ara",
+    "demoCta": "Mira la demo",
+    "availableOn": "Disponible a",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Creat per a professionals",
+    "subtitle": "Cada funció està dissenyada per ajudar-te a treballar més ràpid i amb més eficiència",
+    "customVocabulary": {
+      "title": "Vocabulari personalitzat",
+      "description": "Afegeix noms, acrònims i termes especials per aconseguir una precisió perfecta cada vegada."
+    },
+    "languages": {
+      "title": "Més de 100 idiomes",
+      "description": "Transcriu en més de 100 idiomes amb detecció automàtica de l'idioma."
+    },
+    "offline": {
+      "title": "Suport fora de línia",
+      "description": "Funciona completament fora de línia. Les teves dades no surten mai del teu dispositiu."
+    },
+    "privacy": {
+      "title": "Privadesa primer",
+      "description": "No cal compte. Sense seguiment. Les dades de veu es queden al teu Mac o PC."
+    },
+    "hybridProcessing": {
+      "title": "Processament híbrid",
+      "description": "Tria entre models locals per a la privadesa o API al núvol per a la velocitat. El millor dels dos mons."
+    },
+    "customizable": {
+      "title": "Molt personalitzable",
+      "description": "Escull entre més de 9 proveïdors d'API i més de 30 models de transcripció."
+    },
+    "realTime": {
+      "title": "Streaming en temps real",
+      "description": "Veu com apareixen les paraules a l'instant mentre parles. Precisió líder del sector amb latència inferior a 700 ms."
+    },
+    "fileImport": {
+      "title": "Importació de fitxers",
+      "description": "Importa fitxers d'àudio o vídeo per transcriure. Compatible amb els formats principals i detecció automàtica de silencis."
+    },
+    "screenOcr": {
+      "title": "OCR de pantalla",
+      "description": "Permet que HyperWhisper vegi la teva pantalla perquè pugui escriure-ho tot amb precisió."
+    },
+    "mcpServer": {
+      "title": "API local i servidor MCP",
+      "description": "El servidor MCP integrat permet que Claude, Cursor i altres agents d'IA controlin HyperWhisper. API HTTP només local amb autenticació bearer per a scripts i automatitzacions."
+    },
+    "modes": {
+      "title": "Modes per a cada situació",
+      "description": "Canvia entre diferents modes de transcripció optimitzats per a reunions, notes, correus, programació i molt més. Cada mode utilitza prompts personalitzats per donar el format perfecte al text.",
+      "meeting": "Reunió",
+      "email": "Correu",
+      "note": "Nota",
+      "code": "Codi",
+      "legal": "Legal",
+      "medical": "Mèdic",
+      "presetModes": "Modes predefinits",
+      "customModes": "Modes personalitzats"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Més ràpid que escriure",
+    "accuracyRate": "Taxa de precisió",
+    "languagesSupported": "Idiomes compatibles",
+    "providersSupported": "Proveïdors compatibles"
+  },
+  "pricing": {
+    "title": "Sense subscripcions. Mai.",
+    "subtitle": "Paga una vegada, fes-lo servir per sempre. Nosaltres també odiem les subscripcions.",
+    "guarantee": "Garantia de devolució de 14 dies",
+    "guaranteeExtended": "si no quedes completament satisfet.",
+    "learnMore": "Més informació",
+    "free": {
+      "name": "Gratis",
+      "price": "$0",
+      "period": "per sempre",
+      "description": "Perfecte per provar HyperWhisper",
+      "cta": "Descarrega gratis",
+      "features": {
+        "transcriptionLimit": "5 minuts de transcripció al dia",
+        "basicModes": "Modes bàsics de transcripció",
+        "offlineTranscription": "Transcripció fora de línia",
+        "apiTranscription": "Transcripció per API (porta les teves claus)",
+        "postProcessing": "Postprocessament de text",
+        "providers": "Més de 9 proveïdors per triar",
+        "lifetimeUpdates": "Actualitzacions de per vida",
+        "cloudLimited": "HyperWhisper Cloud (ús limitat)",
+        "customVocabulary": "Vocabulari personalitzat",
+        "prioritySupport": "Suport prioritari"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "de per vida",
+      "description": "Compra única, potència il·limitada per sempre",
+      "cta": "Compra ara - Accés de per vida",
+      "mostPopular": "El més popular",
+      "features": {
+        "unlimitedTranscription": "Transcripció il·limitada",
+        "allModes": "Tots els modes de transcripció",
+        "offlineTranscription": "Transcripció fora de línia",
+        "apiTranscription": "Transcripció per API (porta les teves claus)",
+        "postProcessing": "Postprocessament de text",
+        "providers": "Més de 9 proveïdors per triar",
+        "lifetimeUpdates": "Actualitzacions de per vida",
+        "cloudCredits": "HyperWhisper Cloud ($5 en crèdits)",
+        "customVocabulary": "Vocabulari personalitzat",
+        "prioritySupport": "Suport prioritari"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise i preus personalitzats",
+      "description": "Descomptes per volum, SSO, suport prioritari, allotjament intern i integracions personalitzades",
+      "cta": "Contacta amb vendes"
+    }
+  },
+  "faq": {
+    "title": "Preguntes freqüents",
+    "subtitle": "Tot el que cal saber sobre HyperWhisper",
+    "contactPrompt": "Encara tens preguntes? Escriu-nos a",
+    "questions": {
+      "accuracy": {
+        "question": "Quina precisió té la transcripció?",
+        "answer": "Aconseguim una precisió del 99%, líder del sector, amb models d'IA d'última generació. Pots millorar-la encara més afegint el teu vocabulari personalitzat per a termes tècnics, noms i jerga especialitzada."
+      },
+      "offline": {
+        "question": "El puc fer servir sense internet?",
+        "answer": "I tant. HyperWhisper es pot fer servir completament fora de línia al teu Mac amb models locals d'IA, sense internet. Per als usuaris que volen màxima precisió i velocitat, també oferim processament al núvol opcional a través de diversos proveïdors."
+      },
+      "apiKey": {
+        "question": "He de pagar per l'accés API?",
+        "answer": "Has d'aportar la teva clau API per als següents proveïdors: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral i Google Gemini. Alguns proveïdors ofereixen crèdits gratuïts als usuaris nous; Deepgram ofereix $200 i AssemblyAI ofereix $50. A llarg termini, surt molt més econòmic que qualsevol subscripció. \n\nTambé pots fer servir HyperWhisper Cloud (integrat), que no requereix clau API i funciona amb pagament per ús.\n\nRecorda que el mode local fora de línia funciona sense cap clau API i és completament gratuït."
+      },
+      "languages": {
+        "question": "Quins idiomes admet?",
+        "answer": "Admet més de 100 idiomes des del primer moment, des d'anglès i castellà fins a mandarí i àrab. La majoria de models poden detectar automàticament quin idioma parles i canviar-hi sense interrupcions."
+      },
+      "offlineModels": {
+        "question": "Quins models fora de línia hi ha disponibles?",
+        "answer": "Per a transcripció fora de línia, oferim diverses mides del model Whisper (creat per OpenAI, amb suport per a 99+ idiomes). També oferim els models Parakeet de NVidia (amb suport per a 25+ idiomes).\n      \n      Per a postprocessament fora de línia, oferim diverses mides del model Gemma 3 (creat per Google)."
+      },
+      "compatibility": {
+        "question": "Funciona amb totes les aplicacions de Mac i Windows?",
+        "answer": "Sí, funciona a qualsevol lloc on puguis escriure. Tant si redactes correus, documents, codi o xateges. Només cal prémer la drecera, parlar i veure com les paraules apareixen a l'instant."
+      },
+      "privacy": {
+        "question": "Com es protegeix la meva privadesa?",
+        "answer": "Quan fas servir el mode local, cap dada surt del teu Mac.\n\nQuan utilitzes transcripció al núvol, les teves dades s'envien al proveïdor de núvol que triïs (p. ex., OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs o Mistral).\n\nHo pots verificar tu mateix amb un inspector de xarxa com [Proxyman](https://proxyman.io) o un monitor de xarxa com [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Què és HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, orientada a usuaris menys tècnics que volen començar ràpid.\n\nFunciona amb model pay as you go. En comprar una llicència, reps $5 en crèdits de transcripció. Més endavant pots afegir-ne més.\n    \nOferim tres nivells de precisió: Medium (més ràpid, amb Groq), High (recomanat, amb Deepgram) i Highest (millor qualitat, amb xAI Grok STT). El postprocessament és automàtic. No guardem res, excepte quants crèdits has consumit.\n\nPagues exactament el que nosaltres paguem a aquests proveïdors. No hi afegim marge.\n\nPer a més tranquil·litat, pots veure el codi font d'HyperWhisper Cloud [aquí](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Les meves dades de veu s'utilitzaran per entrenar models d'IA?",
+        "answer": "HyperWhisper Cloud t'exclou de l'entrenament de models a cada proveïdor que utilitzem. Amb la teva pròpia clau API, l'exclusió és responsabilitat teva — consulta la nostra [guia de privadesa de dades](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Per què preu de per vida en lloc de subscripció?",
+        "answer": "Creiem en una política de preus simple i justa. Paga una vegada $39 i fes servir HyperWhisper per sempre. Sense quotes mensuals, sense sorpreses. La versió gratuïta et permet provar les funcions clau amb 3 minuts de transcripció diària."
+      },
+      "deviceLimit": {
+        "question": "A quants dispositius puc usar la meva llicència?",
+        "answer": "Pots usar la teva llicència en tants dispositius com vulguis, d'acord amb la nostra Política d'Ús Just tal com s'indica als [Termes del servei](/legal/terms-of-service). Aquesta política està dissenyada per ser flexible per a usos personals i empresarials legítims, alhora que evita abusos."
+      },
+      "requirements": {
+        "question": "Quins són els requisits del sistema?",
+        "answer": "Per a Mac: macOS 14 o superior, amb suport per a Apple Silicon i Intel. Per a Windows: Windows 10/11, x64 o ARM64. Es recomanen 8GB de RAM per a un rendiment òptim."
+      },
+      "windowsStatus": {
+        "question": "La versió de Windows té totes les mateixes funcions que macOS?",
+        "answer": "La versió de Windows s'ha publicat recentment, així que potser encara no té totes les funcions disponibles a macOS. Estem treballant activament per assolir una paritat completa de funcionalitats entre plataformes."
+      },
+      "madeBy": {
+        "question": "Qui ho ha creat?",
+        "answer": "Ho ha creat el YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Centre de suport",
+    "subtitle": "Som aquí per ajudar-te a treure el màxim profit de HyperWhisper",
+    "getInTouch": "Contacta amb nosaltres",
+    "description": "Per a suport tècnic, incidències de llicència o qualsevol pregunta sobre HyperWhisper, el nostre equip és aquí per ajudar.",
+    "emailUsAt": "Escriu-nos a:",
+    "openInClient": "Obre-ho al teu client de correu:",
+    "defaultClient": "Client de correu predeterminat",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Normalment responem en 24 hores durant dies laborables.",
+    "emailTemplate": {
+      "subject": "Sol·licitud de suport de HyperWhisper",
+      "body": "Hola,\n\nVersió: \n[la pots comprovar a Configuració > Quant a]\n\nProblema: \n[Descriu el problema]\n\nDetalls: \n[Aporta detalls rellevants, què feies abans del bloqueig]\n\n[El teu missatge aquí]\n\nSalutacions,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "Logotip de HyperWhisper",
+    "title": "Descarrega HyperWhisper",
+    "emailPlaceholder": "Correu",
+    "description": "T'enviarem un enllaç de descàrrega i un vídeo tutorial curt perquè puguis començar ràpid. Sense spam.",
+    "downloadButton": "Descarrega HyperWhisper",
+    "errorGeneric": "Alguna cosa ha anat malament. Torna-ho a provar.",
+    "errorNetwork": "Error de xarxa. Revisa la connexió i torna-ho a provar.",
+    "thankYouTitle": "Gràcies!",
+    "downloadStarted": "La descàrrega hauria de començar automàticament.",
+    "manualDownload": "La descàrrega no ha començat? Fes clic aquí",
+    "skipAndDownloadButton": "Omet i descarrega"
+  },
+  "downloadPage": {
+    "title": "Descarrega HyperWhisper",
+    "countdownText": "Comença en {seconds}...",
+    "downloadStarted": "Comprova la carpeta Downloads",
+    "downloadNow": "Descarrega ara",
+    "downloadAgain": "Descarrega de nou",
+    "selectArchitecture": "Selecciona la teva arquitectura",
+    "downloadX64": "Descarrega per a x64",
+    "downloadArm64": "Descarrega per a ARM64",
+    "orDivider": "O",
+    "homebrewTitle": "Instal·la via Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Copia",
+    "copied": "Copiat!"
+  },
+  "purchaseSuccess": {
+    "title": "Compra completada!",
+    "subtitle": "Benvingut a HyperWhisper Pro! La teva llicència de per vida ja està llesta.",
+    "checkEmail": {
+      "title": "Comprova el teu correu",
+      "description": "Hem enviat la teva clau de llicència i les instruccions de descàrrega al teu correu electrònic. Hauria d'arribar en pocs minuts."
+    },
+    "whatsNext": {
+      "title": "Què ve ara?",
+      "step1": {
+        "title": "Comprova la safata d'entrada",
+        "description": "Busca un correu de HyperWhisper"
+      },
+      "step2": {
+        "title": "Copia la teva clau de llicència",
+        "description": "La necessitaràs per activar l'aplicació"
+      },
+      "step3": {
+        "title": "Descarrega HyperWhisper",
+        "description": "Instal·la l'aplicació i introdueix la clau de llicència"
+      }
+    },
+    "downloadButton": "Descarrega HyperWhisper",
+    "returnHome": "Torna a la pàgina principal",
+    "noEmail": "No has rebut el correu? Revisa la carpeta de spam o",
+    "contactSupport": "contacta amb suport",
+    "loading": "Carregant..."
+  },
+  "footer": {
+    "tagline": "Escriu 5x més ràpid amb transcripció de veu amb IA per a macOS i Windows.",
+    "product": "Producte",
+    "resources": "Recursos",
+    "company": "Empresa",
+    "legal": "Legal",
+    "links": {
+      "features": "Funcions",
+      "pricing": "Preus",
+      "download": "Descarrega",
+      "roadmap": "Full de ruta",
+      "helpCenter": "Centre d'ajuda",
+      "manageBilling": "Gestiona la facturació",
+      "customerPortal": "Portal de clients",
+      "olderVersions": "Versions antigues",
+      "blog": "Blog",
+      "about": "Sobre nosaltres",
+      "support": "Suport",
+      "privacyPolicy": "Política de privadesa",
+      "termsOfService": "Termes del servei",
+      "refundPolicy": "Política de reemborsament",
+      "dataTraining": "Privadesa de dades"
+    },
+    "copyright": "© 2026 HyperWhisper. Tots els drets reservats.",
+    "linkedinAria": "LinkedIn"
+  }
+}

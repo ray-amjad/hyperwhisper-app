@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - Transcriere vocală AI pentru macOS și Windows",
+    "description": "Scrie de 5x mai rapid cu transcriere vocală bazată pe AI. HyperWhisper îți transcrie vocea cu o acuratețe incredibilă pe macOS și Windows. Vorbește natural și vezi cum cuvintele apar instant."
+  },
+  "navbar": {
+    "features": "Funcții",
+    "pricing": "Prețuri",
+    "faq": "Întrebări frecvente",
+    "support": "Suport",
+    "download": "Descarcă",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Schimbă limba"
+    }
+  },
+  "hero": {
+    "logoAlt": "Logo HyperWhisper",
+    "headline": "Scrie, compune și creează",
+    "headlineAccent": "de 5x mai rapid cu AI",
+    "subheadline": "HyperWhisper îți transcrie vocea cu o acuratețe incredibilă. Doar vorbește natural și vezi cum cuvintele apar instant.",
+    "downloadCta": "Descarcă acum",
+    "demoCta": "Vezi demo",
+    "availableOn": "Disponibil pe",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Creat pentru profesioniști",
+    "subtitle": "Fiecare funcție este concepută să te ajute să lucrezi mai rapid și mai eficient",
+    "customVocabulary": {
+      "title": "Vocabular personalizat",
+      "description": "Adaugă nume, acronime și termeni speciali pentru acuratețe perfectă de fiecare dată."
+    },
+    "languages": {
+      "title": "100+ limbi",
+      "description": "Transcrie în peste 100 de limbi cu detectare automată a limbii."
+    },
+    "offline": {
+      "title": "Suport offline",
+      "description": "Funcționează complet offline. Datele tale nu părăsesc niciodată dispozitivul."
+    },
+    "privacy": {
+      "title": "Axat pe confidențialitate",
+      "description": "Nu e necesar cont. Fără tracking. Datele tale vocale rămân pe Mac-ul sau PC-ul tău."
+    },
+    "hybridProcessing": {
+      "title": "Procesare hibridă",
+      "description": "Alege între modele locale pentru confidențialitate sau API-uri cloud pentru viteză. Ce e mai bun din ambele lumi."
+    },
+    "customizable": {
+      "title": "Foarte personalizabil",
+      "description": "Alege dintre 9+ furnizori API și 30+ modele de transcriere."
+    },
+    "realTime": {
+      "title": "Streaming în timp real",
+      "description": "Vezi cuvintele apărând instant în timp ce vorbești. Acuratețe de top în industrie, cu latență sub 700ms."
+    },
+    "fileImport": {
+      "title": "Import fișiere",
+      "description": "Importă fișiere audio sau video pentru transcriere. Suportă toate formatele majore, cu detectare automată a pauzelor."
+    },
+    "screenOcr": {
+      "title": "OCR pe ecran",
+      "description": "Permiteți HyperWhisper să vă vadă ecranul pentru a scrie totul cu acuratețe."
+    },
+    "mcpServer": {
+      "title": "API local și server MCP",
+      "description": "Serverul MCP încorporat permite Claude, Cursor și altor agenți AI să controleze HyperWhisper. API HTTP doar local cu autentificare bearer pentru scripturi și automatizări."
+    },
+    "modes": {
+      "title": "Moduri pentru orice situație",
+      "description": "Comută între diferite moduri de transcriere optimizate pentru ședințe, notițe, emailuri, programare și multe altele. Fiecare mod folosește prompturi personalizate pentru a formata perfect textul.",
+      "meeting": "Ședință",
+      "email": "Email",
+      "note": "Notiță",
+      "code": "Cod",
+      "legal": "Juridic",
+      "medical": "Medical",
+      "presetModes": "Moduri presetate",
+      "customModes": "Moduri personalizate"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Mai rapid decât tastatul",
+    "accuracyRate": "Rată de acuratețe",
+    "languagesSupported": "Limbi suportate",
+    "providersSupported": "Furnizori suportați"
+  },
+  "pricing": {
+    "title": "Fără abonamente. Niciodată.",
+    "subtitle": "Plătești o dată, folosești pentru totdeauna. Și noi urâm abonamentele.",
+    "guarantee": "Garanție de rambursare 14 zile",
+    "guaranteeExtended": "dacă nu ești complet mulțumit.",
+    "learnMore": "Află mai multe",
+    "free": {
+      "name": "Gratuit",
+      "price": "$0",
+      "period": "pe viață",
+      "description": "Perfect pentru a încerca HyperWhisper",
+      "cta": "Descarcă gratuit",
+      "features": {
+        "transcriptionLimit": "5 minute de transcriere pe zi",
+        "basicModes": "Moduri de transcriere de bază",
+        "offlineTranscription": "Transcriere offline",
+        "apiTranscription": "Transcriere API (cu cheile tale)",
+        "postProcessing": "Post-procesare text",
+        "providers": "9+ furnizori din care poți alege",
+        "lifetimeUpdates": "Actualizări pe viață",
+        "cloudLimited": "HyperWhisper Cloud (utilizare limitată)",
+        "customVocabulary": "Vocabular personalizat",
+        "prioritySupport": "Suport prioritar"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "pe viață",
+      "description": "Achiziție unică, putere nelimitată pentru totdeauna",
+      "cta": "Cumpără acum - Acces pe viață",
+      "mostPopular": "Cel mai popular",
+      "features": {
+        "unlimitedTranscription": "Transcriere nelimitată",
+        "allModes": "Toate modurile de transcriere",
+        "offlineTranscription": "Transcriere offline",
+        "apiTranscription": "Transcriere API (cu cheile tale)",
+        "postProcessing": "Post-procesare text",
+        "providers": "9+ furnizori din care poți alege",
+        "lifetimeUpdates": "Actualizări pe viață",
+        "cloudCredits": "HyperWhisper Cloud ($5 în credite)",
+        "customVocabulary": "Vocabular personalizat",
+        "prioritySupport": "Suport prioritar"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise și prețuri personalizate",
+      "description": "Reduceri de volum, SSO, suport prioritar, găzduire internă și integrări personalizate",
+      "cta": "Contactează vânzările"
+    }
+  },
+  "faq": {
+    "title": "Întrebări frecvente",
+    "subtitle": "Tot ce trebuie să știi despre HyperWhisper",
+    "contactPrompt": "Mai ai întrebări? Scrie-ne la",
+    "questions": {
+      "accuracy": {
+        "question": "Cât de precisă este transcrierea?",
+        "answer": "Obținem o acuratețe de 99%, lider în industrie, folosind modele AI de ultimă generație. Poți crește și mai mult acuratețea adăugând propriul vocabular personalizat pentru termeni tehnici, nume și jargon specializat."
+      },
+      "offline": {
+        "question": "Pot să o folosesc fără internet?",
+        "answer": "Absolut. HyperWhisper poate fi folosit complet offline pe Mac-ul tău cu modele AI locale - fără internet. Pentru utilizatorii care vor acuratețe și viteză maxime, oferim și procesare cloud opțională prin diverși furnizori."
+      },
+      "apiKey": {
+        "question": "Trebuie să plătesc pentru acces API?",
+        "answer": "Folosești propriul API key pentru următorii furnizori: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral și Google Gemini. Unii furnizori oferă credite gratuite utilizatorilor noi; Deepgram oferă $200, iar AssemblyAI oferă $50. Pe termen lung, asta este semnificativ mai ieftin decât orice abonament. \n\nPoți folosi și HyperWhisper Cloud (integrat), care nu necesită API key și funcționează pay-as-you-go.\n\nDar ține minte, modul local offline funcționează fără niciun API key și este complet gratuit."
+      },
+      "languages": {
+        "question": "Ce limbi suportă?",
+        "answer": "Sunt suportate peste 100 de limbi din start, de la engleză și spaniolă până la mandarină și arabă. Majoritatea modelelor pot detecta automat limba în care vorbești și comută fără probleme."
+      },
+      "offlineModels": {
+        "question": "Ce modele offline sunt disponibile?",
+        "answer": "Pentru transcriere offline, oferim mai multe dimensiuni ale modelului Whisper (creat de OpenAI, cu suport pentru 99+ limbi). Oferim și modelele Parakeet de la NVidia (cu suport pentru 25+ limbi).\n      \n      Pentru post-procesare offline, oferim mai multe dimensiuni ale modelului Gemma 3 (creat de Google)."
+      },
+      "compatibility": {
+        "question": "Funcționează cu toate aplicațiile de Mac și Windows?",
+        "answer": "Da, funcționează oriunde poți scrie. Fie că redactezi emailuri, documente, cod sau discuți pe chat. Apasă scurtătura, vorbește și vezi cum apar cuvintele instant."
+      },
+      "privacy": {
+        "question": "Cum îmi este protejată confidențialitatea?",
+        "answer": "Când folosești modul local, niciun fel de date nu părăsesc Mac-ul tău.\n\nCând folosești transcriere în cloud, datele sunt trimise furnizorului cloud pe care îl alegi (ex.: OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs sau Mistral).\n\nPoți verifica asta chiar tu cu un inspector de rețea precum [Proxyman](https://proxyman.io) sau un monitor de rețea precum [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Ce este HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud este o transcriere cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay as you go. Cumpărarea unei licențe îți oferă $5 în credite de transcriere. Poți adăuga mai multe credite ulterior.\n    \nOferim trei niveluri de acuratețe: Medium (cel mai rapid, cu Groq), High (recomandat, cu Deepgram) și Highest (cea mai bună calitate, cu xAI Grok STT). Post-procesarea este automată. Nu stocăm nimic, în afară de câte credite ai consumat.\n\nPlătești exact cât plătim și noi acestor furnizori. Nu adăugăm markup.\n\nPentru liniștea ta, poți vedea codul sursă HyperWhisper Cloud [aici](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Datele mele vocale vor fi folosite pentru antrenarea modelelor AI?",
+        "answer": "HyperWhisper Cloud te exclude din antrenarea modelelor la fiecare furnizor pe care îl folosim. Cu propria cheie API, excluderea este responsabilitatea ta — consultă [ghidul nostru privind confidențialitatea datelor](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "De ce preț pe viață în loc de abonament?",
+        "answer": "Credem în prețuri simple și corecte. Plătești o singură dată $39 și folosești HyperWhisper pentru totdeauna. Fără taxe lunare, fără surprize. Versiunea gratuită îți permite să testezi funcțiile cheie cu 3 minute de transcriere zilnică."
+      },
+      "deviceLimit": {
+        "question": "Pe câte dispozitive îmi pot folosi licența?",
+        "answer": "Îți poți folosi licența pe oricâte dispozitive dorești, în conformitate cu Politica noastră de Utilizare Corectă descrisă în [Termenii serviciului](/legal/terms-of-service). Această politică este concepută să fie flexibilă pentru utilizare personală și de business legitimă, prevenind în același timp abuzurile."
+      },
+      "requirements": {
+        "question": "Care sunt cerințele de sistem?",
+        "answer": "Pentru Mac: macOS 14 sau mai nou, cu suport pentru Apple Silicon și Intel. Pentru Windows: Windows 10/11, x64 sau ARM64. Pentru performanță optimă se recomandă 8GB RAM."
+      },
+      "windowsStatus": {
+        "question": "Versiunea de Windows are toate funcțiile din macOS?",
+        "answer": "Versiunea de Windows a fost lansată recent, așa că este posibil să nu aibă încă toate funcțiile disponibile pe macOS. Lucrăm activ pentru a aduce paritate completă între platforme."
+      },
+      "madeBy": {
+        "question": "Cine a creat asta?",
+        "answer": "A fost creat de YouTuber-ul [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Centru de suport",
+    "subtitle": "Suntem aici să te ajutăm să obții maximum din HyperWhisper",
+    "getInTouch": "Ia legătura cu noi",
+    "description": "Pentru suport tehnic, probleme de licență sau orice întrebare despre HyperWhisper, echipa noastră este aici să ajute.",
+    "emailUsAt": "Scrie-ne la:",
+    "openInClient": "Deschide în clientul tău de email:",
+    "defaultClient": "Client Email implicit",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "De obicei răspundem în 24 de ore în zilele lucrătoare.",
+    "emailTemplate": {
+      "subject": "Cerere de suport HyperWhisper",
+      "body": "Salut,\n\nVersiune: \n[poți verifica în Setări > Despre]\n\nProblemă: \n[Descrie problema]\n\nDetalii: \n[Oferă detalii relevante, ce făceai înainte de crash]\n\n[Mesajul tău aici]\n\nCu stimă,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "Logo HyperWhisper",
+    "title": "Descarcă HyperWhisper",
+    "emailPlaceholder": "Email",
+    "description": "Îți vom trimite pe email un link de descărcare și un scurt video tutorial ca să începi rapid. Fără spam.",
+    "downloadButton": "Descarcă HyperWhisper",
+    "errorGeneric": "Ceva nu a mers bine. Te rugăm să încerci din nou.",
+    "errorNetwork": "Eroare de rețea. Verifică conexiunea și încearcă din nou.",
+    "thankYouTitle": "Mulțumim!",
+    "downloadStarted": "Descărcarea ar trebui să înceapă automat.",
+    "manualDownload": "Descărcarea nu a început? Click aici",
+    "skipAndDownloadButton": "Omite și descarcă"
+  },
+  "downloadPage": {
+    "title": "Descarcă HyperWhisper",
+    "countdownText": "Începe în {seconds}...",
+    "downloadStarted": "Verifică folderul Downloads",
+    "downloadNow": "Descarcă acum",
+    "downloadAgain": "Descarcă din nou",
+    "selectArchitecture": "Selectează arhitectura",
+    "downloadX64": "Descarcă pentru x64",
+    "downloadArm64": "Descarcă pentru ARM64",
+    "orDivider": "SAU",
+    "homebrewTitle": "Instalează prin Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Copiază",
+    "copied": "Copiat!"
+  },
+  "purchaseSuccess": {
+    "title": "Achiziție reușită!",
+    "subtitle": "Bine ai venit la HyperWhisper Pro! Licența ta pe viață este gata.",
+    "checkEmail": {
+      "title": "Verifică-ți emailul",
+      "description": "Ți-am trimis cheia de licență și instrucțiunile de descărcare la adresa ta de email. Ar trebui să ajungă în următoarele minute."
+    },
+    "whatsNext": {
+      "title": "Ce urmează?",
+      "step1": {
+        "title": "Verifică inboxul",
+        "description": "Caută un email de la HyperWhisper"
+      },
+      "step2": {
+        "title": "Copiază cheia de licență",
+        "description": "Vei avea nevoie de ea pentru a activa aplicația"
+      },
+      "step3": {
+        "title": "Descarcă HyperWhisper",
+        "description": "Instalează aplicația și introdu cheia de licență"
+      }
+    },
+    "downloadButton": "Descarcă HyperWhisper",
+    "returnHome": "Înapoi la pagina principală",
+    "noEmail": "Nu ai primit emailul? Verifică folderul spam sau",
+    "contactSupport": "contactează suportul",
+    "loading": "Se încarcă..."
+  },
+  "footer": {
+    "tagline": "Scrie de 5x mai rapid cu transcriere vocală AI pentru macOS și Windows.",
+    "product": "Produs",
+    "resources": "Resurse",
+    "company": "Companie",
+    "legal": "Legal",
+    "links": {
+      "features": "Funcții",
+      "pricing": "Prețuri",
+      "download": "Descarcă",
+      "roadmap": "Roadmap",
+      "helpCenter": "Centru de ajutor",
+      "manageBilling": "Gestionează facturarea",
+      "customerPortal": "Portal clienți",
+      "olderVersions": "Versiuni mai vechi",
+      "blog": "Blog",
+      "about": "Despre",
+      "support": "Suport",
+      "privacyPolicy": "Politica de confidențialitate",
+      "termsOfService": "Termeni și condiții",
+      "refundPolicy": "Politica de rambursare",
+      "dataTraining": "Confidențialitatea datelor"
+    },
+    "copyright": "© 2026 HyperWhisper. Toate drepturile rezervate.",
+    "linkedinAria": "LinkedIn"
+  }
+}

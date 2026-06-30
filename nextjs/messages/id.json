@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - Transkripsi Suara AI untuk macOS & Windows",
+    "description": "Menulis 5x lebih cepat dengan transkripsi suara bertenaga AI. HyperWhisper mentranskripsikan suara Anda dengan akurasi luar biasa di macOS dan Windows. Bicara secara natural dan lihat kata-kata Anda muncul seketika."
+  },
+  "navbar": {
+    "features": "Fitur",
+    "pricing": "Harga",
+    "faq": "FAQ",
+    "support": "Dukungan",
+    "download": "Unduh",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Ganti bahasa"
+    }
+  },
+  "hero": {
+    "logoAlt": "Logo HyperWhisper",
+    "headline": "Tulis, susun, dan ciptakan",
+    "headlineAccent": "5x lebih cepat dengan AI",
+    "subheadline": "HyperWhisper mentranskripsikan suara Anda dengan akurasi luar biasa. Cukup bicara secara natural dan lihat kata-kata Anda muncul seketika.",
+    "downloadCta": "Unduh sekarang",
+    "demoCta": "Lihat demo",
+    "availableOn": "Tersedia di",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Dibuat untuk profesional",
+    "subtitle": "Setiap fitur dirancang untuk membantu Anda bekerja lebih cepat dan efisien",
+    "customVocabulary": {
+      "title": "Kosakata kustom",
+      "description": "Tambahkan nama, akronim, dan istilah khusus untuk akurasi sempurna setiap saat."
+    },
+    "languages": {
+      "title": "100+ Bahasa",
+      "description": "Transkripsikan dalam lebih dari 100 bahasa dengan deteksi bahasa otomatis."
+    },
+    "offline": {
+      "title": "Dukungan offline",
+      "description": "Berfungsi sepenuhnya offline. Data Anda tidak pernah meninggalkan perangkat Anda."
+    },
+    "privacy": {
+      "title": "Fokus pada privasi",
+      "description": "Tidak perlu akun. Tanpa pelacakan. Data suara Anda tetap di Mac atau PC Anda."
+    },
+    "hybridProcessing": {
+      "title": "Pemrosesan hibrida",
+      "description": "Pilih model lokal untuk privasi atau API cloud untuk kecepatan. Yang terbaik dari kedua dunia."
+    },
+    "customizable": {
+      "title": "Sangat bisa dikustomisasi",
+      "description": "Pilih dari 9+ penyedia API dan 30+ model transkripsi."
+    },
+    "realTime": {
+      "title": "Streaming real-time",
+      "description": "Lihat kata-kata Anda muncul seketika saat Anda berbicara. Akurasi terdepan di industri dengan latensi di bawah 700ms."
+    },
+    "fileImport": {
+      "title": "Impor file",
+      "description": "Impor file audio atau video untuk ditranskripsikan. Mendukung semua format utama dengan deteksi jeda otomatis."
+    },
+    "screenOcr": {
+      "title": "OCR Layar",
+      "description": "Izinkan HyperWhisper melihat layar Anda agar dapat mengeja semuanya dengan akurat."
+    },
+    "mcpServer": {
+      "title": "API Lokal & Server MCP",
+      "description": "Server MCP bawaan memungkinkan Claude, Cursor, dan agen AI lainnya menjalankan HyperWhisper. API HTTP khusus lokal dengan autentikasi bearer untuk skrip dan otomatisasi."
+    },
+    "modes": {
+      "title": "Mode untuk setiap situasi",
+      "description": "Beralih antar mode transkripsi yang dioptimalkan untuk rapat, catatan, email, coding, dan lainnya. Setiap mode memakai prompt kustom untuk memformat teks Anda dengan sempurna.",
+      "meeting": "Rapat",
+      "email": "Email",
+      "note": "Catatan",
+      "code": "Kode",
+      "legal": "Legal",
+      "medical": "Medis",
+      "presetModes": "Mode bawaan",
+      "customModes": "Mode kustom"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Lebih cepat dari mengetik",
+    "accuracyRate": "Tingkat akurasi",
+    "languagesSupported": "Bahasa didukung",
+    "providersSupported": "Penyedia didukung"
+  },
+  "pricing": {
+    "title": "Tanpa langganan. Selamanya.",
+    "subtitle": "Bayar sekali, pakai selamanya. Kami juga benci langganan.",
+    "guarantee": "Jaminan uang kembali 14 hari",
+    "guaranteeExtended": "jika Anda tidak sepenuhnya puas.",
+    "learnMore": "Pelajari lebih lanjut",
+    "free": {
+      "name": "Gratis",
+      "price": "$0",
+      "period": "selamanya",
+      "description": "Cocok untuk mencoba HyperWhisper",
+      "cta": "Unduh Gratis",
+      "features": {
+        "transcriptionLimit": "5 menit transkripsi per hari",
+        "basicModes": "Mode transkripsi dasar",
+        "offlineTranscription": "Transkripsi offline",
+        "apiTranscription": "Transkripsi API (bawa kunci Anda sendiri)",
+        "postProcessing": "Pascapemrosesan teks",
+        "providers": "9+ penyedia untuk dipilih",
+        "lifetimeUpdates": "Pembaruan seumur hidup",
+        "cloudLimited": "HyperWhisper Cloud (pemakaian terbatas)",
+        "customVocabulary": "Kosakata kustom",
+        "prioritySupport": "Dukungan prioritas"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "seumur hidup",
+      "description": "Pembelian sekali, tenaga tanpa batas selamanya",
+      "cta": "Beli Sekarang - Akses Seumur Hidup",
+      "mostPopular": "Paling Populer",
+      "features": {
+        "unlimitedTranscription": "Transkripsi tanpa batas",
+        "allModes": "Semua mode transkripsi",
+        "offlineTranscription": "Transkripsi offline",
+        "apiTranscription": "Transkripsi API (bawa kunci Anda sendiri)",
+        "postProcessing": "Pascapemrosesan teks",
+        "providers": "9+ penyedia untuk dipilih",
+        "lifetimeUpdates": "Pembaruan seumur hidup",
+        "cloudCredits": "HyperWhisper Cloud ($5 kredit)",
+        "customVocabulary": "Kosakata kustom",
+        "prioritySupport": "Dukungan prioritas"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise & Harga Kustom",
+      "description": "Diskon volume, SSO, dukungan prioritas, hosting internal, dan integrasi kustom",
+      "cta": "Hubungi Sales"
+    }
+  },
+  "faq": {
+    "title": "Pertanyaan yang sering diajukan",
+    "subtitle": "Semua yang perlu Anda ketahui tentang HyperWhisper",
+    "contactPrompt": "Masih punya pertanyaan? Email kami di",
+    "questions": {
+      "accuracy": {
+        "question": "Seberapa akurat transkripsinya?",
+        "answer": "Kami mencapai akurasi 99% yang terdepan di industri dengan model AI mutakhir. Anda bisa meningkatkan akurasi lebih jauh dengan menambahkan kosakata kustom untuk istilah teknis, nama, dan jargon khusus."
+      },
+      "offline": {
+        "question": "Bisakah saya pakai tanpa internet?",
+        "answer": "Tentu saja. HyperWhisper bisa digunakan sepenuhnya offline di Mac Anda dengan model AI lokal - tanpa internet. Untuk pengguna yang ingin akurasi dan kecepatan maksimal, kami juga menyediakan pemrosesan cloud opsional melalui berbagai penyedia."
+      },
+      "apiKey": {
+        "question": "Apakah saya perlu membayar untuk akses API?",
+        "answer": "Anda membawa API key sendiri untuk penyedia berikut: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, dan Google Gemini. Beberapa penyedia memberi kredit gratis untuk pengguna baru; Deepgram memberi $200, AssemblyAI memberi $50. Dalam jangka panjang, ini jauh lebih murah daripada langganan apa pun. \n\nAnda juga bisa memakai HyperWhisper Cloud (built-in) yang tidak memerlukan API key dan menggunakan sistem pay-as-you-go.\n\nIngat, mode offline lokal bekerja tanpa API key dan sepenuhnya gratis."
+      },
+      "languages": {
+        "question": "Bahasa apa saja yang didukung?",
+        "answer": "Lebih dari 100 bahasa didukung sejak awal, dari Inggris dan Spanyol hingga Mandarin dan Arab. Sebagian besar model dapat mendeteksi bahasa yang Anda gunakan secara otomatis dan berpindah dengan mulus."
+      },
+      "offlineModels": {
+        "question": "Model offline apa yang tersedia?",
+        "answer": "Untuk transkripsi offline, kami menawarkan beberapa ukuran model Whisper (dibuat oleh OpenAI, mendukung 99+ bahasa). Kami juga menawarkan model Parakeet dari NVidia (mendukung 25+ bahasa).\n      \n      Untuk pascapemrosesan offline, kami menawarkan beberapa ukuran model Gemma 3 (dibuat oleh Google)."
+      },
+      "compatibility": {
+        "question": "Apakah ini bekerja di semua aplikasi Mac dan Windows?",
+        "answer": "Ya, bekerja di mana pun Anda bisa mengetik. Baik menulis email, dokumen, kode, atau chatting. Cukup tekan shortcut, bicara, dan lihat kata-kata Anda muncul seketika."
+      },
+      "privacy": {
+        "question": "Bagaimana privasi saya dilindungi?",
+        "answer": "Saat menggunakan mode lokal, tidak ada data yang keluar dari Mac Anda.\n\nSaat menggunakan transkripsi cloud, data Anda dikirim ke penyedia cloud pilihan Anda (misalnya OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs, atau Mistral).\n\nAnda bisa memverifikasi ini sendiri dengan network inspector seperti [Proxyman](https://proxyman.io) atau network monitor seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Apa itu HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud adalah transkripsi cloud bawaan yang ditujukan untuk pengguna non-teknis yang ingin cepat mulai.\n\nSistemnya pay as you go. Membeli lisensi memberi Anda $5 kredit transkripsi. Anda bisa menambah kredit lagi nanti.\n    \nKami menawarkan tiga tingkat akurasi: Medium (tercepat, ditenagai Groq), High (direkomendasikan, ditenagai Deepgram), dan Highest (kualitas terbaik, ditenagai xAI Grok STT). Pascapemrosesan berjalan otomatis. Kami tidak menyimpan apa pun selain jumlah kredit yang Anda pakai.\n\nAnda membayar persis seperti biaya yang kami bayar ke penyedia ini. Tidak ada markup.\n\nAgar tenang, Anda bisa melihat source code HyperWhisper Cloud [di sini](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Apakah data suara saya akan digunakan untuk melatih model AI?",
+        "answer": "HyperWhisper Cloud mengecualikan Anda dari pelatihan model di setiap penyedia yang kami gunakan. Dengan kunci API Anda sendiri, penolakan adalah tanggung jawab Anda — lihat [panduan privasi data](https://hyperwhisper.com/docs/data-privacy) kami."
+      },
+      "lifetime": {
+        "question": "Kenapa harga seumur hidup, bukan langganan?",
+        "answer": "Kami percaya pada harga yang sederhana dan adil. Bayar sekali $39 dan gunakan HyperWhisper selamanya. Tanpa biaya bulanan, tanpa kejutan. Versi gratis memungkinkan Anda mencoba fitur penting dengan 3 menit transkripsi harian."
+      },
+      "deviceLimit": {
+        "question": "Berapa banyak perangkat yang bisa pakai lisensi saya?",
+        "answer": "Anda dapat menggunakan lisensi di sebanyak mungkin perangkat, sesuai Kebijakan Penggunaan Wajar kami sebagaimana dijelaskan dalam [Syarat Layanan](/legal/terms-of-service). Kebijakan ini dirancang agar fleksibel untuk penggunaan pribadi dan bisnis yang sah sekaligus mencegah penyalahgunaan."
+      },
+      "requirements": {
+        "question": "Apa persyaratan sistemnya?",
+        "answer": "Untuk Mac: macOS 14 atau lebih baru, mendukung Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. Disarankan 8GB RAM untuk performa optimal."
+      },
+      "windowsStatus": {
+        "question": "Apakah versi Windows punya semua fitur yang sama dengan macOS?",
+        "answer": "Versi Windows baru dirilis, jadi mungkin belum memiliki semua fitur yang tersedia di macOS. Kami sedang aktif bekerja agar kedua platform mencapai paritas fitur penuh."
+      },
+      "madeBy": {
+        "question": "Siapa yang membuat ini?",
+        "answer": "Ini dibuat oleh YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Pusat Dukungan",
+    "subtitle": "Kami siap membantu Anda memaksimalkan HyperWhisper",
+    "getInTouch": "Hubungi Kami",
+    "description": "Untuk dukungan teknis, masalah lisensi, atau pertanyaan apa pun tentang HyperWhisper, tim kami siap membantu.",
+    "emailUsAt": "Email kami di:",
+    "openInClient": "Buka di klien email Anda:",
+    "defaultClient": "Klien Email Default",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Kami biasanya merespons dalam 24 jam di hari kerja.",
+    "emailTemplate": {
+      "subject": "Permintaan Dukungan HyperWhisper",
+      "body": "Hai,\n\nVersi: \n[bisa dicek di Settings > About]\n\nMasalah: \n[Jelaskan masalah Anda]\n\nDetail: \n[Berikan detail relevan, apa yang Anda lakukan sebelum crash]\n\n[Pesan Anda di sini]\n\nSalam,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "Logo HyperWhisper",
+    "title": "Unduh HyperWhisper",
+    "emailPlaceholder": "Email",
+    "description": "Kami akan mengirimkan tautan unduhan dan video tutorial singkat agar Anda bisa cepat mulai. Tanpa spam.",
+    "downloadButton": "Unduh HyperWhisper",
+    "errorGeneric": "Terjadi kesalahan. Silakan coba lagi.",
+    "errorNetwork": "Kesalahan jaringan. Periksa koneksi Anda dan coba lagi.",
+    "thankYouTitle": "Terima kasih!",
+    "downloadStarted": "Unduhan Anda seharusnya mulai secara otomatis.",
+    "manualDownload": "Unduhan belum mulai? Klik di sini",
+    "skipAndDownloadButton": "Lewati dan unduh"
+  },
+  "downloadPage": {
+    "title": "Unduh HyperWhisper",
+    "countdownText": "Mulai dalam {seconds}...",
+    "downloadStarted": "Periksa folder Downloads Anda",
+    "downloadNow": "Unduh Sekarang",
+    "downloadAgain": "Unduh Lagi",
+    "selectArchitecture": "Pilih arsitektur Anda",
+    "downloadX64": "Unduh untuk x64",
+    "downloadArm64": "Unduh untuk ARM64",
+    "orDivider": "ATAU",
+    "homebrewTitle": "Instal via Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Salin",
+    "copied": "Disalin!"
+  },
+  "purchaseSuccess": {
+    "title": "Pembelian Berhasil!",
+    "subtitle": "Selamat datang di HyperWhisper Pro! Lisensi seumur hidup Anda sudah siap.",
+    "checkEmail": {
+      "title": "Periksa Email Anda",
+      "description": "Kami telah mengirimkan kunci lisensi dan instruksi unduhan ke alamat email Anda. Seharusnya tiba dalam beberapa menit ke depan."
+    },
+    "whatsNext": {
+      "title": "Langkah Selanjutnya",
+      "step1": {
+        "title": "Periksa kotak masuk Anda",
+        "description": "Cari email dari HyperWhisper"
+      },
+      "step2": {
+        "title": "Salin kunci lisensi Anda",
+        "description": "Anda akan membutuhkannya untuk mengaktifkan aplikasi"
+      },
+      "step3": {
+        "title": "Unduh HyperWhisper",
+        "description": "Instal aplikasi dan masukkan kunci lisensi Anda"
+      }
+    },
+    "downloadButton": "Unduh HyperWhisper",
+    "returnHome": "Kembali ke Beranda",
+    "noEmail": "Tidak menerima email? Periksa folder spam Anda atau",
+    "contactSupport": "hubungi dukungan",
+    "loading": "Memuat..."
+  },
+  "footer": {
+    "tagline": "Menulis 5x lebih cepat dengan transkripsi suara bertenaga AI untuk macOS & Windows.",
+    "product": "Produk",
+    "resources": "Sumber daya",
+    "company": "Perusahaan",
+    "legal": "Legal",
+    "links": {
+      "features": "Fitur",
+      "pricing": "Harga",
+      "download": "Unduh",
+      "roadmap": "Peta jalan",
+      "helpCenter": "Pusat bantuan",
+      "manageBilling": "Kelola Tagihan",
+      "customerPortal": "Portal Pelanggan",
+      "olderVersions": "Versi Lama",
+      "blog": "Blog",
+      "about": "Tentang",
+      "support": "Dukungan",
+      "privacyPolicy": "Kebijakan Privasi",
+      "termsOfService": "Syarat Layanan",
+      "refundPolicy": "Kebijakan Refund",
+      "dataTraining": "Privasi Data"
+    },
+    "copyright": "© 2026 HyperWhisper. Semua hak dilindungi.",
+    "linkedinAria": "LinkedIn"
+  }
+}

@@ -1,0 +1,340 @@
+---
+title: "Network Filtering"
+description: "Whitelist domains and configure network access for HyperWhisper's transcription and AI features"
+---
+
+## Overview
+
+If you're using HyperWhisper in an environment with network filtering (corporate firewalls, parental controls, content filters, etc.), you'll need to whitelist specific domains to ensure the app functions properly.
+
+<Note>
+**Important**: You only need to whitelist the domains for services you actually use. For example, if you only use HyperWhisper Cloud for transcription, you don't need to whitelist OpenAI, Groq, or other third-party providers.
+</Note>
+
+## Required Domains
+
+These domains are **always required** for HyperWhisper to function properly, regardless of which transcription provider you use:
+
+<Warning>
+Without these domains whitelisted, core features like license validation and software updates will not work.
+</Warning>
+
+| Domain | Purpose |
+|--------|---------|
+| `www.hyperwhisper.com` | Main website, API backend, and software updates |
+| `license.hyperwhisper.com` | License validation and subscription management |
+| `sentry.io` | Error reporting and crash analytics (optional but recommended) |
+
+### HyperWhisper Cloud Endpoints
+
+If you're using **HyperWhisper Cloud** (the default, built-in transcription service):
+
+- `https://transcribe-prod-v2.hyperwhisper.com/` - Transcription endpoint
+- `https://transcribe-prod-v2.hyperwhisper.com/usage` - Credit balance queries
+
+<Tip>
+HyperWhisper Cloud requires no API key and is the recommended option for most users. It uses a credit-based system with generous trial credits and affordable licensed pricing.
+</Tip>
+
+## Model Downloads
+
+If you plan to use **local transcription** with on-device Whisper models or local Gemma post-processing:
+
+| Domain | Purpose |
+|--------|---------|
+| `huggingface.co` | Download Whisper.cpp and Gemma models |
+
+Specifically, HyperWhisper downloads models from:
+- `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/*` - Whisper models
+- `https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/*` - Gemma 4 E2B local post-processing models
+- `https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/*` - Gemma 4 E4B local post-processing models
+- `https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/*` - Gemma 4 26B A4B local post-processing models
+- `https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/*` - Gemma 4 31B local post-processing models
+
+## Optional: Third-Party Transcription Providers
+
+<Info>
+**Only whitelist the providers you use.** If you're not using a specific provider (e.g., you don't have an OpenAI API key), you don't need to whitelist their domains.
+</Info>
+
+### OpenAI
+
+If you've configured **OpenAI** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.openai.com` | Whisper transcription API and GPT post-processing |
+| `platform.openai.com` | API key management page (informational) |
+
+Specific endpoints:
+- `https://api.openai.com/v1/audio/transcriptions` - Whisper API
+- `https://api.openai.com/v1/chat/completions` - GPT post-processing
+- `https://api.openai.com/v1/models` - Model availability checks
+
+### Groq
+
+If you've configured **Groq** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.groq.com` | Fast Whisper inference and language models |
+| `console.groq.com` | API key management page (informational) |
+
+Specific endpoints:
+- `https://api.groq.com/openai/v1/audio/transcriptions` - Whisper API
+- `https://api.groq.com/openai/v1/chat/completions` - Text post-processing
+- `https://api.groq.com/openai/v1/models` - Model availability checks
+
+### Deepgram
+
+If you've configured **Deepgram** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.deepgram.com` | Advanced speech-to-text API |
+| `deepgram.com` | Website (informational) |
+
+Specific endpoints:
+- `https://api.deepgram.com/v1/listen` - Transcription API
+- `https://api.deepgram.com/v1/projects` - Health check
+
+### AssemblyAI
+
+If you've configured **AssemblyAI** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.assemblyai.com` | Async transcription API with advanced features |
+| `www.assemblyai.com` | Website (informational) |
+
+Specific endpoints:
+- `https://api.assemblyai.com/v2/upload` - Audio upload
+- `https://api.assemblyai.com/v2/transcript` - Transcription creation/polling
+
+### ElevenLabs Scribe
+
+If you've configured **ElevenLabs** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.elevenlabs.io` | ElevenLabs Scribe speech-to-text API |
+| `elevenlabs.io` | Website and API key management (informational) |
+
+Specific endpoints:
+- `https://api.elevenlabs.io/v1/speech-to-text` - Scribe API
+- `https://api.elevenlabs.io/v1/models` - Model availability checks
+
+### xAI Grok
+
+If you've configured **Grok** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.x.ai` | Grok speech-to-text, text-to-speech, and model availability checks |
+| `console.x.ai` | API key management page (informational) |
+
+Specific endpoints:
+- `https://api.x.ai/v1/stt` - Grok STT batch transcription
+- `wss://api.x.ai/v1/stt` - Grok STT streaming transcription
+- `https://api.x.ai/v1/tts` - Grok text-to-speech
+- `https://api.x.ai/v1/tts/voices` - Grok voice availability checks
+- `https://api.x.ai/v1/models` - Model availability checks
+- `https://api.x.ai/v1/chat/completions` - Grok post-processing
+
+### Mistral Voxtral
+
+If you've configured **Mistral** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.mistral.ai` | Voxtral transcription API and model availability checks |
+| `console.mistral.ai` | API key management page (informational) |
+
+Specific endpoints:
+- `https://api.mistral.ai/v1/audio/transcriptions` - Voxtral Mini transcription API
+- `https://api.mistral.ai/v1/models` - Health check and model availability
+
+## Optional: AI Post-Processing Providers
+
+If you've enabled **AI post-processing** to enhance transcriptions (fix typos, add punctuation, format text):
+
+<Tip>
+AI post-processing is optional. If you don't use it, you don't need to whitelist these domains.
+</Tip>
+
+### Anthropic Claude
+
+If you've configured **Anthropic Claude** for post-processing:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.anthropic.com` | Claude AI models for text enhancement |
+| `console.anthropic.com` | API key management page (informational) |
+
+Specific endpoints:
+- `https://api.anthropic.com/v1/messages` - Text post-processing
+- `https://api.anthropic.com/v1/models` - Model availability checks
+
+### Google Gemini
+
+If you've configured **Google Gemini** for post-processing:
+
+| Domain | Purpose |
+|--------|---------|
+| `generativelanguage.googleapis.com` | Gemini AI models for text enhancement |
+| `aistudio.google.com` | API key management page (informational) |
+| `ai.google.dev` | Gemma documentation (informational) |
+
+Specific endpoints:
+- `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` - Text post-processing
+- `https://generativelanguage.googleapis.com/v1beta/models` - Model availability checks
+
+### Cerebras
+
+If you've configured **Cerebras** for post-processing:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.cerebras.ai` | Ultra-fast Llama inference for text enhancement |
+| `cloud.cerebras.ai` | API key management page (informational) |
+
+Specific endpoints:
+- `https://api.cerebras.ai/v1/chat/completions` - Text post-processing
+- `https://api.cerebras.ai/v1/models` - Model availability checks
+
+### xAI Grok
+
+If you've configured **Grok** for post-processing, use the xAI domains listed above.
+
+### Local Gemma (Offline)
+
+If you're using **local Gemma models** for post-processing, no network access is needed after the model has downloaded. HyperWhisper loads the GGUF model in-process; it does not call a localhost server.
+
+<Note>
+Local Gemma runs entirely on your device and requires no internet connection for inference.
+</Note>
+
+## Offline Mode
+
+HyperWhisper can work **completely offline** if you use:
+
+1. **Local transcription** (libwhisper.cpp or Parakeet TDT v3):
+   - Download Whisper models once from `huggingface.co`
+   - Models are stored locally in `~/Library/Application Support/hyperwhisper/models/`
+   - No internet required after initial download
+
+2. **No post-processing** or **local Gemma post-processing**:
+   - Local Gemma runs entirely on your device
+   - No external API calls
+
+3. **7-day offline grace period** for license validation:
+   - HyperWhisper caches license validation for 24 hours
+   - You can use the app offline for up to 7 days
+   - After 7 days, you'll need internet to revalidate
+
+<Warning>
+**License validation** still requires periodic internet access to `hyperwhisper.com`. The app will remind you to connect when the grace period expires.
+</Warning>
+
+## Troubleshooting
+
+### Common Error Messages
+
+These are actual error messages from HyperWhisper that indicate network filtering issues:
+
+| Error Message | Likely Cause | Solution |
+|---------------|--------------|----------|
+| "Network connection error" | General connectivity issue or domain blocked | Check internet connection, verify required domains are whitelisted |
+| "No internet connection" | Not connected to internet or all domains blocked | Connect to internet, whitelist required domains |
+| "Cloud transcription requires an internet connection" | Using cloud provider while offline | Connect to internet or switch to local transcription mode |
+| "Network error: [details]" | Specific network issue (timeout, DNS, etc.) | Check domain whitelisting and network settings |
+| "Cannot find host" / "Cannot connect to host" | DNS blocked or domain not whitelisted | Whitelist the specific domain (`transcribe-prod-v2.hyperwhisper.com`, `api.openai.com`, etc.) |
+| "Unauthorized: invalid [Provider] API key" | API key rejected (could be network blocking validation) | Verify API key is correct, check if API domain is whitelisted |
+| "Request timed out" | Slow connection or partial blocking | Check connection speed, verify no SSL inspection interference |
+| "[Provider] is unreachable" | Provider domain blocked or offline | Whitelist provider's API domain |
+| "Server error (5xx)" | Provider having issues OR SSL inspection breaking requests | Check provider status, verify SSL bypass for provider domains |
+
+<Note>
+**SSL inspection can cause many of these errors** even when domains are whitelisted. If you see persistent "Network error" or "Unauthorized" messages despite correct API keys and whitelisting, see the SSL/TLS Inspection section below.
+</Note>
+
+### SSL/TLS Inspection Issues
+
+Some corporate networks and content filters use **SSL/TLS inspection** (also called SSL bumping or HTTPS interception). This means:
+
+1. Your network filter intercepts HTTPS connections
+2. It presents its own certificate instead of the real one
+3. It decrypts, inspects, then re-encrypts your traffic
+
+Even if you've whitelisted all the correct domains, SSL inspection can still cause connection failures because HyperWhisper validates SSL certificates for security.
+
+<Warning>
+If you've whitelisted all domains but still see "No network connection" or SSL certificate errors, SSL inspection is likely the cause.
+</Warning>
+
+**Solution:** Ask your IT administrator to add HyperWhisper domains to the **SSL inspection bypass list** (not just the URL allowlist). This ensures traffic to these domains passes through without certificate interception.
+
+Domains to bypass SSL inspection for:
+- `*.hyperwhisper.com` (includes `transcribe-prod-v2.hyperwhisper.com` and `license.hyperwhisper.com`)
+- Any third-party API domains you use (e.g., `api.openai.com`, `huggingface.co`)
+
+<Tip>
+Bypassing SSL inspection for HyperWhisper is actually better for your privacy—it means your voice transcriptions aren't being inspected by your network filter.
+</Tip>
+
+### How to Test Connectivity
+
+If you're experiencing issues, you can test connectivity to specific domains:
+
+```bash
+# Test HyperWhisper Cloud
+curl -I https://transcribe-prod-v2.hyperwhisper.com/
+
+# Test license server
+curl -I https://license.hyperwhisper.com/validate
+
+# Test OpenAI (if using)
+curl -I https://api.openai.com/v1/models
+
+# Test Hugging Face (for model downloads)
+curl -I https://huggingface.co
+```
+
+<Tip>
+If curl commands succeed but HyperWhisper still fails, SSL inspection is likely interfering. The curl command uses your system's certificate store, while HyperWhisper validates certificates more strictly.
+</Tip>
+
+---
+
+## Security & Privacy
+
+### Data Handling
+
+1. **API Keys**: Stored securely in macOS Keychain, never sent to HyperWhisper servers
+2. **License Keys**: Only sent to `hyperwhisper.com` for validation (encrypted via HTTPS) 
+3. **Audio Data**:
+   - **HyperWhisper Cloud**: Sent to `transcribe-prod-v2.hyperwhisper.com` (Fly.io edge network, processed in-memory, never stored on disk)
+   - **Third-party providers**: Sent directly to their APIs (xAI Grok, OpenAI, Groq, Deepgram, etc.) - subject to their privacy policies
+   - **Local models**: Never leaves your device - completely offline and private
+
+### Network Security
+
+1. **TLS/HTTPS**: All network connections use encrypted HTTPS
+2. **Certificate Validation**: HyperWhisper validates SSL certificates to prevent man-in-the-middle attacks
+3. **No Telemetry**: HyperWhisper doesn't track usage, analytics, or user behavior
+4. **Crash Reports**: Optional error reporting via Sentry (can be disabled in settings)
+
+### Privacy with Network Filters
+
+When using corporate network filters with SSL inspection:
+- **Without SSL bypass**: Your network can decrypt and read all transcription content
+- **With SSL bypass**: Your transcriptions remain private and encrypted end-to-end
+
+For maximum privacy, request IT to bypass SSL inspection for HyperWhisper domains.
+
+---
+
+**Related Documentation:**
+- [API Keys Configuration](/api-keys)
+- [Models](/models)
+- [Developer Mode](/developer-mode)

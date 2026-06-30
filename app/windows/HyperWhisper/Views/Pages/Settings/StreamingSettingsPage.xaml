@@ -1,0 +1,386 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.StreamingSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Title="{loc:Loc settings.streaming.title}"
+      Background="{DynamicResource ContentBackgroundBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Padding="24,20"
+                Background="{DynamicResource ContentBackgroundBrush}">
+            <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+                <TextBlock Text="{loc:Loc settings.streaming.title}"
+                           FontSize="26"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock Text="{loc:Loc settings.streaming.enable.subtitle}"
+                           FontSize="13"
+                           Foreground="{DynamicResource TextSecondaryBrush}"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <Separator Grid.Row="1"
+                   Background="{DynamicResource BorderBrush}"/>
+
+        <ScrollViewer Grid.Row="2"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="24,24,24,24" MaxWidth="{StaticResource ContentMaxWidthForm}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        Padding="12"
+                        Margin="0,0,0,18"
+                        CornerRadius="{StaticResource CardCornerRadius}"
+                        Background="{DynamicResource WarningBackgroundBrush}"
+                        BorderBrush="{DynamicResource WarningBorderBrush}"
+                        BorderThickness="1"
+                        Visibility="{Binding HasStreamingShortcutConflict, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="24"
+                                Height="24"
+                                CornerRadius="12"
+                                Background="{DynamicResource WarningBorderBrush}"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Top">
+                            <TextBlock Text="!"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource WarningForegroundBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Streaming shortcut conflict"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource WarningForegroundBrush}"/>
+                            <TextBlock Text="{Binding StreamingShortcutConflictMessage}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource WarningForegroundBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,3,0,0"/>
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="0,10,0,0">
+                                <Button Content="Change Shortcut"
+                                        Style="{StaticResource MacButtonStyle}"
+                                        Click="FocusStreamingShortcut_Click"/>
+                                <Button Content="Open Shortcut Settings"
+                                        Style="{StaticResource MacButtonStyle}"
+                                        Margin="8,0,0,0"
+                                        Click="OpenShortcutSettings_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="1">
+                    <TextBlock Text="General"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="4,0,0,8"/>
+
+                    <Border Style="{StaticResource CardStyle}"
+                            Margin="0,0,0,18">
+                        <StackPanel>
+                            <Grid MinHeight="38">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="42"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="&#xE1D6;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="20"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{loc:Loc settings.streaming.enable.title}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center"/>
+
+                                <CheckBox x:Name="StreamingEnabledCheckbox"
+                                          Grid.Column="2"
+                                          VerticalAlignment="Center"
+                                          Checked="StreamingEnabled_Changed"
+                                          Unchecked="StreamingEnabled_Changed"/>
+                            </Grid>
+
+                            <Separator x:Name="ShortcutSeparator"
+                                       Background="{DynamicResource BorderBrush}"
+                                       Margin="0,12"/>
+
+                            <Grid x:Name="ShortcutRow" MinHeight="38">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="42"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="220"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="&#xE765;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="20"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Margin="0,0,20,0">
+                                    <TextBlock Text="{loc:Loc settings.streaming.shortcut.title}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{loc:Loc settings.shortcuts.tooltip}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               Margin="0,2,0,0"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2"
+                                            VerticalAlignment="Center">
+                                    <TextBox x:Name="StreamingShortcutBox"
+                                             Padding="10,6"
+                                             Background="{DynamicResource InputBackgroundBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             IsReadOnly="True"
+                                             PreviewKeyDown="StreamingShortcutBox_PreviewKeyDown"
+                                             PreviewKeyUp="StreamingShortcutBox_PreviewKeyUp"
+                                             ToolTip="{loc:Loc settings.shortcuts.tooltip}"/>
+                                    <TextBlock x:Name="StreamingShortcutErrorText"
+                                               Text=""
+                                               Foreground="{DynamicResource ErrorBrush}"
+                                               FontSize="11"
+                                               Margin="0,4,0,0"
+                                               Visibility="Collapsed"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel x:Name="StreamingOptionsPanel"
+                                Visibility="Collapsed">
+                        <TextBlock Text="Engine"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="4,0,0,8"/>
+
+                        <Border Style="{StaticResource CardStyle}"
+                                Margin="0,0,0,18">
+                            <StackPanel>
+                                <Grid MinHeight="38">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="42"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="220"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="&#xE753;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="20"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+
+                                    <TextBlock Grid.Column="1"
+                                               Text="{loc:Loc settings.streaming.provider.title}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               VerticalAlignment="Center"/>
+
+                                    <ComboBox x:Name="ProviderBox"
+                                              Grid.Column="2"
+                                              SelectionChanged="ProviderBox_SelectionChanged">
+                                        <ComboBoxItem Content="{loc:Loc settings.streaming.provider.hyperwhisperCloud}" Tag="hyperwhisperCloud"/>
+                                        <ComboBoxItem Content="{loc:Loc settings.streaming.provider.deepgram}" Tag="deepgram"/>
+                                        <ComboBoxItem Content="{loc:Loc settings.streaming.provider.elevenLabs}" Tag="elevenLabs"/>
+                                        <ComboBoxItem Content="{loc:Loc settings.streaming.provider.openAI}" Tag="openAI"/>
+                                        <ComboBoxItem Content="{loc:Loc settings.streaming.provider.xai}" Tag="xai"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <StackPanel x:Name="DeepgramPanel"
+                                            Visibility="Collapsed">
+                                    <Separator Background="{DynamicResource BorderBrush}"
+                                               Margin="0,12"/>
+
+                                    <Grid MinHeight="38">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="42"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="220"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Text="&#xE950;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="20"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{loc:Loc settings.streaming.deepgram.model.title}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center"/>
+
+                                        <ComboBox x:Name="DeepgramModelBox"
+                                                  Grid.Column="2"
+                                                  SelectionChanged="DeepgramModelBox_SelectionChanged">
+                                            <ComboBoxItem Content="{loc:Loc settings.streaming.deepgram.model.general}" Tag="nova-3-general"/>
+                                            <ComboBoxItem Content="{loc:Loc settings.streaming.deepgram.model.medical}" Tag="nova-3-medical"/>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <Separator Background="{DynamicResource BorderBrush}"
+                                               Margin="0,12"/>
+
+                                    <Grid MinHeight="46">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="42"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Text="&#xE945;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="20"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{loc:Loc settings.streaming.fastFormatting.title}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{loc:Loc settings.streaming.fastFormatting.subtitle}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Margin="0,2,20,0"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <CheckBox x:Name="FastFormattingCheckbox"
+                                                  Grid.Column="2"
+                                                  VerticalAlignment="Center"
+                                                  Checked="FastFormatting_Changed"
+                                                  Unchecked="FastFormatting_Changed"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="ProviderStatusPanel"
+                                Background="{DynamicResource InputBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource InputCornerRadius}"
+                                Padding="12,10"
+                                Margin="42,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE946;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,8,0"/>
+                                <TextBlock x:Name="ProviderStatusText"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="VocabularyWarningPanel"
+                                Visibility="Collapsed"
+                                Background="{DynamicResource WarningBackgroundBrush}"
+                                BorderBrush="{DynamicResource WarningBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource InputCornerRadius}"
+                                Padding="12,10"
+                                Margin="42,0,0,18">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE7BA;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           Foreground="{DynamicResource WarningForegroundBrush}"
+                                           VerticalAlignment="Top"
+                                           Margin="0,2,8,0"
+                                           FontSize="13"/>
+                                <TextBlock x:Name="VocabularyWarningText"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap"
+                                           FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="Language"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="4,0,0,8"/>
+
+                        <Border Style="{StaticResource CardStyle}">
+                            <Grid MinHeight="38">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="42"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="220"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="&#xE909;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="20"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+
+                                <TextBlock Grid.Column="1"
+                                           Text="{loc:Loc settings.streaming.language.title}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           VerticalAlignment="Center"/>
+
+                                <ComboBox x:Name="LanguageBox"
+                                          Grid.Column="2"
+                                          DisplayMemberPath="DisplayName"
+                                          SelectedValuePath="Code"
+                                          SelectionChanged="LanguageBox_SelectionChanged"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</Page>

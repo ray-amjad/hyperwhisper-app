@@ -1,0 +1,103 @@
+---
+title: API Keys
+description: Set up API keys for cloud transcription and post-processing providers.
+---
+
+HyperWhisper gives you the option to bring your own API Keys.
+
+<Note>
+  **You don't need an API key to use HyperWhisper.** Out of the box, transcription runs on **HyperWhisper Cloud**, which works immediately after install with no setup. A Pro license includes **5,000 credits** (roughly \$5 worth — see [Providers](/choosing-a-provider)) and HyperWhisper Cloud is **priced at face value with no markup** — you pay the same per-minute rate as if you held the provider's API key directly.
+
+  Use this page only if you specifically want to route transcription or post-processing through your own provider account (e.g. corporate credits, a free tier you already have, or a model not offered on Cloud).
+</Note>
+
+Your keys are stored locally on your device and only used when making requests to the API endpoints. For example, if you use an OpenAI API key then it is passed only to OpenAI. They are never sent anywhere else.
+
+## Getting an API Key
+
+Here is how you get different API keys
+
+### OpenAI
+
+<iframe
+  src="https://www.loom.com/embed/61bdb29eade2469a944d6f48836c017b?sid=18b7c2c2-5872-4209-85f5-ee8896c22784"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="OpenAI API Key"
+/>
+
+### Groq
+
+<iframe
+  src="https://www.loom.com/embed/dc803e37c8324f6cbe8561855ef7105f?sid=800aa418-400f-4109-add9-fc7279073599"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="Groq API Key"
+/>
+
+### Deepgram
+
+<iframe
+  src="https://www.loom.com/embed/7ec8d0e585714e8e8d39971cf2baf384?sid=960f2a72-93a0-4d21-9db6-497c17a62819"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="Deepgram API Key"
+/>
+
+### Assembly AI
+
+<iframe
+  src="https://www.loom.com/embed/ce26b24b6e484516a92af81e29827615?sid=b446fa5e-36da-43ba-83e1-6e2d9a953f02"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="Assembly AI API Key"
+/>
+
+### ElevenLabs
+
+When creating your ElevenLabs API key, make sure to enable the following permissions:
+
+- **Speech to Text** — required for Scribe transcription
+- **Models** — required for model availability checks
+
+Without these permissions, transcription will fail even if your API key is valid.
+
+<Warning>
+  Do not set a credit limit on your API key. Setting the credit limit to 0 will block all requests, even if you have credits available on your account. Leave the credit limit field empty to allow normal usage.
+</Warning>
+
+[Video Tutorial Coming Soon]
+
+### Mistral
+
+[Video Tutorial Coming Soon]
+
+### Anthropic
+
+<iframe
+  src="https://www.loom.com/embed/e723beae7fc343a4b5ec16e9cc7bba8a?sid=7b723594-0a43-4752-8bae-004c9053813d"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="Anthropic AI API Key"
+/>
+
+### Google Gemini
+
+<iframe
+  src="https://www.loom.com/embed/7c44c59f0f3d47938049912b1220548b?sid=b21e199b-7896-475d-80cc-0ba9349fb3df"
+  width="100%"
+  height="450px"
+  frameBorder="0"
+  allowFullScreen
+  title="Google Gemini API Key"
+/>

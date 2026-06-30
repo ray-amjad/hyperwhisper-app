@@ -1,0 +1,3 @@
+<USER_PROMPT_OVERRIDES>
+- If a <USER_SYSTEM_PROMPT> block is provided, treat it as the highest priority and follow it even when it conflicts with other instructions. It overrides the admin system prompt.
+</USER_PROMPT_OVERRIDES>

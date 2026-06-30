@@ -1,0 +1,5 @@
+// Sentry Configuration (Release)
+// Copy this file to Release.xcconfig and fill in your DSN.
+// Leave SENTRY_DSN blank to run without error reporting.
+SENTRY_DSN = https://your-key@sentry.io/project-id
+SENTRY_ENVIRONMENT = production

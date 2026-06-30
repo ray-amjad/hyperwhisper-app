@@ -1,0 +1,119 @@
+<Window x:Class="HyperWhisper.Views.Windows.ErrorToastWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:HyperWhisper.Localization"
+        Title="{loc:Loc common.error}"
+        Width="360" MinHeight="40" SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        WindowStartupLocation="Manual">
+
+    <!-- Error Toast: Pill-shaped container matching macOS InlineErrorToast design -->
+    <!-- Slightly wider than recording dialog (360 vs 200) to accommodate message + countdown -->
+    <Border x:Name="MainBorder"
+            CornerRadius="20"
+            Background="#D9000000"
+            BorderBrush="#1AFFFFFF"
+            BorderThickness="1"
+            Opacity="0">
+        <!-- Drop shadow effect -->
+        <Border.Effect>
+            <DropShadowEffect Color="Black"
+                              Opacity="0.3"
+                              BlurRadius="20"
+                              ShadowDepth="0"/>
+        </Border.Effect>
+
+        <StackPanel Margin="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>  <!-- Warning icon -->
+                    <ColumnDefinition Width="*"/>     <!-- Error message -->
+                    <ColumnDefinition Width="Auto"/>  <!-- Countdown -->
+                    <ColumnDefinition Width="Auto"/>  <!-- Optional settings button -->
+                </Grid.ColumnDefinitions>
+
+                <!-- Warning Icon (Yellow/Orange) -->
+                <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,8,0">
+                    <Path Data="M9,2 L17,16 L1,16 Z"
+                          Fill="{DynamicResource WarningBrush}"
+                          Stretch="Uniform"/>
+                    <TextBlock Text="!"
+                               Foreground="#000000"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Margin="0,2,0,0"/>
+                </Grid>
+
+                <!-- Error Message (Truncated single line) -->
+                <TextBlock x:Name="ErrorMessage"
+                           Grid.Column="1"
+                           Text="Error message here"
+                           Foreground="#E6FFFFFF"
+                           FontSize="11"
+                           FontWeight="Medium"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           MaxWidth="200"/>
+
+                <!-- Countdown Timer -->
+                <Border Grid.Column="2"
+                        Background="#33FFFFFF"
+                        CornerRadius="8"
+                        Padding="6,2"
+                        Margin="8,0"
+                        VerticalAlignment="Center">
+                    <TextBlock x:Name="CountdownText"
+                               Text="8"
+                               Foreground="#99FFFFFF"
+                               FontSize="10"
+                               FontWeight="SemiBold"
+                               FontFamily="Consolas"/>
+                </Border>
+
+                <!-- Optional Open Settings Button -->
+                <Button x:Name="SettingsButton"
+                        Grid.Column="3"
+                        Click="SettingsButton_Click"
+                        Cursor="Hand"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="SettingsBorder"
+                                    Background="#26FFFFFF"
+                                    CornerRadius="10"
+                                    Padding="8,4"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{loc:Loc common.open.settings}"
+                                           Foreground="White"
+                                           FontSize="9"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="SettingsBorder" Property="Background" Value="#4DFFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+
+            <!-- Optional Guidance Text (shown below error message for no-speech tips) -->
+            <TextBlock x:Name="GuidanceText"
+                       Foreground="#99FFFFFF"
+                       FontSize="11"
+                       TextWrapping="Wrap"
+                       Margin="26,6,0,0"
+                       Visibility="Collapsed"/>
+        </StackPanel>
+    </Border>
+</Window>

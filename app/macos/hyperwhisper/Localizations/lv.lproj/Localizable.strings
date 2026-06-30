@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Vārdu krājums";
+"vocabulary.description" = "Tas palīdz programmatūrai atpazīt vārdus, saīsinājumus, slengu vai vārdus no citām valodām, sajaucot valodas.";
+"vocabulary.input.title" = "Ievade";
+"vocabulary.new.word.placeholder" = "Jauns vārds vai frāze";
+"vocabulary.replacement.placeholder" = "Aizstāt ar...";
+"vocabulary.add.button" = "Pievienot vārdu krājumam";
+"vocabulary.edit.title" = "Rediģēt vārdnīcas ierakstu";
+"vocabulary.update.button" = "Atjaunināt";
+"vocabulary.cancel.button" = "Atcelt";
+"vocabulary.word.column" = "Vārds/Frāze";
+"vocabulary.replacement.column" = "Aizstāšana";
+"vocabulary.empty.title" = "Vēl nav vārdu krājuma";
+"vocabulary.empty.subtitle" = "Pievienojiet pielāgotus vārdus, lai uzlabotu transkripcijai precizitāti";
+"vocabulary.duplicate.title" = "Dublikāts ieraksts";
+"vocabulary.duplicate.message" = "%@ jau pastāv jūsu vārdu krājumā. Katru vārdu var pievienot tikai vienu reizi.";
+"vocabulary.ok.button" = "Labi";
+"vocabulary.limit.title" = "Atslēgvārdu limits pārsniegts";
+"vocabulary.limit.message" = "Jums ir %d vārdi, bet transkripcijai tiks izmantoti tikai pirmie %d.";
+
+// MARK: - Streaming View
+"streaming.title" = "Straumēšana (Beta)";
+"streaming.description" = "Reāllaika transkripcija, kamēr jūs runājat. Teksts tiek ierakstīts tieši fokusētā lietotnē.";
+"streaming.enable.title" = "Iespējot straumēšanu";
+"streaming.provider.picker.title" = "Sniedzējs";
+"streaming.model.title" = "Modelis";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Ātra formatēšana";
+"streaming.fastFormatting.description" = "Samazina intelektuālās formatēšanas aizkavi ātrākai rakstīšanai";
+"streaming.warning.vocabAutoDetect" = "Pielāgotais vārdu krājums ir atspējots automātiskās valodas noteikšanas režīmā";
+"streaming.warning.vocabUnsupported" = "Pielāgotais vārdu krājums netiek atbalstīts ar %@ straumēšanu";
+"streaming.warning.apiKeyRequired" = "%@ API atslēga ir nepieciešama";
+"streaming.warning.apiKeyRequired.action" = "Konfigurēt";
+"streaming.warning.apiKeyInvalid" = "%@ API atslēga nedarbojas. Atjauniniet to sadaļā Iestatījumi > API atslēgas.";
+"streaming.warning.apiKeyInvalid.action" = "Atjaunināt atslēgu";
+"streaming.language.title" = "Valoda";
+"streaming.shortcut.title" = "Saīsinājums";
+
+// MARK: - Home View
+"home.get.started" = "Darba sākšana";
+"home.open.system.settings" = "Atvērt sistēmas iestatījumus";
+
+// MARK: - API Keys
+"api.key.required" = "API atslēga ir nepieciešama";
+"api.keys.required" = "API atslēgas ir nepieciešamas";
+"api.key.configure.message" = "Konfigurējiet savas API atslēgas, lai iespējotu transkripciniu.";
+"api.key.internet.required" = "Internetapiņķis ir nepieciešams";
+"api.key.internet.message" = "Mākoņa transkripcija prasa internetapiņķi.";
+
+// MARK: - Common UI
+"common.ok" = "Labi";
+"common.cancel" = "Atcelt";
+"common.delete" = "Dzēst";
+"common.edit" = "Rediģēt";
+"common.done" = "Pabeigts";
+"common.copy" = "Kopēt";
+"common.back" = "Atpakaļ";
+"common.skip" = "Izlaist";
+"common.settings" = "Iestatījumi";
+"common.error" = "Kļūda";
+"common.retry" = "Mēģināt vēlreiz";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Sākums";
+"sidebar.statistics" = "Statistika";
+"sidebar.modes" = "Režīmi";
+"sidebar.vocabulary" = "Vārdu krājums";
+"sidebar.streaming" = "Straumēšana";
+"sidebar.history" = "Vēsture";
+"sidebar.settings" = "Iestatījumi";
+
+// MARK: - App Messages
+"app.unknown.error" = "Notika nezināma kļūda";
+"app.microphone.permission.message" = "HyperWhisper prasa piekļuvi jūsu mikrofonam, lai transkribētu audio.\n\nLūdzu dodieties uz Sistēmas iestatījumi > Privātums un drošība > Mikrofons un iespējojiet piekļuvi HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper saglabā ierakstus mapē jūsu Dokumentos, lai tos varētu viegli atrast: Documents/hyperwhisper/recordings. macOS var lūgt atļauju pirmo reizi, kad mēs cenšamies tur saglabāt. Ja vēlaties nepiešķirt piekļuvi, mēs varam saglabāt ierakstus privātā programmas mapē.";
+"app.upgrade.to.pro" = "Jaunināt uz Pro";
+"app.enter.license.key" = "Ievadīt licences atslēgu";
+"accessibility.upgrade.pro" = "Jaunināt uz HyperWhisper Pro";
+"accessibility.enter.license" = "Ievadīt licences atslēgu";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Pievienojiet savas %@ API atslēgas, lai iespējotu atlasīto režīmu.";
+"home.api.keys.missing.single" = "Pievienojiet savu %@ API atslēgu, lai iespējotu atlasīto režīmu.";
+"home.getting.started.recording.title" = "Sākt ierakstīt";
+"home.getting.started.recording.description" = "Pārvērtiet savu balsi tekstā ar vienu noklikšķi.";
+"home.getting.started.shortcuts.title" = "Pielāgojiet saīsinājumus";
+"home.getting.started.shortcuts.description" = "Mainiet HyperWhisper tastatūras saīsinājumus.";
+"home.getting.started.mode.title" = "Izveidot režīmu";
+"home.getting.started.mode.description" = "Izveidojiet ideālu režīmu savai darbplūsmai.";
+"home.getting.started.vocabulary.title" = "Pievienot vārdu krājumu";
+"home.getting.started.vocabulary.description" = "Iemāciet HyperWhisper pielāgotus vārdus, vārdus vai nozares terminus.";
+"home.add.api.key" = "Pievienot API atslēgu";
+"home.accessibility.enable.title" = "Iespējot pieejamību";
+"home.accessibility.enable.description" = "Atļaujiet HyperWhisper automātiski ielīmēt jūsu lietotajās aplikācijās.";
+"home.accessibility.waiting" = "Gaida...";
+"home.accessibility.open.settings" = "Atvērt iestatījumus";
+"home.accessibility.restart.after.permission" = "Pārstartējiet aplikāciju pēc atļaujas piešķiršanas";
+"home.getting.started.completed" = "✓ Pabeigts";
+"home.whatsnew.badge" = "JAUNS";
+"home.whatsnew.title" = "Kas jauns?";
+"home.whatsnew.update1.date" = "3. jūl";
+"home.whatsnew.update1.title" = "Parakeet tagad ir pieejams";
+"home.whatsnew.update1.description" = "Lejupielādējiet to tieši no valodas modeļu saraksta režīma izveidošanai, lai to šodien izmēģinātu.";
+"home.whatsnew.update2.date" = "5. jūn";
+"home.whatsnew.update2.title" = "Atbalsts katram OpenAI saderīgajam pielāgotajam modelim";
+"home.whatsnew.update2.description" = "Tagad varat pievienot jebkuru OpenAI saderīgu API savu modeļu sarakstam.";
+"home.whatsnew.update3.date" = "27. mai";
+"home.whatsnew.update3.title" = "Pavisam jauns mini ierakstīšanas logs";
+"home.whatsnew.update3.description" = "Gaumīgs, minimāls ierakstīšanas interfeiss, kas iziet no ceļa.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Nesen atjaunināts";
+"home.recent.updates.error" = "Neizdevās ielādēt atjauninājumus";
+"home.recent.updates.retry" = "Mēģināt vēlreiz";
+"home.recent.updates.empty" = "Nav pieejamu nesen atjaunināto";
+"home.recent.updates.version" = "Versija %@";
+"home.recent.updates.new.badge" = "JAUNS";
+"home.recent.updates.no.notes" = "Nav pieejamu izlaišanas piezīmju";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Space";
+"keyboard.option.space" = "⌥Space";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Nepieciešama mikrofona piekļuve";
+"common.open.settings" = "Atvērt iestatījumus";
+"alerts.api.local.mode" = "Izmantot lokālo režīmu";
+"alerts.documents.permission.title" = "Saglabāt dokumentos?";
+"common.continue" = "Turpināt";
+"alerts.documents.permission.use.another" = "Izmantot citu atrašanās vietu";
+"alerts.api.configure.generic" = "Lūdzu konfigurējiet savas API atslēgas sadaļā Iestatījumi.";
+"alerts.api.internet.offline" = "Mākoņa transkripcija prasa internetapiņķi. Lūdzu pārbaudiet savu tīkla iestatījumus vai atlasiet lokālo transkripciijas režīmu.";
+"alerts.api.configure.header.multiple" = "Lai izmantotu atlasīto režīmu, lūdzu konfigurējiet šādas API atslēgas sadaļā Iestatījumi:";
+"alerts.api.configure.header.single" = "Lai izmantotu atlasīto režīmu, lūdzu konfigurējiet šādu API atslēgu sadaļā Iestatījumi:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Pēc trūkstošo atslēgu pievienošanas mēģiniet vēlreiz.";
+"alerts.export.failed.title" = "Eksportēšana neizdevās";
+"alerts.export.logs.failed.message" = "Neizdevās eksportēt atjauninājuma žurnālus. Lūdzu mēģiniet vēlreiz.";
+"alerts.export.logs.success.title" = "Žurnāli eksportēti";
+"alerts.export.logs.success.message" = "Atjauninājuma žurnāli ir veiksmīgi eksportēti.";
+"alerts.export.logs.saveFailed.message" = "Neizdevās saglabāt žurnālus atlasītajā atrašanās vietā: %@";
+"alerts.export.diagnostics.failed.message" = "Neizdevās eksportēt diagnostiku. Lūdzu mēģiniet vēlreiz.";
+"alerts.export.diagnostics.success.title" = "Diagnostika eksportēta";
+"alerts.export.diagnostics.success.message" = "Visi diagnostikas žurnāli ir veiksmīgi eksportēti.";
+"alerts.export.diagnostics.saveFailed.message" = "Neizdevās saglabāt diagnostiku atlasītajā atrašanās vietā: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Eksportēt atjauninājuma žurnālus atbalstam";
+"panels.export.diagnostics.message" = "Eksportēt visus diagnostikas žurnālus";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Sākt darbību ar HyperWhisper";
+"sidebar.statistics.help" = "Skatiet lietojuma statistiku un analītiku";
+"sidebar.modes.help" = "Pārvaldiet transkripciijas režīmus dažādiem kontekstiem";
+"sidebar.vocabulary.help" = "Pievienojiet pielāgotus vārdus un frāzes labākai atpazīšanai";
+"sidebar.streaming.help" = "Reāllaika straumēšanas transkripciijas iestatījumi (nepieciešams internets)";
+"sidebar.history.help" = "Skatiet un meklējiet savu transkripciiju vēsturi";
+"sidebar.settings.help" = "Konfigurējiet programmas iestatījumus un preferences";
+
+// MARK: - Recording State
+"recording.state.ready" = "Gatavs ierakstīt";
+"recording.state.recording" = "Ierakstīšana...";
+"recording.state.processing" = "Audio apstrāde...";
+"recording.state.transcribing" = "Transkribēšana...";
+"recording.state.postprocessing" = "Pēcapstrāde ar AI...";
+"recording.state.complete" = "Transkripcija pabeigta: %@";
+"recording.state.error" = "Kļūda: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Sākt vai apturēt ierakstīšanu";
+"menu.recording.stop" = "Apturēt ierakstīšanu";
+"menu.recording.toggle" = "Sākt/Apturēt ierakstīšanu";
+"menu.history" = "Vēsture...";
+"menu.settings" = "Iestatījumi...";
+"menu.microphone" = "Mikrofons";
+"menu.select.mode" = "Atlasīt režīmu";
+"menu.transcribe.file" = "Transkribēt failu";
+"menu.mode.unnamed" = "Bez nosaukuma";
+"menu.version.label" = "Versija %@";
+"common.quit" = "Iziet";
+"menu.microphone.default" = "Noklusējuma";
+"menu.microphone.system.default" = "Noklusējuma";
+"menu.bar.state.recording" = "Ierakstīšana";
+"menu.bar.state.processing" = "Apstrāde";
+"menu.bar.state.idle" = "Dīkstāvē";
+"menu.command.check.updates" = "Pārbaudīt atjauninājumus…";
+"menu.debug.title" = "Atkļūdošana";
+"menu.command.export.logs" = "Eksportēt atjauninājuma žurnālus…";
+"menu.command.export.diagnostics" = "Eksportēt diagnostiku…";
+"menu.command.help.website" = "Palīdzības tīmeklis";
+"menu.command.contact.support" = "Sazināties ar atbalstu";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Vispārīgi";
+"settings.section.sound" = "Skaņa";
+"settings.section.license" = "Licence";
+"settings.section.credits" = "Kredīti";
+"settings.section.storage" = "Glabāšana";
+"settings.section.models" = "Modeļi";
+"settings.section.api.keys" = "API atslēgas";
+"settings.section.shortcuts" = "Tastatūras saīsinājumi";
+"settings.section.output" = "Teksta izvade";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (English)";
+"onboarding.model.pro.multilingual" = "Pro (Daudzvēlīga)";
+"onboarding.model.downloading.progress" = "Lejupielāde... %d%%";
+"onboarding.accessibility.title" = "Iespējot pieejamību automātiskai ielīmēšanai";
+"onboarding.accessibility.subtitle" = "Atļaujiet HyperWhisper automātiski ielīmēt transkribēto tekstu jūsu lietojumos.";
+"onboarding.accessibility.instructions" = "Sistēmas iestatījumi → Privātums un drošība → Pieejamība";
+"onboarding.accessibility.status.granted" = "Pieejamības atļauja piešķirta";
+"onboarding.accessibility.status.pending" = "Pieejamības atļauja vēl nav piešķirta";
+"onboarding.accessibility.waiting" = "Gaida atļauju...";
+"onboarding.accessibility.open.preferences" = "Atvērt pieejamības preferences";
+"onboarding.accessibility.restart" = "Pēc atļaujas piešķiršanas pārstartējiet HyperWhisper.";
+"onboarding.model.recommendation.title" = "Mēs ieteicam Pro modeli";
+"onboarding.model.recommendation.subtitle" = "Pamatojoties uz jūsu sistēmas valodu un jūsu Mac iespējām.";
+"onboarding.model.recommendation.note" = "Lejupielādējiet noklikšķinot uz zemāk esošo pogu.";
+"onboarding.model.downloaded" = "Lejupielādēts";
+"onboarding.model.metric.speed" = "Ātrums";
+"onboarding.model.metric.accuracy" = "Precizitāte";
+"onboarding.model.metric.size" = "Izmērs";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Vai izvēlieties citu balss modeli";
+"onboarding.model.picker.title" = "Modelis";
+"onboarding.model.option.proEnglish" = "Pro (English)";
+"onboarding.model.option.tiny" = "Tiny";
+"onboarding.model.option.base" = "Base";
+"onboarding.model.option.small" = "Small";
+"onboarding.model.option.medium" = "Medium";
+"onboarding.model.option.large" = "Large";
+"onboarding.model.download.button" = "Lejupielādēt modeli";
+"onboarding.audio.title" = "Kuru audio ierakstīšanas ierīci vēlētos izmantot?";
+"onboarding.audio.subtitle" = "Pārliecinieties, ka jūsu audio ievades skaļums ir ieslēgts un reģistrē skaļumu.";
+"onboarding.audio.input.label" = "Ievades ierīce";
+"onboarding.audio.picker.label" = "Ierīce";
+"onboarding.audio.use.system.default" = "Izmantot sistēmas noklusējuma ierīci";
+"onboarding.audio.level" = "Audio līmenis";
+"onboarding.audio.open.sound" = "Atvērt skaņas preferences";
+"onboarding.microphone.title" = "Ierakstīšanas atļauja nepieciešama";
+"onboarding.microphone.subtitle" = "Lai ierakstītu audio, mums ir jāpiekļūst jūsu mikrofonam.";
+"onboarding.microphone.status.granted" = "Mikrofona atļauja piešķirta";
+"onboarding.microphone.status.pending" = "Mikrofona atļauja vēl nav piešķirta";
+"onboarding.microphone.grant" = "Piešķirt atļauju";
+"onboarding.test.title" = "Viss ir gatavs, sāksim vūsu pirmo ierakstu";
+"onboarding.test.press.prefix" = "Nospiediet";
+"onboarding.test.press.suffix" = "lai sāktu";
+"onboarding.test.status.recording" = "Ierakstīšana...";
+"onboarding.test.status.speak" = "Runājiet tagad...";
+"onboarding.test.stop" = "Apturēt ierakstīšanu";
+"onboarding.test.success.title" = "Lielisks! Jūsu ieraksts bija veiksmīgs.";
+"onboarding.test.success.subtitle" = "Jūsu transkripcija parādīsies lietotnē.";
+"onboarding.test.start.cta" = "Noklikšķiniet, lai sāktu ierakstīšanu";
+"onboarding.test.start.shortcut" = "Vai nospiediet savu tastatūras saīsinājumu";
+"onboarding.settings.title" = "Labi padarīts! Tagad atvērsim iestatījumus";
+"onboarding.settings.subtitle" = "Ar peles labo pogu noklikšķiniet uz HyperWhisper ikonu un atlasiet iestatījumus...";
+"onboarding.settings.menu.startStop" = "Sākt/Apturēt ierakstīšanu";
+"onboarding.settings.menu.history" = "Vēsture...";
+"onboarding.settings.menu.settings" = "Iestatījumi...";
+"onboarding.settings.menu.quit" = "Iziet";
+"onboarding.settings.info" = "Iestatījumos varat pielāgot saīsinājumus, pārvaldīt API atslēgas un konfigurēt HyperWhisper savai ļoti patikai.";
+"onboarding.completion.title" = "Viss pabeigts!";
+"onboarding.completion.subtitle" = "Ja jums rasīsies problēmas vai jautājumi, sazinieties pa e-pastu vai Discord.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-pasts";
+"onboarding.completion.resources.title" = "Papildu resursi";
+"onboarding.completion.resources.documentation" = "Dokumentācija";
+"onboarding.completion.resources.videos" = "Video pamācības";
+"onboarding.completion.resources.blog" = "Blogs";
+"onboarding.done.button" = "Sākotnējā iestatīšana pabeigta";
+"onboarding.error.model.notFound" = "Modelis netika atrasts katalogā.";
+"onboarding.error.microphone.denied" = "Mikrofona atļauja noraidīta. Lūdzu piešķiriet atļauju sistēmas iestatījumos.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Palaist piesakoties";
+"settings.general.launchAtLogin.info" = "Automātiski palaist HyperWhisper, kad piesakāties.";
+"settings.general.launchMinimized.title" = "Palaist minimizētu";
+"settings.general.launchMinimized.info" = "Palaist HyperWhisper ar paslēptu galveno logu. Lietotne būs pieejama caur izvēlnes joslu.";
+"settings.general.showInDock.title" = "Rādīt Dock";
+"settings.general.showInDock.info" = "Rādīt lietotnes ikonu Dock.";
+"settings.general.showRecordingWindow.title" = "Rādīt ierakstīšanas logu";
+"settings.general.showRecordingWindow.info" = "Attēlot peldošo viļņu formas logu ierakstīšanas un apstrādes laikā.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Izslēgts";
+"settings.general.mediaControl.mode.mute" = "Izslēgt audio";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Kļūdu žurnalēšana";
+"settings.general.errorLogging.info" = "Automātiski uztvert un nosūtīt kļūdu pārskatus, lai palīdzētu uzlabot lietotni.";
+"settings.general.autoUpdate.title" = "Automātisks atjaunināšana";
+"settings.general.autoUpdate.info" = "Automātiski pārbaudīt un lejupielādēt HyperWhisper jaunas versijas.";
+"settings.general.support.title" = "Vai jums vajag palīdzību?";
+"settings.version.detail" = "Versija %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Atskaņot skaņas efektus";
+"settings.sound.soundEffects.info" = "Atskaņot audio signālus, kad ierakstīšana sākas un beidzas.";
+"settings.sound.mediaControl.title" = "Skaņas vadīšana ierakstīšanas laikā";
+"settings.sound.mediaControl.info" = "Izvēlieties, kā HyperWhisper apstrādā citu skaņu ieraķstīšanas laikā. 'Izslēgts' nemaina skaņu, 'Izslēgt audio' klusina sistēmas izeju ieraķstīšanas laikā un pēc tam to atjauno.";
+"settings.sound.autoIncreaseMicVolume.title" = "Automātiski palielināt mikrofona skaļumu";
+"settings.sound.autoIncreaseMicVolume.info" = "Automātiski iestata mikrofona ievades skaļumu maksimāli, kad sākas ierakstīšana, un pēc tam atjauno sākotnējo līmeni, kad ierakstīšana beidzas. Piemērojams tikai, izmantojot sistēmas noklusējuma ievades ierīci.";
+"settings.sound.vad.title" = "Noņemt klusumu pirms transkripciijas";
+"settings.sound.vad.info" = "Automātiski noteic un noņem vadošo un beigošo klusumu, izmantojot AI balss noteikšanu. Tas var uzlabot transkripciijas precizitāti un samazināt apstrādes laiku.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Ierakstu mape";
+"settings.storage.showFolder.title" = "Rādīt ierakstu mapi";
+"settings.storage.showFolder.button" = "Rādīt atrašanās vietā";
+"settings.storage.notice" = "Ierakstu mapes maiņa ietekmē tikai jaunos ierakstus. Esošie ieraksti paliek sākotnējā vietā.";
+"settings.storage.choose.button" = "Izvēlieties...";
+"settings.storage.dialog.select" = "Atlasīt mapi";
+"settings.storage.dialog.message" = "Izvēlieties mapi, kurā glabāt ierakstus";
+"settings.storage.storeAsM4A.title" = "Saspiest ierakstus uz M4A";
+"settings.storage.storeAsM4A.subtitle" = "Pārvērš WAV ierakstus mazākos failos pēc transkripciijas. Izslēdziet, lai saglabātu sākotnējos WAV failus (lielāki, bet bezstrategi).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Automātiski ielīmēt rezultātu";
+"settings.output.paste.subtitle" = "Automātiski ielīmēt transkribēto tekstu aktīvajā lietotnē";
+"settings.output.paste.info" = "Ja iespējots, teksts tiek ielīmēts priekšplānā esošajā aplikācijā.";
+"settings.output.restoreClipboard.title" = "Atjaunot starplaukstu pēc ielīmēšanas";
+"settings.output.restoreClipboard.subtitle" = "Atjaunot iepriekšējo starplauksta saturu pēc ielīmēšanas";
+"settings.output.restoreClipboard.info" = "Atjauno jūsu iepriekšējo starplauksta saturu pēc tam, kad lietotne ielīmē transkripciiju.";
+"settings.output.restore.after" = "Atjaunot pēc";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Starplauksta atjaunošanas aizkave";
+"settings.output.hideClipboardHistory.title" = "Slēpt no starplauksta vēstures";
+"settings.output.hideClipboardHistory.subtitle" = "Nepieļaut transkripciijām parādīties starplauksta vēstures aplikācijās";
+"settings.output.hideClipboardHistory.info" = "Ja iespējots, transkribēts teksts netiks saglabāts starplauksta vadītājiem, piemēram, Paste, Maccy vai Alfred.";
+"settings.output.clipboard.header" = "Starpliktuve";
+"settings.output.removeFillers.title" = "Noņemt aizpildījuma vārdus";
+"settings.output.removeFillers.subtitle" = "No neapstrādātiem transkriptiem noņem 'uh', 'um' un 'er'.";
+"settings.output.removeFillers.info" = "Kad šī opcija ir ieslēgta, HyperWhisper pirms izvades no neapstrādātiem transkriptiem noņem biežākos aizpildījuma vārdus.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Pārslēgt ierakstīšanu";
+"settings.shortcuts.toggleRecording.subtitle" = "Sāk un aptur ierakstus";
+"settings.shortcuts.cancelRecording.title" = "Atcelt ierakstīšanu";
+"settings.shortcuts.cancelRecording.subtitle" = "Atmet aktīvo ierakstu";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Spiežam un runājam";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Turiet taustiņu, lai ierakstītu, atlaidiet, kad beidzat";
+"settings.shortcuts.pushToTalk.enable.info" = "Iespējo spiez un runā režīmu ātrai ierakstīšanai ar viena taustiņa nospiešanu.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Ierakstīšanas režīms";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Izvēlieties, kuru taustiņu izmantot";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Atspējots";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN taustiņš";
+"settings.shortcuts.pushToTalk.mode.control" = "Control taustiņš";
+"settings.shortcuts.pushToTalk.mode.custom" = "Pielāgots saīsinājums";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Divreiz nospiest, lai bloķētu ierakstīšanu";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Ātri nospiediet divreiz, lai turpinātu ierakstīt bez turēšanas";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Pielāgots saīsinājums";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Nospiediet taustiņu kombināciju, lai izmantotu";
+
+
+"settings.shortcuts.changeMode.title" = "Mainīt režīmu";
+"settings.shortcuts.changeMode.subtitle" = "Darbojas tikai ierakstīšanas laikā";
+
+"settings.shortcuts.reset.button" = "Atiestatīt uz noklusējumiem";
+"settings.shortcuts.reset.dialog.title" = "Atiestatīt tastatūras saīsinājumus";
+"settings.shortcuts.reset.confirm" = "Atiestatīt";
+"settings.shortcuts.reset.dialog.message" = "Tas atiestatīs visus tastatūras saīsinājumus uz to noklusējuma vērtībām.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API atslēgas tiek glabātas drošā veidā jūsu ierīcē un tiek sūtītas sniedzējam tikai pēc nepieciešamības.";
+"settings.api.help.link" = "Palīdzība ar API atslēgām";
+"settings.api.transcription.title" = "Transkripcija";
+"settings.api.transcription.subtitle" = "API atslēgas mākoņa balssteksta pakalpojumiem.";
+"settings.api.postProcessing.title" = "Pēcapstrāde";
+"settings.api.postProcessing.subtitle" = "API atslēgas AI-spēcīgai teksta uzlabošanai un formatēšanai.";
+"settings.api.placeholder" = "Ievadiet savu %@ API atslēgu";
+"settings.api.openLink" = "Atvērt %@ API atslēgas lapā";
+"settings.api.status.accessibility" = "%@ statuss: %@";
+"settings.api.status.unknown" = "Sniedzēja statuss nav zināms";
+"settings.api.status.checking" = "Veselības pārbaude notiek";
+"settings.api.status.unauthorized" = "API atslēga tika noraidīta no sniedzēja";
+"settings.api.status.unreachable" = "Sniedzējs pašlaik nav sasniedzams";
+"settings.api.status.notInstalled" = "Sniedzēja SDK nav instalēts";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Nezināms";
+"provider.status.checking" = "Pārbaudīšana...";
+"provider.status.healthy" = "Gatavs";
+"provider.status.unauthorized" = "Neizdevās atslēga";
+"provider.status.unreachable" = "Bezsaiste";
+"provider.status.notInstalled" = "Nav instalēts";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Licence aktivizēta";
+"alerts.license.deactivated.title" = "Licence deaktivizēta";
+"alerts.license.activated.message" = "Jūsu licence ir veiksmīgi aktivizēta. Baudiet neierobežotu piekļuvi visiem līdzekļiem!";
+"alerts.license.deactivated.message" = "Jūsu licence ir deaktivizēta šajā ierīcē. Tagad varat to aktivizēt citur.";
+"alerts.license.failed.title" = "Darbība neizdevās";
+"alerts.license.failed.message" = "Darbība neizdevās. Lūdzu mēģiniet vēlreiz.";
+"license.button.deactivate" = "Deaktivizēt ierīci";
+"license.button.deactivating" = "Deaktivizējas...";
+"license.button.manageBilling" = "Pārvaldīt norēķinus";
+"license.button.activate" = "Aktivizēt";
+"license.button.activating" = "Aktivizējams...";
+"license.status.label" = "Statuss: %@";
+"license.status.trial.title" = "Pārbaude";
+"license.status.active.title" = "Aktīvs";
+"license.status.expired.title" = "Beidzies";
+"license.status.invalid.title" = "Nepareizs";
+"license.status.trial.description" = "Bezmaksas izmēģinājums (5 min/diena, %d modeļi)";
+"license.status.active.description" = "Licencēts – Pilna piekļuve";
+"license.status.expired.description" = "Licence beidzusies";
+"license.status.invalid.description" = "Nepamatota licence";
+"settings.license.key.title" = "Licences atslēga";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Ielīmēt no starplauksta";
+"settings.license.clearInput" = "Dzēst";
+"settings.license.recovery.prompt" = "Aizmirsat licences atslēgu?";
+"settings.license.recovery.button" = "Doties uz klientu portāli";
+"settings.license.daily.title" = "Ikdienas transkripcija";
+"settings.license.daily.usage" = "%@ no %@ izmantots";
+"settings.license.limitReached" = "Limits sasniegts";
+"settings.license.models.title" = "Bezsaistes modeļi";
+"settings.license.models.progress" = "%d no %d modeļi lejupielādēti";
+"settings.license.models.progress.one" = "%d no %d modelis lejupielādēts";
+"settings.license.upgrade.text" = "Jauniniet, lai iegūtu neierobežotu transkripciiju un modeļu lejupielādes";
+"settings.license.upgrade.button" = "Jaunināt";
+"license.error.invalidResponse" = "Nepareiza atbildes formāta";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud kredīti";
+"settings.credits.refresh" = "Atsvaidzināt";
+"settings.credits.subtitle" = "Uzraudzīt transkripciijas kredītus un lietojumu";
+"settings.credits.manage" = "Pārvaldīt kredītus";
+"settings.credits.timeRemaining" = "Palikušais transkripciijas laiks";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minūtes";
+"settings.credits.creditsRemaining" = "%@ kredīti atlikuši";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Bezmaksas ikdienas limits (100 kredīti)";
+"settings.credits.resets" = "Atiestatīts %@";
+"settings.credits.warning.low" = "Kredīti beidzas. Apsveriet licences pirkšanu papildu kredītiem.";
+"settings.credits.warning.exhausted.daily" = "Ikdienas limits izsmelts. Pirkiet licenci neierobežotai lietošanai vai gaidiet atiestatīšanu.";
+"settings.credits.warning.exhausted" = "Kredīti izsmelti. Pirkiet papildu kredītus, lai turpinātu HyperWhisper Cloud izmantošanu.";
+"settings.credits.accountInfo" = "Konta informācija";
+"settings.credits.stat.creditsRemaining" = "Kredīti atlikuši";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minūtes atlikušas";
+"settings.credits.stat.accountType" = "Konta tips";
+"settings.credits.accountType.licensed" = "Licencēts";
+"settings.credits.accountType.anonymous" = "Anonīms";
+"settings.credits.accountType.trial" = "Pārbaude";
+"settings.credits.stat.customerId" = "Klienta ID";
+"settings.credits.stat.dailyLimit" = "Ikdienas limits";
+"settings.credits.dailyLimit.value" = "100 kredīti";
+"settings.credits.loading" = "Ielādē kredīta bilanci...";
+"settings.credits.error.title" = "Nevar ielādēt kredīta bilanci";
+"settings.credits.error.retry" = "Mēģināt vēlreiz";
+"settings.credits.empty.title" = "Nav pieejamas kredīta informācijas";
+"settings.credits.empty.subtitle" = "Noklikšķiniet atsvaidzināt, lai ielādētu savu kredīta bilanci";
+"settings.credits.empty.button" = "Ielādēt kredītus";
+"settings.credits.error.insufficient" = "Nepietiekami kredīti. Jums ir %d kredīti atlikuši.";
+"settings.credits.error.network" = "Tīkla kļūda: %@";
+"settings.credits.error.invalidResponse" = "Nepareiza atbilde no servera. Lūdzu mēģiniet vēlreiz.";
+"settings.credits.error.server" = "Servera kļūda: %@";
+"settings.models.alert.limit.title" = "Modeļa lejupielādes limits sasniegts";
+"settings.models.alert.limit.message" = "Izmēģinājumi ietver %d modeļa lejupielādes. Jauniniet savu licenci neierobežotiem lejupielādēm.";
+"settings.models.alert.cannotDelete.title" = "Neiespējams dzēst modeli";
+"settings.models.parakeet.title" = "Parakeet modeļi";
+"settings.models.parakeet.subtitle" = "Ieteicams lielākajai daļai lietotāju. Daudzvalodu modelis atbalsta 25 valodas.";
+"settings.models.parakeet.empty" = "Nav pieejamu Parakeet modeļu.";
+"settings.models.whisper.title" = "Whisper modeļi";
+"settings.models.whisper.subtitle" = "OpenAI Whisper modeļi. Lielāki modeļi ir precīzāki. Atbalsta 100+ valodas.";
+"settings.models.whisper.empty" = "Nav pieejamu Whisper modeļu.";
+"settings.models.help.cancelDownload" = "Atcelt lejupielādi";
+"settings.models.help.remove" = "Noņemt modeli";
+"settings.models.downloaded" = "Lejupielādēts";
+"settings.models.download" = "Lejupielādēt";
+"settings.models.downloading" = "Lejupielāde...";
+"settings.models.localPostProcessing.title" = "Lokālie pēcapstrādes modeļi";
+"settings.models.localPostProcessing.memoryWarning" = "Ieteicams Mac ar 24 GB vienotas atmiņas vai vairāk. Ātrums ir atkarīgs no mikroshēmas — ātrāk ar M3/M4 Pro un jaunākiem.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Vārdi šogad";
+"vocabulary.input.placeholder" = "Pievienojiet vārdu vai izveidojiet fragmentu";
+"vocabulary.action.addWord" = "Pievienot vārdu";
+"vocabulary.action.replaceWith" = "Aizstāt ar…";
+"vocabulary.action.replace" = "Aizstāt";
+"vocabulary.replacement.field.placeholder" = "Aizstāšanas teksts…";
+"settings.output.autocapitalizeInsert.title" = "Automātiskais lielais burts ievietošanas laikā";
+"settings.output.autocapitalizeInsert.subtitle" = "Saskaņot kursora kontekstu, ievietojot tekstu";
+"settings.output.autocapitalizeInsert.info" = "Ja iespējots, ievietotā transkripta teksta pirmais vārds tiek pielāgots kursora kontekstam (teikuma sākums vai vidus). Izslēdziet vienmēr ar mazajiem burtiem diktēšanai.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper ir nepieciešama pieejamības atļauja, lai lasītu kursora kontekstu, kas nepieciešams automātiskajai lielo burtu lietošanai.\n\nNoklikšķiniet uz \"Atvērt iestatījumus\", nospiediet slēdzi blakus HyperWhisper un mēģiniet vēlreiz.";
+"settings.output.removeFillerWords.title" = "Noņemt pildījuma vārdus";
+"settings.output.removeFillerWords.subtitle" = "Noņemiet \"ä\", \"um\" un \"er\" no neapstrādātiem transkriptiem, kad AI pēcapstrāde ir izslēgta";
+"settings.output.removeFillerWords.info" = "Attiecas tikai tad, kad režīms izlaiž AI pēcapstrādi. AI uzlabotie režīmi apstrādā runas tīrīšanu uzvednē.";
+"sidebar.modelLibrary" = "Modeļu bibliotēka";
+"sidebar.modelLibrary.help" = "Pārlūkojiet visus balss un pēcapstrādes modeļus vienā vietā";
+"settings.shortcuts.quickCapture.enable.title" = "Ātrā tveršana";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Ierakstiet un nosūtiet transkripciju uz Piezīmēm — bez nepieciešamības vispirms fokusēties uz lietotni.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Īsinājumtaustiņš";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Nospiediet jebkur, lai ierakstītu un nosūtītu uz Piezīmēm.";
+"settings.shortcuts.quickCapture.mode.title" = "Režīms";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Izmantotais transkripcijas režīms — kontrolē modeli, uzvedni un pēcapstrādi.";
+"settings.shortcuts.quickCapture.mode.current" = "Pašreizējais režīms";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper nepieciešama atļauja piezīmju pārvaldīšanai. Piešķiriet to Sistēmas iestatījumi → Privātums → Automatizācija.";
+"settings.section.vocabulary" = "Vārdu krājums";
+"settings.vocabulary.icloudSync.title" = "iCloud sinhronizācija";
+"settings.vocabulary.icloudSync.subtitle" = "Sinhronizējiet savu pielāgoto vārdu krājumu visos Mac, kas ir pieteikušies vienā iCloud kontā.";
+"settings.vocabulary.icloudSync.info" = "Pēc noklusējuma izslēgts. Tiek sinhronizēts tikai jūsu pielāgotais vārdu krājums — atšifrējumi un ieraksti paliek šajā Mac. Izmaiņas stājas spēkā nākamreiz, kad atverat HyperWhisper.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Aizveriet HyperWhisper, lai lietotu izmaiņas";
+"vocabulary.icloudSync.restart.message" = "iCloud vārdu krājuma sinhronizācijas izmaiņas stājas spēkā nākamreiz, kad atverat HyperWhisper.";
+"vocabulary.icloudSync.restart.quit" = "Aizvērt HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Vēlāk";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Uzturēt mikrofonu siltu starp ierakstiem";
+"settings.sound.keepWarmMicrophone.info" = "Samazina push-to-talk palaišanas aizkavēšanos, uzturot mikrofona sesiju atvērtu, kamēr HyperWhisper ir dīkstāvē. macOS pastāvīgi rādīs oranžo mikrofona indikatoru, un Bluetooth austiņas var palikt zemākas kvalitātes zvana režīmā, kamēr tas ir iespējots.";
+"settings.models.local.inUse" = "Šis lokālais modelis pašlaik tiek izmantots pēcapstrādei:
+
+%@
+
+Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
+"models.postProcessing.gemma4.e2b.description" = "Ātrs un precīzs. Lielisks universāls variants pēcapstrādei.";
+"models.postProcessing.gemma4.e4b.description" = "Augstāka kvalitāte ar lielāku detalizāciju. Labs garākiem tekstiem.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B ekspertu maisījums. Ātra izvade ar tikai 4B aktīviem parametriem.";
+"models.postProcessing.gemma4.31b.description" = "31B blīvs modelis. Augstākā kvalitāte, nepieciešami 18+ GB RAM.";
+"settings.models.whisper.inUse" = "Šis modelis nevar tikt dzēsts, jo to izmanto:\n\n%@\n\nAtjauniniet šos režīmus, lai izmantotu citu modeli pirms dzēšanas.";
+"settings.models.parakeet.inUse" = "Šis Parakeet modelis nevar tikt dzēsts, jo to izmanto:\n\n%@\n\nAtjauniniet šos režīmus, lai izmantotu citu modeli pirms dzēšanas.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Nezināms";
+"settings.models.directory.whisper" = "Whisper modeļu mape";
+"settings.models.directory.parakeet" = "Parakeet modeļu mape";
+"settings.models.directory.local" = "Lokālo modeļu mape";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — daudzvalodu runas atpazīšana, optimizēta CoreML.";
+"settings.models.qwen3asr.languages" = "30 valodas";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Šo Qwen3 ASR modeli nevar dzēst, jo to izmanto:\n\n%@\n\nPirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
+"settings.models.directory.show" = "Rādīt Finder";
+"models.error.checksumFailed" = "Modeļa kontrolsummas verifikācija neizdevās. Lejupielāde var būt bojāta.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistika";
+"statistics.header.title" = "Jūsu lietojuma statistika";
+"statistics.header.subtitle" = "Izsekot transkripciijas darbības un veiktspēju";
+"statistics.card.recordings" = "Kopējie ieraksti";
+"statistics.card.recordings.subtitle" = "Pabeigtas transkripciijas";
+"statistics.card.duration" = "Kopējais laiks";
+"statistics.card.duration.subtitle" = "Laiks, kas pavadīts ierakstīšanai";
+"statistics.card.words" = "Kopējie vārdi";
+"statistics.card.words.subtitle" = "Transkriēti vārdi";
+"statistics.card.average" = "Vidējais ilgums";
+"statistics.card.average.subtitle" = "Par ierakstu";
+"statistics.graph.title" = "Darbības laika gaitā";
+"statistics.daily.empty" = "Vēl nav ierakstu";
+"statistics.filter.week" = "Šonedēļ";
+"statistics.filter.month" = "Šomēnesi";
+"statistics.filter.alltime" = "Visu laiku";
+
+// MARK: - History View
+"history.title" = "Vēsture";
+"history.search.placeholder" = "Meklēt";
+"history.filter.all" = "Visi";
+"history.filter.today" = "Šodien";
+"history.filter.week" = "Šonedēļ";
+"history.filter.month" = "Šomēnesi";
+"history.empty.title" = "Nav atrasto ierakstu";
+"history.empty.subtitle" = "Mēģiniet pielāgot meklēšanu";
+"history.detail.empty" = "Atlasiet ierakstu, lai skatītu detaļas";
+"history.multi.selected" = "%d ieraksti atlasīti";
+"history.multi.delete" = "Dzēst atlasītos";
+"history.context.deleteSelected" = "Dzēst %d ierakstus";
+"history.context.retry" = "Atkārtot transkripciiju";
+"history.context.retryWith" = "Atkārtot ar...";
+"history.context.copy" = "Kopēt tekstu";
+"history.retrying" = "Atkārto transkripciiju...";
+"history.retry.help" = "Atkārtot transkripciiju";
+"history.section.today" = "Šodien";
+"history.section.yesterday" = "Vakar";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Neizdevās";
+"history.status.transcription.failed.prefix" = "Transkripcija neizdevās:";
+"history.status.retry.failed.prefix" = "Atkārtošana neizdevās:";
+"history.failure.reason" = "Iemesls: %@";
+"history.mode.default" = "Noklusējuma";
+"history.audio.showInFinder" = "Rādīt Finder";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Dzēst režīmu?";
+"modes.delete.confirm.message" = "Tas noņems atlasīto režīmu. Šo darbību nevar atsaukt.";
+"modes.header.title" = "Režīmi";
+"modes.header.subtitle" = "Izveidojiet pielāgotus profilus dažādiem kontekstiem un darbplūsmām";
+"modes.header.create" = "Izveidot režīmu";
+"modes.name.unnamed" = "Bez nosaukuma";
+"modes.badge.offline" = "Bezsaiste";
+"modes.context.select" = "Atlasīt";
+"modes.help.edit" = "Rediģēt režīma iestatījumus";
+"modes.help.preset" = "Uzziniet vairāk par šo priekšnoregulējumu";
+"modes.help.model" = "Uzziniet vairāk par šo modeli";
+"modes.preset.title" = "Priekšnoregulējums";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Ziņa";
+"modes.preset.mail.name" = "E-pasts";
+"modes.preset.note.name" = "Piezīme";
+"modes.preset.meeting.name" = "Sanāksme";
+"modes.preset.code.name" = "Kods";
+"modes.preset.custom.name" = "Pielāgots";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Ziņu režīms notīra jūsu diktēto ziņu, pielabojot pieturzīmes, pārvēršot rindkopās un atrissinot gramatiskas kļūdas.";
+"modes.preset.mail.tooltip" = "E-pasta režīms formatē jūsu diktējumu profesionālas e-pasta struktūrā ar pareiziem sveicieniem, rindkopām un parakstīšanu.";
+"modes.preset.note.tooltip" = "Piezīmes režīms organizē jūsu diktēto saturu skaidras piezīmes formātā ar virsrakstiem, aizzīmju punktiem un strukturētām sadaļām.";
+"modes.preset.meeting.tooltip" = "Sanāksmes režīms strukturē jūsu diktējumu sanāksmes protokola formātā ar dalībniekiem, darbības priekšmetiem un galvenajiem diskusijas punktiem.";
+"modes.preset.code.tooltip" = "Koda režīms pārvērš mutisko programmatūras diktējumu koda sintaksē. Sakiet 'atveriet iekava', 'slīpsvītra', 'kamieļa gadījums' un vairāk, lai rakstītu kodu balss.";
+"modes.preset.custom.tooltip" = "Pielāgots režīms ļauj jums definēt savas pielāgošanas noteikumus un pamatnes specifiskam lietojumam.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI restructures your dictation into a clean message with proper paragraphs, punctuation, and grammar corrections.";
+"modes.preset.mail.preview" = "AI formats your dictation into a professional email with salutations, structured paragraphs, and a sign-off.";
+"modes.preset.note.preview" = "AI organizes your dictation into structured notes with headers, bullet points, and clear sections.";
+"modes.preset.meeting.preview" = "AI structures your dictation into meeting minutes with attendees, discussion points, and action items.";
+"modes.preset.code.preview" = "AI converts spoken programming dictation into code syntax, interpreting commands like 'open bracket' and 'camel case'.";
+"modes.preset.custom.preview" = "Uses your custom formatting instructions to process the transcription.";
+"modes.customInstructions" = "Definējiet pilnās formatēšanas instrukcijas šim iepriekšiestatījumam.";
+"modes.notice.vocabularyUnsupported" = "Pielāgots vārdu krājums netiek atbalstīts šim sniedzējam šim modelim. Tas tiks ignorēts.";
+"modes.notice.deepgramNova3AutoDetect" = "Pielāgots vārdu krājums nav pieejams, izmantojot Deepgram Nova-3 ar automātiskas valodas noteikšanu. Lai iespējotu vārdu krājuma stiprinājumu, iestatiet konkrētu valodu (piemēram, Angļu, Spāņu).";
+"modes.language.title" = "Valoda";
+"modes.language.englishOnly" = "Tikai angļu valoda (optimizētais modelis)";
+"modes.postProcessing.sectionTitle" = "Pēcapstrāde";
+"modes.postProcessing.modeLabel" = "Režīms";
+"modes.postProcessing.modeTitle" = "Pēcapstrāde";
+"modes.postProcessing.modeDescription" = "Izvēlieties, kā transkripciijas tiek apstrādātas:\n\n• Izslēgts: Nav pēcapstrādes, tīra transkripcija\n• Mākoņa (AI): AI-spēcīgs uzlabojums (nepieciešams internets)\n• Lokāls: Izmanto ierīcē esošu LLM, piemēram, Gemma caur llama.cpp\n\nMākoņa apstrāde sūta tekstu jūsu atlasītajam AI sniedzējam. Lokālais režīms paliek jūsu datorā, bet nepieciešams lokālā servera darbība.";
+"modes.postProcessing.providerLabel" = "Sniedzējs";
+"modes.postProcessing.apiKeyMissing" = "%@ API atslēga nav konfigurēta. Pievienojiet to sadaļā Iestatījumi, lai iespējotu pēcapstrādi.";
+"modes.postProcessing.configure" = "Konfigurēt iestatījumos";
+"modes.postProcessing.modelRecommendation" = "Mēs ieteicam izmantot GPT-4.1 Nano labākam ātruma un kvalitātes līdzsvaram.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Lokālā pēcapstrāde prasa lejupielādētu lokālu modeli.";
+"modes.postProcessing.download" = "Lejupielādēt iestatījumos";
+"modes.postProcessing.localInfo" = "Darbojas pilnībā ierīcē. HyperWhisper automātiski palaiž iesaiņoto llama.cpp serveri, kad šis režīms ir aktīvs.";
+"modes.postProcessing.userSystemPrompt.title" = "Pastāvīgas instrukcijas";
+"modes.postProcessing.userSystemPrompt.placeholder" = "piem., Vienmēr beidziet e-pastus ar 'Ar cieņu, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Dzēst";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Pastāvīgas instrukcijas";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Pievienojiet instrukcijas, kas vienmēr tiek piemērotas papildus izvēlētajam iepriekšiestatījumam.";
+"modes.toggle.punctuation.title" = "Pievienot pieturzīmes";
+"modes.toggle.punctuation.subtitle" = "Automātiski pievienot punktus un komatus";
+"modes.toggle.capitalization.title" = "Kapitalizēt teikumus";
+"modes.toggle.capitalization.subtitle" = "Liels pirmais teikuma burts";
+"modes.toggle.profanity.title" = "Filtrēt lamības";
+"modes.toggle.profanity.subtitle" = "Aizstāt nepiemērotus vārdus";
+"modes.toggle.removeTrailingPeriod.title" = "Noņemt beigu punktu";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Noņem pēdējo punktu no transkripcijām";
+"modes.postProcessing.privacyNotice" = "Jūsu transkripcija tiek SŪTĪTA TIKAI %@ pēcapstrādei. Nekad ne uz citu vietu.";
+"modes.postProcessing.localModel" = "Modelis";
+"modes.postProcessing.languageModel" = "Valodas modelis";
+"modes.englishSpelling.title" = "Angļu valodas pareģrafia";
+"modes.englishSpelling.american" = "Amerikāņu";
+"modes.englishSpelling.british" = "Britu";
+"modes.englishSpelling.australian" = "Austrāļu";
+"modes.englishSpelling.canadian" = "Kanādas";
+"modes.englishSpelling.american.description" = "Izmantojiet amerikāņu angļu valodas pareģrafiju (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Izmantojiet britu angļu valodas pareģrafiju (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Izmantojiet austrāļu angļu valodas pareģrafiju (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Izmantojiet Kanādas angļu valodas pareģrafiju (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Pielāgotas instrukcijas";
+"modes.gemini.customPrompt.helper" = "Neobligāti. Piem. \"Formatēt kā sarakstu\", \"Lietot formālu valodu\". Jūsu valodas un vārdnīcas iestatījumi tiek iekļauti automātiski.";
+"modes.cloud.apiKeyMissing" = "%@ API atslēga nav konfigurēta. Pievienojiet to sadaļā Iestatījumi, lai izmantotu mākoņa transkripciiju.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Precizitāte";
+"modes.cloudAccuracy.groqWhisper.label" = "Vidēja (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Vidēja (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Augsta (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Ātrs un pieejams. Labākais ātrajiem transkripcijām.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Līdzsvarots ātrums un precizitāte. Ieteicams lielākajai daļai lietotāju.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
+"modes.cloudAccuracy.grokStt.label" = "Augstākā (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
+
+"modes.create.title" = "Izveidot jaunu režīmu";
+"modes.create.subtitle" = "Konfigurējiet pielāgotu transkripciijas profilu";
+"modes.section.basic" = "Pamatiestatījumi";
+"modes.section.transcription" = "Transkripciijas modelis";
+"modes.section.punctuation" = "Pieturzīmes";
+"modes.toggle.screenText.title" = "Ekrāna teksts";
+"modes.toggle.screenText.subtitle" = "Uzņemiet redzamo ekrāna tekstu, lai uzlabotu vārdu un terminu precizitāti. Nepieciešama ekrāna ierakstīšanas atļauja.";
+"modes.screenText.openSettings" = "Atvērt sistēmas iestatījumus";
+"modes.screenText.permissionGranted" = "Ekrāna ierakstīšanas atļauja piešķirta";
+"modes.screenText.permissionRequired" = "Nepieciešama ekrāna ierakstīšanas atļauja";
+"modes.field.name" = "Nosaukums";
+"modes.field.name.placeholder" = "piem., sanāksmes piezīmes";
+"modes.field.name.editPlaceholder" = "Režīma nosaukums";
+"modes.field.model" = "Modelis";
+"modes.field.provider" = "Sniedzējs";
+"modes.provider.local" = "Lokāls";
+"modes.provider.cloud" = "Mākoņa";
+"modes.notice.noLocalModels.title" = "Nav instalēti lokālie modeļi";
+"modes.notice.noLocalModels.subtitle" = "Vispirms instalējiet modeli sadaļā Iestatījumi";
+"modes.model.pricing" = "Cena: $%.6f / minūte (norēķināts sekundē)";
+"modes.button.create" = "Izveidot režīmu";
+"modes.button.delete" = "Dzēst režīmu";
+"modes.button.save" = "Saglabāt izmaiņas";
+"modes.edit.title" = "Rediģēt režīmu";
+"modes.edit.subtitle" = "Modificēt transkripciijas profila iestatījumus";
+"mode.editor.cloudModel.previewHint" = "Priekšskatījums";
+"mode.editor.cloudModel.noVocabularyHint" = "Nav pielāgotas vārdnīcas";
+"mode.editor.cloudDomain.medical" = "Medicīnisks";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode papildinājums";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Nevar atkārtot: Audio fails nav atrasts";
+"transcripts.error.invalidId" = "Nepareizs transkripciijas ID";
+"transcripts.delete.single.title" = "Dzēst ierakstu?";
+"transcripts.delete.single.message" = "Tas neatgriezenski dzēsīs šo ierakstu un tā audio failu.";
+"transcripts.delete.multiple.title" = "Dzēst %d ierakstus?";
+"transcripts.delete.multiple.message" = "Tas neatgriezenski dzēsīs %d ierakstus un to audio failus.\n\nŠo darbību nevar atsaukt.";
+"transcripts.delete.multiple.confirm" = "Dzēst visus";
+"transcripts.retry.error.title" = "Atkārtošana neizdevās";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Izvēlieties ierakstu mapi";
+"storage.folder.choose.message" = "Atlasiet mapi jauno ierakstu saglabāšanai.";
+"storage.folder.choose.prompt" = "Izvēlieties";
+"storage.recovery.title" = "Nevar piekļūt ierakstu mapei";
+"storage.recovery.message" = "HyperWhisper nevarēja piekļūt konfigurētajai ierakstu mapei. Varat izvēlēties citu mapi, lai turpinātu.";
+"storage.recovery.choose" = "Izvēlieties mapi…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Uzziniet vairāk";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkripcija pabeigta";
+"recording.status.retrying" = "Atkārto transkripciiju…";
+"recording.status.postprocessing" = "Pēcapstrāde ar AI…";
+"recording.status.transcribing" = "Transkribēšana…";
+"recording.success.pasted" = "Ielīmēts!";
+"recording.loading.retrying" = "Atkārto…";
+"recording.loading.postprocessing" = "Apstrāde ar AI…";
+"recording.loading.starting" = "Straumēšanas sākšana…";
+"recording.loading.transcribing" = "Transkribēšana…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Pieslēdzas...";
+"streaming.status.ready" = "Gatavs - Sākt runāt";
+"streaming.status.warming" = "Uzsilda...";
+"modes.badge.recommended" = "Ieteicams";
+"modes.source.label" = "Avots";
+"modes.source.onDevice" = "Ierīcē";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API atslēga";
+"modes.field.engine" = "Dzinējs";
+"settings.models.localASR.inUse" = "Šo modeli nevar dzēst, jo to izmanto:
+
+%@
+
+Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
+"models.postProcessing.gemma4.12b.description" = "Vidēja izmēra blīvs modelis. Līdzsvaro kvalitāti un ātrumu 16 GB Mac datoros.";
+"recording.success.savedToNotes" = "Saglabāts Piezīmēs!";
+"modes.provider.needsKey" = "%@ ir nepieciešama darbojošā atslēga.";
+"modes.provider.manageInLibrary" = "Pārvaldīt bibliotēkā →";
+"streaming.loading.warming" = "Uzsilda vietējo modeli...";
+"streaming.status.listening" = "Klausās...";
+"streaming.status.streaming" = "Straumēšana...";
+"streaming.status.disconnecting" = "Apstājas...";
+"streaming.loading.connecting" = "Pieslēdzas serverim...";
+"streaming.loading.ready" = "Audio inicializēšana...";
+"streaming.loading.streaming" = "Gaida runājamo...";
+"streaming.state.reconnecting" = "Atkārtoti pieslēdzas...";
+"recording.stop.help" = "Apturēt ierakstīšanu (%@)";
+"recording.postprocessing.unavailable" = "Pēcapstrāde nav pieejama";
+"recording.postprocessing.missing.single" = "%@ atslēga trūkst – ierakstīšana bez pēcapstrādes";
+"recording.postprocessing.missing.multiple" = "API atslēgas trūkst – ierakstīšana bez pēcapstrādes";
+"recording.postprocessing.addKey" = "Pievienot atslēgu";
+"recording.offline.banner" = "Nav internetapiņķa. Mākoņa transkripcija neizdevīsies, līdz jūs esat tiešsaistē.";
+"recording.offline.title" = "Nav internetapiņķa";
+"recording.offline.subtitle" = "Atkārtoti savienojieties, lai turpinātu, vai pārslēdzieties uz bezsaistes režīmu.";
+"recording.error.network" = "Pārbaudiet internetapiņķi un mēģiniet vēlreiz.";
+"recording.error.timeout" = "Pieprasījuma taimauts. Pārbaudiet savienojuma ātrumu un atkārtojiet.";
+"recording.error.rateLimit" = "Jūs esat paveicis pārāk daudz pieprasījumu. Nogaidiet brīdi un atkārtojiet.";
+"recording.error.credits" = "Nepietiekami kredīti. Pievienojiet vairāk kredītu iestatījumos.";
+"recording.error.apiKey" = "Pievienojiet savu %@ API atslēgu sadaļā Iestatījumi.";
+"recording.error.server" = "Transkripciijas pakalpojums saskaras ar problēmām. Lūdzu mēģiniet vēlreiz pēc brīža.";
+"recording.retry" = "Atkārtot";
+"recording.retry.inProgress" = "Atkārto…";
+"recording.retry.count" = "Atkārtot (%d)";
+"recording.retry.failed.missing" = "Atkārtošana neizdevās: Audio fails nav atrasts";
+"recording.retry.failed.error" = "Atkārtošana neizdevās: %@";
+"recording.retry.pending" = "Gatavs atkārtot – noklikšķiniet, lai transkribētu";
+"recording.provider.unknown" = "mākoņa sniedzējs";
+"recording.cancel.dialog.title" = "Atcelt ierakstīšanu?";
+"recording.cancel.dialog.message" = "Tas atmesīs pašreizējo ierakstu.";
+"recording.cancel.dialog.confirm" = "Atcelt ierakstīšanu";
+"recording.cancel.dialog.resume" = "Atsākt";
+"recording.error.overlay.title" = "Tīkla savienojuma kļūda";
+"recording.error.overlay.message" = "Nospiediet 'Atkārtot' zemāk vai pārslēdzieties uz bezsaistes režīmu, lai turpinātu.";
+"recording.mode.default" = "Noklusējuma";
+"recording.dialog.window.title" = "Ierakstīšanas dialogs";
+"recording.button.start" = "Sākt ierakstīšanu";
+"recording.button.stop" = "Apturēt ierakstīšanu";
+"recording.button.disable.checking" = "Pārbaudu %@ statusu...";
+"recording.button.disable.invalid" = "Nepareiza %@ API atslēga. Atjauniniet to sadaļā Iestatījumi.";
+"recording.button.disable.unreachable" = "%@ nav sasniedzams. Pārbaudiet savienojumu un mēģiniet vēlreiz.";
+"recording.button.disable.missing" = "Pievienojiet savu %@ API atslēgu sadaļā Iestatījumi.";
+"recording.button.disable.install.local" = "Lejupielādē lokālu modeli Iestatījumi → Modeļi pirms lokālās pēcapstrādes izmantošanas.";
+"modes.postProcessing.accuracy" = "Precizitāte";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Jūs esat sasniedzis savu ikdienas %@ minūšu transkripciijas limitu. Jauniniet uz HyperWhisper Pro neierobežotai transkripcijam.";
+"recording.error.documentsAccess" = "Nevar piekļūt ierakstu mapei. Izvēlieties citu vietu sadaļā Iestatījumi → Glabāšana.";
+"recording.error.modeMissing" = "Atlasītais režīms nav atrasts. Lūdzu atlasiet derīgu režīmu.";
+"recording.warning.oversizedWAV" = "Audio kompresija neizdevās. Izmantošanas nesaspiests %@ MB fails - transkripcija var būt lēnāka.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Noklusējuma mikrofons";
+"audio.error.permissionDenied" = "Mikrofona piekļuve liegta. Lūdzu iespējojiet sadaļā Sistēmas iestatījumi.";
+"audio.error.fileWatcher.open" = "Nevarēja atvērt faila deskriptoru audio faila uzraudzībai.";
+"audio.error.fileWatcher.timeout" = "Operācija taimauta galvā, gaidot, kamēr audio fails tiek rakstīts.";
+"audio.error.fileWatcher.creation" = "Audio fails laikus netika izveidots.";
+"audio.error.microphonePermission" = "Mikrofona atļauja nav piešķirta";
+"audio.error.microphoneInUse" = "HyperWhisper nespēj piekļūt mikrofonam, jo cita lietotne to pašlaik lieto. Apturiet citu lietotnei vai pārslēdziet ievadi un mēģiniet vēlreiz.";
+"audio.error.createEngine" = "Neizdevās izveidot audio dzinēju";
+"audio.error.noInput" = "Nav pieejamas audio ievades";
+"audio.error.createFile" = "Neizdevās izveidot audio failu";
+"audio.error.managerUnavailable" = "Transkripciijas vadītājs nav konfigurēts";
+"audio.error.invalidHardwareFormat" = "Noteikts nepareizs aparāta audio formāts. Lūdzu pārbaudiet savu audio ierīci.";
+"audio.error.createFormat" = "Neizdevās izveidot audio formātu ierakstīšanai";
+"audio.error.createConverter" = "Neizdevās izveidot audio formāta pārveidotāju";
+"audio.error.exportM4A" = "Neizdevās eksportēt audio m4a formātā";
+"audio.error.readFile" = "Audio fails nevarēja tikt nolasīts pēc ierakstīšanas.";
+"audio.error.recordingTooShort" = "Ieraksts bija pārāk īss. Lūdzu turiet pogu ilgāk, lai uztvertu audio.";
+"audio.error.noAudioTrack" = "Šajā video failā nav audio ceļa.";
+"audio.alert.accessibility.title" = "Iespējot pieejamības piekļuvi";
+"audio.alert.accessibility.message" = "HyperWhisper prasa pieejamības atļauju, lai ielīmētu transkribēto tekstu citās lietotnēs.\n\nNoklikšķiniet 'Atvērt iestatījumus', nospiediet slēdzi blakus HyperWhisper, tad mēģiniet vēlreiz.";
+"audio.alert.accessibility.open" = "Atvērt iestatījumus";
+"audio.alert.pasteFailed.title" = "Automātiskā ielīmēšana neizdevās";
+"audio.alert.pasteFailed.message" = "Transkribētais teksts ir nokopēts jūsu starplaukstā.\n\nNospiediet ⌘V, lai manuāli ielīmētu to vai izvēlieties Rediģēt → Ielīmēt no izvēlnes.";
+"accessibility.permission.location.debug" = "Xcode atkļūdošanas uzbūve";
+"accessibility.permission.location.installed" = "Instalēta lietotne";
+"accessibility.permission.info" = "HyperWhisper prasa pieejamības atļauju, lai ielīmētu transkribēto tekstu citās lietotnēs.\n\nPašreizējā lietotnes vieta: %@\n\nSistēmas iestatījumos:\n1. Meklējiet 'hyperwhisper' vai 'HyperWhisper' sarakstā\n2. Jūs varat redzēt vairākus ierakstus, ja esat palaists no dažādām vietām\n3. Iespējojiet izvēles rūtiņu ierakstam, kas atbilst:\n   %@";
+"accessibility.permission.xcodeNote" = "Piezīme: Palaišana no Xcode prasa citu atļauju nekā instalētā lietotne.";
+"accessibility.error.paste.commandFailed" = "Ielīmēšanas komanda neizdevās";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transkripciijas sniedzējs nav pieejams. Pārbaudiet iestatījumus un mēģiniet vēlreiz.";
+"transcription.error.providerNotAvailable.provider" = "%@ nav pieejams. Pārbaudiet iestatījumus un mēģiniet vēlreiz.";
+"transcription.error.providerNotAvailable.detail" = "%@ nav pieejams: %@";
+"transcription.error.modelNotDownloaded" = "Lūdzu lejupielādējiet modeli vispirms";
+"transcription.error.modelProtected" = "Šis modelis nevar tikt dzēsts";
+"transcription.error.audioFileNotFound" = "Audio fails nav atrasts";
+"transcription.error.network.detail" = "Tīkla kļūda: %@";
+"transcription.error.network.generic" = "Tīkla savienojuma kļūda";
+"transcription.error.apiKeyMissing.provider" = "%@ API atslēga ir nepieciešama transkripcijam";
+"transcription.error.apiKeyMissing.generic" = "Mākoņa sniedzēja API atslēga ir nepieciešama transkripcijam";
+"transcription.error.maxRetriesExceeded" = "Maksimālais atkārtošanas mēģinājumu skaits pārsniegts";
+"transcription.error.unauthorized.provider" = "Neautorizēts: nepareiza %@ API atslēga vai atļaujas.\n\nAtvērt iestatījumus → API atslēgas, lai pārbaudītu savus akreditācijas datus.";
+"transcription.error.unauthorized.generic" = "Neautorizēts: nepareiza API atslēga vai atļaujas.\n\nAtvērt iestatījumus → API atslēgas, lai pārbaudītu savus akreditācijas datus.";
+"transcription.error.invalidRequest" = "Nepareizs pieprasījums: pārbaudiet audio failu vai iestatījumus";
+"transcription.error.streamingInterrupted" = "Straumēšana bija pārraut; parādīts daļējs teksts";
+"transcription.error.busy" = "Transkripciijas pakalpojums pašlaik ir aizņemts";
+"transcription.error.invalidAudioFormat" = "Neatbalstīts audio formāts";
+"transcription.error.audioConversionFailed" = "Neizdevās konvertēt audio uz nepieciešamo formātu";
+"transcription.error.audioFileTooLarge" = "Fails pārāk liels: %@ pārsniedz %@ limitu %@";
+"transcription.error.serverError" = "Servera kļūda (%d): %@";
+"transcription.error.rateLimited.seconds" = "Ātruma limits: Pārāk daudz pieprasījumu. Lūdzu pagaidiet %d sekundes un mēģiniet vēlreiz.";
+"transcription.error.rateLimited.generic" = "Ātruma limits: Pārāk daudz pieprasījumu. Lūdzu pagaidiet brīdi un mēģiniet vēlreiz.";
+"transcription.error.insufficientCredits" = "Nepietiekami kredīti. Pievienojiet vairāk kredītu iestatījumos.";
+"transcription.error.quotaExceeded" = "%@ kvota pārsniegta";
+"transcription.error.quotaExceeded.detail" = "%@ kvota pārsniegta: %@";
+"transcription.error.timeout" = "Pieprasījuma taimauts %@ laikā. Pārbaudiet interneta savienojumu un mēģiniet vēlreiz.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Pārliecinieties, ka jūsu transkripciijas sniedzējs ir pareizi konfigurēts sadaļā Iestatījumi.";
+"transcription.guidance.providerNotAvailable.provider" = "Pārliecinieties, ka %@ ir pareizi konfigurēts. Lokālajiem modeļiem lejupielādējiet modeli vispirms. Mākoņa sniedzējiem pārbaudiet savu API atslēgu.";
+"transcription.guidance.apiKeyMissing.provider" = "Pievienojiet savu %@ API atslēgu sadaļā Iestatījumi";
+"transcription.guidance.apiKeyMissing.generic" = "Pievienojiet savu mākoņa sniedzēja API atslēgu sadaļā Iestatījumi";
+"transcription.guidance.modelNotDownloaded" = "Lejupielādējiet modeli no modeļu sadaļas";
+"transcription.guidance.modelProtected" = "Šis modelis pašlaik tiek izmantots";
+"transcription.guidance.audioFileNotFound" = "Audio fails bija izdzēsts vai pārvietots";
+"transcription.guidance.networkError" = "Pārbaudiet interneta savienojumu un mēģiniet vēlreiz";
+"transcription.guidance.unauthorized.provider" = "Pārbaudiet savu %@ API atslēgu vai konta atļaujas sadaļā Iestatījumi";
+"transcription.guidance.unauthorized.generic" = "Pārbaudiet savu API atslēgu vai konta atļaujas sadaļā Iestatījumi";
+"transcription.guidance.invalidRequest" = "Pārbaudiet audio failu un režīma iestatījumus, tad mēģiniet vēlreiz";
+"transcription.guidance.invalidAudioFormat" = "Mēģiniet konvertēt audio failu uz MP3 vai WAV formātu";
+"transcription.guidance.audioConversionFailed" = "Audio fails var būt bojāts. Mēģiniet citu failu";
+"transcription.guidance.audioFileTooLarge" = "Izmantojiet īsāku audio failu vai sadaliet to mazākos segmentos";
+"transcription.guidance.serverError" = "Transkripciijas pakalpojums saskaras ar problēmām. Lūdzu mēģiniet vēlreiz.";
+"transcription.guidance.rateLimited" = "Jūs esat paveicis pārāk daudz pieprasījumu. Pagaidiet brīdi, pirms mēģinājiet vēlreiz.";
+"transcription.guidance.insufficientCredits" = "Piegādājiet vairāk kredītu sadaļā Iestatījumi, lai turpinātu transkribēšanu";
+"transcription.guidance.quotaExceeded" = "Pievienojiet kredītus savā %@ kontā vai atjauniniet savus norēķinu datus";
+"transcription.guidance.timeout" = "Pieprasījums aizņēma pārāk daudz laika. Pārbaudiet interneta ātrumu un mēģiniet vēlreiz.";
+"transcription.error.noSpeechDetected" = "Ierakstā runas nav noteikta.";
+"transcription.guidance.noSpeechDetected" = "Padomi:\n• Runājiet skaidri mikrofonā\n• Turiet taustiņu ilgāk, pirms sākat runāt\n• Pārbaudiet, ka jūsu mikrofons darbojas\n• Pārliecinieties, ka ir atlasīta pareizā ievades ierīce";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Nepietiekami kredīti. Pievienojiet vairāk kredītu iestatījumos.";
+"hyperwhisperCloud.error.network" = "Tīkla kļūda: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Nepareiza atbilde no HyperWhisper Cloud";
+"hyperwhisperCloud.error.server" = "Servera kļūda: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server izpildāmo failu nevarēja atrast.";
+"llama.runtime.error.missingDependencies" = "Izpildes vide trūkst atkarības: %@";
+"llama.runtime.error.copyFailed" = "Neizdevās kopēt izpildes vidi: %@";
+"llama.runtime.error.copy.executable" = "Nevarēja kopēt izpildāmo: %@";
+"llama.runtime.missing" = "Lokālā izpildes vide trūkst šajā instalācijā. Pārinatalējiet HyperWhisper, lai atjaunotu lokālo pēcapstrādi.";
+"llama.runtime.genericError" = "Lokālā izpildes vides kļūda: %@";
+"runtime.error.llama.missingLib" = "Lokālā izpildes vide pārtrūka pēc libmtmd.dylib neesamības";
+"runtime.error.llama.reportedMissingLib" = "Lokālā izpildes vide paziņoja par trūkstošo libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Iebūvēta AI pēcapstrāde Cloudflare Worker. Nav nepieciešama konfigurācija.";
+"models.postProcessing.gpt4.1.nano.description" = "Vidēja precizitāte (92%), ļoti ātrs ātrums (<1s). Piemērots ātrajiem melnrakstiem un neformāliem piezīmēm.";
+"models.postProcessing.gpt4.1.mini.description" = "Augsta precizitāte (94%), ātrs ātrums (~1-2s). Labs ikdienas biznesa komunikācijai un standarta dokumentiem.";
+"models.postProcessing.gpt4.1.description" = "Ļoti augsta precizitāte (96%), vidējais ātrums (~3-4s). Lieliski sarežģītai formatēšanai un tehniskam saturam.";
+"models.postProcessing.gpt5.nano.description" = "Laba precizitāte (95%), ātrākais ātrums (~1s). Ideāli ātriem piezīmēm, ziņojumiem un neformālām transkripcijām.";
+"models.postProcessing.gpt5.mini.description" = "Lieliska precizitāte (97%), vidējais ātrums (~2-3s). Ideāls līdzsvars profesionāliem e-pastiem, pārskatiem un sanāksmes piezīmēm.";
+"models.postProcessing.gpt5.description" = "Augstākā precizitāte (99%+), lēnākais ātrums (~3-5s). Labākais kritiskajiem dokumentiem, juridiskai, medicīniskai transkripcijam, kur ir svarīga precizitāte.";
+"models.postProcessing.gpt5.1.description" = "Modernas tehnoloģijas precizitāte (98%+), vidējais ātrums (~2-3s). Lieliski sarežģītiem uzdevumiem, juridiskiem dokumentiem un tehniskajam saturam ar labāku spriešanu.";
+"models.postProcessing.gpt5.2.description" = "Jaunākā GPT-5 sērija ar uzlabotu spriešanu un ātrāku secinājumu. Labākais vispārējais izvēle augstas kvalitātes teksta apstrādei.";
+"models.postProcessing.claude4.5.haiku.description" = "Jaunākais Claude Haiku ar uzlabotu spriešanu, turpinot ātrus atbildes laikus.";
+"models.postProcessing.claude4.sonnet.description" = "Līdzsvarota veiktspēja. Augsti spēcīgs spriešana un formatēšana profesionāliem dokumentiem.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 sērija ar Pro līmeņa intelektu Flash ātrumā. Progresīvs spriešana ar dinamiskas domāšanas iespējām.";
+"models.postProcessing.gemini2.5.flash.description" = "Labākais cenas un veiktspējas ziņā. Optimizēts ātrumam, vienlaikus saglabājot labu precizitāti ikdienas lietošanai.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ultra ātra modeļa optimizēta izmaksu efektivitātei un augstam caurlaidībai.";
+"models.postProcessing.groq.llama33.70b.description" = "Daudzpusīgs 70B modelis ar lieliskai kvalitāti. ~280 žetonu/sek. Ieteicams.";
+"models.postProcessing.groq.llama31.8b.description" = "Ultra ātrais 8B modelis. ~560 žetonu/sek ātrai teksta apstrādei.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI atvērtā avota 120B modelis. ~500 žetonu/sek augstas kvalitātes apstrādei.";
+"models.postProcessing.groq.gptoss.20b.description" = "Vieglais 20B modelis. ~1000 žetonu/sek ātrākajai apstrādei.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B uz Cerebras. Ultra ātrais 120B modelis ar ~3000 žetonu/sek. Ieteicams.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B uz Cerebras. Viegls un ultra ātrais ar ~2200 žetonu/sek.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B uz Cerebras. Masīvs 235B MoE modelis ar ~1400 žetonu/sek. Tikai priekšskatījums.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 uz Cerebras. 355B parametru modelis ar ~1000 žetonu/sek. Tikai priekšskatījums.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Palīdzības centrs";
+"settings.resources.contact.support" = "Sazināties ar atbalstu";
+"settings.resources.feedback" = "Atsauksme un ieteikumi";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Rezerve";
+"settings.backup.export.title" = "Eksportēt iestatījumus";
+"settings.backup.export.subtitle" = "Saglabāt iestatījumus, režīmus un vārdu krājumu uz failu";
+"settings.backup.export.button" = "Eksportēt...";
+"settings.backup.export.panel.title" = "Eksportēt iestatījumus";
+"settings.backup.export.panel.label" = "Rezerves fails:";
+"settings.backup.export.success" = "Iestatījumi sekmīgi eksportēti";
+"settings.backup.export.error.create" = "Neizdevās izveidot rezerves datus";
+"settings.backup.export.error.encode" = "Neizdevās kodēt rezerves datus";
+"settings.backup.export.error.write" = "Neizdevās uzrakstīt rezerves failu";
+"settings.backup.includeAPIKeys.title" = "Iekļaut API atslēgas";
+"settings.backup.includeAPIKeys.subtitle" = "Saglabāt API atslēgas rezerves failā (nav ieteicams dalīšanai)";
+"settings.backup.includeLicense.title" = "Iekļaut licences atslēgu";
+"settings.backup.import.title" = "Importēt iestatījumus";
+"settings.backup.import.subtitle" = "Atjaunot iestatījumus no rezerves faila";
+"settings.backup.import.button" = "Importēt...";
+"settings.backup.import.panel.title" = "Importēt iestatījumus";
+"settings.backup.import.success" = "Imports pabeigts: %d režīmi, %d vārdu krājuma vienības importētas";
+"settings.backup.import.error.read" = "Neizdevās lasīt rezerves failu";
+"settings.backup.import.error.decode" = "Nepareizs rezerves faila formāts";
+"settings.backup.import.error.decode.keyNotFound" = "Trūkst obligātā lauka: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Nepareizs lauka tips: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Trūkst lauka vērtības: %@";
+"settings.backup.import.error.decode.corrupted" = "Bojāti dati: %@";
+"settings.backup.import.error.decode.corruptedField" = "Bojāta lauka vērtība: %@";
+"settings.backup.import.error.version" = "Rezerves fails ir no jaunākas versijas";
+"settings.backup.import.error.unknown" = "Imports neizdevās";
+"settings.backup.import.confirm.title" = "Importēt iestatījumus?";
+"settings.backup.import.confirm.message" = "Tas aizstās jūsu esošos režīmus un vārdu krājumu ar tiem no rezerves faila. Iestatījumi tiks arī atjaunināti.";
+"settings.backup.import.confirm.button" = "Importēt";
+"settings.backup.conflict.skip" = "Izlaist esošos";
+"settings.backup.conflict.replace" = "Aizstāt esošos";
+"settings.backup.conflict.keepBoth" = "Saglabāt abas";
+"settings.backup.security.warning" = "Brīdinājums: Eksportētais fails satur sensitīvus datus. Saglabājiet to drošā vietā un nedalieties ar to.";
+"settings.backup.info.note" = "Rezerves kopijas ietver iestatījumus, režīmus un vārdu krājumu. Ieraksti un transkripti netiek iekļauti.";
+"settings.backup.result.success.title" = "Sekmīgi";
+"settings.backup.result.error.title" = "Kļūda";
+"settings.backup.export.choose.subtitle" = "Izvēlieties, ko iekļaut dublējuma failā";
+"settings.backup.export.section.settings" = "Iestatījumi";
+"settings.backup.export.section.modes" = "Režīmi";
+"settings.backup.export.section.vocabulary" = "Vārdnīca";
+"settings.backup.import.importing" = "Importē %@";
+"settings.backup.import.contains" = "Šajā failā ir: %@";
+"settings.backup.import.contains.vocabulary" = "Vārdnīca (%d vārdi)";
+"settings.backup.import.contains.none" = "nekas";
+"settings.backup.import.section.settings" = "Iestatījumi";
+"settings.backup.import.section.modes" = "Režīmi";
+"settings.backup.import.section.vocabulary" = "Vārdnīca";
+"settings.backup.import.section.apiKeys" = "API atslēgas";
+"settings.backup.import.section.license" = "Licences atslēga";
+"settings.backup.import.section.absent" = "— nav failā";
+"settings.backup.import.premerge.summary" = "Vārdnīca: pievienot %d jaunu, %d jau pastāv";
+"settings.backup.import.premerge.conflictLabel" = "Vārdiem, kas jau pastāv:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Atlasīt audio failu";
+"transcribe.file.error.title" = "Transkripciijas kļūda";
+"transcribe.file.error.size.title" = "Fails pārāk liels";
+"transcribe.file.error.size.message" = "Atlasītais fails (%@) pārsniedz %@ limitu %@.";
+"transcribe.file.error.format.title" = "Neatbalstīts formāts";
+"transcribe.file.error.format.message" = ".%@ faili netiek atbalstīti %@. Atbalstītie formāti: %@";
+"transcribe.file.error.read" = "Nevar nolasīt atlasīto failu.";
+"transcribe.file.error.copy" = "Neizdevās kopēt failu ierakstu mapē.";
+"transcribe.file.error.video.title" = "Nav audio video";
+"transcribe.file.error.video.noAudio" = "Šajā video failā nav audio ceļa. Lūdzu atlasiet video ar audio vai audio failu.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Sagatavošana...";
+"file.transcription.transcribing" = "Transkribēšana...";
+"file.transcription.finishing" = "Pabeigšana...";
+"file.transcription.cancel" = "Atcelt";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Iespējot automātisku dzēšanu";
+"history.autoDelete.enable.subtitle" = "Ieraksti, kas vecāki par norādīto ilgumu, tiks automātiski dzēsti";
+"history.autoDelete.duration.prefix" = "Pēc";
+"history.autoDelete.unit.minutes" = "Minūtes";
+"history.autoDelete.unit.hours" = "Stundas";
+"history.autoDelete.unit.days" = "Dienas";
+"history.autoDelete.unit.minutes.plural" = "minūtes";
+"history.autoDelete.unit.hours.plural" = "stundas";
+"history.autoDelete.unit.days.plural" = "dienas";
+"history.autoDelete.status.disabled" = "Automātiskā dzēšana ir atspējota";
+"history.autoDelete.status.enabled" = "Dzēst ierakstus, kas vecāki par %d %@";
+"history.autoDelete.cleanup.noItems" = "Nav ierakstu, ko dzēst";
+"history.autoDelete.cleanup.summary" = "Dzēsti %d ieraksti un atbrīvoti %@";

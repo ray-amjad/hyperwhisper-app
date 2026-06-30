@@ -1,0 +1,753 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.ApiKeysSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="{DynamicResource ContentBackgroundBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+            <TextBlock Text="{loc:Loc settings.section.api.keys}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+            <!-- Info Blurb - Security notice and help link -->
+            <StackPanel Margin="0,0,0,16">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="&#xE72E;" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="{loc:Loc settings.api.info}"
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+                <TextBlock FontSize="12">
+                    <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                               NavigateUri="https://hyperwhisper.com/docs/api-keys"><Run Text="{loc:Loc settings.api.help.link}"/></Hyperlink>
+                </TextBlock>
+            </StackPanel>
+
+            <!-- ================================================ -->
+            <!-- TRANSCRIPTION CARD                               -->
+            <!-- ================================================ -->
+            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="{loc:Loc settings.api.transcription.title}" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{loc:Loc settings.api.transcription.subtitle}"
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,16"/>
+
+                    <!-- OpenAI API Key (Transcription) -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#10A37F" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerOpenAI.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.openai}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="OpenAITranscriptionStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.openai.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="OpenAITranscriptionKeyBox"
+                                         PasswordChanged="OpenAITranscriptionKeyBox_PasswordChanged"/>
+                            <Button x:Name="OpenAITranscriptionShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="OpenAITranscriptionShowButton_Click"/>
+                            <Button x:Name="OpenAITranscriptionSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="OpenAITranscriptionSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://platform.openai.com/api-keys">
+                                Get your API key from platform.openai.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Groq API Key (Transcription) -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#F55036" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerGroq.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.groq}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GroqTranscriptionStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.groq.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="GroqTranscriptionKeyBox"
+                                         PasswordChanged="GroqTranscriptionKeyBox_PasswordChanged"/>
+                            <Button x:Name="GroqTranscriptionShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="GroqTranscriptionShowButton_Click"/>
+                            <Button x:Name="GroqTranscriptionSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="GroqTranscriptionSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.groq.com/keys">
+                                Get your API key from console.groq.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Deepgram API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#13EF93" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerDeepgram.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.deepgram}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="DeepgramStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.deepgram.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="DeepgramKeyBox"
+                                         PasswordChanged="DeepgramKeyBox_PasswordChanged"/>
+                            <Button x:Name="DeepgramShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="DeepgramShowButton_Click"/>
+                            <Button x:Name="DeepgramSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="DeepgramSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.deepgram.com/">
+                                Get your API key from console.deepgram.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- AssemblyAI API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#6B5BFF" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerAssemblyAI.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.assemblyai}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="AssemblyAIStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.assemblyai.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="AssemblyAIKeyBox"
+                                         PasswordChanged="AssemblyAIKeyBox_PasswordChanged"/>
+                            <Button x:Name="AssemblyAIShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="AssemblyAIShowButton_Click"/>
+                            <Button x:Name="AssemblyAISaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="AssemblyAISaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://www.assemblyai.com/app/account">
+                                Get your API key from assemblyai.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- ElevenLabs API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#0F0F0F" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerElevenLabs.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.elevenlabs}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="ElevenLabsStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.elevenlabs.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="ElevenLabsKeyBox"
+                                         PasswordChanged="ElevenLabsKeyBox_PasswordChanged"/>
+                            <Button x:Name="ElevenLabsShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="ElevenLabsShowButton_Click"/>
+                            <Button x:Name="ElevenLabsSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="ElevenLabsSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://elevenlabs.io/app/settings/api-keys">
+                                Get your API key from elevenlabs.io
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Mistral API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#FA500F" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerMistral.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.mistral}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="MistralStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.mistral.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="MistralKeyBox"
+                                         PasswordChanged="MistralKeyBox_PasswordChanged"/>
+                            <Button x:Name="MistralShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="MistralShowButton_Click"/>
+                            <Button x:Name="MistralSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="MistralSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.mistral.ai/api-keys">
+                                Get your API key from console.mistral.ai
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Soniox API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#2A6DF4" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerSoniox.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.soniox}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="SonioxStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.soniox.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="SonioxKeyBox"
+                                         PasswordChanged="SonioxKeyBox_PasswordChanged"/>
+                            <Button x:Name="SonioxShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="SonioxShowButton_Click"/>
+                            <Button x:Name="SonioxSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="SonioxSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.soniox.com">
+                                Get your API key from console.soniox.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Google Gemini API Key (Transcription) -->
+                    <StackPanel x:Name="LocalLlmApiKeySection" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#8E75B2" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerGemini.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.gemini}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GeminiTranscriptionStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.gemini.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="GeminiTranscriptionKeyBox"
+                                         PasswordChanged="GeminiTranscriptionKeyBox_PasswordChanged"/>
+                            <Button x:Name="GeminiTranscriptionShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="GeminiTranscriptionShowButton_Click"/>
+                            <Button x:Name="GeminiTranscriptionSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="GeminiTranscriptionSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://aistudio.google.com/app/apikey">
+                                Get your API key from aistudio.google.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Grok API Key -->
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#0F0F0F" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerGrok.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.grok}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GrokStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.grok.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="GrokKeyBox"
+                                         PasswordChanged="GrokKeyBox_PasswordChanged"/>
+                            <Button x:Name="GrokShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="GrokShowButton_Click"/>
+                            <Button x:Name="GrokSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="GrokSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.x.ai/">
+                                Get your API key from console.x.ai
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ================================================ -->
+            <!-- POST-PROCESSING CARD                             -->
+            <!-- ================================================ -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="{loc:Loc settings.api.postProcessing.title}" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{loc:Loc settings.api.postProcessing.subtitle}"
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,16"/>
+
+                    <!-- Local LLM (No API Key) -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="{loc:Loc provider.localLlm}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{loc:Loc settings.api.provider.localLlm.description}"
+                                           FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Margin="0,2,0,4"/>
+                                <TextBlock Text="{loc:Loc settings.api.provider.localLlm.status}"
+                                           FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="{loc:Loc settings.api.provider.localLlm.manageModels}"
+                                    VerticalAlignment="Center"
+                                    Click="OpenModelsSettings_Click"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- OpenAI API Key (Post-Processing) -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#10A37F" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerOpenAI.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.openai}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="OpenAIPostStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.openai.post.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="OpenAIPostKeyBox"
+                                         PasswordChanged="OpenAIPostKeyBox_PasswordChanged"/>
+                            <Button x:Name="OpenAIPostShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="OpenAIPostShowButton_Click"/>
+                            <Button x:Name="OpenAIPostSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="OpenAIPostSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://platform.openai.com/api-keys">
+                                Get your API key from platform.openai.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Anthropic API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#D97757" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerAnthropic.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.anthropic}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="AnthropicStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.anthropic.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="AnthropicKeyBox"
+                                         PasswordChanged="AnthropicKeyBox_PasswordChanged"/>
+                            <Button x:Name="AnthropicShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="AnthropicShowButton_Click"/>
+                            <Button x:Name="AnthropicSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="AnthropicSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.anthropic.com/settings/keys">
+                                Get your API key from console.anthropic.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Google Gemini API Key -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#8E75B2" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerGemini.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.gemini}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GeminiStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.gemini.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="GeminiKeyBox"
+                                         PasswordChanged="GeminiKeyBox_PasswordChanged"/>
+                            <Button x:Name="GeminiShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="GeminiShowButton_Click"/>
+                            <Button x:Name="GeminiSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="GeminiSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://aistudio.google.com/app/apikey">
+                                Get your API key from aistudio.google.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Groq API Key (Post-Processing) -->
+                    <StackPanel Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#F55036" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerGroq.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.groq}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GroqPostStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.groq.post.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="GroqPostKeyBox"
+                                         PasswordChanged="GroqPostKeyBox_PasswordChanged"/>
+                            <Button x:Name="GroqPostShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="GroqPostShowButton_Click"/>
+                            <Button x:Name="GroqPostSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="GroqPostSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.groq.com/keys">
+                                Get your API key from console.groq.com
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Grok API Key (Post-Processing) -->
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#0F0F0F" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerGrok.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.grok}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GrokPostStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.grok.post.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="GrokPostKeyBox"
+                                         PasswordChanged="GrokPostKeyBox_PasswordChanged"/>
+                            <Button x:Name="GrokPostShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="GrokPostShowButton_Click"/>
+                            <Button x:Name="GrokPostSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="GrokPostSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://console.x.ai/">
+                                Get your API key from console.x.ai
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Cerebras API Key -->
+                    <StackPanel Margin="0,16,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
+                                        Background="#F15A27" VerticalAlignment="Center">
+                                    <Image Source="/Assets/Providers/providerCerebras.png" Width="15" Height="15"
+                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="{loc:Loc provider.cerebras}" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="CerebrasStatusText" Grid.Column="1" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </Grid>
+                        <TextBlock Text="{loc:Loc settings.api.provider.cerebras.description}"
+                                   FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="CerebrasKeyBox"
+                                         PasswordChanged="CerebrasKeyBox_PasswordChanged"/>
+                            <Button x:Name="CerebrasShowButton" Grid.Column="1" Content="{loc:Loc settings.api.show}"
+                                    Margin="8,0,0,0"
+                                    Click="CerebrasShowButton_Click"/>
+                            <Button x:Name="CerebrasSaveButton" Grid.Column="2" Content="{loc:Loc common.save}"
+                                    Margin="8,0,0,0" Style="{StaticResource PrimaryButtonStyle}"
+                                    Click="CerebrasSaveButton_Click"/>
+                        </Grid>
+                        <TextBlock Margin="0,4,0,0" FontSize="11">
+                            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                       NavigateUri="https://cloud.cerebras.ai/">
+                                Get your API key from cloud.cerebras.ai
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

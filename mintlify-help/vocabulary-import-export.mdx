@@ -1,0 +1,191 @@
+---
+title: Import & Export Vocabulary
+description: Move your custom vocabulary between devices and platforms using CSV files and universal .hwbackup.json backups.
+---
+
+HyperWhisper lets you move your [custom vocabulary](/vocabulary) between devices and across platforms. Two formats are supported depending on which app you're using:
+
+| Format | macOS | Windows | iOS |
+|---|---|---|---|
+| `.hwbackup.json` (schemaVersion 2) | Export + Import | Export + Import | — |
+| CSV | — | — | Export + Import |
+
+## CSV format (iOS)
+
+On iOS, vocabulary is exported and imported as a plain CSV file. Each row represents one entry:
+
+```
+phrase,replacement,caseSensitive
+```
+
+**Column details:**
+
+| Column | Required | Notes |
+|---|---|---|
+| `phrase` | Yes | The phrase HyperWhisper listens for. Rows with an empty phrase are skipped. |
+| `replacement` | Yes | The text to substitute in the transcript. Rows with an empty replacement are skipped. |
+| `caseSensitive` | No | `true` or `1` to enable case-sensitive matching; any other value (or omitting the column entirely) defaults to `false`. |
+
+The parser follows RFC 4180: fields that contain commas, quotes, or newlines must be wrapped in double-quotes, and a literal double-quote inside a quoted field is escaped as `""`. LF, CR, and CRLF line endings are all accepted.
+
+**Example:**
+
+```csv
+HyperWhisper,HyperWhisper,false
+"Smith, John",John Smith,false
+API,Application Programming Interface,true
+```
+
+### Export CSV (iOS)
+
+<Steps>
+  <Step title="Open the Vocabulary screen">
+    Go to **Vocabulary** in the app.
+  </Step>
+  <Step title="Open the actions menu">
+    Tap the **⋯** button in the top-right corner.
+  </Step>
+  <Step title="Tap Export CSV">
+    Your vocabulary is saved as a `.csv` file via the system share sheet.
+  </Step>
+</Steps>
+
+### Import CSV (iOS)
+
+<Steps>
+  <Step title="Open the Vocabulary screen">
+    Go to **Vocabulary** in the app.
+  </Step>
+  <Step title="Open the actions menu">
+    Tap the **⋯** button in the top-right corner.
+  </Step>
+  <Step title="Tap Import CSV">
+    Pick a `.csv` file from Files. The app shows a summary: how many entries were imported and how many were skipped.
+  </Step>
+</Steps>
+
+Import uses merge semantics: entries whose word already exists in your vocabulary (matched case-insensitively) are skipped. Your existing entries are never deleted.
+
+---
+
+## `.hwbackup.json` format (macOS and Windows)
+
+macOS and Windows share a universal backup format (`schemaVersion: 2`). The vocabulary section of a `.hwbackup.json` file looks like this:
+
+```json
+{
+  "schemaVersion": 2,
+  "exportDate": "2025-06-25T12:00:00Z",
+  "appVersion": "2.4.0",
+  "platform": "macos",
+  "vocabulary": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "word": "HyperWhisper",
+      "sortOrder": 0,
+      "source": null
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "word": "kubernetes",
+      "replacement": "Kubernetes",
+      "sortOrder": 1,
+      "source": null
+    }
+  ]
+}
+```
+
+**Vocabulary field reference:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | UUID string | Unique identifier for the entry. |
+| `word` | string | The phrase HyperWhisper listens for. Entries with an empty or whitespace-only word are skipped on import. |
+| `replacement` | string or null | Text substituted in the transcript. |
+| `sortOrder` | integer | Ordering hint. |
+| `source` | string or null | Optional origin label. |
+
+<Note>
+The `.hwbackup.json` file can also contain settings, modes, and API keys—not just vocabulary. The vocabulary-only export on macOS produces a file with five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) but no settings, modes, or API keys sections. When you import this file on either platform, only the vocabulary section is applied.
+</Note>
+
+### Export vocabulary (macOS)
+
+<Steps>
+  <Step title="Open Settings">
+    Click the HyperWhisper menu bar icon and choose **Settings**.
+  </Step>
+  <Step title="Go to Backup">
+    Select the **Backup** tab.
+  </Step>
+  <Step title="Select Vocabulary and export">
+    Tick the **Vocabulary** section (you can deselect everything else to get a vocabulary-only file), then click **Export**. Save the file—it will be named `HyperWhisper Vocabulary YYYY-MM-DD.hwbackup.json` when vocabulary is the only selected section.
+  </Step>
+</Steps>
+
+### Import vocabulary (macOS)
+
+<Steps>
+  <Step title="Open Settings → Backup">
+    Click the HyperWhisper menu bar icon, choose **Settings**, then select the **Backup** tab.
+  </Step>
+  <Step title="Choose a file">
+    Click **Import** and pick your `.hwbackup.json` file. The app shows the vocabulary entry count from the file.
+  </Step>
+  <Step title="Select Vocabulary and choose a conflict policy">
+    Tick **Vocabulary** and pick how to handle entries whose word already exists in your list:
+
+    - **Skip existing** (default) — leaves your current entry untouched.
+    - **Replace existing** — overwrites the replacement text of the matching entry.
+  </Step>
+  <Step title="Apply the import">
+    Click **Import**. The app reports how many entries were imported and how many were skipped.
+  </Step>
+</Steps>
+
+### Export vocabulary (Windows)
+
+<Steps>
+  <Step title="Open Settings → Backup">
+    Open HyperWhisper and go to **Settings → Backup**.
+  </Step>
+  <Step title="Select sections and export">
+    Tick **Vocabulary** (and any other sections you want to include), then click **Export**. Choose a save location. The file is saved as `.hwbackup.json`.
+  </Step>
+</Steps>
+
+### Import vocabulary (Windows)
+
+<Steps>
+  <Step title="Open Settings → Backup">
+    Open HyperWhisper and go to **Settings → Backup**.
+  </Step>
+  <Step title="Choose a file">
+    Click **Choose file** and pick your `.hwbackup.json`. The app inspects the file and shows which sections it contains, along with the vocabulary entry count.
+  </Step>
+  <Step title="Select Vocabulary and choose a conflict policy">
+    Tick **Vocabulary** and pick how to handle words that already exist:
+
+    - **Skip** (default) — leaves the existing entry untouched.
+    - **Replace** — updates the replacement text, sort order, and source of the matching entry (the entry's ID and creation date are preserved).
+  </Step>
+  <Step title="Apply the import">
+    Click **Apply**. A confirmation dialog shows how many entries will be added versus how many conflicts exist. Confirm to proceed. The app reports the final import summary.
+  </Step>
+</Steps>
+
+---
+
+## Migrating vocabulary between macOS and Windows
+
+Both platforms read and write the same `.hwbackup.json` vocabulary format, so moving your vocabulary from one platform to the other requires no conversion:
+
+1. **Export** a vocabulary-only backup on the source platform (see above).
+2. **Import** the `.hwbackup.json` file on the destination platform.
+
+The import is always additive: existing entries on the destination are never deleted. Only the words that are new (or that you explicitly chose to replace) are written.
+
+<Note>
+The `.hwbackup.json` format does not carry the case-sensitivity flag. If you need case-sensitive matching on a specific platform, set that flag manually after importing.
+</Note>

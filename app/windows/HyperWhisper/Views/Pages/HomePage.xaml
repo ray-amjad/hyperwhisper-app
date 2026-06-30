@@ -1,0 +1,302 @@
+<Page x:Class="HyperWhisper.Views.Pages.HomePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      xmlns:controls="clr-namespace:HyperWhisper.Views.Controls"
+      Title="{loc:Loc sidebar.home}" Background="{DynamicResource ContentBackgroundBrush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthWide}">
+
+            <!-- ============================================================ -->
+            <!-- SHORTCUT CONFLICT WARNING                                    -->
+            <!-- Persistent inline banner shown when shortcuts fail to        -->
+            <!-- register (e.g., another app holds Ctrl+Shift+.)              -->
+            <!-- ============================================================ -->
+            <Border Margin="0,0,0,16" Padding="12" CornerRadius="{StaticResource CardCornerRadius}"
+                    Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
+                    Visibility="{Binding HasShortcutConflicts, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="24"
+                            Height="24"
+                            CornerRadius="12"
+                            Background="{DynamicResource WarningBorderBrush}"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Top">
+                        <TextBlock Text="!"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource WarningForegroundBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Shortcut Conflict" FontWeight="SemiBold" FontSize="13"
+                                   Foreground="{DynamicResource WarningForegroundBrush}" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding ShortcutConflictMessage}"
+                                   Foreground="{DynamicResource WarningForegroundBrush}" FontSize="12"
+                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Content="Open Shortcut Settings"
+                                    HorizontalAlignment="Left"
+                                    Padding="12,5"
+                                    Click="OpenShortcutSettings_Click"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ============================================================ -->
+            <!-- LOW MIC VOLUME WARNING                                       -->
+            <!-- Shown when the system mic input is below 25%                 -->
+            <!-- ============================================================ -->
+            <Border Margin="0,0,0,16" Padding="12" CornerRadius="{StaticResource CardCornerRadius}"
+                    Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
+                    Visibility="{Binding HasLowMicVolume, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel>
+                    <TextBlock Text="{loc:Loc home.microphone.low.title}" FontWeight="SemiBold" FontSize="13"
+                               Foreground="{DynamicResource WarningForegroundBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="{Binding LowMicVolumeMessage}"
+                               Foreground="{DynamicResource WarningForegroundBrush}" FontSize="12"
+                               TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="{loc:Loc home.microphone.low.openSoundSettings}"
+                                HorizontalAlignment="Left" Padding="12,4"
+                                Command="{Binding OpenSoundSettingsCommand}"/>
+                        <Button Content="{loc:Loc home.microphone.low.dismiss}"
+                                HorizontalAlignment="Left" Padding="12,4" Margin="8,0,0,0"
+                                Command="{Binding DismissLowMicVolumeCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============================================================ -->
+            <!-- HOME STATS BAR                                                -->
+            <!-- Avg WPM / words this week / words this month / minutes saved -->
+            <!-- ============================================================ -->
+            <controls:HomeStatsBar x:Name="StatsBar" Margin="0,0,0,16"
+                                   HorizontalAlignment="Stretch"/>
+
+            <!-- ============================================================ -->
+            <!-- GETTING STARTED SECTION                                      -->
+            <!-- Matches macOS HomeView: colored icon circles, shortcut badge, -->
+            <!-- hover effects, checkmark on completion                        -->
+            <!-- ============================================================ -->
+            <StackPanel Visibility="{Binding ShowGettingStarted, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Margin="0,0,0,16">
+                <!-- Section header with sparkle -->
+                <TextBlock Text="{loc:Loc home.gettingStarted.title}"
+                           FontSize="20" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           Margin="0,0,0,16"/>
+
+                <ItemsControl ItemsSource="{Binding GettingStartedItems}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="CardBorder" Margin="0,0,0,12" Cursor="Hand"
+                                    CornerRadius="12" Padding="16"
+                                    Background="{DynamicResource CardBackgroundBrush}"
+                                    BorderThickness="1"
+                                    BorderBrush="{DynamicResource BorderBrush}">
+                                <Border.InputBindings>
+                                    <MouseBinding MouseAction="LeftClick"
+                                                  Command="{Binding DataContext.ToggleGettingStartedStepCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                  CommandParameter="{Binding Id}"/>
+                                </Border.InputBindings>
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Colored icon circle (matches macOS iconColor.opacity(0.1)) -->
+                                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="22"
+                                            HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,0,16,0">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="{Binding IconColor}" Opacity="0.1"/>
+                                        </Border.Background>
+                                        <TextBlock Text="{Binding Icon}" FontSize="20"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Title + Description -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <!-- "Done" badge when completed -->
+                                            <Border Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    Margin="8,0,0,0" Padding="6,2" CornerRadius="4"
+                                                    VerticalAlignment="Center"
+                                                    Background="{DynamicResource SuccessBackgroundBrush}">
+                                                <TextBlock Text="{loc:Loc home.gettingStarted.completed}"
+                                                           FontSize="11" Foreground="{DynamicResource SuccessForegroundBrush}"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Description}" FontSize="13"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"
+                                                   TextWrapping="Wrap"/>
+                                    </StackPanel>
+
+                                    <!-- Keyboard shortcut badge (only shown when ShortcutText is set) -->
+                                    <Border Grid.Column="2" VerticalAlignment="Center" Margin="8,0,8,0"
+                                            Padding="8,4" CornerRadius="4"
+                                            Background="{DynamicResource InputBackgroundBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ShortcutText}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding ShortcutText}"
+                                                   FontSize="11" FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    </Border>
+
+                                    <!-- Checkmark when completed / Chevron when not -->
+                                    <Grid Grid.Column="3" VerticalAlignment="Center" Margin="0,0,0,0">
+                                        <!-- Green checkmark circle -->
+                                        <Border Width="26" Height="26" CornerRadius="13"
+                                                Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                Background="{DynamicResource SuccessBrush}">
+                                            <TextBlock Text="&#x2713;" Foreground="{DynamicResource TextOnAccentBrush}" FontSize="14" FontWeight="Bold"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <!-- Chevron -->
+                                        <TextBlock Text="&#x203A;" FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Center"
+                                                   Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Inverse}"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- ============================================================ -->
+            <!-- RECENT UPDATES SECTION                                       -->
+            <!-- ============================================================ -->
+            <StackPanel Margin="0,0,0,16">
+                <TextBlock Text="{loc:Loc home.recentReleases.title}"
+                           FontSize="20" FontWeight="SemiBold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"
+                           Margin="0,0,0,16"/>
+
+                <!-- Loading skeleton -->
+                <StackPanel Visibility="{Binding IsLoadingReleases, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12" Height="60" Opacity="0.5"/>
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12" Height="60" Opacity="0.3"/>
+                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12" Height="60" Opacity="0.15"/>
+                </StackPanel>
+
+                <!-- Error state -->
+                <Border Margin="0,0,0,12">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource CardStyle}">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ReleasesError}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel HorizontalAlignment="Center" Margin="0,8">
+                        <TextBlock Text="{loc:Loc home.recentReleases.error}"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <Button Content="{loc:Loc home.recentReleases.retry}"
+                                Command="{Binding RetryLoadReleasesCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalAlignment="Center" Margin="0,8,0,0" Padding="16,6"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Release cards -->
+                <ItemsControl ItemsSource="{Binding RecentReleases}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <!-- Version + Date row -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                        <TextBlock Text="&#x2191;" FontSize="12" Foreground="{DynamicResource AccentBrush}"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="{Binding Version}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <!-- NEW badge for latest -->
+                                        <Border Background="{DynamicResource SuccessBrush}" CornerRadius="3"
+                                                Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                Visibility="{Binding IsLatest, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <TextBlock Text="{loc:Loc home.recentReleases.new}" Foreground="{DynamicResource TextOnAccentBrush}"
+                                                       FontSize="10" FontWeight="Bold"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding FormattedDate}" FontSize="12"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Release title -->
+                                    <TextBlock Text="{Binding ReleaseTitle}" FontSize="13" FontWeight="Medium"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               TextWrapping="Wrap" Margin="0,0,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding ReleaseTitle}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <!-- Bullet points -->
+                                    <ItemsControl ItemsSource="{Binding BulletPoints}" Margin="0,12,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <TextBlock Text="&#x2022;" FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Margin="0,0,6,0" VerticalAlignment="Top"/>
+                                                    <TextBlock Text="{Binding}" FontSize="12"
+                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

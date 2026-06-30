@@ -1,0 +1,1050 @@
+/* 
+  Localizable.strings (Base)
+  HyperWhisper
+
+  Created by Localization Support
+  Copyright (c) 2026 HyperWhisper. All rights reserved.
+
+  English (Base) localization strings for HyperWhisper application.
+  This file contains all user-facing text that needs to be translated.
+*/
+
+// MARK: - Application Navigation
+"app.title" = "HyperWhisper";
+"app.title.pro" = "HyperWhisper Pro";
+"app.badge.pro" = "PRO";
+
+// MARK: - Vocabulary View
+"vocabulary.title" = "Sõnavara";
+"vocabulary.description" = "See aitab tarkvaral ära tunda nimesid, akronüüme, släng või sõnu teistest keeltest keeli segades.";
+"vocabulary.input.title" = "Sisend";
+"vocabulary.new.word.placeholder" = "Uus sõna või fraas";
+"vocabulary.replacement.placeholder" = "Asenda...";
+"vocabulary.add.button" = "Lisa sõnavarasse";
+"vocabulary.edit.title" = "Redigeerige sõnavara kirjet";
+"vocabulary.update.button" = "Värskendus";
+"vocabulary.cancel.button" = "Tühista";
+"vocabulary.word.column" = "Sõna/fraas";
+"vocabulary.replacement.column" = "Asendus";
+"vocabulary.empty.title" = "Sõnavara sõnu veel pole";
+"vocabulary.empty.subtitle" = "Lisa kohandatud sõnu transkriptsiooni täpsuse parandamiseks";
+"vocabulary.duplicate.title" = "Topeltkirje";
+"vocabulary.duplicate.message" = "%@ on juba teie sõnavaras olemas. Iga sõna saab lisada ainult üks kord.";
+"vocabulary.ok.button" = "OK";
+"vocabulary.limit.title" = "Võtmesõnade limiit ületatud";
+"vocabulary.limit.message" = "Teil on %d sõna, kuid transkriptsiooni võimendamiseks kasutatakse ainult esimest %d.";
+
+// MARK: - Streaming View
+"streaming.title" = "Voogedastus (Beeta)";
+"streaming.description" = "Reaalajas transkriptsioon ajal, mil te räägite. Tekst trükitakse otse fookuses olevasse rakendusse.";
+"streaming.enable.title" = "Luba voogedastus";
+"streaming.provider.picker.title" = "Teenusepakkuja";
+"streaming.model.title" = "Mudel";
+"streaming.model.nova3general" = "Nova 3 General";
+"streaming.model.nova3medical" = "Nova 3 Medical";
+"streaming.fastFormatting.title" = "Kiire vormindus";
+"streaming.fastFormatting.description" = "Vähendab nutika vorminduse viivitust kiirema trükkimise jaoks";
+"streaming.warning.vocabAutoDetect" = "Kohandatud sõnavara on automaattuvastuse režiimis keelatud";
+"streaming.warning.vocabUnsupported" = "Kohandatud sõnavara ei ole %@ voogedastusega toetatud";
+"streaming.warning.apiKeyRequired" = "%@ API võti on nõutav";
+"streaming.warning.apiKeyRequired.action" = "Konfigureeri";
+"streaming.warning.apiKeyInvalid" = "%@ API võti ei tööta. Uuendage seda Seaded > API võtmed.";
+"streaming.warning.apiKeyInvalid.action" = "Uuenda võtit";
+"streaming.language.title" = "Keel";
+"streaming.shortcut.title" = "Otsetee";
+
+// MARK: - Home View
+"home.get.started" = "Alusta";
+"home.open.system.settings" = "Ava süsteemiseaded";
+
+// MARK: - API Keys
+"api.key.required" = "API võti on nõutud";
+"api.keys.required" = "API võtmed on nõutud";
+"api.key.configure.message" = "Konfigureeri oma API võtmed transkriptsiooni lubamiseks.";
+"api.key.internet.required" = "Internetiühendus on nõutud";
+"api.key.internet.message" = "Pilve transkriptsioon nõuab internetiühendust.";
+
+// MARK: - Common UI
+"common.ok" = "OK";
+"common.cancel" = "Tühista";
+"common.delete" = "Kustuta";
+"common.edit" = "Muuda";
+"common.done" = "Valmis";
+"common.copy" = "Kopeeri";
+"common.back" = "Tagasi";
+"common.skip" = "Jäta vahele";
+"common.settings" = "Seaded";
+"common.error" = "Viga";
+"common.retry" = "Proovi uuesti";
+
+// MARK: - Sidebar Navigation
+"sidebar.home" = "Avaleht";
+"sidebar.statistics" = "Statistika";
+"sidebar.modes" = "Režiimid";
+"sidebar.vocabulary" = "Sõnavara";
+"sidebar.streaming" = "Voogedastus";
+"sidebar.history" = "Ajalugu";
+"sidebar.settings" = "Seaded";
+
+// MARK: - App Messages
+"app.unknown.error" = "Tekkis tundmatu viga";
+"app.microphone.permission.message" = "HyperWhisper vajab juurdepääsu teie mikrofonile heli transkribeerimiseks.\n\nPalun minge Süsteemiseaded > Privaatsus ja turvalisus > Mikrofon ja lubage juurdepääs rakendusele HyperWhisper.";
+"app.recordings.location.message" = "HyperWhisper salvestab salvestused kausta teie dokumentides, et neid oleks lihtne leida: Dokumendid/hyperwhisper/recordings. macOS võib esimesel korral küsida luba. Kui te ei soovi juurdepääsu anda, saame salvestused hoida privaatses rakenduse kaustas.";
+"app.upgrade.to.pro" = "Uuenda Pro-le";
+"app.enter.license.key" = "Sisesta litsentsivõti";
+"accessibility.upgrade.pro" = "Uuenda HyperWhisper Pro-le";
+"accessibility.enter.license" = "Sisesta litsentsivõti";
+
+// MARK: - Settings
+
+// MARK: - Home View (Extended)
+"home.api.keys.missing.multiple" = "Lisa oma %@ API võtmed, et lubada valitud režiim.";
+"home.api.keys.missing.single" = "Lisa oma %@ API võti, et lubada valitud režiim.";
+"home.getting.started.recording.title" = "Alusta salvestamist";
+"home.getting.started.recording.description" = "Muuda oma hääl tekstiks ühe klikiga.";
+"home.getting.started.shortcuts.title" = "Kohanda oma otseteid";
+"home.getting.started.shortcuts.description" = "Muuda klaviatuuri otseteid HyperWhisperi jaoks.";
+"home.getting.started.mode.title" = "Loo režiim";
+"home.getting.started.mode.description" = "Ehita oma töövoo jaoks täiuslik režiim.";
+"home.getting.started.vocabulary.title" = "Lisa sõnavara";
+"home.getting.started.vocabulary.description" = "Õpeta HyperWhisperile kohandatud sõnu, nimesid või valdkonna termineid.";
+"home.add.api.key" = "Lisa API võti";
+"home.accessibility.enable.title" = "Luba juurdepääsetavus";
+"home.accessibility.enable.description" = "Luba HyperWhisperil automaatselt teksti kleepida rakendustesse, mida kasutate.";
+"home.accessibility.waiting" = "Ootan...";
+"home.accessibility.open.settings" = "Ava seaded";
+"home.accessibility.restart.after.permission" = "Taaskäivita rakendus pärast loa andmist";
+"home.getting.started.completed" = "✓ Lõpetatud";
+"home.whatsnew.badge" = "UUS";
+"home.whatsnew.title" = "Mis on uut?";
+"home.whatsnew.update1.date" = "3. juuli";
+"home.whatsnew.update1.title" = "Parakeet on nüüd saadaval";
+"home.whatsnew.update1.description" = "Laadige see otse alla keelemudelite loendist režiimi loomisel, et seda täna proovida.";
+"home.whatsnew.update2.date" = "5. juuni";
+"home.whatsnew.update2.title" = "Tugi igale OpenAI-yhilduvale kohandatud mudelile";
+"home.whatsnew.update2.description" = "Nüüd saate lisada mis tahes OpenAI-yhilduvaid API-sid oma mudelite loendisse.";
+"home.whatsnew.update3.date" = "27. mai";
+"home.whatsnew.update3.title" = "Täiesti uus mini-salvestuse aken";
+"home.whatsnew.update3.description" = "Sujuv, minimaalne salvestusliides, mis jääb teie teelt kõrvale.";
+
+// MARK: - Recent Updates Section
+"home.recent.updates.title" = "Hiljutised uuendused";
+"home.recent.updates.error" = "Uuenduste laadimine ebaõnnestus";
+"home.recent.updates.retry" = "Proovi uuesti";
+"home.recent.updates.empty" = "Hiljutised uuendused puuduvad";
+"home.recent.updates.version" = "Versioon %@";
+"home.recent.updates.new.badge" = "UUS";
+"home.recent.updates.no.notes" = "Väljalaskemärkmed puuduvad";
+
+// MARK: - Keyboard Labels
+"keyboard.escape" = "Esc";
+"keyboard.return" = "Return";
+"keyboard.space" = "Tühik";
+"keyboard.option.space" = "⌥Tühik";
+
+// MARK: - Alerts & Prompts
+"alerts.microphone.permission.title" = "Mikrofoni juurdepääs on nõutud";
+"common.open.settings" = "Ava seaded";
+"alerts.api.local.mode" = "Kasuta kohalikku režiimi";
+"alerts.documents.permission.title" = "Salvesta dokumentidesse?";
+"common.continue" = "Jätka";
+"alerts.documents.permission.use.another" = "Kasuta teist asukohta";
+"alerts.api.configure.generic" = "Palun konfigureeri oma API võtmed seadetes.";
+"alerts.api.internet.offline" = "Pilve transkriptsioon nõuab internetiühendust. Palun kontrollige oma võrguseadeid või valige kohalik transkriptsiooni režiim.";
+"alerts.api.configure.header.multiple" = "Valitud režiimi kasutamiseks konfigureeri järgmised API võtmed seadetes:";
+"alerts.api.configure.header.single" = "Valitud režiimi kasutamiseks konfigureeri järgmine API võti seadetes:";
+"alerts.api.configure.bullet" = "• %@";
+"alerts.api.configure.footer" = "Pärast puuduvate võtmete lisamist proovige uuesti.";
+"alerts.export.failed.title" = "Eksportimine ebaõnnestus";
+"alerts.export.logs.failed.message" = "Uuenduste logide eksportimine ebaõnnestus. Palun proovige uuesti.";
+"alerts.export.logs.success.title" = "Logid eksporditud";
+"alerts.export.logs.success.message" = "Uuenduste logid on edukalt eksporditud.";
+"alerts.export.logs.saveFailed.message" = "Logide salvestamine valitud asukohta ebaõnnestus: %@";
+"alerts.export.diagnostics.failed.message" = "Diagnostika eksportimine ebaõnnestus. Palun proovige uuesti.";
+"alerts.export.diagnostics.success.title" = "Diagnostika eksporditud";
+"alerts.export.diagnostics.success.message" = "Kõik diagnostika logid on edukalt eksporditud.";
+"alerts.export.diagnostics.saveFailed.message" = "Diagnostika salvestamine valitud asukohta ebaõnnestus: %@";
+
+// MARK: - Panels
+"panels.export.logs.message" = "Ekspordi uuenduste logid toe jaoks";
+"panels.export.diagnostics.message" = "Ekspordi kõik diagnostika logid";
+
+// MARK: - Sidebar Help Text
+"sidebar.home.help" = "Alusta HyperWhisperiga";
+"sidebar.statistics.help" = "Vaata kasutusstatistikat ja analüüse";
+"sidebar.modes.help" = "Halda transkriptsiooni režiime erinevate kontekstide jaoks";
+"sidebar.vocabulary.help" = "Lisa kohandatud sõnu ja fraase parema äratundmise jaoks";
+"sidebar.streaming.help" = "Reaalajas voogedastuse transkriptsiooni seaded (nõuab internetti)";
+"sidebar.history.help" = "Vaata ja otsi oma transkriptsiooni ajalugu";
+"sidebar.settings.help" = "Konfigureeri rakenduse seadeid ja eelistusi";
+
+// MARK: - Recording State
+"recording.state.ready" = "Valmis salvestama";
+"recording.state.recording" = "Salvestamine...";
+"recording.state.processing" = "Heli töötlemine...";
+"recording.state.transcribing" = "Transkribeerimine...";
+"recording.state.postprocessing" = "Järeltöötlus AI-ga...";
+"recording.state.complete" = "Transkriptsioon lõpetatud: %@";
+"recording.state.error" = "Viga: %@";
+
+// MARK: - Menu & Commands
+"menu.bar.recording.help" = "Alusta või lõpeta salvestamine";
+"menu.recording.stop" = "Lõpeta salvestamine";
+"menu.recording.toggle" = "Alusta/Lõpeta salvestamine";
+"menu.history" = "Ajalugu...";
+"menu.settings" = "Seaded...";
+"menu.microphone" = "Mikrofon";
+"menu.select.mode" = "Vali režiim";
+"menu.transcribe.file" = "Transkribeeri fail";
+"menu.mode.unnamed" = "Nimetu";
+"menu.version.label" = "Versioon %@";
+"common.quit" = "Välju";
+"menu.microphone.default" = "Vaikimisi";
+"menu.microphone.system.default" = "Vaikimisi";
+"menu.bar.state.recording" = "Salvestamine";
+"menu.bar.state.processing" = "Töötlemine";
+"menu.bar.state.idle" = "Jõude";
+"menu.command.check.updates" = "Kontrolli uuendusi…";
+"menu.debug.title" = "Silumine";
+"menu.command.export.logs" = "Ekspordi uuenduste logid…";
+"menu.command.export.diagnostics" = "Ekspordi diagnostika…";
+"menu.command.help.website" = "Abi veebileht";
+"menu.command.contact.support" = "Võta ühendust toega";
+
+// MARK: - Settings Sections
+"settings.section.general" = "Üldine";
+"settings.section.sound" = "Heli";
+"settings.section.license" = "Litsents";
+"settings.section.credits" = "Krediidid";
+"settings.section.storage" = "Salvestusruum";
+"settings.section.models" = "Mudelid";
+"settings.section.api.keys" = "API võtmed";
+"settings.section.shortcuts" = "Klaviatuuri otseteed";
+"settings.section.output" = "Teksti väljund";
+
+// MARK: - Onboarding
+"onboarding.model.pro.english" = "Pro (inglise keel)";
+"onboarding.model.pro.multilingual" = "Pro (mitmekeelne)";
+"onboarding.model.downloading.progress" = "Allalaadimine... %d%%";
+"onboarding.accessibility.title" = "Luba juurdepääsetavus automaatseks kleepimiseks";
+"onboarding.accessibility.subtitle" = "Luba HyperWhisperil automaatselt transkribeeritud teksti rakenduste kleepida.";
+"onboarding.accessibility.instructions" = "Süsteemiseaded → Privaatsus ja turvalisus → Juurdepääsetavus";
+"onboarding.accessibility.status.granted" = "Juurdepääsetavuse luba antud";
+"onboarding.accessibility.status.pending" = "Juurdepääsetavuse luba pole veel antud";
+"onboarding.accessibility.waiting" = "Ootan luba...";
+"onboarding.accessibility.open.preferences" = "Ava juurdepääsetavuse eelistused";
+"onboarding.accessibility.restart" = "Pärast loa andmist taaskäivita HyperWhisper.";
+"onboarding.model.recommendation.title" = "Soovitame Pro mudelit";
+"onboarding.model.recommendation.subtitle" = "Teie süsteemikeele ja Maci võimekuse põhjal.";
+"onboarding.model.recommendation.note" = "Laadi alla alloleval nupul klõpsates.";
+"onboarding.model.downloaded" = "Alla laaditud";
+"onboarding.model.metric.speed" = "Kiirus";
+"onboarding.model.metric.accuracy" = "Täpsus";
+"onboarding.model.metric.size" = "Suurus";
+"onboarding.model.metric.size.value" = "1,5 GB";
+"onboarding.model.alternatives" = "Või vali teine häälmudel";
+"onboarding.model.picker.title" = "Mudel";
+"onboarding.model.option.proEnglish" = "Pro (inglise keel)";
+"onboarding.model.option.tiny" = "Väike";
+"onboarding.model.option.base" = "Baas";
+"onboarding.model.option.small" = "Väikese";
+"onboarding.model.option.medium" = "Keskmine";
+"onboarding.model.option.large" = "Suur";
+"onboarding.model.download.button" = "Laadi mudel alla";
+"onboarding.audio.title" = "Millist helisalvestusseadet soovite kasutada?";
+"onboarding.audio.subtitle" = "Veenduge, et teie helisisendi helitugevus on üles keeratud ja registreerib helitugevust.";
+"onboarding.audio.input.label" = "Sisendseade";
+"onboarding.audio.picker.label" = "Seade";
+"onboarding.audio.use.system.default" = "Kasuta süsteemi vaikeseadet";
+"onboarding.audio.level" = "Helitase";
+"onboarding.audio.open.sound" = "Ava heli eelistused";
+"onboarding.microphone.title" = "Salvestamise luba on nõutud";
+"onboarding.microphone.subtitle" = "Heli salvestamiseks vajame juurdepääsu teie mikrofonile.";
+"onboarding.microphone.status.granted" = "Mikrofoni luba antud";
+"onboarding.microphone.status.pending" = "Mikrofoni luba pole veel antud";
+"onboarding.microphone.grant" = "Anna luba";
+"onboarding.test.title" = "Kõik on valmis, alustame esimest salvestust";
+"onboarding.test.press.prefix" = "Vajuta";
+"onboarding.test.press.suffix" = "alustamiseks";
+"onboarding.test.status.recording" = "Salvestamine...";
+"onboarding.test.status.speak" = "Räägi nüüd...";
+"onboarding.test.stop" = "Lõpeta salvestamine";
+"onboarding.test.success.title" = "Suurepärane! Teie salvestus õnnestus.";
+"onboarding.test.success.subtitle" = "Teie transkriptsioon ilmub rakendusse.";
+"onboarding.test.start.cta" = "Klõpsa salvestamise alustamiseks";
+"onboarding.test.start.shortcut" = "Või vajuta oma klaviatuuri otseteed";
+"onboarding.settings.title" = "Hästi tehtud! Nüüd avame seaded";
+"onboarding.settings.subtitle" = "Paremklõpsa HyperWhisperi ikoonil ja vali Seaded...";
+"onboarding.settings.menu.startStop" = "Alusta/Lõpeta salvestamine";
+"onboarding.settings.menu.history" = "Ajalugu...";
+"onboarding.settings.menu.settings" = "Seaded...";
+"onboarding.settings.menu.quit" = "Välju";
+"onboarding.settings.info" = "Seadetes saate kohandada otseteid, hallata API võtmeid ja konfigureerida HyperWhisperit oma meelest.";
+"onboarding.completion.title" = "Olete valmis!";
+"onboarding.completion.subtitle" = "Kui teil tekib probleeme või küsimusi, võtke ühendust meili või Discordi kaudu.";
+"onboarding.completion.discord" = "Discord";
+"onboarding.completion.email" = "E-post";
+"onboarding.completion.resources.title" = "Täiendavad ressursid";
+"onboarding.completion.resources.documentation" = "Dokumentatsioon";
+"onboarding.completion.resources.videos" = "Video õpetused";
+"onboarding.completion.resources.blog" = "Blogi";
+"onboarding.done.button" = "Lõpeta sisseelamine";
+"onboarding.error.model.notFound" = "Mudelit ei leitud kataloogist.";
+"onboarding.error.microphone.denied" = "Mikrofoni luba keelduti. Palun andke luba süsteemiseadetes.";
+
+// MARK: - Settings · General
+"settings.general.launchAtLogin.title" = "Käivita sisselogimisel";
+"settings.general.launchAtLogin.info" = "Käivita HyperWhisper automaatselt, kui logite sisse.";
+"settings.general.launchMinimized.title" = "Käivita minimeerituna";
+"settings.general.launchMinimized.info" = "Käivita HyperWhisper peaakna peidetuna. Rakendus on kättesaadav menüüriba kaudu.";
+"settings.general.showInDock.title" = "Kuva Dockis";
+"settings.general.showInDock.info" = "Kuva rakenduse ikoon Dockis.";
+"settings.general.showRecordingWindow.title" = "Kuva salvestuse aken";
+"settings.general.showRecordingWindow.info" = "Kuva ujuv lainekuju aken salvestamise ja töötlemise ajal.";
+// Media Control While Recording
+// Dropdown setting for controlling other audio during recording
+"settings.general.mediaControl.mode.off" = "Väljas";
+"settings.general.mediaControl.mode.mute" = "Vaigista heli";
+// Auto-Increase Microphone Volume
+// Toggle setting to automatically maximize mic input volume when recording starts
+
+"settings.general.errorLogging.title" = "Vigade logimine";
+"settings.general.errorLogging.info" = "Hõiva ja saada automaatselt veaaruandeid rakenduse täiustamiseks.";
+"settings.general.autoUpdate.title" = "Automaatne uuendamine";
+"settings.general.autoUpdate.info" = "Kontrolli ja laadi automaatselt alla HyperWhisperi uusi versioone.";
+"settings.general.support.title" = "Vajate abi?";
+"settings.version.detail" = "Versioon %@ (%@)";
+
+// MARK: - Settings · Sound
+// Audio and microphone settings for recording
+"settings.sound.soundEffects.title" = "Esita heliefekte";
+"settings.sound.soundEffects.info" = "Esita helisignaale salvestamise alustamisel ja peatamisel.";
+"settings.sound.mediaControl.title" = "Meedia kontroll salvestamise ajal";
+"settings.sound.mediaControl.info" = "Valige, kuidas HyperWhisper käsitleb teist heli salvestamise ajal. 'Väljas' jätab heli muutmata, 'Vaigista heli' vaikib süsteemi väljundi salvestamise ajal ja taastab selle seejärel.";
+"settings.sound.autoIncreaseMicVolume.title" = "Suurenda mikrofoni helitugevust automaatselt";
+"settings.sound.autoIncreaseMicVolume.info" = "Seab mikrofoni sisendi helitugevuse automaatselt maksimumile, kui salvestamine algab, seejärel taastab algse taseme, kui salvestamine lõpeb. Kehtib ainult süsteemi vaikimisi sisendseadme kasutamisel.";
+"settings.sound.vad.title" = "Eemalda vaikus enne transkriptsiooni";
+"settings.sound.vad.info" = "Tuvastab ja eemaldab automaatselt algus- ja lõpuvaigistuse AI häältuvastuse abil. See võib parandada transkriptsiooni täpsust ja vähendada töötlemisaega.";
+
+// MARK: - Settings · Storage
+"settings.storage.recordings.title" = "Salvestuste kaust";
+"settings.storage.showFolder.title" = "Kuva salvestuste kaust";
+"settings.storage.showFolder.button" = "Kuva Finderis";
+"settings.storage.notice" = "Salvestuste kausta muutmine mõjutab ainult uusi salvestusi. Olemasolevad salvestused jäävad oma algsesse asukohta.";
+"settings.storage.choose.button" = "Vali...";
+"settings.storage.dialog.select" = "Vali kaust";
+"settings.storage.dialog.message" = "Valige salvestuste salvestamiseks kaust";
+"settings.storage.storeAsM4A.title" = "Tihenda salvestused M4A-sse";
+"settings.storage.storeAsM4A.subtitle" = "Teisendab WAV salvestused väiksemateks failideks pärast transkriptsiooni. Lülitage välja, et hoida algseid WAV faile (suuremad, kuid kadudeta).";
+
+// MARK: - Settings · Output
+"settings.output.paste.title" = "Kleebi tulemus automaatselt";
+"settings.output.paste.subtitle" = "Kleebi transkribeeritud tekst automaatselt aktiivsesse rakendusse";
+"settings.output.paste.info" = "Kui see on lubatud, kleebitakse tekst esimesena olevasse rakendusse.";
+"settings.output.restoreClipboard.title" = "Taasta lõikelaud pärast kleepimist";
+"settings.output.restoreClipboard.subtitle" = "Taasta eelmine lõikelaua sisu pärast kleepimist";
+"settings.output.restoreClipboard.info" = "Taastab teie eelmise lõikelaua sisu pärast seda, kui rakendus transkriptsiooni kleebib.";
+"settings.output.restore.after" = "Taasta pärast";
+"settings.output.restore.seconds" = "%ds";
+"settings.output.restore.accessibility" = "Lõikelaua taastamise viivitus";
+"settings.output.hideClipboardHistory.title" = "Peida lõikelaua ajaloost";
+"settings.output.hideClipboardHistory.subtitle" = "Väldi transkriptsioonide ilmumist lõikelaua ajaloo rakendustes";
+"settings.output.hideClipboardHistory.info" = "Kui see on lubatud, ei salvesta lõikelaualauad haldurid nagu Paste, Maccy või Alfred transkribeeritud teksti.";
+"settings.output.clipboard.header" = "Lõikelaud";
+"settings.output.removeFillers.title" = "Eemalda täitesõnad";
+"settings.output.removeFillers.subtitle" = "Eemaldab toores transkriptsioonist 'uh', 'um' ja 'er'.";
+"settings.output.removeFillers.info" = "Kui see on lubatud, eemaldab HyperWhisper enne väljundi loomist toortranskriptsioonidest levinud täitesõnad.";
+
+// MARK: - Settings · Shortcuts
+"settings.shortcuts.toggleRecording.title" = "Lülita salvestamine";
+"settings.shortcuts.toggleRecording.subtitle" = "Alustab ja lõpetab salvestusi";
+"settings.shortcuts.cancelRecording.title" = "Tühista salvestamine";
+"settings.shortcuts.cancelRecording.subtitle" = "Loobub aktiivsest salvestusest";
+// MARK: - Push to Talk Mode Selection
+"settings.shortcuts.pushToTalk.enable.title" = "Vajuta rääkimiseks";
+"settings.shortcuts.pushToTalk.enable.subtitle" = "Hoidke klahvi salvestamiseks, vabastage kui valmis";
+"settings.shortcuts.pushToTalk.enable.info" = "Lubab vajuta rääkimiseks režiimi kiire salvestamise jaoks ühe klahvivajutusega.";
+
+"settings.shortcuts.pushToTalk.mode.title" = "Salvestamise režiim";
+"settings.shortcuts.pushToTalk.mode.subtitle" = "Valige, millist klahvi kasutada";
+"settings.shortcuts.pushToTalk.mode.disabled" = "Keelatud";
+"settings.shortcuts.pushToTalk.mode.fn" = "FN klahv";
+"settings.shortcuts.pushToTalk.mode.control" = "Control klahv";
+"settings.shortcuts.pushToTalk.mode.custom" = "Kohandatud otsetee";
+
+"settings.shortcuts.pushToTalk.doublePress.title" = "Topeltklõps salvestuse lukustamiseks";
+"settings.shortcuts.pushToTalk.doublePress.subtitle" = "Vajutage kaks korda kiiresti, et hoida salvestust ilma hoidmata";
+
+"settings.shortcuts.pushToTalk.custom.title" = "Kohandatud otsetee";
+"settings.shortcuts.pushToTalk.custom.subtitle" = "Vajutage klahvikombinatsiooni kasutamiseks";
+
+
+"settings.shortcuts.changeMode.title" = "Muuda režiimi";
+"settings.shortcuts.changeMode.subtitle" = "Töötab ainult salvestamise ajal";
+
+"settings.shortcuts.reset.button" = "Lähtesta vaikeseadetele";
+"settings.shortcuts.reset.dialog.title" = "Lähtesta klaviatuuri otseteed";
+"settings.shortcuts.reset.confirm" = "Lähtesta";
+"settings.shortcuts.reset.dialog.message" = "See lähtestab kõik klaviatuuri otseteed nende vaikeväärtustele.";
+
+// MARK: - Settings · API Keys
+"settings.api.info" = "API võtmed salvestatakse turvaliselt teie seadmesse ja saadetakse ainult pakkujale vajadusel.";
+"settings.api.help.link" = "Abi API võtmetega";
+"settings.api.transcription.title" = "Transkriptsioon";
+"settings.api.transcription.subtitle" = "API võtmed pilve kõnest-tekstiks teenuste jaoks.";
+"settings.api.postProcessing.title" = "Järeltöötlus";
+"settings.api.postProcessing.subtitle" = "API võtmed AI-põhise teksti täiustamise ja vormindamise jaoks.";
+"settings.api.placeholder" = "Sisesta oma %@ API võti";
+"settings.api.openLink" = "Ava %@ API võtme leht";
+"settings.api.status.accessibility" = "%@ olek: %@";
+"settings.api.status.unknown" = "Pakkuja olek teadmata";
+"settings.api.status.checking" = "Tervisekontroll käimas";
+"settings.api.status.unauthorized" = "API võti lükati pakkuja poolt tagasi";
+"settings.api.status.unreachable" = "Pakkuja ei ole praegu kättesaadav";
+"settings.api.status.notInstalled" = "Pakkuja SDK ei ole installitud";
+
+// MARK: - Provider Status Text
+"provider.status.unknown" = "Teadmata";
+"provider.status.checking" = "Kontrollimine…";
+"provider.status.healthy" = "Valmis";
+"provider.status.unauthorized" = "Vale võti";
+"provider.status.unreachable" = "Ühenduseta";
+"provider.status.notInstalled" = "Pole installitud";
+
+// MARK: - Settings · License
+"alerts.license.activated.title" = "Litsents aktiveeritud";
+"alerts.license.deactivated.title" = "Litsents deaktiveeritud";
+"alerts.license.activated.message" = "Teie litsents on edukalt aktiveeritud. Nautige piiramatu juurdepääsu kõigile funktsioonidele!";
+"alerts.license.deactivated.message" = "Teie litsents on sellel seadmel deaktiveeritud. Nüüd saate seda aktiveerida mujal.";
+"alerts.license.failed.title" = "Toiming ebaõnnestus";
+"alerts.license.failed.message" = "Toiming ebaõnnestus. Palun proovige uuesti.";
+"license.button.deactivate" = "Deaktiveeri seade";
+"license.button.deactivating" = "Deaktiveerimine...";
+"license.button.manageBilling" = "Halda arveldust";
+"license.button.activate" = "Aktiveeri";
+"license.button.activating" = "Aktiveerimine...";
+"license.status.label" = "Olek: %@";
+"license.status.trial.title" = "Proov";
+"license.status.active.title" = "Aktiivne";
+"license.status.expired.title" = "Aegunud";
+"license.status.invalid.title" = "Kehtetu";
+"license.status.trial.description" = "Tasuta proov (5 min/päevas, %d mudelit)";
+"license.status.active.description" = "Litsentsitud – täielik juurdepääs";
+"license.status.expired.description" = "Litsents aegunud";
+"license.status.invalid.description" = "Kehtetu litsents";
+"settings.license.key.title" = "Litsentsivõti";
+"settings.license.placeholder" = "XXXX-XXXX-XXXX-XXXX";
+"settings.license.pasteFromClipboard" = "Kleebi lõikelaualt";
+"settings.license.clearInput" = "Tühjenda";
+"settings.license.recovery.prompt" = "Unustasid oma litsentsivõtme?";
+"settings.license.recovery.button" = "Mine kliendi portaali";
+"settings.license.daily.title" = "Igapäevane transkriptsioon";
+"settings.license.daily.usage" = "%@ %@-st kasutatud";
+"settings.license.limitReached" = "Limiit saavutatud";
+"settings.license.models.title" = "Võrguühenduseta mudelid";
+"settings.license.models.progress" = "%d %d mudelist alla laaditud";
+"settings.license.models.progress.one" = "%d %d mudelist alla laaditud";
+"settings.license.upgrade.text" = "Uuenda piiramatu transkriptsiooni ja mudeli allalaadimiste jaoks";
+"settings.license.upgrade.button" = "Uuenda";
+"license.error.invalidResponse" = "Vale vastuse vorming";
+
+// MARK: - Settings · Credits
+"settings.credits.title" = "HyperWhisper Cloud krediidid";
+"settings.credits.refresh" = "Värskenda";
+"settings.credits.subtitle" = "Jälgi oma transkriptsiooni krediite ja kasutust";
+"settings.credits.manage" = "Halda krediite";
+"settings.credits.timeRemaining" = "Transkriptsiooni aeg jäänud";
+"settings.credits.minutesApproximate" = "~%d";
+"settings.credits.minutes" = "minutit";
+"settings.credits.creditsRemaining" = "%@ krediiti jäänud";
+"settings.credits.currency" = "($%.2f)";
+"settings.credits.freeLimit" = "Tasuta igapäevane limiit (100 krediiti)";
+"settings.credits.resets" = "Lähtestub %@";
+"settings.credits.warning.low" = "Krediidid vähenevad. Kaaluge litsentsi ostmist täiendavate krediitide jaoks.";
+"settings.credits.warning.exhausted.daily" = "Igapäevane limiit ammendunud. Ostke litsents piiramatu kasutuse jaoks või oodake lähtestamist.";
+"settings.credits.warning.exhausted" = "Krediidid ammendunud. Ostke rohkem krediite, et jätkata HyperWhisper Cloudi kasutamist.";
+"settings.credits.accountInfo" = "Konto informatsioon";
+"settings.credits.stat.creditsRemaining" = "Krediidid jäänud";
+"settings.credits.amount" = "$%.2f";
+"settings.credits.stat.minutesRemaining" = "Minuteid jäänud";
+"settings.credits.stat.accountType" = "Konto tüüp";
+"settings.credits.accountType.licensed" = "Litsentsitud";
+"settings.credits.accountType.anonymous" = "Anonüümne";
+"settings.credits.accountType.trial" = "Proov";
+"settings.credits.stat.customerId" = "Kliendi ID";
+"settings.credits.stat.dailyLimit" = "Igapäevane limiit";
+"settings.credits.dailyLimit.value" = "100 krediiti";
+"settings.credits.loading" = "Laadimine krediidi saldo...";
+"settings.credits.error.title" = "Krediidi saldo laadimine ebaõnnestus";
+"settings.credits.error.retry" = "Proovi uuesti";
+"settings.credits.empty.title" = "Krediidi informatsioon puudub";
+"settings.credits.empty.subtitle" = "Klõpsake värskenda, et laadida oma krediidi saldo";
+"settings.credits.empty.button" = "Laadi krediidid";
+"settings.credits.error.insufficient" = "Ebapiisavad krediidid. Teil on %d krediiti jäänud.";
+"settings.credits.error.network" = "Võrgu viga: %@";
+"settings.credits.error.invalidResponse" = "Vale vastus serverist. Palun proovige uuesti.";
+"settings.credits.error.server" = "Serveri viga: %@";
+"settings.models.alert.limit.title" = "Mudeli allalaadimise limiit saavutatud";
+"settings.models.alert.limit.message" = "Proovid sisaldavad %d mudeli allalaadimist. Uuendage oma litsentsi piiramatu allalaadimiste jaoks.";
+"settings.models.alert.cannotDelete.title" = "Mudelit ei saa kustutada";
+"settings.models.parakeet.title" = "Parakeet mudelid";
+"settings.models.parakeet.subtitle" = "Soovitatav enamikule kasutajatele. Mitmekeelne mudel toetab 25 keelt.";
+"settings.models.parakeet.empty" = "Parakeet mudelid puuduvad.";
+"settings.models.whisper.title" = "Whisper mudelid";
+"settings.models.whisper.subtitle" = "OpenAI Whisper mudelid. Suuremad mudelid on täpsemad. Toetab üle 100 keele.";
+"settings.models.whisper.empty" = "Whisper mudelid puuduvad.";
+"settings.models.help.cancelDownload" = "Tühista allalaadimine";
+"settings.models.help.remove" = "Eemalda mudel";
+"settings.models.downloaded" = "Alla laaditud";
+"settings.models.download" = "Laadi alla";
+"settings.models.downloading" = "Allalaadimine…";
+"settings.models.localPostProcessing.title" = "Kohalikud järeltöötluse mudelid";
+"settings.models.localPostProcessing.memoryWarning" = "Soovitatav Mac-idele, millel on 24 GB ühendatud mälu või rohkem. Kiirus sõltub kiibist — kiirem M3/M4 Pro ja uuematel.";
+"settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
+"home.stats.words.year" = "Sõnad sel aastal";
+"vocabulary.input.placeholder" = "Lisa sõna või loo katkend";
+"vocabulary.action.addWord" = "Lisa sõna";
+"vocabulary.action.replaceWith" = "Asenda järgmisega…";
+"vocabulary.action.replace" = "Asenda";
+"vocabulary.replacement.field.placeholder" = "Asendustekst…";
+"settings.output.autocapitalizeInsert.title" = "Automaatne suurtäht lisamisel";
+"settings.output.autocapitalizeInsert.subtitle" = "Sobi kursori kontekst teksti lisamisel";
+"settings.output.autocapitalizeInsert.info" = "Kui lubatud, kohandatakse lisatava transkriptsiooniteksti esimene sõna kursori kontekstile (lause algus või keskel). Lülita välja alati väiketähtedega dikteerimiseks.";
+"settings.output.autocapitalizeInsert.permissionMessage" = "HyperWhisper vajab juurdepääsetavuse luba, et lugeda automaatse suurtähestuse jaoks vajalikku kursori konteksti.\n\nKlõpsake \"Ava seaded\", vajutage HyperWhisperi kõrval olevat lülitit ja proovige uuesti.";
+"settings.output.removeFillerWords.title" = "Eemalda täitesõnad";
+"settings.output.removeFillerWords.subtitle" = "Eemalda \"äh\", \"um\" ja \"er\" töötlemata transkriptsioonidest, kui AI järeltöötlus on välja lülitatud";
+"settings.output.removeFillerWords.info" = "Kehtib ainult siis, kui režiim jätab AI järeltöötluse vahele. AI-täiustatud režiimid haldavad kõne puhastamist juhises.";
+"sidebar.modelLibrary" = "Mudelikogu";
+"sidebar.modelLibrary.help" = "Sirvi kõiki hääle- ja järeltöötlusmudeleid ühes kohas";
+"settings.shortcuts.quickCapture.enable.title" = "Kiirjäädvustus";
+"settings.shortcuts.quickCapture.enable.subtitle" = "Salvesta ja saada transkriptsioon Märkmetesse — ilma et peaksid rakendusele esmalt fookust andma.";
+"settings.shortcuts.quickCapture.shortcut.title" = "Kiirklahv";
+"settings.shortcuts.quickCapture.shortcut.subtitle" = "Vajuta kõikjal, et salvestada ja saata Märkmetesse.";
+"settings.shortcuts.quickCapture.mode.title" = "Režiim";
+"settings.shortcuts.quickCapture.mode.subtitle" = "Kasutatav transkriptsioonirežiim — juhib mudelit, vihjet ja järeltöötlust.";
+"settings.shortcuts.quickCapture.mode.current" = "Praegune režiim";
+"settings.shortcuts.quickCapture.permission.banner" = "HyperWhisper vajab luba Märkmete juhtimiseks. Anna see rakenduses Süsteemiseaded → Privaatsus → Automatiseerimine.";
+"settings.section.vocabulary" = "Sõnavara";
+"settings.vocabulary.icloudSync.title" = "iCloudi sünkroonimine";
+"settings.vocabulary.icloudSync.subtitle" = "Sünkrooni oma kohandatud sõnavara kõigis Macides, mis on sisse logitud samale iCloudi kontole.";
+"settings.vocabulary.icloudSync.info" = "Vaikimisi välja lülitatud. Sünkroonitakse ainult sinu kohandatud sõnavara — transkriptsioonid ja salvestused jäävad sellesse Maci. Muudatused jõustuvad järgmisel korral, kui avad HyperWhisperi.";
+"settings.vocabulary.autoLearn.title" = "Auto-learn Vocabulary (Experimental)";
+"settings.vocabulary.autoLearn.subtitle" = "Learn corrected names, places, and organizations after you edit pasted dictation.";
+"settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
+"vocabulary.icloudSync.restart.title" = "Muudatuste rakendamiseks sulge HyperWhisper";
+"vocabulary.icloudSync.restart.message" = "iCloudi sõnavara sünkroonimise muudatused jõustuvad järgmisel korral, kui avad HyperWhisperi.";
+"vocabulary.icloudSync.restart.quit" = "Sulge HyperWhisper";
+"vocabulary.icloudSync.restart.later" = "Hiljem";
+"settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.sound.keepWarmMicrophone.title" = "Hoia mikrofon soojana salvestuste vahel";
+"settings.sound.keepWarmMicrophone.info" = "Vähendab push-to-talk käivitusviivitust, hoides mikrofoni seansi avatuna, kui HyperWhisper on jõude. macOS kuvab pidevalt oranži mikrofonimärguannet ja Bluetooth-kõrvaklapid võivad selle lubamise ajal jääda madalama kvaliteediga kõnerežiimi.";
+"settings.models.local.inUse" = "Seda kohalikku mudelit kasutatakse praegu järeltöötlemiseks:
+
+%@
+
+Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
+"models.postProcessing.gemma4.e2b.description" = "Kiire ja täpne. Suurepärane universaalne valik järeltöötlemiseks.";
+"models.postProcessing.gemma4.e4b.description" = "Kõrgem kvaliteet rohkemate detailidega. Hea pikemate tekstide jaoks.";
+"models.postProcessing.gemma4.26b.moe.description" = "26B ekspertide segu. Kiire järeldamine ainult 4B aktiivse parameetriga.";
+"models.postProcessing.gemma4.31b.description" = "31B tihe mudel. Kõrgeim kvaliteet, vajab 18+ GB RAM-i.";
+"settings.models.whisper.inUse" = "Seda mudelit ei saa kustutada, kuna seda kasutab:\n\n%@\n\nUuendage neid režiime, et kasutada teist mudelit enne kustutamist.";
+"settings.models.parakeet.inUse" = "Seda Parakeet mudelit ei saa kustutada, kuna seda kasutab:\n\n%@\n\nUuendage neid režiime, et kasutada teist mudelit enne kustutamist.";
+"settings.models.mode.bullet" = "• %@";
+"settings.models.mode.unknown" = "Teadmata";
+"settings.models.directory.whisper" = "Whisper mudelite kaust";
+"settings.models.directory.parakeet" = "Parakeet mudelite kaust";
+"settings.models.directory.local" = "Kohalike mudelite kaust";
+"settings.models.qwen3asr.title" = "Qwen3 ASR";
+"settings.models.qwen3asr.subtitle" = "Qwen3-ASR-0.6B — mitmekeelne kõnetuvastus, optimeeritud CoreML-i jaoks.";
+"settings.models.qwen3asr.languages" = "30 keelt";
+"settings.models.qwen3asr.requirement" = "macOS 15+";
+"settings.models.qwen3asr.inUse" = "Seda Qwen3 ASR mudelit ei saa kustutada, kuna seda kasutavad:\n\n%@\n\nUuenda need režiimid teist mudelit kasutama enne kustutamist.";
+"settings.models.directory.show" = "Kuva Finderis";
+"models.error.checksumFailed" = "Mudeli kontrollsumma kontrollimine ebaõnnestus. Allalaadimine võib olla rikutud.";
+
+// MARK: - Statistics View
+"statistics.title" = "Statistika";
+"statistics.header.title" = "Teie kasutusstatistika";
+"statistics.header.subtitle" = "Jälgi oma transkriptsiooni tegevust ja jõudlust";
+"statistics.card.recordings" = "Kokku salvestusi";
+"statistics.card.recordings.subtitle" = "Lõpetatud transkriptsioonid";
+"statistics.card.duration" = "Kogu aeg";
+"statistics.card.duration.subtitle" = "Aeg salvestamiseks kulunud";
+"statistics.card.words" = "Kokku sõnu";
+"statistics.card.words.subtitle" = "Transkribeeritud sõnad";
+"statistics.card.average" = "Keskmine kestus";
+"statistics.card.average.subtitle" = "Salvestuse kohta";
+"statistics.graph.title" = "Tegevus aja jooksul";
+"statistics.daily.empty" = "Salvestusi pole veel";
+"statistics.filter.week" = "See nädal";
+"statistics.filter.month" = "See kuu";
+"statistics.filter.alltime" = "Kogu aeg";
+
+// MARK: - History View
+"history.title" = "Ajalugu";
+"history.search.placeholder" = "Otsi";
+"history.filter.all" = "Kõik";
+"history.filter.today" = "Täna";
+"history.filter.week" = "See nädal";
+"history.filter.month" = "See kuu";
+"history.empty.title" = "Salvestusi ei leitud";
+"history.empty.subtitle" = "Proovi oma otsingut kohandada";
+"history.detail.empty" = "Vali salvestus detailide vaatamiseks";
+"history.multi.selected" = "%d salvestust valitud";
+"history.multi.delete" = "Kustuta valitud";
+"history.context.deleteSelected" = "Kustuta %d salvestust";
+"history.context.retry" = "Proovi transkriptsiooni uuesti";
+"history.context.retryWith" = "Proovi uuesti...";
+"history.context.copy" = "Kopeeri tekst";
+"history.retrying" = "Transkriptsiooni uuesti proovimine...";
+"history.retry.help" = "Proovi transkriptsiooni uuesti";
+"history.section.today" = "Täna";
+"history.section.yesterday" = "Eile";
+"history.duration.format" = "%dm %ds";
+"history.status.failed" = "Ebaõnnestus";
+"history.status.transcription.failed.prefix" = "Transkriptsioon ebaõnnestus:";
+"history.status.retry.failed.prefix" = "Uuesti proovimine ebaõnnestus:";
+"history.failure.reason" = "Põhjus: %@";
+"history.mode.default" = "Vaikimisi";
+"history.audio.showInFinder" = "Kuva Finderis";
+
+// MARK: - Modes
+"modes.delete.confirm.title" = "Kustuta režiim?";
+"modes.delete.confirm.message" = "See eemaldab valitud režiimi. Seda toimingut ei saa tagasi võtta.";
+"modes.header.title" = "Režiimid";
+"modes.header.subtitle" = "Loo kohandatud profiile erinevate kontekstide ja töövoogude jaoks";
+"modes.header.create" = "Loo režiim";
+"modes.name.unnamed" = "Nimetu";
+"modes.badge.offline" = "Võrguühenduseta";
+"modes.context.select" = "Vali";
+"modes.help.edit" = "Muuda režiimi seadeid";
+"modes.help.preset" = "Loe lisaks selle vormindusstiili kohta";
+"modes.help.model" = "Loe lisaks selle mudeli kohta";
+"modes.preset.title" = "Vormindusstiil";
+"modes.preset.hyper.name" = "Hyper";
+"modes.preset.message.name" = "Sõnum";
+"modes.preset.mail.name" = "Kiri";
+"modes.preset.note.name" = "Märkus";
+"modes.preset.meeting.name" = "Kohtumine";
+"modes.preset.code.name" = "Kood";
+"modes.preset.custom.name" = "Kohandatud";
+"modes.preset.hyper.tooltip" = "Context-aware formatting that adapts to your active app. Fixes punctuation, capitalization, and minor grammar while keeping your original wording. Automatically applies email formatting in mail apps.";
+"modes.preset.message.tooltip" = "Sõnumi režiim puhastab teie dikteeritud sõnumi, parandades kirjavahemärke, muutes lõikudeks ja lahendades grammatilised vead.";
+"modes.preset.mail.tooltip" = "E-kirja režiim vormindab teie dikteerimise professionaalse e-kirja struktuuri, õigete tervituste, lõikude ja allkirjadega.";
+"modes.preset.note.tooltip" = "Märkuse režiim korraldab teie dikteeritud sisu selge märkuse vormingus päiste, loendipunktide ja struktureeritud sektsioonidega.";
+"modes.preset.meeting.tooltip" = "Koosoleku režiim struktureerib teie dikteerimise koosoleku protokolli vormingusse osalejate, tegevuspunktide ja peamiste arutelupunktidega.";
+"modes.preset.code.tooltip" = "Koodi režiim teisendab kõneldud programmeerimise dikteerimise koodi süntaksiks. Öelge 'ava sulud', 'tagurpidi kaldkriips', 'camel case' ja veel, et kirjutada koodi hääle abil.";
+"modes.preset.custom.tooltip" = "Kohandatud režiim võimaldab teil määratleda oma vorminduse reegleid ja viipasid konkreetsete kasutusjuhtude jaoks.";
+"modes.preset.hyper.preview" = "AI cleans up punctuation, capitalization, and minor grammar mistakes while preserving your original words. Adapts formatting based on your active app — automatically applies email structure when composing in a mail client.";
+"modes.preset.message.preview" = "AI struktureerib teie dikteerimise puhtaks sõnumiks korralike lõikude, kirjavahemärkide ja grammatikaparandustega.";
+"modes.preset.mail.preview" = "AI vormindab teie dikteerimise professionaalseks meiliks tervituste, struktureeritud lõikude ja lõpuvormeliga.";
+"modes.preset.note.preview" = "AI korrastab teie dikteerimise struktureeritud märkmeteks pealkirjade, täpploendite ja selgete osadega.";
+"modes.preset.meeting.preview" = "AI struktureerib teie dikteerimise koosoleku protokolliks osalejate, arutelupunktide ja ülesannetega.";
+"modes.preset.code.preview" = "AI teisendab räägitud programmeerimisdikteerimise koodisüntaksiks, tõlgendades käske nagu 'ava sulg' ja 'camel case'.";
+"modes.preset.custom.preview" = "Kasutab teie kohandatud vormindusreegleid transkriptsiooni töötlemiseks.";
+"modes.customInstructions" = "Määrake selle eelseade täielikud vormindusjuhised.";
+"modes.notice.vocabularyUnsupported" = "Kohandatud sõnavara ei ole selle mudeli puhul selle pakkuja poolt toetatud. Seda ignoreeritakse.";
+"modes.notice.deepgramNova3AutoDetect" = "Kohandatud sõnavara ei ole saadaval, kui kasutate Deepgram Nova-3 automaattuvastuse keelega. Sõnavara võimendamise lubamiseks seadke konkreetne keel (nt inglise keel, hispaania keel).";
+"modes.language.title" = "Keel";
+"modes.language.englishOnly" = "Ainult inglise keel (optimeeritud mudel)";
+"modes.postProcessing.sectionTitle" = "Järeltöötlus";
+"modes.postProcessing.modeLabel" = "Režiim";
+"modes.postProcessing.modeTitle" = "Järeltöötlus";
+"modes.postProcessing.modeDescription" = "Valige, kuidas transkriptsioone töödeldakse:\n\n• Väljas: järeltöötlust pole, toores transkriptsioon\n• Pilv (AI): AI-põhine täiustamine (nõuab internetti)\n• Kohalik: kasutab seadmes asuvat LLM-i, nagu Gemma llama.cpp kaudu\n\nPilve töötlemine saadab teksti teie valitud AI pakkujale. Kohalik režiim jääb teie masina peale, kuid vajab kohaliku serveri töötamist.";
+"modes.postProcessing.providerLabel" = "Pakkuja";
+"modes.postProcessing.apiKeyMissing" = "%@ API võti pole konfigureeritud. Lisage see seadetes, et lubada järeltöötlus.";
+"modes.postProcessing.configure" = "Konfigureeri seadetes";
+"modes.postProcessing.modelRecommendation" = "Soovitame kasutada GPT-4.1 Nano parima kiiruse ja kvaliteedi tasakaalu jaoks.";
+"modes.postProcessing.anthropicRecommendation" = "We recommend using Claude 4.5 Haiku for the best balance of speed and quality.";
+"modes.postProcessing.geminiRecommendation" = "Gemini 3 Flash is available for free with a Google API key.";
+"modes.postProcessing.localRequirement" = "Kohalik järeltöötlemine nõuab allalaaditud kohalikku mudelit.";
+"modes.postProcessing.download" = "Laadi alla seadetes";
+"modes.postProcessing.localInfo" = "Töötab täielikult seadmes. HyperWhisper käivitab kaasasoleva llama.cpp serveri automaatselt, kui see režiim on aktiivne.";
+"modes.postProcessing.userSystemPrompt.title" = "Püsivad juhised";
+"modes.postProcessing.userSystemPrompt.placeholder" = "nt, Lõpeta meilid alati sõnadega 'Parimate soovidega, Ray'";
+"modes.postProcessing.userSystemPrompt.clear" = "Tühjenda";
+"modes.postProcessing.userSystemPrompt.toggleTitle" = "Püsivad juhised";
+"modes.postProcessing.userSystemPrompt.toggleSubtitle" = "Lisage juhised, mis kehtivad alati valitud eelseade peale.";
+"modes.toggle.punctuation.title" = "Lisa kirjavahemärgid";
+"modes.toggle.punctuation.subtitle" = "Lisa automaatselt punktid ja komad";
+"modes.toggle.capitalization.title" = "Suurtähesta laused";
+"modes.toggle.capitalization.subtitle" = "Suurta lausete esimene täht";
+"modes.toggle.profanity.title" = "Filtreeri ropendamine";
+"modes.toggle.profanity.subtitle" = "Asenda sobimatud sõnad";
+"modes.toggle.removeTrailingPeriod.title" = "Eemalda lõpupunkt";
+"modes.toggle.removeTrailingPeriod.subtitle" = "Eemaldab transkriptsioonide lõpust punkti";
+"modes.postProcessing.privacyNotice" = "Teie transkriptsioon saadetakse AINULT %@-le järeltöötluseks. Mitte kunagi kuhugi mujale.";
+"modes.postProcessing.localModel" = "Mudel";
+"modes.postProcessing.languageModel" = "Keele mudel";
+"modes.englishSpelling.title" = "Inglise õigekiri";
+"modes.englishSpelling.american" = "Ameerika";
+"modes.englishSpelling.british" = "Briti";
+"modes.englishSpelling.australian" = "Austraalia";
+"modes.englishSpelling.canadian" = "Kanada";
+"modes.englishSpelling.american.description" = "Kasuta Ameerika inglise õigekirja (color, realize, organization, center, traveled)";
+"modes.englishSpelling.british.description" = "Kasuta Briti inglise õigekirja (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.australian.description" = "Kasuta Austraalia inglise õigekirja (colour, realise, organisation, centre, travelled)";
+"modes.englishSpelling.canadian.description" = "Kasuta Kanada inglise õigekirja (colour, realize, organization, centre, travelled)";
+"modes.gemini.customPrompt.title" = "Kohandatud juhised";
+"modes.gemini.customPrompt.helper" = "Valikuline. Nt \"Vorminda täpploendina\", \"Kasuta ametlikku keelt\". Teie keele- ja sõnavaraseaded lisatakse automaatselt.";
+"modes.cloud.apiKeyMissing" = "%@ API võti pole konfigureeritud. Lisage see seadetes, et kasutada pilve transkriptsiooni.";
+
+// Streaming transcription
+
+// Accuracy tier (HyperWhisper Cloud)
+"modes.cloudAccuracy.title" = "Täpsus";
+"modes.cloudAccuracy.groqWhisper.label" = "Keskmine (Groq)";
+"modes.cloudAccuracy.deepgramNova3.label" = "Keskmine (Deepgram Nova 3)";
+"modes.cloudAccuracy.elevenLabsScribeV2.label" = "Kõrge (ElevenLabs Scribe v2)";
+"modes.cloudAccuracy.groqWhisper.description" = "Kiire ja taskukohane. Parim kiire transkriptsioonide jaoks.";
+"modes.cloudAccuracy.deepgramNova3.description" = "Tasakaalustatud kiirus ja täpsus. Soovitatav enamikule kasutajatele.";
+"modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+"modes.cloudAccuracy.grokStt.label" = "Kõrgeim (Grok SST)";
+"modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+
+"modes.create.title" = "Loo uus režiim";
+"modes.create.subtitle" = "Konfigureeri kohandatud transkriptsiooni profiil";
+"modes.section.basic" = "Põhiseaded";
+"modes.section.transcription" = "Transkriptsiooni mudel";
+"modes.section.punctuation" = "Kirjavahemärgid";
+"modes.toggle.screenText.title" = "Ekraani tekst";
+"modes.toggle.screenText.subtitle" = "Jäädvustage nähtavat ekraani teksti, et parandada nimede ja terminite täpsust. Nõuab ekraani salvestamise luba.";
+"modes.screenText.openSettings" = "Avage süsteemi sätted";
+"modes.screenText.permissionGranted" = "Ekraani salvestamise luba antud";
+"modes.screenText.permissionRequired" = "Ekraani salvestamise luba nõutav";
+"modes.field.name" = "Nimi";
+"modes.field.name.placeholder" = "nt Koosoleku märkmed";
+"modes.field.name.editPlaceholder" = "Režiimi nimi";
+"modes.field.model" = "Mudel";
+"modes.field.provider" = "Teenusepakkuja";
+"modes.provider.local" = "Kohalik";
+"modes.provider.cloud" = "Pilv";
+"modes.notice.noLocalModels.title" = "Kohalikud mudelid pole installitud";
+"modes.notice.noLocalModels.subtitle" = "Installige mudel seadetes esmalt";
+"modes.model.pricing" = "Hinnakiri: $%.6f / minut (arved sekundis)";
+"modes.button.create" = "Loo režiim";
+"modes.button.delete" = "Kustuta režiim";
+"modes.button.save" = "Salvesta muudatused";
+"modes.edit.title" = "Muuda režiimi";
+"modes.edit.subtitle" = "Muuda transkriptsiooni profiili seadeid";
+"mode.editor.cloudModel.previewHint" = "Eelvaade";
+"mode.editor.cloudModel.noVocabularyHint" = "Kohandatud sõnavara puudub";
+"mode.editor.cloudDomain.medical" = "Meditsiin";
+"mode.editor.cloudModel.medicalAddOnNote" = "+ Medical Mode'i lisandmoodul";
+
+// MARK: - Transcripts
+"transcripts.error.cannotRetry" = "Ei saa uuesti proovida: helifail ei leitud";
+"transcripts.error.invalidId" = "Vale transkriptsiooni ID";
+"transcripts.delete.single.title" = "Kustuta salvestus?";
+"transcripts.delete.single.message" = "See kustutab püsivalt selle salvestuse ja selle helifaili.";
+"transcripts.delete.multiple.title" = "Kustuta %d salvestust?";
+"transcripts.delete.multiple.message" = "See kustutab püsivalt %d salvestust ja nende helifailid.\n\nSeda toimingut ei saa tagasi võtta.";
+"transcripts.delete.multiple.confirm" = "Kustuta kõik";
+"transcripts.retry.error.title" = "Uuesti proovimine ebaõnnestus";
+
+// MARK: - Storage / Settings Manager
+"storage.folder.choose.title" = "Vali salvestuste kaust";
+"storage.folder.choose.message" = "Valige kaust uute salvestuste salvestamiseks.";
+"storage.folder.choose.prompt" = "Vali";
+"storage.recovery.title" = "Salvestuste kausta ei pääse juurde";
+"storage.recovery.message" = "HyperWhisper ei pääsenud juurde konfigureeritud salvestuste kaustale. Saate valida teise kausta, et jätkata.";
+"storage.recovery.choose" = "Vali kaust…";
+
+// MARK: - Shared Components
+"page.header.learnMore" = "Loe lisaks";
+
+// MARK: - Recording Dialog
+"recording.status.complete" = "Transkriptsioon lõpetatud";
+"recording.status.retrying" = "Transkriptsiooni uuesti proovimine…";
+"recording.status.postprocessing" = "Järeltöötlus AI-ga…";
+"recording.status.transcribing" = "Transkribeerimine…";
+"recording.success.pasted" = "Kleebitud!";
+"recording.loading.retrying" = "Uuesti proovimine…";
+"recording.loading.postprocessing" = "Töötlemine AI-ga…";
+"recording.loading.starting" = "Voo alustamine…";
+"recording.loading.transcribing" = "Transkribeerimine…";
+
+// Streaming connection states
+"streaming.status.connecting" = "Ühendamine...";
+"streaming.status.ready" = "Valmis - Alusta rääkimist";
+"streaming.status.warming" = "Soojendamine...";
+"modes.badge.recommended" = "Soovitatav";
+"modes.source.label" = "Allikas";
+"modes.source.onDevice" = "Seadmes";
+"modes.source.hyperwhisperCloud" = "HyperWhisper Cloud";
+"modes.source.yourProvider" = "API-võti";
+"modes.field.engine" = "Mootor";
+"settings.models.localASR.inUse" = "Seda mudelit ei saa kustutada, kuna seda kasutavad:
+
+%@
+
+Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
+"models.postProcessing.gemma4.12b.description" = "Keskmise suurusega tihe mudel. Tasakaalustab kvaliteedi ja kiiruse 16 GB Macidel.";
+"recording.success.savedToNotes" = "Salvestatud märkmetesse!";
+"modes.provider.needsKey" = "%@ vajab toimivat võtit.";
+"modes.provider.manageInLibrary" = "Halda kogumisel →";
+"streaming.loading.warming" = "Kohaliku mudeli soojendamine...";
+"streaming.status.listening" = "Kuulamine...";
+"streaming.status.streaming" = "Voogedastamine...";
+"streaming.status.disconnecting" = "Peatamine...";
+"streaming.loading.connecting" = "Ühendamine serveriga...";
+"streaming.loading.ready" = "Heli initialiseerimine...";
+"streaming.loading.streaming" = "Ootan kõnet...";
+"streaming.state.reconnecting" = "Taasühendamine...";
+"recording.stop.help" = "Lõpeta salvestamine (%@)";
+"recording.postprocessing.unavailable" = "Järeltöötlus pole saadaval";
+"recording.postprocessing.missing.single" = "%@ võti puudub – salvestamine ilma järeltöötluseta";
+"recording.postprocessing.missing.multiple" = "API võtmed puuduvad – salvestamine ilma järeltöötluseta";
+"recording.postprocessing.addKey" = "Lisa võti";
+"recording.offline.banner" = "Internetiühendus puudub. Pilve transkriptsioon ebaõnnestub, kuni olete ühenduses.";
+"recording.offline.title" = "Internetiühendus puudub";
+"recording.offline.subtitle" = "Ühendage uuesti, et jätkata või lülituge võrguühenduseta režiimile.";
+"recording.error.network" = "Kontrollige oma internetiühendust ja proovige uuesti.";
+"recording.error.timeout" = "Päring aegus. Kontrollige oma ühenduse kiirust ja proovige uuesti.";
+"recording.error.rateLimit" = "Olete teinud liiga palju päringuid. Oodake hetk ja proovige uuesti.";
+"recording.error.credits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";
+"recording.error.apiKey" = "Lisage oma %@ API võti seadetes.";
+"recording.error.server" = "Transkriptsiooni teenus kogeb probleeme. Palun proovige hetke pärast uuesti.";
+"recording.retry" = "Proovi uuesti";
+"recording.retry.inProgress" = "Uuesti proovimine…";
+"recording.retry.count" = "Proovi uuesti (%d)";
+"recording.retry.failed.missing" = "Uuesti proovimine ebaõnnestus: helifail ei leitud";
+"recording.retry.failed.error" = "Uuesti proovimine ebaõnnestus: %@";
+"recording.retry.pending" = "Valmis uuesti proovima – klõpsake transkribeerimiseks";
+"recording.provider.unknown" = "pilve pakkuja";
+"recording.cancel.dialog.title" = "Tühista salvestamine?";
+"recording.cancel.dialog.message" = "See loobub praegusest salvestusest.";
+"recording.cancel.dialog.confirm" = "Tühista salvestamine";
+"recording.cancel.dialog.resume" = "Jätka";
+"recording.error.overlay.title" = "Võrguühenduse viga";
+"recording.error.overlay.message" = "Vajutage allpool 'Proovi uuesti' või lülituge võrguühenduseta režiimile, et jätkata.";
+"recording.mode.default" = "Vaikimisi";
+"recording.dialog.window.title" = "Salvestuse dialoog";
+"recording.button.start" = "Alusta salvestamist";
+"recording.button.stop" = "Lõpeta salvestamine";
+"recording.button.disable.checking" = "%@ oleku kontrollimine...";
+"recording.button.disable.invalid" = "Vale %@ API võti. Uuendage seda seadetes.";
+"recording.button.disable.unreachable" = "%@ ei ole kättesaadav. Kontrollige oma ühendust ja proovige uuesti.";
+"recording.button.disable.missing" = "Lisage oma %@ API võti seadetes.";
+"recording.button.disable.install.local" = "Laadi enne kohaliku järeltöötluse kasutamist alla kohalik mudel jaotises Seaded → Mudelid.";
+"modes.postProcessing.accuracy" = "Täpsus";
+
+// Cloud post-processing model labels (HyperWhisper Cloud)
+"recording.error.dailyLimit" = "Olete jõudnud oma igapäevasele %@-minutilise transkriptsiooni limiidile. Uuendage HyperWhisper Pro-le piiramatu transkriptsiooni jaoks.";
+"recording.error.documentsAccess" = "Salvestuste kaustale ei pääse juurde. Valige seadetes → Salvestusruum teine asukoht.";
+"recording.error.modeMissing" = "Valitud režiimi ei leitud. Palun valige kehtiv režiim.";
+"recording.warning.oversizedWAV" = "Heli tihendamine ebaõnnestus. Kasutan tihendamata %@ MB faili - transkriptsioon võib olla aeglasem.";
+
+// MARK: - Audio Manager
+"audio.device.default" = "Vaikimisi mikrofon";
+"audio.error.permissionDenied" = "Mikrofoni juurdepääs keelduti. Palun lubage süsteemiseadetes.";
+"audio.error.fileWatcher.open" = "Ei saanud avada faili deskriptorit helifaili jälgimiseks.";
+"audio.error.fileWatcher.timeout" = "Toiming aegus, oodates helifaili kirjutamist.";
+"audio.error.fileWatcher.creation" = "Helifaili ei loodud õigeaegselt.";
+"audio.error.microphonePermission" = "Mikrofoni luba pole antud";
+"audio.error.microphoneInUse" = "HyperWhisper ei pääse mikrofonile juurde, kuna teine rakendus kasutab seda praegu. Peatage teine rakendus või vahetage sisendeid, seejärel proovige uuesti.";
+"audio.error.createEngine" = "Helimootorit loomine ebaõnnestus";
+"audio.error.noInput" = "Heli sisend pole saadaval";
+"audio.error.createFile" = "Helifaili loomine ebaõnnestus";
+"audio.error.managerUnavailable" = "Transkriptsiooni haldur pole konfigureeritud";
+"audio.error.invalidHardwareFormat" = "Tuvastati vale riistvara heli vorming. Palun kontrollige oma heliseadet.";
+"audio.error.createFormat" = "Heli vormingu loomine salvestamiseks ebaõnnestus";
+"audio.error.createConverter" = "Heli vormingu teisendaja loomine ebaõnnestus";
+"audio.error.exportM4A" = "Heli eksportimine m4a vormingusse ebaõnnestus";
+"audio.error.readFile" = "Helifaili ei saanud pärast salvestamist lugeda.";
+"audio.error.recordingTooShort" = "Salvestus oli liiga lühike. Palun hoidke nuppu kauem, et heli jäädvustada.";
+"audio.error.noAudioTrack" = "See videofail ei sisalda heliriba.";
+"audio.alert.accessibility.title" = "Luba juurdepääsetavuse juurdepääs";
+"audio.alert.accessibility.message" = "HyperWhisper vajab juurdepääsetavuse luba, et kleepida transkribeeritud tekst teistesse rakendustesse.\n\nKlõpsake \"Ava seaded\", vajutage HyperWhisperi kõrval olevat lülitit, seejärel proovige uuesti.";
+"audio.alert.accessibility.open" = "Ava seaded";
+"audio.alert.pasteFailed.title" = "Automaatne kleepimine ebaõnnestus";
+"audio.alert.pasteFailed.message" = "Transkribeeritud tekst on kopeeritud teie lõikelauale.\n\nVajutage ⌘V, et kleepida see käsitsi, või valige Muuda → Kleebi menüüst.";
+"accessibility.permission.location.debug" = "Xcode silumise ehitus";
+"accessibility.permission.location.installed" = "Installitud rakendus";
+"accessibility.permission.info" = "HyperWhisper vajab juurdepääsetavuse luba, et kleepida transkribeeritud tekst teistesse rakendustesse.\n\nPraegune rakenduse asukoht: %@\n\nSüsteemiseadetes:\n1. Otsige 'hyperwhisper' või 'HyperWhisper' loendist\n2. Võite näha mitut kirjet, kui olete erinevates asukohtades käivitanud\n3. Lubage märkeruut kirjele, mis vastab:\n   %@";
+"accessibility.permission.xcodeNote" = "Märkus: Xcode'ist käivitamine nõuab installitud rakendusest erinevat luba.";
+"accessibility.error.paste.commandFailed" = "Kleebimiskäsk ebaõnnestus";
+
+// MARK: - Transcription Errors
+"transcription.error.providerNotAvailable" = "Transkriptsiooni pakkuja ei ole saadaval. Kontrollige oma seadeid ja proovige uuesti.";
+"transcription.error.providerNotAvailable.provider" = "%@ ei ole saadaval. Kontrollige oma seadeid ja proovige uuesti.";
+"transcription.error.providerNotAvailable.detail" = "%@ ei ole saadaval: %@";
+"transcription.error.modelNotDownloaded" = "Palun laadige mudel alla esmalt";
+"transcription.error.modelProtected" = "Seda mudelit ei saa kustutada";
+"transcription.error.audioFileNotFound" = "Helifaili ei leitud";
+"transcription.error.network.detail" = "Võrgu viga: %@";
+"transcription.error.network.generic" = "Võrguühenduse viga";
+"transcription.error.apiKeyMissing.provider" = "%@ API võti on transkriptsiooni jaoks nõutav";
+"transcription.error.apiKeyMissing.generic" = "Pilve pakkuja API võti on transkriptsiooni jaoks nõutav";
+"transcription.error.maxRetriesExceeded" = "Maksimaalne uuesti proovimise katsed ületatud";
+"transcription.error.unauthorized.provider" = "Volitamata: vale %@ API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
+"transcription.error.unauthorized.generic" = "Volitamata: vale API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
+"transcription.error.invalidRequest" = "Vale päring: kontrollige helifaili või seadeid";
+"transcription.error.streamingInterrupted" = "Voogedastus katkestatud; osaliselt tekst näidatud";
+"transcription.error.busy" = "Transkriptsiooni teenus on praegu hõivatud";
+"transcription.error.invalidAudioFormat" = "Toetamata heli vorming";
+"transcription.error.audioConversionFailed" = "Heli teisendamine nõutud vormingusse ebaõnnestus";
+"transcription.error.audioFileTooLarge" = "Fail liiga suur: %@ ületab %@ limiiti %@ jaoks";
+"transcription.error.serverError" = "Serveri viga (%d): %@";
+"transcription.error.rateLimited.seconds" = "Kiiruse piirang: liiga palju päringuid. Palun oodake %d sekundit ja proovige uuesti.";
+"transcription.error.rateLimited.generic" = "Kiiruse piirang: liiga palju päringuid. Palun oodake hetk ja proovige uuesti.";
+"transcription.error.insufficientCredits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";
+"transcription.error.quotaExceeded" = "%@ kvoot ületatud";
+"transcription.error.quotaExceeded.detail" = "%@ kvoot ületatud: %@";
+"transcription.error.timeout" = "Päring aegus %@ ajal. Kontrollige oma internetiühendust ja proovige uuesti.";
+
+// MARK: - Transcription Guidance
+"transcription.guidance.providerNotAvailable" = "Veenduge, et teie transkriptsiooni pakkuja on seadetes õigesti konfigureeritud.";
+"transcription.guidance.providerNotAvailable.provider" = "Veenduge, et %@ on õigesti konfigureeritud. Kohalike mudelite puhul laadige mudel alla esmalt. Pilve pakkujate puhul kontrollige oma API võtit.";
+"transcription.guidance.apiKeyMissing.provider" = "Lisage oma %@ API võti seadetes";
+"transcription.guidance.apiKeyMissing.generic" = "Lisage oma pilve pakkuja API võti seadetes";
+"transcription.guidance.modelNotDownloaded" = "Laadige mudel alla mudelite sektsioonist";
+"transcription.guidance.modelProtected" = "See mudel on praegu kasutusel";
+"transcription.guidance.audioFileNotFound" = "Helifail kustutati või teisaldati";
+"transcription.guidance.networkError" = "Kontrollige oma internetiühendust ja proovige uuesti";
+"transcription.guidance.unauthorized.provider" = "Kontrollige oma %@ API võtit või konto lube seadetes";
+"transcription.guidance.unauthorized.generic" = "Kontrollige oma API võtit või konto lube seadetes";
+"transcription.guidance.invalidRequest" = "Kontrollige helifaili ja režiimi seadeid, seejärel proovige uuesti";
+"transcription.guidance.invalidAudioFormat" = "Proovige helifaili teisendada MP3 või WAV vormingusse";
+"transcription.guidance.audioConversionFailed" = "Helifail võib olla rikutud. Proovige teist faili";
+"transcription.guidance.audioFileTooLarge" = "Kasutage lühemat helifaili või jagage see väiksemateks segmentideks";
+"transcription.guidance.serverError" = "Transkriptsiooni teenus kogeb probleeme. Palun proovige uuesti.";
+"transcription.guidance.rateLimited" = "Olete teinud liiga palju päringuid. Oodake hetk enne uuesti proovimist.";
+"transcription.guidance.insufficientCredits" = "Ostke rohkem krediite seadetes, et jätkata transkribeerimist";
+"transcription.guidance.quotaExceeded" = "Lisage krediite oma %@ kontole või uuendage oma arveldustandmeid";
+"transcription.guidance.timeout" = "Päring võttis liiga kaua aega. Kontrollige oma interneti kiirust ja proovige uuesti.";
+"transcription.error.noSpeechDetected" = "Salvestuses ei tuvastatud kõnet.";
+"transcription.guidance.noSpeechDetected" = "Näpunäited:\n• Rääkige selgelt mikrofonisse\n• Hoidke klahvi kauem enne rääkimist\n• Kontrollige, et teie mikrofon töötab\n• Veenduge, et õige sisendseade on valitud";
+
+// MARK: - HyperWhisper Cloud Errors
+"hyperwhisperCloud.error.insufficientCredits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";
+"hyperwhisperCloud.error.network" = "Võrgu viga: %@";
+"hyperwhisperCloud.error.invalidResponse" = "Vale vastus HyperWhisper Cloudist";
+"hyperwhisperCloud.error.server" = "Serveri viga: %@";
+
+// MARK: - Local Runtime
+"llama.runtime.error.executableNotFound" = "llama-server käivitatavat faili ei leitud.";
+"llama.runtime.error.missingDependencies" = "Käitusaja puuduvad sõltuvused: %@";
+"llama.runtime.error.copyFailed" = "Käitusaja kopeerimine ebaõnnestus: %@";
+"llama.runtime.error.copy.executable" = "Käivitatava faili kopeerimine ebaõnnestus: %@";
+"llama.runtime.missing" = "Kohalik käitusaeg puudub sellest installist. Installige HyperWhisper uuesti, et taastada kohalik järeltöötlus.";
+"llama.runtime.genericError" = "Kohalik käitusaja viga: %@";
+"runtime.error.llama.missingLib" = "Kohalik käitusaeg lõpetati pärast puuduva libmtmd.dylib";
+"runtime.error.llama.reportedMissingLib" = "Kohalik käitusaeg teatas puuduvast libmtmd.dylib";
+
+// MARK: - Post-Processing Model Descriptions
+"models.postProcessing.hyperwhisper.description" = "Sisseehitatud AI järeltöötlus Cloudflare Workersil töötades. Konfiguratsiooni ei ole vaja.";
+"models.postProcessing.gpt4.1.nano.description" = "Mõõdukas täpsus (92%), väga kiire kiirus (<1s). Sobib kiireks mustanditeks ja mitteametlikeks märkmeteks.";
+"models.postProcessing.gpt4.1.mini.description" = "Kõrge täpsus (94%), kiire kiirus (~1-2s). Hea igapäevaseks ärikommunikatsiooniks ja standarddokumentideks.";
+"models.postProcessing.gpt4.1.description" = "Väga kõrge täpsus (96%), mõõdukas kiirus (~3-4s). Suurepärane keerulise vormindamise ja tehnilise sisu jaoks.";
+"models.postProcessing.gpt5.nano.description" = "Hea täpsus (95%), kiireim kiirus (~1s). Täiuslik kiireks märkmeteks, sõnumiteks ja juhuslikeks transkriptsioonideks.";
+"models.postProcessing.gpt5.mini.description" = "Suurepärane täpsus (97%), mõõdukas kiirus (~2-3s). Ideaalne tasakaal professionaalsete e-kirjade, aruannete ja koosoleku märkmete jaoks.";
+"models.postProcessing.gpt5.description" = "Kõrgeim täpsus (99%+), aeglasem kiirus (~3-5s). Parim kriitiliste dokumentide, õiguslike, meditsiiniliste transkriptsioonide jaoks, kus täpsus on ülim.";
+"models.postProcessing.gpt5.1.description" = "Tipptasemel täpsus (98%+), mõõdukas kiirus (~2-3s). Suurepärane keeruliste ülesannete, õiguslike dokumentide ja tehnilise sisu jaoks parema mõtlemisega.";
+"models.postProcessing.gpt5.2.description" = "Viimane GPT-5 seeria täiustatud mõtlemise ja kiirema järeldusega. Parim üldine valik kvaliteetse teksti töötlemise jaoks.";
+"models.postProcessing.claude4.5.haiku.description" = "Viimane Claude Haiku täiustatud mõtlemisega, hoides vastuse ajad kiireks.";
+"models.postProcessing.claude4.sonnet.description" = "Tasakaalustatud jõudlus. Üleolev mõtlemine ja vormindamise võimekus professionaalsete dokumentide jaoks.";
+"models.postProcessing.gemini3.flash.description" = "Gemini 3 seeria Pro-taseme intelligentsusega Flash kiirusel. Täiustatud mõtlemine dünaamilise mõtlemise võimetega.";
+"models.postProcessing.gemini2.5.flash.description" = "Parim hinna-jõudluse osas. Optimeeritud kiiruse jaoks, säilitades hea täpsuse igapäevaseks kasutuseks.";
+"models.postProcessing.gemini2.5.flashLite.description" = "Ülikiire mudel optimeeritud kulutõhususe ja kõrge läbilaskevõime jaoks.";
+"models.postProcessing.groq.llama33.70b.description" = "Mitmekülgne 70B mudel suurepärase kvaliteediga. ~280 tokenit/sek. Soovitatav.";
+"models.postProcessing.groq.llama31.8b.description" = "Ülikiire 8B mudel. ~560 tokenit/sek kohese teksti töötlemise jaoks.";
+"models.postProcessing.groq.gptoss.120b.description" = "OpenAI avatud lähtekoodiga 120B mudel. ~500 tokenit/sek kvaliteetse töötlemise jaoks.";
+"models.postProcessing.groq.gptoss.20b.description" = "Kerge 20B mudel. ~1000 tokenit/sek kiiremaks töötlemiseks.";
+"models.postProcessing.cerebras.gptoss.120b.description" = "GPT OSS 120B Cerebrasel. Ülikiire 120B mudel ~3000 tokenit/sek. Soovitatav.";
+"models.postProcessing.cerebras.llama31.8b.description" = "Llama 3.1 8B Cerebrasel. Kerge ja ülikiire ~2200 tokenit/sek.";
+"models.postProcessing.cerebras.qwen3.235b.description" = "Qwen 3 235B Cerebrasel. Massiivne 235B MoE mudel ~1400 tokenit/sek. Ainult eelvaade.";
+"models.postProcessing.cerebras.zai.glm47.description" = "Z.ai GLM 4.7 Cerebrasel. 355B parameetriga mudel ~1000 tokenit/sek. Ainult eelvaade.";
+
+// MARK: - Settings · Resources
+"settings.resources.help.center" = "Abikeskus";
+"settings.resources.contact.support" = "Võta ühendust toega";
+"settings.resources.feedback" = "Tagasiside ja soovitused";
+
+// MARK: - Settings · Backup
+"settings.section.backup" = "Varukoopia";
+"settings.backup.export.title" = "Ekspordi seaded";
+"settings.backup.export.subtitle" = "Salvesta oma seaded, režiimid ja sõnavara faili";
+"settings.backup.export.button" = "Ekspordi...";
+"settings.backup.export.panel.title" = "Ekspordi seaded";
+"settings.backup.export.panel.label" = "Varukoopia fail:";
+"settings.backup.export.success" = "Seaded edukalt eksporditud";
+"settings.backup.export.error.create" = "Varukoopia andmete loomine ebaõnnestus";
+"settings.backup.export.error.encode" = "Varukoopia andmete kodeerimine ebaõnnestus";
+"settings.backup.export.error.write" = "Varukoopia faili kirjutamine ebaõnnestus";
+"settings.backup.includeAPIKeys.title" = "Kaasa API võtmed";
+"settings.backup.includeAPIKeys.subtitle" = "Salvesta API võtmed varukoopia failis (ei soovitata jagamiseks)";
+"settings.backup.includeLicense.title" = "Kaasa litsentsivõti";
+"settings.backup.import.title" = "Impordi seaded";
+"settings.backup.import.subtitle" = "Taasta seaded varukoopia failist";
+"settings.backup.import.button" = "Impordi...";
+"settings.backup.import.panel.title" = "Impordi seaded";
+"settings.backup.import.success" = "Import lõpetatud: %d režiimi, %d sõnavara kirjet imporditud";
+"settings.backup.import.error.read" = "Varukoopia faili lugemine ebaõnnestus";
+"settings.backup.import.error.decode" = "Vale varukoopia faili vorming";
+"settings.backup.import.error.decode.keyNotFound" = "Kohustuslik väli puudub: %@";
+"settings.backup.import.error.decode.typeMismatch" = "Vale tüüp väljal: %@";
+"settings.backup.import.error.decode.valueNotFound" = "Välja väärtus puudub: %@";
+"settings.backup.import.error.decode.corrupted" = "Rikutud andmed: %@";
+"settings.backup.import.error.decode.corruptedField" = "Rikutud välja väärtus: %@";
+"settings.backup.import.error.version" = "Varukoopia fail on uuemast versioonist";
+"settings.backup.import.error.unknown" = "Import ebaõnnestus";
+"settings.backup.import.confirm.title" = "Impordi seaded?";
+"settings.backup.import.confirm.message" = "See asendab teie olemasolevad režiimid ja sõnavara varukoopia failis olevate omadega. Seaded uuendatakse samuti.";
+"settings.backup.import.confirm.button" = "Impordi";
+"settings.backup.conflict.skip" = "Jäta olemasolevad vahele";
+"settings.backup.conflict.replace" = "Asenda olemasolevad";
+"settings.backup.conflict.keepBoth" = "Hoia mõlemaid";
+"settings.backup.security.warning" = "Hoiatus: eksporditud fail sisaldab tundlikke andmeid. Hoidke seda turvaliselt ega jaga seda.";
+"settings.backup.info.note" = "Varukoopiad sisaldavad seadeid, režiime ja sõnavara. Salvestused ja transkriptsioonid ei ole kaasatud.";
+"settings.backup.result.success.title" = "Edukalt";
+"settings.backup.result.error.title" = "Viga";
+"settings.backup.export.choose.subtitle" = "Valige, mida lisada varundusfilesse";
+"settings.backup.export.section.settings" = "Seaded";
+"settings.backup.export.section.modes" = "Režiimid";
+"settings.backup.export.section.vocabulary" = "Sõnavara";
+"settings.backup.import.importing" = "Importimine %@";
+"settings.backup.import.contains" = "See fail sisaldab: %@";
+"settings.backup.import.contains.vocabulary" = "Sõnavara (%d sõna)";
+"settings.backup.import.contains.none" = "mitte midagi";
+"settings.backup.import.section.settings" = "Seaded";
+"settings.backup.import.section.modes" = "Režiimid";
+"settings.backup.import.section.vocabulary" = "Sõnavara";
+"settings.backup.import.section.apiKeys" = "API-võtmed";
+"settings.backup.import.section.license" = "Litsentsivõti";
+"settings.backup.import.section.absent" = "— pole failis";
+"settings.backup.import.premerge.summary" = "Sõnavara: lisada %d uut, %d on juba olemas";
+"settings.backup.import.premerge.conflictLabel" = "Juba olemasolevate sõnade puhul:";
+
+// MARK: - File Transcription
+"select.audio.file" = "Vali helifail";
+"transcribe.file.error.title" = "Transkriptsiooni viga";
+"transcribe.file.error.size.title" = "Fail liiga suur";
+"transcribe.file.error.size.message" = "Valitud fail (%@) ületab %@ limiiti %@ jaoks.";
+"transcribe.file.error.format.title" = "Toetamata vorming";
+"transcribe.file.error.format.message" = ".%@ failid ei ole %@ poolt toetatud. Toetatud vormingud: %@";
+"transcribe.file.error.read" = "Valitud faili ei saa lugeda.";
+"transcribe.file.error.copy" = "Faili kopeerimine salvestuste kausta ebaõnnestus.";
+"transcribe.file.error.video.title" = "Heli puudub videos";
+"transcribe.file.error.video.noAudio" = "See videofail ei sisalda heliriba. Palun valige video heliga või helifail.";
+
+// MARK: - File Transcription Progress
+"file.transcription.preparing" = "Ettevalmistamine...";
+"file.transcription.transcribing" = "Transkribeerimine...";
+"file.transcription.finishing" = "Lõpetamine...";
+"file.transcription.cancel" = "Tühista";
+
+// MARK: - Auto-Delete Recordings
+"history.autoDelete.enable.title" = "Luba automaatne kustutamine";
+"history.autoDelete.enable.subtitle" = "Määratud kestusest vanemad salvestused kustutatakse";
+"history.autoDelete.duration.prefix" = "Pärast";
+"history.autoDelete.unit.minutes" = "Minutit";
+"history.autoDelete.unit.hours" = "Tundi";
+"history.autoDelete.unit.days" = "Päeva";
+"history.autoDelete.unit.minutes.plural" = "minutit";
+"history.autoDelete.unit.hours.plural" = "tundi";
+"history.autoDelete.unit.days.plural" = "päeva";
+"history.autoDelete.status.disabled" = "Automaatne kustutamine on keelatud";
+"history.autoDelete.status.enabled" = "Kustuta salvestused vanemad kui %d %@";
+"history.autoDelete.cleanup.noItems" = "Kustutamiseks salvestusi pole";
+"history.autoDelete.cleanup.summary" = "Kustutatud %d salvestus(t) ja vabastatud %@";

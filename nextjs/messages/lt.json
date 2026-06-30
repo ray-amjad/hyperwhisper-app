@@ -1,0 +1,305 @@
+{
+  "metadata": {
+    "title": "HyperWhisper - AI balso transkripcija, skirta macOS ir Windows",
+    "description": "Rašykite 5x greičiau su AI balso transkripcija. HyperWhisper transkribuoja jūsų balsą stulbinamu tikslumu macOS ir Windows sistemose. Kalbėkite natūraliai ir matykite, kaip žodžiai atsiranda akimirksniu."
+  },
+  "navbar": {
+    "features": "Funkcijos",
+    "pricing": "Kainodara",
+    "faq": "DUK",
+    "support": "Pagalba",
+    "download": "Atsisiųsti",
+    "language": {
+      "en": "English",
+      "ja": "日本語",
+      "es": "Español",
+      "zh": "中文",
+      "switchTo": "Pakeisti kalbą"
+    }
+  },
+  "hero": {
+    "logoAlt": "HyperWhisper logotipas",
+    "headline": "Rašykite, kurkite ir komponuokite",
+    "headlineAccent": "5x greičiau su AI",
+    "subheadline": "HyperWhisper transkribuoja jūsų balsą stulbinamu tikslumu. Tiesiog kalbėkite natūraliai ir stebėkite, kaip žodžiai atsiranda akimirksniu.",
+    "downloadCta": "Atsisiųsti dabar",
+    "demoCta": "Žiūrėti demonstraciją",
+    "availableOn": "Prieinama",
+    "macos": "macOS 14+",
+    "windows": "Windows 10+"
+  },
+  "features": {
+    "title": "Sukurta profesionalams",
+    "subtitle": "Kiekviena funkcija sukurta tam, kad padėtų jums dirbti greičiau ir efektyviau",
+    "customVocabulary": {
+      "title": "Pritaikytas žodynas",
+      "description": "Pridėkite vardus, akronimus ir specialius terminus, kad kiekvieną kartą pasiektumėte tobulą tikslumą."
+    },
+    "languages": {
+      "title": "100+ kalbų",
+      "description": "Transkribuokite daugiau nei 100 kalbų su automatiniu kalbos atpažinimu."
+    },
+    "offline": {
+      "title": "Veikimas neprisijungus",
+      "description": "Veikia visiškai neprisijungus. Jūsų duomenys niekada nepalieka jūsų įrenginio."
+    },
+    "privacy": {
+      "title": "Privatumo prioritetas",
+      "description": "Nereikia paskyros. Jokio sekimo. Jūsų balso duomenys lieka jūsų Mac arba PC."
+    },
+    "hybridProcessing": {
+      "title": "Hibridinis apdorojimas",
+      "description": "Rinkitės vietinius modelius privatumui arba cloud API greičiui. Geriausia iš abiejų pasaulių."
+    },
+    "customizable": {
+      "title": "Labai pritaikoma",
+      "description": "Rinkitės iš daugiau nei 9 API tiekėjų ir 30+ transkripcijos modelių."
+    },
+    "realTime": {
+      "title": "Srautinis perdavimas realiuoju laiku",
+      "description": "Matykite žodžius iškart, kai kalbate. Pramonėje pirmaujantis tikslumas su mažesniu nei 700 ms vėlavimu."
+    },
+    "fileImport": {
+      "title": "Failų importas",
+      "description": "Importuokite garso ar vaizdo failus transkripcijai. Palaikomi visi pagrindiniai formatai su automatiniu tylos aptikimu."
+    },
+    "screenOcr": {
+      "title": "Ekrano OCR",
+      "description": "Leiskite HyperWhisper matyti jūsų ekraną, kad jis viską tiksliai parašytų."
+    },
+    "mcpServer": {
+      "title": "Vietinė API ir MCP serveris",
+      "description": "Įmontuotas MCP serveris leidžia Claude, Cursor ir kitiems AI agentams valdyti HyperWhisper. Tik vietinis HTTP API su bearer autentifikacija skriptams ir automatizavimui."
+    },
+    "modes": {
+      "title": "Režimai kiekvienai situacijai",
+      "description": "Perjunkite skirtingus transkripcijos režimus, optimizuotus susitikimams, užrašams, el. laiškams, programavimui ir kt. Kiekvienas režimas naudoja pritaikytus promptus, kad tekstas būtų suformatuotas idealiai.",
+      "meeting": "Susitikimas",
+      "email": "El. paštas",
+      "note": "Užrašas",
+      "code": "Kodas",
+      "legal": "Teisinis",
+      "medical": "Medicininis",
+      "presetModes": "Paruošti režimai",
+      "customModes": "Pritaikyti režimai"
+    }
+  },
+  "demo": {
+    "fasterThanTyping": "Greičiau nei rašyti",
+    "accuracyRate": "Tikslumo rodiklis",
+    "languagesSupported": "Palaikomos kalbos",
+    "providersSupported": "Palaikomi tiekėjai"
+  },
+  "pricing": {
+    "title": "Jokių prenumeratų. Niekada.",
+    "subtitle": "Mokėkite kartą, naudokite visada. Mes taip pat nemėgstame prenumeratų.",
+    "guarantee": "14 dienų pinigų grąžinimo garantija",
+    "guaranteeExtended": "jei nebūsite visiškai patenkinti.",
+    "learnMore": "Sužinoti daugiau",
+    "free": {
+      "name": "Nemokama",
+      "price": "$0",
+      "period": "visam laikui",
+      "description": "Puikiai tinka išbandyti HyperWhisper",
+      "cta": "Atsisiųsti nemokamai",
+      "features": {
+        "transcriptionLimit": "5 minutės transkripcijos per dieną",
+        "basicModes": "Pagrindiniai transkripcijos režimai",
+        "offlineTranscription": "Transkripcija neprisijungus",
+        "apiTranscription": "API transkripcija (naudokite savo raktus)",
+        "postProcessing": "Teksto papildomas apdorojimas",
+        "providers": "9+ tiekėjų pasirinkimui",
+        "lifetimeUpdates": "Atnaujinimai visam laikui",
+        "cloudLimited": "HyperWhisper Cloud (ribotas naudojimas)",
+        "customVocabulary": "Pritaikytas žodynas",
+        "prioritySupport": "Prioritetinė pagalba"
+      }
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "$39",
+      "period": "visam laikui",
+      "description": "Vienkartinis pirkimas, neribota galia visam laikui",
+      "cta": "Pirkti dabar - prieiga visam laikui",
+      "mostPopular": "Populiariausias",
+      "features": {
+        "unlimitedTranscription": "Neribota transkripcija",
+        "allModes": "Visi transkripcijos režimai",
+        "offlineTranscription": "Transkripcija neprisijungus",
+        "apiTranscription": "API transkripcija (naudokite savo raktus)",
+        "postProcessing": "Teksto papildomas apdorojimas",
+        "providers": "9+ tiekėjų pasirinkimui",
+        "lifetimeUpdates": "Atnaujinimai visam laikui",
+        "cloudCredits": "HyperWhisper Cloud ($5 kreditų)",
+        "customVocabulary": "Pritaikytas žodynas",
+        "prioritySupport": "Prioritetinė pagalba"
+      }
+    },
+    "enterprise": {
+      "title": "Enterprise ir individuali kainodara",
+      "description": "Kiekinės nuolaidos, SSO, prioritetinė pagalba, vidinė priegloba ir individualios integracijos",
+      "cta": "Susisiekti su pardavimais"
+    }
+  },
+  "faq": {
+    "title": "Dažniausiai užduodami klausimai",
+    "subtitle": "Viskas, ką reikia žinoti apie HyperWhisper",
+    "contactPrompt": "Vis dar turite klausimų? Rašykite mums el. paštu",
+    "questions": {
+      "accuracy": {
+        "question": "Koks transkripcijos tikslumas?",
+        "answer": "Pasiekiame pramonėje pirmaujantį 99% tikslumą naudodami pažangiausius AI modelius. Tikslumą galite dar labiau padidinti pridėdami savo pritaikytą žodyną techniniams terminams, vardams ir specializuotam žargonui."
+      },
+      "offline": {
+        "question": "Ar galiu naudoti be interneto?",
+        "answer": "Žinoma. HyperWhisper gali būti naudojamas visiškai neprisijungus jūsų Mac su vietiniais AI modeliais - internetas nereikalingas. Vartotojams, kurie nori didžiausio tikslumo ir greičio, siūlome ir pasirenkamą cloud apdorojimą per įvairius tiekėjus."
+      },
+      "apiKey": {
+        "question": "Ar reikia mokėti už API prieigą?",
+        "answer": "Naudojate savo API raktą šiems tiekėjams: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ir Google Gemini. Kai kurie tiekėjai naujiems vartotojams siūlo nemokamus kreditus; Deepgram siūlo $200, AssemblyAI siūlo $50. Ilgalaikėje perspektyvoje tai yra gerokai pigiau nei bet kuri prenumerata. \n\nTaip pat galite naudoti HyperWhisper Cloud (įdiegtą), kuriam nereikia API rakto ir kuris veikia pagal mokėjimo už naudojimą modelį.\n\nNepamirškite, vietinis režimas neprisijungus veikia be jokio API rakto ir yra visiškai nemokamas."
+      },
+      "languages": {
+        "question": "Kokias kalbas palaiko?",
+        "answer": "Palaikoma daugiau nei 100 kalbų nuo pat pradžių - nuo anglų ir ispanų iki mandarinų ir arabų. Dauguma modelių gali automatiškai atpažinti, kokia kalba kalbate, ir sklandžiai persijungti."
+      },
+      "offlineModels": {
+        "question": "Kokie modeliai neprisijungus yra prieinami?",
+        "answer": "Transkripcijai neprisijungus siūlome kelis Whisper modelio dydžius (sukurtas OpenAI, palaiko 99+ kalbų). Taip pat siūlome NVidia Parakeet modelius (palaiko 25+ kalbų).\n      \n      Papildomam apdorojimui neprisijungus siūlome kelis Gemma 3 modelio dydžius (sukurtas Google)."
+      },
+      "compatibility": {
+        "question": "Ar veikia su visomis Mac ir Windows programomis?",
+        "answer": "Taip, veikia visur, kur galite rašyti. Nesvarbu, ar rašote el. laiškus, dokumentus, kodą ar kalbatės. Tiesiog paspauskite spartųjį klavišą, kalbėkite ir matykite, kaip žodžiai pasirodo iškart."
+      },
+      "privacy": {
+        "question": "Kaip saugomas mano privatumas?",
+        "answer": "Kai naudojate vietinį režimą, jokie duomenys nepalieka jūsų Mac.\n\nKai naudojate cloud transkripciją, jūsų duomenys siunčiami į pasirinktą cloud tiekėją (pvz., OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs arba Mistral).\n\nTai galite patikrinti patys naudodami tinklo inspektorių, pvz., [Proxyman](https://proxyman.io), arba tinklo monitorių, pvz., [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+      },
+      "cloud": {
+        "question": "Kas yra HyperWhisper Cloud?",
+        "answer": "HyperWhisper Cloud yra įdiegta cloud transkripcija, skirta mažiau techniniams vartotojams, kurie nori greitai pradėti.\n\nVeikia pagal pay as you go modelį. Įsigiję licenciją gaunate $5 transkripcijos kreditų. Vėliau galite pridėti daugiau kreditų.\n    \nSiūlome tris tikslumo lygius: Medium (greičiausias, veikia su Groq), High (rekomenduojamas, veikia su Deepgram) ir Highest (geriausia kokybė, veikia su xAI Grok STT). Papildomas apdorojimas vykdomas automatiškai. Nesaugome nieko, išskyrus informaciją, kiek kreditų sunaudojote.\n\nMokate tiksliai tiek, kiek mokame mes šiems tiekėjams. Jokio antkainio.\n\nKad būtumėte ramūs, HyperWhisper Cloud išeities kodą galite peržiūrėti [čia](https://github.com/theramjad/hyperwhisper-fly)."
+      },
+      "dataTraining": {
+        "question": "Ar mano balso duomenys bus naudojami DI modeliams mokyti?",
+        "answer": "„HyperWhisper Cloud“ atsisako jūsų duomenų naudojimo modeliams mokyti pas kiekvieną mūsų naudojamą tiekėją. Naudojant savo API raktą, atsisakymas yra jūsų atsakomybė — žr. mūsų [duomenų privatumo vadovą](https://hyperwhisper.com/docs/data-privacy)."
+      },
+      "lifetime": {
+        "question": "Kodėl visam laikui skirta kaina vietoje prenumeratos?",
+        "answer": "Tikime paprasta ir sąžininga kainodara. Mokėkite kartą $39 ir naudokite HyperWhisper visam laikui. Jokių mėnesinių mokesčių, jokių staigmenų. Nemokama versija leidžia išbandyti pagrindines funkcijas su 3 minutėmis transkripcijos per dieną."
+      },
+      "deviceLimit": {
+        "question": "Kiek įrenginių galiu naudoti su savo licencija?",
+        "answer": "Savo licenciją galite naudoti tiek įrenginių, kiek norite, laikydamiesi mūsų Sąžiningo naudojimo politikos, nurodytos [Paslaugų teikimo sąlygose](/legal/terms-of-service). Ši politika sukurta taip, kad būtų lanksti teisėtam asmeniniam ir verslo naudojimui, kartu užkertant kelią piktnaudžiavimui."
+      },
+      "requirements": {
+        "question": "Kokie sistemos reikalavimai?",
+        "answer": "Mac: macOS 14 arba naujesnė versija, palaikomi Apple Silicon ir Intel. Windows: Windows 10/11, x64 arba ARM64. Optimaliam veikimui rekomenduojama 8 GB RAM."
+      },
+      "windowsStatus": {
+        "question": "Ar Windows versija turi visas tas pačias funkcijas kaip macOS?",
+        "answer": "Windows versija išleista neseniai, todėl joje dar gali nebūti visų funkcijų, kurios yra macOS. Aktyviai dirbame, kad abi platformos turėtų pilną funkcijų paritetą."
+      },
+      "madeBy": {
+        "question": "Kas tai sukūrė?",
+        "answer": "Tai sukūrė YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      }
+    }
+  },
+  "support": {
+    "title": "Pagalbos centras",
+    "subtitle": "Esame čia, kad padėtume jums išnaudoti HyperWhisper maksimaliai",
+    "getInTouch": "Susisiekite su mumis",
+    "description": "Dėl techninės pagalbos, licencijos problemų ar bet kokių klausimų apie HyperWhisper mūsų komanda pasiruošusi padėti.",
+    "emailUsAt": "Rašykite mums el. paštu:",
+    "openInClient": "Atidaryti savo el. pašto kliente:",
+    "defaultClient": "Numatytasis el. pašto klientas",
+    "gmail": "Gmail",
+    "outlook": "Outlook",
+    "responseTime": "Įprastai atsakome per 24 valandas darbo dienomis.",
+    "emailTemplate": {
+      "subject": "HyperWhisper pagalbos užklausa",
+      "body": "Sveiki,\n\nVersija: \n[galite patikrinti Nustatymai > Apie]\n\nProblema: \n[Aprašykite savo problemą]\n\nDetalės: \n[Pateikite svarbias detales, ką darėte prieš programos strigtį]\n\n[Jūsų žinutė čia]\n\nPagarbiai,"
+    }
+  },
+  "downloadModal": {
+    "logoAlt": "HyperWhisper logotipas",
+    "title": "Atsisiųsti HyperWhisper",
+    "emailPlaceholder": "El. paštas",
+    "description": "Atsiųsime jums atsisiuntimo nuorodą ir trumpą mokomąjį vaizdo įrašą, kad galėtumėte greitai pradėti. Jokio šlamšto.",
+    "downloadButton": "Atsisiųsti HyperWhisper",
+    "errorGeneric": "Kažkas nepavyko. Bandykite dar kartą.",
+    "errorNetwork": "Tinklo klaida. Patikrinkite ryšį ir bandykite dar kartą.",
+    "thankYouTitle": "Ačiū!",
+    "downloadStarted": "Atsisiuntimas turėtų prasidėti automatiškai.",
+    "manualDownload": "Atsisiuntimas neprasidėjo? Spustelėkite čia",
+    "skipAndDownloadButton": "Praleisti ir atsisiųsti"
+  },
+  "downloadPage": {
+    "title": "Atsisiųsti HyperWhisper",
+    "countdownText": "Pradžia po {seconds}...",
+    "downloadStarted": "Patikrinkite Downloads aplanką",
+    "downloadNow": "Atsisiųsti dabar",
+    "downloadAgain": "Atsisiųsti dar kartą",
+    "selectArchitecture": "Pasirinkite architektūrą",
+    "downloadX64": "Atsisiųsti x64 versiją",
+    "downloadArm64": "Atsisiųsti ARM64 versiją",
+    "orDivider": "ARBA",
+    "homebrewTitle": "Įdiegti per Homebrew",
+    "homebrewCommand": "brew install --cask hyperwhisper",
+    "copy": "Kopijuoti",
+    "copied": "Nukopijuota!"
+  },
+  "purchaseSuccess": {
+    "title": "Pirkimas sėkmingas!",
+    "subtitle": "Sveiki atvykę į HyperWhisper Pro! Jūsų visam laikui galiojanti licencija paruošta.",
+    "checkEmail": {
+      "title": "Patikrinkite savo el. paštą",
+      "description": "Išsiuntėme jūsų licencijos raktą ir atsisiuntimo instrukcijas į jūsų el. pašto adresą. Turėtumėte gauti per kelias minutes."
+    },
+    "whatsNext": {
+      "title": "Kas toliau?",
+      "step1": {
+        "title": "Patikrinkite gautuosius",
+        "description": "Ieškokite laiško nuo HyperWhisper"
+      },
+      "step2": {
+        "title": "Nukopijuokite licencijos raktą",
+        "description": "Jo reikės programėlei aktyvuoti"
+      },
+      "step3": {
+        "title": "Atsisiųskite HyperWhisper",
+        "description": "Įdiekite programėlę ir įveskite licencijos raktą"
+      }
+    },
+    "downloadButton": "Atsisiųsti HyperWhisper",
+    "returnHome": "Grįžti į pagrindinį puslapį",
+    "noEmail": "Negavote el. laiško? Patikrinkite spam aplanką arba",
+    "contactSupport": "susisiekite su pagalba",
+    "loading": "Kraunama..."
+  },
+  "footer": {
+    "tagline": "Rašykite 5x greičiau su AI balso transkripcija, skirta macOS ir Windows.",
+    "product": "Produktas",
+    "resources": "Ištekliai",
+    "company": "Įmonė",
+    "legal": "Teisinė informacija",
+    "links": {
+      "features": "Funkcijos",
+      "pricing": "Kainodara",
+      "download": "Atsisiųsti",
+      "roadmap": "Plėtros planas",
+      "helpCenter": "Pagalbos centras",
+      "manageBilling": "Valdyti atsiskaitymą",
+      "customerPortal": "Klientų portalas",
+      "olderVersions": "Senesnės versijos",
+      "blog": "Tinklaraštis",
+      "about": "Apie",
+      "support": "Pagalba",
+      "privacyPolicy": "Privatumo politika",
+      "termsOfService": "Paslaugų teikimo sąlygos",
+      "refundPolicy": "Pinigų grąžinimo politika",
+      "dataTraining": "Duomenų privatumas"
+    },
+    "copyright": "© 2026 HyperWhisper. Visos teisės saugomos.",
+    "linkedinAria": "LinkedIn"
+  }
+}

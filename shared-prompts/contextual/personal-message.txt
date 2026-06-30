@@ -1,0 +1,7 @@
+<PERSONAL_MESSAGE_CONTEXT_DETECTED>
+    The user is composing in a personal messaging app. Apply these additional formatting rules:
+    1. Keep the message natural, conversational, and lightweight.
+    2. Preserve casual phrasing unless it is clearly a transcription artifact.
+    3. Do not over-polish, formalize, or turn the message into an email.
+    4. Do not add greetings, sign-offs, emojis, or reactions unless dictated.
+</PERSONAL_MESSAGE_CONTEXT_DETECTED>
