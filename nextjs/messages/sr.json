@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "Šta je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je ugrađena cloud transkripcija namenjena manje tehničkim korisnicima koji žele brzo da počnu.\n\nRadi po modelu pay as you go. Kupovina licence daje vam $5 kredita za transkripciju. Kasnije možete dodati još kredita.\n    \nNudimo tri nivoa preciznosti: Medium (najbrže, pokreće Groq), High (preporučeno, pokreće Deepgram) i Highest (najbolji kvalitet, pokreće xAI Grok STT). Naknadna obrada je automatska. Ne čuvamo ništa osim koliko ste kredita potrošili.\n\nPlaćate tačno koliko i mi plaćamo tim provajderima. Ne naplaćujemo maržu.\n\nZa mirnu savest, možete pogledati izvorni kod HyperWhisper Clouda [ovde](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud je ugrađena cloud transkripcija namenjena manje tehničkim korisnicima koji žele brzo da počnu.\n\nRadi po modelu pay as you go. Kupovina licence daje vam $5 kredita za transkripciju. Kasnije možete dodati još kredita.\n    \nNudimo tri nivoa preciznosti: Medium (najbrže, pokreće Groq), High (preporučeno, pokreće Deepgram) i Highest (najbolji kvalitet, pokreće xAI Grok STT). Naknadna obrada je automatska. Ne čuvamo ništa osim koliko ste kredita potrošili.\n\nPlaćate tačno koliko i mi plaćamo tim provajderima. Ne naplaćujemo maržu.\n\nZa mirnu savest, možete pogledati izvorni kod HyperWhisper Clouda [ovde](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Да ли ће моји гласовни подаци бити коришћени за обуку АИ модела?",

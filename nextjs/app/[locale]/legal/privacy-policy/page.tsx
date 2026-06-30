@@ -312,16 +312,26 @@ export default function PrivacyPolicyPage() {
         handle data.
       </p>
       <p>
-        You can view the full source code for HyperWhisper Cloud on{" "}
+        HyperWhisper is fully open source under Apache-2.0 — including the Cloud
+        backend. You can read the full source code for the{" "}
         <a
           className="text-blue-600 dark:text-blue-400 hover:underline"
-          href="https://github.com/theramjad/hyperwhisper-fly"
+          href="https://github.com/ray-amjad/hyperwhisper-fly"
           target="_blank"
           rel="noopener noreferrer"
         >
-          GitHub
-        </a>
-        .
+          Cloud backend
+        </a>{" "}
+        and the{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://github.com/ray-amjad/hyperwhisper-app"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          apps
+        </a>{" "}
+        on GitHub.
       </p>
 
       <h2>Payments and Licensing</h2>

@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "Kaj je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vgrajeno cloud prepisovanje, namenjeno manj tehničnim uporabnikom, ki želijo hitro začeti.\n\nDeluje po modelu pay as you go. Nakup licence vam prinese $5 dobroimetja za prepisovanje. Kasneje lahko dodate več dobroimetja.\n    \nPonujamo tri ravni natančnosti: Medium (najhitrejši, poganja Groq), High (priporočeno, poganja Deepgram) in Highest (najboljša kakovost, poganja xAI Grok STT). Naknadna obdelava je samodejna. Ne hranimo ničesar razen podatka, koliko dobroimetja ste porabili.\n\nPlačate točno toliko, kot plačamo mi tem ponudnikom. Ne zaračunavamo pribitka.\n\nZa brezskrbnost si lahko ogledate izvorno kodo HyperWhisper Clouda [tukaj](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud je vgrajeno cloud prepisovanje, namenjeno manj tehničnim uporabnikom, ki želijo hitro začeti.\n\nDeluje po modelu pay as you go. Nakup licence vam prinese $5 dobroimetja za prepisovanje. Kasneje lahko dodate več dobroimetja.\n    \nPonujamo tri ravni natančnosti: Medium (najhitrejši, poganja Groq), High (priporočeno, poganja Deepgram) in Highest (najboljša kakovost, poganja xAI Grok STT). Naknadna obdelava je samodejna. Ne hranimo ničesar razen podatka, koliko dobroimetja ste porabili.\n\nPlačate točno toliko, kot plačamo mi tem ponudnikom. Ne zaračunavamo pribitka.\n\nZa brezskrbnost si lahko ogledate izvorno kodo HyperWhisper Clouda [tukaj](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Ali bodo moji glasovni podatki uporabljeni za učenje modelov UI?",

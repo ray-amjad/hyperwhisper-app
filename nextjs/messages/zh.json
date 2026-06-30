@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "什么是 HyperWhisper Cloud？",
-        "answer": "HyperWhisper Cloud 是内置的云端转写服务，面向不太技术化但想快速上手的用户。\n\n它按量计费。购买许可后会赠送 $5 转写额度，之后可继续充值。\n    \n我们提供三种准确度等级：中（最快，由 Groq 提供）、高（推荐，由 Deepgram 提供）、最高（最佳质量，由 xAI Grok STT 提供）。后处理自动完成。我们只记录你消耗的额度，不保存其他内容。\n\n你支付的价格与我们向这些提供商支付的成本完全一致，不加价。\n\n为了安心，你可以在 [这里](https://github.com/theramjad/hyperwhisper-fly) 查看 HyperWhisper Cloud 的源代码。"
+        "answer": "HyperWhisper Cloud 是内置的云端转写服务，面向不太技术化但想快速上手的用户。\n\n它按量计费。购买许可后会赠送 $5 转写额度，之后可继续充值。\n    \n我们提供三种准确度等级：中（最快，由 Groq 提供）、高（推荐，由 Deepgram 提供）、最高（最佳质量，由 xAI Grok STT 提供）。后处理自动完成。我们只记录你消耗的额度，不保存其他内容。\n\n你支付的价格与我们向这些提供商支付的成本完全一致，不加价。\n\n为了安心，你可以在 [这里](https://github.com/ray-amjad/hyperwhisper-fly) 查看 HyperWhisper Cloud 的源代码。"
       },
       "dataTraining": {
         "question": "我的语音数据会被用于训练 AI 模型吗？",

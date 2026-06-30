@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvilitterointi vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe toimii käyttöperusteisesti. Lisenssin ostaminen antaa sinulle $5 litterointikrediittejä. Voit lisätä krediittejä myöhemmin.\n    \nTarjoamme kolme tarkkuustasoa: Medium (nopein, toimii Groqin avulla), High (suositus, toimii Deepgramin avulla) ja Highest (paras laatu, toimii xAI Grok STTin avulla). Jälkikäsittely on automaattinen. Emme tallenna mitään muuta kuin kuluttamiesi krediittien määrän.\n\nMaksat täsmälleen sen, mitä me maksamme näille palveluntarjoajille. Emme lisää hintaan katetta.\n\nMielenrauhan vuoksi voit tarkastella HyperWhisper Cloudin lähdekoodia [täällä](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvilitterointi vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe toimii käyttöperusteisesti. Lisenssin ostaminen antaa sinulle $5 litterointikrediittejä. Voit lisätä krediittejä myöhemmin.\n    \nTarjoamme kolme tarkkuustasoa: Medium (nopein, toimii Groqin avulla), High (suositus, toimii Deepgramin avulla) ja Highest (paras laatu, toimii xAI Grok STTin avulla). Jälkikäsittely on automaattinen. Emme tallenna mitään muuta kuin kuluttamiesi krediittien määrän.\n\nMaksat täsmälleen sen, mitä me maksamme näille palveluntarjoajille. Emme lisää hintaan katetta.\n\nMielenrauhan vuoksi voit tarkastella HyperWhisper Cloudin lähdekoodia [täällä](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Käytetäänkö äänidataani tekoälymallien kouluttamiseen?",

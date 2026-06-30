@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud là gì?",
-        "answer": "HyperWhisper Cloud là dịch vụ chuyển giọng nói trên cloud tích hợp sẵn, hướng đến người dùng ít kỹ thuật muốn bắt đầu nhanh.\n\nDịch vụ hoạt động theo mô hình pay as you go. Mua license sẽ có $5 tín dụng chuyển giọng nói. Bạn có thể nạp thêm tín dụng sau.\n    \nChúng tôi cung cấp ba mức độ chính xác: Medium (nhanh nhất, dùng Groq), High (khuyến nghị, dùng Deepgram) và Highest (chất lượng cao nhất, dùng xAI Grok STT). Hậu xử lý là tự động. Chúng tôi không lưu gì ngoài số tín dụng bạn đã dùng.\n\nBạn trả đúng bằng mức chúng tôi trả cho các nhà cung cấp này. Không có markup.\n\nĐể yên tâm, bạn có thể xem mã nguồn HyperWhisper Cloud [tại đây](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud là dịch vụ chuyển giọng nói trên cloud tích hợp sẵn, hướng đến người dùng ít kỹ thuật muốn bắt đầu nhanh.\n\nDịch vụ hoạt động theo mô hình pay as you go. Mua license sẽ có $5 tín dụng chuyển giọng nói. Bạn có thể nạp thêm tín dụng sau.\n    \nChúng tôi cung cấp ba mức độ chính xác: Medium (nhanh nhất, dùng Groq), High (khuyến nghị, dùng Deepgram) và Highest (chất lượng cao nhất, dùng xAI Grok STT). Hậu xử lý là tự động. Chúng tôi không lưu gì ngoài số tín dụng bạn đã dùng.\n\nBạn trả đúng bằng mức chúng tôi trả cho các nhà cung cấp này. Không có markup.\n\nĐể yên tâm, bạn có thể xem mã nguồn HyperWhisper Cloud [tại đây](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Dữ liệu giọng nói của tôi có được dùng để huấn luyện mô hình AI không?",
