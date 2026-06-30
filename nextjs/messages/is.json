@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "Hvað er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er innbyggð skýjaumritun ætluð notendum sem eru minna tæknivæddir og vilja byrja hratt.\n\nHún virkar með pay as you go. Með leyfiskaupum færðu $5 í umritunarinneign. Þú getur bætt við meiri inneign síðar.\n    \nVið bjóðum þrjú nákvæmnistig: Medium (hraðast, knúið af Groq), High (ráðlagt, knúið af Deepgram), og Highest (best gæði, knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk. Við geymum ekkert annað en hversu mikla inneign þú notaðir.\n\nÞú borgar nákvæmlega það sem við borgum þessum veitendum. Engin álagning.\n\nTil að vera alveg örugg(ur) geturðu skoðað frumkóða HyperWhisper Cloud [hér](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud er innbyggð skýjaumritun ætluð notendum sem eru minna tæknivæddir og vilja byrja hratt.\n\nHún virkar með pay as you go. Með leyfiskaupum færðu $5 í umritunarinneign. Þú getur bætt við meiri inneign síðar.\n    \nVið bjóðum þrjú nákvæmnistig: Medium (hraðast, knúið af Groq), High (ráðlagt, knúið af Deepgram), og Highest (best gæði, knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk. Við geymum ekkert annað en hversu mikla inneign þú notaðir.\n\nÞú borgar nákvæmlega það sem við borgum þessum veitendum. Engin álagning.\n\nTil að vera alveg örugg(ur) geturðu skoðað frumkóða HyperWhisper Cloud [hér](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Verða raddgögnin mín notuð til að þjálfa gervigreindarlíkön?",

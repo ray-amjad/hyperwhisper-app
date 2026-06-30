@@ -176,7 +176,7 @@
       },
       "cloud": {
         "question": "Kas yra HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud yra įdiegta cloud transkripcija, skirta mažiau techniniams vartotojams, kurie nori greitai pradėti.\n\nVeikia pagal pay as you go modelį. Įsigiję licenciją gaunate $5 transkripcijos kreditų. Vėliau galite pridėti daugiau kreditų.\n    \nSiūlome tris tikslumo lygius: Medium (greičiausias, veikia su Groq), High (rekomenduojamas, veikia su Deepgram) ir Highest (geriausia kokybė, veikia su xAI Grok STT). Papildomas apdorojimas vykdomas automatiškai. Nesaugome nieko, išskyrus informaciją, kiek kreditų sunaudojote.\n\nMokate tiksliai tiek, kiek mokame mes šiems tiekėjams. Jokio antkainio.\n\nKad būtumėte ramūs, HyperWhisper Cloud išeities kodą galite peržiūrėti [čia](https://github.com/theramjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud yra įdiegta cloud transkripcija, skirta mažiau techniniams vartotojams, kurie nori greitai pradėti.\n\nVeikia pagal pay as you go modelį. Įsigiję licenciją gaunate $5 transkripcijos kreditų. Vėliau galite pridėti daugiau kreditų.\n    \nSiūlome tris tikslumo lygius: Medium (greičiausias, veikia su Groq), High (rekomenduojamas, veikia su Deepgram) ir Highest (geriausia kokybė, veikia su xAI Grok STT). Papildomas apdorojimas vykdomas automatiškai. Nesaugome nieko, išskyrus informaciją, kiek kreditų sunaudojote.\n\nMokate tiksliai tiek, kiek mokame mes šiems tiekėjams. Jokio antkainio.\n\nKad būtumėte ramūs, HyperWhisper Cloud išeities kodą galite peržiūrėti [čia](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Ar mano balso duomenys bus naudojami DI modeliams mokyti?",
