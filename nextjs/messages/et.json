@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Vaheta keelt"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisperi logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Mis on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisseehitatud pilvetranskriptsioon vähem tehnilistele kasutajatele, kes soovivad kiiresti alustada.\n\nSee töötab pay as you go mudeliga. Litsentsi ostmisel saad $5 transkriptsioonikrediiti. Hiljem saad krediiti juurde lisada.\n    \nPakume kolme täpsustaset: Medium (kiireim, Groq), High (soovitatud, Deepgram) ja Highest (parim kvaliteet, xAI Grok STT). Järeltöötlus on automaatne. Me ei talleta midagi peale selle, kui palju krediiti sa kasutasid.\n\nMaksad täpselt sama palju, kui meie nendele pakkujatele maksame. Me ei lisa juurdehindlust.\n\nKindluse mõttes saad HyperWhisper Cloudi lähtekoodi vaadata [siin](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud on sisseehitatud pilvetranskriptsioon vähem tehnilistele kasutajatele, kes soovivad kiiresti alustada.\n\nSee töötab pay as you go mudeliga. Kontovõtme ostmisel saad $5 transkriptsioonikrediiti. Hiljem saad krediiti juurde lisada.\n    \nPakume kolme täpsustaset: Medium (kiireim, Groq), High (soovitatud, Deepgram) ja Highest (parim kvaliteet, xAI Grok STT). Järeltöötlus on automaatne. Me ei talleta midagi peale selle, kui palju krediiti sa kasutasid.\n\nMaksad täpselt sama palju, kui meie nendele pakkujatele maksame. Me ei lisa juurdehindlust.\n\nKindluse mõttes saad HyperWhisper Cloudi lähtekoodi vaadata [siin](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Kas minu häälandmeid kasutatakse tehisintellekti mudelite treenimiseks?",
@@ -187,8 +188,8 @@
         "answer": "Usume lihtsasse ja ausasse hinnastamisse. Maksa üks kord $39 ja kasuta HyperWhisperit igavesti. Ei mingeid kuutasusid, ei mingeid üllatusi. Tasuta versioon võimaldab proovida põhifunktsioone 3 minuti transkriptsiooniga päevas."
       },
       "deviceLimit": {
-        "question": "Mitmes seadmes saan oma litsentsi kasutada?",
-        "answer": "Võid oma litsentsi kasutada nii paljudes seadmetes, kui soovid, vastavalt meie Õiglase Kasutuse poliitikale, mis on kirjas [Teenusetingimustes](/legal/terms-of-service). See poliitika on loodud olema paindlik legaalseks isiklikuks ja ärikasutuseks, samal ajal vältides kuritarvitust."
+        "question": "Mitmes seadmes saan oma kontovõtit kasutada?",
+        "answer": "Võid oma kontovõtit kasutada nii paljudes seadmetes, kui soovid, vastavalt meie Õiglase Kasutuse poliitikale, mis on kirjas [Teenusetingimustes](/legal/terms-of-service). See poliitika on loodud olema paindlik legaalseks isiklikuks ja ärikasutuseks, samal ajal vältides kuritarvitust."
       },
       "requirements": {
         "question": "Millised on süsteeminõuded?",
@@ -208,7 +209,7 @@
     "title": "Tugikeskus",
     "subtitle": "Oleme siin, et aidata sul HyperWhisperist maksimum võtta",
     "getInTouch": "Võta ühendust",
-    "description": "Tehnilise toe, litsentsiküsimuste või ükskõik milliste HyperWhisperiga seotud küsimuste korral on meie tiim valmis aitama.",
+    "description": "Tehnilise toe, kontovõtme küsimuste või ükskõik milliste HyperWhisperiga seotud küsimuste korral on meie tiim valmis aitama.",
     "emailUsAt": "Kirjuta meile:",
     "openInClient": "Ava oma e-posti kliendis:",
     "defaultClient": "Vaikimisi e-posti klient",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Ost õnnestus!",
-    "subtitle": "Tere tulemast HyperWhisper Pro-sse! Sinu eluaegne litsents on valmis.",
+    "subtitle": "Tere tulemast HyperWhisper Pro-sse! Sinu kontovõti on valmis.",
     "checkEmail": {
       "title": "Kontrolli oma e-posti",
-      "description": "Saatsime sinu litsentsivõtme ja allalaadimisjuhised sinu e-posti aadressile. Need peaksid kohale jõudma mõne minuti jooksul."
+      "description": "Saatsime sinu kontovõtme ja allalaadimisjuhised sinu e-posti aadressile. Need peaksid kohale jõudma mõne minuti jooksul."
     },
     "whatsNext": {
       "title": "Mis edasi?",
@@ -262,12 +263,12 @@
         "description": "Otsi HyperWhisperi e-kirja"
       },
       "step2": {
-        "title": "Kopeeri oma litsentsivõti",
+        "title": "Kopeeri oma kontovõti",
         "description": "Seda on vaja rakenduse aktiveerimiseks"
       },
       "step3": {
         "title": "Laadi HyperWhisper alla",
-        "description": "Paigalda rakendus ja sisesta litsentsivõti"
+        "description": "Paigalda rakendus ja sisesta kontovõti"
       }
     },
     "downloadButton": "Laadi HyperWhisper alla",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Kõik õigused kaitstud.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Kaks viisi pilve minekuks",
+    "subtitle": "Kasuta oma API-võtmeid ja seadista iga teenusepakkuja ise, või jäta seadistamine täiesti vahele HyperWhisper Cloud Creditsiga.",
+    "byo": {
+      "title": "Kasuta oma võtmeid",
+      "subtitle": "Tasuta, kuid töö teed sina.",
+      "features": {
+        "signup": "Registreeru iga teenusepakkuja juures eraldi",
+        "rotate": "Kopeeri, kleebi ja vaheta API-võtmeid ise",
+        "bill": "Halda iga teenusepakkuja arvet eraldi",
+        "control": "Täielik kontroll iga konto üle",
+        "free": "Rakendusega alati tasuta"
+      },
+      "cta": "Laadi tasuta alla"
+    },
+    "credits": {
+      "badge": "Lihtsaim",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Maksa kasutuse järgi. Seadistamist pole vaja.",
+      "features": {
+        "noKeys": "Mitte kunagi API-võtmeid",
+        "oneBalance": "Kõik teenusepakkujad ühel saldol",
+        "models": "30+ mudelit, üks lihtne arve",
+        "payPerUse": "Maksa ainult selle eest, mida transkribeerid",
+        "noTraining": "Automaatselt mudelite treenimisest välja jäetud"
+      },
+      "cta": "Alusta 5 $ krediidiga"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioriteetne tugi, oma majutus ja kohandatud integratsioonid",
+      "cta": "Võta müügiga ühendust"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Üks saldo, kõik teenusepakkujad. Pole API-võtmeid hallata. Maksa ainult selle eest, mida transkribeerid.",
+    "emailLabel": "Sinu e-post",
+    "emailPlaceholder": "sina@näide.com",
+    "emailHelp": "Saadame sulle pärast makset siia kontovõtme ja krediidisaldo.",
+    "amountLabel": "Vali summa",
+    "creditsCount": "{count, number} krediiti",
+    "custom": "Kohandatud",
+    "customSub": "sinu summa",
+    "customPlaceholder": "Summa USD-s ({min} kuni {max})",
+    "summaryCredits": "Krediidid",
+    "summaryFee": "Töötlustasu (6%, ei tagastata)",
+    "summaryTotal": "Täna kokku",
+    "errorEmail": "Sisesta kehtiv e-posti aadress.",
+    "errorAmount": "Vali täisdollarites summa vahemikus ${min} kuni ${max}.",
+    "errorCheckout": "Makset ei õnnestunud alustada. Proovi uuesti.",
+    "errorGeneric": "Midagi läks valesti. Proovi uuesti.",
+    "ctaIdle": "Jätka makseni",
+    "ctaLoading": "Makse alustamine",
+    "secure": "Turvaline makse Stripe'i kaudu. Krediidid kehtivad aasta alates ostust.",
+    "stripProviders": "9+ teenusepakkujat, üks saldo",
+    "stripNoSub": "Tellimust pole",
+    "stripNoTraining": "Treenimisest välja jäetud",
+    "haveKey": "Kas sul on juba võti?",
+    "signIn": "Logi sisse, et täiendada"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minutit jäänud",
+    "creditsCount": "{count, number} krediiti",
+    "minutes": "~{minutes} min",
+    "custom": "Kohandatud",
+    "customSub": "sinu summa",
+    "topUp": "Täienda"
   }
 }

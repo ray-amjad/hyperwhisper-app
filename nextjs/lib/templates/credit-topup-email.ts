@@ -37,12 +37,12 @@ export const creditTopUpEmailHtml = (data: CreditTopUpEmailData) => {
     <div style="background-color: #f9fafb; border-radius: 8px; padding: 32px; margin-bottom: 24px;">
         <h1 style="color: #2563eb; margin-top: 0; margin-bottom: 16px; font-size: 24px;">Credits added</h1>
         <p style="margin-bottom: 8px; color: #4b5563;">Hi ${customerName},</p>
-        <p style="margin-bottom: 16px; color: #4b5563;">Thanks for your top-up! We've added credits to your license key.</p>
+        <p style="margin-bottom: 16px; color: #4b5563;">Thanks for your top-up! We've added credits to your Account Key.</p>
 
         <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; margin: 24px 0; border-left: 4px solid #2563eb;">
             <p style="margin: 0; color: #1e40af;">Credits added: <strong>${added}</strong></p>
             <p style="margin: 8px 0 0 0; color: #1e40af;">New balance: <strong>${balance} credits</strong></p>
-            <p style="margin: 8px 0 0 0; color: #1e40af; font-size: 14px;">License key: <span style="font-family: 'Courier New', monospace;">${keyHint}</span></p>
+            <p style="margin: 8px 0 0 0; color: #1e40af; font-size: 14px;">Account Key: <span style="font-family: 'Courier New', monospace;">${keyHint}</span></p>
         </div>
 
         <div style="background-color: #fffbeb; border-radius: 8px; padding: 16px; margin-top: 24px; border-left: 4px solid #f59e0b;">
@@ -77,11 +77,11 @@ Credits added
 
 Hi ${customerName},
 
-Thanks for your top-up! We've added credits to your license key.
+Thanks for your top-up! We've added credits to your Account Key.
 
 Credits added: ${added}
 New balance: ${balance} credits
-License key: ${keyHint}
+Account Key: ${keyHint}
 
 These credits are valid for 12 months from this purchase. See your full balance and history on your dashboard at https://hyperwhisper.com/user/dashboard.
 

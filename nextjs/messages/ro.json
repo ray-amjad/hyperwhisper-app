@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Schimbă limba"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Ce este HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud este o transcriere cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay as you go. Cumpărarea unei licențe îți oferă $5 în credite de transcriere. Poți adăuga mai multe credite ulterior.\n    \nOferim trei niveluri de acuratețe: Medium (cel mai rapid, cu Groq), High (recomandat, cu Deepgram) și Highest (cea mai bună calitate, cu xAI Grok STT). Post-procesarea este automată. Nu stocăm nimic, în afară de câte credite ai consumat.\n\nPlătești exact cât plătim și noi acestor furnizori. Nu adăugăm markup.\n\nPentru liniștea ta, poți vedea codul sursă HyperWhisper Cloud [aici](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud este o transcriere cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay as you go. Cumpărarea unei chei de cont îți oferă $5 în credite de transcriere. Poți adăuga mai multe credite ulterior.\n    \nOferim trei niveluri de acuratețe: Medium (cel mai rapid, cu Groq), High (recomandat, cu Deepgram) și Highest (cea mai bună calitate, cu xAI Grok STT). Post-procesarea este automată. Nu stocăm nimic, în afară de câte credite ai consumat.\n\nPlătești exact cât plătim și noi acestor furnizori. Nu adăugăm markup.\n\nPentru liniștea ta, poți vedea codul sursă HyperWhisper Cloud [aici](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Datele mele vocale vor fi folosite pentru antrenarea modelelor AI?",
@@ -187,8 +188,8 @@
         "answer": "Credem în prețuri simple și corecte. Plătești o singură dată $39 și folosești HyperWhisper pentru totdeauna. Fără taxe lunare, fără surprize. Versiunea gratuită îți permite să testezi funcțiile cheie cu 3 minute de transcriere zilnică."
       },
       "deviceLimit": {
-        "question": "Pe câte dispozitive îmi pot folosi licența?",
-        "answer": "Îți poți folosi licența pe oricâte dispozitive dorești, în conformitate cu Politica noastră de Utilizare Corectă descrisă în [Termenii serviciului](/legal/terms-of-service). Această politică este concepută să fie flexibilă pentru utilizare personală și de business legitimă, prevenind în același timp abuzurile."
+        "question": "Pe câte dispozitive îmi pot folosi cheia de cont?",
+        "answer": "Îți poți folosi cheia de cont pe oricâte dispozitive dorești, în conformitate cu Politica noastră de Utilizare Corectă descrisă în [Termenii serviciului](/legal/terms-of-service). Această politică este concepută să fie flexibilă pentru utilizare personală și de business legitimă, prevenind în același timp abuzurile."
       },
       "requirements": {
         "question": "Care sunt cerințele de sistem?",
@@ -208,7 +209,7 @@
     "title": "Centru de suport",
     "subtitle": "Suntem aici să te ajutăm să obții maximum din HyperWhisper",
     "getInTouch": "Ia legătura cu noi",
-    "description": "Pentru suport tehnic, probleme de licență sau orice întrebare despre HyperWhisper, echipa noastră este aici să ajute.",
+    "description": "Pentru suport tehnic, probleme cu cheia de cont sau orice întrebare despre HyperWhisper, echipa noastră este aici să ajute.",
     "emailUsAt": "Scrie-ne la:",
     "openInClient": "Deschide în clientul tău de email:",
     "defaultClient": "Client Email implicit",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Achiziție reușită!",
-    "subtitle": "Bine ai venit la HyperWhisper Pro! Licența ta pe viață este gata.",
+    "subtitle": "Bine ai venit la HyperWhisper Pro! Cheia ta de cont este gata.",
     "checkEmail": {
       "title": "Verifică-ți emailul",
-      "description": "Ți-am trimis cheia de licență și instrucțiunile de descărcare la adresa ta de email. Ar trebui să ajungă în următoarele minute."
+      "description": "Ți-am trimis cheia de cont și instrucțiunile de descărcare la adresa ta de email. Ar trebui să ajungă în următoarele minute."
     },
     "whatsNext": {
       "title": "Ce urmează?",
@@ -262,12 +263,12 @@
         "description": "Caută un email de la HyperWhisper"
       },
       "step2": {
-        "title": "Copiază cheia de licență",
+        "title": "Copiază cheia de cont",
         "description": "Vei avea nevoie de ea pentru a activa aplicația"
       },
       "step3": {
         "title": "Descarcă HyperWhisper",
-        "description": "Instalează aplicația și introdu cheia de licență"
+        "description": "Instalează aplicația și introdu cheia de cont"
       }
     },
     "downloadButton": "Descarcă HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Toate drepturile rezervate.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Două moduri de a folosi cloud-ul",
+    "subtitle": "Folosește-ți propriile chei API și configurează fiecare furnizor manual, sau renunță complet la configurare cu HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Folosește propriile chei",
+      "subtitle": "Gratuit, dar munca îți revine ție.",
+      "features": {
+        "signup": "Înregistrează-te separat la fiecare furnizor",
+        "rotate": "Copiază, lipește și rotește singur cheile API",
+        "bill": "Urmărește o factură separată pentru fiecare furnizor",
+        "control": "Control total asupra fiecărui cont",
+        "free": "Întotdeauna gratuit cu aplicația"
+      },
+      "cta": "Descarcă gratuit"
+    },
+    "credits": {
+      "badge": "Cel mai simplu",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Plătești pe măsură ce folosești. Zero configurare.",
+      "features": {
+        "noKeys": "Niciodată chei API",
+        "oneBalance": "Toți furnizorii pe un singur sold",
+        "models": "30+ modele, o singură factură simplă",
+        "payPerUse": "Plătești doar pentru ce transcrii",
+        "noTraining": "Excludere automată din antrenarea modelelor"
+      },
+      "cta": "Începe cu credite de $5"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, suport prioritar, găzduire internă și integrări personalizate",
+      "cta": "Contactează echipa de vânzări"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Un singur sold, toți furnizorii. Fără chei API de gestionat. Plătești doar pentru ce transcrii.",
+    "emailLabel": "E-mailul tău",
+    "emailPlaceholder": "tu@exemplu.com",
+    "emailHelp": "Îți trimitem cheia de cont și soldul de credite pe acest e-mail după plată.",
+    "amountLabel": "Alege o sumă",
+    "creditsCount": "{count, number} credite",
+    "custom": "Personalizat",
+    "customSub": "suma ta",
+    "customPlaceholder": "Sumă în USD ({min} până la {max})",
+    "summaryCredits": "Credite",
+    "summaryFee": "Taxă de procesare (6%, nerambursabilă)",
+    "summaryTotal": "Total astăzi",
+    "errorEmail": "Introdu o adresă de e-mail validă.",
+    "errorAmount": "Alege o sumă în dolari întregi între ${min} și ${max}.",
+    "errorCheckout": "Nu am putut începe finalizarea comenzii. Încearcă din nou.",
+    "errorGeneric": "Ceva nu a mers bine. Încearcă din nou.",
+    "ctaIdle": "Continuă spre finalizare",
+    "ctaLoading": "Se inițiază finalizarea",
+    "secure": "Finalizare securizată prin Stripe. Creditele sunt valabile un an de la achiziție.",
+    "stripProviders": "9+ furnizori, un singur sold",
+    "stripNoSub": "Fără abonament",
+    "stripNoTraining": "Exclus din antrenare",
+    "haveKey": "Ai deja o cheie?",
+    "signIn": "Conectează-te pentru a reîncărca"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minute rămase",
+    "creditsCount": "{count, number} credite",
+    "minutes": "~{minutes} min",
+    "custom": "Personalizat",
+    "customSub": "suma ta",
+    "topUp": "Reîncarcă"
   }
 }

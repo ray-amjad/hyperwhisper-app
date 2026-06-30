@@ -33,7 +33,7 @@ export default async function CreditsPage({
 
   return (
     <main className="min-h-screen bg-black px-6 py-24 md:py-28">
-      <CreditsPurchase />
+      <CreditsPurchase locale={locale} />
     </main>
   );
 }

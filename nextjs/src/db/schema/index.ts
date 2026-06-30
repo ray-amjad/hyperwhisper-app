@@ -1,5 +1,5 @@
 export * from "./auth";
-export * from "./license-keys";
+export * from "./account-keys";
 export * from "./credit-balances";
 export * from "./credit-grants";
 export * from "./device-validations";

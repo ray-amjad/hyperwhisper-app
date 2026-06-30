@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Tukar bahasa"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam untuk pengguna kurang teknikal yang mahu mula dengan cepat.\n\nIa berasaskan pay as you go. Membeli lesen memberi anda $5 kredit transkripsi. Anda boleh tambah kredit kemudian.\n    \nKami menawarkan tiga tahap ketepatan: Medium (paling pantas, dikuasakan Groq), High (disyorkan, dikuasakan Deepgram), dan Highest (kualiti terbaik, dikuasakan xAI Grok STT). Pascapemprosesan adalah automatik. Kami tidak menyimpan apa-apa selain jumlah kredit yang digunakan.\n\nAnda bayar tepat seperti yang kami bayar kepada penyedia ini. Tiada markup.\n\nUntuk ketenangan fikiran, anda boleh lihat kod sumber HyperWhisper Cloud [di sini](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud ialah transkripsi awan terbina dalam untuk pengguna kurang teknikal yang mahu mula dengan cepat.\n\nIa berasaskan pay as you go. Membeli kunci akaun memberi anda $5 kredit transkripsi. Anda boleh tambah kredit kemudian.\n    \nKami menawarkan tiga tahap ketepatan: Medium (paling pantas, dikuasakan Groq), High (disyorkan, dikuasakan Deepgram), dan Highest (kualiti terbaik, dikuasakan xAI Grok STT). Pascapemprosesan adalah automatik. Kami tidak menyimpan apa-apa selain jumlah kredit yang digunakan.\n\nAnda bayar tepat seperti yang kami bayar kepada penyedia ini. Tiada markup.\n\nUntuk ketenangan fikiran, anda boleh lihat kod sumber HyperWhisper Cloud [di sini](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Adakah data suara saya akan digunakan untuk melatih model AI?",
@@ -187,8 +188,8 @@
         "answer": "Kami percaya pada harga yang mudah dan adil. Bayar sekali $39 dan guna HyperWhisper selamanya. Tiada yuran bulanan, tiada kejutan. Versi percuma membolehkan anda mencuba ciri utama dengan 3 minit transkripsi harian."
       },
       "deviceLimit": {
-        "question": "Berapa banyak peranti boleh guna lesen saya?",
-        "answer": "Anda boleh menggunakan lesen pada seberapa banyak peranti yang anda mahu, tertakluk kepada Polisi Penggunaan Adil kami seperti dinyatakan dalam [Terma Perkhidmatan](/legal/terms-of-service). Polisi ini direka agar fleksibel untuk penggunaan peribadi dan perniagaan yang sah sambil mencegah penyalahgunaan."
+        "question": "Berapa banyak peranti boleh guna kunci akaun saya?",
+        "answer": "Anda boleh menggunakan kunci akaun pada seberapa banyak peranti yang anda mahu, tertakluk kepada Polisi Penggunaan Adil kami seperti dinyatakan dalam [Terma Perkhidmatan](/legal/terms-of-service). Polisi ini direka agar fleksibel untuk penggunaan peribadi dan perniagaan yang sah sambil mencegah penyalahgunaan."
       },
       "requirements": {
         "question": "Apakah keperluan sistem?",
@@ -208,7 +209,7 @@
     "title": "Pusat Sokongan",
     "subtitle": "Kami di sini untuk membantu anda memaksimumkan HyperWhisper",
     "getInTouch": "Hubungi Kami",
-    "description": "Untuk sokongan teknikal, isu lesen, atau sebarang pertanyaan tentang HyperWhisper, pasukan kami sedia membantu.",
+    "description": "Untuk sokongan teknikal, isu kunci akaun, atau sebarang pertanyaan tentang HyperWhisper, pasukan kami sedia membantu.",
     "emailUsAt": "Emel kami di:",
     "openInClient": "Buka dalam klien emel anda:",
     "defaultClient": "Klien Emel Lalai",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Pembelian Berjaya!",
-    "subtitle": "Selamat datang ke HyperWhisper Pro! Lesen seumur hidup anda sudah sedia.",
+    "subtitle": "Selamat datang ke HyperWhisper Pro! Kunci akaun anda sudah sedia.",
     "checkEmail": {
       "title": "Semak Emel Anda",
-      "description": "Kami telah menghantar kunci lesen dan arahan muat turun ke alamat emel anda. Ia sepatutnya tiba dalam beberapa minit."
+      "description": "Kami telah menghantar kunci akaun dan arahan muat turun ke alamat emel anda. Ia sepatutnya tiba dalam beberapa minit."
     },
     "whatsNext": {
       "title": "Seterusnya?",
@@ -262,12 +263,12 @@
         "description": "Cari emel daripada HyperWhisper"
       },
       "step2": {
-        "title": "Salin kunci lesen anda",
+        "title": "Salin kunci akaun anda",
         "description": "Anda memerlukannya untuk mengaktifkan aplikasi"
       },
       "step3": {
         "title": "Muat turun HyperWhisper",
-        "description": "Pasang aplikasi dan masukkan kunci lesen anda"
+        "description": "Pasang aplikasi dan masukkan kunci akaun anda"
       }
     },
     "downloadButton": "Muat Turun HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Hak cipta terpelihara.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Dua cara untuk ke awan",
+    "subtitle": "Bawa kunci API anda sendiri dan sambungkan setiap penyedia sendiri, atau langkau penyediaan sepenuhnya dengan HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Bawa kunci anda sendiri",
+      "subtitle": "Percuma, tetapi anda lakukan kerjanya.",
+      "features": {
+        "signup": "Daftar untuk setiap penyedia secara berasingan",
+        "rotate": "Salin, tampal dan tukar kunci API sendiri",
+        "bill": "Jejak bil berasingan bagi setiap penyedia",
+        "control": "Kawalan penuh ke atas setiap akaun",
+        "free": "Sentiasa percuma dengan aplikasi"
+      },
+      "cta": "Muat turun percuma"
+    },
+    "credits": {
+      "badge": "Paling mudah",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Bayar mengikut penggunaan. Tiada penyediaan.",
+      "features": {
+        "noKeys": "Tiada kunci API, selamanya",
+        "oneBalance": "Setiap penyedia dalam satu baki",
+        "models": "30+ model, satu invois mudah",
+        "payPerUse": "Bayar hanya untuk apa yang anda transkripsi",
+        "noTraining": "Dikecualikan daripada latihan model secara automatik"
+      },
+      "cta": "Mula dengan $5 kredit"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, sokongan keutamaan, pengehosan dalaman dan integrasi tersuai",
+      "cta": "Hubungi Jualan"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Satu baki, setiap penyedia. Tiada kunci API untuk diurus. Bayar hanya untuk apa yang anda transkripsi.",
+    "emailLabel": "E-mel anda",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Kami akan e-mel kunci akaun dan baki kredit anda di sini selepas pembayaran.",
+    "amountLabel": "Pilih jumlah",
+    "creditsCount": "{count, number} kredit",
+    "custom": "Tersuai",
+    "customSub": "jumlah anda",
+    "customPlaceholder": "Jumlah dalam USD ({min} hingga {max})",
+    "summaryCredits": "Kredit",
+    "summaryFee": "Yuran pemprosesan (6%, tidak boleh dikembalikan)",
+    "summaryTotal": "Jumlah hari ini",
+    "errorEmail": "Masukkan alamat e-mel yang sah.",
+    "errorAmount": "Pilih jumlah dolar penuh antara ${min} dan ${max}.",
+    "errorCheckout": "Tidak dapat memulakan pembayaran. Sila cuba lagi.",
+    "errorGeneric": "Sesuatu tidak kena. Sila cuba lagi.",
+    "ctaIdle": "Teruskan ke pembayaran",
+    "ctaLoading": "Memulakan pembayaran",
+    "secure": "Pembayaran selamat melalui Stripe. Kredit sah selama setahun dari pembelian.",
+    "stripProviders": "9+ penyedia, satu baki",
+    "stripNoSub": "Tiada langganan",
+    "stripNoTraining": "Dikecualikan daripada latihan",
+    "haveKey": "Sudah ada kunci?",
+    "signIn": "Log masuk untuk tambah nilai"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minit berbaki",
+    "creditsCount": "{count, number} kredit",
+    "minutes": "~{minutes} min",
+    "custom": "Tersuai",
+    "customSub": "jumlah anda",
+    "topUp": "Tambah nilai"
   }
 }

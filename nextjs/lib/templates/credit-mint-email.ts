@@ -34,10 +34,10 @@ export const creditMintEmailHtml = (data: CreditMintEmailData) => {
     <div style="background-color: #f9fafb; border-radius: 8px; padding: 32px; margin-bottom: 24px;">
         <h1 style="color: #2563eb; margin-top: 0; margin-bottom: 16px; font-size: 24px;">Your ${productName} key is ready</h1>
         <p style="margin-bottom: 8px; color: #4b5563;">Hi ${customerName},</p>
-        <p style="margin-bottom: 16px; color: #4b5563;">Thanks for your purchase! Your license key is your wallet — your credits are loaded onto it and ready to use.</p>
+        <p style="margin-bottom: 16px; color: #4b5563;">Thanks for your purchase! Your Account Key unlocks your credit wallet — your credits are loaded and ready to use.</p>
 
         <div style="background-color: #eff6ff; border-radius: 8px; padding: 20px; margin: 24px 0; border-left: 4px solid #2563eb;">
-            <p style="margin: 0; color: #1e40af; font-weight: 600;">Your License Key</p>
+            <p style="margin: 0; color: #1e40af; font-weight: 600;">Your Account Key</p>
             <div style="margin-top: 12px; background-color: #dbeafe; padding: 12px; border-radius: 4px;">
                 <p style="margin: 0; font-family: 'Courier New', monospace; font-size: 20px; font-weight: 700; color: #1e40af; letter-spacing: 2px; word-break: break-all; text-align: center;">${licenseKey}</p>
             </div>
@@ -49,7 +49,7 @@ export const creditMintEmailHtml = (data: CreditMintEmailData) => {
             <ol style="margin: 0; padding-left: 20px; color: #4b5563;">
                 <li style="margin: 8px 0;">Open ${productName}</li>
                 <li style="margin: 8px 0;">Go to Settings → License</li>
-                <li style="margin: 8px 0;">Paste your license key: <strong>${licenseKey}</strong></li>
+                <li style="margin: 8px 0;">Paste your Account Key: <strong>${licenseKey}</strong></li>
                 <li style="margin: 8px 0;">Start using HyperWhisper Cloud</li>
             </ol>
         </div>
@@ -84,15 +84,15 @@ Your ${productName} key is ready
 
 Hi ${customerName},
 
-Thanks for your purchase! Your license key is your wallet — your credits are loaded onto it and ready to use.
+Thanks for your purchase! Your Account Key unlocks your credit wallet — your credits are loaded and ready to use.
 
-LICENSE KEY: ${licenseKey}
+ACCOUNT KEY: ${licenseKey}
 Starting balance: ${credits} credits
 
 Quick Start:
 1. Open ${productName}
 2. Go to Settings → License
-3. Paste your license key: ${licenseKey}
+3. Paste your Account Key: ${licenseKey}
 4. Start using HyperWhisper Cloud
 
 Credits are valid for 12 months from purchase. You can top up anytime from your dashboard at https://hyperwhisper.com/user/dashboard.

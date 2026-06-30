@@ -78,6 +78,20 @@
       "when": 1782799378672,
       "tag": "0010_amused_black_bird",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782799378673,
+      "tag": "0011_account_credit_wallet",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782799378674,
+      "tag": "0012_rename_license_keys_to_account_keys",
+      "breakpoints": true
     }
   ]
 }

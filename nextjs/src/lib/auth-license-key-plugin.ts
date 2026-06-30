@@ -3,7 +3,7 @@ import { setSessionCookie } from "better-auth/cookies";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { findLicenseByKey } from "./db-layer";
+import { findAccountByKey } from "./db-layer";
 import { sanitizeLicenseKeyRedirect } from "./license-key-redirect";
 
 import { db } from "@/src/db";
@@ -25,7 +25,7 @@ export const licenseKeyPlugin = () => ({
       async (ctx) => {
         const { licenseKey, callbackURL } = ctx.body;
 
-        const license = await findLicenseByKey(licenseKey);
+        const license = await findAccountByKey(licenseKey);
 
         if (!license || license.status !== "granted") {
           return ctx.json(

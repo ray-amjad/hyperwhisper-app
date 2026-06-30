@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     // License is valid - return extended info if requested
     if (include_credits) {
-      const credits = await getCreditBalance(license.id);
+      const credits = await getCreditBalance(license.userId);
 
       return NextResponse.json({
         valid: true,

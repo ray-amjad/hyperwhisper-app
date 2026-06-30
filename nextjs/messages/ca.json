@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Canvia d'idioma"
-    }
+    },
+    "cloud": "Núvol"
   },
   "hero": {
     "logoAlt": "Logotip de HyperWhisper",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Què és HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, orientada a usuaris menys tècnics que volen començar ràpid.\n\nFunciona amb model pay as you go. En comprar una llicència, reps $5 en crèdits de transcripció. Més endavant pots afegir-ne més.\n    \nOferim tres nivells de precisió: Medium (més ràpid, amb Groq), High (recomanat, amb Deepgram) i Highest (millor qualitat, amb xAI Grok STT). El postprocessament és automàtic. No guardem res, excepte quants crèdits has consumit.\n\nPagues exactament el que nosaltres paguem a aquests proveïdors. No hi afegim marge.\n\nPer a més tranquil·litat, pots veure el codi font d'HyperWhisper Cloud [aquí](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud és una transcripció al núvol integrada, orientada a usuaris menys tècnics que volen començar ràpid.\n\nFunciona amb model pay as you go. En comprar una clau del compte, reps $5 en crèdits de transcripció. Més endavant pots afegir-ne més.\n    \nOferim tres nivells de precisió: Medium (més ràpid, amb Groq), High (recomanat, amb Deepgram) i Highest (millor qualitat, amb xAI Grok STT). El postprocessament és automàtic. No guardem res, excepte quants crèdits has consumit.\n\nPagues exactament el que nosaltres paguem a aquests proveïdors. No hi afegim marge.\n\nPer a més tranquil·litat, pots veure el codi font d'HyperWhisper Cloud [aquí](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Les meves dades de veu s'utilitzaran per entrenar models d'IA?",
@@ -187,8 +188,8 @@
         "answer": "Creiem en una política de preus simple i justa. Paga una vegada $39 i fes servir HyperWhisper per sempre. Sense quotes mensuals, sense sorpreses. La versió gratuïta et permet provar les funcions clau amb 3 minuts de transcripció diària."
       },
       "deviceLimit": {
-        "question": "A quants dispositius puc usar la meva llicència?",
-        "answer": "Pots usar la teva llicència en tants dispositius com vulguis, d'acord amb la nostra Política d'Ús Just tal com s'indica als [Termes del servei](/legal/terms-of-service). Aquesta política està dissenyada per ser flexible per a usos personals i empresarials legítims, alhora que evita abusos."
+        "question": "A quants dispositius puc usar la meva clau del compte?",
+        "answer": "Pots usar la teva clau del compte en tants dispositius com vulguis, d'acord amb la nostra Política d'Ús Just tal com s'indica als [Termes del servei](/legal/terms-of-service). Aquesta política està dissenyada per ser flexible per a usos personals i empresarials legítims, alhora que evita abusos."
       },
       "requirements": {
         "question": "Quins són els requisits del sistema?",
@@ -208,7 +209,7 @@
     "title": "Centre de suport",
     "subtitle": "Som aquí per ajudar-te a treure el màxim profit de HyperWhisper",
     "getInTouch": "Contacta amb nosaltres",
-    "description": "Per a suport tècnic, incidències de llicència o qualsevol pregunta sobre HyperWhisper, el nostre equip és aquí per ajudar.",
+    "description": "Per a suport tècnic, incidències de la clau del compte o qualsevol pregunta sobre HyperWhisper, el nostre equip és aquí per ajudar.",
     "emailUsAt": "Escriu-nos a:",
     "openInClient": "Obre-ho al teu client de correu:",
     "defaultClient": "Client de correu predeterminat",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Compra completada!",
-    "subtitle": "Benvingut a HyperWhisper Pro! La teva llicència de per vida ja està llesta.",
+    "subtitle": "Benvingut a HyperWhisper Pro! La teva clau del compte ja està llesta.",
     "checkEmail": {
       "title": "Comprova el teu correu",
-      "description": "Hem enviat la teva clau de llicència i les instruccions de descàrrega al teu correu electrònic. Hauria d'arribar en pocs minuts."
+      "description": "Hem enviat la teva clau del compte i les instruccions de descàrrega al teu correu electrònic. Hauria d'arribar en pocs minuts."
     },
     "whatsNext": {
       "title": "Què ve ara?",
@@ -262,12 +263,12 @@
         "description": "Busca un correu de HyperWhisper"
       },
       "step2": {
-        "title": "Copia la teva clau de llicència",
+        "title": "Copia la teva clau del compte",
         "description": "La necessitaràs per activar l'aplicació"
       },
       "step3": {
         "title": "Descarrega HyperWhisper",
-        "description": "Instal·la l'aplicació i introdueix la clau de llicència"
+        "description": "Instal·la l'aplicació i introdueix la clau del compte"
       }
     },
     "downloadButton": "Descarrega HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Tots els drets reservats.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Núvol",
+    "title": "Dues maneres de passar al núvol",
+    "subtitle": "Porta les teves pròpies claus API i configura cada proveïdor tu mateix, o evita la configuració completament amb els crèdits de HyperWhisper Cloud.",
+    "byo": {
+      "title": "Porta les teves pròpies claus",
+      "subtitle": "Gratuït, però la feina la fas tu.",
+      "features": {
+        "signup": "Registra't a cada proveïdor per separat",
+        "rotate": "Copia, enganxa i renova les claus API tu mateix",
+        "bill": "Fes el seguiment d'una factura separada per proveïdor",
+        "control": "Control total de cada compte",
+        "free": "Sempre gratuït amb l'aplicació"
+      },
+      "cta": "Descarrega gratis"
+    },
+    "credits": {
+      "badge": "El més fàcil",
+      "title": "Crèdits de HyperWhisper Cloud",
+      "subtitle": "Paga per ús. Sense configuració.",
+      "features": {
+        "noKeys": "Mai cap clau API",
+        "oneBalance": "Tots els proveïdors en un sol saldo",
+        "models": "30+ models, una factura senzilla",
+        "payPerUse": "Paga només pel que transcrius",
+        "noTraining": "Exclòs automàticament de l'entrenament de models"
+      },
+      "cta": "Comença amb $5 en crèdits"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, suport prioritari, allotjament intern i integracions personalitzades",
+      "cta": "Contacta amb Vendes"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Núvol",
+    "title": "Crèdits del núvol",
+    "subtitle": "Un sol saldo, tots els proveïdors. Sense claus API per gestionar. Paga només pel que transcrius.",
+    "emailLabel": "El teu correu electrònic",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "T'enviem la clau del compte i el saldo de crèdits a aquesta adreça després del pagament.",
+    "amountLabel": "Tria un import",
+    "creditsCount": "{count, number} crèdits",
+    "custom": "Personalitzat",
+    "customSub": "el teu import",
+    "customPlaceholder": "Import en USD ({min} a {max})",
+    "summaryCredits": "Crèdits",
+    "summaryFee": "Comissió de processament (6%, no reemborsable)",
+    "summaryTotal": "Total avui",
+    "errorEmail": "Introdueix una adreça de correu electrònic vàlida.",
+    "errorAmount": "Tria un import en dòlars sencers entre ${min} i ${max}.",
+    "errorCheckout": "No s'ha pogut iniciar el pagament. Torna-ho a provar.",
+    "errorGeneric": "Alguna cosa ha anat malament. Torna-ho a provar.",
+    "ctaIdle": "Continua al pagament",
+    "ctaLoading": "Iniciant el pagament",
+    "secure": "Pagament segur amb Stripe. Els crèdits són vàlids durant un any des de la compra.",
+    "stripProviders": "9+ proveïdors, un sol saldo",
+    "stripNoSub": "Sense subscripció",
+    "stripNoTraining": "Exclòs de l'entrenament",
+    "haveKey": "Ja tens una clau?",
+    "signIn": "Inicia sessió per recarregar"
+  },
+  "cloudCreditsCard": {
+    "title": "Crèdits del núvol",
+    "minutesRemaining": "~{minutes} minuts restants",
+    "creditsCount": "{count, number} crèdits",
+    "minutes": "~{minutes} min",
+    "custom": "Personalitzat",
+    "customSub": "el teu import",
+    "topUp": "Recarrega"
   }
 }

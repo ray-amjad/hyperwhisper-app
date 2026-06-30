@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Pakeisti kalbą"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper logotipas",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Kas yra HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud yra įdiegta cloud transkripcija, skirta mažiau techniniams vartotojams, kurie nori greitai pradėti.\n\nVeikia pagal pay as you go modelį. Įsigiję licenciją gaunate $5 transkripcijos kreditų. Vėliau galite pridėti daugiau kreditų.\n    \nSiūlome tris tikslumo lygius: Medium (greičiausias, veikia su Groq), High (rekomenduojamas, veikia su Deepgram) ir Highest (geriausia kokybė, veikia su xAI Grok STT). Papildomas apdorojimas vykdomas automatiškai. Nesaugome nieko, išskyrus informaciją, kiek kreditų sunaudojote.\n\nMokate tiksliai tiek, kiek mokame mes šiems tiekėjams. Jokio antkainio.\n\nKad būtumėte ramūs, HyperWhisper Cloud išeities kodą galite peržiūrėti [čia](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud yra įdiegta cloud transkripcija, skirta mažiau techniniams vartotojams, kurie nori greitai pradėti.\n\nVeikia pagal pay as you go modelį. Įsigiję paskyros raktą gaunate $5 transkripcijos kreditų. Vėliau galite pridėti daugiau kreditų.\n    \nSiūlome tris tikslumo lygius: Medium (greičiausias, veikia su Groq), High (rekomenduojamas, veikia su Deepgram) ir Highest (geriausia kokybė, veikia su xAI Grok STT). Papildomas apdorojimas vykdomas automatiškai. Nesaugome nieko, išskyrus informaciją, kiek kreditų sunaudojote.\n\nMokate tiksliai tiek, kiek mokame mes šiems tiekėjams. Jokio antkainio.\n\nKad būtumėte ramūs, HyperWhisper Cloud išeities kodą galite peržiūrėti [čia](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Ar mano balso duomenys bus naudojami DI modeliams mokyti?",
@@ -187,8 +188,8 @@
         "answer": "Tikime paprasta ir sąžininga kainodara. Mokėkite kartą $39 ir naudokite HyperWhisper visam laikui. Jokių mėnesinių mokesčių, jokių staigmenų. Nemokama versija leidžia išbandyti pagrindines funkcijas su 3 minutėmis transkripcijos per dieną."
       },
       "deviceLimit": {
-        "question": "Kiek įrenginių galiu naudoti su savo licencija?",
-        "answer": "Savo licenciją galite naudoti tiek įrenginių, kiek norite, laikydamiesi mūsų Sąžiningo naudojimo politikos, nurodytos [Paslaugų teikimo sąlygose](/legal/terms-of-service). Ši politika sukurta taip, kad būtų lanksti teisėtam asmeniniam ir verslo naudojimui, kartu užkertant kelią piktnaudžiavimui."
+        "question": "Kiek įrenginių galiu naudoti su savo paskyros raktu?",
+        "answer": "Savo paskyros raktą galite naudoti tiek įrenginių, kiek norite, laikydamiesi mūsų Sąžiningo naudojimo politikos, nurodytos [Paslaugų teikimo sąlygose](/legal/terms-of-service). Ši politika sukurta taip, kad būtų lanksti teisėtam asmeniniam ir verslo naudojimui, kartu užkertant kelią piktnaudžiavimui."
       },
       "requirements": {
         "question": "Kokie sistemos reikalavimai?",
@@ -208,7 +209,7 @@
     "title": "Pagalbos centras",
     "subtitle": "Esame čia, kad padėtume jums išnaudoti HyperWhisper maksimaliai",
     "getInTouch": "Susisiekite su mumis",
-    "description": "Dėl techninės pagalbos, licencijos problemų ar bet kokių klausimų apie HyperWhisper mūsų komanda pasiruošusi padėti.",
+    "description": "Dėl techninės pagalbos, paskyros rakto problemų ar bet kokių klausimų apie HyperWhisper mūsų komanda pasiruošusi padėti.",
     "emailUsAt": "Rašykite mums el. paštu:",
     "openInClient": "Atidaryti savo el. pašto kliente:",
     "defaultClient": "Numatytasis el. pašto klientas",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Pirkimas sėkmingas!",
-    "subtitle": "Sveiki atvykę į HyperWhisper Pro! Jūsų visam laikui galiojanti licencija paruošta.",
+    "subtitle": "Sveiki atvykę į HyperWhisper Pro! Jūsų paskyros raktas paruoštas.",
     "checkEmail": {
       "title": "Patikrinkite savo el. paštą",
-      "description": "Išsiuntėme jūsų licencijos raktą ir atsisiuntimo instrukcijas į jūsų el. pašto adresą. Turėtumėte gauti per kelias minutes."
+      "description": "Išsiuntėme jūsų paskyros raktą ir atsisiuntimo instrukcijas į jūsų el. pašto adresą. Turėtumėte gauti per kelias minutes."
     },
     "whatsNext": {
       "title": "Kas toliau?",
@@ -262,12 +263,12 @@
         "description": "Ieškokite laiško nuo HyperWhisper"
       },
       "step2": {
-        "title": "Nukopijuokite licencijos raktą",
+        "title": "Nukopijuokite paskyros raktą",
         "description": "Jo reikės programėlei aktyvuoti"
       },
       "step3": {
         "title": "Atsisiųskite HyperWhisper",
-        "description": "Įdiekite programėlę ir įveskite licencijos raktą"
+        "description": "Įdiekite programėlę ir įveskite paskyros raktą"
       }
     },
     "downloadButton": "Atsisiųsti HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Visos teisės saugomos.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Du būdai pereiti į debesį",
+    "subtitle": "Naudokite savo API raktus ir prijunkite kiekvieną tiekėją patys arba visiškai praleiskite konfigūravimą su HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Naudokite savo raktus",
+      "subtitle": "Nemokama, bet teks padirbėti.",
+      "features": {
+        "signup": "Registruokitės pas kiekvieną tiekėją atskirai",
+        "rotate": "Kopijuokite, įklijuokite ir keiskite API raktus patys",
+        "bill": "Sekite atskirą sąskaitą kiekvienam tiekėjui",
+        "control": "Visiška kiekvienos paskyros kontrolė",
+        "free": "Visada nemokama su programa"
+      },
+      "cta": "Atsisiųskite nemokamai"
+    },
+    "credits": {
+      "badge": "Lengviausia",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Mokėkite pagal naudojimą. Jokios sąrankos.",
+      "features": {
+        "noKeys": "Jokių API raktų, niekada",
+        "oneBalance": "Visi tiekėjai viename balanse",
+        "models": "30+ modelių, viena paprasta sąskaita",
+        "payPerUse": "Mokėkite tik už tai, ką transkribuojate",
+        "noTraining": "Automatiškai atsisakyta modelių mokymo"
+      },
+      "cta": "Pradėkite su $5 kreditų"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioritetinis palaikymas, vidinis prieglobstis ir pritaikytos integracijos",
+      "cta": "Susisiekite su pardavimais"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Vienas balansas, visi tiekėjai. Jokių API raktų valdymo. Mokėkite tik už tai, ką transkribuojate.",
+    "emailLabel": "Jūsų el. paštas",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Po apmokėjimo čia atsiųsime jūsų paskyros raktą ir kreditų balansą.",
+    "amountLabel": "Pasirinkite sumą",
+    "creditsCount": "{count, number} kreditų",
+    "custom": "Pasirinktinė",
+    "customSub": "jūsų suma",
+    "customPlaceholder": "Suma USD ({min} iki {max})",
+    "summaryCredits": "Kreditai",
+    "summaryFee": "Apdorojimo mokestis (6%, negrąžinamas)",
+    "summaryTotal": "Iš viso šiandien",
+    "errorEmail": "Įveskite galiojantį el. pašto adresą.",
+    "errorAmount": "Pasirinkite sveiką sumą doleriais tarp ${min} ir ${max}.",
+    "errorCheckout": "Nepavyko pradėti atsiskaitymo. Bandykite dar kartą.",
+    "errorGeneric": "Kažkas nepavyko. Bandykite dar kartą.",
+    "ctaIdle": "Tęsti į atsiskaitymą",
+    "ctaLoading": "Pradedama atsiskaityti",
+    "secure": "Saugus atsiskaitymas per Stripe. Kreditai galioja metus nuo pirkimo.",
+    "stripProviders": "9+ tiekėjai, vienas balansas",
+    "stripNoSub": "Jokios prenumeratos",
+    "stripNoTraining": "Atsisakyta mokymo",
+    "haveKey": "Jau turite raktą?",
+    "signIn": "Prisijunkite, kad papildytumėte"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minučių liko",
+    "creditsCount": "{count, number} kreditų",
+    "minutes": "~{minutes} min",
+    "custom": "Pasirinktinė",
+    "customSub": "jūsų suma",
+    "topUp": "Papildyti"
   }
 }

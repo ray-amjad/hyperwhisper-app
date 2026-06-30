@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { licenseKeys } from "./license-keys";
+import { accountKeys } from "./account-keys";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -58,7 +58,7 @@ export const verification = pgTable("verification", {
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
-  licenseKeys: many(licenseKeys),
+  accountKeys: many(accountKeys),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

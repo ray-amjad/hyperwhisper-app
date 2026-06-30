@@ -5,6 +5,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { m } from "framer-motion";
 import { Check, X, Sparkles, Building2, Cloud, KeyRound } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import EnterpriseContactModal from "./EnterpriseContactModal";
 
@@ -16,33 +17,32 @@ import { useDownloadModal } from "@/contexts/DownloadModalContext";
  *
  * Replaces the old lifetime-license pricing table. Two paths: bring your own
  * API keys (free, but you do the legwork) or HyperWhisper Cloud Credits
- * (pay-as-you-go, zero setup) which routes to /credits. Copy is hardcoded
- * English on purpose — the site has 41 locale files with no missing-key
- * fallback, so new i18n keys would render raw paths elsewhere; translation is a
- * tracked follow-up.
+ * (pay-as-you-go, zero setup) which routes to /credits. Copy lives under the
+ * `cloudSection` namespace in messages/*.json.
  */
 export default function PricingSection() {
   const { openModal } = useDownloadModal();
+  const t = useTranslations("cloudSection");
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
 
   const byoFeatures = [
-    { text: "Sign up for each provider separately", included: false },
-    { text: "Copy, paste and rotate API keys yourself", included: false },
-    { text: "Track a separate bill per provider", included: false },
-    { text: "Full control over each account", included: true },
-    { text: "Always free with the app", included: true },
+    { text: t("byo.features.signup"), included: false },
+    { text: t("byo.features.rotate"), included: false },
+    { text: t("byo.features.bill"), included: false },
+    { text: t("byo.features.control"), included: true },
+    { text: t("byo.features.free"), included: true },
   ];
 
   const cloudFeatures = [
-    "No API keys, ever",
-    "Every provider on one balance",
-    "30+ models, one simple invoice",
-    "Pay only for what you transcribe",
-    "Opted out of model training automatically",
+    t("credits.features.noKeys"),
+    t("credits.features.oneBalance"),
+    t("credits.features.models"),
+    t("credits.features.payPerUse"),
+    t("credits.features.noTraining"),
   ];
 
   return (
-    <section className="px-6 py-20" id="pricing">
+    <section className="px-6 py-20" id="cloud">
       <m.div
         className="max-w-6xl mx-auto"
         initial={{ opacity: 0, y: 20 }}
@@ -52,14 +52,13 @@ export default function PricingSection() {
       >
         <div className="text-center mb-14">
           <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
-            Cloud
+            {t("eyebrow")}
           </span>
           <h2 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Two ways to go cloud
+            {t("title")}
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Bring your own API keys if you love tinkering, or skip all of it with
-            HyperWhisper Cloud Credits.
+            {t("subtitle")}
           </p>
         </div>
 
@@ -76,11 +75,11 @@ export default function PricingSection() {
                 <div className="flex items-center gap-2 mb-1">
                   <KeyRound className="w-5 h-5 text-gray-400" />
                   <h3 className="text-xl font-bold text-white">
-                    Bring your own keys
+                    {t("byo.title")}
                   </h3>
                 </div>
                 <p className="text-sm text-gray-500 mb-6">
-                  Free, but you do the legwork.
+                  {t("byo.subtitle")}
                 </p>
                 <ul className="space-y-3 mb-8">
                   {byoFeatures.map((feature) => (
@@ -108,7 +107,7 @@ export default function PricingSection() {
                   size="lg"
                   onPress={openModal}
                 >
-                  Download free
+                  {t("byo.cta")}
                 </Button>
               </CardBody>
             </Card>
@@ -125,7 +124,7 @@ export default function PricingSection() {
             <div className="absolute -top-3 left-8 z-10">
               <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
-                Easiest
+                {t("credits.badge")}
               </div>
             </div>
             <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
@@ -133,11 +132,11 @@ export default function PricingSection() {
                 <div className="flex items-center gap-2 mb-1">
                   <Cloud className="w-5 h-5 text-purple-300" />
                   <h3 className="text-xl font-bold text-white">
-                    HyperWhisper Cloud Credits
+                    {t("credits.title")}
                   </h3>
                 </div>
                 <p className="text-sm text-gray-400 mb-6">
-                  Pay-as-you-go. Zero setup.
+                  {t("credits.subtitle")}
                 </p>
                 <ul className="space-y-3 mb-8">
                   {cloudFeatures.map((text) => (
@@ -153,7 +152,7 @@ export default function PricingSection() {
                   className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-auto"
                   size="lg"
                 >
-                  Start with $5 in credits
+                  {t("credits.cta")}
                 </Button>
               </CardBody>
             </Card>
@@ -175,11 +174,10 @@ export default function PricingSection() {
                   <Building2 className="w-8 h-8 text-orange-400 flex-shrink-0" />
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">
-                      Enterprise &amp; Custom Pricing
+                      {t("enterprise.title")}
                     </h3>
                     <p className="text-gray-300 text-sm">
-                      Volume discounts, SSO, priority support, in-house hosting,
-                      and custom integrations
+                      {t("enterprise.description")}
                     </p>
                   </div>
                 </div>
@@ -188,7 +186,7 @@ export default function PricingSection() {
                   size="lg"
                   onPress={() => setShowEnterpriseModal(true)}
                 >
-                  Contact Sales
+                  {t("enterprise.cta")}
                 </Button>
               </div>
             </CardBody>

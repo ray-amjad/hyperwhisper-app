@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Nyelvváltás"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper logó",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Mi az a HyperWhisper Cloud?",
-        "answer": "A HyperWhisper Cloud egy beépített felhős átírási szolgáltatás, amely kevésbé technikai felhasználóknak szól, akik gyorsan szeretnének elindulni.\n\nHasználat alapú elszámolással működik. Licenc vásárlásakor $5 átírási kreditet kapsz. Később további kreditet adhatsz hozzá.\n    \nHárom pontossági szintet kínálunk: Medium (leggyorsabb, Groq), High (ajánlott, Deepgram) és Highest (legjobb minőség, xAI Grok STT). Az utófeldolgozás automatikus. Nem tárolunk mást, csak a felhasznált kreditek mennyiségét.\n\nPontosan annyit fizetsz, amennyit mi fizetünk ezeknek a szolgáltatóknak. Nem számolunk fel felárat.\n\nA nyugalom kedvéért a HyperWhisper Cloud forráskódját [itt](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "A HyperWhisper Cloud egy beépített felhős átírási szolgáltatás, amely kevésbé technikai felhasználóknak szól, akik gyorsan szeretnének elindulni.\n\nHasználat alapú elszámolással működik. Fiókkulcs vásárlásakor $5 átírási kreditet kapsz. Később további kreditet adhatsz hozzá.\n    \nHárom pontossági szintet kínálunk: Medium (leggyorsabb, Groq), High (ajánlott, Deepgram) és Highest (legjobb minőség, xAI Grok STT). Az utófeldolgozás automatikus. Nem tárolunk mást, csak a felhasznált kreditek mennyiségét.\n\nPontosan annyit fizetsz, amennyit mi fizetünk ezeknek a szolgáltatóknak. Nem számolunk fel felárat.\n\nA nyugalom kedvéért a HyperWhisper Cloud forráskódját [itt](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "A hangadataimat felhasználják AI-modellek betanítására?",
@@ -187,8 +188,8 @@
         "answer": "Hiszünk az egyszerű és tisztességes árazásban. Fizess egyszer $39-t, és használd a HyperWhispert örökre. Nincs havi díj, nincs meglepetés. Az ingyenes verzió napi 3 perc átírással lehetővé teszi a fő funkciók kipróbálását."
       },
       "deviceLimit": {
-        "question": "Hány eszközön használhatom a licence-met?",
-        "answer": "A licencet tetszőleges számú eszközön használhatod, a [Felhasználási feltételekben](/legal/terms-of-service) leírt Méltányos Használati Szabályzatunk szerint. Ez a szabályzat rugalmas a legitim személyes és üzleti használathoz, miközben megelőzi a visszaéléseket."
+        "question": "Hány eszközön használhatom a fiókkulcsomat?",
+        "answer": "A fiókkulcsot tetszőleges számú eszközön használhatod, a [Felhasználási feltételekben](/legal/terms-of-service) leírt Méltányos Használati Szabályzatunk szerint. Ez a szabályzat rugalmas a legitim személyes és üzleti használathoz, miközben megelőzi a visszaéléseket."
       },
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
@@ -208,7 +209,7 @@
     "title": "Támogatási központ",
     "subtitle": "Azért vagyunk itt, hogy a legtöbbet hozhasd ki a HyperWhisperből",
     "getInTouch": "Lépj kapcsolatba velünk",
-    "description": "Technikai támogatás, licencproblémák vagy bármilyen HyperWhisperrel kapcsolatos kérdés esetén a csapatunk szívesen segít.",
+    "description": "Technikai támogatás, fiókkulcs-problémák vagy bármilyen HyperWhisperrel kapcsolatos kérdés esetén a csapatunk szívesen segít.",
     "emailUsAt": "Írj nekünk ide:",
     "openInClient": "Megnyitás az email kliensedben:",
     "defaultClient": "Alapértelmezett Email Kliens",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Sikeres vásárlás!",
-    "subtitle": "Üdv a HyperWhisper Pro-ban! Az élethosszig tartó licenced készen áll.",
+    "subtitle": "Üdv a HyperWhisper Pro-ban! A fiókkulcsod készen áll.",
     "checkEmail": {
       "title": "Ellenőrizd az emailed",
-      "description": "Elküldtük a licenckulcsot és a letöltési útmutatót az email címedre. Néhány percen belül meg kell érkeznie."
+      "description": "Elküldtük a fiókkulcsot és a letöltési útmutatót az email címedre. Néhány percen belül meg kell érkeznie."
     },
     "whatsNext": {
       "title": "Mi a következő lépés?",
@@ -262,12 +263,12 @@
         "description": "Keresd a HyperWhisper emailjét"
       },
       "step2": {
-        "title": "Másold ki a licenckulcsot",
+        "title": "Másold ki a fiókkulcsot",
         "description": "Szükséged lesz rá az alkalmazás aktiválásához"
       },
       "step3": {
         "title": "Töltsd le a HyperWhispert",
-        "description": "Telepítsd az alkalmazást és add meg a licenckulcsot"
+        "description": "Telepítsd az alkalmazást és add meg a fiókkulcsot"
       }
     },
     "downloadButton": "HyperWhisper letöltése",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Minden jog fenntartva.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Két út a felhő felé",
+    "subtitle": "Hozza a saját API-kulcsait, és kösse be minden szolgáltatót saját maga, vagy hagyja ki a beállítást teljesen a HyperWhisper Cloud Credits szolgáltatással.",
+    "byo": {
+      "title": "Hozza a saját kulcsait",
+      "subtitle": "Ingyenes, de a munka az Öné.",
+      "features": {
+        "signup": "Regisztráljon külön minden szolgáltatóhoz",
+        "rotate": "Másolja, illessze be és cserélje az API-kulcsokat saját maga",
+        "bill": "Kövesse külön a számlát szolgáltatónként",
+        "control": "Teljes kontroll minden fiók fölött",
+        "free": "Mindig ingyenes az alkalmazással"
+      },
+      "cta": "Letöltés ingyen"
+    },
+    "credits": {
+      "badge": "Legegyszerűbb",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Használatalapú fizetés. Nulla beállítás.",
+      "features": {
+        "noKeys": "Soha semmilyen API-kulcs",
+        "oneBalance": "Minden szolgáltató egyetlen egyenlegen",
+        "models": "30+ modell, egyetlen egyszerű számla",
+        "payPerUse": "Csak azért fizessen, amit átír",
+        "noTraining": "Automatikusan kizárva a modelltanításból"
+      },
+      "cta": "Kezdje $5 kredittel"
+    },
+    "enterprise": {
+      "title": "Vállalati",
+      "description": "SSO, elsőbbségi támogatás, házon belüli hosting és egyedi integrációk",
+      "cta": "Kapcsolat az értékesítéssel"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud kreditek",
+    "subtitle": "Egy egyenleg, minden szolgáltató. Nincs kezelendő API-kulcs. Csak azért fizessen, amit átír.",
+    "emailLabel": "Az Ön e-mail-címe",
+    "emailPlaceholder": "on@pelda.com",
+    "emailHelp": "A fizetés után ide küldjük a fiókkulcsát és a kreditegyenlegét.",
+    "amountLabel": "Válasszon összeget",
+    "creditsCount": "{count, number} kredit",
+    "custom": "Egyéni",
+    "customSub": "az Ön összege",
+    "customPlaceholder": "Összeg USD-ben ({min} és {max} között)",
+    "summaryCredits": "Kreditek",
+    "summaryFee": "Feldolgozási díj (6%, nem visszatérítendő)",
+    "summaryTotal": "Mai összesen",
+    "errorEmail": "Adjon meg egy érvényes e-mail-címet.",
+    "errorAmount": "Válasszon egész dolláros összeget ${min} és ${max} között.",
+    "errorCheckout": "A fizetés nem indítható el. Kérjük, próbálja újra.",
+    "errorGeneric": "Valami hiba történt. Kérjük, próbálja újra.",
+    "ctaIdle": "Tovább a fizetéshez",
+    "ctaLoading": "Fizetés indítása",
+    "secure": "Biztonságos fizetés a Stripe-on keresztül. A kreditek a vásárlástól számított egy évig érvényesek.",
+    "stripProviders": "9+ szolgáltató, egy egyenleg",
+    "stripNoSub": "Nincs előfizetés",
+    "stripNoTraining": "Kizárva a tanításból",
+    "haveKey": "Már van kulcsa?",
+    "signIn": "Jelentkezzen be a feltöltéshez"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud kreditek",
+    "minutesRemaining": "~{minutes} perc maradt",
+    "creditsCount": "{count, number} kredit",
+    "minutes": "~{minutes} perc",
+    "custom": "Egyéni",
+    "customSub": "az Ön összege",
+    "topUp": "Feltöltés"
   }
 }

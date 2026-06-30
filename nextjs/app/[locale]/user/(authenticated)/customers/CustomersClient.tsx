@@ -180,7 +180,7 @@ export default function CustomersClient() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Grant License
+            Grant Account Key
           </button>
           <button
             onClick={() => refetch()}
@@ -219,7 +219,7 @@ export default function CustomersClient() {
       {/* Grant License Form */}
       {showGrant && (
         <div className="p-4 bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 space-y-3">
-          <h3 className="text-white font-medium">Grant License by Email</h3>
+          <h3 className="text-white font-medium">Grant Account Key by Email</h3>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -251,7 +251,7 @@ export default function CustomersClient() {
           )}
           {grantResult && (
             <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg space-y-1">
-              <p className="text-emerald-300 text-sm">License granted to <span className="font-medium">{grantResult.email}</span></p>
+              <p className="text-emerald-300 text-sm">Account Key granted to <span className="font-medium">{grantResult.email}</span></p>
               <p className="text-white font-mono text-sm select-all">{grantResult.licenseKey}</p>
             </div>
           )}
@@ -275,7 +275,7 @@ export default function CustomersClient() {
                   Email
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  License Keys
+                  Account Keys
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Total
@@ -355,8 +355,8 @@ export default function CustomersClient() {
                               Updates this customer&apos;s account email and moves
                               {" "}
                               {customer.licenseCount === 1
-                                ? "their license"
-                                : `all ${customer.licenseCount} licenses`}
+                                ? "their Account Key"
+                                : `all ${customer.licenseCount} Account Keys`}
                               {" "}
                               to the new address.
                             </p>
@@ -412,11 +412,11 @@ export default function CustomersClient() {
                               <button
                                 type="button"
                                 onClick={() => copyKey(license.key)}
-                                title="Click to copy license key"
+                                title="Click to copy Account Key"
                                 aria-label={
                                   copiedKey === license.key
-                                    ? "License key copied"
-                                    : "Copy license key"
+                                    ? "Account Key copied"
+                                    : "Copy Account Key"
                                 }
                                 className="group inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-mono text-xs text-gray-300 transition-colors hover:border-blue-400/40 hover:bg-blue-500/10 hover:text-blue-200"
                               >
@@ -532,7 +532,7 @@ export default function CustomersClient() {
           />
           <div className="relative bg-slate-800 border border-white/10 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Refund License</h2>
+              <h2 className="text-lg font-semibold text-white">Refund Account Key</h2>
               <button
                 onClick={() => { setRefundTarget(null); refundMutation.reset(); }}
                 className="text-gray-400 hover:text-white transition-colors"
@@ -551,7 +551,7 @@ export default function CustomersClient() {
             {refundMutation.isSuccess ? (
               <div className="p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-lg">
                 <p className="text-emerald-300 text-sm">
-                  Refund processed successfully{refundMutation.data?.revoked ? " and license revoked" : ""}.
+                  Refund processed successfully{refundMutation.data?.revoked ? " and Account Key revoked" : ""}.
                 </p>
               </div>
             ) : (

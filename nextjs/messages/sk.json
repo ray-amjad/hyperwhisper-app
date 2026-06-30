@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Zmeniť jazyk"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Čo je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je vstavaný cloudový prepis určený pre menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe pay as you go. Kúpou licencie získate $5 v kreditoch na prepis. Neskôr môžete pridať ďalšie kredity.\n    \nPonúkame tri úrovne presnosti: Medium (najrýchlejšie, poháňané Groq), High (odporúčané, poháňané Deepgram) a Highest (najlepšia kvalita, poháňané xAI Grok STT). Následné spracovanie je automatické. Neukladáme nič okrem toho, koľko kreditov ste minuli.\n\nPlatíte presne to, čo platíme týmto poskytovateľom aj my. Neúčtujeme žiadnu prirážku.\n\nPre pokoj na duši si môžete pozrieť zdrojový kód HyperWhisper Cloud [tu](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud je vstavaný cloudový prepis určený pre menej technických používateľov, ktorí chcú rýchlo začať.\n\nFunguje na princípe pay as you go. Kúpou kľúča k účtu získate $5 v kreditoch na prepis. Neskôr môžete pridať ďalšie kredity.\n    \nPonúkame tri úrovne presnosti: Medium (najrýchlejšie, poháňané Groq), High (odporúčané, poháňané Deepgram) a Highest (najlepšia kvalita, poháňané xAI Grok STT). Následné spracovanie je automatické. Neukladáme nič okrem toho, koľko kreditov ste minuli.\n\nPlatíte presne to, čo platíme týmto poskytovateľom aj my. Neúčtujeme žiadnu prirážku.\n\nPre pokoj na duši si môžete pozrieť zdrojový kód HyperWhisper Cloud [tu](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Budú moje hlasové údaje použité na trénovanie modelov AI?",
@@ -187,8 +188,8 @@
         "answer": "Veríme v jednoduché a férové ceny. Zaplaťte raz $39 a používajte HyperWhisper navždy. Žiadne mesačné poplatky, žiadne prekvapenia. Bezplatná verzia vám umožní vyskúšať kľúčové funkcie s 3 minútami prepisu denne."
       },
       "deviceLimit": {
-        "question": "Na koľkých zariadeniach môžem používať svoju licenciu?",
-        "answer": "Licenciu môžete používať na ľubovoľnom počte zariadení v súlade s našimi Zásadami férového používania, ako je uvedené v [Podmienkach služby](/legal/terms-of-service). Tieto zásady sú navrhnuté tak, aby boli flexibilné pre legitímne osobné aj firemné použitie a zároveň zabránili zneužitiu."
+        "question": "Na koľkých zariadeniach môžem používať svoj kľúč k účtu?",
+        "answer": "Kľúč k účtu môžete používať na ľubovoľnom počte zariadení v súlade s našimi Zásadami férového používania, ako je uvedené v [Podmienkach služby](/legal/terms-of-service). Tieto zásady sú navrhnuté tak, aby boli flexibilné pre legitímne osobné aj firemné použitie a zároveň zabránili zneužitiu."
       },
       "requirements": {
         "question": "Aké sú systémové požiadavky?",
@@ -208,7 +209,7 @@
     "title": "Centrum podpory",
     "subtitle": "Sme tu, aby sme vám pomohli využiť HyperWhisper naplno",
     "getInTouch": "Kontaktujte nás",
-    "description": "Pri technickej podpore, problémoch s licenciou alebo akýchkoľvek otázkach o HyperWhisper je náš tím pripravený pomôcť.",
+    "description": "Pri technickej podpore, problémoch s kľúčom k účtu alebo akýchkoľvek otázkach o HyperWhisper je náš tím pripravený pomôcť.",
     "emailUsAt": "Napíšte nám na:",
     "openInClient": "Otvoriť vo vašom email klientovi:",
     "defaultClient": "Predvolený Email Klient",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Nákup bol úspešný!",
-    "subtitle": "Vitajte v HyperWhisper Pro! Vaša doživotná licencia je pripravená.",
+    "subtitle": "Vitajte v HyperWhisper Pro! Váš kľúč k účtu je pripravený.",
     "checkEmail": {
       "title": "Skontrolujte svoj email",
-      "description": "Licenčný kľúč a pokyny na stiahnutie sme poslali na vašu emailovú adresu. Mali by doraziť v priebehu niekoľkých minút."
+      "description": "Kľúč k účtu a pokyny na stiahnutie sme poslali na vašu emailovú adresu. Mali by doraziť v priebehu niekoľkých minút."
     },
     "whatsNext": {
       "title": "Čo ďalej?",
@@ -262,12 +263,12 @@
         "description": "Hľadajte email od HyperWhisper"
       },
       "step2": {
-        "title": "Skopírujte licenčný kľúč",
+        "title": "Skopírujte kľúč k účtu",
         "description": "Budete ho potrebovať na aktiváciu aplikácie"
       },
       "step3": {
         "title": "Stiahnite HyperWhisper",
-        "description": "Nainštalujte aplikáciu a zadajte licenčný kľúč"
+        "description": "Nainštalujte aplikáciu a zadajte kľúč k účtu"
       }
     },
     "downloadButton": "Stiahnuť HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Všetky práva vyhradené.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Dva spôsoby, ako prejsť do cloudu",
+    "subtitle": "Použite vlastné API kľúče a nastavte si každého poskytovateľa sami, alebo celé nastavovanie preskočte s HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Použite vlastné kľúče",
+      "subtitle": "Zadarmo, ale prácu urobíte sami.",
+      "features": {
+        "signup": "Zaregistrujte sa u každého poskytovateľa zvlášť",
+        "rotate": "Sami kopírujte, vkladajte a obmieňajte API kľúče",
+        "bill": "Sledujte samostatnú faktúru za každého poskytovateľa",
+        "control": "Plná kontrola nad každým účtom",
+        "free": "Vždy zadarmo s aplikáciou"
+      },
+      "cta": "Stiahnuť zadarmo"
+    },
+    "credits": {
+      "badge": "Najjednoduchšie",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Plaťte podľa využitia. Žiadne nastavovanie.",
+      "features": {
+        "noKeys": "Nikdy žiadne API kľúče",
+        "oneBalance": "Všetci poskytovatelia na jednom zostatku",
+        "models": "30+ modelov, jedna jednoduchá faktúra",
+        "payPerUse": "Plaťte len za to, čo prepíšete",
+        "noTraining": "Automatické odhlásenie z trénovania modelov"
+      },
+      "cta": "Začnite s kreditmi za $5"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioritná podpora, interný hosting a vlastné integrácie",
+      "cta": "Kontaktovať obchod"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Jeden zostatok, všetci poskytovatelia. Žiadne API kľúče na správu. Plaťte len za to, čo prepíšete.",
+    "emailLabel": "Váš e-mail",
+    "emailPlaceholder": "vy@priklad.com",
+    "emailHelp": "Po platbe sem pošleme váš kľúč k účtu a zostatok kreditov.",
+    "amountLabel": "Vyberte sumu",
+    "creditsCount": "{count, number} kreditov",
+    "custom": "Vlastná",
+    "customSub": "vaša suma",
+    "customPlaceholder": "Suma v USD ({min} až {max})",
+    "summaryCredits": "Kredity",
+    "summaryFee": "Poplatok za spracovanie (6%, nevratný)",
+    "summaryTotal": "Spolu dnes",
+    "errorEmail": "Zadajte platnú e-mailovú adresu.",
+    "errorAmount": "Vyberte celú sumu v dolároch medzi ${min} a ${max}.",
+    "errorCheckout": "Pokladnicu sa nepodarilo spustiť. Skúste to znova.",
+    "errorGeneric": "Niečo sa pokazilo. Skúste to znova.",
+    "ctaIdle": "Pokračovať k pokladni",
+    "ctaLoading": "Spúšťa sa pokladnica",
+    "secure": "Bezpečná platba cez Stripe. Kredity platia jeden rok od nákupu.",
+    "stripProviders": "9+ poskytovateľov, jeden zostatok",
+    "stripNoSub": "Bez predplatného",
+    "stripNoTraining": "Odhlásené z trénovania",
+    "haveKey": "Už máte kľúč?",
+    "signIn": "Prihláste sa na dobitie"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minút zostáva",
+    "creditsCount": "{count, number} kreditov",
+    "minutes": "~{minutes} min",
+    "custom": "Vlastná",
+    "customSub": "vaša suma",
+    "topUp": "Dobiť"
   }
 }

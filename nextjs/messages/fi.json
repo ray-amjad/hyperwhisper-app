@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Vaihda kieli"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvilitterointi vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe toimii käyttöperusteisesti. Lisenssin ostaminen antaa sinulle $5 litterointikrediittejä. Voit lisätä krediittejä myöhemmin.\n    \nTarjoamme kolme tarkkuustasoa: Medium (nopein, toimii Groqin avulla), High (suositus, toimii Deepgramin avulla) ja Highest (paras laatu, toimii xAI Grok STTin avulla). Jälkikäsittely on automaattinen. Emme tallenna mitään muuta kuin kuluttamiesi krediittien määrän.\n\nMaksat täsmälleen sen, mitä me maksamme näille palveluntarjoajille. Emme lisää hintaan katetta.\n\nMielenrauhan vuoksi voit tarkastella HyperWhisper Cloudin lähdekoodia [täällä](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvilitterointi vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe toimii käyttöperusteisesti. Tiliavaimen ostaminen antaa sinulle $5 litterointikrediittejä. Voit lisätä krediittejä myöhemmin.\n    \nTarjoamme kolme tarkkuustasoa: Medium (nopein, toimii Groqin avulla), High (suositus, toimii Deepgramin avulla) ja Highest (paras laatu, toimii xAI Grok STTin avulla). Jälkikäsittely on automaattinen. Emme tallenna mitään muuta kuin kuluttamiesi krediittien määrän.\n\nMaksat täsmälleen sen, mitä me maksamme näille palveluntarjoajille. Emme lisää hintaan katetta.\n\nMielenrauhan vuoksi voit tarkastella HyperWhisper Cloudin lähdekoodia [täällä](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Käytetäänkö äänidataani tekoälymallien kouluttamiseen?",
@@ -187,8 +188,8 @@
         "answer": "Uskomme yksinkertaiseen ja reiluun hinnoitteluun. Maksa kerran $39 ja käytä HyperWhisperiä ikuisesti. Ei kuukausimaksuja, ei yllätyksiä. Ilmaisversiossa pääset käyttämään avainominaisuuksia 3 minuutin päivittäisellä litteroinnilla."
       },
       "deviceLimit": {
-        "question": "Kuinka monella laitteella voin käyttää lisenssiäni?",
-        "answer": "Voit käyttää lisenssiäsi niin monella laitteella kuin haluat, Fair Usage Policy -käytäntömme puitteissa, kuten [Palveluehdoissamme](/legal/terms-of-service) on kuvattu. Käytäntö on suunniteltu joustavaksi lailliseen henkilökohtaiseen ja yrityskäyttöön, samalla estäen väärinkäytökset."
+        "question": "Kuinka monella laitteella voin käyttää tiliavaintani?",
+        "answer": "Voit käyttää tiliavaintasi niin monella laitteella kuin haluat, Fair Usage Policy -käytäntömme puitteissa, kuten [Palveluehdoissamme](/legal/terms-of-service) on kuvattu. Käytäntö on suunniteltu joustavaksi lailliseen henkilökohtaiseen ja yrityskäyttöön, samalla estäen väärinkäytökset."
       },
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
@@ -208,7 +209,7 @@
     "title": "Tukikeskus",
     "subtitle": "Autamme sinua saamaan HyperWhisperistä kaiken irti",
     "getInTouch": "Ota yhteyttä",
-    "description": "Teknisen tuen, lisenssiongelmien tai muiden HyperWhisper-kysymysten osalta tiimimme auttaa sinua mielellään.",
+    "description": "Teknisen tuen, tiliavainongelmien tai muiden HyperWhisper-kysymysten osalta tiimimme auttaa sinua mielellään.",
     "emailUsAt": "Lähetä meille sähköpostia:",
     "openInClient": "Avaa sähköpostiohjelmassa:",
     "defaultClient": "Oletussähköpostiohjelma",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Osto onnistui!",
-    "subtitle": "Tervetuloa HyperWhisper Prohon! Elinikäinen lisenssisi on valmis.",
+    "subtitle": "Tervetuloa HyperWhisper Prohon! Tiliavaimesi on valmis.",
     "checkEmail": {
       "title": "Tarkista sähköpostisi",
-      "description": "Lähetimme lisenssiavaimesi ja latausohjeet sähköpostiosoitteeseesi. Viestin pitäisi saapua muutaman minuutin sisällä."
+      "description": "Lähetimme tiliavaimesi ja latausohjeet sähköpostiosoitteeseesi. Viestin pitäisi saapua muutaman minuutin sisällä."
     },
     "whatsNext": {
       "title": "Mitä seuraavaksi?",
@@ -262,12 +263,12 @@
         "description": "Etsi HyperWhisperiltä tullut sähköposti"
       },
       "step2": {
-        "title": "Kopioi lisenssiavaimesi",
+        "title": "Kopioi tiliavaimesi",
         "description": "Tarvitset sen sovelluksen aktivointiin"
       },
       "step3": {
         "title": "Lataa HyperWhisper",
-        "description": "Asenna sovellus ja syötä lisenssiavaimesi"
+        "description": "Asenna sovellus ja syötä tiliavaimesi"
       }
     },
     "downloadButton": "Lataa HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Kaikki oikeudet pidätetään.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Kaksi tapaa siirtyä pilveen",
+    "subtitle": "Tuo omat API-avaimesi ja määritä jokainen palveluntarjoaja itse, tai ohita määritykset kokonaan HyperWhisper Cloud Creditsillä.",
+    "byo": {
+      "title": "Tuo omat avaimesi",
+      "subtitle": "Ilmainen, mutta teet työn itse.",
+      "features": {
+        "signup": "Rekisteröidy jokaiselle palveluntarjoajalle erikseen",
+        "rotate": "Kopioi, liitä ja kierrätä API-avaimet itse",
+        "bill": "Seuraa erillistä laskua per palveluntarjoaja",
+        "control": "Täysi hallinta jokaisesta tilistä",
+        "free": "Aina ilmainen sovelluksen kanssa"
+      },
+      "cta": "Lataa ilmaiseksi"
+    },
+    "credits": {
+      "badge": "Helpoin",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Maksa käytön mukaan. Ei määrityksiä.",
+      "features": {
+        "noKeys": "Ei koskaan API-avaimia",
+        "oneBalance": "Kaikki palveluntarjoajat yhdellä saldolla",
+        "models": "30+ mallia, yksi yksinkertainen lasku",
+        "payPerUse": "Maksa vain siitä, mitä litteroit",
+        "noTraining": "Automaattisesti pois mallien koulutuksesta"
+      },
+      "cta": "Aloita 5 $ krediiteillä"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, priorisoitu tuki, oma isännöinti ja räätälöidyt integraatiot",
+      "cta": "Ota yhteyttä myyntiin"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Yksi saldo, kaikki palveluntarjoajat. Ei hallittavia API-avaimia. Maksa vain siitä, mitä litteroit.",
+    "emailLabel": "Sähköpostisi",
+    "emailPlaceholder": "sina@esimerkki.com",
+    "emailHelp": "Lähetämme tiliavaimesi ja krediittisaldosi tänne maksun jälkeen.",
+    "amountLabel": "Valitse summa",
+    "creditsCount": "{count, number} krediittiä",
+    "custom": "Mukautettu",
+    "customSub": "oma summasi",
+    "customPlaceholder": "Summa USD ({min}–{max})",
+    "summaryCredits": "Krediitit",
+    "summaryFee": "Käsittelymaksu (6 %, ei palautettavissa)",
+    "summaryTotal": "Yhteensä tänään",
+    "errorEmail": "Anna kelvollinen sähköpostiosoite.",
+    "errorAmount": "Valitse täysi dollarisumma välillä ${min}–${max}.",
+    "errorCheckout": "Maksua ei voitu aloittaa. Yritä uudelleen.",
+    "errorGeneric": "Jokin meni pieleen. Yritä uudelleen.",
+    "ctaIdle": "Jatka maksuun",
+    "ctaLoading": "Aloitetaan maksua",
+    "secure": "Turvallinen maksu Stripen kautta. Krediitit ovat voimassa vuoden ostosta.",
+    "stripProviders": "9+ palveluntarjoajaa, yksi saldo",
+    "stripNoSub": "Ei tilausta",
+    "stripNoTraining": "Pois koulutuksesta",
+    "haveKey": "Onko sinulla jo avain?",
+    "signIn": "Kirjaudu sisään lisätäksesi saldoa"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minuuttia jäljellä",
+    "creditsCount": "{count, number} krediittiä",
+    "minutes": "~{minutes} min",
+    "custom": "Mukautettu",
+    "customSub": "oma summasi",
+    "topUp": "Lisää saldoa"
   }
 }

@@ -7,7 +7,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { licenseKeys } from "./license-keys";
+import { accountKeys } from "./account-keys";
 
 export const deviceValidations = pgTable(
   "device_validations",
@@ -15,7 +15,7 @@ export const deviceValidations = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     licenseKeyId: uuid("license_key_id")
       .notNull()
-      .references(() => licenseKeys.id, { onDelete: "cascade" }),
+      .references(() => accountKeys.id, { onDelete: "cascade" }),
     deviceId: text("device_id").notNull(),
     deviceName: text("device_name"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -40,9 +40,9 @@ export const deviceValidations = pgTable(
 export const deviceValidationsRelations = relations(
   deviceValidations,
   ({ one }) => ({
-    licenseKey: one(licenseKeys, {
+    licenseKey: one(accountKeys, {
       fields: [deviceValidations.licenseKeyId],
-      references: [licenseKeys.id],
+      references: [accountKeys.id],
     }),
   })
 );

@@ -3,11 +3,12 @@ import { stripe } from "@/lib/clients/stripe";
 import { emailService } from "@/lib/services/email";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import {
-  findLicenseByKey,
-  findLicenseByStripeSession,
-  insertLicenseKey,
+  findAccountByKey,
+  getAccountKeysByEmail,
+  findAccountByStripeSession,
+  insertAccountKey,
   getOrCreateUser,
-  updateLicenseKey,
+  updateAccountKey,
   grantCreditLot,
   grantCreditsForStripeEvent,
   refundCreditGrant,
@@ -45,7 +46,7 @@ export async function handleLicensePurchase(
   console.log(`Processing license purchase for ${customerEmail}`);
 
   // STEP 1: Check if we already processed this session (idempotency)
-  const existingLicense = await findLicenseByStripeSession(session.id);
+  const existingLicense = await findAccountByStripeSession(session.id);
 
   if (existingLicense) {
     console.log(
@@ -66,7 +67,7 @@ export async function handleLicensePurchase(
     attempts++;
 
     // Check uniqueness in database
-    const collision = await findLicenseByKey(licenseKey);
+    const collision = await findAccountByKey(licenseKey);
 
     if (!collision) break;
 
@@ -94,7 +95,7 @@ export async function handleLicensePurchase(
   // STEP 4: Store license in database
   let insertedLicense;
   try {
-    insertedLicense = await insertLicenseKey({
+    insertedLicense = await insertAccountKey({
       key: licenseKey,
       email: customerEmail.toLowerCase().trim(),
       userId: user.id,
@@ -123,7 +124,7 @@ export async function handleLicensePurchase(
   if (insertedLicense) {
     try {
       await grantCreditLot({
-        licenseKeyId: insertedLicense.id,
+        userId: insertedLicense.userId,
         amount: 5000,
         sourceType: "license_bundle",
         sourceId: session.id,
@@ -222,7 +223,7 @@ async function handleCreditTopUp(
     `Processing credit top-up: ${creditAmount} credits for license ${licenseKey.substring(0, 7)}...`
   );
 
-  const license = await findLicenseByKey(licenseKey);
+  const license = await findAccountByKey(licenseKey);
 
   if (!license) {
     throw new Error(`License not found: ${licenseKey.substring(0, 7)}...`);
@@ -242,7 +243,7 @@ async function handleCreditTopUp(
     eventId,
     eventType,
     stripeObjectId: session.id,
-    licenseKeyId: license.id,
+    userId: license.userId,
     creditAmount,
     // Explicit (matches the mint path); the refund clawback resolves grants by
     // (sourceType, sourceId), so keep both paths writing the same provenance.
@@ -260,7 +261,7 @@ async function handleCreditTopUp(
   console.log(`Credits added: ${creditAmount} for session ${session.id}`);
 
   // Email a receipt with the amount added and the new balance.
-  const newBalance = await getCreditBalance(license.id);
+  const newBalance = await getCreditBalance(license.userId);
   const customerEmail = license.email;
   const customerName =
     session.customer_details?.name || customerEmail?.split("@")[0] || "Customer";
@@ -305,10 +306,30 @@ async function handleCreditMint(
     throw new Error("No customer email in credit checkout session");
   }
 
-  console.log(`Minting license for credit purchase by ${customerEmail}`);
+  console.log(`Processing credit purchase by ${customerEmail}`);
 
   // STEP 1: Resolve the license for this session (existing on retry, else mint).
-  let license = await findLicenseByStripeSession(session.id);
+  let license = await findAccountByStripeSession(session.id);
+
+  // Pool by email: a guest who buys with an email that ALREADY owns a granted
+  // key should top that key up, not get a second key with a split balance.
+  // Only when the session hasn't already resolved a license (retry-safe), and
+  // only for granted keys (a revoked key is dead — mint a fresh one instead).
+  let pooledIntoExisting = false;
+  if (!license) {
+    // An email can own several keys (e.g. a revoked key plus a live one), so
+    // scan all of them newest-first and pool into the most recent GRANTED key.
+    // (findFirst-by-email could hand back the dead revoked row and wrongly mint
+    // a second key with a split balance.)
+    const existingKeys = await getAccountKeysByEmail(
+      customerEmail.toLowerCase().trim()
+    );
+    const existing = existingKeys.find((k) => k.status === "granted");
+    if (existing) {
+      license = existing;
+      pooledIntoExisting = true;
+    }
+  }
 
   if (!license) {
     // Generate a unique license key with collision check.
@@ -316,7 +337,7 @@ async function handleCreditMint(
     const maxAttempts = 10;
     for (let attempt = 1; ; attempt++) {
       licenseKey = generateLicenseKey();
-      const collision = await findLicenseByKey(licenseKey);
+      const collision = await findAccountByKey(licenseKey);
       if (!collision) break;
       console.warn(`License key collision detected, retrying... (${attempt})`);
       if (attempt >= maxAttempts) {
@@ -333,7 +354,7 @@ async function handleCreditMint(
     }
 
     try {
-      license = await insertLicenseKey({
+      license = await insertAccountKey({
         key: licenseKey,
         email: customerEmail.toLowerCase().trim(),
         userId: user.id,
@@ -351,7 +372,7 @@ async function handleCreditMint(
         (insertError as { code: string }).code === "23505"
       ) {
         console.log("License already inserted by concurrent request");
-        license = await findLicenseByStripeSession(session.id);
+        license = await findAccountByStripeSession(session.id);
       } else {
         console.error("Failed to store license key:", insertError);
         throw insertError;
@@ -365,21 +386,55 @@ async function handleCreditMint(
 
   // STEP 2: Grant the purchased credits (no included bundle on credit purchases).
   // Idempotent on session.id, so safe to run on every delivery.
-  await grantCreditsForStripeEvent({
+  const grantResult = await grantCreditsForStripeEvent({
     eventId,
     eventType,
     stripeObjectId: session.id,
-    licenseKeyId: license.id,
+    userId: license.userId,
     creditAmount,
     sourceType: "stripe_credit_pack",
     sourceId: session.id,
   });
 
+  // Retry/duplicate delivery: credits already granted for this session — don't
+  // re-send the email. (Pooling resolves the same license by email each retry,
+  // so this guard is what keeps a re-delivery from emailing twice.)
+  if (grantResult === "duplicate") {
+    console.log(
+      `Credit purchase already processed for session ${session.id}, skipping email`
+    );
+    return;
+  }
+
+  // STEP 3: Email. When we pooled into an existing key, send a top-up receipt
+  // with the new balance (the buyer already has this key). A genuinely new key
+  // gets the mint email with its starting balance.
+  if (pooledIntoExisting) {
+    console.log(
+      `Pooled ${creditAmount} credits into existing key ${license.key.substring(0, 7)}... for ${customerEmail}`
+    );
+
+    const newBalance = await getCreditBalance(license.userId);
+    const emailResult = await emailService.sendCreditTopUp({
+      customerName,
+      customerEmail,
+      licenseKey: license.key,
+      creditAmount,
+      newBalance,
+      productName: "HyperWhisper",
+      supportEmail: "support@hyperwhisper.com",
+    });
+
+    if (!emailResult.success) {
+      console.error(`Failed to send top-up email: ${emailResult.error}`);
+    }
+    return;
+  }
+
   console.log(
     `Minted license ${license.key.substring(0, 7)}... with ${creditAmount} credits for ${customerEmail}`
   );
 
-  // STEP 3: Email the new key and starting balance.
   const emailResult = await emailService.sendCreditMint({
     customerName,
     customerEmail,
@@ -488,7 +543,7 @@ export async function handleChargeRefunded(
   console.log(`Revoking license for checkout session ${checkoutSession.id}`);
 
   // STEP 5: Revoke the license in database
-  const license = await findLicenseByStripeSession(checkoutSession.id);
+  const license = await findAccountByStripeSession(checkoutSession.id);
 
   if (!license) {
     console.error(`License not found for session ${checkoutSession.id}`);
@@ -507,7 +562,7 @@ export async function handleChargeRefunded(
   }
 
   // STEP 6: Update status to revoked
-  await updateLicenseKey(license.id, { status: "revoked" });
+  await updateAccountKey(license.id, { status: "revoked" });
 
   console.log(
     `License ${license.key.substring(0, 7)}... revoked due to full refund`

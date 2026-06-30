@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "言語を切り替え"
-    }
+    },
+    "cloud": "クラウド"
   },
   "hero": {
     "logoAlt": "HyperWhisperロゴ",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloudとは何ですか？",
-        "answer": "HyperWhisper Cloudは、技術的な知識がないユーザーでも簡単に始められる、組み込みのクラウド文字起こしサービスです。\n\n従量課金制で、ライセンス購入時に$5分のクレジットが付与されます。クレジットは後から追加購入できます。\n    \n3つの精度レベルを提供しています：標準（最速、Groq使用）、高（推奨、Deepgram使用）、最高（最高品質、xAI Grok STT使用）。後処理は自動です。保存するのは使用したクレジット量のみです。\n\nプロバイダーに支払う金額と同じ料金をいただいており、上乗せは一切ありません。\n\nソースコードは[こちら](https://github.com/ray-amjad/hyperwhisper-fly)で公開しています。"
+        "answer": "HyperWhisper Cloudは、技術的な知識がないユーザーでも簡単に始められる、組み込みのクラウド文字起こしサービスです。\n\n従量課金制で、アカウントキー購入時に$5分のクレジットが付与されます。クレジットは後から追加購入できます。\n    \n3つの精度レベルを提供しています：標準（最速、Groq使用）、高（推奨、Deepgram使用）、最高（最高品質、xAI Grok STT使用）。後処理は自動です。保存するのは使用したクレジット量のみです。\n\nプロバイダーに支払う金額と同じ料金をいただいており、上乗せは一切ありません。\n\nソースコードは[こちら](https://github.com/ray-amjad/hyperwhisper-fly)で公開しています。"
       },
       "dataTraining": {
         "question": "私の音声データはAIモデルの学習に使用されますか？",
@@ -187,8 +188,8 @@
         "answer": "シンプルで公正な価格設定を大切にしているからです。$39を一度お支払いいただければ、HyperWhisperを永久にご利用いただけます。月額料金も追加費用もありません。無料版では、1日5分の文字起こしで主要機能をお試しいただけます。"
       },
       "deviceLimit": {
-        "question": "ライセンスは何台のデバイスで利用できますか？",
-        "answer": "お客様のライセンスは、[利用規約](/legal/terms-of-service)に記載されている公正利用ポリシーに従う限り、お好きな台数のデバイスでご利用いただけます。このポリシーは、正当な個人利用およびビジネス利用に柔軟に対応しながら、不正使用を防止するよう設計されています。"
+        "question": "アカウントキーは何台のデバイスで利用できますか？",
+        "answer": "お客様のアカウントキーは、[利用規約](/legal/terms-of-service)に記載されている公正利用ポリシーに従う限り、お好きな台数のデバイスでご利用いただけます。このポリシーは、正当な個人利用およびビジネス利用に柔軟に対応しながら、不正使用を防止するよう設計されています。"
       },
       "requirements": {
         "question": "動作環境を教えてください。",
@@ -208,7 +209,7 @@
     "title": "サポートセンター",
     "subtitle": "HyperWhisperを最大限に活用していただけるよう、サポートいたします",
     "getInTouch": "お問い合わせ",
-    "description": "技術的なサポート、ライセンスに関する問題、その他HyperWhisperについてのご質問は、お気軽にお問い合わせください。",
+    "description": "技術的なサポート、アカウントキーに関する問題、その他HyperWhisperについてのご質問は、お気軽にお問い合わせください。",
     "emailUsAt": "メールアドレス：",
     "openInClient": "メールクライアントで開く：",
     "defaultClient": "デフォルトメールアプリ",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "ご購入ありがとうございます！",
-    "subtitle": "HyperWhisper Proへようこそ！永久ライセンスの準備が整いました。",
+    "subtitle": "HyperWhisper Proへようこそ！アカウントキーの準備が整いました。",
     "checkEmail": {
       "title": "メールをご確認ください",
-      "description": "ライセンスキーとダウンロード手順をメールでお送りしました。数分以内に届きます。"
+      "description": "アカウントキーとダウンロード手順をメールでお送りしました。数分以内に届きます。"
     },
     "whatsNext": {
       "title": "次のステップ",
@@ -262,12 +263,12 @@
         "description": "HyperWhisperからのメールをお探しください"
       },
       "step2": {
-        "title": "ライセンスキーをコピー",
+        "title": "アカウントキーをコピー",
         "description": "アプリの認証に必要です"
       },
       "step3": {
         "title": "HyperWhisperをダウンロード",
-        "description": "アプリをインストールして、ライセンスキーを入力してください"
+        "description": "アプリをインストールして、アカウントキーを入力してください"
       }
     },
     "downloadButton": "HyperWhisperをダウンロード",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. All rights reserved.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "クラウド",
+    "title": "クラウドへ進む2つの方法",
+    "subtitle": "自分のAPIキーを持ち込んで各プロバイダーを自分で設定するか、HyperWhisper Cloud Creditsでセットアップをまるごとスキップできます。",
+    "byo": {
+      "title": "自分のキーを持ち込む",
+      "subtitle": "無料ですが、手間はご自身で。",
+      "features": {
+        "signup": "各プロバイダーに個別に登録",
+        "rotate": "APIキーのコピー、貼り付け、ローテーションを自分で行う",
+        "bill": "プロバイダーごとに別々の請求を管理",
+        "control": "各アカウントを完全に管理",
+        "free": "アプリと一緒にいつでも無料"
+      },
+      "cta": "無料でダウンロード"
+    },
+    "credits": {
+      "badge": "最も簡単",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "従量課金。セットアップ不要。",
+      "features": {
+        "noKeys": "APIキーは一切不要",
+        "oneBalance": "すべてのプロバイダーを1つの残高で",
+        "models": "30+のモデル、シンプルな請求書1枚",
+        "payPerUse": "文字起こしした分だけ支払い",
+        "noTraining": "モデル学習から自動的にオプトアウト"
+      },
+      "cta": "$5のクレジットで始める"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO、優先サポート、自社ホスティング、カスタム連携",
+      "cta": "営業に問い合わせ"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "クラウド",
+    "title": "Cloud Credits",
+    "subtitle": "1つの残高で、すべてのプロバイダーを。管理するAPIキーは不要。文字起こしした分だけ支払い。",
+    "emailLabel": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "お支払い後、アカウントキーとクレジット残高をこちらにメールでお送りします。",
+    "amountLabel": "金額を選択",
+    "creditsCount": "{count, number} クレジット",
+    "custom": "カスタム",
+    "customSub": "任意の金額",
+    "customPlaceholder": "USDでの金額（{min}〜{max}）",
+    "summaryCredits": "クレジット",
+    "summaryFee": "処理手数料（6%、返金不可）",
+    "summaryTotal": "本日の合計",
+    "errorEmail": "有効なメールアドレスを入力してください。",
+    "errorAmount": "${min}〜${max}の範囲で、ドル単位の金額を選択してください。",
+    "errorCheckout": "チェックアウトを開始できませんでした。もう一度お試しください。",
+    "errorGeneric": "問題が発生しました。もう一度お試しください。",
+    "ctaIdle": "チェックアウトに進む",
+    "ctaLoading": "チェックアウトを開始中",
+    "secure": "Stripeによる安全なチェックアウト。クレジットは購入から1年間有効です。",
+    "stripProviders": "9+のプロバイダー、1つの残高",
+    "stripNoSub": "サブスクリプションなし",
+    "stripNoTraining": "学習からオプトアウト済み",
+    "haveKey": "すでにキーをお持ちですか？",
+    "signIn": "サインインしてチャージ"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "残り約{minutes}分",
+    "creditsCount": "{count, number} クレジット",
+    "minutes": "約{minutes}分",
+    "custom": "カスタム",
+    "customSub": "任意の金額",
+    "topUp": "チャージ"
   }
 }

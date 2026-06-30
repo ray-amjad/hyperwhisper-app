@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Skift sprog"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Hvad er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er indbygget cloudtransskription målrettet mindre tekniske brugere, der vil hurtigt i gang.\n\nDet er pay-as-you-go. Når du køber en licens, får du $5 i transskriptionscredits. Du kan tilføje flere credits senere.\n    \nVi tilbyder tre nøjagtighedsniveauer: Medium (hurtigst, drevet af Groq), High (anbefalet, drevet af Deepgram) og Highest (bedste kvalitet, drevet af xAI Grok STT). Efterbehandling er automatisk. Vi gemmer ikke andet end, hvor mange credits du har brugt.\n\nDu betaler præcis det, vi betaler disse udbydere. Vi lægger ikke noget på.\n\nFor ekstra tryghed kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud er indbygget cloudtransskription målrettet mindre tekniske brugere, der vil hurtigt i gang.\n\nDet er pay-as-you-go. Når du køber en kontonøgle, får du $5 i transskriptionscredits. Du kan tilføje flere credits senere.\n    \nVi tilbyder tre nøjagtighedsniveauer: Medium (hurtigst, drevet af Groq), High (anbefalet, drevet af Deepgram) og Highest (bedste kvalitet, drevet af xAI Grok STT). Efterbehandling er automatisk. Vi gemmer ikke andet end, hvor mange credits du har brugt.\n\nDu betaler præcis det, vi betaler disse udbydere. Vi lægger ikke noget på.\n\nFor ekstra tryghed kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Vil mine stemmedata blive brugt til at træne AI-modeller?",
@@ -187,8 +188,8 @@
         "answer": "Vi tror på enkel og fair prissætning. Betal én gang $39 og brug HyperWhisper for altid. Ingen månedlige gebyrer, ingen overraskelser. Gratisversionen lader dig bruge nøglefunktionerne med 3 minutters transskription pr. dag."
       },
       "deviceLimit": {
-        "question": "Hvor mange enheder kan jeg bruge min licens på?",
-        "answer": "Du kan bruge din licens på så mange enheder, du vil, underlagt vores Fair Usage Policy som beskrevet i vores [Servicevilkår](/legal/terms-of-service). Denne politik er designet til at være fleksibel for legitim personlig og erhvervsmæssig brug, samtidig med at misbrug forhindres."
+        "question": "Hvor mange enheder kan jeg bruge min kontonøgle på?",
+        "answer": "Du kan bruge din kontonøgle på så mange enheder, du vil, underlagt vores Fair Usage Policy som beskrevet i vores [Servicevilkår](/legal/terms-of-service). Denne politik er designet til at være fleksibel for legitim personlig og erhvervsmæssig brug, samtidig med at misbrug forhindres."
       },
       "requirements": {
         "question": "Hvad er systemkravene?",
@@ -208,7 +209,7 @@
     "title": "Supportcenter",
     "subtitle": "Vi er her for at hjælpe dig med at få mest muligt ud af HyperWhisper",
     "getInTouch": "Kontakt os",
-    "description": "Ved teknisk support, licensproblemer eller spørgsmål om HyperWhisper står vores team klar til at hjælpe.",
+    "description": "Ved teknisk support, kontonøgleproblemer eller spørgsmål om HyperWhisper står vores team klar til at hjælpe.",
     "emailUsAt": "Skriv til os på:",
     "openInClient": "Åbn i din e-mailklient:",
     "defaultClient": "Standard e-mailklient",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Køb gennemført!",
-    "subtitle": "Velkommen til HyperWhisper Pro! Din livstidslicens er klar.",
+    "subtitle": "Velkommen til HyperWhisper Pro! Din kontonøgle er klar.",
     "checkEmail": {
       "title": "Tjek din e-mail",
-      "description": "Vi har sendt din licensnøgle og downloadinstruktioner til din e-mailadresse. Den bør komme inden for de næste par minutter."
+      "description": "Vi har sendt din kontonøgle og downloadinstruktioner til din e-mailadresse. Den bør komme inden for de næste par minutter."
     },
     "whatsNext": {
       "title": "Hvad nu?",
@@ -262,12 +263,12 @@
         "description": "Se efter en e-mail fra HyperWhisper"
       },
       "step2": {
-        "title": "Kopiér din licensnøgle",
+        "title": "Kopiér din kontonøgle",
         "description": "Du skal bruge den for at aktivere appen"
       },
       "step3": {
         "title": "Download HyperWhisper",
-        "description": "Installer appen og indtast din licensnøgle"
+        "description": "Installer appen og indtast din kontonøgle"
       }
     },
     "downloadButton": "Download HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Alle rettigheder forbeholdes.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "To måder at komme i skyen",
+    "subtitle": "Medbring dine egne API-nøgler og opsæt hver udbyder selv, eller spring opsætningen helt over med HyperWhisper Cloud-kreditter.",
+    "byo": {
+      "title": "Medbring dine egne nøgler",
+      "subtitle": "Gratis, men du gør benarbejdet.",
+      "features": {
+        "signup": "Tilmeld dig hver udbyder separat",
+        "rotate": "Kopiér, indsæt og rotér API-nøgler selv",
+        "bill": "Hold styr på en separat regning pr. udbyder",
+        "control": "Fuld kontrol over hver konto",
+        "free": "Altid gratis med appen"
+      },
+      "cta": "Download gratis"
+    },
+    "credits": {
+      "badge": "Nemmest",
+      "title": "HyperWhisper Cloud-kreditter",
+      "subtitle": "Betal efter forbrug. Ingen opsætning.",
+      "features": {
+        "noKeys": "Aldrig nogen API-nøgler",
+        "oneBalance": "Alle udbydere på én saldo",
+        "models": "30+ modeller, én enkel faktura",
+        "payPerUse": "Betal kun for det, du transskriberer",
+        "noTraining": "Automatisk fravalgt modeltræning"
+      },
+      "cta": "Start med $5 i kreditter"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioriteret support, intern hosting og brugerdefinerede integrationer",
+      "cta": "Kontakt salg"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud-kreditter",
+    "subtitle": "Én saldo, alle udbydere. Ingen API-nøgler at administrere. Betal kun for det, du transskriberer.",
+    "emailLabel": "Din e-mail",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Vi sender din kontonøgle og kreditsaldo hertil efter betaling.",
+    "amountLabel": "Vælg et beløb",
+    "creditsCount": "{count, number} kreditter",
+    "custom": "Brugerdefineret",
+    "customSub": "dit beløb",
+    "customPlaceholder": "Beløb i USD ({min} til {max})",
+    "summaryCredits": "Kreditter",
+    "summaryFee": "Behandlingsgebyr (6%, ikke-refunderbart)",
+    "summaryTotal": "I alt i dag",
+    "errorEmail": "Indtast en gyldig e-mailadresse.",
+    "errorAmount": "Vælg et helt dollarbeløb mellem ${min} og ${max}.",
+    "errorCheckout": "Kassen kunne ikke startes. Prøv venligst igen.",
+    "errorGeneric": "Noget gik galt. Prøv venligst igen.",
+    "ctaIdle": "Fortsæt til kassen",
+    "ctaLoading": "Starter kassen",
+    "secure": "Sikker betaling via Stripe. Kreditter er gyldige i et år fra købet.",
+    "stripProviders": "9+ udbydere, én saldo",
+    "stripNoSub": "Intet abonnement",
+    "stripNoTraining": "Fravalgt træning",
+    "haveKey": "Har du allerede en nøgle?",
+    "signIn": "Log ind for at fylde op"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud-kreditter",
+    "minutesRemaining": "~{minutes} minutter tilbage",
+    "creditsCount": "{count, number} kreditter",
+    "minutes": "~{minutes} min",
+    "custom": "Brugerdefineret",
+    "customSub": "dit beløb",
+    "topUp": "Fyld op"
   }
 }

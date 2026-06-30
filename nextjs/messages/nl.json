@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Taal wisselen"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "Wat is HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud is ingebouwde cloudtranscriptie voor minder technische gebruikers die snel willen starten.\n\nHet is pay-as-you-go. Bij aankoop van een licentie krijg je $5 aan transcriptiecredits. Je kunt later extra credits toevoegen.\n    \nWe bieden drie nauwkeurigheidsniveaus: Medium (snelst, aangedreven door Groq), High (aanbevolen, aangedreven door Deepgram) en Highest (beste kwaliteit, aangedreven door xAI Grok STT). Nabewerking is automatisch. We slaan niets op behalve hoeveel credits je hebt verbruikt.\n\nJe betaalt exact wat wij aan deze providers betalen. We rekenen geen opslag.\n\nVoor extra zekerheid kun je de broncode van HyperWhisper Cloud [hier](https://github.com/ray-amjad/hyperwhisper-fly) bekijken."
+        "answer": "HyperWhisper Cloud is ingebouwde cloudtranscriptie voor minder technische gebruikers die snel willen starten.\n\nHet is pay-as-you-go. Bij aankoop van een accountsleutel krijg je $5 aan transcriptiecredits. Je kunt later extra credits toevoegen.\n    \nWe bieden drie nauwkeurigheidsniveaus: Medium (snelst, aangedreven door Groq), High (aanbevolen, aangedreven door Deepgram) en Highest (beste kwaliteit, aangedreven door xAI Grok STT). Nabewerking is automatisch. We slaan niets op behalve hoeveel credits je hebt verbruikt.\n\nJe betaalt exact wat wij aan deze providers betalen. We rekenen geen opslag.\n\nVoor extra zekerheid kun je de broncode van HyperWhisper Cloud [hier](https://github.com/ray-amjad/hyperwhisper-fly) bekijken."
       },
       "dataTraining": {
         "question": "Worden mijn spraakgegevens gebruikt om AI-modellen te trainen?",
@@ -187,8 +188,8 @@
         "answer": "Wij geloven in eenvoudige, eerlijke prijzen. Betaal één keer $39 en gebruik HyperWhisper voor altijd. Geen maandelijkse kosten, geen verrassingen. Met de gratis versie kun je de belangrijkste functies gebruiken met 3 minuten transcriptie per dag."
       },
       "deviceLimit": {
-        "question": "Op hoeveel apparaten kan ik mijn licentie gebruiken?",
-        "answer": "Je kunt je licentie op zoveel apparaten gebruiken als je wilt, onder voorbehoud van ons Fair Usage Policy zoals beschreven in onze [Servicevoorwaarden](/legal/terms-of-service). Dit beleid is bedoeld om flexibel te zijn voor legitiem persoonlijk en zakelijk gebruik, en misbruik te voorkomen."
+        "question": "Op hoeveel apparaten kan ik mijn accountsleutel gebruiken?",
+        "answer": "Je kunt je accountsleutel op zoveel apparaten gebruiken als je wilt, onder voorbehoud van ons Fair Usage Policy zoals beschreven in onze [Servicevoorwaarden](/legal/terms-of-service). Dit beleid is bedoeld om flexibel te zijn voor legitiem persoonlijk en zakelijk gebruik, en misbruik te voorkomen."
       },
       "requirements": {
         "question": "Wat zijn de systeemvereisten?",
@@ -208,7 +209,7 @@
     "title": "Supportcentrum",
     "subtitle": "We helpen je graag om het maximale uit HyperWhisper te halen",
     "getInTouch": "Neem contact op",
-    "description": "Voor technische support, licentieproblemen of vragen over HyperWhisper staat ons team voor je klaar.",
+    "description": "Voor technische support, accountsleutelproblemen of vragen over HyperWhisper staat ons team voor je klaar.",
     "emailUsAt": "Mail ons op:",
     "openInClient": "Open in je e-mailclient:",
     "defaultClient": "Standaard e-mailclient",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Aankoop geslaagd!",
-    "subtitle": "Welkom bij HyperWhisper Pro! Je levenslange licentie staat klaar.",
+    "subtitle": "Welkom bij HyperWhisper Pro! Je accountsleutel staat klaar.",
     "checkEmail": {
       "title": "Controleer je e-mail",
-      "description": "We hebben je licentiesleutel en downloadinstructies naar je e-mailadres gestuurd. Die zouden binnen enkele minuten moeten arriveren."
+      "description": "We hebben je accountsleutel en downloadinstructies naar je e-mailadres gestuurd. Die zouden binnen enkele minuten moeten arriveren."
     },
     "whatsNext": {
       "title": "Wat nu?",
@@ -262,12 +263,12 @@
         "description": "Zoek naar een e-mail van HyperWhisper"
       },
       "step2": {
-        "title": "Kopieer je licentiesleutel",
+        "title": "Kopieer je accountsleutel",
         "description": "Deze heb je nodig om de app te activeren"
       },
       "step3": {
         "title": "Download HyperWhisper",
-        "description": "Installeer de app en voer je licentiesleutel in"
+        "description": "Installeer de app en voer je accountsleutel in"
       }
     },
     "downloadButton": "Download HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Alle rechten voorbehouden.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Twee manieren om naar de cloud te gaan",
+    "subtitle": "Gebruik je eigen API-sleutels en koppel elke provider zelf, of sla de installatie helemaal over met HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Gebruik je eigen sleutels",
+      "subtitle": "Gratis, maar jij doet het werk.",
+      "features": {
+        "signup": "Meld je apart aan bij elke provider",
+        "rotate": "Kopieer, plak en roteer API-sleutels zelf",
+        "bill": "Houd een aparte rekening per provider bij",
+        "control": "Volledige controle over elk account",
+        "free": "Altijd gratis met de app"
+      },
+      "cta": "Gratis downloaden"
+    },
+    "credits": {
+      "badge": "Eenvoudigst",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Betalen naar gebruik. Geen installatie.",
+      "features": {
+        "noKeys": "Nooit API-sleutels",
+        "oneBalance": "Elke provider op één saldo",
+        "models": "30+ modellen, één eenvoudige factuur",
+        "payPerUse": "Betaal alleen voor wat je transcribeert",
+        "noTraining": "Automatisch uitgesloten van modeltraining"
+      },
+      "cta": "Begin met $5 aan credits"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, prioriteitsondersteuning, interne hosting en aangepaste integraties",
+      "cta": "Neem contact op met Sales"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Eén saldo, elke provider. Geen API-sleutels om te beheren. Betaal alleen voor wat je transcribeert.",
+    "emailLabel": "Je e-mail",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "We mailen je accountsleutel en creditsaldo hierheen na betaling.",
+    "amountLabel": "Kies een bedrag",
+    "creditsCount": "{count, number} credits",
+    "custom": "Aangepast",
+    "customSub": "jouw bedrag",
+    "customPlaceholder": "Bedrag in USD ({min} tot {max})",
+    "summaryCredits": "Credits",
+    "summaryFee": "Verwerkingskosten (6%, niet-restitueerbaar)",
+    "summaryTotal": "Totaal vandaag",
+    "errorEmail": "Voer een geldig e-mailadres in.",
+    "errorAmount": "Kies een heel dollarbedrag tussen ${min} en ${max}.",
+    "errorCheckout": "Kon afrekenen niet starten. Probeer het opnieuw.",
+    "errorGeneric": "Er ging iets mis. Probeer het opnieuw.",
+    "ctaIdle": "Doorgaan naar afrekenen",
+    "ctaLoading": "Afrekenen starten",
+    "secure": "Veilig afrekenen via Stripe. Credits zijn een jaar geldig vanaf aankoop.",
+    "stripProviders": "9+ providers, één saldo",
+    "stripNoSub": "Geen abonnement",
+    "stripNoTraining": "Uitgesloten van training",
+    "haveKey": "Heb je al een sleutel?",
+    "signIn": "Log in om bij te vullen"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} minuten resterend",
+    "creditsCount": "{count, number} credits",
+    "minutes": "~{minutes} min",
+    "custom": "Aangepast",
+    "customSub": "jouw bedrag",
+    "topUp": "Bijvullen"
   }
 }

@@ -4,7 +4,7 @@ import { validateCreditDeductionAmount } from "./validation";
 
 import {
   deductCreditBalance,
-  findLicenseByKey,
+  findAccountByKey,
   getCreditBalance,
 } from "@/src/lib/db-layer";
 
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const license = await findLicenseByKey(licenseKey.trim());
+    const license = await findAccountByKey(licenseKey.trim());
 
     if (!license) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const credits = await getCreditBalance(license.id);
+    const credits = await getCreditBalance(license.userId);
 
     return NextResponse.json({
       credits,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: amountError }, { status: 400 });
     }
 
-    const license = await findLicenseByKey(license_key.trim());
+    const license = await findAccountByKey(license_key.trim());
 
     if (!license) {
       return NextResponse.json(
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     try {
       // Atomic SQL decrement (floored at 0) — concurrent POSTs cannot
       // double-spend via a read-then-write race.
-      newCredits = await deductCreditBalance(license.id, amount);
+      newCredits = await deductCreditBalance(license.userId, amount);
     } catch (updateError) {
       console.error("Credit deduction failed:", updateError);
       return NextResponse.json(

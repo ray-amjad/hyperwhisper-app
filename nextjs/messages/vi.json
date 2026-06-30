@@ -15,7 +15,8 @@
       "es": "Español",
       "zh": "中文",
       "switchTo": "Đổi ngôn ngữ"
-    }
+    },
+    "cloud": "Cloud"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -176,7 +177,7 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud là gì?",
-        "answer": "HyperWhisper Cloud là dịch vụ chuyển giọng nói trên cloud tích hợp sẵn, hướng đến người dùng ít kỹ thuật muốn bắt đầu nhanh.\n\nDịch vụ hoạt động theo mô hình pay as you go. Mua license sẽ có $5 tín dụng chuyển giọng nói. Bạn có thể nạp thêm tín dụng sau.\n    \nChúng tôi cung cấp ba mức độ chính xác: Medium (nhanh nhất, dùng Groq), High (khuyến nghị, dùng Deepgram) và Highest (chất lượng cao nhất, dùng xAI Grok STT). Hậu xử lý là tự động. Chúng tôi không lưu gì ngoài số tín dụng bạn đã dùng.\n\nBạn trả đúng bằng mức chúng tôi trả cho các nhà cung cấp này. Không có markup.\n\nĐể yên tâm, bạn có thể xem mã nguồn HyperWhisper Cloud [tại đây](https://github.com/ray-amjad/hyperwhisper-fly)."
+        "answer": "HyperWhisper Cloud là dịch vụ chuyển giọng nói trên cloud tích hợp sẵn, hướng đến người dùng ít kỹ thuật muốn bắt đầu nhanh.\n\nDịch vụ hoạt động theo mô hình pay as you go. Mua khóa tài khoản sẽ có $5 tín dụng chuyển giọng nói. Bạn có thể nạp thêm tín dụng sau.\n    \nChúng tôi cung cấp ba mức độ chính xác: Medium (nhanh nhất, dùng Groq), High (khuyến nghị, dùng Deepgram) và Highest (chất lượng cao nhất, dùng xAI Grok STT). Hậu xử lý là tự động. Chúng tôi không lưu gì ngoài số tín dụng bạn đã dùng.\n\nBạn trả đúng bằng mức chúng tôi trả cho các nhà cung cấp này. Không có markup.\n\nĐể yên tâm, bạn có thể xem mã nguồn HyperWhisper Cloud [tại đây](https://github.com/ray-amjad/hyperwhisper-fly)."
       },
       "dataTraining": {
         "question": "Dữ liệu giọng nói của tôi có được dùng để huấn luyện mô hình AI không?",
@@ -187,8 +188,8 @@
         "answer": "Chúng tôi tin vào mức giá đơn giản và công bằng. Trả một lần $39 và dùng HyperWhisper mãi mãi. Không phí hàng tháng, không bất ngờ. Bản miễn phí cho phép bạn thử các tính năng chính với 3 phút chuyển giọng nói mỗi ngày."
       },
       "deviceLimit": {
-        "question": "Tôi có thể dùng license trên bao nhiêu thiết bị?",
-        "answer": "Bạn có thể dùng license trên bao nhiêu thiết bị tùy ý, theo Chính sách Sử dụng Hợp lý được nêu trong [Điều khoản Dịch vụ](/legal/terms-of-service). Chính sách này được thiết kế linh hoạt cho nhu cầu cá nhân và doanh nghiệp hợp pháp, đồng thời ngăn chặn lạm dụng."
+        "question": "Tôi có thể dùng khóa tài khoản trên bao nhiêu thiết bị?",
+        "answer": "Bạn có thể dùng khóa tài khoản trên bao nhiêu thiết bị tùy ý, theo Chính sách Sử dụng Hợp lý được nêu trong [Điều khoản Dịch vụ](/legal/terms-of-service). Chính sách này được thiết kế linh hoạt cho nhu cầu cá nhân và doanh nghiệp hợp pháp, đồng thời ngăn chặn lạm dụng."
       },
       "requirements": {
         "question": "Yêu cầu hệ thống là gì?",
@@ -208,7 +209,7 @@
     "title": "Trung tâm hỗ trợ",
     "subtitle": "Chúng tôi ở đây để giúp bạn tận dụng tối đa HyperWhisper",
     "getInTouch": "Liên hệ",
-    "description": "Đối với hỗ trợ kỹ thuật, vấn đề giấy phép hoặc bất kỳ câu hỏi nào về HyperWhisper, đội ngũ của chúng tôi luôn sẵn sàng hỗ trợ.",
+    "description": "Đối với hỗ trợ kỹ thuật, vấn đề khóa tài khoản hoặc bất kỳ câu hỏi nào về HyperWhisper, đội ngũ của chúng tôi luôn sẵn sàng hỗ trợ.",
     "emailUsAt": "Email cho chúng tôi tại:",
     "openInClient": "Mở trong ứng dụng email của bạn:",
     "defaultClient": "Ứng dụng Email Mặc Định",
@@ -250,10 +251,10 @@
   },
   "purchaseSuccess": {
     "title": "Mua hàng thành công!",
-    "subtitle": "Chào mừng bạn đến với HyperWhisper Pro! License trọn đời của bạn đã sẵn sàng.",
+    "subtitle": "Chào mừng bạn đến với HyperWhisper Pro! Khóa tài khoản của bạn đã sẵn sàng.",
     "checkEmail": {
       "title": "Kiểm tra Email của bạn",
-      "description": "Chúng tôi đã gửi khóa license và hướng dẫn tải xuống đến địa chỉ email của bạn. Email sẽ đến trong vài phút tới."
+      "description": "Chúng tôi đã gửi khóa tài khoản và hướng dẫn tải xuống đến địa chỉ email của bạn. Email sẽ đến trong vài phút tới."
     },
     "whatsNext": {
       "title": "Bước tiếp theo",
@@ -262,12 +263,12 @@
         "description": "Tìm email từ HyperWhisper"
       },
       "step2": {
-        "title": "Sao chép khóa license",
+        "title": "Sao chép khóa tài khoản",
         "description": "Bạn sẽ cần khóa này để kích hoạt ứng dụng"
       },
       "step3": {
         "title": "Tải HyperWhisper",
-        "description": "Cài ứng dụng và nhập khóa license"
+        "description": "Cài ứng dụng và nhập khóa tài khoản"
       }
     },
     "downloadButton": "Tải xuống HyperWhisper",
@@ -301,5 +302,77 @@
     },
     "copyright": "© 2026 HyperWhisper. Đã đăng ký mọi quyền.",
     "linkedinAria": "LinkedIn"
+  },
+  "cloudSection": {
+    "eyebrow": "Cloud",
+    "title": "Hai cách để dùng cloud",
+    "subtitle": "Mang khóa API của riêng bạn và tự kết nối từng nhà cung cấp, hoặc bỏ qua hoàn toàn việc thiết lập với HyperWhisper Cloud Credits.",
+    "byo": {
+      "title": "Dùng khóa của riêng bạn",
+      "subtitle": "Miễn phí, nhưng bạn phải tự làm mọi thứ.",
+      "features": {
+        "signup": "Đăng ký riêng với từng nhà cung cấp",
+        "rotate": "Tự sao chép, dán và xoay vòng khóa API",
+        "bill": "Theo dõi hóa đơn riêng cho mỗi nhà cung cấp",
+        "control": "Toàn quyền kiểm soát từng tài khoản",
+        "free": "Luôn miễn phí cùng ứng dụng"
+      },
+      "cta": "Tải miễn phí"
+    },
+    "credits": {
+      "badge": "Dễ nhất",
+      "title": "HyperWhisper Cloud Credits",
+      "subtitle": "Trả theo mức dùng. Không cần thiết lập.",
+      "features": {
+        "noKeys": "Không bao giờ cần khóa API",
+        "oneBalance": "Mọi nhà cung cấp trên cùng một số dư",
+        "models": "30+ mô hình, một hóa đơn đơn giản",
+        "payPerUse": "Chỉ trả cho phần bạn phiên âm",
+        "noTraining": "Tự động từ chối tham gia huấn luyện mô hình"
+      },
+      "cta": "Bắt đầu với $5 tín dụng"
+    },
+    "enterprise": {
+      "title": "Enterprise",
+      "description": "SSO, hỗ trợ ưu tiên, lưu trữ nội bộ và tích hợp tùy chỉnh",
+      "cta": "Liên hệ bộ phận bán hàng"
+    }
+  },
+  "buyCredits": {
+    "eyebrow": "Cloud",
+    "title": "Cloud Credits",
+    "subtitle": "Một số dư, mọi nhà cung cấp. Không cần quản lý khóa API. Chỉ trả cho phần bạn phiên âm.",
+    "emailLabel": "Email của bạn",
+    "emailPlaceholder": "you@example.com",
+    "emailHelp": "Chúng tôi gửi khóa tài khoản và số dư tín dụng của bạn đến đây sau khi thanh toán.",
+    "amountLabel": "Chọn một số tiền",
+    "creditsCount": "{count, number} tín dụng",
+    "custom": "Tùy chỉnh",
+    "customSub": "số tiền của bạn",
+    "customPlaceholder": "Số tiền tính bằng USD ({min} đến {max})",
+    "summaryCredits": "Tín dụng",
+    "summaryFee": "Phí xử lý (6%, không hoàn lại)",
+    "summaryTotal": "Tổng hôm nay",
+    "errorEmail": "Nhập một địa chỉ email hợp lệ.",
+    "errorAmount": "Chọn một số tiền nguyên đô la từ ${min} đến ${max}.",
+    "errorCheckout": "Không thể bắt đầu thanh toán. Vui lòng thử lại.",
+    "errorGeneric": "Đã xảy ra lỗi. Vui lòng thử lại.",
+    "ctaIdle": "Tiếp tục thanh toán",
+    "ctaLoading": "Đang bắt đầu thanh toán",
+    "secure": "Thanh toán an toàn qua Stripe. Tín dụng có hiệu lực một năm kể từ ngày mua.",
+    "stripProviders": "9+ nhà cung cấp, một số dư",
+    "stripNoSub": "Không đăng ký định kỳ",
+    "stripNoTraining": "Đã từ chối huấn luyện",
+    "haveKey": "Đã có khóa?",
+    "signIn": "Đăng nhập để nạp thêm"
+  },
+  "cloudCreditsCard": {
+    "title": "Cloud Credits",
+    "minutesRemaining": "~{minutes} phút còn lại",
+    "creditsCount": "{count, number} tín dụng",
+    "minutes": "~{minutes} phút",
+    "custom": "Tùy chỉnh",
+    "customSub": "số tiền của bạn",
+    "topUp": "Nạp thêm"
   }
 }

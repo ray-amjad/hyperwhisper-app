@@ -27,9 +27,11 @@ export default function UserDashboardClient({
     error,
   } = api.customer.licensesWithCredits.useQuery();
 
-  // Calculate totals across all licenses
-  const totalCredits = data?.licenses?.reduce((sum, l) => sum + l.credits, 0) ?? 0;
-  const totalMinutesRemaining = data?.licenses?.reduce((sum, l) => sum + l.minutesRemaining, 0) ?? 0;
+  // Credits are pooled per account, so use the query's account-level totals
+  // rather than summing per license (which double-counts a multi-key account's
+  // pooled balance).
+  const totalCredits = data?.totalCredits ?? 0;
+  const totalMinutesRemaining = data?.totalMinutesRemaining ?? 0;
   const activeLicenseKey = data?.licenses?.find((l) => l.status === "granted")?.key ?? null;
 
   return (
@@ -45,7 +47,7 @@ export default function UserDashboardClient({
         <div className="bg-white/5 rounded-xl border border-white/10 p-5">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-gray-400 text-sm">Loading licenses...</span>
+            <span className="text-gray-400 text-sm">Loading Account Keys...</span>
           </div>
         </div>
       ) : error ? (
@@ -65,9 +67,9 @@ export default function UserDashboardClient({
         </>
       ) : (
         <div className="bg-white/5 rounded-xl border border-white/10 p-5 text-center">
-          <p className="text-gray-400">No licenses found</p>
+          <p className="text-gray-400">No Account Keys found</p>
           <a href="/" className="text-emerald-400 hover:text-emerald-300 text-sm mt-2 inline-block">
-            Purchase a license →
+            Get an Account Key →
           </a>
         </div>
       )}
