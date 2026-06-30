@@ -37,17 +37,18 @@ schemas, **and the Fly.io transcription backend**
 closed source. **Local transcription runs entirely on your machine** with no
 account and no network — clone it, build it, use it.
 
-**HyperWhisper Cloud** is the one *paid* piece — but paid doesn't mean closed.
-The backend that powers it lives in this repo; you can read it, audit it, and run
-it yourself. What you pay for is the **managed, hosted instance** we operate for
-the largest, most accurate models: access requires a license key and is billed on
-usage. Validation stays **server-side**, so building from source does not unlock
-our hosted Cloud for free — but the source is all here, and everything else
-(local models, post-processing, modes, vocabulary, backup/restore) works without
-a key.
+**HyperWhisper Cloud** is the one *paid* piece — the **managed, hosted instance**
+we run for the largest, most accurate models. Its backend lives in this repo, so
+you can read, audit, and run it yourself; metering stays **server-side**, so
+building from source doesn't unlock our hosted Cloud for free. Everything else
+(local models, post-processing, modes, vocabulary, backup/restore) works with no
+account.
 
-If you want the hosted Cloud, [grab a license](https://hyperwhisper.com). It funds
-development of everything in this repo.
+Cloud runs on **prepaid credits** — one balance for every provider. No per-provider
+API keys to manage, no subscription, no juggling separate bills: top up once and
+pay only for what you transcribe. [Buy credits](https://hyperwhisper.com), activate
+your Account Key in the app, and you're done — it funds development of everything
+in this repo.
 
 ## Repository layout
 
@@ -57,7 +58,7 @@ development of everything in this repo.
 | `app/windows` | Windows app (C# / WPF / .NET 10) |
 | `app/ios` | iOS app *(work in progress; not built here)* |
 | `hyperwhisper-cloud` | Fly.io edge transcription service |
-| `nextjs` | Marketing & license website (Next.js) |
+| `nextjs` | Marketing & account website (Next.js) |
 | `mintlify-help` | Documentation site (Mintlify) |
 | `shared-core-rs` | Rust shared core (UniFFI) used by the native apps |
 | `shared-models` | Per-model metadata catalog |
@@ -106,5 +107,5 @@ conventions documented in the relevant `AGENTS.md`.
 
 Apache License 2.0 — see [`LICENSE`](./LICENSE). The code for everything,
 including the backend, is covered by this license. The hosted **HyperWhisper
-Cloud** *service* — our managed instance and license keys — is a separate paid
+Cloud** *service* — our managed instance and prepaid credits — is a separate paid
 offering, even though its backend source is included here under the same license.
