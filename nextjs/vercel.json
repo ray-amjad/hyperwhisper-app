@@ -1,4 +1,6 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./ ../shared-types/",
   "buildCommand": "npm run db:migrate && npm run validate-appcast && npm run build",
   "installCommand": "npm install",
   "framework": "nextjs",
