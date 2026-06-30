@@ -1,70 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { m } from "framer-motion";
-import { Check, X, Sparkles, Building2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { Check, X, Sparkles, Building2, Cloud, KeyRound } from "lucide-react";
 
 import EnterpriseContactModal from "./EnterpriseContactModal";
 
 import { Link } from "@/src/i18n/navigation";
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
 
+/**
+ * "Two ways to go cloud" pricing section.
+ *
+ * Replaces the old lifetime-license pricing table. Two paths: bring your own
+ * API keys (free, but you do the legwork) or HyperWhisper Cloud Credits
+ * (pay-as-you-go, zero setup) which routes to /credits. Copy is hardcoded
+ * English on purpose — the site has 41 locale files with no missing-key
+ * fallback, so new i18n keys would render raw paths elsewhere; translation is a
+ * tracked follow-up.
+ */
 export default function PricingSection() {
   const { openModal } = useDownloadModal();
   const [showEnterpriseModal, setShowEnterpriseModal] = useState(false);
-  const t = useTranslations("pricing");
 
-  const plans = [
-    {
-      name: t("free.name"),
-      price: t("free.price"),
-      period: t("free.period"),
-      description: t("free.description"),
-      features: [
-        { text: t("free.features.transcriptionLimit"), included: true },
-        { text: t("free.features.basicModes"), included: true },
-        { text: t("free.features.offlineTranscription"), included: true },
-        { text: t("free.features.apiTranscription"), included: true },
-        { text: t("free.features.postProcessing"), included: true },
-        { text: t("free.features.providers"), included: true },
-        { text: t("free.features.lifetimeUpdates"), included: false },
-        { text: t("free.features.cloudLimited"), included: false },
-        { text: t("free.features.customVocabulary"), included: false },
-        { text: t("free.features.prioritySupport"), included: false },
-      ],
-      cta: t("free.cta"),
-      popular: false,
-      action: "download" as const,
-    },
-    {
-      name: t("pro.name"),
-      price: t("pro.price"),
-      period: t("pro.period"),
-      description: t("pro.description"),
-      features: [
-        { text: t("pro.features.unlimitedTranscription"), included: true },
-        { text: t("pro.features.allModes"), included: true },
-        { text: t("pro.features.offlineTranscription"), included: true },
-        { text: t("pro.features.apiTranscription"), included: true },
-        { text: t("pro.features.postProcessing"), included: true },
-        { text: t("pro.features.providers"), included: true },
-        { text: t("pro.features.lifetimeUpdates"), included: true },
-        { text: t("pro.features.cloudCredits"), included: true },
-        { text: t("pro.features.customVocabulary"), included: true },
-        { text: t("pro.features.prioritySupport"), included: true },
-      ],
-      cta: t("pro.cta"),
-      popular: true,
-      action: "checkout" as const,
-    },
+  const byoFeatures = [
+    { text: "Sign up for each provider separately", included: false },
+    { text: "Copy, paste and rotate API keys yourself", included: false },
+    { text: "Track a separate bill per provider", included: false },
+    { text: "Full control over each account", included: true },
+    { text: "Always free with the app", included: true },
   ];
 
-  const handleDownload = () => {
-    openModal();
-  };
+  const cloudFeatures = [
+    "No API keys, ever",
+    "Every provider on one balance",
+    "30+ models, one simple invoice",
+    "Pay only for what you transcribe",
+    "Opted out of model training automatically",
+  ];
 
   return (
     <section className="px-6 py-20" id="pricing">
@@ -75,104 +50,117 @@ export default function PricingSection() {
         viewport={{ once: true }}
         whileInView={{ opacity: 1, y: 0 }}
       >
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            {t("title")}
+        <div className="text-center mb-14">
+          <span className="text-purple-400 text-sm font-semibold tracking-widest uppercase">
+            Cloud
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold mt-3 mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+            Two ways to go cloud
           </h2>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-4">
-            {t("subtitle")}
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+            Bring your own API keys if you love tinkering, or skip all of it with
+            HyperWhisper Cloud Credits.
           </p>
-          <div className="inline-flex items-center gap-2 bg-green-900/20 border border-green-800 rounded-full px-4 py-2">
-            <Check className="w-4 h-4 text-green-400" />
-            <span className="text-green-400 text-sm font-medium">
-              {t("guarantee")}
-            </span>
-          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {plans.map((plan, index) => (
-            <m.div
-              key={plan.name}
-              className="relative"
-              initial={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              viewport={{ once: true }}
-              whileInView={{ opacity: 1, y: 0 }}
-            >
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                  <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                    <Sparkles className="w-4 h-4" />
-                    {t("pro.mostPopular")}
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {/* Bring your own keys */}
+          <m.div
+            initial={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            <Card className="h-full bg-gray-900/50 border-gray-800 backdrop-blur-xl">
+              <CardBody className="p-8 flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <KeyRound className="w-5 h-5 text-gray-400" />
+                  <h3 className="text-xl font-bold text-white">
+                    Bring your own keys
+                  </h3>
                 </div>
-              )}
-              <Card
-                className={`h-full ${
-                  plan.popular
-                    ? "bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700"
-                    : "bg-gray-900/50 border-gray-800"
-                } backdrop-blur-xl`}
-              >
-                <CardHeader className="pb-8 pt-6">
-                  <div className="w-full">
-                    <h3 className="text-2xl font-bold text-white mb-2">
-                      {plan.name}
-                    </h3>
-                    <div className="flex items-baseline gap-1 mb-3">
-                      <span className="text-4xl font-bold text-white">
-                        {plan.price}
+                <p className="text-sm text-gray-500 mb-6">
+                  Free, but you do the legwork.
+                </p>
+                <ul className="space-y-3 mb-8">
+                  {byoFeatures.map((feature) => (
+                    <li
+                      key={feature.text}
+                      className="flex items-start gap-3 text-sm"
+                    >
+                      {feature.included ? (
+                        <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <X className="w-4 h-4 text-gray-600 mt-0.5 flex-shrink-0" />
+                      )}
+                      <span
+                        className={
+                          feature.included ? "text-gray-300" : "text-gray-400"
+                        }
+                      >
+                        {feature.text}
                       </span>
-                      <span className="text-gray-400">/{plan.period}</span>
-                    </div>
-                    <p className="text-gray-400 text-sm">{plan.description}</p>
-                  </div>
-                </CardHeader>
-                <CardBody className="pt-0">
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature) => (
-                      <li key={feature.text} className="flex items-start gap-3">
-                        {feature.included ? (
-                          <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        ) : (
-                          <X className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
-                        )}
-                        <span
-                          className={
-                            feature.included ? "text-gray-300" : "text-gray-600"
-                          }
-                        >
-                          {feature.text}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  {plan.action === "checkout" ? (
-                    <Button
-                      as={Link}
-                      href="/credits"
-                      className={`w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white`}
-                      size="lg"
-                    >
-                      {plan.cta}
-                    </Button>
-                  ) : (
-                    <Button
-                      className="w-full bg-gray-800 text-gray-300 border border-gray-700"
-                      size="lg"
-                      onPress={handleDownload}
-                    >
-                      {plan.cta}
-                    </Button>
-                  )}
-                </CardBody>
-              </Card>
-            </m.div>
-          ))}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 mt-auto"
+                  size="lg"
+                  onPress={openModal}
+                >
+                  Download free
+                </Button>
+              </CardBody>
+            </Card>
+          </m.div>
+
+          {/* HyperWhisper Cloud Credits */}
+          <m.div
+            className="relative"
+            initial={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            viewport={{ once: true }}
+            whileInView={{ opacity: 1, y: 0 }}
+          >
+            <div className="absolute -top-3 left-8 z-10">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" />
+                Easiest
+              </div>
+            </div>
+            <Card className="h-full bg-gradient-to-b from-purple-900/20 to-blue-900/20 border-purple-700 backdrop-blur-xl">
+              <CardBody className="p-8 flex flex-col">
+                <div className="flex items-center gap-2 mb-1">
+                  <Cloud className="w-5 h-5 text-purple-300" />
+                  <h3 className="text-xl font-bold text-white">
+                    HyperWhisper Cloud Credits
+                  </h3>
+                </div>
+                <p className="text-sm text-gray-400 mb-6">
+                  Pay-as-you-go. Zero setup.
+                </p>
+                <ul className="space-y-3 mb-8">
+                  {cloudFeatures.map((text) => (
+                    <li key={text} className="flex items-start gap-3 text-sm">
+                      <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-gray-200">{text}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  as={Link}
+                  href="/credits"
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white mt-auto"
+                  size="lg"
+                >
+                  Start with $5 in credits
+                </Button>
+              </CardBody>
+            </Card>
+          </m.div>
         </div>
 
-        {/* Enterprise Pricing Card */}
+        {/* Enterprise */}
         <m.div
           className="max-w-4xl mx-auto mt-12"
           initial={{ opacity: 0, y: 20 }}
@@ -187,10 +175,11 @@ export default function PricingSection() {
                   <Building2 className="w-8 h-8 text-orange-400 flex-shrink-0" />
                   <div>
                     <h3 className="text-xl font-bold text-white mb-1">
-                      {t("enterprise.title")}
+                      Enterprise &amp; Custom Pricing
                     </h3>
                     <p className="text-gray-300 text-sm">
-                      {t("enterprise.description")}
+                      Volume discounts, SSO, priority support, in-house hosting,
+                      and custom integrations
                     </p>
                   </div>
                 </div>
@@ -199,30 +188,11 @@ export default function PricingSection() {
                   size="lg"
                   onPress={() => setShowEnterpriseModal(true)}
                 >
-                  {t("enterprise.cta")}
+                  Contact Sales
                 </Button>
               </div>
             </CardBody>
           </Card>
-        </m.div>
-
-        <m.div
-          className="text-center mt-12"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          viewport={{ once: true }}
-          whileInView={{ opacity: 1, y: 0 }}
-        >
-          <p className="text-gray-400">
-            <span className="text-green-400">{t("guarantee")}</span>{" "}
-            {t("guaranteeExtended")}{" "}
-            <Link
-              className="text-purple-400 hover:text-purple-300 underline"
-              href="/legal/refund-policy"
-            >
-              {t("learnMore")}
-            </Link>
-          </p>
         </m.div>
       </m.div>
 

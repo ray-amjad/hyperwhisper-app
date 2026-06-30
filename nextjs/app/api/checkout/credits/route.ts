@@ -18,6 +18,8 @@ import {
  * REQUEST BODY:
  * - amount: whole dollars, 5..500 (1000 credits per $1)
  * - licenseKey (optional): when present, top up that key instead of minting
+ * - email (optional): mint path only. Prefills the Stripe checkout email so the
+ *   minted key is emailed to that address; ignored when topping up a key.
  *
  * PRICING (two non-bundled line items):
  * - Credits: amount * 100 cents -> amount * 1000 credits
@@ -34,9 +36,10 @@ import {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { licenseKey, amount } = body as {
+    const { licenseKey, amount, email } = body as {
       licenseKey?: unknown;
       amount?: unknown;
+      email?: unknown;
     };
 
     // Validate amount: whole dollars within [MIN, MAX].
@@ -55,6 +58,16 @@ export async function POST(req: NextRequest) {
     // Optional license key: when supplied, this is a top-up of an existing
     // wallet; when absent, the webhook mints a brand-new key on payment.
     const hasLicenseKey = typeof licenseKey === "string" && licenseKey.length > 0;
+
+    // Mint path only: a guest-supplied email to prefill at checkout. Loose
+    // format check — Stripe re-validates and the buyer can still edit it. The
+    // webhook mints/emails the key off the email Stripe ultimately collects.
+    const guestEmail =
+      !hasLicenseKey &&
+      typeof email === "string" &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+        ? email.trim().toLowerCase()
+        : undefined;
 
     const metadata: Record<string, string> = {
       purchase_type: "credits",
@@ -126,11 +139,14 @@ export async function POST(req: NextRequest) {
     // @ts-expect-error - managed_payments is in private preview
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      // Top-up: attach to the resolved customer. Mint: let Stripe collect the
-      // email by always creating a customer during checkout.
+      // Top-up: attach to the resolved customer. Mint: always create a customer
+      // during checkout, prefilling the guest email when one was supplied.
       ...(stripeCustomerId
         ? { customer: stripeCustomerId }
-        : { customer_creation: "always" }),
+        : {
+            customer_creation: "always",
+            ...(guestEmail ? { customer_email: guestEmail } : {}),
+          }),
       line_items: [
         {
           price_data: {
