@@ -2,7 +2,7 @@
 
 > ⚠️ **This is the PUBLIC, open-source repository** (`ray-amjad/hyperwhisper-app`, Apache-2.0, world-readable). Everything committed here is public forever.
 > - **Never** commit secrets, API keys, license keys, signing keys, customer data, personal paths/emails, or internal infra/business details. Secrets live in **Infisical only** (see the secrets note below) — it syncs to GitHub Actions / Vercel / Fly.
-> - Internal-only material stays **out**: `.claude/`, `.codex/`, `app/ios/`, `tasks/`, `notes/`, `plans/` are gitignored — keep them that way.
+> - Internal-only material stays **out**: `.claude/`, `.codex/`, `app/ios/`, `tasks/`, `notes/`, `plans/` are gitignored — keep them that way. **Exception:** `.claude/skills/` **is** tracked (repo-shareable skills ship with the project). Since it's public, treat everything under `.claude/skills/` like any other committed file: **no secrets, API keys, tokens, or personal paths** in a skill's `SKILL.md` or scripts. `.env` files inside skills stay gitignored — put secrets there (or in Infisical), never inline.
 > - HyperWhisper Cloud is the paid moat: entitlement is **enforced server-side**. Never add a client-side bypass, fake/test license key, or debug backdoor.
 
 HyperWhisper — macOS / Windows / iOS speech-to-text app with a Fly.io transcription backend, Next.js marketing site, and Mintlify docs.
