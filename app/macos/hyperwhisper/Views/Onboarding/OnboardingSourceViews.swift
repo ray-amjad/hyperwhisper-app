@@ -330,6 +330,10 @@ struct OnboardingConfigureView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                // Clear any entered key when the provider changes so a masked,
+                // stale key can't be saved into the keychain under a different
+                // provider than the one it was typed for.
+                .onChange(of: selectedProvider) { _, _ in apiKeyInput = "" }
 
                 SecureField("onboarding.configure.provider.keyPlaceholder".localized, text: $apiKeyInput)
                     .textFieldStyle(.roundedBorder)

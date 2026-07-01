@@ -123,6 +123,12 @@ struct OnboardingView: View {
         .onAppear {
             setupInitialState()
         }
+        // Re-check microphone permission when the user returns from System Settings
+        // (e.g. after enabling it there) so the mandatory permissions gate unblocks
+        // without them having to re-click. Mirrors HomeView's accessibility re-check.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasMicrophonePermission = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+        }
         .alert("common.error".localized, isPresented: $showErrorAlert) {
             Button {
                 showErrorAlert = false
@@ -217,8 +223,12 @@ struct OnboardingView: View {
                     title: "onboarding.permissions.microphone.title",
                     subtitle: "onboarding.permissions.microphone.subtitle",
                     isGranted: hasMicrophonePermission,
-                    actionTitle: "onboarding.permissions.grant",
-                    action: requestMicrophonePermission
+                    // After a denial the OS won't re-prompt, so the action switches
+                    // to deep-linking System Settings — surface that in the label.
+                    actionTitle: AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined
+                        ? "onboarding.permissions.grant"
+                        : "onboarding.permissions.open",
+                    action: handleMicrophoneAction
                 )
 
                 permissionRow(
@@ -629,8 +639,10 @@ struct OnboardingView: View {
     private func completeOnboarding() {
         applySelectedSourceToDefaultMode()
 
-        // Mark onboarding as completed
+        // Mark onboarding as completed and clear the durable "still owed" flag so
+        // a completed run is never re-shown on the next launch.
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+        UserDefaults.standard.set(false, forKey: "onboardingPending")
 
         // Close onboarding
         isPresented = false
@@ -715,6 +727,18 @@ struct OnboardingView: View {
         }
     }
 
+    /// Handle a tap on the microphone permission action. When the status is still
+    /// undetermined we show the system prompt; once denied/restricted the OS will
+    /// not re-prompt, so we deep-link to System Settings instead of no-op'ing.
+    private func handleMicrophoneAction() {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .notDetermined:
+            requestMicrophonePermission()
+        default:
+            openMicrophoneSettings()
+        }
+    }
+
     /// Request microphone permission
     private func requestMicrophonePermission() {
         AVCaptureDevice.requestAccess(for: .audio) { granted in
@@ -725,6 +749,14 @@ struct OnboardingView: View {
                     self.showErrorAlert = true
                 }
             }
+        }
+    }
+
+    /// Open System Settings › Privacy & Security › Microphone so the user can grant
+    /// access after a prior denial (same pane the main app's alert links to).
+    private func openMicrophoneSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+            NSWorkspace.shared.open(url)
         }
     }
 

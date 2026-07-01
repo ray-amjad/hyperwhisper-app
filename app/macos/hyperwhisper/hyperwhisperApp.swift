@@ -74,6 +74,12 @@ struct HyperWhisperApp: App {
     /// Defaults to `false` so new installs see the first-run onboarding flow.
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
 
+    /// Durable "onboarding still owed" signal. Set true on the launch that seeds
+    /// the default modes (a genuine fresh install) and kept until onboarding is
+    /// completed, so an interrupted first run is re-shown on the next launch —
+    /// `didSeedDefaultModesOnLaunch` alone is only true on the seeding launch.
+    @AppStorage("onboardingPending") private var onboardingPending: Bool = false
+
     /// Tracks whether we've shown the one-time Gemma removal migration alert
     @AppStorage("didShowGemmaMigrationAlert") private var didShowGemmaMigrationAlert: Bool = false
 
@@ -580,10 +586,16 @@ struct MenuBarIconView: View {
         // disabled, so gating on the flag alone would wrongly re-onboard them when
         // its default flips. `didSeedDefaultModesOnLaunch` is true only when THIS
         // launch created the default modes (no modes existed) — a reliable
-        // first-install signal that leaves existing users untouched. We also
-        // persist the flag for existing users so the guard is a one-time cost.
+        // first-install signal. But it resets each launch, so we capture it into
+        // the durable `onboardingPending` flag: an interrupted first run then
+        // re-shows onboarding on the next launch instead of looking like an
+        // existing user, while genuine existing users (never seeded here) are
+        // marked complete exactly once.
         if !hasCompletedOnboarding {
             if PersistenceController.shared.didSeedDefaultModesOnLaunch {
+                onboardingPending = true
+            }
+            if onboardingPending {
                 // Small delay to ensure the main window is ready before showing sheet
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     appState.showOnboarding = true
