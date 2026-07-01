@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Помилка мережі: %@";
 "settings.credits.error.invalidResponse" = "Недійсна відповідь від сервера. Спробуйте ще раз.";
 "settings.credits.error.server" = "Помилка сервера: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Ключ облікового запису";
+"settings.cloud.purchaseMore" = "Придбати кредити";
+"settings.cloud.key.reveal" = "Показати ключ облікового запису";
+"settings.cloud.key.hide" = "Приховати ключ облікового запису";
+"settings.cloud.key.copy" = "Скопіювати ключ облікового запису";
+"settings.cloud.activate.title" = "Активувати HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Ключ облікового запису — це ваш гаманець: у ньому зберігаються ваші кредити Cloud. Введіть свій ключ, щоб почати, або придбайте кредити, щоб отримати його.";
+"settings.cloud.getCredits.title" = "Ще немає ключа?";
+"settings.cloud.getCredits.subtitle" = "Придбайте кредити, і ми надішлемо вам ключ облікового запису електронною поштою.";
+"settings.cloud.getCredits.button" = "Придбати кредити";
 "settings.models.alert.cannotDelete.title" = "Не вдалося видалити модель";
 "settings.models.parakeet.title" = "Моделі Parakeet";
 "settings.models.parakeet.subtitle" = "Рекомендується для більшості користувачів. Багатомовна модель підтримує 25 мов.";

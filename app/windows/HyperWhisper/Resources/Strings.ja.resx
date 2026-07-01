@@ -389,6 +389,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>クレジット</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>ストレージ</value>
   </data>
@@ -633,6 +636,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>クレジットの読み込みに失敗しました</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>アカウントキー</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>アカウントキーを表示</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>アカウントキーを非表示</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>アカウントキーをコピー</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>クレジットを購入</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloudを有効化</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>アカウントキーはあなたのウォレットです。Cloudクレジットが保管されます。キーを入力して始めるか、クレジットを購入してキーを取得してください。</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>まだキーをお持ちでないですか?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>クレジットを購入すると、アカウントキーをメールでお送りします。</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>クレジットを購入</value>
   </data>
 
   <!-- Settings - API Keys -->

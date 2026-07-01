@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Σφάλμα δικτύου: %@";
 "settings.credits.error.invalidResponse" = "Μη έγκυρη απάντηση από το διακομιστή. Παρακαλώ δοκιμάστε ξανά.";
 "settings.credits.error.server" = "Σφάλμα διακομιστή: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Κλειδί Λογαριασμού";
+"settings.cloud.purchaseMore" = "Αγορά πιστώσεων";
+"settings.cloud.key.reveal" = "Εμφάνιση κλειδιού λογαριασμού";
+"settings.cloud.key.hide" = "Απόκρυψη κλειδιού λογαριασμού";
+"settings.cloud.key.copy" = "Αντιγραφή κλειδιού λογαριασμού";
+"settings.cloud.activate.title" = "Ενεργοποίηση HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Το κλειδί λογαριασμού σας είναι το πορτοφόλι σας — περιέχει τις πιστώσεις σας στο Cloud. Εισαγάγετε το κλειδί σας για να ξεκινήσετε, ή αγοράστε πιστώσεις για να αποκτήσετε ένα.";
+"settings.cloud.getCredits.title" = "Δεν έχετε ακόμα κλειδί;";
+"settings.cloud.getCredits.subtitle" = "Αγοράστε πιστώσεις και θα σας στείλουμε ένα κλειδί λογαριασμού μέσω email.";
+"settings.cloud.getCredits.button" = "Αγορά πιστώσεων";
 "settings.models.alert.cannotDelete.title" = "Δεν Είναι Δυνατή η Διαγραφή Μοντέλου";
 "settings.models.parakeet.title" = "Μοντέλα Parakeet";
 "settings.models.parakeet.subtitle" = "Συνιστάται για τους περισσότερους χρήστες. Το πολυγλωσσικό μοντέλο υποστηρίζει 25 γλώσσες.";

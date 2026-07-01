@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Napaka omrežja: %@";
 "settings.credits.error.invalidResponse" = "Neveljaven odgovor s strežnika. Prosimo, poskusi znova.";
 "settings.credits.error.server" = "Napaka strežnika: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Ključ računa";
+"settings.cloud.purchaseMore" = "Kupi kredite";
+"settings.cloud.key.reveal" = "Prikaži ključ računa";
+"settings.cloud.key.hide" = "Skrij ključ računa";
+"settings.cloud.key.copy" = "Kopiraj ključ računa";
+"settings.cloud.activate.title" = "Aktiviraj HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Ključ računa je vaša denarnica — vsebuje vaše Cloud kredite. Vnesite svoj ključ za začetek ali kupite kredite, da ga dobite.";
+"settings.cloud.getCredits.title" = "Še nimate ključa?";
+"settings.cloud.getCredits.subtitle" = "Kupite kredite in po e-pošti vam bomo poslali ključ računa.";
+"settings.cloud.getCredits.button" = "Kupi kredite";
 "settings.models.alert.cannotDelete.title" = "Ne morem izbrisati modela";
 "settings.models.parakeet.title" = "Modeli Parakeet";
 "settings.models.parakeet.subtitle" = "Priporočeni za večino uporabnikov. Večjezični model podpira 25 jezikov.";

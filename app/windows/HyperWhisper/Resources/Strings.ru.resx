@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Невозможно загрузить баланс кредитов</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Ключ учётной записи</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Показать ключ учётной записи</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Скрыть ключ учётной записи</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Скопировать ключ учётной записи</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Купить кредиты</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Активировать HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Ключ учётной записи — это ваш кошелёк: в нём хранятся ваши кредиты Cloud. Введите ключ, чтобы начать, или купите кредиты, чтобы получить его.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Ещё нет ключа?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Купите кредиты, и мы отправим вам ключ учётной записи по электронной почте.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Купить кредиты</value>
   </data>
 
   <!-- Settings - API Keys -->

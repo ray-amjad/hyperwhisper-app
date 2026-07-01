@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Δεν είναι δυνατή η φόρτωση του υπολοίπου πιστώσεων</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Κλειδί Λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Εμφάνιση κλειδιού λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Απόκρυψη κλειδιού λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Αντιγραφή κλειδιού λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Αγορά πιστώσεων</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Ενεργοποίηση HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Το κλειδί λογαριασμού σας είναι το πορτοφόλι σας — περιέχει τις πιστώσεις σας στο Cloud. Εισαγάγετε το κλειδί σας για να ξεκινήσετε, ή αγοράστε πιστώσεις για να αποκτήσετε ένα.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Δεν έχετε ακόμα κλειδί;</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Αγοράστε πιστώσεις και θα σας στείλουμε ένα κλειδί λογαριασμού μέσω email.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Αγορά πιστώσεων</value>
   </data>
 
   <!-- Settings - API Keys -->

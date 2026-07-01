@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Nu se poate încărca soldul de credite</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Cheie de cont</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Afișați cheia de cont</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Ascundeți cheia de cont</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Copiați cheia de cont</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Cumpărați credite</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Activați HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Cheia de cont este portofelul dvs. — conține creditele dvs. Cloud. Introduceți cheia pentru a începe, sau cumpărați credite pentru a obține una.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Nu aveți încă o cheie?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Cumpărați credite și vă vom trimite o cheie de cont prin e-mail.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Cumpărați credite</value>
   </data>
 
   <!-- Settings - API Keys -->

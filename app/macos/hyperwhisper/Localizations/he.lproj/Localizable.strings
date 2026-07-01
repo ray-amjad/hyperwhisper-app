@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "שגיאת רשת: %@";
 "settings.credits.error.invalidResponse" = "תגובה לא תקינה מהשרת. אנא נסה שוב.";
 "settings.credits.error.server" = "שגיאת שרת: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "מפתח חשבון";
+"settings.cloud.purchaseMore" = "רכישת נקודות זכות";
+"settings.cloud.key.reveal" = "הצג מפתח חשבון";
+"settings.cloud.key.hide" = "הסתר מפתח חשבון";
+"settings.cloud.key.copy" = "העתק מפתח חשבון";
+"settings.cloud.activate.title" = "הפעל את HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "מפתח החשבון שלך הוא הארנק שלך — הוא מכיל את נקודות הזכות שלך ל-Cloud. הזן את המפתח כדי להתחיל, או רכוש נקודות זכות כדי לקבל אחד.";
+"settings.cloud.getCredits.title" = "עדיין אין לך מפתח?";
+"settings.cloud.getCredits.subtitle" = "רכוש נקודות זכות ואנחנו נשלח לך מפתח חשבון במייל.";
+"settings.cloud.getCredits.button" = "רכישת נקודות זכות";
 "settings.models.alert.cannotDelete.title" = "לא ניתן למחוק מודל";
 "settings.models.parakeet.title" = "מודלי Parakeet";
 "settings.models.parakeet.subtitle" = "מומלץ לרוב המשתמשים. מודל רב-לשוני תומך ב-25 שפות.";

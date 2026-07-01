@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Kesalahan jaringan: %@";
 "settings.credits.error.invalidResponse" = "Respons tidak valid dari server. Silakan coba lagi.";
 "settings.credits.error.server" = "Kesalahan server: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kunci Akun";
+"settings.cloud.purchaseMore" = "Beli Kredit";
+"settings.cloud.key.reveal" = "Tampilkan kunci akun";
+"settings.cloud.key.hide" = "Sembunyikan kunci akun";
+"settings.cloud.key.copy" = "Salin kunci akun";
+"settings.cloud.activate.title" = "Aktifkan HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Kunci akun Anda adalah dompet Anda — kunci ini menyimpan kredit Cloud Anda. Masukkan kunci Anda untuk memulai, atau beli kredit untuk mendapatkannya.";
+"settings.cloud.getCredits.title" = "Belum punya kunci?";
+"settings.cloud.getCredits.subtitle" = "Beli kredit dan kami akan mengirimkan kunci akun melalui email.";
+"settings.cloud.getCredits.button" = "Beli Kredit";
 "settings.models.alert.cannotDelete.title" = "Tidak Dapat Menghapus Model";
 "settings.models.parakeet.title" = "Model Parakeet";
 "settings.models.parakeet.subtitle" = "Direkomendasikan untuk sebagian besar pengguna. Model multibahasa mendukung 25 bahasa.";

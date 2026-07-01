@@ -1,9 +1,14 @@
-// CREDITS SETTINGS PAGE
-// Handles HyperWhisper Cloud credit balance display and management.
+// CLOUD ACCOUNT SETTINGS PAGE
+// One combined "HyperWhisper Cloud" panel replacing the old split License + Credits
+// sections. Your account key is your wallet — one key = one identity = one credit
+// pool. Toggles between a licensed view (balance + account info + masked account key)
+// and an unlicensed view (activation + Get Credits CTA). Local transcription is free
+// & unlimited (open source) — no trial usage UI.
 
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,12 +18,21 @@ using HyperWhisper.Services;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using LicenseManager = HyperWhisper.Services.LicenseManager;
+using LicenseStatus = HyperWhisper.Models.LicenseStatus;
 
 namespace HyperWhisper.Views.Pages.Settings;
 
-public partial class CreditsSettingsPage : Page
+public partial class CloudAccountSettingsPage : Page
 {
-    public CreditsSettingsPage()
+    // Segoe MDL2 Assets glyphs for the account-key row.
+    private const string RevealGlyph = "\uE7B3"; // RedEye — click to reveal
+    private const string HideGlyph = "\uED1A";   // Hide — click to mask
+    private const string CopyGlyph = "\uE8C8";   // Copy
+    private const string CheckGlyph = "\uE73E";  // CheckMark — brief copy confirmation
+
+    private bool _keyRevealed;
+
+    public CloudAccountSettingsPage()
     {
         InitializeComponent();
         Loaded += OnLoaded;
@@ -30,14 +44,41 @@ public partial class CreditsSettingsPage : Page
         HyperWhisperCloudManager.Instance.PropertyChanged += OnCreditsPropertyChanged;
         LicenseManager.Instance.LicenseStatusChanged += OnLicenseStatusChanged;
 
-        LoggingService.Debug("CreditsSettingsPage: Loaded, fetching credits...");
-        await FetchAndDisplayCreditsAsync(forceRefresh: true);
+        RefreshUI();
+
+        if (LicenseManager.Instance.LicenseStatus == LicenseStatus.Active)
+        {
+            LoggingService.Debug("CloudAccountSettingsPage: Loaded (licensed), fetching credits...");
+            await FetchAndDisplayCreditsAsync(forceRefresh: true);
+        }
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         HyperWhisperCloudManager.Instance.PropertyChanged -= OnCreditsPropertyChanged;
         LicenseManager.Instance.LicenseStatusChanged -= OnLicenseStatusChanged;
+    }
+
+    // =========================================================================
+    // VIEW TOGGLING
+    // =========================================================================
+
+    private void RefreshUI()
+    {
+        var isLicensed = LicenseManager.Instance.LicenseStatus == LicenseStatus.Active;
+
+        LicensedView.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
+        UnlicensedView.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
+        CreditsRefreshButton.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
+
+        LicenseErrorText.Visibility = Visibility.Collapsed;
+
+        if (isLicensed)
+        {
+            UpdateKeyRow();
+        }
+
+        LoggingService.Debug($"CloudAccountSettingsPage: UI refreshed (licensed: {isLicensed})");
     }
 
     // =========================================================================
@@ -65,10 +106,22 @@ public partial class CreditsSettingsPage : Page
         });
     }
 
-    private async void OnLicenseStatusChanged(object? sender, EventArgs e)
+    private void OnLicenseStatusChanged(object? sender, EventArgs e)
     {
-        LoggingService.Debug("CreditsSettingsPage: License status changed, refreshing credits...");
-        await FetchAndDisplayCreditsAsync(forceRefresh: true);
+        // Marshal to UI thread — license status may change on a background thread
+        // (activation / deactivation). Activating flips us to the licensed layout
+        // and triggers a credits fetch.
+        Dispatcher.Invoke(() =>
+        {
+            _keyRevealed = false;
+            RefreshUI();
+
+            if (LicenseManager.Instance.LicenseStatus == LicenseStatus.Active)
+            {
+                LoggingService.Debug("CloudAccountSettingsPage: License status changed, refreshing credits...");
+                _ = FetchAndDisplayCreditsAsync(forceRefresh: true);
+            }
+        });
     }
 
     // =========================================================================
@@ -94,13 +147,13 @@ public partial class CreditsSettingsPage : Page
         }
         catch (Exception ex)
         {
-            LoggingService.Error($"CreditsSettingsPage: Failed to fetch credits: {ex.Message}");
+            LoggingService.Error($"CloudAccountSettingsPage: Failed to fetch credits: {ex.Message}");
             UpdateCreditsErrorState();
         }
     }
 
     // =========================================================================
-    // UI UPDATE METHODS
+    // CREDITS UI UPDATE METHODS
     // =========================================================================
 
     private void UpdateCreditsLoadingState()
@@ -176,7 +229,10 @@ public partial class CreditsSettingsPage : Page
             CreditsDailyResetPanel.Visibility = Visibility.Collapsed;
         }
 
-        LoggingService.Debug($"CreditsSettingsPage: Display updated - {credits.FormattedBalance}");
+        // Keep the account-key row in sync with the current identifier.
+        UpdateKeyRow();
+
+        LoggingService.Debug($"CloudAccountSettingsPage: Display updated - {credits.FormattedBalance}");
     }
 
     private void UpdateCreditsErrorState()
@@ -200,12 +256,66 @@ public partial class CreditsSettingsPage : Page
     }
 
     // =========================================================================
+    // ACCOUNT KEY ROW
+    // =========================================================================
+
+    private void UpdateKeyRow()
+    {
+        var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
+
+        if (!isLicensed || string.IsNullOrEmpty(identifier))
+        {
+            CloudKeyValueText.Text = string.Empty;
+            return;
+        }
+
+        CloudKeyValueText.Text = _keyRevealed ? identifier : MaskKey(identifier);
+        CloudKeyRevealGlyph.Text = _keyRevealed ? HideGlyph : RevealGlyph;
+        ToggleRevealKeyButton.ToolTip = Loc.S(_keyRevealed ? "settings.cloud.key.hide" : "settings.cloud.key.reveal");
+    }
+
+    private void ToggleRevealKey_Click(object sender, RoutedEventArgs e)
+    {
+        _keyRevealed = !_keyRevealed;
+        UpdateKeyRow();
+    }
+
+    private async void CopyKey_Click(object sender, RoutedEventArgs e)
+    {
+        var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
+
+        if (!isLicensed || string.IsNullOrEmpty(identifier))
+            return;
+
+        try
+        {
+            System.Windows.Clipboard.SetText(identifier);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error($"CloudAccountSettingsPage: Failed to copy account key: {ex.Message}");
+            return;
+        }
+
+        CloudKeyCopyGlyph.Text = CheckGlyph;
+        await Task.Delay(1500);
+        CloudKeyCopyGlyph.Text = CopyGlyph;
+    }
+
+    /// <summary>
+    /// Masks every character with a bullet while keeping dashes, e.g.
+    /// <c>HW-7F3K-9QXM</c> → <c>••-••••-••••</c>.
+    /// </summary>
+    private static string MaskKey(string key)
+        => new string(key.Select(c => c == '-' ? '-' : '•').ToArray());
+
+    // =========================================================================
     // BUTTON HANDLERS
     // =========================================================================
 
     private async void CreditsRefresh_Click(object sender, RoutedEventArgs e)
     {
-        LoggingService.Debug("CreditsSettingsPage: Refresh clicked");
+        LoggingService.Debug("CloudAccountSettingsPage: Refresh clicked");
         await FetchAndDisplayCreditsAsync(forceRefresh: true);
     }
 
@@ -215,7 +325,7 @@ public partial class CreditsSettingsPage : Page
         var paramName = isLicensed ? "license_key" : "device_id";
         var url = $"https://www.hyperwhisper.com/credits?{paramName}={Uri.EscapeDataString(identifier)}";
 
-        LoggingService.Info($"CreditsSettingsPage: Opening credits purchase page (licensed: {isLicensed})");
+        LoggingService.Info($"CloudAccountSettingsPage: Opening credits purchase page (licensed: {isLicensed})");
 
         try
         {
@@ -227,7 +337,7 @@ public partial class CreditsSettingsPage : Page
         }
         catch (Exception ex)
         {
-            LoggingService.Error($"CreditsSettingsPage: Failed to open credits page: {ex.Message}");
+            LoggingService.Error($"CloudAccountSettingsPage: Failed to open credits page: {ex.Message}");
             WpfMessageBox.Show(
                 Loc.S("settings.general.support.openFailed", ex.Message),
                 Loc.S("common.error"),
@@ -236,7 +346,7 @@ public partial class CreditsSettingsPage : Page
         }
     }
 
-    private void CreditsManageAccount_Click(object sender, RoutedEventArgs e)
+    private void ManageBilling_Click(object sender, RoutedEventArgs e)
     {
         if (!LicenseManager.Instance.OpenUserPortal(out var errorMessage))
         {
@@ -246,5 +356,69 @@ public partial class CreditsSettingsPage : Page
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private async void ActivateLicense_Click(object sender, RoutedEventArgs e)
+    {
+        var licenseKey = LicenseKeyBox.Text?.Trim();
+
+        if (string.IsNullOrEmpty(licenseKey))
+        {
+            ShowLicenseError(Loc.S("license.error.enterKey"));
+            return;
+        }
+
+        ActivateLicenseButton.IsEnabled = false;
+        ActivateLicenseButton.Content = Loc.S("license.button.activating");
+        LicenseErrorText.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            var result = await LicenseManager.Instance.ActivateLicenseAsync(licenseKey);
+
+            if (result.IsValid)
+            {
+                LicenseKeyBox.Text = "";
+                // LicenseStatusChanged flips us to the licensed layout and fetches credits.
+                RefreshUI();
+                LoggingService.Info("CloudAccountSettingsPage: License activated successfully");
+            }
+            else
+            {
+                ShowLicenseError(result.ErrorMessage ?? "License validation failed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowLicenseError($"Activation failed: {ex.Message}");
+            LoggingService.Error($"CloudAccountSettingsPage: License activation failed: {ex.Message}");
+        }
+        finally
+        {
+            ActivateLicenseButton.IsEnabled = true;
+            ActivateLicenseButton.Content = Loc.S("license.button.activate");
+        }
+    }
+
+    private void DeactivateLicense_Click(object sender, RoutedEventArgs e)
+    {
+        var result = WpfMessageBox.Show(
+            Loc.S("settings.license.deactivate.confirm.message"),
+            Loc.S("settings.license.deactivate.confirm.title"),
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            LicenseManager.Instance.DeactivateLicense();
+            RefreshUI();
+            LoggingService.Info("CloudAccountSettingsPage: License deactivated");
+        }
+    }
+
+    private void ShowLicenseError(string message)
+    {
+        LicenseErrorText.Text = message;
+        LicenseErrorText.Visibility = Visibility.Visible;
     }
 }

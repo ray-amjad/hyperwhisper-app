@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Error de red: %@";
 "settings.credits.error.invalidResponse" = "Respuesta del servidor no válida. Inténtalo de nuevo.";
 "settings.credits.error.server" = "Error del servidor: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Clave de cuenta";
+"settings.cloud.purchaseMore" = "Comprar créditos";
+"settings.cloud.key.reveal" = "Mostrar clave de cuenta";
+"settings.cloud.key.hide" = "Ocultar clave de cuenta";
+"settings.cloud.key.copy" = "Copiar clave de cuenta";
+"settings.cloud.activate.title" = "Activar HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Tu clave de cuenta es tu monedero: contiene tus créditos de Cloud. Introduce tu clave para empezar, o compra créditos para obtener una.";
+"settings.cloud.getCredits.title" = "¿Aún no tienes una clave?";
+"settings.cloud.getCredits.subtitle" = "Compra créditos y te enviaremos una clave de cuenta por correo electrónico.";
+"settings.cloud.getCredits.button" = "Comprar créditos";
 "settings.models.alert.cannotDelete.title" = "No se puede eliminar el modelo";
 "settings.models.parakeet.title" = "Modelos Parakeet";
 "settings.models.parakeet.subtitle" = "Recomendado para la mayoría. El modelo multilingüe admite 25 idiomas.";

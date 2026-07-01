@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Не вдалося завантажити залишок кредитів</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Ключ облікового запису</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Показати ключ облікового запису</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Приховати ключ облікового запису</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Скопіювати ключ облікового запису</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Придбати кредити</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Активувати HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Ключ облікового запису — це ваш гаманець: у ньому зберігаються ваші кредити Cloud. Введіть свій ключ, щоб почати, або придбайте кредити, щоб отримати його.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Ще немає ключа?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Придбайте кредити, і ми надішлемо вам ключ облікового запису електронною поштою.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Придбати кредити</value>
   </data>
 
   <!-- Settings - API Keys -->

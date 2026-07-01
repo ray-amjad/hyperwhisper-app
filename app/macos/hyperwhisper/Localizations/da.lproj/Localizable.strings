@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Netværksfejl: %@";
 "settings.credits.error.invalidResponse" = "Ugyldigt svar fra serveren. Prøv venligst igen.";
 "settings.credits.error.server" = "Serverfejl: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontonøgle";
+"settings.cloud.purchaseMore" = "Køb credits";
+"settings.cloud.key.reveal" = "Vis kontonøgle";
+"settings.cloud.key.hide" = "Skjul kontonøgle";
+"settings.cloud.key.copy" = "Kopiér kontonøgle";
+"settings.cloud.activate.title" = "Aktivér HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Din kontonøgle er din tegnebog — den rummer dine Cloud-credits. Indtast din nøgle for at komme i gang, eller køb credits for at få en.";
+"settings.cloud.getCredits.title" = "Har du ikke en nøgle endnu?";
+"settings.cloud.getCredits.subtitle" = "Køb credits, så sender vi dig en kontonøgle på e-mail.";
+"settings.cloud.getCredits.button" = "Køb credits";
 "settings.models.alert.cannotDelete.title" = "Kan ikke slette model";
 "settings.models.parakeet.title" = "Parakeet-modeller";
 "settings.models.parakeet.subtitle" = "Anbefalet til de fleste brugere. Flersproget model understøtter 25 sprog.";

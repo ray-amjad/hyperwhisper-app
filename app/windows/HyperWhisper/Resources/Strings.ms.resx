@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Tidak dapat memuatkan baki kredit</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Kunci Akaun</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Tunjuk kunci akaun</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Sembunyikan kunci akaun</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Salin kunci akaun</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Beli Kredit</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Aktifkan HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Kunci akaun anda ialah dompet anda — ia menyimpan kredit Cloud anda. Masukkan kunci anda untuk bermula, atau beli kredit untuk mendapatkannya.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Belum ada kunci lagi?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Beli kredit dan kami akan e-mel kunci akaun kepada anda.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Beli Kredit</value>
   </data>
 
   <!-- Settings - API Keys -->

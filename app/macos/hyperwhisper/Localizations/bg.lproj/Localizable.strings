@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Мрежова грешка: %@";
 "settings.credits.error.invalidResponse" = "Невалиден отговор от сървъра. Моля, опитайте отново.";
 "settings.credits.error.server" = "Грешка на сървъра: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Ключ на акаунта";
+"settings.cloud.purchaseMore" = "Купуване на кредити";
+"settings.cloud.key.reveal" = "Показване на ключа на акаунта";
+"settings.cloud.key.hide" = "Скриване на ключа на акаунта";
+"settings.cloud.key.copy" = "Копиране на ключа на акаунта";
+"settings.cloud.activate.title" = "Активиране на HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Ключът на акаунта ви е вашият портфейл — той съхранява вашите кредити за Cloud. Въведете ключа си, за да започнете, или купете кредити, за да получите такъв.";
+"settings.cloud.getCredits.title" = "Все още нямате ключ?";
+"settings.cloud.getCredits.subtitle" = "Купете кредити и ще ви изпратим ключ на акаунта по имейл.";
+"settings.cloud.getCredits.button" = "Купуване на кредити";
 "settings.models.alert.cannotDelete.title" = "Моделът не може да бъде изтрит";
 "settings.models.parakeet.title" = "Модели Parakeet";
 "settings.models.parakeet.subtitle" = "Препоръчва се за повечето потребители. Многоезичният модел поддържа 25 езика.";

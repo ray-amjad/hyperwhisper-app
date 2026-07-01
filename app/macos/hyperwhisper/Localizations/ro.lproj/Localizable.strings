@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Eroare de rețea: %@";
 "settings.credits.error.invalidResponse" = "Răspuns nevalid de la server. Vă rugăm încercați din nou.";
 "settings.credits.error.server" = "Eroare de server: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Cheie de cont";
+"settings.cloud.purchaseMore" = "Cumpărați credite";
+"settings.cloud.key.reveal" = "Afișați cheia de cont";
+"settings.cloud.key.hide" = "Ascundeți cheia de cont";
+"settings.cloud.key.copy" = "Copiați cheia de cont";
+"settings.cloud.activate.title" = "Activați HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Cheia de cont este portofelul dvs. — conține creditele dvs. Cloud. Introduceți cheia pentru a începe, sau cumpărați credite pentru a obține una.";
+"settings.cloud.getCredits.title" = "Nu aveți încă o cheie?";
+"settings.cloud.getCredits.subtitle" = "Cumpărați credite și vă vom trimite o cheie de cont prin e-mail.";
+"settings.cloud.getCredits.button" = "Cumpărați credite";
 "settings.models.alert.cannotDelete.title" = "Nu se poate șterge modelul";
 "settings.models.parakeet.title" = "Modele Parakeet";
 "settings.models.parakeet.subtitle" = "Recomandat pentru cei mai mulți utilizatori. Model multilingv suportă 25 de limbi.";

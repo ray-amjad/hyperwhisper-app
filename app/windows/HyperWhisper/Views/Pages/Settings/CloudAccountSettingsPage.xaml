@@ -1,0 +1,276 @@
+<Page x:Class="HyperWhisper.Views.Pages.Settings.CloudAccountSettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      Background="Transparent">
+
+    <!-- CLOUD ACCOUNT SETTINGS PAGE
+         One combined "HyperWhisper Cloud" panel replacing the old split License +
+         Credits sections. Your account key is your wallet — one key = one identity =
+         one credit pool. Two sibling views toggled by license status:
+           - LicensedView   → balance + account info (with masked Account Key) + actions
+           - UnlicensedView → activation card + Get Credits CTA
+    -->
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
+        <StackPanel MaxWidth="{StaticResource ContentMaxWidthForm}">
+
+            <!-- Shared header: title + subtitle + refresh (licensed only) -->
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="{loc:Loc settings.nav.cloud}" FontSize="20" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="{loc:Loc settings.credits.subtitle}"
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}"
+                               Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Button x:Name="CreditsRefreshButton"
+                        Grid.Column="1"
+                        Width="34"
+                        Height="32"
+                        Padding="0"
+                        VerticalAlignment="Top"
+                        Margin="12,2,0,0"
+                        Visibility="Collapsed"
+                        ToolTip="{loc:Loc settings.credits.refresh}"
+                        Click="CreditsRefresh_Click">
+                    <TextBlock Text="&#xE72C;"
+                               FontFamily="Segoe MDL2 Assets"
+                               FontSize="14"/>
+                </Button>
+            </Grid>
+
+            <!-- ============================================================= -->
+            <!-- LICENSED VIEW                                                  -->
+            <!-- ============================================================= -->
+            <StackPanel x:Name="LicensedView" Visibility="Collapsed">
+
+                <!-- Balance Card -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                    <StackPanel>
+                        <!-- Loading State -->
+                        <StackPanel x:Name="CreditsLoadingPanel" Visibility="Collapsed"
+                                    HorizontalAlignment="Center" Margin="0,40,0,40">
+                            <TextBlock Text="{loc:Loc settings.credits.loading}" FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Error State -->
+                        <Border x:Name="CreditsErrorPanel" Visibility="Collapsed"
+                                Background="{DynamicResource ErrorBackgroundBrush}" BorderBrush="{DynamicResource ErrorBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="12" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="CreditsErrorText" Text="{loc:Loc settings.credits.error.title}"
+                                           Foreground="{DynamicResource ErrorForegroundBrush}" FontSize="13" TextWrapping="Wrap"
+                                           VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Content="{loc:Loc common.retry}" Padding="12,4"
+                                        Margin="12,0,0,0" Click="CreditsRefresh_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Credits Display -->
+                        <StackPanel x:Name="CreditsDisplayPanel" Visibility="Collapsed">
+                            <!-- Large Minutes Display -->
+                            <StackPanel HorizontalAlignment="Center" Margin="0,8,0,16">
+                                <TextBlock x:Name="CreditsMinutesText" Text="~0" FontSize="42" FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{loc:Loc settings.credits.minutesRemaining}" FontSize="15"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CreditsDollarsText" Text="($0.00)" FontSize="13"
+                                           HorizontalAlignment="Center" Margin="0,4,0,0"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </StackPanel>
+
+                            <!-- Low Credits Warning -->
+                            <Border x:Name="CreditsLowWarning" Visibility="Collapsed"
+                                    Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="12" Margin="0,0,0,16">
+                                <TextBlock Text="{loc:Loc settings.credits.lowWarning}"
+                                           Foreground="{DynamicResource WarningForegroundBrush}" FontSize="13" TextWrapping="Wrap"/>
+                            </Border>
+
+                            <!-- Exhausted Warning -->
+                            <Border x:Name="CreditsExhaustedWarning" Visibility="Collapsed"
+                                    Background="{DynamicResource ErrorBackgroundBrush}" BorderBrush="{DynamicResource ErrorBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="12" Margin="0,0,0,16">
+                                <TextBlock Text="{loc:Loc settings.credits.exhaustedWarning}"
+                                           Foreground="{DynamicResource ErrorForegroundBrush}" FontSize="13" TextWrapping="Wrap"/>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Account Information Card -->
+                <Border x:Name="CreditsAccountCard" Style="{StaticResource CardStyle}" Margin="0,0,0,20" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc settings.credits.accountInfo.title}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,0,0,16"/>
+
+                        <!-- Stats Grid (2 columns) -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Row 1: Credits Remaining / Cost per Minute -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,12">
+                                <TextBlock Text="{loc:Loc settings.credits.accountInfo.credits}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CreditsRemainingText" Text="0" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
+                                <TextBlock Text="{loc:Loc settings.credits.accountInfo.costPerMinute}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CreditsCostPerMinuteText" Text="~6.3 credits" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </StackPanel>
+
+                            <!-- Row 2: Account Type / Customer ID (if licensed) -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,12">
+                                <TextBlock Text="{loc:Loc settings.credits.accountInfo.accountType}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CreditsAccountTypeText" Text="" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                            <StackPanel x:Name="CreditsCustomerIdPanel" Grid.Row="1" Grid.Column="1" Margin="8,0,0,12"
+                                        Visibility="Collapsed">
+                                <TextBlock Text="{loc:Loc settings.credits.accountInfo.customerId}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CreditsCustomerIdText" Text="" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <!-- Row 3: Daily Reset (for anonymous users) -->
+                            <StackPanel x:Name="CreditsDailyResetPanel" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                        Visibility="Collapsed">
+                                <TextBlock Text="{loc:Loc settings.credits.accountInfo.dailyReset}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CreditsDailyResetText" Text="" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Account Key row — the wallet: masked, reveal + copy -->
+                        <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,4,0,16"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="{loc:Loc settings.cloud.licenseKey}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CloudKeyValueText" Text="" FontSize="13" FontWeight="Medium"
+                                           FontFamily="Consolas"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <Button x:Name="ToggleRevealKeyButton" Grid.Column="1"
+                                    Width="34" Height="30" Padding="0"
+                                    Margin="8,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="{loc:Loc settings.cloud.key.reveal}"
+                                    Click="ToggleRevealKey_Click">
+                                <TextBlock x:Name="CloudKeyRevealGlyph" Text="&#xE7B3;"
+                                           FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                            </Button>
+
+                            <Button x:Name="CopyKeyButton" Grid.Column="2"
+                                    Width="34" Height="30" Padding="0"
+                                    Margin="8,0,0,0" VerticalAlignment="Center"
+                                    ToolTip="{loc:Loc settings.cloud.key.copy}"
+                                    Click="CopyKey_Click">
+                                <TextBlock x:Name="CloudKeyCopyGlyph" Text="&#xE8C8;"
+                                           FontFamily="Segoe MDL2 Assets" FontSize="14"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action row -->
+                <StackPanel Orientation="Horizontal" Margin="4,0,0,0">
+                    <Button Content="{loc:Loc settings.cloud.purchaseCredits}"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="CreditsAddCredits_Click"/>
+                    <Button Content="{loc:Loc license.button.manageBilling}"
+                            Margin="8,0,0,0"
+                            Click="ManageBilling_Click"/>
+                    <Button Content="{loc:Loc license.button.deactivate}"
+                            Margin="8,0,0,0"
+                            Click="DeactivateLicense_Click"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ============================================================= -->
+            <!-- UNLICENSED VIEW                                                -->
+            <!-- ============================================================= -->
+            <StackPanel x:Name="UnlicensedView" Visibility="Collapsed">
+
+                <!-- Activation Card -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc settings.cloud.activate.title}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{loc:Loc settings.cloud.activate.subtitle}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,12" TextWrapping="Wrap"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="LicenseKeyBox" FontFamily="Consolas"/>
+                            <Button x:Name="ActivateLicenseButton" Grid.Column="1"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Content="{loc:Loc license.button.activate}" Margin="8,0,0,0"
+                                    Click="ActivateLicense_Click"/>
+                        </Grid>
+
+                        <!-- Activation Error Message -->
+                        <TextBlock x:Name="LicenseErrorText" Visibility="Collapsed"
+                                   FontSize="12" Foreground="{DynamicResource ErrorForegroundBrush}" Margin="0,8,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Get Credits CTA -->
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock Text="{loc:Loc settings.cloud.getCredits.title}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{loc:Loc settings.cloud.getCredits.subtitle}"
+                                   FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,2,0,12" TextWrapping="Wrap"/>
+                        <Button Content="{loc:Loc settings.cloud.getCredits.button}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                HorizontalAlignment="Left"
+                                Click="CreditsAddCredits_Click"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</Page>

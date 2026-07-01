@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "خطأ في الشبكة: %@";
 "settings.credits.error.invalidResponse" = "رد غير صحيح من الخادم. يرجى المحاولة مجدداً.";
 "settings.credits.error.server" = "خطأ في الخادم: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "مفتاح الحساب";
+"settings.cloud.purchaseMore" = "شراء أرصدة";
+"settings.cloud.key.reveal" = "إظهار مفتاح الحساب";
+"settings.cloud.key.hide" = "إخفاء مفتاح الحساب";
+"settings.cloud.key.copy" = "نسخ مفتاح الحساب";
+"settings.cloud.activate.title" = "تفعيل HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "مفتاح حسابك هو محفظتك — يحتفظ بأرصدة Cloud الخاصة بك. أدخل مفتاحك للبدء، أو اشترِ أرصدة للحصول على واحد.";
+"settings.cloud.getCredits.title" = "ليس لديك مفتاح بعد؟";
+"settings.cloud.getCredits.subtitle" = "اشترِ أرصدة وسنرسل لك مفتاح الحساب عبر البريد الإلكتروني.";
+"settings.cloud.getCredits.button" = "شراء أرصدة";
 "settings.models.alert.cannotDelete.title" = "لا يمكن حذف النموذج";
 "settings.models.parakeet.title" = "نماذج Parakeet";
 "settings.models.parakeet.subtitle" = "موصى بها لمعظم المستخدمين. نموذج متعدد اللغات يدعم 25 لغة.";

@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>لم يتمكن من تحميل رصيد الحساب</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>مفتاح الحساب</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>إظهار مفتاح الحساب</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>إخفاء مفتاح الحساب</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>نسخ مفتاح الحساب</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>شراء أرصدة</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>تفعيل HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>مفتاح حسابك هو محفظتك — يحتفظ بأرصدة Cloud الخاصة بك. أدخل مفتاحك للبدء، أو اشترِ أرصدة للحصول على واحد.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>ليس لديك مفتاح بعد؟</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>اشترِ أرصدة وسنرسل لك مفتاح الحساب عبر البريد الإلكتروني.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>شراء أرصدة</value>
   </data>
 
   <!-- Settings - API Keys -->

@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Nem sikerült a kredit egyenleg betöltése</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Fiókkulcs</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Fiókkulcs megjelenítése</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Fiókkulcs elrejtése</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Fiókkulcs másolása</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Kreditek vásárlása</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloud aktiválása</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>A fiókkulcsod a pénztárcád — ez tartalmazza a Cloud kreditjeidet. Add meg a kulcsodat a kezdéshez, vagy vásárolj kreditet, hogy kapj egyet.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Még nincs kulcsod?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Vásárolj kreditet, és e-mailben elküldjük a fiókkulcsot.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Kreditek vásárlása</value>
   </data>
 
   <!-- Settings - API Keys -->

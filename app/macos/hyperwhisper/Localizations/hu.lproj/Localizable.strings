@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Hálózati hiba: %@";
 "settings.credits.error.invalidResponse" = "Érvénytelen válasz a szervertől. Kérlek próbáld újra.";
 "settings.credits.error.server" = "Szerver hiba: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Fiókkulcs";
+"settings.cloud.purchaseMore" = "Kreditek vásárlása";
+"settings.cloud.key.reveal" = "Fiókkulcs megjelenítése";
+"settings.cloud.key.hide" = "Fiókkulcs elrejtése";
+"settings.cloud.key.copy" = "Fiókkulcs másolása";
+"settings.cloud.activate.title" = "HyperWhisper Cloud aktiválása";
+"settings.cloud.activate.subtitle" = "A fiókkulcsod a pénztárcád — ez tartalmazza a Cloud kreditjeidet. Add meg a kulcsodat a kezdéshez, vagy vásárolj kreditet, hogy kapj egyet.";
+"settings.cloud.getCredits.title" = "Még nincs kulcsod?";
+"settings.cloud.getCredits.subtitle" = "Vásárolj kreditet, és e-mailben elküldjük a fiókkulcsot.";
+"settings.cloud.getCredits.button" = "Kreditek vásárlása";
 "settings.models.alert.cannotDelete.title" = "Nem lehet törölni a modellt";
 "settings.models.parakeet.title" = "Parakeet modellek";
 "settings.models.parakeet.subtitle" = "Ajánlott a legtöbb felhasználónak. A többnyelvű modell 25 nyelvet támogat.";

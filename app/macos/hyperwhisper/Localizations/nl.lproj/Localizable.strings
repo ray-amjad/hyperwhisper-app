@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Netwerkfout: %@";
 "settings.credits.error.invalidResponse" = "Ongeldige respons van server. Probeer het opnieuw.";
 "settings.credits.error.server" = "Serverfout: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Accountsleutel";
+"settings.cloud.purchaseMore" = "Tegoed kopen";
+"settings.cloud.key.reveal" = "Accountsleutel tonen";
+"settings.cloud.key.hide" = "Accountsleutel verbergen";
+"settings.cloud.key.copy" = "Accountsleutel kopiëren";
+"settings.cloud.activate.title" = "HyperWhisper Cloud activeren";
+"settings.cloud.activate.subtitle" = "Je accountsleutel is je portemonnee — hij bevat je Cloud-tegoed. Voer je sleutel in om te beginnen, of koop tegoed om er een te krijgen.";
+"settings.cloud.getCredits.title" = "Nog geen sleutel?";
+"settings.cloud.getCredits.subtitle" = "Koop tegoed en we e-mailen je een accountsleutel.";
+"settings.cloud.getCredits.button" = "Tegoed kopen";
 "settings.models.alert.cannotDelete.title" = "Kan model niet verwijderen";
 "settings.models.parakeet.title" = "Parakeetmodellen";
 "settings.models.parakeet.subtitle" = "Aanbevolen voor de meeste gebruikers. Meertalig model ondersteunt 25 talen.";

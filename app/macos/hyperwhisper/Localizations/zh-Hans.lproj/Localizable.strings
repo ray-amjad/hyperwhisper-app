@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "网络错误：%@";
 "settings.credits.error.invalidResponse" = "服务器响应无效。请重试。";
 "settings.credits.error.server" = "服务器错误：%@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "账户密钥";
+"settings.cloud.purchaseMore" = "购买额度";
+"settings.cloud.key.reveal" = "显示账户密钥";
+"settings.cloud.key.hide" = "隐藏账户密钥";
+"settings.cloud.key.copy" = "复制账户密钥";
+"settings.cloud.activate.title" = "激活 HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "您的账户密钥就是您的钱包 — 其中保存着您的 Cloud 额度。输入密钥即可开始使用，或购买额度以获取一个。";
+"settings.cloud.getCredits.title" = "还没有密钥？";
+"settings.cloud.getCredits.subtitle" = "购买额度后，我们会通过邮件将账户密钥发送给您。";
+"settings.cloud.getCredits.button" = "购买额度";
 "settings.models.alert.cannotDelete.title" = "无法删除模型";
 "settings.models.parakeet.title" = "Parakeet 模型";
 "settings.models.parakeet.subtitle" = "推荐给大多数用户。多语言模型支持 25 种语言。";

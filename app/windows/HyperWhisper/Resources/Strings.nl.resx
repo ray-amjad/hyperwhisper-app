@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Kan tegodsaldo niet laden</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Accountsleutel</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Accountsleutel tonen</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Accountsleutel verbergen</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Accountsleutel kopiëren</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Tegoed kopen</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloud activeren</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Je accountsleutel is je portemonnee — hij bevat je Cloud-tegoed. Voer je sleutel in om te beginnen, of koop tegoed om er een te krijgen.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Nog geen sleutel?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Koop tegoed en we e-mailen je een accountsleutel.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Tegoed kopen</value>
   </data>
 
   <!-- Settings - API Keys -->

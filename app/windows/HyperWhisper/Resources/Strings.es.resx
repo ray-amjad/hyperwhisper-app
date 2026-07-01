@@ -389,6 +389,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Créditos</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Almacenamiento</value>
   </data>
@@ -633,6 +636,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>No se pudieron cargar los créditos</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Clave de cuenta</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Mostrar clave de cuenta</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Ocultar clave de cuenta</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Copiar clave de cuenta</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Comprar créditos</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Activar HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Tu clave de cuenta es tu monedero: contiene tus créditos de Cloud. Introduce tu clave para empezar, o compra créditos para obtener una.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>¿Aún no tienes una clave?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Compra créditos y te enviaremos una clave de cuenta por correo electrónico.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Comprar créditos</value>
   </data>
 
   <!-- Settings - API Keys -->

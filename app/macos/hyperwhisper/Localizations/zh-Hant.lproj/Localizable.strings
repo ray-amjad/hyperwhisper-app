@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "網路錯誤：%@";
 "settings.credits.error.invalidResponse" = "伺服器回應無效。請再試一次。";
 "settings.credits.error.server" = "伺服器錯誤：%@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "帳戶金鑰";
+"settings.cloud.purchaseMore" = "購買額度";
+"settings.cloud.key.reveal" = "顯示帳戶金鑰";
+"settings.cloud.key.hide" = "隱藏帳戶金鑰";
+"settings.cloud.key.copy" = "複製帳戶金鑰";
+"settings.cloud.activate.title" = "啟用 HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "您的帳戶金鑰就是您的錢包 — 裡面存放著您的 Cloud 額度。輸入金鑰即可開始使用，或購買額度以取得一個。";
+"settings.cloud.getCredits.title" = "還沒有金鑰嗎？";
+"settings.cloud.getCredits.subtitle" = "購買額度後，我們會透過電子郵件將帳戶金鑰寄給您。";
+"settings.cloud.getCredits.button" = "購買額度";
 "settings.models.alert.cannotDelete.title" = "無法刪除模型";
 "settings.models.parakeet.title" = "Parakeet 模型";
 "settings.models.parakeet.subtitle" = "為大多數用戶推薦。多語言模型支援 25 種語言。";
