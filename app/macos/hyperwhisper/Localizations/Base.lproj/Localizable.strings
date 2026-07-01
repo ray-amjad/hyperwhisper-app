@@ -248,6 +248,71 @@
 "settings.vocabulary.autoLearn.info" = "When enabled, HyperWhisper briefly watches the text field where it pasted dictation. If you correct a name, place, or organization, that spelling is added to Vocabulary. Analysis stays on this Mac and is not sent anywhere.";
 
 // MARK: - Onboarding
+// Welcome
+"onboarding.welcome.title" = "Write at the speed of thought";
+"onboarding.welcome.subtitle" = "HyperWhisper turns your voice into text in any app on your Mac. Let's set up your first Mode.";
+"onboarding.welcome.getStarted" = "Get started";
+"onboarding.welcome.duration" = "Takes about 30 seconds";
+// Permissions (microphone + accessibility)
+"onboarding.permissions.title" = "Two quick permissions";
+"onboarding.permissions.subtitle" = "HyperWhisper needs these to hear your voice and paste text where you're typing.";
+"onboarding.permissions.microphone.title" = "Microphone";
+"onboarding.permissions.microphone.subtitle" = "So we can hear your voice.";
+"onboarding.permissions.accessibility.title" = "Accessibility";
+"onboarding.permissions.accessibility.subtitle" = "So we can paste into any app.";
+"onboarding.permissions.grant" = "Grant";
+"onboarding.permissions.granted" = "Granted";
+"onboarding.permissions.open" = "Open Settings";
+// Choose source (three cards)
+"onboarding.source.step" = "STEP 1 OF 2 · CREATE YOUR FIRST MODE";
+"onboarding.source.title" = "How do you want to transcribe?";
+"onboarding.source.subtitle" = "A Mode bundles a transcription source with your formatting preferences. Pick a source to get started — you can add more later.";
+"onboarding.source.footer" = "You can change this anytime in Settings → Modes";
+"onboarding.source.choose" = "Choose";
+"onboarding.source.selected" = "Selected";
+"onboarding.source.onDevice.badge" = "Free · Private";
+"onboarding.source.onDevice.title" = "On-Device";
+"onboarding.source.onDevice.description" = "Runs entirely on your Mac. Free, private, works offline — nothing ever leaves your device.";
+"onboarding.source.onDevice.feature1" = "100% offline";
+"onboarding.source.onDevice.feature2" = "No account needed";
+"onboarding.source.onDevice.feature3" = "Whisper models";
+"onboarding.source.cloud.badge" = "Recommended";
+"onboarding.source.cloud.title" = "HyperWhisper Cloud";
+"onboarding.source.cloud.description" = "Fastest and most accurate. Prepaid credits, centrally billed — no local model to download.";
+"onboarding.source.cloud.feature1" = "Best accuracy";
+"onboarding.source.cloud.feature2" = "Instant, no download";
+"onboarding.source.cloud.feature3" = "Prepaid credits";
+"onboarding.source.provider.badge" = "Bring your own";
+"onboarding.source.provider.title" = "Your API Key";
+"onboarding.source.provider.description" = "Use your own OpenAI, Deepgram, or Groq account. You control the key and the billing.";
+"onboarding.source.provider.feature1" = "OpenAI · Deepgram · Groq";
+"onboarding.source.provider.feature2" = "Your own billing";
+"onboarding.source.provider.feature3" = "Full control";
+// Configure (per source)
+"onboarding.configure.onDevice.title" = "Choose a model";
+"onboarding.configure.onDevice.subtitle" = "Pick a voice model to download. Larger models are more accurate but take more space.";
+"onboarding.configure.cloud.title" = "Activate HyperWhisper Cloud";
+"onboarding.configure.cloud.subtitle" = "Enter your Cloud license key to connect this Mac to your prepaid credits.";
+"onboarding.configure.cloud.placeholder" = "Paste your license key";
+"onboarding.configure.cloud.getCredits" = "Don't have a key? Get credits at hyperwhisper.com";
+"onboarding.configure.provider.title" = "Connect your provider";
+"onboarding.configure.provider.subtitle" = "Choose a provider and paste your API key. It's stored securely in your Mac's Keychain.";
+"onboarding.configure.provider.pickerLabel" = "Provider";
+"onboarding.configure.provider.keyPlaceholder" = "Paste your API key";
+"onboarding.configure.provider.keychainNote" = "Stored securely in your Mac's Keychain.";
+// Set up (per source)
+"onboarding.setup.onDevice.title" = "Download your model";
+"onboarding.setup.onDevice.download" = "Download %@";
+"onboarding.setup.onDevice.downloading" = "Downloading… %d%%";
+"onboarding.setup.onDevice.ready" = "Model ready";
+"onboarding.setup.cloud.title" = "Activate your key";
+"onboarding.setup.cloud.activate" = "Activate Cloud";
+"onboarding.setup.cloud.activating" = "Activating…";
+"onboarding.setup.cloud.active" = "Cloud key activated";
+"onboarding.setup.provider.title" = "Save your key";
+"onboarding.setup.provider.save" = "Save key";
+"onboarding.setup.provider.saved" = "API key saved";
+"onboarding.setup.selectFirst" = "Go back and make a selection first.";
 "onboarding.model.pro.english" = "Pro (English)";
 "onboarding.model.pro.multilingual" = "Pro (Multilingual)";
 "onboarding.model.downloading.progress" = "Downloading... %d%%";
