@@ -490,14 +490,21 @@ extension RecordingTranscriptionFlow {
                 // dedicated shortcut and toggling the feature on.
                 let isQuickCaptureRouting = (quickCaptureContext != nil)
 
-                // ONBOARDING "GIVE IT A TRY": the transcript is surfaced inline in
-                // the onboarding window only and must NEVER paste into another app,
-                // regardless of the user's global `pasteResultText` setting. We do
-                // not flip that setting — we just suppress delivery for this one
-                // trigger. `lastTranscription` was already set above (line ~467),
-                // which is what the onboarding view observes to render "You said …".
-                let isOnboardingTry = (trigger == RecordingTriggerSource.onboarding.rawValue)
-                let shouldDeliverText = !isOnboardingTry
+                // ONBOARDING: the transcript is surfaced inline in the onboarding
+                // window only and must NEVER paste into another app, regardless of
+                // the user's global `pasteResultText` setting. The delivery primitives
+                // themselves refuse to emit while the gate is suppressed, but we ALSO
+                // skip at the caller here: if we let `handleAutoPaste` reach the guarded
+                // `sendPasteCommand`, it returns false and the failure branch would pop
+                // the recording dialog *behind* the onboarding sheet. So the batch
+                // caller must not enter delivery at all. `TextDeliveryGate.isSuppressed`
+                // tracks the onboarding sheet's lifetime; the explicit `.onboarding`
+                // trigger term is belt-and-suspenders. `lastTranscription` was already
+                // set above (line ~467), which the onboarding view observes to render
+                // "You said …".
+                let suppressForOnboarding = TextDeliveryGate.isSuppressed
+                    || (trigger == RecordingTriggerSource.onboarding.rawValue)
+                let shouldDeliverText = !suppressForOnboarding
                     && (isQuickCaptureRouting
                         || (settingsManager?.pasteResultText ?? false))
 

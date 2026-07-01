@@ -309,6 +309,12 @@ struct OnboardingConfigureView: View {
     @Binding var selectedProvider: CloudProvider
     @Binding var apiKeyInput: String
 
+    // Surfaced to the parent's Continue gate: true only while the inline test above
+    // has a *passing* result for the current key/provider. Mirrors the local test
+    // state below and is cleared everywhere that state is cleared, so a stale pass
+    // can never gate a different key.
+    @Binding var keyValidated: Bool
+
     // Inline "test key" result state. Reset on step appear + provider change so a
     // stale "valid" can never carry over to a different key (mirrors the mockup).
     @State private var isTestingKey = false
@@ -332,6 +338,7 @@ struct OnboardingConfigureView: View {
         licenseTestValid = nil
         licenseTestError = nil
         providerTestHealth = nil
+        keyValidated = false
     }
 
     // MARK: On-Device — pick a model to download
@@ -471,6 +478,7 @@ struct OnboardingConfigureView: View {
                     .onChange(of: licenseKeyInput) { _, _ in
                         licenseTestValid = nil
                         licenseTestError = nil
+                        keyValidated = false
                     }
 
                 HStack(spacing: 12) {
@@ -520,6 +528,7 @@ struct OnboardingConfigureView: View {
             let result = await licenseManager.validateLicense(key)
             licenseTestValid = result.isValid
             licenseTestError = result.isValid ? nil : (result.errorMessage ?? "app.unknown.error".localized)
+            keyValidated = result.isValid
             isTestingKey = false
         }
     }
@@ -552,12 +561,16 @@ struct OnboardingConfigureView: View {
                 .onChange(of: selectedProvider) { _, _ in
                     apiKeyInput = ""
                     providerTestHealth = nil
+                    keyValidated = false
                 }
 
                 SecureField("onboarding.configure.provider.keyPlaceholder".localized, text: $apiKeyInput)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
-                    .onChange(of: apiKeyInput) { _, _ in providerTestHealth = nil }
+                    .onChange(of: apiKeyInput) { _, _ in
+                        providerTestHealth = nil
+                        keyValidated = false
+                    }
 
                 HStack(spacing: 12) {
                     Button {
@@ -613,6 +626,7 @@ struct OnboardingConfigureView: View {
             providerTestHealth = nil
             let health = await cloudHealth.ensureHealthy(selectedProvider)
             providerTestHealth = health
+            keyValidated = (health == .healthy)
             isTestingKey = false
         }
     }
@@ -924,11 +938,17 @@ struct OnboardingMicrophoneView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity)
                     .disabled(usingSystemDefault)
                 }
 
-                Toggle("onboarding.audio.use.system.default".localized, isOn: systemDefaultBinding)
-                    .toggleStyle(.switch)
+                HStack {
+                    Text("onboarding.audio.use.system.default".localized)
+                    Spacer()
+                    Toggle("", isOn: systemDefaultBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
 
                 // Live level meter.
                 VStack(alignment: .leading, spacing: 6) {

@@ -44,6 +44,13 @@ struct OnboardingView: View {
     @State private var selectedProvider: CloudProvider = .openai
     @State private var apiKeyInput: String = ""
 
+    // Lifted from `OnboardingConfigureView`: true once the Configure step's inline
+    // "Test" for the currently-selected cloud source returned success (license
+    // valid / provider healthy). The Continue gate for cloud sources reads this so
+    // the user cannot advance on an unverified key. Reset by the child on step
+    // appear and on any key/provider edit.
+    @State private var keyValidated: Bool = false
+
     /// Track if accessibility permission was granted
     @State private var hasAccessibilityPermission: Bool = false
 
@@ -295,7 +302,8 @@ struct OnboardingView: View {
                 selectedModel: $selectedModel,
                 licenseKeyInput: $licenseKeyInput,
                 selectedProvider: $selectedProvider,
-                apiKeyInput: $apiKeyInput
+                apiKeyInput: $apiKeyInput,
+                keyValidated: $keyValidated
             )
         } else {
             EmptyView()
@@ -509,13 +517,16 @@ struct OnboardingView: View {
             case .onDevice:
                 return selectedModel != nil
             case .hyperwhisperCloud:
-                // Already-active users (re-onboarded) shouldn't be forced to
-                // re-paste a key they may not have on hand.
-                return licenseManager.licenseStatus == .active
-                    || !licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                // A cloud source needs a WORKING key to continue. Either the license
+                // is already activated/validated on this machine, or the inline
+                // "Test" in this session returned valid. A non-empty key text is no
+                // longer enough — it could be wrong.
+                return licenseManager.licenseStatus == .active || keyValidated
             case .yourProvider:
-                return settingsManager.apiKeys.hasAPIKey(for: selectedProvider)
-                    || !apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                // BYOK must pass the inline "Test" (health probe returned healthy)
+                // before continuing. A returning user re-presses Test once this
+                // session — an accepted tradeoff for never advancing on a dead key.
+                return keyValidated
             }
         case 4: // Set up — source must be genuinely usable (mandatory gate)
             guard let source = selectedSource else { return false }
@@ -641,6 +652,14 @@ struct OnboardingView: View {
             updated.isDefault = true
             persistence.save()
         }
+
+        // Repoint the ACTIVE mode at Default. Writing the source onto the Default
+        // Mode is not enough on its own: a returning user's `selectedModeId` still
+        // points at their old custom mode, so the next recording would keep using
+        // that mode's (e.g. Parakeet) source. `selectMode` sets `selectedModeId` to
+        // Default and refreshes `selectedModeSnapshot`, which the record-time
+        // resolver reads — so the chosen source takes effect with no relaunch.
+        appState.selectMode(updated, persist: true)
     }
 
     /// Handle a tap on the microphone permission action. When the status is still

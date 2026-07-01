@@ -189,8 +189,14 @@ class AppState: ObservableObject {
     /// Whether to show the cancel recording confirmation dialog
     @Published var showCancelConfirmation: Bool = false
     
-    /// Whether to show the onboarding flow
-    @Published var showOnboarding: Bool = false
+    /// Whether to show the onboarding flow.
+    ///
+    /// Mirrored into `TextDeliveryGate` so every transcript-delivery sink
+    /// suppresses pasting/typing into other apps for the whole sheet lifetime —
+    /// onboarding shows transcripts inline only.
+    @Published var showOnboarding: Bool = false {
+        didSet { TextDeliveryGate.setSuppressed(showOnboarding) }
+    }
     
     /// Current step in onboarding (for resuming if interrupted)
     @Published var onboardingCurrentStep: Int = 0

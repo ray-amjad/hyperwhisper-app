@@ -472,6 +472,10 @@ extension RecordingTranscriptionFlow {
                         "⌨️ Streaming final delta after processing: chars=\(textToType.count, privacy: .public) spaces=\(Self.whitespaceCount(textToType), privacy: .public) text=\(Self.diagnosticExcerpt(textToType), privacy: .public)"
                     )
                     Task {
+                        // Delivery suppression while onboarding is open is enforced
+                        // inside the TextInputService primitives (TextDeliveryGate).
+                        // The delta is still accumulated (above) and surfaced inline
+                        // via `lastTranscription` when the session stops.
                         let success = await TextInputService.shared.typeSegment(textToType, language: streamingLanguage)
                         if success {
                             AppLogger.audio.debug("⌨️ Typed streaming segment: \(textToType.count, privacy: .public) chars")
@@ -718,6 +722,10 @@ extension RecordingTranscriptionFlow {
         // transcript into the target in a single shot.
         let deliveryMode = streamingDeliveryMode
         let sessionTarget = streamingTargetBundleId
+        // Delivery suppression while onboarding is open is enforced inside
+        // `pasteTextForStreaming` (TextDeliveryGate) — a streaming shortcut fired
+        // mid-onboarding stays inline only. The transcript is still saved and
+        // surfaced via `lastTranscription` below.
         if deliveryMode == .previewOnly, !commitText.isEmpty {
             let pasteSucceeded = await TextInputService.shared.pasteTextForStreaming(
                 commitText,
