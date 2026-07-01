@@ -339,6 +339,19 @@ public sealed class LicenseManager : INotifyPropertyChanged
         return (DeviceIdService.Instance.GetDeviceId(), false);
     }
 
+    /// <summary>
+    /// Builds the identifier-aware credits purchase URL — the same `/credits`
+    /// destination as <see cref="OpenPurchasePage()"/>, tagged with the caller's
+    /// license key (licensed) or device ID (guest) so the buy is attributed to the
+    /// right wallet. Single source of truth for the credits URL.
+    /// </summary>
+    public string GetCreditsPurchaseUrl()
+    {
+        var (identifier, isLicensed) = GetTranscriptionIdentifier();
+        var paramName = isLicensed ? "license_key" : "device_id";
+        return $"{PurchaseUrl}?{paramName}={Uri.EscapeDataString(identifier)}";
+    }
+
     // =========================================================================
     // EXTERNAL LINKS
     // =========================================================================

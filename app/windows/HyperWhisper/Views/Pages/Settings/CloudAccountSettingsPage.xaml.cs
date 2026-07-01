@@ -321,11 +321,9 @@ public partial class CloudAccountSettingsPage : Page
 
     private void CreditsAddCredits_Click(object sender, RoutedEventArgs e)
     {
-        var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
-        var paramName = isLicensed ? "license_key" : "device_id";
-        var url = $"https://www.hyperwhisper.com/credits?{paramName}={Uri.EscapeDataString(identifier)}";
+        var url = LicenseManager.Instance.GetCreditsPurchaseUrl();
 
-        LoggingService.Info($"CloudAccountSettingsPage: Opening credits purchase page (licensed: {isLicensed})");
+        LoggingService.Info("CloudAccountSettingsPage: Opening credits purchase page");
 
         try
         {
