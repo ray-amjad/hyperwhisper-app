@@ -82,7 +82,10 @@ notes/
 tasks/
 app/ios/
 # Local agent tooling & internal-only skills/worktrees — never part of the public repo
-.claude/
+# ...except .claude/skills/, which holds repo-shareable skills that ship with the project.
+.claude/*
+!.claude/skills/
+.claude/skills/**/.env
 .codex/
 .context/
 **/.vscode/
