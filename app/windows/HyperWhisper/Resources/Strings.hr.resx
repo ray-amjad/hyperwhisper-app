@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Nije moguće učitati stanje kredita</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Ključ računa</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Prikaži ključ računa</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Sakrij ključ računa</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Kopiraj ključ računa</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Kupi kredite</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Aktiviraj HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Vaš ključ računa je vaš novčanik — sadrži vaše Cloud kredite. Unesite svoj ključ za početak ili kupite kredite kako biste ga dobili.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Još nemate ključ?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Kupite kredite i poslat ćemo vam ključ računa e-poštom.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Kupi kredite</value>
   </data>
 
   <!-- Settings - API Keys -->

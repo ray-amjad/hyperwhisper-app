@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Lỗi mạng: %@";
 "settings.credits.error.invalidResponse" = "Phản hồi không hợp lệ từ máy chủ. Vui lòng thử lại.";
 "settings.credits.error.server" = "Lỗi máy chủ: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Khóa Tài khoản";
+"settings.cloud.purchaseMore" = "Mua Tín dụng";
+"settings.cloud.key.reveal" = "Hiển thị khóa tài khoản";
+"settings.cloud.key.hide" = "Ẩn khóa tài khoản";
+"settings.cloud.key.copy" = "Sao chép khóa tài khoản";
+"settings.cloud.activate.title" = "Kích hoạt HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Khóa tài khoản của bạn chính là ví của bạn — nó lưu giữ tín dụng Cloud của bạn. Nhập khóa của bạn để bắt đầu, hoặc mua tín dụng để nhận một khóa.";
+"settings.cloud.getCredits.title" = "Chưa có khóa?";
+"settings.cloud.getCredits.subtitle" = "Mua tín dụng và chúng tôi sẽ gửi email khóa tài khoản cho bạn.";
+"settings.cloud.getCredits.button" = "Mua Tín dụng";
 "settings.models.alert.cannotDelete.title" = "Không thể Xóa Mô hình";
 "settings.models.parakeet.title" = "Mô hình Parakeet";
 "settings.models.parakeet.subtitle" = "Được đề xuất cho hầu hết người dùng. Mô hình đa ngôn ngữ hỗ trợ 25 ngôn ngữ.";

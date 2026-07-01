@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Netvilla: %@";
 "settings.credits.error.invalidResponse" = "Ógilt svar frá netþjóni. Vinsamlegast reyndu aftur.";
 "settings.credits.error.server" = "Netþjónavilla: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Reikningslykill";
+"settings.cloud.purchaseMore" = "Kaupa einingar";
+"settings.cloud.key.reveal" = "Sýna reikningslykil";
+"settings.cloud.key.hide" = "Fela reikningslykil";
+"settings.cloud.key.copy" = "Afrita reikningslykil";
+"settings.cloud.activate.title" = "Virkja HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Reikningslykillinn þinn er veskið þitt — hann geymir Cloud-einingarnar þínar. Sláðu inn lykilinn til að byrja, eða keyptu einingar til að fá einn.";
+"settings.cloud.getCredits.title" = "Ertu ekki með lykil ennþá?";
+"settings.cloud.getCredits.subtitle" = "Keyptu einingar og við sendum þér reikningslykil í tölvupósti.";
+"settings.cloud.getCredits.button" = "Kaupa einingar";
 "settings.models.alert.cannotDelete.title" = "Get ekki eytt líkani";
 "settings.models.parakeet.title" = "Parakeet líkön";
 "settings.models.parakeet.subtitle" = "Mælt með fyrir flesta notendur. Fjöltungda líkan styður 25 tungumál.";

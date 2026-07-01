@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Tinklo klaida: %@";
 "settings.credits.error.invalidResponse" = "Neteisingas serverio atsakymas. Bandykite dar kartą.";
 "settings.credits.error.server" = "Serverio klaida: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Paskyros raktas";
+"settings.cloud.purchaseMore" = "Pirkti nuopelnus";
+"settings.cloud.key.reveal" = "Rodyti paskyros raktą";
+"settings.cloud.key.hide" = "Slėpti paskyros raktą";
+"settings.cloud.key.copy" = "Kopijuoti paskyros raktą";
+"settings.cloud.activate.title" = "Aktyvinti HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Jūsų paskyros raktas yra jūsų piniginė — jame saugomi jūsų Cloud nuopelnai. Įveskite raktą, kad pradėtumėte, arba įsigykite nuopelnų, kad jį gautumėte.";
+"settings.cloud.getCredits.title" = "Dar neturite rakto?";
+"settings.cloud.getCredits.subtitle" = "Įsigykite nuopelnų ir mes atsiųsime jums paskyros raktą el. paštu.";
+"settings.cloud.getCredits.button" = "Pirkti nuopelnus";
 "settings.models.alert.cannotDelete.title" = "Negalima ištrinti modelio";
 "settings.models.parakeet.title" = "Parakeet modeliai";
 "settings.models.parakeet.subtitle" = "Rekomenduojama daugumai vartotojų. Daugiakalbis modelis palaiko 25 kalbas.";

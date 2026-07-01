@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Nevar ielādēt kredīta bilanci</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Konta atslēga</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Rādīt konta atslēgu</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Slēpt konta atslēgu</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Kopēt konta atslēgu</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Iegādāties kredītus</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Aktivizēt HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Jūsu konta atslēga ir jūsu maks — tajā glabājas jūsu Cloud kredīti. Ievadiet savu atslēgu, lai sāktu, vai iegādājieties kredītus, lai to iegūtu.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Vēl nav atslēgas?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Iegādājieties kredītus, un mēs nosūtīsim jums konta atslēgu pa e-pastu.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Iegādāties kredītus</value>
   </data>
 
   <!-- Settings - API Keys -->

@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>לא ניתן לטעון יתרת נקודות זכות</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>מפתח חשבון</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>הצג מפתח חשבון</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>הסתר מפתח חשבון</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>העתק מפתח חשבון</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>רכישת נקודות זכות</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>הפעל את HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>מפתח החשבון שלך הוא הארנק שלך — הוא מכיל את נקודות הזכות שלך ל-Cloud. הזן את המפתח כדי להתחיל, או רכוש נקודות זכות כדי לקבל אחד.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>עדיין אין לך מפתח?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>רכוש נקודות זכות ואנחנו נשלח לך מפתח חשבון במייל.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>רכישת נקודות זכות</value>
   </data>
 
   <!-- Settings - API Keys -->

@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Chyba siete: %@";
 "settings.credits.error.invalidResponse" = "Neplatná odpoveď zo servera. Skúste znova.";
 "settings.credits.error.server" = "Chyba servera: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kľúč účtu";
+"settings.cloud.purchaseMore" = "Kúpiť kredity";
+"settings.cloud.key.reveal" = "Zobraziť kľúč účtu";
+"settings.cloud.key.hide" = "Skryť kľúč účtu";
+"settings.cloud.key.copy" = "Kopírovať kľúč účtu";
+"settings.cloud.activate.title" = "Aktivovať HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Kľúč účtu je vaša peňaženka – uchováva vaše kredity pre Cloud. Zadajte svoj kľúč a začnite, alebo si kúpte kredity a získajte ho.";
+"settings.cloud.getCredits.title" = "Ešte nemáte kľúč?";
+"settings.cloud.getCredits.subtitle" = "Kúpte si kredity a my vám pošleme kľúč účtu e-mailom.";
+"settings.cloud.getCredits.button" = "Kúpiť kredity";
 "settings.models.alert.cannotDelete.title" = "Nie je možné vymazať model";
 "settings.models.parakeet.title" = "Parakeet modely";
 "settings.models.parakeet.subtitle" = "Odporúčané pre väčšinu používateľov. Multijazyčný model podporuje 25 jazykov.";

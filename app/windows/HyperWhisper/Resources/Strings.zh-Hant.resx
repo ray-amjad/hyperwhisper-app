@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>無法載入額度餘額</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>帳戶金鑰</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>顯示帳戶金鑰</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>隱藏帳戶金鑰</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>複製帳戶金鑰</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>購買額度</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>啟用 HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>您的帳戶金鑰就是您的錢包 — 裡面存放著您的 Cloud 額度。輸入金鑰即可開始使用，或購買額度以取得一個。</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>還沒有金鑰嗎？</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>購買額度後，我們會透過電子郵件將帳戶金鑰寄給您。</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>購買額度</value>
   </data>
 
   <!-- Settings - API Keys -->

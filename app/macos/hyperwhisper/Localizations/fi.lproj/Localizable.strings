@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Verkkovirhe: %@";
 "settings.credits.error.invalidResponse" = "Virheellinen vastaus palvelimelta. Yritä uudelleen.";
 "settings.credits.error.server" = "Palvelinvirhe: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Tiliavain";
+"settings.cloud.purchaseMore" = "Osta krediittejä";
+"settings.cloud.key.reveal" = "Näytä tiliavain";
+"settings.cloud.key.hide" = "Piilota tiliavain";
+"settings.cloud.key.copy" = "Kopioi tiliavain";
+"settings.cloud.activate.title" = "Aktivoi HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Tiliavaimesi on lompakkosi — se sisältää Cloud-krediittisi. Anna avaimesi aloittaaksesi, tai osta krediittejä saadaksesi sellaisen.";
+"settings.cloud.getCredits.title" = "Eikö sinulla ole vielä avainta?";
+"settings.cloud.getCredits.subtitle" = "Osta krediittejä, niin lähetämme sinulle tiliavaimen sähköpostitse.";
+"settings.cloud.getCredits.button" = "Osta krediittejä";
 "settings.models.alert.cannotDelete.title" = "Mallia ei voi poistaa";
 "settings.models.parakeet.title" = "Parakeet-mallit";
 "settings.models.parakeet.subtitle" = "Suositeltu useimmille käyttäjille. Monikielinen malli tukee 25 kieltä.";

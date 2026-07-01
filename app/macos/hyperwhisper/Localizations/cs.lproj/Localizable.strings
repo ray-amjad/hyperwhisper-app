@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Sitova chyba: %@";
 "settings.credits.error.invalidResponse" = "Neplatna odpoved ze serveru. Zkuste to prosim znovu.";
 "settings.credits.error.server" = "Chyba serveru: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Klíč účtu";
+"settings.cloud.purchaseMore" = "Koupit kredity";
+"settings.cloud.key.reveal" = "Zobrazit klíč účtu";
+"settings.cloud.key.hide" = "Skrýt klíč účtu";
+"settings.cloud.key.copy" = "Kopírovat klíč účtu";
+"settings.cloud.activate.title" = "Aktivovat HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Klíč účtu je vaše peněženka – uchovává vaše kredity pro Cloud. Zadejte klíč a začněte, nebo si kredity zakupte a klíč tak získáte.";
+"settings.cloud.getCredits.title" = "Ještě nemáte klíč?";
+"settings.cloud.getCredits.subtitle" = "Kupte si kredity a klíč účtu vám zašleme e-mailem.";
+"settings.cloud.getCredits.button" = "Koupit kredity";
 "settings.models.alert.cannotDelete.title" = "Nelze smazat model";
 "settings.models.parakeet.title" = "Modely Parakeet";
 "settings.models.parakeet.subtitle" = "Doporuceno pro vetsinu uzivatelu. Vicejazycny model podporuje 25 jazyku.";

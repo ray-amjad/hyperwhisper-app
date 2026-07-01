@@ -42,9 +42,10 @@ public sealed class LicenseManager : INotifyPropertyChanged
     // =========================================================================
 
     /// <summary>
-    /// URL for purchase page.
+    /// URL for purchase page. `/credits` is the universal "go Cloud" path — a guest
+    /// buy mints and emails an account key; the retired `/checkout` product is gone.
     /// </summary>
-    private const string PurchaseUrl = "https://www.hyperwhisper.com/checkout";
+    private const string PurchaseUrl = "https://www.hyperwhisper.com/credits";
 
     /// <summary>
     /// URL for user portal (manage billing, credits).

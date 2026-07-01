@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Tīkla kļūda: %@";
 "settings.credits.error.invalidResponse" = "Nepareiza atbilde no servera. Lūdzu mēģiniet vēlreiz.";
 "settings.credits.error.server" = "Servera kļūda: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Konta atslēga";
+"settings.cloud.purchaseMore" = "Iegādāties kredītus";
+"settings.cloud.key.reveal" = "Rādīt konta atslēgu";
+"settings.cloud.key.hide" = "Slēpt konta atslēgu";
+"settings.cloud.key.copy" = "Kopēt konta atslēgu";
+"settings.cloud.activate.title" = "Aktivizēt HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Jūsu konta atslēga ir jūsu maks — tajā glabājas jūsu Cloud kredīti. Ievadiet savu atslēgu, lai sāktu, vai iegādājieties kredītus, lai to iegūtu.";
+"settings.cloud.getCredits.title" = "Vēl nav atslēgas?";
+"settings.cloud.getCredits.subtitle" = "Iegādājieties kredītus, un mēs nosūtīsim jums konta atslēgu pa e-pastu.";
+"settings.cloud.getCredits.button" = "Iegādāties kredītus";
 "settings.models.alert.cannotDelete.title" = "Neiespējams dzēst modeli";
 "settings.models.parakeet.title" = "Parakeet modeļi";
 "settings.models.parakeet.subtitle" = "Ieteicams lielākajai daļai lietotāju. Daudzvalodu modelis atbalsta 25 valodas.";

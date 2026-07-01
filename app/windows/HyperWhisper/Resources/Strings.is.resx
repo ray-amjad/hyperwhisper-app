@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Ógat að hlaða einingastöðu</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Reikningslykill</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Sýna reikningslykil</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Fela reikningslykil</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Afrita reikningslykil</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Kaupa einingar</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Virkja HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Reikningslykillinn þinn er veskið þitt — hann geymir Cloud-einingarnar þínar. Sláðu inn lykilinn til að byrja, eða keyptu einingar til að fá einn.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Ertu ekki með lykil ennþá?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Keyptu einingar og við sendum þér reikningslykil í tölvupósti.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Kaupa einingar</value>
   </data>
 
   <!-- Settings - API Keys -->

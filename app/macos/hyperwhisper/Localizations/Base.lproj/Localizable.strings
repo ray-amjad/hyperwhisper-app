@@ -531,15 +531,15 @@
 
 // MARK: - Settings · Cloud (combined license + credits)
 "settings.section.cloud" = "HyperWhisper Cloud";
-"settings.cloud.licenseKey" = "License Key";
+"settings.cloud.licenseKey" = "Account Key";
 "settings.cloud.purchaseMore" = "Purchase Credits";
-"settings.cloud.key.reveal" = "Reveal license key";
-"settings.cloud.key.hide" = "Hide license key";
-"settings.cloud.key.copy" = "Copy license key";
+"settings.cloud.key.reveal" = "Reveal account key";
+"settings.cloud.key.hide" = "Hide account key";
+"settings.cloud.key.copy" = "Copy account key";
 "settings.cloud.activate.title" = "Activate HyperWhisper Cloud";
-"settings.cloud.activate.subtitle" = "Your license key is your wallet — it holds your Cloud credits. Enter your key to get started, or buy credits to get one.";
+"settings.cloud.activate.subtitle" = "Your account key is your wallet — it holds your Cloud credits. Enter your key to get started, or buy credits to get one.";
 "settings.cloud.getCredits.title" = "Don't have a key yet?";
-"settings.cloud.getCredits.subtitle" = "Buy credits and we'll email you a license key.";
+"settings.cloud.getCredits.subtitle" = "Buy credits and we'll email you an account key.";
 "settings.cloud.getCredits.button" = "Get Credits";
 "settings.models.alert.cannotDelete.title" = "Cannot Delete Model";
 "settings.models.parakeet.title" = "Parakeet Models";

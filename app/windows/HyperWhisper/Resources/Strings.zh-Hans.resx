@@ -389,6 +389,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>额度</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>存储</value>
   </data>
@@ -633,6 +636,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>无法加载额度</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>账户密钥</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>显示账户密钥</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>隐藏账户密钥</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>复制账户密钥</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>购买额度</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>激活 HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>您的账户密钥就是您的钱包 — 其中保存着您的 Cloud 额度。输入密钥即可开始使用，或购买额度以获取一个。</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>还没有密钥？</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>购买额度后，我们会通过邮件将账户密钥发送给您。</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>购买额度</value>
   </data>
 
   <!-- Settings - API Keys -->

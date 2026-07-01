@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>क्रेडिट बैलेंस लोड करने में असमर्थ</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>खाता कुंजी</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>खाता कुंजी दिखाएं</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>खाता कुंजी छिपाएं</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>खाता कुंजी कॉपी करें</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>क्रेडिट खरीदें</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloud सक्रिय करें</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>आपकी खाता कुंजी आपका वॉलेट है — इसमें आपके Cloud क्रेडिट होते हैं। शुरू करने के लिए अपनी कुंजी दर्ज करें, या एक पाने के लिए क्रेडिट खरीदें।</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>अभी तक कुंजी नहीं है?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>क्रेडिट खरीदें और हम आपको ईमेल से खाता कुंजी भेजेंगे।</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>क्रेडिट खरीदें</value>
   </data>
 
   <!-- Settings - API Keys -->

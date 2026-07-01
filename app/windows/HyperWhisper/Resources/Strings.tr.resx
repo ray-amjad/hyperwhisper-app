@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Kredi bakiyesi yüklenemiyor</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Hesap Anahtarı</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Hesap anahtarını göster</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Hesap anahtarını gizle</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Hesap anahtarını kopyala</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Kredi Satın Al</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloud'u Etkinleştir</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Hesap anahtarınız cüzdanınızdır — Cloud kredilerinizi barındırır. Başlamak için anahtarınızı girin veya bir tane edinmek için kredi satın alın.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Henüz bir anahtarınız yok mu?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Kredi satın alın, size e-postayla bir hesap anahtarı gönderelim.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Kredi Satın Al</value>
   </data>
 
   <!-- Settings - API Keys -->

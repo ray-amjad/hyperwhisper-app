@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Ağ hatası: %@";
 "settings.credits.error.invalidResponse" = "Sunucudan geçersiz yanıt. Lütfen tekrar deneyin.";
 "settings.credits.error.server" = "Sunucu hatası: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Hesap Anahtarı";
+"settings.cloud.purchaseMore" = "Kredi Satın Al";
+"settings.cloud.key.reveal" = "Hesap anahtarını göster";
+"settings.cloud.key.hide" = "Hesap anahtarını gizle";
+"settings.cloud.key.copy" = "Hesap anahtarını kopyala";
+"settings.cloud.activate.title" = "HyperWhisper Cloud'u Etkinleştir";
+"settings.cloud.activate.subtitle" = "Hesap anahtarınız cüzdanınızdır — Cloud kredilerinizi barındırır. Başlamak için anahtarınızı girin veya bir tane edinmek için kredi satın alın.";
+"settings.cloud.getCredits.title" = "Henüz bir anahtarınız yok mu?";
+"settings.cloud.getCredits.subtitle" = "Kredi satın alın, size e-postayla bir hesap anahtarı gönderelim.";
+"settings.cloud.getCredits.button" = "Kredi Satın Al";
 "settings.models.alert.cannotDelete.title" = "Model Silinemez";
 "settings.models.parakeet.title" = "Parakeet Modelleri";
 "settings.models.parakeet.subtitle" = "Çoğu kullanıcı için önerilir. Çok dillli model 25 dili destekler.";

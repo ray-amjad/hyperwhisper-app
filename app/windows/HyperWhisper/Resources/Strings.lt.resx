@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Nepavyko įkelti nuopelnų balanso</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Paskyros raktas</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Rodyti paskyros raktą</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Slėpti paskyros raktą</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Kopijuoti paskyros raktą</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Pirkti nuopelnus</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Aktyvinti HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Jūsų paskyros raktas yra jūsų piniginė — jame saugomi jūsų Cloud nuopelnai. Įveskite raktą, kad pradėtumėte, arba įsigykite nuopelnų, kad jį gautumėte.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Dar neturite rakto?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Įsigykite nuopelnų ir mes atsiųsime jums paskyros raktą el. paštu.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Pirkti nuopelnus</value>
   </data>
 
   <!-- Settings - API Keys -->

@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Võrgu viga: %@";
 "settings.credits.error.invalidResponse" = "Vale vastus serverist. Palun proovige uuesti.";
 "settings.credits.error.server" = "Serveri viga: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontovõti";
+"settings.cloud.purchaseMore" = "Osta krediite";
+"settings.cloud.key.reveal" = "Kuva kontovõti";
+"settings.cloud.key.hide" = "Peida kontovõti";
+"settings.cloud.key.copy" = "Kopeeri kontovõti";
+"settings.cloud.activate.title" = "Aktiveeri HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Sinu kontovõti on sinu rahakott — see hoiab sinu Cloud'i krediite. Sisesta oma võti alustamiseks või osta krediite, et üks saada.";
+"settings.cloud.getCredits.title" = "Ei ole veel võtit?";
+"settings.cloud.getCredits.subtitle" = "Osta krediite ja saadame sulle kontovõtme e-postiga.";
+"settings.cloud.getCredits.button" = "Osta krediite";
 "settings.models.alert.cannotDelete.title" = "Mudelit ei saa kustutada";
 "settings.models.parakeet.title" = "Parakeet mudelid";
 "settings.models.parakeet.subtitle" = "Soovitatav enamikule kasutajatele. Mitmekeelne mudel toetab 25 keelt.";

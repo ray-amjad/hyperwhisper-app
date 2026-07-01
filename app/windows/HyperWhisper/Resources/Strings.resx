@@ -415,6 +415,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -673,6 +676,38 @@ Do you want to restart now?</value>
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Failed to load credits</value>
+  </data>
+
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Account Key</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Reveal account key</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Hide account key</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Copy account key</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Purchase Credits</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Activate HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Your account key is your wallet — it holds your Cloud credits. Enter your key to get started, or buy credits to get one.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Don't have a key yet?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Buy credits and we'll email you an account key.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Get Credits</value>
   </data>
 
   <!-- Settings - API Keys -->

@@ -480,6 +480,17 @@
 "settings.credits.error.network" = "Ошибка сети: %@";
 "settings.credits.error.invalidResponse" = "Неверный ответ от сервера. Пожалуйста, попробуйте снова.";
 "settings.credits.error.server" = "Ошибка сервера: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Ключ учётной записи";
+"settings.cloud.purchaseMore" = "Купить кредиты";
+"settings.cloud.key.reveal" = "Показать ключ учётной записи";
+"settings.cloud.key.hide" = "Скрыть ключ учётной записи";
+"settings.cloud.key.copy" = "Скопировать ключ учётной записи";
+"settings.cloud.activate.title" = "Активировать HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Ключ учётной записи — это ваш кошелёк: в нём хранятся ваши кредиты Cloud. Введите ключ, чтобы начать, или купите кредиты, чтобы получить его.";
+"settings.cloud.getCredits.title" = "Ещё нет ключа?";
+"settings.cloud.getCredits.subtitle" = "Купите кредиты, и мы отправим вам ключ учётной записи по электронной почте.";
+"settings.cloud.getCredits.button" = "Купить кредиты";
 "settings.models.alert.cannotDelete.title" = "Невозможно удалить модель";
 "settings.models.parakeet.title" = "Модели Parakeet";
 "settings.models.parakeet.subtitle" = "Рекомендуется для большинства пользователей. Многоязычная модель поддерживает 25 языков.";

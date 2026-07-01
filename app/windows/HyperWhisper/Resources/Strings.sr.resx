@@ -335,6 +335,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -555,6 +558,37 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Не могу да учитам баланс кредита</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Кључ Налога</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Прикажи кључ налога</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Сакриј кључ налога</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Копирај кључ налога</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Купи Кредите</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Активирај HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Кључ налога је твој новчаник — у њему се чувају твоји Cloud кредити. Унеси свој кључ да почнеш, или купи кредите да га добијеш.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Још немаш кључ?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Купи кредите и послаћемо ти кључ налога имејлом.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Купи Кредите</value>
   </data>
 
   <!-- Settings - API Keys -->
