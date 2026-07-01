@@ -70,7 +70,13 @@ class PersistenceController: ObservableObject {
     
     /// Singleton instance for app-wide access
     static let shared = PersistenceController()
-    
+
+    /// True when THIS launch seeded the default modes — i.e. a genuine fresh
+    /// install (no modes existed yet). Used to gate first-run onboarding so
+    /// existing users (who already have modes) are never re-onboarded when the
+    /// `hasCompletedOnboarding` default flips.
+    private(set) var didSeedDefaultModesOnLaunch = false
+
     // MARK: - Preview Support
     
     /// In-memory store for SwiftUI previews
@@ -1287,6 +1293,7 @@ class PersistenceController: ObservableObject {
         // Save the default modes
         do {
             try context.save()
+            didSeedDefaultModesOnLaunch = true
             AppLogger.coreData.info("Initialized \(defaultModes.count, privacy: .public) default modes for new install")
         } catch {
             AppLogger.logCoreData(.save, error: error)

@@ -3,32 +3,24 @@
 //  hyperwhisper
 //
 //  ONBOARDING FLOW
-//  Comprehensive first-launch experience that guides users through
-//  all essential setup steps including permissions, model download,
-//  and initial configuration.
+//  First-launch experience rebuilt around the validated "Choose your source"
+//  flow: welcome → permissions → choose source → configure → set up → test →
+//  done. The pivotal step is a three-card transcription-source picker
+//  (On-Device / HyperWhisper Cloud / Your API Key); the chosen source is then
+//  configured, set up (download / activate / save), and finally applied to the
+//  app's existing default Mode so the first recording just works.
+//
+//  The three cards + per-source Configure/Setup views live in
+//  Onboarding/OnboardingSourceViews.swift.
 //
 
 import SwiftUI
 import KeyboardShortcuts
 import AVFoundation
-import Combine
-
-@MainActor
-private final class OnboardingDownloadObserverStore: ObservableObject {
-    private var cancellables: Set<AnyCancellable> = []
-
-    func store(_ cancellable: AnyCancellable) {
-        cancellables.insert(cancellable)
-    }
-
-    func removeAll() {
-        cancellables.removeAll()
-    }
-}
 
 // MARK: - Main Onboarding View
 
-/// 8-step onboarding flow for first-time users
+/// 7-step onboarding flow for first-time users.
 struct OnboardingView: View {
     // MARK: - Environment
 
@@ -37,87 +29,84 @@ struct OnboardingView: View {
     @EnvironmentObject var transcriptionPipeline: TranscriptionPipeline
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var whisperModelManager: WhisperModelManager
+    @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var licenseManager: LicenseManager
-    /// High-frequency metrics (audioLevel) isolated for performance.
-    @EnvironmentObject var liveMetrics: RecordingLiveMetrics
-    
+
     // MARK: - State
-    
+
     /// Current step in the onboarding flow (0-7)
     @State private var currentStep: Int = 0
-    
-    /// Selected model ID during onboarding
-    @State private var selectedModelId: String = "base"
-    
-    /// Whether to use system default audio device
-    @State private var useSystemDefaultDevice: Bool = true
-    
-    /// Selected audio device ID
-    @State private var selectedDeviceId: String = ""
-    
-    /// Track if test recording was completed
-    @State private var testRecordingCompleted: Bool = false
-    
+
+    // Choose-source selection + per-source configuration.
+    @State private var selectedSource: TranscriptionSource?
+    @State private var selectedModel: OnboardingModelSelection?
+    @State private var licenseKeyInput: String = ""
+    @State private var selectedProvider: CloudProvider = .openai
+    @State private var apiKeyInput: String = ""
+
+    // Lifted from `OnboardingConfigureView`: true once the Configure step's inline
+    // "Test" for the currently-selected cloud source returned success (license
+    // valid / provider healthy). The Continue gate for cloud sources reads this so
+    // the user cannot advance on an unverified key. Reset by the child on step
+    // appear and on any key/provider edit.
+    @State private var keyValidated: Bool = false
+
     /// Track if accessibility permission was granted
     @State private var hasAccessibilityPermission: Bool = false
-    
+
     /// Track if we're actively polling for permission
     @State private var isPollingForPermission: Bool = false
-    
+
     /// Track if microphone permission was granted
     @State private var hasMicrophonePermission: Bool = false
-    
-    /// Model download progress (0.0 to 1.0)
-    @State private var modelDownloadProgress: Float = 0.0
-    
-    /// Whether model is currently downloading
-    @State private var isDownloadingModel: Bool = false
-
-    /// Combine subscriptions observing download progress/completion.
-    /// Retained outside view state so observer lifetime changes do not redraw the UI.
-    @StateObject private var downloadObservers = OnboardingDownloadObserverStore()
 
     /// Error message to display
     @State private var errorMessage: String?
-    
+
     /// Whether to show error alert
     @State private var showErrorAlert: Bool = false
-    
+
     /// Binding to control presentation
     @Binding var isPresented: Bool
-    
+
     // MARK: - Constants
-    
+
     /// Total number of steps in onboarding
-    private let totalSteps = 7
-    
+    private let totalSteps = 8
+
+    /// Well-known UUID of the seeded default Mode (see
+    /// `PersistenceController.initializeDefaultModes()`). Used as a stable fallback
+    /// when no default Mode is found at completion time.
+    private static let defaultModeID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+
     // MARK: - Body
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Progress indicator
             progressIndicator
                 .padding(.top, 20)
                 .padding(.horizontal, 40)
-            
+
             // Main content area
             ZStack {
-                // Step content with transition
                 Group {
                     switch currentStep {
                     case 0:
-                        accessibilityStep
+                        welcomeStep
                     case 1:
-                        modelSelectionStep
+                        permissionsStep
                     case 2:
-                        audioDeviceStep
+                        OnboardingSourcePicker(selectedSource: $selectedSource)
                     case 3:
-                        recordingPermissionStep
+                        configureStep
                     case 4:
-                        testRecordingStep
+                        setupStep
                     case 5:
-                        settingsPreviewStep
+                        OnboardingMicrophoneView()
                     case 6:
+                        testRecordingStep
+                    case 7:
                         completionStep
                     default:
                         EmptyView()
@@ -130,16 +119,22 @@ struct OnboardingView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .animation(.easeInOut(duration: 0.3), value: currentStep)
-            
+
             // Navigation buttons
             navigationButtons
                 .padding(.horizontal, 40)
                 .padding(.bottom, 30)
         }
-        .frame(width: 700, height: 550)
+        .frame(width: 760, height: 580)
         .background(VisualEffectBackground())
         .onAppear {
             setupInitialState()
+        }
+        // Re-check microphone permission when the user returns from System Settings
+        // (e.g. after enabling it there) so the mandatory permissions gate unblocks
+        // without them having to re-click. Mirrors HomeView's accessibility re-check.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            hasMicrophonePermission = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
         }
         .alert("common.error".localized, isPresented: $showErrorAlert) {
             Button {
@@ -151,9 +146,9 @@ struct OnboardingView: View {
             Text(errorMessage ?? "app.unknown.error".localized)
         }
     }
-    
+
     // MARK: - Progress Indicator
-    
+
     private var progressIndicator: some View {
         HStack(spacing: 8) {
             ForEach(0..<totalSteps, id: \.self) { step in
@@ -166,375 +161,182 @@ struct OnboardingView: View {
         }
         .padding(.vertical, 12)
     }
-    
-    // MARK: - Step 1: Accessibility
-    
-    private var accessibilityStep: some View {
+
+    // MARK: - Step 0: Welcome
+
+    private var welcomeStep: some View {
         VStack(spacing: 24) {
-            // Title and description
+            Spacer()
+
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.accentColor.gradient)
+                .frame(width: 84, height: 84)
+                .overlay(
+                    Image(systemName: "waveform")
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundColor(.white)
+                )
+
             VStack(spacing: 12) {
-                Text(localized: "onboarding.accessibility.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text(localized: "onboarding.accessibility.subtitle")
+                Text(localized: "onboarding.welcome.title")
+                    .font(.system(size: 34, weight: .bold))
+                    .multilineTextAlignment(.center)
+
+                Text(localized: "onboarding.welcome.subtitle")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 400)
+                    .frame(maxWidth: 440)
             }
-            
-            // Visual placeholder for screenshot
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.1))
-                .frame(width: 400, height: 200)
-                .overlay(
-                    VStack(spacing: 12) {
-                        Image(systemName: "hand.tap.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.accentColor.opacity(0.5))
-                        Text(localized: "onboarding.accessibility.instructions")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                )
-            
-            // Permission status
-            HStack(spacing: 8) {
-                Image(systemName: hasAccessibilityPermission ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(hasAccessibilityPermission ? .green : .orange)
-                Text(localized: hasAccessibilityPermission ? "onboarding.accessibility.status.granted" : "onboarding.accessibility.status.pending")
-                    .font(.callout)
-                    .foregroundColor(hasAccessibilityPermission ? .green : .orange)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill((hasAccessibilityPermission ? Color.green : Color.orange).opacity(0.1))
-            )
-            
-            // Action button and restart instruction
-            VStack(spacing: 12) {
-                Button(action: {
-                    AccessibilityHelper.shared.openAccessibilitySettings()
-                    // Start polling for permission
-                    isPollingForPermission = true
-                    pollForAccessibilityPermission()
-                }) {
-                    Label(isPollingForPermission ? LocalizedStringKey("onboarding.accessibility.waiting") : LocalizedStringKey("onboarding.accessibility.open.preferences"), systemImage: "gearshape")
-                        .frame(width: 280)
+
+            VStack(spacing: 8) {
+                Button(action: navigateForward) {
+                    Label(LocalizedStringKey("onboarding.welcome.getStarted"), systemImage: "arrow.right")
+                        .labelStyle(.titleAndIcon)
+                        .frame(width: 200)
                 }
                 .controlSize(.large)
                 .buttonStyle(.borderedProminent)
-                
-                if isPollingForPermission && !hasAccessibilityPermission {
-                    Text(localized: "onboarding.accessibility.restart")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding(40)
-    }
-    
-    // MARK: - Step 2: Model Selection
-    
-    private var modelSelectionStep: some View {
-        VStack(spacing: 24) {
-            // Icon
-            Image(systemName: "brain")
-                .font(.system(size: 56))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
-            
-            // Title and description
-            VStack(spacing: 12) {
-                Text(localized: "onboarding.model.recommendation.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text(localized: "onboarding.model.recommendation.subtitle")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                Text(localized: "onboarding.model.recommendation.note")
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-            }
-            
-            // Model info card
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(getRecommendedModelName())
-                        .font(.headline)
-                    Spacer()
-                    if isDownloadingModel {
-                        ProgressView(value: modelDownloadProgress)
-                            .progressViewStyle(.linear)
-                            .frame(width: 100)
-                    } else if isModelDownloaded() {
-                        Label(LocalizedStringKey("onboarding.model.downloaded"), systemImage: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.caption)
-                    }
-                }
-                
-                HStack(spacing: 40) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(localized: "onboarding.model.metric.speed")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        HStack(spacing: 2) {
-                            ForEach(0..<5, id: \.self) { index in
-                                Rectangle()
-                                    .fill(index < 3 ? Color.accentColor : Color.gray.opacity(0.3))
-                                    .frame(width: 8, height: 16)
-                                    .cornerRadius(2)
-                            }
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(localized: "onboarding.model.metric.accuracy")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        HStack(spacing: 2) {
-                            ForEach(0..<5, id: \.self) { index in
-                                Rectangle()
-                                    .fill(index < 4 ? Color.accentColor : Color.gray.opacity(0.3))
-                                    .frame(width: 8, height: 16)
-                                    .cornerRadius(2)
-                            }
-                        }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(localized: "onboarding.model.metric.size")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(localized: "onboarding.model.metric.size.value")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                }
-            }
-            .padding(20)
-            .frame(width: 400)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thinMaterial)
-            )
-            
-            // Model picker for alternative selection
-            VStack(spacing: 8) {
-                Text(localized: "onboarding.model.alternatives")
+
+                Text(localized: "onboarding.welcome.duration")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
-                Picker(selection: $selectedModelId) {
-                    Text(localized: "onboarding.model.option.proEnglish").tag("base.en")
-                    Text(localized: "onboarding.model.option.tiny").tag("tiny")
-                    Text(localized: "onboarding.model.option.base").tag("base")
-                    Text(localized: "onboarding.model.option.small").tag("small")
-                    Text(localized: "onboarding.model.option.medium").tag("medium")
-                    Text(localized: "onboarding.model.option.large").tag("large-v3")
-                } label: {
-                    Text(localized: "onboarding.model.picker.title")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 350)
             }
-            
-            // Download button
-            if !isModelDownloaded() {
-                Button(action: downloadSelectedModel) {
-                    if isDownloadingModel {
-                        let progressPercent = Int(modelDownloadProgress * 100)
-                        HStack {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .scaleEffect(0.8)
-                            Text("onboarding.model.downloading.progress".localized(arguments: progressPercent))
-                        }
-                        .frame(width: 200)
-                    } else {
-                        Label(LocalizedStringKey("onboarding.model.download.button"), systemImage: "arrow.down.circle.fill")
-                            .frame(width: 200)
-                    }
-                }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .disabled(isDownloadingModel)
-            }
+
+            Spacer()
         }
         .padding(40)
     }
-    
-    // MARK: - Step 4: Audio Device Selection
-    
-    private var audioDeviceStep: some View {
+
+    // MARK: - Step 1: Permissions (microphone + accessibility)
+
+    private var permissionsStep: some View {
         VStack(spacing: 24) {
-            // Icon
-            Image(systemName: "mic")
-                .font(.system(size: 56))
+            VStack(spacing: 12) {
+                Text(localized: "onboarding.permissions.title")
+                    .font(.title)
+                    .fontWeight(.semibold)
+
+                Text(localized: "onboarding.permissions.subtitle")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 460)
+            }
+
+            VStack(spacing: 12) {
+                permissionRow(
+                    icon: "mic.fill",
+                    title: "onboarding.permissions.microphone.title",
+                    subtitle: "onboarding.permissions.microphone.subtitle",
+                    isGranted: hasMicrophonePermission,
+                    // After a denial the OS won't re-prompt, so the action switches
+                    // to deep-linking System Settings — surface that in the label.
+                    actionTitle: AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined
+                        ? "onboarding.permissions.grant"
+                        : "onboarding.permissions.open",
+                    action: handleMicrophoneAction
+                )
+
+                permissionRow(
+                    icon: "hand.tap.fill",
+                    title: "onboarding.permissions.accessibility.title",
+                    subtitle: "onboarding.permissions.accessibility.subtitle",
+                    isGranted: hasAccessibilityPermission,
+                    actionTitle: isPollingForPermission ? "onboarding.accessibility.waiting" : "onboarding.permissions.open",
+                    action: {
+                        AccessibilityHelper.shared.openAccessibilitySettings()
+                        isPollingForPermission = true
+                        pollForAccessibilityPermission()
+                    }
+                )
+            }
+            .frame(maxWidth: 480)
+        }
+        .padding(40)
+    }
+
+    private func permissionRow(icon: String, title: String, subtitle: String, isGranted: Bool, actionTitle: String, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 22))
                 .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
-            
-            // Title and description
-            VStack(spacing: 12) {
-                Text(localized: "onboarding.audio.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text(localized: "onboarding.audio.subtitle")
-                    .font(.body)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title.localized)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(subtitle.localized)
+                    .font(.caption)
                     .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
             }
-            
-            // Device selection
-            VStack(alignment: .leading, spacing: 16) {
-                // Device picker
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(localized: "onboarding.audio.input.label")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                    
-                    Picker(selection: $selectedDeviceId) {
-                        ForEach(audioManager.availableDevices, id: \.id) { device in
-                            Text(device.name).tag(device.id)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.audio.picker.label")
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 300)
-                    .disabled(useSystemDefaultDevice)
-                }
-                
-                // System default toggle
-                Toggle(isOn: $useSystemDefaultDevice) {
-                    Text(localized: "onboarding.audio.use.system.default")
-                }
-                    .toggleStyle(.switch)
-                
-                // Audio level indicator
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(localized: "onboarding.audio.level")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                    
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.gray.opacity(0.2))
-                            
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.green)
-                                .frame(width: geometry.size.width * CGFloat(liveMetrics.audioLevel))
-                        }
-                    }
-                    .frame(height: 8)
-                }
-            }
-            .padding(24)
-            .frame(width: 400)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thinMaterial)
-            )
-            
-            // Open Sound Preferences button
-            Button(action: {
-                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.sound") {
-                    NSWorkspace.shared.open(url)
-                }
-            }) {
-                Label(LocalizedStringKey("onboarding.audio.open.sound"), systemImage: "speaker.wave.2")
-            }
-            .controlSize(.regular)
-        }
-        .padding(40)
-    }
-    
-    // MARK: - Step 5: Recording Permission
-    
-    private var recordingPermissionStep: some View {
-        VStack(spacing: 24) {
-            // Icon with status indicator
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 56))
-                    .foregroundColor(.accentColor)
-                    .symbolRenderingMode(.hierarchical)
-                
-                if hasMicrophonePermission {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(.green)
-                        .background(Circle().fill(.white).frame(width: 16, height: 16))
-                        .offset(x: 8, y: -8)
-                }
-            }
-            
-            // Title and description
-            VStack(spacing: 12) {
-                Text(localized: "onboarding.microphone.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text(localized: "onboarding.microphone.subtitle")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            // Permission status
-            HStack(spacing: 8) {
-                Image(systemName: hasMicrophonePermission ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(hasMicrophonePermission ? .green : .orange)
-                Text(localized: hasMicrophonePermission ? "onboarding.microphone.status.granted" : "onboarding.microphone.status.pending")
+
+            Spacer()
+
+            if isGranted {
+                Label("onboarding.permissions.granted".localized, systemImage: "checkmark.circle.fill")
                     .font(.callout)
-                    .foregroundColor(hasMicrophonePermission ? .green : .orange)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill((hasMicrophonePermission ? Color.green : Color.orange).opacity(0.1))
-            )
-            
-            // Grant permission button
-            if !hasMicrophonePermission {
-                Button(action: requestMicrophonePermission) {
-                    Label(LocalizedStringKey("onboarding.microphone.grant"), systemImage: "mic.badge.plus")
-                        .frame(width: 200)
+                    .foregroundColor(.green)
+            } else {
+                Button(action: action) {
+                    Text(actionTitle.localized)
                 }
-                .controlSize(.large)
+                .controlSize(.regular)
                 .buttonStyle(.borderedProminent)
             }
         }
-        .padding(40)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium)
+                .fill(.thinMaterial)
+        )
     }
-    
-    // MARK: - Step 6: Test Recording
-    
+
+    // MARK: - Step 3: Configure
+
+    @ViewBuilder
+    private var configureStep: some View {
+        if let source = selectedSource {
+            OnboardingConfigureView(
+                source: source,
+                selectedModel: $selectedModel,
+                licenseKeyInput: $licenseKeyInput,
+                selectedProvider: $selectedProvider,
+                apiKeyInput: $apiKeyInput,
+                keyValidated: $keyValidated
+            )
+        } else {
+            EmptyView()
+        }
+    }
+
+    // MARK: - Step 4: Set up
+
+    @ViewBuilder
+    private var setupStep: some View {
+        if let source = selectedSource {
+            OnboardingSetupView(
+                source: source,
+                selectedModel: $selectedModel,
+                licenseKeyInput: $licenseKeyInput,
+                selectedProvider: $selectedProvider,
+                apiKeyInput: $apiKeyInput
+            )
+        } else {
+            EmptyView()
+        }
+    }
+
+    // MARK: - Step 6: Give it a try (inline transcript, never pastes)
+
     private var testRecordingStep: some View {
-        VStack(spacing: 24) {
-            // Icon
-            Image(systemName: "waveform")
-                .font(.system(size: 56))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
-            
-            // Title and description
-            VStack(spacing: 12) {
+        VStack(spacing: 20) {
+            VStack(spacing: 10) {
                 Text(localized: "onboarding.test.title")
-                    .font(.title)
+                    .font(.title2)
                     .fontWeight(.semibold)
-                
+                    .multilineTextAlignment(.center)
+
                 HStack(spacing: 4) {
                     Text(localized: "onboarding.test.press.prefix")
                     KeyboardShortcutBadge(keys: getRecordingShortcut())
@@ -543,249 +345,92 @@ struct OnboardingView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
             }
-            
-            // Recording status
+
+            // Single record/stop control. The `.onboarding` trigger routes the
+            // transcript inline (see RecordingTranscriptionFlow+StopRecording) —
+            // it is never pasted into another app.
+            Button(action: {
+                audioManager.toggleRecordingWithTranscription(trigger: .onboarding)
+            }) {
+                ZStack {
+                    Circle()
+                        .fill(audioManager.isRecording ? Color.red.opacity(0.15) : Color.accentColor.opacity(0.12))
+                        .frame(width: 78, height: 78)
+                    Image(systemName: audioManager.isRecording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 30))
+                        .foregroundColor(audioManager.isRecording ? .red : .accentColor)
+                }
+            }
+            .buttonStyle(.plain)
+
             if audioManager.isRecording {
-                VStack(spacing: 16) {
-                    // Recording indicator
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 12, height: 12)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.red.opacity(0.3), lineWidth: 8)
-                                    .scaleEffect(1.5)
-                                    .opacity(0)
-                                    .animation(
-                                        .easeOut(duration: 1.0)
-                                        .repeatForever(autoreverses: false),
-                                        value: audioManager.isRecording
-                                    )
-                            )
-                        Text(localized: "onboarding.test.status.recording")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                    }
-                    
-                    // Waveform placeholder
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 300, height: 60)
-                        .overlay(
-                            Text(localized: "onboarding.test.status.speak")
-                                .foregroundColor(.secondary)
-                        )
-                    
-                    // Stop button
-                    Button(action: {
-                        audioManager.toggleRecordingWithTranscription(trigger: .onboarding)
-                        testRecordingCompleted = true
-                    }) {
-                        Label(LocalizedStringKey("onboarding.test.stop"), systemImage: "stop.circle.fill")
-                            .foregroundColor(.white)
-                            .frame(width: 150)
-                    }
-                    .controlSize(.large)
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                }
-            } else if testRecordingCompleted {
-                // Success state
-                VStack(spacing: 16) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.green)
-                    
-                    Text(localized: "onboarding.test.success.title")
-                        .font(.headline)
-                        .foregroundColor(.green)
-                    
-                    Text(localized: "onboarding.test.success.subtitle")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                }
-            } else {
-                // Ready to record state
-                VStack(spacing: 16) {
-                    Button(action: {
-                        audioManager.toggleRecordingWithTranscription(trigger: .onboarding)
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "mic.circle.fill")
-                                .font(.system(size: 64))
-                            Text(localized: "onboarding.test.start.cta")
-                                .font(.headline)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.accentColor)
-                    
-                    Text(localized: "onboarding.test.start.shortcut")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text(localized: "onboarding.test.status.speak")
+                    .font(.callout)
+                    .foregroundColor(.red)
             }
-        }
-        .padding(40)
-    }
-    
-    // MARK: - Step 7: Settings Preview
-    
-    private var settingsPreviewStep: some View {
-        VStack(spacing: 24) {
-            // Title and description
-            VStack(spacing: 12) {
-                Text(localized: "onboarding.settings.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text(localized: "onboarding.settings.subtitle")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            // Visual representation of menu bar and settings
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.1))
-                .frame(width: 400, height: 250)
-                .overlay(
-                    VStack(spacing: 20) {
-                        // Mock menu bar
-                        HStack {
-                            Spacer()
-                            Image(systemName: "airplane.circle")
-                                .font(.system(size: 20))
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(Color.gray.opacity(0.1))
-                        
-                        // Mock menu items
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(localized: "onboarding.settings.menu.startStop")
-                            Divider()
-                            Text(localized: "onboarding.settings.menu.history")
-                            HStack {
-                                Text(localized: "onboarding.settings.menu.settings")
-                                Spacer()
-                                Image(systemName: "arrow.left")
-                                    .foregroundColor(.accentColor)
-                            }
-                            Divider()
-                            Text(localized: "onboarding.settings.menu.quit")
-                        }
-                        .font(.caption)
-                        .padding(12)
-                        .frame(width: 200)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.regularMaterial)
-                                .shadow(radius: 8)
-                        )
+
+            // Inline transcript panel — shown only here, not pasted.
+            if !appState.lastTranscription.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(localized: "onboarding.try.transcript.heading")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                        .foregroundColor(.secondary)
+
+                    Text(appState.lastTranscription)
+                        .font(.system(size: 15))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 5) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .font(.caption)
+                        Text(localized: "onboarding.try.transcript.noPaste")
+                            .font(.caption)
                     }
+                    .foregroundColor(.green)
+                }
+                .padding(16)
+                .frame(maxWidth: 460, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.large)
+                        .fill(.thinMaterial)
                 )
-            
-            // Info text
-            Text(localized: "onboarding.settings.info")
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
+            }
         }
         .padding(40)
+        // Clear any prior transcript so the panel only reflects a recording made
+        // on this screen; clear again on leave so it never lingers.
+        .onAppear { appState.lastTranscription = "" }
+        .onDisappear { appState.lastTranscription = "" }
     }
-    
-    // MARK: - Step 8: Completion
-    
+
+    // MARK: - Step 7: Done
+
     private var completionStep: some View {
         VStack(spacing: 24) {
-            // Success icon
-            Image(systemName: "hands.clap")
-                .font(.system(size: 56))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
-            
-            // Title and description
-            VStack(spacing: 12) {
-                Text(localized: "onboarding.completion.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
-                
-                Text(localized: "onboarding.completion.subtitle")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            // Support buttons
-            HStack(spacing: 16) {
-                Button(action: {
-                    if let url = URL(string: "https://discord.gg/hyperwhisper") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }) {
-                    Label(LocalizedStringKey("onboarding.completion.discord"), systemImage: "message.fill")
-                        .frame(width: 140)
-                }
-                .controlSize(.large)
-                .buttonStyle(.bordered)
-                
-                Button(action: {
-                    if let url = URL(string: "mailto:support@hyperwhisper.com") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }) {
-                    Label(LocalizedStringKey("onboarding.completion.email"), systemImage: "envelope.fill")
-                        .frame(width: 140)
-                }
-                .controlSize(.large)
-                .buttonStyle(.bordered)
-            }
-            
-            // Additional resources
-            VStack(spacing: 8) {
-                Text(localized: "onboarding.completion.resources.title")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                
-                HStack(spacing: 20) {
-                    Button {
-                        if let url = URL(string: "https://docs.hyperwhisper.com") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.completion.resources.documentation")
-                    }
-                    .buttonStyle(.link)
-                    
-                    Button {
-                        if let url = URL(string: "https://youtube.com/@hyperwhisper") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.completion.resources.videos")
-                    }
-                    .buttonStyle(.link)
-                    
-                    Button {
-                        if let url = URL(string: "https://blog.hyperwhisper.com") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.completion.resources.blog")
-                    }
-                    .buttonStyle(.link)
-                }
-            }
+            Spacer()
+
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.green.gradient)
+                .frame(width: 84, height: 84)
+                .overlay(
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundColor(.white)
+                )
+
+            Text(localized: "onboarding.completion.title")
+                .font(.system(size: 34, weight: .bold))
+                .multilineTextAlignment(.center)
+
+            Spacer()
         }
         .padding(40)
     }
-    
+
     // MARK: - Navigation Buttons
-    
+
     private var navigationButtons: some View {
         HStack {
             // Back button
@@ -795,22 +440,14 @@ struct OnboardingView: View {
                 }
                 .controlSize(.large)
             }
-            
+
             Spacer()
-            
-            // Skip button (for steps that can be skipped)
-            if canSkipCurrentStep() {
-                Button {
-                    navigateForward()
-                } label: {
-                    Text(localized: "common.skip")
-                }
-                .controlSize(.large)
-                .buttonStyle(.borderless)
-            }
-            
-            // Continue/Done button
-            if currentStep < totalSteps - 1 {
+
+            // Forward / Done. The welcome step (0) is driven by its hero button,
+            // so no footer Continue there.
+            if currentStep == 0 {
+                EmptyView()
+            } else if currentStep < totalSteps - 1 {
                 Button(action: navigateForward) {
                     Label(LocalizedStringKey("common.continue"), systemImage: "chevron.right")
                         .labelStyle(.titleAndIcon)
@@ -828,14 +465,14 @@ struct OnboardingView: View {
             }
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     /// Setup initial state when view appears
     private func setupInitialState() {
         // Check current permissions
         hasAccessibilityPermission = AccessibilityHelper.shared.hasAccessibilityPermission()
-        
+
         // Check microphone permission
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
@@ -843,145 +480,200 @@ struct OnboardingView: View {
         default:
             hasMicrophonePermission = false
         }
-        
-        // Audio devices are loaded automatically by AudioRecordingManager
-        // Set default device
-        if let defaultDevice = audioManager.availableDevices.first {
-            selectedDeviceId = defaultDevice.id
-        }
-        
-        // Model catalog is loaded automatically in WhisperModelManager init
-        // No need to refresh
     }
-    
+
     /// Navigate to previous step
     private func navigateBack() {
         withAnimation {
             currentStep = max(0, currentStep - 1)
         }
     }
-    
+
     /// Navigate to next step
     private func navigateForward() {
-        // Save settings as we progress
-        saveCurrentStepSettings()
-        
+        // Apply the chosen source to the default Mode as we leave the Set up step
+        // (4) so the Test Recording step (5) actually records through the source
+        // the user picked — not the seeded HyperWhisper Cloud default. Idempotent,
+        // so returning to step 4 and forward again simply re-applies.
+        if currentStep == 4 {
+            applySelectedSourceToDefaultMode()
+        }
         withAnimation {
             currentStep = min(totalSteps - 1, currentStep + 1)
         }
     }
-    
-    /// Check if current step can be skipped
-    private func canSkipCurrentStep() -> Bool {
-        switch currentStep {
-        case 0: // Accessibility - can skip
-            return true
-        case 1: // Model download - can skip if a model exists
-            return !whisperModelManager.downloadedModels.isEmpty
-        default:
-            return false
-        }
-    }
-    
-    /// Check if can continue from current step
+
+    /// Check if can continue from current step. The Set up step (4) is the
+    /// mandatory gate: the chosen source must be genuinely usable.
     private func canContinueFromCurrentStep() -> Bool {
         switch currentStep {
-        case 1: // Model selection - need at least one model
-            return isModelDownloaded() || !whisperModelManager.downloadedModels.isEmpty
-        case 3: // Recording permission - need permission
+        case 1: // Permissions — microphone is required to record
             return hasMicrophonePermission
-        case 4: // Test recording - optional but recommended
-            return true
-        default:
-            return true
-        }
-    }
-    
-    /// Save settings for current step
-    private func saveCurrentStepSettings() {
-        switch currentStep {
-        case 1: // Model
-            // Model selection is handled by mode configuration
-            break
-        case 2: // Audio device
-            if !useSystemDefaultDevice {
-                settingsManager.selectedMicrophoneId = selectedDeviceId
+        case 2: // Choose source — must have picked one
+            return selectedSource != nil
+        case 3: // Configure — must have entered the source's specifics
+            guard let source = selectedSource else { return false }
+            switch source {
+            case .onDevice:
+                return selectedModel != nil
+            case .hyperwhisperCloud:
+                // A cloud source needs a WORKING key to continue. Either the license
+                // is already activated/validated on this machine, or the inline
+                // "Test" in this session returned valid. A non-empty key text is no
+                // longer enough — it could be wrong.
+                return licenseManager.licenseStatus == .active || keyValidated
+            case .yourProvider:
+                // BYOK must pass the inline "Test" (health probe returned healthy)
+                // before continuing. A returning user re-presses Test once this
+                // session — an accepted tradeoff for never advancing on a dead key.
+                return keyValidated
             }
+        case 4: // Set up — source must be genuinely usable (mandatory gate)
+            guard let source = selectedSource else { return false }
+            return isSelectedSourceUsable(source)
         default:
-            break
+            return true
         }
     }
-    
-    /// Complete onboarding and close
+
+    /// The per-source "is this actually usable now" check.
+    private func isSelectedSourceUsable(_ source: TranscriptionSource) -> Bool {
+        switch source {
+        case .onDevice:
+            guard let model = selectedModel else { return false }
+            switch model.kind {
+            case .whisper:
+                return whisperModelManager.getModelPath(for: model.id) != nil
+            case .parakeet:
+                return parakeetModelManager.availableModels.first { $0.id == model.id }?.isDownloaded == true
+            }
+        case .hyperwhisperCloud:
+            return licenseManager.licenseStatus == .active
+        case .yourProvider:
+            return settingsManager.apiKeys.hasAPIKey(for: selectedProvider)
+        }
+    }
+
+    /// Complete onboarding and close. The chosen source was already applied to the
+    /// default Mode when leaving the Set up step (see `navigateForward`); re-apply
+    /// here as a final guarantee in case that transition was ever bypassed.
     private func completeOnboarding() {
-        // Mark onboarding as completed
+        applySelectedSourceToDefaultMode()
+
+        // Defensive: release the microphone metering preview in case onboarding is
+        // completed without passing back through the Microphone step's onDisappear.
+        audioManager.stopInputLevelPreview()
+
+        // Mark onboarding as completed and clear the durable "still owed" flag so
+        // a completed run is never re-shown on the next launch.
         UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
-        
+        UserDefaults.standard.set(false, forKey: "onboardingPending")
+
         // Close onboarding
         isPresented = false
-        
+
         // Navigate to home
         appState.selectedNavigationItem = .home
     }
-    
-    /// Get recommended model name based on language
-    private func getRecommendedModelName() -> String {
-        let preferredLanguage = Locale.preferredLanguages.first ?? "en"
-        return preferredLanguage.hasPrefix("en") ? "onboarding.model.pro.english".localized : "onboarding.model.pro.multilingual".localized
+
+    /// Reconfigure the EXISTING default Mode (well-known UUID …0001, created by
+    /// `PersistenceController.initializeDefaultModes()`) to the chosen source.
+    /// We update in place rather than creating a second Mode.
+    private func applySelectedSourceToDefaultMode() {
+        guard let source = selectedSource else { return }
+
+        let persistence = PersistenceController.shared
+        let existing = persistence.findDefaultMode()
+
+        let chosenModel: String
+        let chosenProvider: String?
+        let postProcessingMode: Int16
+        let accuracyTier: String?
+
+        switch source {
+        case .onDevice:
+            // Fully offline/free: local model, post-processing off. `id` is the
+            // exact string the transcription router expects — a Whisper catalog
+            // name ("base") or a Parakeet id ("parakeet-tdt-0.6b-v2").
+            chosenModel = selectedModel?.id ?? "base"
+            chosenProvider = nil
+            postProcessingMode = 0
+            accuracyTier = nil
+        case .hyperwhisperCloud:
+            chosenModel = "cloud"
+            chosenProvider = "hyperwhisper"
+            postProcessingMode = 1
+            accuracyTier = CloudAccuracyTier.elevenLabsScribeV2.rawValue
+        case .yourProvider:
+            // BYOK: cloud path via the user's provider, post-processing off by
+            // default so first-run never fails on a missing post-processing key.
+            chosenModel = "cloud"
+            chosenProvider = selectedProvider.rawValue
+            postProcessingMode = 0
+            accuracyTier = nil
+        }
+
+        // Reconfigure ONLY the source-defining fields (model / cloudProvider /
+        // postProcessingMode / cloudAccuracyTier). createOrUpdateMode resets any
+        // omitted field to its default, so we forward every other value from the
+        // existing default Mode to avoid wiping a returning user's customizations
+        // (custom instructions, system prompt, spelling, etc.). cloudTranscription-
+        // Model is intentionally omitted so it re-derives for the new provider/tier.
+        let updated = persistence.createOrUpdateMode(
+            id: existing?.id ?? Self.defaultModeID,
+            name: existing?.name ?? "Default",
+            preset: existing?.preset ?? "hyper",
+            language: existing?.language ?? "en",
+            model: chosenModel,
+            punctuation: existing?.punctuation ?? true,
+            capitalization: existing?.capitalization ?? true,
+            profanityFilter: existing?.profanityFilter ?? false,
+            customInstructions: existing?.customInstructions,
+            languageModel: existing?.languageModel,
+            cloudProvider: chosenProvider,
+            postProcessingMode: postProcessingMode,
+            postProcessingProvider: existing?.postProcessingProvider,
+            englishSpelling: existing?.englishSpelling,
+            userSystemPrompt: existing?.userSystemPrompt,
+            useStreamingTranscription: existing?.useStreamingTranscription ?? false,
+            cloudAccuracyTier: accuracyTier,
+            removeTrailingPeriod: existing?.removeTrailingPeriod ?? false,
+            enableScreenOCR: existing?.enableScreenOCR ?? false,
+            geminiCustomPrompt: existing?.geminiCustomPrompt,
+            cloudPostProcessingModel: existing?.cloudPostProcessingModel,
+            cloudTranscriptionDomain: existing?.cloudTranscriptionDomain,
+            foreignPlatformExtensions: existing?.foreignPlatformExtensions
+        )
+
+        // Defensive: if no default Mode existed (unseeded store), createOrUpdateMode
+        // does NOT flag the row it created as default — mark it so the chosen source
+        // becomes the active default instead of a stray, non-default Mode.
+        if existing == nil && !updated.isDefault {
+            updated.isDefault = true
+            persistence.save()
+        }
+
+        // Repoint the ACTIVE mode at Default. Writing the source onto the Default
+        // Mode is not enough on its own: a returning user's `selectedModeId` still
+        // points at their old custom mode, so the next recording would keep using
+        // that mode's (e.g. Parakeet) source. `selectMode` sets `selectedModeId` to
+        // Default and refreshes `selectedModeSnapshot`, which the record-time
+        // resolver reads — so the chosen source takes effect with no relaunch.
+        appState.selectMode(updated, persist: true)
     }
-    
-    /// Check if selected model is downloaded
-    private func isModelDownloaded() -> Bool {
-        return whisperModelManager.downloadedModels.contains { $0.name == selectedModelId }
-    }
-    
-    /// Download selected model
-    private func downloadSelectedModel() {
-        guard !isDownloadingModel else { return }
-        
-        let modelId = selectedModelId
-        isDownloadingModel = true
-        
-        Task {
-            // Find model in catalog
-            if let model = whisperModelManager.availableModels.first(where: { $0.name == modelId }) {
-                // Subscribe to progress/completion BEFORE starting the download so the
-                // UI updates live. The cancellables are retained in `downloadObservers`
-                // so the pipelines outlive this call (a discarded AnyCancellable would
-                // tear the subscription down immediately, freezing progress at 0%).
-                modelDownloadProgress = 0.0
 
-                downloadObservers.store(whisperModelManager.$downloadProgress
-                    .receive(on: DispatchQueue.main)
-                    .sink { progressDict in
-                        if let progress = progressDict[modelId] {
-                            self.modelDownloadProgress = Float(progress)
-                        }
-                    })
-
-                downloadObservers.store(whisperModelManager.$downloadedModels
-                    .receive(on: DispatchQueue.main)
-                    .sink { downloadedModels in
-                        if downloadedModels.contains(where: { $0.name == modelId }) {
-                            self.isDownloadingModel = false
-                        }
-                    })
-
-                // Start download (returns only after the download finishes).
-                await whisperModelManager.downloadModel(model)
-
-                // Download finished: ensure the flag is cleared and tear down the
-                // observers so they don't linger across subsequent downloads.
-                isDownloadingModel = false
-                downloadObservers.removeAll()
-            } else {
-                errorMessage = "onboarding.error.model.notFound".localized
-                showErrorAlert = true
-                isDownloadingModel = false
-            }
+    /// Handle a tap on the microphone permission action. When the status is still
+    /// undetermined we show the system prompt; once denied/restricted the OS will
+    /// not re-prompt, so we deep-link to System Settings instead of no-op'ing.
+    private func handleMicrophoneAction() {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .notDetermined:
+            requestMicrophonePermission()
+        default:
+            openMicrophoneSettings()
         }
     }
-    
+
     /// Request microphone permission
     private func requestMicrophonePermission() {
         AVCaptureDevice.requestAccess(for: .audio) { granted in
@@ -994,7 +686,15 @@ struct OnboardingView: View {
             }
         }
     }
-    
+
+    /// Open System Settings › Privacy & Security › Microphone so the user can grant
+    /// access after a prior denial (same pane the main app's alert links to).
+    private func openMicrophoneSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     /// Poll for accessibility permission
     private func pollForAccessibilityPermission() {
         AccessibilityHelper.shared.waitForAccessibilityPermission { granted in
@@ -1004,7 +704,7 @@ struct OnboardingView: View {
             }
         }
     }
-    
+
     /// Get formatted recording shortcut
     private func getRecordingShortcut() -> String {
         return KeyboardShortcuts.getShortcut(for: .toggleRecordingWithTranscription)?.description ?? "keyboard.option.space".localized
@@ -1021,5 +721,7 @@ struct OnboardingView: View {
         .environmentObject(SettingsManager())
         // NOTE: Preview uses fresh instance for isolation
         .environmentObject(WhisperModelManager())
+        .environmentObject(ParakeetModelManager())
         .environmentObject(LicenseManager())
+        .environmentObject(CloudProviderHealthManager())
 }

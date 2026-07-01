@@ -70,9 +70,15 @@ struct HyperWhisperApp: App {
     /// Controls whether the app launches with the main window hidden (menu bar only)
     @AppStorage("launchMinimized") private var launchMinimized: Bool = false
     
-    /// Tracks whether this is the first launch (used for onboarding)
-    /// TEMPORARILY DISABLED - Set to false to enable onboarding
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = true
+    /// Tracks whether this is the first launch (used for onboarding).
+    /// Defaults to `false` so new installs see the first-run onboarding flow.
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+
+    /// Durable "onboarding still owed" signal. Set true on the launch that seeds
+    /// the default modes (a genuine fresh install) and kept until onboarding is
+    /// completed, so an interrupted first run is re-shown on the next launch —
+    /// `didSeedDefaultModesOnLaunch` alone is only true on the seeding launch.
+    @AppStorage("onboardingPending") private var onboardingPending: Bool = false
 
     /// Tracks whether we've shown the one-time Gemma removal migration alert
     @AppStorage("didShowGemmaMigrationAlert") private var didShowGemmaMigrationAlert: Bool = false
@@ -575,12 +581,28 @@ struct MenuBarIconView: View {
             }
         }
 
-        // Show onboarding if this is the first launch
-        // The hasCompletedOnboarding check is done here to trigger the sheet
+        // Show onboarding only on a genuine fresh install. `hasCompletedOnboarding`
+        // was never persisted for users who first launched while onboarding was
+        // disabled, so gating on the flag alone would wrongly re-onboard them when
+        // its default flips. `didSeedDefaultModesOnLaunch` is true only when THIS
+        // launch created the default modes (no modes existed) — a reliable
+        // first-install signal. But it resets each launch, so we capture it into
+        // the durable `onboardingPending` flag: an interrupted first run then
+        // re-shows onboarding on the next launch instead of looking like an
+        // existing user, while genuine existing users (never seeded here) are
+        // marked complete exactly once.
         if !hasCompletedOnboarding {
-            // Small delay to ensure the main window is ready before showing sheet
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                appState.showOnboarding = true
+            if PersistenceController.shared.didSeedDefaultModesOnLaunch {
+                onboardingPending = true
+            }
+            if onboardingPending {
+                // Small delay to ensure the main window is ready before showing sheet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    appState.showOnboarding = true
+                }
+            } else {
+                // Existing user (modes already present): treat onboarding as done.
+                hasCompletedOnboarding = true
             }
         }
 
