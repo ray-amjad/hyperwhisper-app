@@ -292,8 +292,8 @@
 "onboarding.configure.onDevice.title" = "Choose a model";
 "onboarding.configure.onDevice.subtitle" = "Pick a voice model to download. Larger models are more accurate but take more space.";
 "onboarding.configure.cloud.title" = "Activate HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Enter your Cloud license key to connect this Mac to your prepaid credits.";
-"onboarding.configure.cloud.placeholder" = "Paste your license key";
+"onboarding.configure.cloud.subtitle" = "Enter your Cloud access key to connect this Mac to your prepaid credits.";
+"onboarding.configure.cloud.placeholder" = "Paste your access key";
 "onboarding.configure.cloud.getCredits" = "Don't have a key? Get credits at hyperwhisper.com";
 "onboarding.configure.provider.title" = "Connect your provider";
 "onboarding.configure.provider.subtitle" = "Choose a provider and paste your API key. It's stored securely in your Mac's Keychain.";
@@ -313,6 +313,29 @@
 "onboarding.setup.provider.save" = "Save key";
 "onboarding.setup.provider.saved" = "API key saved";
 "onboarding.setup.selectFirst" = "Go back and make a selection first.";
+// Configure — inline "test key" buttons (Cloud + BYOK)
+"onboarding.configure.cloud.testKey" = "Test access key";
+"onboarding.configure.provider.testKey" = "Test API key";
+"onboarding.configure.test.testing" = "Testing…";
+"onboarding.configure.test.valid" = "Access key valid";
+"onboarding.configure.test.healthy" = "Connected";
+"onboarding.configure.test.unauthorized" = "Provider rejected this key. Double-check it's still valid.";
+"onboarding.configure.test.unreachable" = "Couldn't reach the provider. Check your internet, then test again.";
+// Configure — curated on-device model list
+"onboarding.model.pill.parakeet" = "Parakeet";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.recommended" = "Recommended";
+"onboarding.model.parakeetV2.subtitle" = "English · NVIDIA · fast & accurate";
+"onboarding.model.parakeetV3.subtitle" = "Multilingual · 25 languages";
+"onboarding.model.whisperBase.subtitle" = "Multilingual · tiny footprint";
+"onboarding.model.whisperTurbo.subtitle" = "Multilingual · most accurate Whisper";
+// Microphone step (device + live level)
+"onboarding.mic.title" = "Set up your microphone";
+"onboarding.mic.subtitle" = "Choose your input and check the level bar moves when you speak.";
+"onboarding.mic.permissionHint" = "Microphone access is off — enable it in System Settings to see your level.";
+// Give it a try — inline transcript
+"onboarding.try.transcript.heading" = "You said";
+"onboarding.try.transcript.noPaste" = "Shown here only — not pasted into other apps";
 "onboarding.model.pro.english" = "Pro (English)";
 "onboarding.model.pro.multilingual" = "Pro (Multilingual)";
 "onboarding.model.downloading.progress" = "Downloading... %d%%";

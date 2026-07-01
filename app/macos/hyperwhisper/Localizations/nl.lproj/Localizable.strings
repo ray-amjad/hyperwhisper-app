@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Kies een model";
 "onboarding.configure.onDevice.subtitle" = "Kies een spraakmodel om te downloaden. Grotere modellen zijn nauwkeuriger maar nemen meer ruimte in.";
 "onboarding.configure.cloud.title" = "HyperWhisper Cloud activeren";
-"onboarding.configure.cloud.subtitle" = "Voer je Cloud-licentiesleutel in om deze Mac te verbinden met je vooruitbetaalde credits.";
-"onboarding.configure.cloud.placeholder" = "Plak je licentiesleutel";
+"onboarding.configure.cloud.subtitle" = "Voer je Cloud-toegangssleutel in om deze Mac te verbinden met je vooruitbetaalde credits.";
+"onboarding.configure.cloud.placeholder" = "Plak je toegangssleutel";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Toegangssleutel testen";
+"onboarding.configure.provider.testKey" = "API-sleutel testen";
+"onboarding.configure.test.testing" = "Controleren…";
+"onboarding.configure.test.valid" = "Toegangssleutel geldig";
+"onboarding.configure.test.healthy" = "Verbonden";
+"onboarding.configure.test.unauthorized" = "Provider heeft deze sleutel geweigerd. Controleer of hij nog geldig is.";
+"onboarding.configure.test.unreachable" = "Kan de provider niet bereiken. Controleer je internetverbinding en probeer het opnieuw.";
+"onboarding.model.parakeetV2.subtitle" = "Engels · NVIDIA · snel en nauwkeurig";
+"onboarding.model.parakeetV3.subtitle" = "Meertalig · 25 talen";
+"onboarding.model.whisperBase.subtitle" = "Meertalig · kleine footprint";
+"onboarding.model.whisperTurbo.subtitle" = "Meertalig · nauwkeurigste Whisper";
+"onboarding.mic.title" = "Stel je microfoon in";
+"onboarding.mic.subtitle" = "Kies je invoerapparaat en controleer of de niveaubalk beweegt wanneer je spreekt.";
+"onboarding.mic.permissionHint" = "Microfoontoegang staat uit — schakel deze in via Systeeminstellingen om je niveau te zien.";
+"onboarding.try.transcript.heading" = "Je zei";
+"onboarding.try.transcript.noPaste" = "Alleen hier weergegeven — niet geplakt in andere apps.";
 "onboarding.configure.cloud.getCredits" = "Geen sleutel? Koop credits op hyperwhisper.com";
 "onboarding.configure.provider.title" = "Verbind je provider";
 "onboarding.configure.provider.subtitle" = "Kies een provider en plak je API-sleutel. Deze wordt veilig opgeslagen in de Sleutelhanger van je Mac.";

@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "เลือกโมเดล";
 "onboarding.configure.onDevice.subtitle" = "เลือกโมเดลเสียงที่จะดาวน์โหลด โมเดลที่ใหญ่กว่าจะแม่นยำกว่าแต่ใช้พื้นที่มากกว่า";
 "onboarding.configure.cloud.title" = "เปิดใช้งาน HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "ป้อนคีย์ใบอนุญาต Cloud ของคุณเพื่อเชื่อมต่อ Mac เครื่องนี้กับเครดิตแบบเติมเงินล่วงหน้าของคุณ";
-"onboarding.configure.cloud.placeholder" = "วางคีย์ใบอนุญาตของคุณ";
+"onboarding.configure.cloud.subtitle" = "ป้อนคีย์เข้าถึง Cloud ของคุณเพื่อเชื่อมต่อ Mac เครื่องนี้กับเครดิตแบบเติมเงินล่วงหน้าของคุณ";
+"onboarding.configure.cloud.placeholder" = "วางคีย์เข้าถึงของคุณ";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "ทดสอบคีย์เข้าถึง";
+"onboarding.configure.provider.testKey" = "ทดสอบ API Key";
+"onboarding.configure.test.testing" = "กำลังทดสอบ…";
+"onboarding.configure.test.valid" = "คีย์เข้าถึงถูกต้อง";
+"onboarding.configure.test.healthy" = "เชื่อมต่อแล้ว";
+"onboarding.configure.test.unauthorized" = "ผู้ให้บริการปฏิเสธคีย์นี้ กรุณาตรวจสอบว่าคีย์ยังถูกต้องอยู่หรือไม่";
+"onboarding.configure.test.unreachable" = "ไม่สามารถเชื่อมต่อกับผู้ให้บริการได้ ตรวจสอบอินเทอร์เน็ตของคุณแล้วลองใหม่อีกครั้ง";
+"onboarding.model.parakeetV2.subtitle" = "ภาษาอังกฤษ · NVIDIA · เร็วและแม่นยำ";
+"onboarding.model.parakeetV3.subtitle" = "พหุภาษา · 25 ภาษา";
+"onboarding.model.whisperBase.subtitle" = "พหุภาษา · ขนาดเล็กมาก";
+"onboarding.model.whisperTurbo.subtitle" = "พหุภาษา · Whisper ที่แม่นยำที่สุด";
+"onboarding.mic.title" = "ตั้งค่าไมโครโฟนของคุณ";
+"onboarding.mic.subtitle" = "เลือกอุปกรณ์อินพุตของคุณ และตรวจสอบว่าแถบระดับเสียงขยับเมื่อคุณพูด";
+"onboarding.mic.permissionHint" = "การเข้าถึงไมโครโฟนถูกปิดอยู่ — เปิดใช้งานในการตั้งค่าระบบเพื่อดูระดับเสียงของคุณ";
+"onboarding.try.transcript.heading" = "คุณพูดว่า";
+"onboarding.try.transcript.noPaste" = "แสดงที่นี่เท่านั้น — ไม่ได้วางลงในแอปอื่น";
 "onboarding.configure.cloud.getCredits" = "ยังไม่มีคีย์ใช่ไหม? รับเครดิตได้ที่ hyperwhisper.com";
 "onboarding.configure.provider.title" = "เชื่อมต่อผู้ให้บริการของคุณ";
 "onboarding.configure.provider.subtitle" = "เลือกผู้ให้บริการและวาง API Key ของคุณ ระบบจะจัดเก็บอย่างปลอดภัยใน Keychain ของ Mac คุณ";

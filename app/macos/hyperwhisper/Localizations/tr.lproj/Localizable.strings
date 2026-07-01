@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Bir model seçin";
 "onboarding.configure.onDevice.subtitle" = "İndirilecek bir ses modeli seçin. Daha büyük modeller daha doğrudur ancak daha fazla yer kaplar.";
 "onboarding.configure.cloud.title" = "HyperWhisper Cloud'u Etkinleştirin";
-"onboarding.configure.cloud.subtitle" = "Bu Mac'i ön ödemeli kredilerinize bağlamak için Cloud lisans anahtarınızı girin.";
-"onboarding.configure.cloud.placeholder" = "Lisans anahtarınızı yapıştırın";
+"onboarding.configure.cloud.subtitle" = "Bu Mac'i ön ödemeli kredilerinize bağlamak için Cloud erişim anahtarınızı girin.";
+"onboarding.configure.cloud.placeholder" = "Erişim anahtarınızı yapıştırın";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Erişim Anahtarını Test Et";
+"onboarding.configure.provider.testKey" = "API Anahtarını Test Et";
+"onboarding.configure.test.testing" = "Test ediliyor…";
+"onboarding.configure.test.valid" = "Geçerli erişim anahtarı";
+"onboarding.configure.test.healthy" = "Bağlandı";
+"onboarding.configure.test.unauthorized" = "Sağlayıcı bu anahtarı reddetti. Hâlâ geçerli olduğundan emin olun.";
+"onboarding.configure.test.unreachable" = "Sağlayıcıya ulaşılamadı. İnternet bağlantınızı kontrol edin ve tekrar deneyin.";
+"onboarding.model.parakeetV2.subtitle" = "İngilizce · NVIDIA · hızlı ve doğru";
+"onboarding.model.parakeetV3.subtitle" = "Çok dilli · 25 dil";
+"onboarding.model.whisperBase.subtitle" = "Çok dilli · minik boyut";
+"onboarding.model.whisperTurbo.subtitle" = "Çok dilli · en doğru Whisper";
+"onboarding.mic.title" = "Mikrofonunuzu ayarlayın";
+"onboarding.mic.subtitle" = "Girişinizi seçin ve konuştuğunuzda seviye çubuğunun hareket ettiğini kontrol edin.";
+"onboarding.mic.permissionHint" = "Mikrofon erişimi kapalı — seviyenizi görmek için Sistem Ayarları'nda etkinleştirin.";
+"onboarding.try.transcript.heading" = "Söylediğiniz";
+"onboarding.try.transcript.noPaste" = "Sadece burada gösterilir — diğer uygulamalara yapıştırılmaz.";
 "onboarding.configure.cloud.getCredits" = "Anahtarınız yok mu? hyperwhisper.com adresinden kredi alın";
 "onboarding.configure.provider.title" = "Sağlayıcınızı bağlayın";
 "onboarding.configure.provider.subtitle" = "Bir sağlayıcı seçin ve API anahtarınızı yapıştırın. Mac'inizin Anahtar Zinciri'nde güvenli şekilde saklanır.";

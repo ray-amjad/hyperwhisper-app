@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Pasirinkite modelį";
 "onboarding.configure.onDevice.subtitle" = "Pasirinkite atsisiųstiną balso modelį. Didesni modeliai yra tikslesni, bet užima daugiau vietos.";
 "onboarding.configure.cloud.title" = "Aktyvuoti „HyperWhisper Cloud“";
-"onboarding.configure.cloud.subtitle" = "Įveskite savo „Cloud“ licencijos raktą, kad prijungtumėte šį „Mac“ prie iš anksto apmokėtų kreditų.";
-"onboarding.configure.cloud.placeholder" = "Įklijuokite savo licencijos raktą";
+"onboarding.configure.cloud.subtitle" = "Įveskite savo „Cloud“ prieigos raktą, kad prijungtumėte šį „Mac“ prie iš anksto apmokėtų kreditų.";
+"onboarding.configure.cloud.placeholder" = "Įklijuokite savo prieigos raktą";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Patikrinti prieigos raktą";
+"onboarding.configure.provider.testKey" = "Patikrinti API raktą";
+"onboarding.configure.test.testing" = "Patikrinama…";
+"onboarding.configure.test.valid" = "Prieigos raktas galiojantis";
+"onboarding.configure.test.healthy" = "Prijungta";
+"onboarding.configure.test.unauthorized" = "Teikėjas atmetė šį raktą. Patikrinkite, ar jis tebegalioja.";
+"onboarding.configure.test.unreachable" = "Nepavyko prisijungti prie teikėjo. Patikrinkite interneto ryšį ir bandykite dar kartą.";
+"onboarding.model.parakeetV2.subtitle" = "Anglų · NVIDIA · greitas ir tikslus";
+"onboarding.model.parakeetV3.subtitle" = "Daugiakalbis · 25 kalbos";
+"onboarding.model.whisperBase.subtitle" = "Daugiakalbis · nedidelis dydis";
+"onboarding.model.whisperTurbo.subtitle" = "Daugiakalbis · tiksliausias Whisper";
+"onboarding.mic.title" = "Nustatykite savo mikrofoną";
+"onboarding.mic.subtitle" = "Pasirinkite įvesties įrenginį ir patikrinkite, kad lygio juosta judėtų, kai kalbate.";
+"onboarding.mic.permissionHint" = "Mikrofono prieiga išjungta — įjunkite ją Sistemos nustatymuose, kad pamatytumėte savo lygį.";
+"onboarding.try.transcript.heading" = "Jūs pasakėte";
+"onboarding.try.transcript.noPaste" = "Rodoma tik čia — neįklijuojama į kitas programas.";
 "onboarding.configure.cloud.getCredits" = "Neturite rakto? Įsigykite kreditų svetainėje hyperwhisper.com";
 "onboarding.configure.provider.title" = "Prijunkite savo teikėją";
 "onboarding.configure.provider.subtitle" = "Pasirinkite teikėją ir įklijuokite savo API raktą. Jis saugiai saugomas jūsų „Mac“ raktų grandinėje.";

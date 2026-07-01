@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Chọn một mô hình";
 "onboarding.configure.onDevice.subtitle" = "Chọn một mô hình giọng nói để tải xuống. Mô hình lớn hơn chính xác hơn nhưng chiếm nhiều dung lượng hơn.";
 "onboarding.configure.cloud.title" = "Kích hoạt HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Nhập key giấy phép Cloud của bạn để kết nối Mac này với tín dụng trả trước của bạn.";
-"onboarding.configure.cloud.placeholder" = "Dán key giấy phép của bạn";
+"onboarding.configure.cloud.subtitle" = "Nhập key truy cập Cloud của bạn để kết nối Mac này với tín dụng trả trước của bạn.";
+"onboarding.configure.cloud.placeholder" = "Dán key truy cập của bạn";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Kiểm tra key truy cập";
+"onboarding.configure.provider.testKey" = "Kiểm tra API key";
+"onboarding.configure.test.testing" = "Đang kiểm tra…";
+"onboarding.configure.test.valid" = "Khóa truy cập hợp lệ";
+"onboarding.configure.test.healthy" = "Đã kết nối";
+"onboarding.configure.test.unauthorized" = "Nhà cung cấp đã từ chối khóa này. Kiểm tra xem khóa có còn hợp lệ không.";
+"onboarding.configure.test.unreachable" = "Không thể kết nối với nhà cung cấp. Kiểm tra kết nối internet của bạn, sau đó thử lại.";
+"onboarding.model.parakeetV2.subtitle" = "Tiếng Anh · NVIDIA · nhanh và chính xác";
+"onboarding.model.parakeetV3.subtitle" = "Đa ngôn ngữ · 25 ngôn ngữ";
+"onboarding.model.whisperBase.subtitle" = "Đa ngôn ngữ · dung lượng siêu nhỏ";
+"onboarding.model.whisperTurbo.subtitle" = "Đa ngôn ngữ · Whisper chính xác nhất";
+"onboarding.mic.title" = "Thiết lập micrô của bạn";
+"onboarding.mic.subtitle" = "Chọn thiết bị đầu vào của bạn và kiểm tra xem thanh mức có di chuyển khi bạn nói không.";
+"onboarding.mic.permissionHint" = "Quyền truy cập micrô đang tắt — hãy bật nó trong Cài đặt Hệ thống để xem mức âm lượng của bạn.";
+"onboarding.try.transcript.heading" = "Bạn đã nói";
+"onboarding.try.transcript.noPaste" = "Chỉ hiển thị ở đây — không dán vào ứng dụng khác.";
 "onboarding.configure.cloud.getCredits" = "Chưa có key? Nhận tín dụng tại hyperwhisper.com";
 "onboarding.configure.provider.title" = "Kết nối nhà cung cấp của bạn";
 "onboarding.configure.provider.subtitle" = "Chọn một nhà cung cấp và dán API key của bạn. Key được lưu trữ an toàn trong Keychain của Mac.";

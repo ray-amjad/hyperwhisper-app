@@ -29,22 +29,20 @@ struct OnboardingView: View {
     @EnvironmentObject var transcriptionPipeline: TranscriptionPipeline
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var whisperModelManager: WhisperModelManager
+    @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var licenseManager: LicenseManager
 
     // MARK: - State
 
-    /// Current step in the onboarding flow (0-6)
+    /// Current step in the onboarding flow (0-7)
     @State private var currentStep: Int = 0
 
     // Choose-source selection + per-source configuration.
     @State private var selectedSource: TranscriptionSource?
-    @State private var selectedModel: WhisperCppModel?
+    @State private var selectedModel: OnboardingModelSelection?
     @State private var licenseKeyInput: String = ""
     @State private var selectedProvider: CloudProvider = .openai
     @State private var apiKeyInput: String = ""
-
-    /// Track if test recording was completed
-    @State private var testRecordingCompleted: Bool = false
 
     /// Track if accessibility permission was granted
     @State private var hasAccessibilityPermission: Bool = false
@@ -67,7 +65,7 @@ struct OnboardingView: View {
     // MARK: - Constants
 
     /// Total number of steps in onboarding
-    private let totalSteps = 7
+    private let totalSteps = 8
 
     /// Well-known UUID of the seeded default Mode (see
     /// `PersistenceController.initializeDefaultModes()`). Used as a stable fallback
@@ -98,8 +96,10 @@ struct OnboardingView: View {
                     case 4:
                         setupStep
                     case 5:
-                        testRecordingStep
+                        OnboardingMicrophoneView()
                     case 6:
+                        testRecordingStep
+                    case 7:
                         completionStep
                     default:
                         EmptyView()
@@ -319,21 +319,15 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 5: Test Recording
+    // MARK: - Step 6: Give it a try (inline transcript, never pastes)
 
     private var testRecordingStep: some View {
-        VStack(spacing: 24) {
-            // Icon
-            Image(systemName: "waveform")
-                .font(.system(size: 56))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
-
-            // Title and description
-            VStack(spacing: 12) {
+        VStack(spacing: 20) {
+            VStack(spacing: 10) {
                 Text(localized: "onboarding.test.title")
-                    .font(.title)
+                    .font(.title2)
                     .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
 
                 HStack(spacing: 4) {
                     Text(localized: "onboarding.test.press.prefix")
@@ -344,174 +338,85 @@ struct OnboardingView: View {
                 .foregroundColor(.secondary)
             }
 
-            // Recording status
+            // Single record/stop control. The `.onboarding` trigger routes the
+            // transcript inline (see RecordingTranscriptionFlow+StopRecording) —
+            // it is never pasted into another app.
+            Button(action: {
+                audioManager.toggleRecordingWithTranscription(trigger: .onboarding)
+            }) {
+                ZStack {
+                    Circle()
+                        .fill(audioManager.isRecording ? Color.red.opacity(0.15) : Color.accentColor.opacity(0.12))
+                        .frame(width: 78, height: 78)
+                    Image(systemName: audioManager.isRecording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 30))
+                        .foregroundColor(audioManager.isRecording ? .red : .accentColor)
+                }
+            }
+            .buttonStyle(.plain)
+
             if audioManager.isRecording {
-                VStack(spacing: 16) {
-                    // Recording indicator
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color.red)
-                            .frame(width: 12, height: 12)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.red.opacity(0.3), lineWidth: 8)
-                                    .scaleEffect(1.5)
-                                    .opacity(0)
-                                    .animation(
-                                        .easeOut(duration: 1.0)
-                                        .repeatForever(autoreverses: false),
-                                        value: audioManager.isRecording
-                                    )
-                            )
-                        Text(localized: "onboarding.test.status.recording")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                    }
+                Text(localized: "onboarding.test.status.speak")
+                    .font(.callout)
+                    .foregroundColor(.red)
+            }
 
-                    // Waveform placeholder
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(width: 300, height: 60)
-                        .overlay(
-                            Text(localized: "onboarding.test.status.speak")
-                                .foregroundColor(.secondary)
-                        )
-
-                    // Stop button
-                    Button(action: {
-                        audioManager.toggleRecordingWithTranscription(trigger: .onboarding)
-                        testRecordingCompleted = true
-                    }) {
-                        Label(LocalizedStringKey("onboarding.test.stop"), systemImage: "stop.circle.fill")
-                            .foregroundColor(.white)
-                            .frame(width: 150)
-                    }
-                    .controlSize(.large)
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                }
-            } else if testRecordingCompleted {
-                // Success state
-                VStack(spacing: 16) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(.green)
-
-                    Text(localized: "onboarding.test.success.title")
-                        .font(.headline)
-                        .foregroundColor(.green)
-
-                    Text(localized: "onboarding.test.success.subtitle")
-                        .font(.callout)
+            // Inline transcript panel — shown only here, not pasted.
+            if !appState.lastTranscription.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(localized: "onboarding.try.transcript.heading")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .tracking(0.5)
+                        .textCase(.uppercase)
                         .foregroundColor(.secondary)
-                }
-            } else {
-                // Ready to record state
-                VStack(spacing: 16) {
-                    Button(action: {
-                        audioManager.toggleRecordingWithTranscription(trigger: .onboarding)
-                    }) {
-                        VStack(spacing: 8) {
-                            Image(systemName: "mic.circle.fill")
-                                .font(.system(size: 64))
-                            Text(localized: "onboarding.test.start.cta")
-                                .font(.headline)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundColor(.accentColor)
 
-                    Text(localized: "onboarding.test.start.shortcut")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text(appState.lastTranscription)
+                        .font(.system(size: 15))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 5) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .font(.caption)
+                        Text(localized: "onboarding.try.transcript.noPaste")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.green)
                 }
+                .padding(16)
+                .frame(maxWidth: 460, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.large)
+                        .fill(.thinMaterial)
+                )
             }
         }
         .padding(40)
+        // Clear any prior transcript so the panel only reflects a recording made
+        // on this screen; clear again on leave so it never lingers.
+        .onAppear { appState.lastTranscription = "" }
+        .onDisappear { appState.lastTranscription = "" }
     }
 
-    // MARK: - Step 6: Completion
+    // MARK: - Step 7: Done
 
     private var completionStep: some View {
         VStack(spacing: 24) {
-            // Success icon
-            Image(systemName: "hands.clap")
-                .font(.system(size: 56))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
+            Spacer()
 
-            // Title and description
-            VStack(spacing: 12) {
-                Text(localized: "onboarding.completion.title")
-                    .font(.title)
-                    .fontWeight(.semibold)
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.green.gradient)
+                .frame(width: 84, height: 84)
+                .overlay(
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundColor(.white)
+                )
 
-                Text(localized: "onboarding.completion.subtitle")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+            Text(localized: "onboarding.completion.title")
+                .font(.system(size: 34, weight: .bold))
+                .multilineTextAlignment(.center)
 
-            // Support buttons
-            HStack(spacing: 16) {
-                Button(action: {
-                    if let url = URL(string: "https://discord.gg/hyperwhisper") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }) {
-                    Label(LocalizedStringKey("onboarding.completion.discord"), systemImage: "message.fill")
-                        .frame(width: 140)
-                }
-                .controlSize(.large)
-                .buttonStyle(.bordered)
-
-                Button(action: {
-                    if let url = URL(string: "mailto:support@hyperwhisper.com") {
-                        NSWorkspace.shared.open(url)
-                    }
-                }) {
-                    Label(LocalizedStringKey("onboarding.completion.email"), systemImage: "envelope.fill")
-                        .frame(width: 140)
-                }
-                .controlSize(.large)
-                .buttonStyle(.bordered)
-            }
-
-            // Additional resources
-            VStack(spacing: 8) {
-                Text(localized: "onboarding.completion.resources.title")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-
-                HStack(spacing: 20) {
-                    Button {
-                        if let url = URL(string: "https://docs.hyperwhisper.com") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.completion.resources.documentation")
-                    }
-                    .buttonStyle(.link)
-
-                    Button {
-                        if let url = URL(string: "https://youtube.com/@hyperwhisper") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.completion.resources.videos")
-                    }
-                    .buttonStyle(.link)
-
-                    Button {
-                        if let url = URL(string: "https://blog.hyperwhisper.com") {
-                            NSWorkspace.shared.open(url)
-                        }
-                    } label: {
-                        Text(localized: "onboarding.completion.resources.blog")
-                    }
-                    .buttonStyle(.link)
-                }
-            }
+            Spacer()
         }
         .padding(40)
     }
@@ -625,7 +530,12 @@ struct OnboardingView: View {
         switch source {
         case .onDevice:
             guard let model = selectedModel else { return false }
-            return whisperModelManager.getModelPath(for: model.name) != nil
+            switch model.kind {
+            case .whisper:
+                return whisperModelManager.getModelPath(for: model.id) != nil
+            case .parakeet:
+                return parakeetModelManager.availableModels.first { $0.id == model.id }?.isDownloaded == true
+            }
         case .hyperwhisperCloud:
             return licenseManager.licenseStatus == .active
         case .yourProvider:
@@ -638,6 +548,10 @@ struct OnboardingView: View {
     /// here as a final guarantee in case that transition was ever bypassed.
     private func completeOnboarding() {
         applySelectedSourceToDefaultMode()
+
+        // Defensive: release the microphone metering preview in case onboarding is
+        // completed without passing back through the Microphone step's onDisappear.
+        audioManager.stopInputLevelPreview()
 
         // Mark onboarding as completed and clear the durable "still owed" flag so
         // a completed run is never re-shown on the next launch.
@@ -667,8 +581,10 @@ struct OnboardingView: View {
 
         switch source {
         case .onDevice:
-            // Fully offline/free: local model, post-processing off.
-            chosenModel = selectedModel?.name ?? "base"
+            // Fully offline/free: local model, post-processing off. `id` is the
+            // exact string the transcription router expects — a Whisper catalog
+            // name ("base") or a Parakeet id ("parakeet-tdt-0.6b-v2").
+            chosenModel = selectedModel?.id ?? "base"
             chosenProvider = nil
             postProcessingMode = 0
             accuracyTier = nil
@@ -786,5 +702,7 @@ struct OnboardingView: View {
         .environmentObject(SettingsManager())
         // NOTE: Preview uses fresh instance for isolation
         .environmentObject(WhisperModelManager())
+        .environmentObject(ParakeetModelManager())
         .environmentObject(LicenseManager())
+        .environmentObject(CloudProviderHealthManager())
 }

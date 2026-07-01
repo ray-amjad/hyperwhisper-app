@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "एक मॉडल चुनें";
 "onboarding.configure.onDevice.subtitle" = "डाउनलोड करने के लिए एक वॉइस मॉडल चुनें। बड़े मॉडल अधिक सटीक होते हैं लेकिन अधिक जगह लेते हैं।";
 "onboarding.configure.cloud.title" = "HyperWhisper Cloud सक्रिय करें";
-"onboarding.configure.cloud.subtitle" = "इस Mac को अपने प्रीपेड क्रेडिट से जोड़ने के लिए अपनी Cloud लाइसेंस कुंजी दर्ज करें।";
-"onboarding.configure.cloud.placeholder" = "अपनी लाइसेंस कुंजी पेस्ट करें";
+"onboarding.configure.cloud.subtitle" = "इस Mac को अपने प्रीपेड क्रेडिट से जोड़ने के लिए अपनी Cloud एक्सेस कुंजी दर्ज करें।";
+"onboarding.configure.cloud.placeholder" = "अपनी एक्सेस कुंजी पेस्ट करें";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "एक्सेस कुंजी टेस्ट करें";
+"onboarding.configure.provider.testKey" = "API कुंजी टेस्ट करें";
+"onboarding.configure.test.testing" = "टेस्ट हो रहा है…";
+"onboarding.configure.test.valid" = "एक्सेस कुंजी मान्य है";
+"onboarding.configure.test.healthy" = "कनेक्ट हो गया";
+"onboarding.configure.test.unauthorized" = "प्रदाता ने इस कुंजी को अस्वीकार कर दिया। जांच लें कि यह अभी भी मान्य है।";
+"onboarding.configure.test.unreachable" = "प्रदाता से संपर्क नहीं हो सका। अपना इंटरनेट कनेक्शन जांचें, फिर से टेस्ट करें।";
+"onboarding.model.parakeetV2.subtitle" = "अंग्रेजी · NVIDIA · तेज़ और सटीक";
+"onboarding.model.parakeetV3.subtitle" = "बहुभाषी · 25 भाषाएं";
+"onboarding.model.whisperBase.subtitle" = "बहुभाषी · बहुत छोटा आकार";
+"onboarding.model.whisperTurbo.subtitle" = "बहुभाषी · सबसे सटीक Whisper";
+"onboarding.mic.title" = "अपना माइक्रोफ़ोन सेट करें";
+"onboarding.mic.subtitle" = "अपना इनपुट चुनें और देखें कि जब आप बोलते हैं तो लेवल बार हिलता है।";
+"onboarding.mic.permissionHint" = "माइक्रोफ़ोन एक्सेस बंद है — इसे सिस्टम सेटिंग्स में सक्षम करें ताकि आप अपना लेवल देख सकें।";
+"onboarding.try.transcript.heading" = "आपने कहा";
+"onboarding.try.transcript.noPaste" = "यहाँ केवल दिखाया गया है — अन्य ऐप्स में पेस्ट नहीं किया गया";
 "onboarding.configure.cloud.getCredits" = "कुंजी नहीं है? hyperwhisper.com पर क्रेडिट प्राप्त करें";
 "onboarding.configure.provider.title" = "अपना प्रदाता कनेक्ट करें";
 "onboarding.configure.provider.subtitle" = "एक प्रदाता चुनें और अपनी API कुंजी पेस्ट करें। यह आपके Mac की Keychain में सुरक्षित रूप से संग्रहीत होती है।";

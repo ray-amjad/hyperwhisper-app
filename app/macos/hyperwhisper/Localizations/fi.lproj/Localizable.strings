@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Valitse malli";
 "onboarding.configure.onDevice.subtitle" = "Valitse ladattava äänimalli. Suuremmat mallit ovat tarkempia mutta vievät enemmän tilaa.";
 "onboarding.configure.cloud.title" = "Aktivoi HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Anna Cloud-lisenssiavaimesi yhdistääksesi tämän Macin ennakkoon maksettuihin krediitteihisi.";
-"onboarding.configure.cloud.placeholder" = "Liitä lisenssiavaimesi";
+"onboarding.configure.cloud.subtitle" = "Anna Cloud-käyttöoikeusavaimesi yhdistääksesi tämän Macin ennakkoon maksettuihin krediitteihisi.";
+"onboarding.configure.cloud.placeholder" = "Liitä käyttöoikeusavaimesi";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Testaa käyttöoikeusavain";
+"onboarding.configure.provider.testKey" = "Testaa API-avain";
+"onboarding.configure.test.testing" = "Testataan…";
+"onboarding.configure.test.valid" = "Käyttöoikeusavain kelvollinen";
+"onboarding.configure.test.healthy" = "Yhdistetty";
+"onboarding.configure.test.unauthorized" = "Palveluntarjoaja hylkäsi tämän avaimen. Tarkista, että se on yhä voimassa.";
+"onboarding.configure.test.unreachable" = "Palveluntarjoajaa ei tavoitettu. Tarkista internetyhteytesi ja yritä testata uudelleen.";
+"onboarding.model.parakeetV2.subtitle" = "Englanti · NVIDIA · nopea ja tarkka";
+"onboarding.model.parakeetV3.subtitle" = "Monikielinen · 25 kieltä";
+"onboarding.model.whisperBase.subtitle" = "Monikielinen · pieni koko";
+"onboarding.model.whisperTurbo.subtitle" = "Monikielinen · tarkin Whisper";
+"onboarding.mic.title" = "Määritä mikrofonisi";
+"onboarding.mic.subtitle" = "Valitse tulolähteesi ja tarkista, että tasopalkki liikkuu, kun puhut.";
+"onboarding.mic.permissionHint" = "Mikrofonin käyttöoikeus on pois päältä — ota se käyttöön järjestelmäasetuksissa nähdäksesi tasosi.";
+"onboarding.try.transcript.heading" = "Sanoit";
+"onboarding.try.transcript.noPaste" = "Näytetään vain tässä — ei liitetä muihin sovelluksiin";
 "onboarding.configure.cloud.getCredits" = "Eikö sinulla ole avainta? Hanki krediittejä osoitteesta hyperwhisper.com";
 "onboarding.configure.provider.title" = "Yhdistä palveluntarjoajasi";
 "onboarding.configure.provider.subtitle" = "Valitse palveluntarjoaja ja liitä API-avaimesi. Se tallennetaan turvallisesti Macisi avainnippuun.";

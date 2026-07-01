@@ -489,8 +489,17 @@ extension RecordingTranscriptionFlow {
                 // `pasteResultText` setting. The user opted in by binding a
                 // dedicated shortcut and toggling the feature on.
                 let isQuickCaptureRouting = (quickCaptureContext != nil)
-                let shouldDeliverText = isQuickCaptureRouting
-                    || (settingsManager?.pasteResultText ?? false)
+
+                // ONBOARDING "GIVE IT A TRY": the transcript is surfaced inline in
+                // the onboarding window only and must NEVER paste into another app,
+                // regardless of the user's global `pasteResultText` setting. We do
+                // not flip that setting — we just suppress delivery for this one
+                // trigger. `lastTranscription` was already set above (line ~467),
+                // which is what the onboarding view observes to render "You said …".
+                let isOnboardingTry = (trigger == RecordingTriggerSource.onboarding.rawValue)
+                let shouldDeliverText = !isOnboardingTry
+                    && (isQuickCaptureRouting
+                        || (settingsManager?.pasteResultText ?? false))
 
                 if shouldDeliverText, let settings = settingsManager {
                     var processedText = transcriptionResult.text

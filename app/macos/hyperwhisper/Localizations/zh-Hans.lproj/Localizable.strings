@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "选择一个模型";
 "onboarding.configure.onDevice.subtitle" = "选择要下载的语音模型。模型越大，准确度越高，但占用空间也越大。";
 "onboarding.configure.cloud.title" = "激活 HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "输入您的 Cloud 许可证密钥，将此 Mac 与您的预付积分关联。";
-"onboarding.configure.cloud.placeholder" = "粘贴您的许可证密钥";
+"onboarding.configure.cloud.subtitle" = "输入您的 Cloud 访问密钥，将此 Mac 与您的预付积分关联。";
+"onboarding.configure.cloud.placeholder" = "粘贴您的访问密钥";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "测试访问密钥";
+"onboarding.configure.provider.testKey" = "测试 API 密钥";
+"onboarding.configure.test.testing" = "正在测试…";
+"onboarding.configure.test.valid" = "有效访问密钥";
+"onboarding.configure.test.healthy" = "已连接";
+"onboarding.configure.test.unauthorized" = "服务商拒绝了此密钥。请确认它是否仍然有效。";
+"onboarding.configure.test.unreachable" = "无法连接到服务商。请检查网络连接后重试。";
+"onboarding.model.parakeetV2.subtitle" = "英语 · NVIDIA · 快速精准";
+"onboarding.model.parakeetV3.subtitle" = "多语言 · 25 种语言";
+"onboarding.model.whisperBase.subtitle" = "多语言 · 体积小";
+"onboarding.model.whisperTurbo.subtitle" = "多语言 · 最精准的 Whisper";
+"onboarding.mic.title" = "设置您的麦克风";
+"onboarding.mic.subtitle" = "选择您的输入设备，并检查在您说话时音量条是否移动。";
+"onboarding.mic.permissionHint" = "麦克风权限已关闭—请在系统设置中启用以查看音量。";
+"onboarding.try.transcript.heading" = "您说的内容";
+"onboarding.try.transcript.noPaste" = "仅在此处显示—不会粘贴到其他应用。";
 "onboarding.configure.cloud.getCredits" = "还没有密钥？前往 hyperwhisper.com 获取积分";
 "onboarding.configure.provider.title" = "连接您的服务商";
 "onboarding.configure.provider.subtitle" = "选择一个服务商并粘贴您的 API 密钥。它将安全存储在您 Mac 的钥匙串中。";

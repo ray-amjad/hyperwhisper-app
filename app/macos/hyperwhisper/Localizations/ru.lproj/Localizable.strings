@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Выберите модель";
 "onboarding.configure.onDevice.subtitle" = "Выберите голосовую модель для скачивания. Более крупные модели точнее, но занимают больше места.";
 "onboarding.configure.cloud.title" = "Активировать HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Введите лицензионный ключ Cloud, чтобы подключить этот Mac к вашим предоплаченным кредитам.";
-"onboarding.configure.cloud.placeholder" = "Вставьте лицензионный ключ";
+"onboarding.configure.cloud.subtitle" = "Введите ключ доступа Cloud, чтобы подключить этот Mac к вашим предоплаченным кредитам.";
+"onboarding.configure.cloud.placeholder" = "Вставьте ключ доступа";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Проверить ключ доступа";
+"onboarding.configure.provider.testKey" = "Проверить ключ API";
+"onboarding.configure.test.testing" = "Проверка…";
+"onboarding.configure.test.valid" = "Ключ доступа действителен";
+"onboarding.configure.test.healthy" = "Подключено";
+"onboarding.configure.test.unauthorized" = "Провайдер отклонил этот ключ. Проверьте, действителен ли он ещё.";
+"onboarding.configure.test.unreachable" = "Не удалось связаться с провайдером. Проверьте подключение к интернету и повторите попытку.";
+"onboarding.model.parakeetV2.subtitle" = "Английский · NVIDIA · быстрый и точный";
+"onboarding.model.parakeetV3.subtitle" = "Многоязычный · 25 языков";
+"onboarding.model.whisperBase.subtitle" = "Многоязычный · минимальный размер";
+"onboarding.model.whisperTurbo.subtitle" = "Многоязычный · самый точный Whisper";
+"onboarding.mic.title" = "Настройте микрофон";
+"onboarding.mic.subtitle" = "Выберите устройство ввода и проверьте, двигается ли индикатор уровня, когда вы говорите.";
+"onboarding.mic.permissionHint" = "Доступ к микрофону отключён — включите его в Параметрах системы, чтобы видеть уровень.";
+"onboarding.try.transcript.heading" = "Вы сказали";
+"onboarding.try.transcript.noPaste" = "Показано только здесь — не вставляется в другие приложения.";
 "onboarding.configure.cloud.getCredits" = "Нет ключа? Приобретите кредиты на hyperwhisper.com";
 "onboarding.configure.provider.title" = "Подключите вашего провайдера";
 "onboarding.configure.provider.subtitle" = "Выберите провайдера и вставьте свой API-ключ. Он надёжно хранится в Связке ключей вашего Mac.";

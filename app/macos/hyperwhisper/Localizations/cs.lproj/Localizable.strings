@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Vyber model";
 "onboarding.configure.onDevice.subtitle" = "Vyber si hlasový model ke stažení. Větší modely jsou přesnější, ale zaberou víc místa.";
 "onboarding.configure.cloud.title" = "Aktivovat HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Zadej svůj licenční klíč Cloud a připoj tento Mac ke svým předplaceným kreditům.";
-"onboarding.configure.cloud.placeholder" = "Vlož licenční klíč";
+"onboarding.configure.cloud.subtitle" = "Zadej svůj přístupový klíč Cloud a připoj tento Mac ke svým předplaceným kreditům.";
+"onboarding.configure.cloud.placeholder" = "Vlož přístupový klíč";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Otestovat přístupový klíč";
+"onboarding.configure.provider.testKey" = "Otestovat API klíč";
+"onboarding.configure.test.testing" = "Testování…";
+"onboarding.configure.test.valid" = "Přístupový klíč je platný";
+"onboarding.configure.test.healthy" = "Připojeno";
+"onboarding.configure.test.unauthorized" = "Poskytovatel tento klíč odmítl. Zkontroluj, zda je stále platný.";
+"onboarding.configure.test.unreachable" = "Poskytovatele se nepodařilo kontaktovat. Zkontroluj připojení k internetu a zkus to znovu.";
+"onboarding.model.parakeetV2.subtitle" = "Angličtina · NVIDIA · rychlý a přesný";
+"onboarding.model.parakeetV3.subtitle" = "Vícejazyčný · 25 jazyků";
+"onboarding.model.whisperBase.subtitle" = "Vícejazyčný · minimální velikost";
+"onboarding.model.whisperTurbo.subtitle" = "Vícejazyčný · nejpřesnější Whisper";
+"onboarding.mic.title" = "Nastav svůj mikrofon";
+"onboarding.mic.subtitle" = "Vyber vstup a zkontroluj, že se ukazatel úrovně pohybuje, když mluvíš.";
+"onboarding.mic.permissionHint" = "Přístup k mikrofonu je vypnutý — povol ho v Nastavení systému, abys viděl svou úroveň.";
+"onboarding.try.transcript.heading" = "Řekli jste";
+"onboarding.try.transcript.noPaste" = "Zobrazeno jen zde — nevkládá se do jiných aplikací";
 "onboarding.configure.cloud.getCredits" = "Nemáš klíč? Získej kredity na hyperwhisper.com";
 "onboarding.configure.provider.title" = "Připoj svého poskytovatele";
 "onboarding.configure.provider.subtitle" = "Vyber poskytovatele a vlož svůj API klíč. Bezpečně se uloží do klíčenky tvého Macu.";

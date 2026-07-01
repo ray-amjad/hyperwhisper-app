@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "모델 선택";
 "onboarding.configure.onDevice.subtitle" = "다운로드할 음성 모델을 선택하세요. 모델이 클수록 정확도는 높지만 용량도 커집니다.";
 "onboarding.configure.cloud.title" = "HyperWhisper Cloud 활성화";
-"onboarding.configure.cloud.subtitle" = "Cloud 라이선스 키를 입력해 이 Mac을 선불 크레딧에 연결하세요.";
-"onboarding.configure.cloud.placeholder" = "라이선스 키 붙여넣기";
+"onboarding.configure.cloud.subtitle" = "Cloud 액세스 키를 입력해 이 Mac을 선불 크레딧에 연결하세요.";
+"onboarding.configure.cloud.placeholder" = "액세스 키 붙여넣기";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "액세스 키 테스트";
+"onboarding.configure.provider.testKey" = "API 키 테스트";
+"onboarding.configure.test.testing" = "테스트 중…";
+"onboarding.configure.test.valid" = "액세스 키가 유효합니다";
+"onboarding.configure.test.healthy" = "연결됨";
+"onboarding.configure.test.unauthorized" = "제공자가 이 키를 거부했습니다. 키가 여전히 유효한지 확인하세요.";
+"onboarding.configure.test.unreachable" = "제공자에 연결할 수 없습니다. 인터넷 연결을 확인한 후 다시 테스트하세요.";
+"onboarding.model.parakeetV2.subtitle" = "영어 · NVIDIA · 빠르고 정확함";
+"onboarding.model.parakeetV3.subtitle" = "다국어 · 25개 언어";
+"onboarding.model.whisperBase.subtitle" = "다국어 · 경량";
+"onboarding.model.whisperTurbo.subtitle" = "다국어 · 가장 정확한 Whisper";
+"onboarding.mic.title" = "마이크 설정";
+"onboarding.mic.subtitle" = "입력을 선택하고 말할 때 레벨 바가 움직이는지 확인하세요.";
+"onboarding.mic.permissionHint" = "마이크 액세스가 꺼져 있습니다 — 레벨을 보려면 시스템 설정에서 활성화하세요.";
+"onboarding.try.transcript.heading" = "말씀하신 내용";
+"onboarding.try.transcript.noPaste" = "여기에만 표시됨 — 다른 앱에는 붙여넣어지지 않음";
 "onboarding.configure.cloud.getCredits" = "키가 없으신가요? hyperwhisper.com에서 크레딧을 구매하세요";
 "onboarding.configure.provider.title" = "제공업체 연결";
 "onboarding.configure.provider.subtitle" = "제공업체를 선택하고 API 키를 붙여넣으세요. Mac의 키체인에 안전하게 저장됩니다.";

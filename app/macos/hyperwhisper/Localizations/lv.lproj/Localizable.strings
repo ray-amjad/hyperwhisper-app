@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Izvēlieties modeli";
 "onboarding.configure.onDevice.subtitle" = "Izvēlieties balss modeli, ko lejupielādēt. Lielāki modeļi ir precīzāki, bet aizņem vairāk vietas.";
 "onboarding.configure.cloud.title" = "Aktivizēt HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Ievadiet savu Cloud licences atslēgu, lai savienotu šo Mac datoru ar jūsu iepriekš apmaksātajiem kredītiem.";
-"onboarding.configure.cloud.placeholder" = "Ielīmējiet savu licences atslēgu";
+"onboarding.configure.cloud.subtitle" = "Ievadiet savu Cloud piekļuves atslēgu, lai savienotu šo Mac datoru ar jūsu iepriekš apmaksātajiem kredītiem.";
+"onboarding.configure.cloud.placeholder" = "Ielīmējiet savu piekļuves atslēgu";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Pārbaudīt piekļuves atslēgu";
+"onboarding.configure.provider.testKey" = "Pārbaudīt API atslēgu";
+"onboarding.configure.test.testing" = "Pārbaudīšana…";
+"onboarding.configure.test.valid" = "Piekļuves atslēga derīga";
+"onboarding.configure.test.healthy" = "Savienots";
+"onboarding.configure.test.unauthorized" = "Sniedzējs noraidīja šo atslēgu. Pārbaudiet, vai tā vēl ir derīga.";
+"onboarding.configure.test.unreachable" = "Neizdevās sasniegt sniedzēju. Pārbaudiet savu interneta pieslēgumu un mēģiniet vēlreiz.";
+"onboarding.model.parakeetV2.subtitle" = "Angļu · NVIDIA · ātrs un precīzs";
+"onboarding.model.parakeetV3.subtitle" = "Daudzvalodu · 25 valodas";
+"onboarding.model.whisperBase.subtitle" = "Daudzvalodu · neliels izmērs";
+"onboarding.model.whisperTurbo.subtitle" = "Daudzvalodu · precīzākais Whisper";
+"onboarding.mic.title" = "Iestatiet savu mikrofonu";
+"onboarding.mic.subtitle" = "Izvēlieties ievades ierīci un pārbaudiet, vai līmeņa josla kustas, kad runājat.";
+"onboarding.mic.permissionHint" = "Mikrofona piekļuve ir izslēgta — iespējojiet to Sistēmas iestatījumos, lai redzētu savu līmeni.";
+"onboarding.try.transcript.heading" = "Jūs sacījāt";
+"onboarding.try.transcript.noPaste" = "Rādīts tikai šeit — netiek ielīmēts citās lietotnēs.";
 "onboarding.configure.cloud.getCredits" = "Nav atslēgas? Iegādājieties kredītus vietnē hyperwhisper.com";
 "onboarding.configure.provider.title" = "Savienot savu pakalpojumu sniedzēju";
 "onboarding.configure.provider.subtitle" = "Izvēlieties pakalpojumu sniedzēju un ielīmējiet savu API atslēgu. Tā tiek droši glabāta jūsu Mac datora atslēgu saišķī.";

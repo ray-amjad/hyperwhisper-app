@@ -130,6 +130,16 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Updated by RecordingLifecycle after each recording
     @Published var lastRecordingURL: URL?
 
+    /// Live input level (0.0–1.0) for the onboarding microphone step's meter.
+    ///
+    /// **Why a separate signal from `audioLevel`:**
+    /// `audioLevel`/`liveMetrics` only publish while an actual recording is in
+    /// flight. The onboarding "Set up your microphone" screen needs a level
+    /// preview *without* starting a real recording, so it runs a dedicated,
+    /// short-lived metering session (see `startInputLevelPreview()`), publishing
+    /// here. Kept off `liveMetrics` because this drives a single, isolated screen.
+    @Published var idleInputLevel: Float = 0
+
     // MARK: - Dependencies (Weak References)
 
     /// Reference to transcription manager for handling transcription after recording
@@ -197,6 +207,13 @@ class AudioRecordingManager: NSObject, ObservableObject {
 
     /// Store subscriptions to prevent deallocation
     private var cancellables = Set<AnyCancellable>()
+
+    /// Lightweight metering recorder for the onboarding input-level preview.
+    /// Writes to /dev/null with metering enabled; never produces a file.
+    private var inputLevelPreviewRecorder: AVAudioRecorder?
+
+    /// Polling task that samples `inputLevelPreviewRecorder` at ~30 FPS.
+    private var inputLevelPreviewTask: Task<Void, Never>?
     
     /// Observer for UserDefaults changes
     private var defaultsObserver: NSObjectProtocol?
@@ -626,6 +643,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
             .sink { [weak self] isRecording in
                 guard let self else { return }
                 if isRecording {
+                    // Never let the onboarding metering preview contend with a
+                    // real recording — tear it down the moment one begins.
+                    self.stopInputLevelPreview()
                     self.keepWarmManager.suspendForActiveRecording()
                 } else {
                     self.keepWarmManager.resumeAfterRecording()
@@ -937,6 +957,97 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// - When user adjusts system volume
     func refreshInputVolumeMetrics() {
         deviceManager.updateInputVolumeMetrics()
+    }
+
+    // MARK: - Public API: Onboarding Input-Level Preview
+
+    /// Start a lightweight metering session so the onboarding microphone step can
+    /// show a live input level **without** starting a real recording.
+    ///
+    /// Backed by an `AVAudioRecorder` writing to `/dev/null` with metering
+    /// enabled, sampled at ~30 FPS and normalized (-60…0 dB → 0…1) exactly like
+    /// `SimpleRecorder.updateMeter()`. The recorder captures whatever the system
+    /// default input is at start time; `selectDevice(_:)` switches that default,
+    /// so call `startInputLevelPreview()` again after changing the device to
+    /// re-point it.
+    ///
+    /// No-ops (and releases any prior session) if microphone permission is
+    /// missing or a real recording is active — the preview must never contend
+    /// with the recording capture path or leak the mic.
+    func startInputLevelPreview() {
+        // Restart cleanly if already running (e.g. the device changed).
+        stopInputLevelPreview()
+
+        guard hasMicrophonePermission else {
+            AppLogger.audio.info("Input-level preview skipped — microphone permission not granted")
+            return
+        }
+        guard !isRecording else {
+            AppLogger.audio.info("Input-level preview skipped — a recording is in progress")
+            return
+        }
+
+        // Ensure the chosen device is the active system default before we open
+        // the metering recorder, so the preview reflects the picked device.
+        deviceManager.applySelectedInputDeviceIfNeeded()
+
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
+            AVSampleRateKey: 16000.0,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
+        ]
+
+        do {
+            let recorder = try AVAudioRecorder(url: URL(fileURLWithPath: "/dev/null"), settings: settings)
+            recorder.isMeteringEnabled = true
+            guard recorder.record() else {
+                AppLogger.audio.warning("Input-level preview recorder failed to start")
+                return
+            }
+            inputLevelPreviewRecorder = recorder
+            inputLevelPreviewTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    self?.sampleInputLevelPreview()
+                    try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
+                }
+            }
+            AppLogger.audio.info("Input-level preview started")
+        } catch {
+            AppLogger.audio.error("Failed to start input-level preview: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    /// Stop the onboarding input-level preview and release the microphone.
+    /// Safe to call repeatedly; also invoked when onboarding is dismissed and
+    /// whenever a real recording starts.
+    func stopInputLevelPreview() {
+        inputLevelPreviewTask?.cancel()
+        inputLevelPreviewTask = nil
+        inputLevelPreviewRecorder?.stop()
+        inputLevelPreviewRecorder = nil
+        idleInputLevel = 0
+    }
+
+    /// Sample the preview recorder's average power and publish a normalized level.
+    /// Mirrors `SimpleRecorder.updateMeter()` (-60 dB silence floor, 0 dB ceiling).
+    private func sampleInputLevelPreview() {
+        guard let recorder = inputLevelPreviewRecorder else { return }
+        recorder.updateMeters()
+        let power = recorder.averagePower(forChannel: 0)
+        let minDb: Float = -60
+        let maxDb: Float = 0
+        let normalized: Float
+        if power <= minDb {
+            normalized = 0
+        } else if power >= maxDb {
+            normalized = 1
+        } else {
+            normalized = (power - minDb) / (maxDb - minDb)
+        }
+        idleInputLevel = normalized
     }
 
     // MARK: - Public API: Crash Recovery

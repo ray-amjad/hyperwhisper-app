@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Vali mudel";
 "onboarding.configure.onDevice.subtitle" = "Vali allalaaditav häälemudel. Suuremad mudelid on täpsemad, kuid võtavad rohkem ruumi.";
 "onboarding.configure.cloud.title" = "Aktiveeri HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Sisesta oma Cloud litsentsivõti, et ühendada see Mac oma ettemakstud krediitidega.";
-"onboarding.configure.cloud.placeholder" = "Kleebi oma litsentsivõti";
+"onboarding.configure.cloud.subtitle" = "Sisesta oma Cloud juurdepääsuvõti, et ühendada see Mac oma ettemakstud krediitidega.";
+"onboarding.configure.cloud.placeholder" = "Kleebi oma juurdepääsuvõti";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Testi juurdepääsuvõtit";
+"onboarding.configure.provider.testKey" = "Testi API võtit";
+"onboarding.configure.test.testing" = "Testimine…";
+"onboarding.configure.test.valid" = "Juurdepääsuvõti on kehtiv";
+"onboarding.configure.test.healthy" = "Ühendatud";
+"onboarding.configure.test.unauthorized" = "Pakkuja keeldus sellest võtmest. Kontrolli, kas see on endiselt kehtiv.";
+"onboarding.configure.test.unreachable" = "Pakkujaga ei saanud ühendust. Kontrolli internetiühendust ja proovi uuesti.";
+"onboarding.model.parakeetV2.subtitle" = "Inglise keel · NVIDIA · kiire ja täpne";
+"onboarding.model.parakeetV3.subtitle" = "Mitmekeelne · 25 keelt";
+"onboarding.model.whisperBase.subtitle" = "Mitmekeelne · minimaalne mahukus";
+"onboarding.model.whisperTurbo.subtitle" = "Mitmekeelne · täpseim Whisper";
+"onboarding.mic.title" = "Seadista oma mikrofon";
+"onboarding.mic.subtitle" = "Vali oma sisend ja kontrolli, et taseme riba liigub, kui räägid.";
+"onboarding.mic.permissionHint" = "Mikrofoni juurdepääs on väljas — luba see Süsteemiseadetes, et näha oma taset.";
+"onboarding.try.transcript.heading" = "Sa ütlesid";
+"onboarding.try.transcript.noPaste" = "Kuvatakse ainult siin — ei kleebita teistesse rakendustesse";
 "onboarding.configure.cloud.getCredits" = "Võtit pole? Hangi krediite aadressilt hyperwhisper.com";
 "onboarding.configure.provider.title" = "Ühenda oma pakkuja";
 "onboarding.configure.provider.subtitle" = "Vali pakkuja ja kleebi oma API võti. See salvestatakse turvaliselt sinu Maci Võtmehoidjas.";

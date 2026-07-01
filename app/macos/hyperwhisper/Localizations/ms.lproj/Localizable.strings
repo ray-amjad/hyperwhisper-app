@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Pilih model";
 "onboarding.configure.onDevice.subtitle" = "Pilih model suara untuk dimuat turun. Model yang lebih besar lebih tepat tetapi mengambil lebih banyak ruang.";
 "onboarding.configure.cloud.title" = "Aktifkan HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Masukkan kunci lesen Cloud anda untuk menyambungkan Mac ini kepada kredit prabayar anda.";
-"onboarding.configure.cloud.placeholder" = "Tampal kunci lesen anda";
+"onboarding.configure.cloud.subtitle" = "Masukkan kunci akses Cloud anda untuk menyambungkan Mac ini kepada kredit prabayar anda.";
+"onboarding.configure.cloud.placeholder" = "Tampal kunci akses anda";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Semak Kunci Akses";
+"onboarding.configure.provider.testKey" = "Semak Kunci API";
+"onboarding.configure.test.testing" = "Menyemak…";
+"onboarding.configure.test.valid" = "Kunci akses sah";
+"onboarding.configure.test.healthy" = "Disambungkan";
+"onboarding.configure.test.unauthorized" = "Pembekal menolak kunci ini. Sila semak semula sama ada ia masih sah.";
+"onboarding.configure.test.unreachable" = "Tidak dapat menghubungi pembekal. Semak sambungan internet anda, kemudian cuba semula.";
+"onboarding.model.parakeetV2.subtitle" = "Bahasa Inggeris · NVIDIA · pantas dan tepat";
+"onboarding.model.parakeetV3.subtitle" = "Pelbagai bahasa · 25 bahasa";
+"onboarding.model.whisperBase.subtitle" = "Pelbagai bahasa · saiz kecil";
+"onboarding.model.whisperTurbo.subtitle" = "Pelbagai bahasa · Whisper paling tepat";
+"onboarding.mic.title" = "Sediakan mikrofon anda";
+"onboarding.mic.subtitle" = "Pilih input anda dan semak sama ada bar tahap bergerak apabila anda bercakap.";
+"onboarding.mic.permissionHint" = "Akses mikrofon dimatikan — dayakan dalam Tetapan Sistem untuk melihat tahap anda.";
+"onboarding.try.transcript.heading" = "Anda berkata";
+"onboarding.try.transcript.noPaste" = "Hanya dipaparkan di sini — tidak ditampal ke aplikasi lain.";
 "onboarding.configure.cloud.getCredits" = "Tiada kunci? Dapatkan kredit di hyperwhisper.com";
 "onboarding.configure.provider.title" = "Sambungkan pembekal anda";
 "onboarding.configure.provider.subtitle" = "Pilih pembekal dan tampal kunci API anda. Ia disimpan dengan selamat dalam Rangkaian Kunci Mac anda.";

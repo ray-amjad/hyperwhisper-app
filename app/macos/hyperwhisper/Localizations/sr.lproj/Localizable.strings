@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Изабери модел";
 "onboarding.configure.onDevice.subtitle" = "Изабери гласовни модел за преузимање. Већи модели су прецизнији, али заузимају више простора.";
 "onboarding.configure.cloud.title" = "Активирај HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Унеси свој Cloud лиценцни кључ да повежеш овај Mac са својим унапред плаћеним кредитима.";
-"onboarding.configure.cloud.placeholder" = "Залепи свој лиценцни кључ";
+"onboarding.configure.cloud.subtitle" = "Унеси свој Cloud приступни кључ да повежеш овај Mac са својим унапред плаћеним кредитима.";
+"onboarding.configure.cloud.placeholder" = "Залепи свој приступни кључ";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Тестирај приступни кључ";
+"onboarding.configure.provider.testKey" = "Тестирај API кључ";
+"onboarding.configure.test.testing" = "Тестирање…";
+"onboarding.configure.test.valid" = "Важећи приступни кључ";
+"onboarding.configure.test.healthy" = "Повезано";
+"onboarding.configure.test.unauthorized" = "Провајдер је одбио овај кључ. Провери да ли је још важећи.";
+"onboarding.configure.test.unreachable" = "Није било могуће повезати се с провајдером. Провери своју интернет везу и покушај поново.";
+"onboarding.model.parakeetV2.subtitle" = "Енглески · NVIDIA · брзо и прецизно";
+"onboarding.model.parakeetV3.subtitle" = "Вишејезично · 25 језика";
+"onboarding.model.whisperBase.subtitle" = "Вишејезично · минимална величина";
+"onboarding.model.whisperTurbo.subtitle" = "Вишејезично · најпрецизнији Whisper";
+"onboarding.mic.title" = "Подеси свој микрофон";
+"onboarding.mic.subtitle" = "Изабери свој улаз и провери да се трака нивоа помера када говориш.";
+"onboarding.mic.permissionHint" = "Приступ микрофону је искључен — омогући га у Системским Поставкама да видиш ниво звука.";
+"onboarding.try.transcript.heading" = "Твоје речи";
+"onboarding.try.transcript.noPaste" = "Приказано само овде — није залепљено у друге апликације.";
 "onboarding.configure.cloud.getCredits" = "Немаш кључ? Набави кредите на hyperwhisper.com";
 "onboarding.configure.provider.title" = "Повежи свог провајдера";
 "onboarding.configure.provider.subtitle" = "Изабери провајдера и залепи свој API кључ. Безбедно се чува у Привеску за кључеве твог Mac-а.";

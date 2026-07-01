@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "בחרו מודל";
 "onboarding.configure.onDevice.subtitle" = "בחרו מודל קול להורדה. מודלים גדולים יותר מדויקים יותר אך תופסים יותר מקום.";
 "onboarding.configure.cloud.title" = "הפעילו את HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "הזינו את מפתח הרישיון של Cloud כדי לחבר את ה-Mac הזה לקרדיטים בתשלום מראש שלכם.";
-"onboarding.configure.cloud.placeholder" = "הדביקו את מפתח הרישיון שלכם";
+"onboarding.configure.cloud.subtitle" = "הזינו את מפתח הגישה של Cloud כדי לחבר את ה-Mac הזה לקרדיטים בתשלום מראש שלכם.";
+"onboarding.configure.cloud.placeholder" = "הדביקו את מפתח הגישה שלכם";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "בדקו את מפתח הגישה";
+"onboarding.configure.provider.testKey" = "בדקו את מפתח ה-API";
+"onboarding.configure.test.testing" = "בודק…";
+"onboarding.configure.test.valid" = "מפתח הגישה תקין";
+"onboarding.configure.test.healthy" = "מחובר";
+"onboarding.configure.test.unauthorized" = "הספק דחה את המפתח הזה. בדקו שהוא עדיין תקין.";
+"onboarding.configure.test.unreachable" = "לא הצלחנו להתחבר לספק. בדקו את החיבור לאינטרנט ונסו לבדוק שוב.";
+"onboarding.model.parakeetV2.subtitle" = "אנגלית · NVIDIA · מהיר ומדויק";
+"onboarding.model.parakeetV3.subtitle" = "רב-לשוני · 25 שפות";
+"onboarding.model.whisperBase.subtitle" = "רב-לשוני · טביעת רגל קטנה";
+"onboarding.model.whisperTurbo.subtitle" = "רב-לשוני · ה-Whisper המדויק ביותר";
+"onboarding.mic.title" = "הגדירו את המיקרופון שלכם";
+"onboarding.mic.subtitle" = "בחרו את קלט השמע שלכם ובדקו שמד הרמה זז כשאתם מדברים.";
+"onboarding.mic.permissionHint" = "הגישה למיקרופון כבויה — הפעילו אותה בהגדרות מערכת כדי לראות את הרמה שלכם.";
+"onboarding.try.transcript.heading" = "אמרתם";
+"onboarding.try.transcript.noPaste" = "מוצג כאן בלבד — לא הודבק באפליקציות אחרות";
 "onboarding.configure.cloud.getCredits" = "אין לכם מפתח? קבלו קרדיטים באתר hyperwhisper.com";
 "onboarding.configure.provider.title" = "חברו את הספק שלכם";
 "onboarding.configure.provider.subtitle" = "בחרו ספק והדביקו את מפתח ה-API שלכם. הוא נשמר באופן מאובטח במחזיק המפתחות של ה-Mac שלכם.";

@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Επίλεξε μοντέλο";
 "onboarding.configure.onDevice.subtitle" = "Επίλεξε ένα φωνητικό μοντέλο για λήψη. Τα μεγαλύτερα μοντέλα είναι πιο ακριβή αλλά καταλαμβάνουν περισσότερο χώρο.";
 "onboarding.configure.cloud.title" = "Ενεργοποίηση HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Εισήγαγε το κλειδί άδειας Cloud για να συνδέσεις αυτό το Mac με τις προπληρωμένες πιστώσεις σου.";
-"onboarding.configure.cloud.placeholder" = "Επικόλληση κλειδιού άδειας";
+"onboarding.configure.cloud.subtitle" = "Εισήγαγε το κλειδί πρόσβασης Cloud για να συνδέσεις αυτό το Mac με τις προπληρωμένες πιστώσεις σου.";
+"onboarding.configure.cloud.placeholder" = "Επικόλληση κλειδιού πρόσβασης";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Δοκιμή κλειδιού πρόσβασης";
+"onboarding.configure.provider.testKey" = "Δοκιμή κλειδιού API";
+"onboarding.configure.test.testing" = "Δοκιμή…";
+"onboarding.configure.test.valid" = "Το κλειδί πρόσβασης είναι έγκυρο";
+"onboarding.configure.test.healthy" = "Συνδέθηκε";
+"onboarding.configure.test.unauthorized" = "Ο πάροχος απέρριψε αυτό το κλειδί. Ελέγξτε ξανά αν εξακολουθεί να είναι έγκυρο.";
+"onboarding.configure.test.unreachable" = "Δεν ήταν δυνατή η επικοινωνία με τον πάροχο. Ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά.";
+"onboarding.model.parakeetV2.subtitle" = "Αγγλικά · NVIDIA · ταχύ και ακριβές";
+"onboarding.model.parakeetV3.subtitle" = "Πολυγλωσσικό · 25 γλώσσες";
+"onboarding.model.whisperBase.subtitle" = "Πολυγλωσσικό · ελάχιστο μέγεθος";
+"onboarding.model.whisperTurbo.subtitle" = "Πολυγλωσσικό · το πιο ακριβές Whisper";
+"onboarding.mic.title" = "Ρύθμισε το μικρόφωνό σου";
+"onboarding.mic.subtitle" = "Επίλεξε την είσοδό σου και έλεγξε αν η μπάρα στάθμης κινείται όταν μιλάς.";
+"onboarding.mic.permissionHint" = "Η πρόσβαση στο μικρόφωνο είναι απενεργοποιημένη — ενεργοποίησέ την στις Ρυθμίσεις Συστήματος για να δεις τη στάθμη σου.";
+"onboarding.try.transcript.heading" = "Είπες";
+"onboarding.try.transcript.noPaste" = "Εμφανίζεται μόνο εδώ — δεν επικολλάται σε άλλες εφαρμογές";
 "onboarding.configure.cloud.getCredits" = "Δεν έχεις κλειδί; Απόκτησε πιστώσεις στο hyperwhisper.com";
 "onboarding.configure.provider.title" = "Σύνδεσε τον πάροχό σου";
 "onboarding.configure.provider.subtitle" = "Επίλεξε έναν πάροχο και επικόλλησε το API κλειδί σου. Αποθηκεύεται με ασφάλεια στην Κλειδοθήκη του Mac σου.";

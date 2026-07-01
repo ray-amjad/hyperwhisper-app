@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Velg en modell";
 "onboarding.configure.onDevice.subtitle" = "Velg en talemodell å laste ned. Større modeller er mer nøyaktige, men tar mer plass.";
 "onboarding.configure.cloud.title" = "Aktiver HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Skriv inn Cloud-lisensnøkkelen din for å koble denne Mac-en til dine forhåndsbetalte kreditter.";
-"onboarding.configure.cloud.placeholder" = "Lim inn lisensnøkkelen din";
+"onboarding.configure.cloud.subtitle" = "Skriv inn Cloud-tilgangsnøkkelen din for å koble denne Mac-en til dine forhåndsbetalte kreditter.";
+"onboarding.configure.cloud.placeholder" = "Lim inn tilgangsnøkkelen din";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Sjekk tilgangsnøkkelen";
+"onboarding.configure.provider.testKey" = "Sjekk API-nøkkelen";
+"onboarding.configure.test.testing" = "Sjekker…";
+"onboarding.configure.test.valid" = "Tilgangsnøkkel gyldig";
+"onboarding.configure.test.healthy" = "Tilkoblet";
+"onboarding.configure.test.unauthorized" = "Leverandøren avviste denne nøkkelen. Dobbeltsjekk at den fremdeles er gyldig.";
+"onboarding.configure.test.unreachable" = "Kunne ikke nå leverandøren. Sjekk internettforbindelsen din, og prøv igjen.";
+"onboarding.model.parakeetV2.subtitle" = "Engelsk · NVIDIA · rask og nøyaktig";
+"onboarding.model.parakeetV3.subtitle" = "Flerspråklig · 25 språk";
+"onboarding.model.whisperBase.subtitle" = "Flerspråklig · lite fotavtrykk";
+"onboarding.model.whisperTurbo.subtitle" = "Flerspråklig · mest nøyaktige Whisper";
+"onboarding.mic.title" = "Sett opp mikrofonen din";
+"onboarding.mic.subtitle" = "Velg inngangsenheten din og sjekk at nivåindikatoren beveger seg når du snakker.";
+"onboarding.mic.permissionHint" = "Mikrofontilgang er av — aktiver den i Systeminnstillinger for å se nivået ditt.";
+"onboarding.try.transcript.heading" = "Du sa";
+"onboarding.try.transcript.noPaste" = "Vises bare her — limes ikke inn i andre apper.";
 "onboarding.configure.cloud.getCredits" = "Har du ikke en nøkkel? Få kreditter på hyperwhisper.com";
 "onboarding.configure.provider.title" = "Koble til leverandøren din";
 "onboarding.configure.provider.subtitle" = "Velg en leverandør og lim inn API-nøkkelen din. Den lagres sikkert i nøkkelringen på Mac-en din.";

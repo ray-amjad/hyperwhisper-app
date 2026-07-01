@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Modell auswählen";
 "onboarding.configure.onDevice.subtitle" = "Wähle ein Sprachmodell zum Herunterladen. Größere Modelle sind genauer, brauchen aber mehr Speicherplatz.";
 "onboarding.configure.cloud.title" = "HyperWhisper Cloud aktivieren";
-"onboarding.configure.cloud.subtitle" = "Gib deinen Cloud-Lizenzschlüssel ein, um diesen Mac mit deinem Prepaid-Guthaben zu verbinden.";
-"onboarding.configure.cloud.placeholder" = "Lizenzschlüssel einfügen";
+"onboarding.configure.cloud.subtitle" = "Gib deinen Cloud-Zugriffsschlüssel ein, um diesen Mac mit deinem Prepaid-Guthaben zu verbinden.";
+"onboarding.configure.cloud.placeholder" = "Zugriffsschlüssel einfügen";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Zugriffsschlüssel testen";
+"onboarding.configure.provider.testKey" = "API-Schlüssel testen";
+"onboarding.configure.test.testing" = "Teste…";
+"onboarding.configure.test.valid" = "Zugriffsschlüssel gültig";
+"onboarding.configure.test.healthy" = "Verbunden";
+"onboarding.configure.test.unauthorized" = "Der Anbieter hat diesen Schlüssel abgelehnt. Prüfe, ob er noch gültig ist.";
+"onboarding.configure.test.unreachable" = "Der Anbieter konnte nicht erreicht werden. Prüfe deine Internetverbindung und teste erneut.";
+"onboarding.model.parakeetV2.subtitle" = "Englisch · NVIDIA · schnell und genau";
+"onboarding.model.parakeetV3.subtitle" = "Mehrsprachig · 25 Sprachen";
+"onboarding.model.whisperBase.subtitle" = "Mehrsprachig · minimaler Speicherbedarf";
+"onboarding.model.whisperTurbo.subtitle" = "Mehrsprachig · genauestes Whisper-Modell";
+"onboarding.mic.title" = "Richte dein Mikrofon ein";
+"onboarding.mic.subtitle" = "Wähle deinen Eingang und prüfe, ob sich der Pegelbalken bewegt, wenn du sprichst.";
+"onboarding.mic.permissionHint" = "Mikrofonzugriff ist deaktiviert — aktiviere ihn in den Systemeinstellungen, um deinen Pegel zu sehen.";
+"onboarding.try.transcript.heading" = "Du hast gesagt";
+"onboarding.try.transcript.noPaste" = "Wird nur hier angezeigt — wird nicht in andere Apps eingefügt";
 "onboarding.configure.cloud.getCredits" = "Keinen Schlüssel? Hol dir Guthaben auf hyperwhisper.com";
 "onboarding.configure.provider.title" = "Anbieter verbinden";
 "onboarding.configure.provider.subtitle" = "Wähle einen Anbieter und füge deinen API-Schlüssel ein. Er wird sicher in deinem Mac-Schlüsselbund gespeichert.";

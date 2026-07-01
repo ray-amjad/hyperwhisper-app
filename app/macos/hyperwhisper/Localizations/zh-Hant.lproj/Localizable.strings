@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "選擇一個模型";
 "onboarding.configure.onDevice.subtitle" = "選擇要下載的語音模型。模型越大，準確度越高，但佔用空間也越大。";
 "onboarding.configure.cloud.title" = "啟用 HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "輸入您的 Cloud 授權金鑰，將此 Mac 與您的預付點數建立連結。";
-"onboarding.configure.cloud.placeholder" = "貼上您的授權金鑰";
+"onboarding.configure.cloud.subtitle" = "輸入您的 Cloud 存取金鑰，將此 Mac 與您的預付點數建立連結。";
+"onboarding.configure.cloud.placeholder" = "貼上您的存取金鑰";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "測試存取金鑰";
+"onboarding.configure.provider.testKey" = "測試 API 金鑰";
+"onboarding.configure.test.testing" = "正在測試…";
+"onboarding.configure.test.valid" = "有效存取金鑰";
+"onboarding.configure.test.healthy" = "已連接";
+"onboarding.configure.test.unauthorized" = "服務商拒絕了此金鑰。請確認它是否仍然有效。";
+"onboarding.configure.test.unreachable" = "無法連線到服務商。請檢查網路連線後重試。";
+"onboarding.model.parakeetV2.subtitle" = "英語 · NVIDIA · 快速精準";
+"onboarding.model.parakeetV3.subtitle" = "多語言 · 25 種語言";
+"onboarding.model.whisperBase.subtitle" = "多語言 · 體積小";
+"onboarding.model.whisperTurbo.subtitle" = "多語言 · 最精準的 Whisper";
+"onboarding.mic.title" = "設定您的麥克風";
+"onboarding.mic.subtitle" = "選擇您的輸入裝置，並檢查您說話時音量條是否會移動。";
+"onboarding.mic.permissionHint" = "麥克風許可已關閉—請在系統設定中啟用以查看音量。";
+"onboarding.try.transcript.heading" = "您說的內容";
+"onboarding.try.transcript.noPaste" = "僅在此處顯示—不會貼上到其他應用程式。";
 "onboarding.configure.cloud.getCredits" = "還沒有金鑰？前往 hyperwhisper.com 取得點數";
 "onboarding.configure.provider.title" = "連接您的服務商";
 "onboarding.configure.provider.subtitle" = "選擇一個服務商並貼上您的 API 金鑰。它將安全儲存在您 Mac 的鑰匙圈中。";

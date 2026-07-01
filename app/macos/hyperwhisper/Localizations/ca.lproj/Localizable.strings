@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Tria un model";
 "onboarding.configure.onDevice.subtitle" = "Tria un model de veu per descarregar. Els models més grans són més precisos però ocupen més espai.";
 "onboarding.configure.cloud.title" = "Activa HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Introdueix la teva clau de llicència de Cloud per connectar aquest Mac amb els teus crèdits prepagats.";
-"onboarding.configure.cloud.placeholder" = "Enganxa la teva clau de llicència";
+"onboarding.configure.cloud.subtitle" = "Introdueix la teva clau d'accés a Cloud per connectar aquest Mac amb els teus crèdits prepagats.";
+"onboarding.configure.cloud.placeholder" = "Enganxa la teva clau d'accés";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Prova la clau d'accés";
+"onboarding.configure.provider.testKey" = "Prova la clau d'API";
+"onboarding.configure.test.testing" = "Provant…";
+"onboarding.configure.test.valid" = "Clau d'accés vàlida";
+"onboarding.configure.test.healthy" = "Connectat";
+"onboarding.configure.test.unauthorized" = "El proveïdor ha rebutjat aquesta clau. Comprova que encara sigui vàlida.";
+"onboarding.configure.test.unreachable" = "No s'ha pogut contactar amb el proveïdor. Comprova la teva connexió a internet i torna-ho a provar.";
+"onboarding.model.parakeetV2.subtitle" = "Anglès · NVIDIA · ràpid i precís";
+"onboarding.model.parakeetV3.subtitle" = "Multilingüe · 25 idiomes";
+"onboarding.model.whisperBase.subtitle" = "Multilingüe · mida mínima";
+"onboarding.model.whisperTurbo.subtitle" = "Multilingüe · el Whisper més precís";
+"onboarding.mic.title" = "Configura el teu micròfon";
+"onboarding.mic.subtitle" = "Tria la teva entrada i comprova que la barra de nivell es mou quan parles.";
+"onboarding.mic.permissionHint" = "L'accés al micròfon està desactivat — activa'l a la Configuració del sistema per veure el teu nivell.";
+"onboarding.try.transcript.heading" = "Has dit";
+"onboarding.try.transcript.noPaste" = "Es mostra només aquí — no s'enganxa a altres aplicacions";
 "onboarding.configure.cloud.getCredits" = "No tens cap clau? Aconsegueix crèdits a hyperwhisper.com";
 "onboarding.configure.provider.title" = "Connecta el teu proveïdor";
 "onboarding.configure.provider.subtitle" = "Tria un proveïdor i enganxa la teva clau d'API. Es desa de forma segura al Clauer del teu Mac.";

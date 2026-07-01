@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Válassz modellt";
 "onboarding.configure.onDevice.subtitle" = "Válassz egy letöltendő hangmodellt. A nagyobb modellek pontosabbak, de több helyet foglalnak.";
 "onboarding.configure.cloud.title" = "HyperWhisper Cloud aktiválása";
-"onboarding.configure.cloud.subtitle" = "Add meg a Cloud licenckulcsodat, hogy ezt a Macet összekapcsold az előre fizetett kredit­jeiddel.";
-"onboarding.configure.cloud.placeholder" = "Illeszd be a licenckulcsodat";
+"onboarding.configure.cloud.subtitle" = "Add meg a Cloud hozzáférési kulcsodat, hogy ezt a Macet összekapcsold az előre fizetett kreditjeiddel.";
+"onboarding.configure.cloud.placeholder" = "Illeszd be a hozzáférési kulcsodat";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Hozzáférési kulcs tesztelése";
+"onboarding.configure.provider.testKey" = "API-kulcs tesztelése";
+"onboarding.configure.test.testing" = "Tesztelés…";
+"onboarding.configure.test.valid" = "A hozzáférési kulcs érvényes";
+"onboarding.configure.test.healthy" = "Csatlakozva";
+"onboarding.configure.test.unauthorized" = "A szolgáltató elutasította ezt a kulcsot. Ellenőrizd, hogy még érvényes-e.";
+"onboarding.configure.test.unreachable" = "Nem sikerült elérni a szolgáltatót. Ellenőrizd az internetkapcsolatot, majd teszteld újra.";
+"onboarding.model.parakeetV2.subtitle" = "Angol · NVIDIA · gyors és pontos";
+"onboarding.model.parakeetV3.subtitle" = "Többnyelvű · 25 nyelv";
+"onboarding.model.whisperBase.subtitle" = "Többnyelvű · minimális méret";
+"onboarding.model.whisperTurbo.subtitle" = "Többnyelvű · a legpontosabb Whisper";
+"onboarding.mic.title" = "Állítsd be a mikrofonodat";
+"onboarding.mic.subtitle" = "Válaszd ki a bemenetet, és ellenőrizd, hogy a szintjelző sáv mozog-e, amikor beszélsz.";
+"onboarding.mic.permissionHint" = "A mikrofon-hozzáférés ki van kapcsolva — engedélyezd a Rendszerbeállításokban, hogy lásd a szintet.";
+"onboarding.try.transcript.heading" = "Ezt mondtad";
+"onboarding.try.transcript.noPaste" = "Csak itt jelenik meg — nincs beillesztve más alkalmazásokba";
 "onboarding.configure.cloud.getCredits" = "Nincs kulcsod? Szerezz kreditet a hyperwhisper.com oldalon";
 "onboarding.configure.provider.title" = "Szolgáltató csatlakoztatása";
 "onboarding.configure.provider.subtitle" = "Válassz szolgáltatót, és illeszd be az API-kulcsodat. Ez biztonságosan tárolódik a Mac Kulcskarikájában.";

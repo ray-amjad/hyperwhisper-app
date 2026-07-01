@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Odaberite model";
 "onboarding.configure.onDevice.subtitle" = "Odaberite glasovni model za preuzimanje. Veći modeli su točniji, ali zauzimaju više prostora.";
 "onboarding.configure.cloud.title" = "Aktivirajte HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Unesite svoj Cloud licencni ključ kako biste povezali ovaj Mac sa svojim unaprijed plaćenim kreditima.";
-"onboarding.configure.cloud.placeholder" = "Zalijepite svoj licencni ključ";
+"onboarding.configure.cloud.subtitle" = "Unesite svoj Cloud pristupni ključ kako biste povezali ovaj Mac sa svojim unaprijed plaćenim kreditima.";
+"onboarding.configure.cloud.placeholder" = "Zalijepite svoj pristupni ključ";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Testiraj pristupni ključ";
+"onboarding.configure.provider.testKey" = "Testiraj API ključ";
+"onboarding.configure.test.testing" = "Testiranje…";
+"onboarding.configure.test.valid" = "Pristupni ključ je važeći";
+"onboarding.configure.test.healthy" = "Povezano";
+"onboarding.configure.test.unauthorized" = "Pružatelj usluga je odbio ovaj ključ. Provjerite je li još važeći.";
+"onboarding.configure.test.unreachable" = "Nije moguće doći do pružatelja usluga. Provjerite internetsku vezu, zatim ponovno testirajte.";
+"onboarding.model.parakeetV2.subtitle" = "Engleski · NVIDIA · brz i točan";
+"onboarding.model.parakeetV3.subtitle" = "Višejezični · 25 jezika";
+"onboarding.model.whisperBase.subtitle" = "Višejezični · minimalna veličina";
+"onboarding.model.whisperTurbo.subtitle" = "Višejezični · najtočniji Whisper";
+"onboarding.mic.title" = "Postavite svoj mikrofon";
+"onboarding.mic.subtitle" = "Odaberite svoj ulaz i provjerite da se traka razine pomiče kada govorite.";
+"onboarding.mic.permissionHint" = "Pristup mikrofonu je isključen — omogućite ga u Sistemskim postavkama da vidite svoju razinu.";
+"onboarding.try.transcript.heading" = "Rekli ste";
+"onboarding.try.transcript.noPaste" = "Prikazano samo ovdje — nije zalijepljeno u druge aplikacije";
 "onboarding.configure.cloud.getCredits" = "Nemate ključ? Nabavite kredite na hyperwhisper.com";
 "onboarding.configure.provider.title" = "Povežite svog pružatelja usluge";
 "onboarding.configure.provider.subtitle" = "Odaberite pružatelja usluge i zalijepite svoj API ključ. Sigurno se pohranjuje u Keychain vašeg Maca.";

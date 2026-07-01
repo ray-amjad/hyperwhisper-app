@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Оберіть модель";
 "onboarding.configure.onDevice.subtitle" = "Оберіть голосову модель для завантаження. Більші моделі точніші, але займають більше місця.";
 "onboarding.configure.cloud.title" = "Активувати HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Введіть ваш ліцензійний ключ Cloud, щоб підключити цей Mac до ваших передплачених кредитів.";
-"onboarding.configure.cloud.placeholder" = "Вставте ваш ліцензійний ключ";
+"onboarding.configure.cloud.subtitle" = "Введіть ваш ключ доступу Cloud, щоб підключити цей Mac до ваших передплачених кредитів.";
+"onboarding.configure.cloud.placeholder" = "Вставте ваш ключ доступу";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Перевірити ключ доступу";
+"onboarding.configure.provider.testKey" = "Перевірити API-ключ";
+"onboarding.configure.test.testing" = "Тестування…";
+"onboarding.configure.test.valid" = "Дійсний ключ доступу";
+"onboarding.configure.test.healthy" = "Підключено";
+"onboarding.configure.test.unauthorized" = "Провайдер відхилив цей ключ. Перевірте, чи він досі дійсний.";
+"onboarding.configure.test.unreachable" = "Не вдалося з'єднатися з провайдером. Перевірте підключення до інтернету і спробуйте ще раз.";
+"onboarding.model.parakeetV2.subtitle" = "Англійська · NVIDIA · швидко та точно";
+"onboarding.model.parakeetV3.subtitle" = "Багатомовна · 25 мов";
+"onboarding.model.whisperBase.subtitle" = "Багатомовна · мінімальний розмір";
+"onboarding.model.whisperTurbo.subtitle" = "Багатомовна · найточніший Whisper";
+"onboarding.mic.title" = "Налаштуйте свій мікрофон";
+"onboarding.mic.subtitle" = "Виберіть свій вхід і перевірте, що смуга рівня рухається, коли ви говорите.";
+"onboarding.mic.permissionHint" = "Доступ до мікрофона вимкнено — увімкніть його в Параметрах системи, щоб побачити рівень.";
+"onboarding.try.transcript.heading" = "Ви сказали";
+"onboarding.try.transcript.noPaste" = "Показано лише тут — не вставляється в інші застосунки.";
 "onboarding.configure.cloud.getCredits" = "Немає ключа? Отримайте кредити на hyperwhisper.com";
 "onboarding.configure.provider.title" = "Підключіть свого провайдера";
 "onboarding.configure.provider.subtitle" = "Оберіть провайдера і вставте свій API-ключ. Він надійно зберігається у Зв'язці ключів вашого Mac.";

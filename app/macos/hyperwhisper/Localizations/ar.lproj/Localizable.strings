@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "اختر نموذجًا";
 "onboarding.configure.onDevice.subtitle" = "اختر نموذج صوت لتنزيله. النماذج الأكبر أكثر دقة لكنها تستهلك مساحة أكبر.";
 "onboarding.configure.cloud.title" = "تفعيل HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "أدخل مفتاح ترخيص Cloud لربط جهاز Mac هذا برصيدك المدفوع مسبقًا.";
-"onboarding.configure.cloud.placeholder" = "الصق مفتاح الترخيص";
+"onboarding.configure.cloud.subtitle" = "أدخل مفتاح وصول Cloud لربط جهاز Mac هذا برصيدك المدفوع مسبقًا.";
+"onboarding.configure.cloud.placeholder" = "الصق مفتاح الوصول";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "اختبار مفتاح الوصول";
+"onboarding.configure.provider.testKey" = "اختبار مفتاح API";
+"onboarding.configure.test.testing" = "جارٍ الاختبار…";
+"onboarding.configure.test.valid" = "مفتاح الوصول صالح";
+"onboarding.configure.test.healthy" = "متصل";
+"onboarding.configure.test.unauthorized" = "رفض المزوّد هذا المفتاح. تأكد من أنه لا يزال صالحًا.";
+"onboarding.configure.test.unreachable" = "تعذّر الوصول إلى المزوّد. تحقق من اتصالك بالإنترنت، ثم أعد الاختبار.";
+"onboarding.model.parakeetV2.subtitle" = "الإنجليزية · NVIDIA · سريع ودقيق";
+"onboarding.model.parakeetV3.subtitle" = "متعدد اللغات · 25 لغة";
+"onboarding.model.whisperBase.subtitle" = "متعدد اللغات · حجم صغير جدًا";
+"onboarding.model.whisperTurbo.subtitle" = "متعدد اللغات · أدق نموذج Whisper";
+"onboarding.mic.title" = "إعداد ميكروفونك";
+"onboarding.mic.subtitle" = "اختر مصدر الإدخال وتحقق من أن شريط المستوى يتحرك عند التحدث.";
+"onboarding.mic.permissionHint" = "الوصول إلى الميكروفون معطّل — فعّله من إعدادات النظام لرؤية مستوى الصوت.";
+"onboarding.try.transcript.heading" = "ما قلته";
+"onboarding.try.transcript.noPaste" = "يظهر هنا فقط — لا يتم لصقه في تطبيقات أخرى";
 "onboarding.configure.cloud.getCredits" = "ليس لديك مفتاح؟ احصل على رصيد من hyperwhisper.com";
 "onboarding.configure.provider.title" = "اربط مزوّدك";
 "onboarding.configure.provider.subtitle" = "اختر مزوّدًا والصق مفتاح API الخاص بك. يُحفظ بأمان في سلسلة مفاتيح جهاز Mac الخاص بك.";

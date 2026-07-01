@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Veldu líkan";
 "onboarding.configure.onDevice.subtitle" = "Veldu raddlíkan til að sækja. Stærri líkön eru nákvæmari en taka meira pláss.";
 "onboarding.configure.cloud.title" = "Virkja HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Sláðu inn Cloud-leyfislykilinn þinn til að tengja þessa Mac-tölvu við fyrirframgreidda inneign þína.";
-"onboarding.configure.cloud.placeholder" = "Límdu inn leyfislykilinn þinn";
+"onboarding.configure.cloud.subtitle" = "Sláðu inn Cloud-aðgangslykilinn þinn til að tengja þessa Mac-tölvu við fyrirframgreidda inneign þína.";
+"onboarding.configure.cloud.placeholder" = "Límdu inn aðgangslykilinn þinn";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Prófa aðgangslykilinn";
+"onboarding.configure.provider.testKey" = "Prófa API lykilinn";
+"onboarding.configure.test.testing" = "Prófar…";
+"onboarding.configure.test.valid" = "Aðgangslykillinn er gildur";
+"onboarding.configure.test.healthy" = "Tengt";
+"onboarding.configure.test.unauthorized" = "Veitandinn hafnaði þessum lykli. Athugaðu að hann sé enn gildur.";
+"onboarding.configure.test.unreachable" = "Ekki tókst að tengjast veitandanum. Athugaðu nettengingu þína og prófaðu aftur.";
+"onboarding.model.parakeetV2.subtitle" = "Enska · NVIDIA · hratt og nákvæmt";
+"onboarding.model.parakeetV3.subtitle" = "Fjöltyngt · 25 tungumál";
+"onboarding.model.whisperBase.subtitle" = "Fjöltyngt · mjög lítil stærð";
+"onboarding.model.whisperTurbo.subtitle" = "Fjöltyngt · nákvæmasta Whisper";
+"onboarding.mic.title" = "Settu upp hljóðnemann þinn";
+"onboarding.mic.subtitle" = "Veldu inntakið þitt og athugaðu að stigastikan hreyfist þegar þú talar.";
+"onboarding.mic.permissionHint" = "Aðgangur að hljóðnema er óvirkur — virkjaðu hann í Kerfisstillingum til að sjá stigið þitt.";
+"onboarding.try.transcript.heading" = "Þú sagðir";
+"onboarding.try.transcript.noPaste" = "Aðeins sýnt hér — ekki límt inn í önnur forrit";
 "onboarding.configure.cloud.getCredits" = "Ertu ekki með lykil? Fáðu inneign á hyperwhisper.com";
 "onboarding.configure.provider.title" = "Tengdu þjónustuveituna þína";
 "onboarding.configure.provider.subtitle" = "Veldu þjónustuveitu og límdu inn API-lykilinn þinn. Honum er örugglega geymt í Mac-lyklakippunni þinni.";

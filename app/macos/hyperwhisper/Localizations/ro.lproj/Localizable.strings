@@ -261,8 +261,25 @@
 "onboarding.configure.onDevice.title" = "Alege un model";
 "onboarding.configure.onDevice.subtitle" = "Alege un model vocal de descărcat. Modelele mai mari sunt mai precise, dar ocupă mai mult spațiu.";
 "onboarding.configure.cloud.title" = "Activează HyperWhisper Cloud";
-"onboarding.configure.cloud.subtitle" = "Introdu cheia ta de licență Cloud pentru a conecta acest Mac la creditele tale preplătite.";
-"onboarding.configure.cloud.placeholder" = "Lipește cheia ta de licență";
+"onboarding.configure.cloud.subtitle" = "Introdu cheia ta de acces Cloud pentru a conecta acest Mac la creditele tale preplătite.";
+"onboarding.configure.cloud.placeholder" = "Lipește cheia ta de acces";
+// Onboarding redesign — test-key buttons, curated model list, mic step, inline transcript
+"onboarding.configure.cloud.testKey" = "Testează cheia de acces";
+"onboarding.configure.provider.testKey" = "Testează cheia API";
+"onboarding.configure.test.testing" = "Se verifică…";
+"onboarding.configure.test.valid" = "Cheie de acces valabilă";
+"onboarding.configure.test.healthy" = "Conectat";
+"onboarding.configure.test.unauthorized" = "Furnizorul a respins această cheie. Verifică dacă este încă valabilă.";
+"onboarding.configure.test.unreachable" = "Nu s-a putut contacta furnizorul. Verifică-ți conexiunea la internet, apoi încearcă din nou.";
+"onboarding.model.parakeetV2.subtitle" = "Engleză · NVIDIA · rapid și precis";
+"onboarding.model.parakeetV3.subtitle" = "Multilingv · 25 de limbi";
+"onboarding.model.whisperBase.subtitle" = "Multilingv · dimensiune minimă";
+"onboarding.model.whisperTurbo.subtitle" = "Multilingv · cel mai precis Whisper";
+"onboarding.mic.title" = "Configurează-ți microfonul";
+"onboarding.mic.subtitle" = "Alege sursa de intrare și verifică dacă bara de nivel se mișcă atunci când vorbești.";
+"onboarding.mic.permissionHint" = "Accesul la microfon este dezactivat — activează-l din Setări de sistem pentru a-ți vedea nivelul.";
+"onboarding.try.transcript.heading" = "Ai spus";
+"onboarding.try.transcript.noPaste" = "Afișat doar aici — nu este lipit în alte aplicații.";
 "onboarding.configure.cloud.getCredits" = "Nu ai o cheie? Obține credite pe hyperwhisper.com";
 "onboarding.configure.provider.title" = "Conectează-ți furnizorul";
 "onboarding.configure.provider.subtitle" = "Alege un furnizor și lipește cheia ta API. Este stocată în siguranță în Breloc-ul Mac-ului tău.";
