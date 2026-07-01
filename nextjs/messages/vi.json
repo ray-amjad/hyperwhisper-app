@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Đổi ngôn ngữ"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Xem HyperWhisper trên GitHub"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -83,6 +84,10 @@
       "medical": "Y tế",
       "presetModes": "Chế độ có sẵn",
       "customModes": "Chế độ tùy chỉnh"
+    },
+    "openSource": {
+      "title": "Mã nguồn mở",
+      "description": "Được cấp phép Apache-2.0. Kiểm tra từng dòng, fork nó, hoặc tự lưu trữ. Không có hộp đen, không bị khóa chân."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud là gì?",
-        "answer": "HyperWhisper Cloud là dịch vụ chuyển giọng nói trên cloud tích hợp sẵn, hướng đến người dùng ít kỹ thuật muốn bắt đầu nhanh.\n\nDịch vụ hoạt động theo mô hình pay as you go. Mua khóa tài khoản sẽ có $5 tín dụng chuyển giọng nói. Bạn có thể nạp thêm tín dụng sau.\n    \nChúng tôi cung cấp ba mức độ chính xác: Medium (nhanh nhất, dùng Groq), High (khuyến nghị, dùng Deepgram) và Highest (chất lượng cao nhất, dùng xAI Grok STT). Hậu xử lý là tự động. Chúng tôi không lưu gì ngoài số tín dụng bạn đã dùng.\n\nBạn trả đúng bằng mức chúng tôi trả cho các nhà cung cấp này. Không có markup.\n\nĐể yên tâm, bạn có thể xem mã nguồn HyperWhisper Cloud [tại đây](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud là dịch vụ phiên âm đám mây tích hợp sẵn, hướng đến những người dùng ít rành kỹ thuật muốn bắt đầu nhanh chóng.\n\nĐây là tín dụng trả theo mức dùng (pay-as-you-go). Bạn nạp chỉ từ $5 (1.000 tín dụng cho mỗi $1) và chỉ tiêu khi phiên âm. Lần mua tín dụng đầu tiên tự động tạo Account Key của bạn, nên không còn gì khác phải mua.\n    \nChúng tôi cung cấp bốn mức độ chính xác: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2), và Highest (Grok STT, mặc định cho các bản cài mới và được cung cấp bởi xAI Grok STT). Hậu xử lý là tự động và mặc định dùng Grok 4.1 Fast non-reasoning. Chúng tôi không lưu trữ gì ngoài số tín dụng bạn đã dùng, và chúng tôi đã chọn không tham gia huấn luyện mô hình thay cho bạn ở mọi nhà cung cấp thượng nguồn mà chúng tôi sử dụng. Xem [hướng dẫn Quyền riêng tư Dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi để biết chi tiết.\n\nTín dụng được tiêu theo đúng chi phí xử lý của chính các nhà cung cấp — không cộng thêm phí cho việc phiên âm. Khi thanh toán có thêm một khoản phí xử lý thanh toán cố định 6%, được hiển thị thành một mục riêng. Tín dụng chưa dùng sẽ hết hạn sau 12 tháng (xem bên dưới).\n\nĐể bạn yên tâm, toàn bộ ứng dụng là mã nguồn mở theo Apache-2.0 — bao gồm cả backend Cloud. Bạn có thể đọc từng dòng mã chạy giữa ứng dụng của bạn và các nhà cung cấp mà chúng tôi chuyển tiếp đến [trên GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Dữ liệu giọng nói của tôi có được dùng để huấn luyện mô hình AI không?",
         "answer": "HyperWhisper Cloud từ chối việc dùng dữ liệu của bạn để huấn luyện mô hình ở mọi nhà cung cấp mà chúng tôi sử dụng. Khi dùng khóa API của riêng bạn, việc từ chối là trách nhiệm của bạn — xem [hướng dẫn về quyền riêng tư dữ liệu](https://hyperwhisper.com/docs/data-privacy) của chúng tôi."
       },
       "lifetime": {
-        "question": "Vì sao giá trọn đời thay vì đăng ký?",
-        "answer": "Chúng tôi tin vào mức giá đơn giản và công bằng. Trả một lần $39 và dùng HyperWhisper mãi mãi. Không phí hàng tháng, không bất ngờ. Bản miễn phí cho phép bạn thử các tính năng chính với 3 phút chuyển giọng nói mỗi ngày."
+        "question": "Có gói đăng ký không?",
+        "answer": "Không — không bao giờ. HyperWhisper là một ứng dụng mã nguồn mở mà bạn sở hữu, không phải gói đăng ký bạn thuê. Tải về miễn phí và dùng phiên âm cục bộ, ngoại tuyến hoàn toàn miễn phí mãi mãi; gói miễn phí cũng bao gồm 5 phút phiên âm đám mây mỗi ngày. Khi bạn muốn phiên âm đám mây không cần thiết lập vượt quá mức đó, HyperWhisper Cloud là tín dụng trả theo mức dùng đơn giản — chỉ nạp khi bạn cần, không có phí hằng tháng và không có gì để hủy."
       },
       "deviceLimit": {
         "question": "Tôi có thể dùng khóa tài khoản trên bao nhiêu thiết bị?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Ai đã tạo ra sản phẩm này?",
         "answer": "Sản phẩm này được tạo bởi YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Tín dụng Cloud của tôi có hết hạn không?",
+        "answer": "Có — tín dụng hết hạn 12 tháng sau khi mua. Đây là một biện pháp bảo vệ kế toán và trách nhiệm pháp lý tiêu chuẩn, và là cùng chính sách 12 tháng mà các nhà cung cấp như OpenAI, Google, Anthropic và OpenRouter áp dụng. Khi bạn phiên âm, tín dụng cũ nhất luôn được tiêu trước, nên những tín dụng sắp hết hạn nhất được dùng trước bất kỳ lần nạp mới nào."
+      },
+      "dataStorage": {
+        "question": "Bạn có lưu trữ âm thanh hay bản phiên âm của tôi không?",
+        "answer": "Không. Với HyperWhisper Cloud, âm thanh của bạn được xử lý trong bộ nhớ và bị loại bỏ ngay khi bản phiên âm trả về — chúng tôi không bao giờ ghi âm thanh hay bản phiên âm của bạn xuống đĩa, và không có gì được giữ lại sau khi yêu cầu hoàn tất. Thứ duy nhất chúng tôi ghi lại là siêu dữ liệu sử dụng ẩn danh (âm thanh dài bao lâu, chi phí, ngôn ngữ, và mô hình nào đã xử lý nó) để chúng tôi trừ đúng số tín dụng. Đừng chỉ tin lời chúng tôi: backend Cloud là mã nguồn mở, nên bạn có thể [tự đọc mã nguồn](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Chính sách hoàn tiền của bạn là gì?",
+        "answer": "Chúng tôi cung cấp đảm bảo hoàn tiền trong 14 ngày, không hỏi lý do. Ngoài khoảng thời gian đó, bất kỳ tín dụng chưa dùng nào chưa hết hạn đều có thể được hoàn lại theo yêu cầu — chỉ cần gửi email cho chúng tôi và chúng tôi sẽ giải quyết trên tinh thần nỗ lực tốt nhất. Tín dụng bạn đã tiêu hoặc đã hết hạn thì không được hoàn lại, và phí xử lý 6% không được hoàn vì nó chi trả cho chi phí xử lý thanh toán mà chúng tôi phải chịu khi mua. Chi tiết đầy đủ có trong [Chính sách Hoàn tiền](/legal/refund-policy) và [Điều khoản Dịch vụ](/legal/terms-of-service) của chúng tôi."
+      },
+      "funding": {
+        "question": "HyperWhisper kiếm tiền bằng cách nào nếu nó là mã nguồn mở?",
+        "answer": "HyperWhisper được xây dựng bởi nhà phát triển độc lập Ray Amjad và phần lớn được trợ cấp bởi các sản phẩm khác của anh ấy — [AgentStack](https://agentstack.build) và [VidTempla](https://vidtempla.com) — đó là điều giúp bản thân ứng dụng vẫn miễn phí và mã nguồn mở. Bên cạnh đó, HyperWhisper Cloud cộng thêm một khoản phí xử lý nhỏ vào các lần mua tín dụng. Chỉ vậy thôi: không quảng cáo, không bán dữ liệu của bạn, không có bẫy đăng ký."
+      },
+      "selfHost": {
+        "question": "Tôi có thể tự lưu trữ backend Cloud không?",
+        "answer": "Có. Backend phiên âm Cloud là mã nguồn mở theo Apache-2.0, nên bạn tự do chạy bản sao của riêng mình nếu không muốn phụ thuộc vào của chúng tôi. Dù vậy, hầu hết mọi người chỉ dùng HyperWhisper Cloud và trả khoản phí xử lý nhỏ — đó là lựa chọn không cần thiết lập. Mọi thứ bạn cần đều có [trên GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Tùy chỉnh",
     "customSub": "số tiền của bạn",
     "topUp": "Nạp thêm"
+  },
+  "openSource": {
+    "heading": "Mã nguồn mở. Không có gì để giấu.",
+    "body": "HyperWhisper hoàn toàn mã nguồn mở theo giấy phép Apache-2.0 — cả ứng dụng máy tính lẫn backend Cloud. Một ứng dụng lắng nghe micro của bạn nên là thứ bạn có thể kiểm chứng, chứ không chỉ tin tưởng: hãy đọc từng dòng, kiểm tra chính xác âm thanh của bạn đi đâu, và biết rằng bạn sẽ không bao giờ bị khóa chân — mã nguồn là của bạn để fork và tự lưu trữ mãi mãi. Được xây dựng công khai bởi nhà phát triển độc lập Ray Amjad.",
+    "cta": "Xem trên GitHub"
   }
 }

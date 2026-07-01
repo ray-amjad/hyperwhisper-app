@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Bytt språk"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Se HyperWhisper på GitHub"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -83,6 +84,10 @@
       "medical": "Medisinsk",
       "presetModes": "Forhåndsinnstilte moduser",
       "customModes": "Tilpassede moduser"
+    },
+    "openSource": {
+      "title": "Åpen kildekode",
+      "description": "Lisensiert under Apache-2.0. Inspiser hver linje, fork den eller kjør den selv. Ingen svarte bokser, ingen innelåsing."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Hva er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er innebygd skytranskribering for mindre tekniske brukere som vil komme raskt i gang.\n\nDet er pay-as-you-go. Når du kjøper en kontonøkkel får du $5 i transkripsjonskreditter. Du kan legge til flere kreditter senere.\n    \nVi tilbyr tre nøyaktighetsnivåer: Medium (raskest, drevet av Groq), High (anbefalt, drevet av Deepgram) og Highest (best kvalitet, drevet av xAI Grok STT). Etterbehandling er automatisk. Vi lagrer ingenting annet enn hvor mange kreditter du har brukt.\n\nDu betaler nøyaktig det vi betaler disse leverandørene. Vi tar ikke påslag.\n\nFor ekstra trygghet kan du se kildekoden til HyperWhisper Cloud [her](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud er innebygd skytranskripsjon rettet mot mindre tekniske brukere som vil komme raskt i gang.\n\nDet er kreditter du betaler etter forbruk. Du fyller på fra så lite som $5 (1 000 kreditter per $1) og bruker dem bare når du transkriberer. Det første kredittkjøpet ditt oppretter automatisk Account Key, så det er ingenting mer å kjøpe.\n    \nVi tilbyr fire nøyaktighetsnivåer: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) og Highest (Grok STT, standard for nye installasjoner og drevet av xAI Grok STT). Etterbehandling skjer automatisk og bruker som standard Grok 4.1 Fast non-reasoning. Vi lagrer ingenting annet enn hvor mange kreditter du brukte, og vi har meldt deg av modelltrening hos alle leverandørene vi bruker oppstrøms. Se [Data Privacy-veiledningen vår](https://hyperwhisper.com/docs/data-privacy) for detaljer.\n\nKreditter brukes til leverandørenes egen behandlingskostnad — ingen påslag på transkripsjon. Ved betaling kommer et fast behandlingsgebyr på 6 % i tillegg, vist som en egen linje. Ubrukte kreditter utløper etter 12 måneder (se nedenfor).\n\nFor å være på den sikre siden er hele appen åpen kildekode under Apache-2.0 — inkludert Cloud-backenden. Du kan lese hver linje kode som kjører mellom appen din og leverandørene vi videresender til [på GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Vil stemmedataene mine bli brukt til å trene KI-modeller?",
         "answer": "HyperWhisper Cloud reserverer deg mot modelltrening hos alle leverandørene vi bruker. Med din egen API-nøkkel er reservasjonen ditt eget ansvar — se vår [veiledning for datapersonvern](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Hvorfor livstidspris i stedet for abonnement?",
-        "answer": "Vi tror på enkel og rettferdig prising. Betal én gang $39 og bruk HyperWhisper for alltid. Ingen månedlige kostnader, ingen overraskelser. Gratisversjonen lar deg bruke nøkkelfunksjonene med 3 minutter transkribering per dag."
+        "question": "Finnes det et abonnement?",
+        "answer": "Nei — aldri. HyperWhisper er en åpen kildekode-app du eier, ikke et abonnement du leier. Last den ned gratis og bruk lokal, frakoblet transkripsjon helt gratis for alltid; gratisnivået inkluderer også 5 minutter skytranskripsjon om dagen. Når du vil ha skytranskripsjon uten oppsett utover det, er HyperWhisper Cloud enkle kreditter du betaler etter forbruk — fyll på bare når du trenger det, uten månedlige avgifter og ingenting å si opp."
       },
       "deviceLimit": {
         "question": "Hvor mange enheter kan jeg bruke kontonøkkelen min på?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Hvem laget dette?",
         "answer": "Dette er laget av YouTuberen [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Utløper Cloud-kredittene mine?",
+        "answer": "Ja — kreditter utløper 12 måneder etter kjøp. Dette er et standard regnskaps- og ansvarsmessig sikkerhetstiltak, og det er den samme 12-månederspolicyen som brukes av leverandører som OpenAI, Google, Anthropic og OpenRouter. Når du transkriberer, brukes alltid de eldste kredittene dine først, slik at de som er nærmest å utløpe, brukes før eventuelle nyere påfyll."
+      },
+      "dataStorage": {
+        "question": "Lagrer dere lyden eller transkripsjonene mine?",
+        "answer": "Nei. Med HyperWhisper Cloud behandles lyden din i minnet og forkastes i det øyeblikket transkripsjonen kommer tilbake — vi skriver aldri lyden eller transkripsjonene dine til disk, og ingenting beholdes etter at forespørselen er fullført. Det eneste vi registrerer, er anonyme bruksmetadata (hvor lang lyden var, kostnaden, språket og hvilken modell som håndterte den) slik at vi kan trekke fra riktig antall kreditter. Du trenger ikke ta vårt ord for det: Cloud-backenden er åpen kildekode, så du kan [lese koden selv](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Hva er refusjonspolicyen deres?",
+        "answer": "Vi tilbyr en 14-dagers pengene-tilbake-garanti uten spørsmål. Etter den perioden kan ubrukte kreditter som ikke har utløpt, refunderes på forespørsel — bare send oss en e-post, så ordner vi det etter beste evne. Kreditter du allerede har brukt eller som har utløpt, refunderes ikke, og behandlingsgebyret på 6 % er ikke-refunderbart fordi det dekker betalingsbehandlingskostnader vi pådrar oss ved kjøp. Alle detaljer finnes i [Refusjonspolicyen](/legal/refund-policy) og [Vilkårene for bruk](/legal/terms-of-service) våre."
+      },
+      "funding": {
+        "question": "Hvordan tjener HyperWhisper penger når det er åpen kildekode?",
+        "answer": "HyperWhisper er laget av indie-utvikleren Ray Amjad og subsidieres for det meste av de andre produktene hans — [AgentStack](https://agentstack.build) og [VidTempla](https://vidtempla.com) — som er det som gjør at selve appen kan forbli gratis og åpen kildekode. I tillegg legger HyperWhisper Cloud til et lite behandlingsgebyr på kredittkjøp. Det er alt: ingen reklame, ingen salg av dataene dine, ingen abonnementsfeller."
+      },
+      "selfHost": {
+        "question": "Kan jeg kjøre Cloud-backenden selv?",
+        "answer": "Ja. Skytranskripsjons-backenden er åpen kildekode under Apache-2.0, så du står fritt til å kjøre din egen kopi hvis du heller ikke vil basere deg på vår. Når det er sagt, bruker de fleste bare HyperWhisper Cloud og betaler det lille behandlingsgebyret — det er alternativet uten oppsett. Alt du trenger, finner du [på GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Egendefinert",
     "customSub": "ditt beløp",
     "topUp": "Fyll på"
+  },
+  "openSource": {
+    "heading": "Åpen kildekode. Ingenting å skjule.",
+    "body": "HyperWhisper er helt åpen kildekode under Apache-2.0 — både skrivebordsappene og Cloud-backenden. En app som lytter til mikrofonen din, bør være noe du kan verifisere, ikke bare stole på: les hver linje, kontroller nøyaktig hvor lyden din havner, og vit at du aldri blir låst inne — koden er din til å forke og kjøre selv for alltid. Bygget i åpenhet av indie-utvikleren Ray Amjad.",
+    "cta": "Se på GitHub"
   }
 }

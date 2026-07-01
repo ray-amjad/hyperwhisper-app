@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Dili değiştir"
     },
-    "cloud": "Bulut"
+    "cloud": "Bulut",
+    "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
   },
   "hero": {
     "logoAlt": "HyperWhisper Logosu",
@@ -83,6 +84,10 @@
       "medical": "Tıbbi",
       "presetModes": "Hazır modlar",
       "customModes": "Özel modlar"
+    },
+    "openSource": {
+      "title": "Açık Kaynak",
+      "description": "Apache-2.0 lisanslı. Her satırı inceleyin, fork edin veya kendiniz barındırın. Kara kutu yok, kilitlenme yok."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "HyperWhisper Cloud nedir?",
-        "answer": "HyperWhisper Cloud, hızlı başlamak isteyen daha az teknik kullanıcılar için tasarlanmış yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde modelindedir. Hesap Anahtarı satın aldığınızda $5 transkripsiyon kredisi alırsınız. Daha sonra kredi ekleyebilirsiniz.\n    \nÜç doğruluk seviyesi sunuyoruz: Medium (en hızlı, Groq destekli), High (önerilen, Deepgram destekli) ve Highest (en iyi kalite, xAI Grok STT destekli). Son işleme otomatik yapılır. Tükettiğiniz kredi miktarı dışında hiçbir şey saklamıyoruz.\n\nBu sağlayıcılara ödediğimiz tutarın aynısını ödersiniz. Ek ücret koymuyoruz.\n\nİçinizin rahat olması için HyperWhisper Cloud kaynak kodunu [burada](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud, hızlıca başlamak isteyen daha az teknik kullanıcılara yönelik yerleşik bir bulut transkripsiyon hizmetidir.\n\nKullandıkça öde mantığıyla çalışan kredilerdir. En az $5 ile yükleme yapabilir ($1 başına 1.000 kredi) ve bunları yalnızca transkripsiyon yaptıkça harcarsınız. İlk kredi satın alımınız Account Key'inizi otomatik olarak oluşturur, dolayısıyla satın alınacak başka bir şey yoktur.\n    \nDört doğruluk düzeyi sunuyoruz: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) ve Highest (Grok STT, yeni kurulumlar için varsayılan ve xAI Grok STT tarafından desteklenir). Sonradan işleme otomatiktir ve varsayılan olarak akıl yürütmesiz Grok 4.1 Fast kullanır. Kaç kredi tükettiğiniz dışında hiçbir şey saklamıyoruz ve kullandığımız her yukarı akış sağlayıcısında sizi model eğitiminden çıkardık. Ayrıntılar için [Veri Gizliliği kılavuzumuza](https://hyperwhisper.com/docs/data-privacy) bakın.\n\nKrediler, sağlayıcıların kendi işleme maliyetine göre harcanır — transkripsiyonda hiçbir kâr payı yoktur. Ödeme adımında, ayrı bir kalem olarak gösterilen sabit %6 ödeme işleme ücreti eklenir. Kullanılmayan krediler 12 ay sonra sona erer (aşağıya bakın).\n\nİçiniz rahat olsun diye, uygulamanın tamamı Apache-2.0 altında açık kaynaktır — Cloud arka ucu dahil. Uygulamanız ile aracılık ettiğimiz sağlayıcılar arasında çalışan her kod satırını [GitHub'da](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) okuyabilirsiniz."
       },
       "dataTraining": {
         "question": "Ses verilerim yapay zekâ modellerini eğitmek için kullanılacak mı?",
         "answer": "HyperWhisper Cloud, kullandığımız her sağlayıcıda sizi model eğitiminden çıkarır. Kendi API anahtarınızla, çıkış yapmak sizin sorumluluğunuzdadır — [veri gizliliği kılavuzumuza](https://hyperwhisper.com/docs/data-privacy) bakın."
       },
       "lifetime": {
-        "question": "Neden abonelik yerine ömür boyu fiyatlandırma?",
-        "answer": "Basit ve adil fiyatlandırmaya inanıyoruz. Bir kez $39 ödeyin ve HyperWhisper'ı sonsuza dek kullanın. Aylık ücret yok, sürpriz yok. Ücretsiz sürüm, günde 3 dakika transkripsiyonla temel özellikleri denemenizi sağlar."
+        "question": "Abonelik var mı?",
+        "answer": "Hayır — asla. HyperWhisper, kiraladığınız bir abonelik değil, sahip olduğunuz açık kaynaklı bir uygulamadır. Ücretsiz indirin ve yerel, çevrimdışı transkripsiyonu sonsuza dek ücretsiz kullanın; ücretsiz katman ayrıca günde 5 dakika bulut transkripsiyonu içerir. Bunun ötesinde kurulum gerektirmeyen bulut transkripsiyonu istediğinizde, HyperWhisper Cloud basit, kullandıkça öde kredilerdir — yalnızca ihtiyaç duyduğunuzda yükleme yaparsınız, aylık ücret yok ve iptal edilecek bir şey yok."
       },
       "deviceLimit": {
         "question": "Hesap Anahtarımı kaç cihazda kullanabilirim?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Bunu kim yaptı?",
         "answer": "Bu ürün YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Cloud kredilerim sona erer mi?",
+        "answer": "Evet — krediler satın alımdan 12 ay sonra sona erer. Bu, standart bir muhasebe ve sorumluluk önlemidir ve OpenAI, Google, Anthropic ve OpenRouter gibi sağlayıcıların kullandığı aynı 12 aylık politikadır. Transkripsiyon yaptığınızda, her zaman önce en eski kredileriniz harcanır, böylece sona ermeye en yakın olanlar, daha yeni yüklemelerden önce kullanılır."
+      },
+      "dataStorage": {
+        "question": "Sesimi veya transkriptlerimi saklıyor musunuz?",
+        "answer": "Hayır. HyperWhisper Cloud ile sesiniz bellekte işlenir ve transkripsiyon geri döndüğü anda atılır — sesinizi veya transkriptlerinizi asla diske yazmayız ve istek tamamlandıktan sonra hiçbir şey saklanmaz. Kaydettiğimiz tek şey, doğru sayıda krediyi düşebilmemiz için anonim kullanım meta verileridir (sesin ne kadar uzun olduğu, maliyeti, dili ve hangi modelin işlediği). Sözümüze güvenmek zorunda değilsiniz: Cloud arka ucu açık kaynaktır, dolayısıyla [kodu kendiniz okuyabilirsiniz](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "İade politikanız nedir?",
+        "answer": "14 günlük, soru sormadan para iade garantisi sunuyoruz. Bu süreden sonra, sona ermemiş kullanılmayan krediler talep üzerine iade edilebilir — bize e-posta gönderin, elimizden geldiğince halledelim. Halihazırda harcadığınız veya sona ermiş krediler iade edilemez ve %6 işleme ücreti iade edilemez çünkü satın alımda katlandığımız ödeme işleme maliyetlerini karşılar. Tüm ayrıntılar [İade Politikamızda](/legal/refund-policy) ve [Hizmet Şartlarımızda](/legal/terms-of-service) yer alır."
+      },
+      "funding": {
+        "question": "HyperWhisper açık kaynaksa nasıl para kazanıyor?",
+        "answer": "HyperWhisper, bağımsız geliştirici Ray Amjad tarafından yapılmıştır ve çoğunlukla onun diğer ürünleri — [AgentStack](https://agentstack.build) ve [VidTempla](https://vidtempla.com) — tarafından sübvanse edilir; uygulamanın kendisinin ücretsiz ve açık kaynak kalmasını sağlayan da budur. Bunun üzerine HyperWhisper Cloud, kredi satın alımlarına küçük bir işleme ücreti ekler. Hepsi bu: reklam yok, verilerinizin satışı yok, abonelik tuzakları yok."
+      },
+      "selfHost": {
+        "question": "Cloud arka ucunu kendim barındırabilir miyim?",
+        "answer": "Evet. Cloud transkripsiyon arka ucu Apache-2.0 altında açık kaynaktır, dolayısıyla bizimkine güvenmek istemiyorsanız kendi kopyanızı çalıştırmakta özgürsünüz. Yine de çoğu kişi sadece HyperWhisper Cloud'u kullanır ve küçük işleme ücretini öder — kurulum gerektirmeyen seçenektir. İhtiyacınız olan her şey [GitHub'da](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Ozel",
     "customSub": "kendi tutariniz",
     "topUp": "Yukle"
+  },
+  "openSource": {
+    "heading": "Açık kaynak. Saklayacak hiçbir şey yok.",
+    "body": "HyperWhisper, Apache-2.0 altında tamamen açık kaynaktır — hem masaüstü uygulamaları hem de Cloud arka ucu. Mikrofonunuzu dinleyen bir uygulama, yalnızca güveneceğiniz değil, doğrulayabileceğiniz bir şey olmalıdır: her satırı okuyun, sesinizin tam olarak nereye gittiğini denetleyin ve asla kilitlenmeyeceğinizi bilin — kod sizindir, sonsuza dek fork edip kendiniz barındırabilirsiniz. Bağımsız geliştirici Ray Amjad tarafından açıkta inşa edildi.",
+    "cta": "GitHub'da görüntüle"
   }
 }

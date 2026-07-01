@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Taal wisselen"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Bekijk HyperWhisper op GitHub"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -83,6 +84,10 @@
       "medical": "Medisch",
       "presetModes": "Vooraf ingestelde modi",
       "customModes": "Aangepaste modi"
+    },
+    "openSource": {
+      "title": "Open source",
+      "description": "Gelicentieerd onder Apache-2.0. Bekijk elke regel, fork het of host het zelf. Geen black boxes, geen lock-in."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Wat is HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud is ingebouwde cloudtranscriptie voor minder technische gebruikers die snel willen starten.\n\nHet is pay-as-you-go. Bij aankoop van een accountsleutel krijg je $5 aan transcriptiecredits. Je kunt later extra credits toevoegen.\n    \nWe bieden drie nauwkeurigheidsniveaus: Medium (snelst, aangedreven door Groq), High (aanbevolen, aangedreven door Deepgram) en Highest (beste kwaliteit, aangedreven door xAI Grok STT). Nabewerking is automatisch. We slaan niets op behalve hoeveel credits je hebt verbruikt.\n\nJe betaalt exact wat wij aan deze providers betalen. We rekenen geen opslag.\n\nVoor extra zekerheid kun je de broncode van HyperWhisper Cloud [hier](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) bekijken."
+        "answer": "HyperWhisper Cloud is een ingebouwde cloudtranscriptie gericht op minder technische gebruikers die snel willen starten.\n\nHet werkt met pay-as-you-go-credits. Je vult je saldo op vanaf slechts $5 (1.000 credits per $1) en geeft ze alleen uit terwijl je transcribeert. Je eerste creditaankoop maakt automatisch je Account Key aan, dus er is verder niets te kopen.\n    \nWe bieden vier nauwkeurigheidsniveaus: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) en Highest (Grok STT, standaard voor nieuwe installaties en aangedreven door xAI Grok STT). Nabewerking gebeurt automatisch en gebruikt standaard Grok 4.1 Fast non-reasoning. We slaan niets op behalve hoeveel credits je hebt verbruikt, en we hebben je bij elke upstream-provider die we gebruiken afgemeld voor modeltraining. Zie onze [Data Privacy-gids](https://hyperwhisper.com/docs/data-privacy) voor details.\n\nCredits worden besteed tegen de eigen verwerkingskosten van de providers — geen opslag op transcriptie. Bij het afrekenen komt er een vaste verwerkingsfee van 6% bij, als aparte regel weergegeven. Ongebruikte credits verlopen na 12 maanden (zie hieronder).\n\nVoor de zekerheid is de hele app open source onder Apache-2.0 — inclusief de Cloud-backend. Je kunt elke regel code lezen die tussen je app en de providers waarnaar we proxyen draait [op GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Worden mijn spraakgegevens gebruikt om AI-modellen te trainen?",
         "answer": "HyperWhisper Cloud sluit je uit van modeltraining bij elke provider die we gebruiken. Met je eigen API-sleutel is het uitschrijven jouw verantwoordelijkheid — zie onze [gids voor gegevensprivacy](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Waarom levenslange prijs in plaats van abonnement?",
-        "answer": "Wij geloven in eenvoudige, eerlijke prijzen. Betaal één keer $39 en gebruik HyperWhisper voor altijd. Geen maandelijkse kosten, geen verrassingen. Met de gratis versie kun je de belangrijkste functies gebruiken met 3 minuten transcriptie per dag."
+        "question": "Is er een abonnement?",
+        "answer": "Nee — nooit. HyperWhisper is een open-source app die je bezit, geen abonnement dat je huurt. Download hem gratis en gebruik lokale, offline transcriptie voor altijd kosteloos; de gratis versie bevat ook 5 minuten cloudtranscriptie per dag. Wil je daarbovenop cloudtranscriptie zonder installatie, dan biedt HyperWhisper Cloud eenvoudige pay-as-you-go-credits — vul alleen op wanneer je dat nodig hebt, zonder maandelijkse kosten en niets om op te zeggen."
       },
       "deviceLimit": {
         "question": "Op hoeveel apparaten kan ik mijn accountsleutel gebruiken?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Door wie is dit gemaakt?",
         "answer": "Dit is gemaakt door YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Verlopen mijn Cloud-credits?",
+        "answer": "Ja — credits verlopen 12 maanden na aankoop. Dit is een standaard waarborg voor boekhouding en aansprakelijkheid, en het is hetzelfde 12-maandenbeleid dat providers als OpenAI, Google, Anthropic en OpenRouter hanteren. Wanneer je transcribeert, worden je oudste credits altijd het eerst besteed, zodat de credits die het dichtst bij verloop zijn vóór nieuwere opwaarderingen worden gebruikt."
+      },
+      "dataStorage": {
+        "question": "Slaan jullie mijn audio of transcripties op?",
+        "answer": "Nee. Met HyperWhisper Cloud wordt je audio in het geheugen verwerkt en verwijderd zodra de transcriptie terugkomt — we schrijven je audio of transcripties nooit naar schijf en er blijft niets bewaard nadat het verzoek is afgerond. Het enige wat we vastleggen is anonieme gebruiksmetadata (hoe lang de audio was, de kosten, de taal en welk model het verwerkte) zodat we het juiste aantal credits kunnen afschrijven. Geloof ons niet zomaar op ons woord: de Cloud-backend is open source, dus je kunt [de code zelf lezen](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Wat is jullie restitutiebeleid?",
+        "answer": "We bieden een geld-terug-garantie van 14 dagen, zonder vragen. Daarna kunnen ongebruikte credits die nog niet zijn verlopen op verzoek worden terugbetaald — stuur ons gewoon een e-mail en we regelen het naar beste vermogen. Credits die je al hebt besteed of die zijn verlopen, komen niet voor terugbetaling in aanmerking, en de verwerkingsfee van 6% is niet-restitueerbaar omdat die de betalingsverwerkingskosten dekt die wij bij aankoop maken. Alle details staan in ons [Restitutiebeleid](/legal/refund-policy) en onze [Servicevoorwaarden](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Hoe verdient HyperWhisper geld als het open source is?",
+        "answer": "HyperWhisper is gemaakt door indie maker Ray Amjad en wordt grotendeels gesubsidieerd door zijn andere producten — [AgentStack](https://agentstack.build) en [VidTempla](https://vidtempla.com) — en dat is wat de app zelf gratis en open source houdt. Daarbovenop voegt HyperWhisper Cloud een kleine verwerkingsfee toe op creditaankopen. Dat is het: geen advertenties, je gegevens worden niet verkocht, geen abonnementsvallen."
+      },
+      "selfHost": {
+        "question": "Kan ik de Cloud-backend zelf hosten?",
+        "answer": "Ja. De Cloud-transcriptiebackend is open source onder Apache-2.0, dus je bent vrij om je eigen kopie te draaien als je liever niet op die van ons vertrouwt. Dat gezegd hebbende, gebruiken de meeste mensen gewoon HyperWhisper Cloud en betalen ze de kleine verwerkingsfee — dat is de optie zonder installatie. Alles wat je nodig hebt, staat [op GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Aangepast",
     "customSub": "jouw bedrag",
     "topUp": "Bijvullen"
+  },
+  "openSource": {
+    "heading": "Open source. Niets te verbergen.",
+    "body": "HyperWhisper is volledig open source onder Apache-2.0 — zowel de desktop-apps als de Cloud-backend. Een app die naar je microfoon luistert, moet iets zijn dat je kunt verifiëren, niet alleen vertrouwen: lees elke regel, controleer precies waar je audio naartoe gaat en weet zeker dat je nooit vastzit — de code is van jou om voor altijd te forken en zelf te hosten. Gemaakt in de openbaarheid door indie maker Ray Amjad.",
+    "cta": "Bekijk op GitHub"
   }
 }

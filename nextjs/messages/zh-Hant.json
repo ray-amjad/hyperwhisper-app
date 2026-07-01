@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "切換語言"
     },
-    "cloud": "雲端"
+    "cloud": "雲端",
+    "githubAria": "在 GitHub 上查看 HyperWhisper"
   },
   "hero": {
     "logoAlt": "HyperWhisper 標誌",
@@ -83,6 +84,10 @@
       "medical": "醫療",
       "presetModes": "預設模式",
       "customModes": "自訂模式"
+    },
+    "openSource": {
+      "title": "開放原始碼",
+      "description": "採用 Apache-2.0 授權。檢視每一行程式碼、自行 fork，或自行架設。沒有黑箱，沒有鎖定。"
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "什麼是 HyperWhisper Cloud？",
-        "answer": "HyperWhisper Cloud 是內建的雲端轉寫服務，面向不太技術化但想快速上手的使用者。\n\n它採按量計費。購買帳戶金鑰後會贈送 $5 轉寫額度，之後可再儲值。\n    \n我們提供三種準確度等級：中（最快，由 Groq 提供）、高（推薦，由 Deepgram 提供）、最高（最佳品質，由 xAI Grok STT 提供）。後處理會自動完成。我們只記錄你消耗的額度，不保存其他內容。\n\n你支付的價格與我們向這些供應商支付的成本完全一致，不加價。\n\n為了安心，你可以在 [這裡](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud 是內建的雲端轉錄服務，專為想要快速上手、較不熟悉技術的使用者打造。\n\n它採用隨用隨付的點數制。你最低只需儲值 $5（每 $1 可換 1,000 點），而且只在轉錄時才會消耗。你第一次購買點數時會自動建立你的 Account Key，因此不需要再額外購買任何東西。\n    \n我們提供四種準確度等級：Medium（Groq）、Medium（Deepgram Nova 3）、High（ElevenLabs Scribe v2）以及 Highest（Grok STT，新安裝的預設值，由 xAI Grok STT 提供技術支援）。後處理會自動進行，預設使用 Grok 4.1 Fast non-reasoning。除了你消耗了多少點數之外，我們不儲存任何其他資料，而且我們已在所有上游供應商處替你選擇退出模型訓練。詳情請參閱我們的[資料隱私指南](https://hyperwhisper.com/docs/data-privacy)。\n\n點數依供應商本身的處理成本計費——轉錄不加價。結帳時會加收固定 6% 的付款處理費，並以獨立項目顯示。未使用的點數將於 12 個月後到期（見下文）。\n\n為了讓你安心，整個應用程式都採用 Apache-2.0 開放原始碼——包括 Cloud 後端在內。你可以[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)閱讀在你的應用程式與我們代理連接的供應商之間執行的每一行程式碼。"
       },
       "dataTraining": {
         "question": "我的語音資料會被用於訓練 AI 模型嗎？",
         "answer": "HyperWhisper Cloud 會在我們使用的每個上游供應商處為你退出模型訓練。使用你自己的 API 金鑰時，退出由你自行負責——請參閱我們的[資料隱私指南](https://hyperwhisper.com/docs/data-privacy)。"
       },
       "lifetime": {
-        "question": "為什麼是終身價格而不是訂閱？",
-        "answer": "我們相信簡單、公平的定價。一次支付 $39，即可永久使用 HyperWhisper。沒有月費，沒有意外開銷。免費版每天 5 分鐘轉寫，足以體驗關鍵功能。"
+        "question": "有訂閱制嗎？",
+        "answer": "沒有——永遠不會有。HyperWhisper 是一款你擁有的開放原始碼應用程式，而不是你租用的訂閱服務。免費下載，並永遠免費使用本機離線轉錄；免費方案還包含每天 5 分鐘的雲端轉錄。當你需要超出這個額度、零設定的雲端轉錄時，HyperWhisper Cloud 採用簡單的隨用隨付點數制——只在需要時才儲值，沒有月費，也沒有任何需要取消的東西。"
       },
       "deviceLimit": {
         "question": "我的帳戶金鑰可以在多少台裝置上使用？",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "這是誰做的？",
         "answer": "由 YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "我的 Cloud 點數會過期嗎？",
+        "answer": "會——點數在購買後 12 個月到期。這是標準的會計與責任保障措施，也是 OpenAI、Google、Anthropic 與 OpenRouter 等供應商採用的同一套 12 個月政策。當你轉錄時，最舊的點數一律最先被消耗，因此最接近到期的點數會比任何較新的儲值更早被使用。"
+      },
+      "dataStorage": {
+        "question": "你們會儲存我的音訊或轉錄內容嗎？",
+        "answer": "不會。使用 HyperWhisper Cloud 時，你的音訊會在記憶體中處理，並在轉錄結果回傳的當下立即丟棄——我們絕不會將你的音訊或轉錄內容寫入磁碟，請求結束後也不會保留任何東西。我們唯一記錄的是匿名的使用中繼資料（音訊長度、費用、語言，以及由哪個模型處理），以便扣除正確數量的點數。不必只聽我們的片面之詞：Cloud 後端是開放原始碼，所以你可以[自行閱讀程式碼](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)。"
+      },
+      "refund": {
+        "question": "你們的退款政策是什麼？",
+        "answer": "我們提供 14 天、無需任何理由的退款保證。超過這個期限後，任何尚未到期的未使用點數都可以應要求退款——只要寄電子郵件給我們，我們就會盡力為你處理。你已經消耗或已經到期的點數不可退款，而 6% 的處理費不可退還，因為它用於支付我們在購買時所產生的付款處理成本。完整細節請見我們的[退款政策](/legal/refund-policy)與[服務條款](/legal/terms-of-service)。"
+      },
+      "funding": {
+        "question": "如果 HyperWhisper 是開放原始碼，它要如何賺錢？",
+        "answer": "HyperWhisper 由獨立開發者 Ray Amjad 打造，大部分由他的其他產品——[AgentStack](https://agentstack.build) 與 [VidTempla](https://vidtempla.com)——所補貼，正是這一點讓應用程式本身得以維持免費與開放原始碼。除此之外，HyperWhisper Cloud 會在購買點數時加收一筆小額處理費。就這樣：沒有廣告，不販售你的資料，沒有訂閱陷阱。"
+      },
+      "selfHost": {
+        "question": "我可以自行架設 Cloud 後端嗎？",
+        "answer": "可以。Cloud 轉錄後端採用 Apache-2.0 開放原始碼，所以如果你不想依賴我們的服務，可以自由執行你自己的版本。不過，大多數人還是直接使用 HyperWhisper Cloud 並支付小額處理費——這是零設定的選項。你所需要的一切都[在 GitHub 上](https://github.com/ray-amjad/hyperwhisper-app)。"
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "自訂",
     "customSub": "你的金額",
     "topUp": "儲值"
+  },
+  "openSource": {
+    "heading": "開放原始碼，無所隱藏。",
+    "body": "HyperWhisper 完全開放原始碼，採用 Apache-2.0 授權——桌面應用程式與 Cloud 後端皆是如此。一個會聆聽你麥克風的應用程式，應該是你能夠驗證的，而不只是去信任：閱讀每一行程式碼、稽核你的音訊究竟流向何處，並確信自己永遠不會被鎖定——程式碼歸你所有，可以永遠 fork 並自行架設。由獨立開發者 Ray Amjad 公開打造。",
+    "cta": "在 GitHub 上查看"
   }
 }

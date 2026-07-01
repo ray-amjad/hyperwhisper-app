@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Skipta um tungumál"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Skoða HyperWhisper á GitHub"
   },
   "hero": {
     "logoAlt": "HyperWhisper merki",
@@ -83,6 +84,10 @@
       "medical": "Læknisfræði",
       "presetModes": "Forstilltir hamir",
       "customModes": "Sérsniðnir hamir"
+    },
+    "openSource": {
+      "title": "Opinn hugbúnaður",
+      "description": "Með Apache-2.0 leyfi. Skoðaðu hverja línu, forkaðu hann eða hýstu sjálf(ur). Engir svartir kassar, engin innilokun."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Hvað er HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud er innbyggð skýjaumritun ætluð notendum sem eru minna tæknivæddir og vilja byrja hratt.\n\nHún virkar með pay as you go. Með kaupum á aðgangslykli færðu $5 í umritunarinneign. Þú getur bætt við meiri inneign síðar.\n    \nVið bjóðum þrjú nákvæmnistig: Medium (hraðast, knúið af Groq), High (ráðlagt, knúið af Deepgram), og Highest (best gæði, knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk. Við geymum ekkert annað en hversu mikla inneign þú notaðir.\n\nÞú borgar nákvæmlega það sem við borgum þessum veitendum. Engin álagning.\n\nTil að vera alveg örugg(ur) geturðu skoðað frumkóða HyperWhisper Cloud [hér](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud er innbyggð umritun í skýi, ætluð minna tæknilegum notendum sem vilja byrja fljótt.\n\nÞað eru inneignir sem þú greiðir eftir notkun. Þú fyllir á frá aðeins $5 (1.000 inneignir á hvern $1) og eyðir þeim aðeins þegar þú umritar. Fyrstu inneignarkaupin þín búa sjálfkrafa til Account Key-inn þinn, svo það er ekkert annað að kaupa.\n    \nVið bjóðum fjögur nákvæmnisstig: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) og Highest (Grok STT, sjálfgefið fyrir nýjar uppsetningar og knúið af xAI Grok STT). Eftirvinnsla er sjálfvirk og er sjálfgefið Grok 4.1 Fast non-reasoning. Við geymum ekkert annað en hversu margar inneignir þú notaðir, og við höfum afskráð þig úr líkanaþjálfun hjá hverjum þeim þjónustuaðila sem við notum. Sjá [Gagnaverndarleiðbeiningarnar](https://hyperwhisper.com/docs/data-privacy) okkar fyrir nánari upplýsingar.\n\nInneignir eru notaðar á eigin vinnslukostnaði þjónustuaðilanna — engin álagning á umritun. Við greiðslu bætist fast 6% greiðsluvinnslugjald, sýnt sem sérstök lína. Ónotaðar inneignir renna út eftir 12 mánuði (sjá að neðan).\n\nTil að hafa hugarró er allt forritið opinn hugbúnaður undir Apache-2.0 — þar með talinn Cloud-bakendinn. Þú getur lesið hverja línu af kóða sem keyrir milli forritsins þíns og þjónustuaðilanna sem við sendum áfram til [á GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Verða raddgögnin mín notuð til að þjálfa gervigreindarlíkön?",
         "answer": "HyperWhisper Cloud afskráir þig frá þjálfun líkana hjá öllum þjónustuaðilum sem við notum. Með þínum eigin API-lykli er afskráningin á þína ábyrgð — sjá [leiðbeiningar um gagnafriðhelgi](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Af hverju ævilangt verð í stað áskriftar?",
-        "answer": "Við trúum á einfalt og sanngjarnt verðlag. Borgaðu einu sinni $39 og notaðu HyperWhisper að eilífu. Engin mánaðargjöld, engin óvænt gjöld. Ókeypis útgáfan leyfir þér að prófa lykileiginleika með 3 mínútum af daglegri umritun."
+        "question": "Er einhver áskrift?",
+        "answer": "Nei — aldrei. HyperWhisper er opinn hugbúnaður sem þú átt, ekki áskrift sem þú leigir. Sæktu hann ókeypis og notaðu staðbundna umritun án nettengingar þér að kostnaðarlausu að eilífu; ókeypis útgáfan inniheldur einnig 5 mínútur af skýjaumritun á dag. Þegar þú vilt skýjaumritun án uppsetningar umfram það eru HyperWhisper Cloud einfaldar inneignir sem þú greiðir eftir notkun — fylltu á aðeins þegar þú þarft, án mánaðargjalda og með ekkert til að segja upp."
       },
       "deviceLimit": {
         "question": "Á hversu mörgum tækjum má ég nota aðgangslykilinn minn?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Hver bjó þetta til?",
         "answer": "Þetta var búið til af YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Renna Cloud-inneignirnar mínar út?",
+        "answer": "Já — inneignir renna út 12 mánuðum eftir kaup. Þetta er hefðbundin bókhalds- og ábyrgðarvörn, og það er sama 12 mánaða stefnan og þjónustuaðilar eins og OpenAI, Google, Anthropic og OpenRouter nota. Þegar þú umritar eru elstu inneignirnar þínar alltaf notaðar fyrst, svo þær sem eru næst því að renna út eru notaðar á undan nýrri áfyllingum."
+      },
+      "dataStorage": {
+        "question": "Geymið þið hljóðið mitt eða umritanir?",
+        "answer": "Nei. Með HyperWhisper Cloud er hljóðið þitt unnið í minni og hent um leið og umritunin kemur til baka — við skrifum aldrei hljóðið þitt eða umritanir á disk, og ekkert er geymt eftir að beiðninni lýkur. Það eina sem við skráum eru nafnlaus notkunarlýsigögn (hversu langt hljóðið var, kostnaðurinn, tungumálið og hvaða líkan sá um það) svo við getum dregið frá rétta fjölda inneigna. Ekki taka okkur á orðinu: Cloud-bakendinn er opinn hugbúnaður, svo þú getur [lesið kóðann sjálf(ur)](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Hver er endurgreiðslustefnan ykkar?",
+        "answer": "Við bjóðum 14 daga skilyrðislausa endurgreiðsluábyrgð. Að þeim tíma loknum má endurgreiða allar ónotaðar inneignir sem ekki hafa runnið út, sé þess óskað — sendu okkur bara tölvupóst og við reddum því eftir bestu getu. Inneignir sem þú hefur þegar notað eða sem hafa runnið út eru ekki endurgreiðanlegar, og 6% vinnslugjaldið er óendurgreiðanlegt þar sem það stendur undir greiðsluvinnslukostnaði sem við berum við kaup. Allar nánari upplýsingar eru í [Endurgreiðslustefnunni](/legal/refund-policy) og [Þjónustuskilmálunum](/legal/terms-of-service) okkar."
+      },
+      "funding": {
+        "question": "Hvernig græðir HyperWhisper peninga ef hann er opinn hugbúnaður?",
+        "answer": "HyperWhisper er smíðaður af indie-höfundinum Ray Amjad og er að mestu niðurgreiddur af öðrum vörum hans — [AgentStack](https://agentstack.build) og [VidTempla](https://vidtempla.com) — sem er það sem gerir forritinu sjálfu kleift að haldast ókeypis og opinn hugbúnaður. Þar að auki bætir HyperWhisper Cloud við litlu vinnslugjaldi á inneignarkaup. Það er allt og sumt: engar auglýsingar, engin sala á gögnunum þínum, engar áskriftargildrur."
+      },
+      "selfHost": {
+        "question": "Get ég hýst Cloud-bakendinn sjálf(ur)?",
+        "answer": "Já. Cloud-umritunarbakendinn er opinn hugbúnaður undir Apache-2.0, svo þér er frjálst að keyra þitt eigið eintak ef þú vilt frekar ekki reiða þig á okkar. Sem sagt, flestir nota einfaldlega HyperWhisper Cloud og greiða litla vinnslugjaldið — það er valkosturinn án uppsetningar. Allt sem þú þarft er [á GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Sérsniðið",
     "customSub": "þín upphæð",
     "topUp": "Bæta við inneign"
+  },
+  "openSource": {
+    "heading": "Opinn hugbúnaður. Ekkert að fela.",
+    "body": "HyperWhisper er algjörlega opinn hugbúnaður undir Apache-2.0 — bæði skjáborðsforritin og Cloud-bakendinn. Forrit sem hlustar á hljóðnemann þinn ætti að vera eitthvað sem þú getur sannreynt, ekki bara treyst: lestu hverja línu, kannaðu nákvæmlega hvert hljóðið þitt fer, og vittu að þú verður aldrei innilokuð — kóðinn er þinn til að forka og hýsa sjálf(ur) að eilífu. Byggt fyrir opnum tjöldum af indie-höfundinum Ray Amjad.",
+    "cta": "Skoða á GitHub"
   }
 }

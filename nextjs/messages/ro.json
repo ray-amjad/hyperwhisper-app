@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Schimbă limba"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Vezi HyperWhisper pe GitHub"
   },
   "hero": {
     "logoAlt": "Logo HyperWhisper",
@@ -83,6 +84,10 @@
       "medical": "Medical",
       "presetModes": "Moduri presetate",
       "customModes": "Moduri personalizate"
+    },
+    "openSource": {
+      "title": "Sursă deschisă",
+      "description": "Licențiat sub Apache-2.0. Inspectează fiecare linie, fă-i fork sau găzduiește-l singur. Fără cutii negre, fără dependență de furnizor."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Ce este HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud este o transcriere cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay as you go. Cumpărarea unei chei de cont îți oferă $5 în credite de transcriere. Poți adăuga mai multe credite ulterior.\n    \nOferim trei niveluri de acuratețe: Medium (cel mai rapid, cu Groq), High (recomandat, cu Deepgram) și Highest (cea mai bună calitate, cu xAI Grok STT). Post-procesarea este automată. Nu stocăm nimic, în afară de câte credite ai consumat.\n\nPlătești exact cât plătim și noi acestor furnizori. Nu adăugăm markup.\n\nPentru liniștea ta, poți vedea codul sursă HyperWhisper Cloud [aici](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud este o transcriere în cloud integrată, destinată utilizatorilor mai puțin tehnici care vor să înceapă rapid.\n\nEste pay-as-you-go, cu credite. Adaugi fonduri începând de la doar $5 (1.000 de credite pentru $1) și le cheltuiești doar pe măsură ce transcrii. Prima ta achiziție de credite îți creează automat Account Key-ul, așa că nu mai ai nimic altceva de cumpărat.\n    \nOferim patru niveluri de acuratețe: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) și Highest (Grok STT, implicit pentru instalările noi și alimentat de xAI Grok STT). Post-procesarea este automată și folosește implicit Grok 4.1 Fast fără raționament. Nu stocăm nimic în afară de câte credite ai consumat și te-am exclus din antrenarea modelelor la fiecare furnizor upstream pe care îl folosim. Vezi [ghidul nostru de Confidențialitate a datelor](https://hyperwhisper.com/docs/data-privacy) pentru detalii.\n\nCreditele se cheltuiesc la costul propriu de procesare al furnizorilor — fără adaos la transcriere. La finalizarea plății se adaugă o taxă fixă de procesare a plății de 6%, afișată ca o linie separată. Creditele neutilizate expiră după 12 luni (vezi mai jos).\n\nPentru liniștea ta, întreaga aplicație este open-source sub Apache-2.0 — inclusiv backendul Cloud. Poți citi fiecare linie de cod care rulează între aplicația ta și furnizorii către care facem proxy [pe GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Datele mele vocale vor fi folosite pentru antrenarea modelelor AI?",
         "answer": "HyperWhisper Cloud te exclude din antrenarea modelelor la fiecare furnizor pe care îl folosim. Cu propria cheie API, excluderea este responsabilitatea ta — consultă [ghidul nostru privind confidențialitatea datelor](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "De ce preț pe viață în loc de abonament?",
-        "answer": "Credem în prețuri simple și corecte. Plătești o singură dată $39 și folosești HyperWhisper pentru totdeauna. Fără taxe lunare, fără surprize. Versiunea gratuită îți permite să testezi funcțiile cheie cu 3 minute de transcriere zilnică."
+        "question": "Există vreun abonament?",
+        "answer": "Nu — niciodată. HyperWhisper este o aplicație open-source pe care o deții, nu un abonament pe care îl închiriezi. Descarc-o gratuit și folosește transcrierea locală, offline, fără niciun cost, pentru totdeauna; planul gratuit include și 5 minute de transcriere în cloud pe zi. Când vrei transcriere în cloud fără configurare dincolo de atât, HyperWhisper Cloud înseamnă credite simple, pay-as-you-go — adaugi fonduri doar când ai nevoie, fără taxe lunare și fără nimic de anulat."
       },
       "deviceLimit": {
         "question": "Pe câte dispozitive îmi pot folosi cheia de cont?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Cine a creat asta?",
         "answer": "A fost creat de YouTuber-ul [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Creditele mele Cloud expiră?",
+        "answer": "Da — creditele expiră la 12 luni de la achiziție. Este o măsură de protecție contabilă și de răspundere standard și este aceeași politică de 12 luni folosită de furnizori precum OpenAI, Google, Anthropic și OpenRouter. Când transcrii, cele mai vechi credite ale tale sunt mereu cheltuite primele, astfel încât cele mai apropiate de expirare sunt folosite înaintea oricăror realimentări mai noi."
+      },
+      "dataStorage": {
+        "question": "Stocați audio-ul sau transcrierile mele?",
+        "answer": "Nu. Cu HyperWhisper Cloud, audio-ul tău este procesat în memorie și eliminat în momentul în care revine transcrierea — nu scriem niciodată audio-ul sau transcrierile tale pe disc și nu se păstrează nimic după ce se încheie cererea. Singurul lucru pe care îl înregistrăm sunt metadate de utilizare anonime (cât de lung a fost audio-ul, costul, limba și ce model l-a procesat), ca să putem deduce numărul corect de credite. Nu ne crede pe cuvânt: backendul Cloud este open-source, așa că poți [citi singur codul](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Care este politica voastră de rambursare?",
+        "answer": "Oferim o garanție de returnare a banilor de 14 zile, fără întrebări. Dincolo de această perioadă, orice credite neutilizate care nu au expirat pot fi rambursate la cerere — trimite-ne doar un e-mail și ne vom ocupa în limita posibilităților. Creditele pe care le-ai cheltuit deja sau care au expirat nu sunt rambursabile, iar taxa de procesare de 6% nu este rambursabilă deoarece acoperă costurile de procesare a plății pe care le suportăm la achiziție. Toate detaliile se află în [Politica noastră de rambursare](/legal/refund-policy) și în [Termenii și condițiile](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Cum face HyperWhisper bani dacă este open-source?",
+        "answer": "HyperWhisper este construit de creatorul independent Ray Amjad și este în mare parte subvenționat de celelalte produse ale sale — [AgentStack](https://agentstack.build) și [VidTempla](https://vidtempla.com) — ceea ce permite aplicației în sine să rămână gratuită și open-source. În plus, HyperWhisper Cloud adaugă o mică taxă de procesare la achizițiile de credite. Atât: fără reclame, fără vânzarea datelor tale, fără capcane de abonament."
+      },
+      "selfHost": {
+        "question": "Pot găzdui eu însumi backendul Cloud?",
+        "answer": "Da. Backendul de transcriere Cloud este open-source sub Apache-2.0, așa că ești liber să rulezi propria copie dacă preferi să nu te bazezi pe a noastră. Acestea fiind spuse, majoritatea oamenilor folosesc pur și simplu HyperWhisper Cloud și plătesc mica taxă de procesare — este opțiunea fără configurare. Tot ce ai nevoie se află [pe GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Personalizat",
     "customSub": "suma ta",
     "topUp": "Reîncarcă"
+  },
+  "openSource": {
+    "heading": "Sursă deschisă. Nimic de ascuns.",
+    "body": "HyperWhisper este complet open-source sub Apache-2.0 — atât aplicațiile desktop, cât și backendul Cloud. O aplicație care îți ascultă microfonul ar trebui să fie ceva ce poți verifica, nu doar ceva în care ai încredere: citește fiecare linie, auditează exact unde ajunge audio-ul tău și fii sigur că nu vei fi niciodată blocat la un furnizor — codul este al tău, să-i faci fork și să-l găzduiești singur pentru totdeauna. Construit în mod deschis de creatorul independent Ray Amjad.",
+    "cta": "Vezi pe GitHub"
   }
 }

@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Vaihda kieli"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Katso HyperWhisper GitHubissa"
   },
   "hero": {
     "logoAlt": "HyperWhisper-logo",
@@ -83,6 +84,10 @@
       "medical": "Lääketieteellinen",
       "presetModes": "Esiasetetut tilat",
       "customModes": "Mukautetut tilat"
+    },
+    "openSource": {
+      "title": "Avoin lähdekoodi",
+      "description": "Apache-2.0-lisensoitu. Tarkasta jokainen rivi, forkkaa se tai isännöi itse. Ei mustia laatikoita, ei lukkiutumista."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvilitterointi vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe toimii käyttöperusteisesti. Tiliavaimen ostaminen antaa sinulle $5 litterointikrediittejä. Voit lisätä krediittejä myöhemmin.\n    \nTarjoamme kolme tarkkuustasoa: Medium (nopein, toimii Groqin avulla), High (suositus, toimii Deepgramin avulla) ja Highest (paras laatu, toimii xAI Grok STTin avulla). Jälkikäsittely on automaattinen. Emme tallenna mitään muuta kuin kuluttamiesi krediittien määrän.\n\nMaksat täsmälleen sen, mitä me maksamme näille palveluntarjoajille. Emme lisää hintaan katetta.\n\nMielenrauhan vuoksi voit tarkastella HyperWhisper Cloudin lähdekoodia [täällä](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud on sisäänrakennettu pilvitranskriptio, joka on suunnattu vähemmän teknisille käyttäjille, jotka haluavat päästä nopeasti alkuun.\n\nSe on käytön mukaan maksettavia krediittejä. Lataat tiliä jo 5 $ alkaen (1 000 krediittiä / 1 $) ja käytät niitä vain transkriboidessasi. Ensimmäinen krediittiostosi luo automaattisesti Account Keysi, joten muuta ei tarvitse ostaa.\n    \nTarjoamme neljä tarkkuustasoa: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) ja Highest (Grok STT, oletus uusille asennuksille ja xAI Grok STT:n voimalla). Jälkikäsittely on automaattinen ja käyttää oletuksena Grok 4.1 Fast -mallia ilman päättelyä. Emme tallenna mitään muuta kuin sen, kuinka monta krediittiä kulutit, ja olemme jättäneet sinut pois mallien koulutuksesta jokaisella käyttämällämme taustapalveluntarjoajalla. Katso lisätiedot [tietosuojaoppaastamme](https://hyperwhisper.com/docs/data-privacy).\n\nKrediitit käytetään palveluntarjoajien omaan käsittelykustannukseen — ei katetta transkriptiosta. Kassalla lisätään kiinteä 6 %:n maksunkäsittelymaksu, joka näytetään erillisenä rivinä. Käyttämättömät krediitit vanhenevat 12 kuukauden kuluttua (katso alta).\n\nMielenrauhan vuoksi koko sovellus on avointa lähdekoodia Apache-2.0-lisenssillä — mukaan lukien Cloud-taustajärjestelmä. Voit lukea jokaisen koodirivin, joka suoritetaan sovelluksesi ja niiden palveluntarjoajien välillä, joille toimimme välityspalvelimena, [GitHubissa](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Käytetäänkö äänidataani tekoälymallien kouluttamiseen?",
         "answer": "HyperWhisper Cloud poistaa sinut mallien koulutuksesta jokaisen käyttämämme palveluntarjoajan osalta. Omalla API-avaimellasi koulutuksesta poistuminen on sinun vastuullasi — katso [tietosuojaopas](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Miksi elinikäinen hinta eikä tilaus?",
-        "answer": "Uskomme yksinkertaiseen ja reiluun hinnoitteluun. Maksa kerran $39 ja käytä HyperWhisperiä ikuisesti. Ei kuukausimaksuja, ei yllätyksiä. Ilmaisversiossa pääset käyttämään avainominaisuuksia 3 minuutin päivittäisellä litteroinnilla."
+        "question": "Onko tilausta?",
+        "answer": "Ei — ei koskaan. HyperWhisper on avoimen lähdekoodin sovellus, jonka omistat, ei tilaus, jota vuokraat. Lataa se ilmaiseksi ja käytä paikallista, offline-transkriptiota maksutta ikuisesti; ilmaiseen tasoon sisältyy myös 5 minuuttia pilvitranskriptiota päivässä. Kun haluat ilman määrityksiä toimivaa pilvitranskriptiota sen lisäksi, HyperWhisper Cloud on yksinkertaisesti käytön mukaan maksettavia krediittejä — lataa tiliä vain kun tarvitset, ilman kuukausimaksuja ja ilman mitään peruttavaa."
       },
       "deviceLimit": {
         "question": "Kuinka monella laitteella voin käyttää tiliavaintani?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Kuka tämän teki?",
         "answer": "Tämän teki YouTubettaja [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Vanhenevatko Cloud-krediittini?",
+        "answer": "Kyllä — krediitit vanhenevat 12 kuukautta oston jälkeen. Tämä on tavanomainen kirjanpidollinen ja vastuuseen liittyvä suojatoimi, ja se on sama 12 kuukauden käytäntö, jota käyttävät palveluntarjoajat kuten OpenAI, Google, Anthropic ja OpenRouter. Kun transkriboit, vanhimmat krediittisi käytetään aina ensin, joten lähinnä vanhenemista olevat käytetään ennen uudempia latauksia."
+      },
+      "dataStorage": {
+        "question": "Tallennatteko ääneni tai transkriptioni?",
+        "answer": "Emme. HyperWhisper Cloudissa äänesi käsitellään muistissa ja hylätään sillä hetkellä, kun transkriptio palautuu — emme koskaan kirjoita ääntäsi tai transkriptioitasi levylle, eikä mitään säilytetä pyynnön päätyttyä. Ainoa, minkä tallennamme, on anonyymit käyttömetatiedot (kuinka pitkä ääni oli, kustannus, kieli ja mikä malli sen käsitteli), jotta voimme vähentää oikean määrän krediittejä. Älä usko pelkkää sanaamme: Cloud-taustajärjestelmä on avointa lähdekoodia, joten voit [lukea koodin itse](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Mikä on palautuskäytäntönne?",
+        "answer": "Tarjoamme 14 päivän rahat takaisin -takuun ilman kysymyksiä. Tämän ajan jälkeen mitkä tahansa käyttämättömät krediitit, jotka eivät ole vanhentuneet, voidaan palauttaa pyynnöstä — lähetä meille vain sähköpostia, niin hoidamme asian parhaamme mukaan. Jo käyttämiäsi tai vanhentuneita krediittejä ei palauteta, eikä 6 %:n käsittelymaksua palauteta, koska se kattaa maksunkäsittelykustannukset, joita meille koituu ostohetkellä. Kaikki tiedot löytyvät [palautuskäytännöstämme](/legal/refund-policy) ja [käyttöehdoistamme](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Miten HyperWhisper tienaa rahaa, jos se on avointa lähdekoodia?",
+        "answer": "HyperWhisperin on rakentanut indie-tekijä Ray Amjad, ja sitä rahoitetaan suurelta osin hänen muilla tuotteillaan — [AgentStack](https://agentstack.build) ja [VidTempla](https://vidtempla.com) — mikä mahdollistaa sen, että itse sovellus pysyy ilmaisena ja avoimena lähdekoodina. Tämän lisäksi HyperWhisper Cloud lisää pienen käsittelymaksun krediittiostoihin. Siinä se: ei mainoksia, ei tietojesi myyntiä, ei tilausansoja."
+      },
+      "selfHost": {
+        "question": "Voinko isännöidä Cloud-taustajärjestelmää itse?",
+        "answer": "Kyllä. Cloud-transkriptiotaustajärjestelmä on avointa lähdekoodia Apache-2.0-lisenssillä, joten voit vapaasti ajaa omaa kopiotasi, jos et halua luottaa meidän omaamme. Useimmat kuitenkin käyttävät vain HyperWhisper Cloudia ja maksavat pienen käsittelymaksun — se on ilman määrityksiä toimiva vaihtoehto. Kaikki tarvitsemasi on [GitHubissa](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Mukautettu",
     "customSub": "oma summasi",
     "topUp": "Lisää saldoa"
+  },
+  "openSource": {
+    "heading": "Avoin lähdekoodi. Ei mitään salattavaa.",
+    "body": "HyperWhisper on täysin avointa lähdekoodia Apache-2.0-lisenssillä — niin työpöytäsovellukset kuin Cloud-taustajärjestelmäkin. Sovelluksen, joka kuuntelee mikrofoniasi, pitäisi olla jotain, jonka voit varmistaa, ei vain luottaa siihen: lue jokainen rivi, tarkista tarkalleen, minne äänesi menee, ja tiedä, ettet jää koskaan lukkoon — koodi on sinun forkattavaksesi ja itse isännöitäväksesi ikuisesti. Rakennettu avoimesti indie-tekijä Ray Amjadin toimesta.",
+    "cta": "Katso GitHubissa"
   }
 }

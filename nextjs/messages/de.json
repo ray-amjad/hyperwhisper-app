@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Sprache wechseln"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "HyperWhisper auf GitHub ansehen"
   },
   "hero": {
     "logoAlt": "HyperWhisper Logo",
@@ -83,6 +84,10 @@
       "medical": "Medizinisch",
       "presetModes": "Voreingestellte Modi",
       "customModes": "Benutzerdefinierte Modi"
+    },
+    "openSource": {
+      "title": "Open Source",
+      "description": "Lizenziert unter Apache-2.0. Prüfen Sie jede Zeile, forken Sie es oder hosten Sie es selbst. Keine Blackboxes, kein Lock-in."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Was ist HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud ist eine integrierte Cloud-Transkription, die sich an weniger technisch versierte Benutzer richtet, die schnell loslegen möchten.\n\nEs ist eine nutzungsabhängige Bezahlung. Durch den Kauf eines Kontoschlüssels erhalten Sie Transkriptionsguthaben in Höhe von 5 $. Sie können später weitere Credits hinzufügen.\n \nWir bieten drei Genauigkeitsstufen: Mittel (am schnellsten, unterstützt von Groq), Hoch (empfohlen, unterstützt von Deepgram) und Höchste (beste Qualität, unterstützt von ElevenLabs). Die Nachbearbeitung erfolgt automatisch. Wir speichern nichts außer wie viele Credits Sie verbraucht haben.\n\nSie zahlen genau das, was wir an diese Anbieter zahlen. Wir berechnen keinen Aufschlag.\n\nZur Sicherheit können Sie den Quellcode für HyperWhisper Cloud [hier](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) ansehen."
+        "answer": "HyperWhisper Cloud ist eine integrierte Cloud-Transkription für weniger technisch versierte Nutzer, die schnell loslegen möchten.\n\nEs handelt sich um nutzungsabhängige Credits. Sie laden ab nur 5 $ auf (1.000 Credits pro 1 $) und geben sie nur aus, während Sie transkribieren. Ihr erster Credit-Kauf erstellt automatisch Ihren Account Key, sodass es nichts weiter zu kaufen gibt.\n    \nWir bieten vier Genauigkeitsstufen: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) und Highest (Grok STT, Standard für Neuinstallationen und betrieben von xAI Grok STT). Die Nachbearbeitung erfolgt automatisch und nutzt standardmäßig Grok 4.1 Fast ohne Reasoning. Wir speichern nichts außer der Anzahl der von Ihnen verbrauchten Credits, und wir haben Sie bei jedem von uns genutzten vorgelagerten Anbieter vom Modelltraining ausgeschlossen. Weitere Einzelheiten finden Sie in unserem [Leitfaden zum Datenschutz](https://hyperwhisper.com/docs/data-privacy).\n\nCredits werden zu den Verarbeitungskosten der Anbieter selbst ausgegeben — kein Aufschlag auf die Transkription. Beim Checkout kommt eine pauschale Zahlungsabwicklungsgebühr von 6 % hinzu, die als separate Position ausgewiesen wird. Nicht genutzte Credits verfallen nach 12 Monaten (siehe unten).\n\nZur Sicherheit ist die gesamte App Open Source unter Apache-2.0 — einschließlich des Cloud-Backends. Sie können jede Codezeile, die zwischen Ihrer App und den von uns angesteuerten Anbietern läuft, [auf GitHub](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) lesen."
       },
       "dataTraining": {
         "question": "Werden meine Sprachdaten zum Training von KI-Modellen verwendet?",
         "answer": "HyperWhisper Cloud schließt Sie beim Modelltraining bei jedem von uns genutzten Anbieter aus. Mit Ihrem eigenen API-Schlüssel liegt der Opt-out in Ihrer Verantwortung — siehe unseren [Leitfaden zum Datenschutz](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Warum lebenslange Preise statt Abonnement?",
-        "answer": "Wir glauben an einfache, faire Preise. Zahlen Sie einmal 39 $ und nutzen Sie HyperWhisper dauerhaft. Keine monatlichen Gebühren, keine Überraschungen. Mit der kostenlosen Version können Sie die wichtigsten Funktionen mit 3 Minuten täglicher Transkription testen."
+        "question": "Gibt es ein Abonnement?",
+        "answer": "Nein — niemals. HyperWhisper ist eine Open-Source-App, die Ihnen gehört, kein Abonnement, das Sie mieten. Laden Sie sie kostenlos herunter und nutzen Sie die lokale, Offline-Transkription für immer gratis; die kostenlose Stufe umfasst außerdem 5 Minuten Cloud-Transkription pro Tag. Wenn Sie darüber hinaus Cloud-Transkription ohne Einrichtung wünschen, sind HyperWhisper Cloud einfach nutzungsabhängige Credits — laden Sie nur dann auf, wenn Sie es brauchen, ohne monatliche Gebühren und ohne etwas zu kündigen."
       },
       "deviceLimit": {
         "question": "Auf wie vielen Geräten kann ich meinen Kontoschlüssel nutzen?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Wer hat HyperWhisper entwickelt?",
         "answer": "HyperWhisper wurde vom YouTuber [Ray Amjad](https://www.youtube.com/@ramjad) entwickelt."
+      },
+      "creditExpiry": {
+        "question": "Verfallen meine Cloud-Credits?",
+        "answer": "Ja — Credits verfallen 12 Monate nach dem Kauf. Das ist eine übliche buchhalterische und haftungsrechtliche Absicherung und entspricht der gleichen 12-Monats-Richtlinie, die auch Anbieter wie OpenAI, Google, Anthropic und OpenRouter verwenden. Wenn Sie transkribieren, werden immer zuerst Ihre ältesten Credits ausgegeben, sodass die dem Verfall am nächsten liegenden vor neueren Aufladungen genutzt werden."
+      },
+      "dataStorage": {
+        "question": "Speichern Sie mein Audio oder meine Transkripte?",
+        "answer": "Nein. Bei HyperWhisper Cloud wird Ihr Audio im Arbeitsspeicher verarbeitet und in dem Moment verworfen, in dem die Transkription zurückkommt — wir schreiben Ihr Audio oder Ihre Transkripte niemals auf die Festplatte, und nach Abschluss der Anfrage wird nichts aufbewahrt. Das Einzige, was wir erfassen, sind anonyme Nutzungsmetadaten (wie lang das Audio war, die Kosten, die Sprache und welches Modell es verarbeitet hat), damit wir die richtige Anzahl an Credits abziehen können. Verlassen Sie sich nicht nur auf unser Wort: Das Cloud-Backend ist Open Source, sodass Sie [den Code selbst lesen](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud) können."
+      },
+      "refund": {
+        "question": "Wie lautet Ihre Rückerstattungsrichtlinie?",
+        "answer": "Wir bieten eine 14-tägige Geld-zurück-Garantie ohne Wenn und Aber. Nach Ablauf dieser Frist können alle nicht genutzten und noch nicht verfallenen Credits auf Anfrage erstattet werden — schreiben Sie uns einfach eine E-Mail, und wir kümmern uns nach bestem Bemühen darum. Bereits ausgegebene oder verfallene Credits sind nicht erstattungsfähig, und die Zahlungsabwicklungsgebühr von 6 % ist nicht erstattungsfähig, da sie die Kosten der Zahlungsabwicklung deckt, die uns beim Kauf entstehen. Alle Einzelheiten finden Sie in unserer [Rückerstattungsrichtlinie](/legal/refund-policy) und unseren [Nutzungsbedingungen](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Wie verdient HyperWhisper Geld, wenn es Open Source ist?",
+        "answer": "HyperWhisper wird vom Indie-Maker Ray Amjad entwickelt und wird größtenteils durch seine anderen Produkte — [AgentStack](https://agentstack.build) und [VidTempla](https://vidtempla.com) — subventioniert, was es ermöglicht, dass die App selbst kostenlos und Open Source bleibt. Darüber hinaus erhebt HyperWhisper Cloud eine kleine Bearbeitungsgebühr auf Credit-Käufe. Das war's: keine Werbung, kein Verkauf Ihrer Daten, keine Abofallen."
+      },
+      "selfHost": {
+        "question": "Kann ich das Cloud-Backend selbst hosten?",
+        "answer": "Ja. Das Cloud-Transkriptions-Backend ist Open Source unter Apache-2.0, sodass es Ihnen freisteht, Ihre eigene Kopie zu betreiben, falls Sie sich lieber nicht auf unsere verlassen möchten. Allerdings nutzen die meisten Leute einfach HyperWhisper Cloud und zahlen die kleine Bearbeitungsgebühr — das ist die Option ohne Einrichtung. Alles, was Sie brauchen, finden Sie [auf GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Individuell",
     "customSub": "dein Betrag",
     "topUp": "Aufladen"
+  },
+  "openSource": {
+    "heading": "Open Source. Nichts zu verbergen.",
+    "body": "HyperWhisper ist vollständig Open Source unter Apache-2.0 — sowohl die Desktop-Apps als auch das Cloud-Backend. Eine App, die Ihrem Mikrofon zuhört, sollte etwas sein, das Sie überprüfen können, nicht nur etwas, dem Sie vertrauen müssen: Lesen Sie jede Zeile, prüfen Sie genau, wohin Ihr Audio geht, und wissen Sie, dass Sie niemals in ein Lock-in geraten — der Code gehört Ihnen, um ihn für immer zu forken und selbst zu hosten. Entwickelt im Offenen vom Indie-Maker Ray Amjad.",
+    "cta": "Auf GitHub ansehen"
   }
 }

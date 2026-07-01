@@ -3,7 +3,7 @@
 import { Link as HeroUILink } from "@heroui/link";
 import { Divider } from "@heroui/divider";
 import { env } from "@env/client.mjs";
-import { Linkedin, Twitter } from "lucide-react";
+import { Github, Linkedin, Twitter } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { Link } from "@/src/i18n/navigation";
@@ -132,6 +132,14 @@ export default function FooterSection() {
               href="https://x.com/HyperWhisperApp"
             >
               <Twitter className="w-5 h-5" />
+            </HeroUILink>
+            <HeroUILink
+              isExternal
+              aria-label="HyperWhisper on GitHub"
+              className="text-gray-400 hover:text-white transition-colors"
+              href="https://github.com/ray-amjad/hyperwhisper-app"
+            >
+              <Github className="w-5 h-5" />
             </HeroUILink>
           </div>
         </div>

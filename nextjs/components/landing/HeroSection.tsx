@@ -79,7 +79,6 @@ export default function HeroSection() {
             </div>
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-2">
               <span className="text-sm text-gray-300">{t("windows")}</span>
-              <span className="text-[10px] font-medium text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded">BETA</span>
             </div>
           </div>
         </div>

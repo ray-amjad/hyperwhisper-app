@@ -16,7 +16,8 @@
       "zh": "中文",
       "switchTo": "Promeni jezik"
     },
-    "cloud": "Cloud"
+    "cloud": "Cloud",
+    "githubAria": "Pogledajte HyperWhisper na GitHubu"
   },
   "hero": {
     "logoAlt": "HyperWhisper logo",
@@ -83,6 +84,10 @@
       "medical": "Medicinski",
       "presetModes": "Unapred podešeni režimi",
       "customModes": "Prilagođeni režimi"
+    },
+    "openSource": {
+      "title": "Otvoreni kod",
+      "description": "Licencirano pod Apache-2.0. Pregledajte svaku liniju, napravite fork ili hostujte sami. Bez crnih kutija, bez zakljucavanja."
     }
   },
   "demo": {
@@ -177,15 +182,15 @@
       },
       "cloud": {
         "question": "Šta je HyperWhisper Cloud?",
-        "answer": "HyperWhisper Cloud je ugrađena cloud transkripcija namenjena manje tehničkim korisnicima koji žele brzo da počnu.\n\nRadi po modelu pay as you go. Kupovina ključa naloga daje vam $5 kredita za transkripciju. Kasnije možete dodati još kredita.\n    \nNudimo tri nivoa preciznosti: Medium (najbrže, pokreće Groq), High (preporučeno, pokreće Deepgram) i Highest (najbolji kvalitet, pokreće xAI Grok STT). Naknadna obrada je automatska. Ne čuvamo ništa osim koliko ste kredita potrošili.\n\nPlaćate tačno koliko i mi plaćamo tim provajderima. Ne naplaćujemo maržu.\n\nZa mirnu savest, možete pogledati izvorni kod HyperWhisper Clouda [ovde](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+        "answer": "HyperWhisper Cloud je ugradjena cloud transkripcija namenjena manje tehnickim korisnicima koji zele brzo da pocnu.\n\nRadi po modelu placanja po potrosnji. Dopunjavate od svega $5 (1.000 kredita po $1) i trosite ih tek dok transkribujete. Vasa prva kupovina kredita automatski kreira vas Account Key, tako da nema niceg drugog da se kupuje.\n    \nNudimo cetiri nivoa preciznosti: Medium (Groq), Medium (Deepgram Nova 3), High (ElevenLabs Scribe v2) i Highest (Grok STT, podrazumevano za nove instalacije i pokrece ga xAI Grok STT). Naknadna obrada je automatska i podrazumevano koristi Grok 4.1 Fast bez rezonovanja. Ne cuvamo nista osim toga koliko ste kredita potrosili, i iskljucili smo vas iz treniranja modela kod svakog provajdera koji koristimo. Za detalje pogledajte nas [vodic o privatnosti podataka](https://hyperwhisper.com/docs/data-privacy).\n\nKrediti se trose po sopstvenoj ceni obrade provajdera — bez marze na transkripciju. Pri placanju se dodaje fiksna naknada za obradu placanja od 6%, prikazana kao zasebna stavka. Neiskorisceni krediti isticu nakon 12 meseci (pogledajte ispod).\n\nZa mirnu savest, cela aplikacija je otvorenog koda pod Apache-2.0 — ukljucujuci i Cloud pozadinu. Mozete procitati svaku liniju koda koja se izvrsava izmedju vase aplikacije i provajdera ka kojima posredujemo [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
       },
       "dataTraining": {
         "question": "Да ли ће моји гласовни подаци бити коришћени за обуку АИ модела?",
         "answer": "HyperWhisper Cloud вас искључује из обуке модела код сваког добављача који користимо. Са сопственим API кључем, искључивање је ваша одговорност — погледајте наш [водич за приватност података](https://hyperwhisper.com/docs/data-privacy)."
       },
       "lifetime": {
-        "question": "Zašto doživotna cena umesto pretplate?",
-        "answer": "Verujemo u jednostavne i fer cene. Platite jednom $39 i koristite HyperWhisper zauvek. Bez mesečnih naknada, bez iznenađenja. Besplatna verzija vam omogućava da isprobate ključne funkcije sa 3 minuta dnevne transkripcije."
+        "question": "Da li postoji pretplata?",
+        "answer": "Ne — nikada. HyperWhisper je aplikacija otvorenog koda koju posedujete, a ne pretplata koju iznajmljujete. Preuzmite je besplatno i zauvek besplatno koristite lokalnu, offline transkripciju; besplatni nivo takodje ukljucuje 5 minuta cloud transkripcije dnevno. Kada pozelite cloud transkripciju bez podesavanja iznad toga, HyperWhisper Cloud su jednostavni krediti po modelu placanja po potrosnji — dopunjavate samo kada vam zatreba, bez mesecnih naknada i bez iceg za otkazivanje."
       },
       "deviceLimit": {
         "question": "Na koliko uređaja mogu da koristim svoj ključ naloga?",
@@ -202,6 +207,26 @@
       "madeBy": {
         "question": "Ko je ovo napravio?",
         "answer": "Ovo je napravio YouTuber [Ray Amjad](https://www.youtube.com/@ramjad)."
+      },
+      "creditExpiry": {
+        "question": "Da li moji Cloud krediti isticu?",
+        "answer": "Da — krediti isticu 12 meseci nakon kupovine. To je standardna racunovodstvena i pravna zastita, i ista je 12-mesecna politika koju koriste provajderi poput OpenAI, Google, Anthropic i OpenRouter. Kada transkribujete, uvek se prvo trose vasi najstariji krediti, tako da se oni najblizi isteku koriste pre svih novijih dopuna."
+      },
+      "dataStorage": {
+        "question": "Da li cuvate moj zvuk ili transkripte?",
+        "answer": "Ne. Uz HyperWhisper Cloud, vas zvuk se obradjuje u memoriji i odbacuje u trenutku kada se transkripcija vrati — nikada ne upisujemo vas zvuk ili transkripte na disk, i nista se ne cuva nakon sto se zahtev zavrsi. Jedino sto belezimo jesu anonimni metapodaci o koriscenju (koliko je zvuk trajao, cena, jezik i koji ga je model obradio) kako bismo mogli da oduzmemo tacan broj kredita. Ne verujte nam na rec: Cloud pozadina je otvorenog koda, pa mozete [sami procitati kod](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)."
+      },
+      "refund": {
+        "question": "Kakva je vasa politika povracaja novca?",
+        "answer": "Nudimo 14-dnevnu garanciju povracaja novca bez postavljanja pitanja. Nakon tog perioda, svi neiskorisceni krediti koji nisu istekli mogu se refundirati na zahtev — samo nam posaljite imejl i resicemo to u skladu sa najboljim mogucim naporima. Krediti koje ste vec potrosili ili koji su istekli ne mogu se refundirati, a naknada za obradu od 6% se ne refundira jer pokriva troskove obrade placanja koje snosimo pri kupovini. Svi detalji su u nasoj [Politici povracaja novca](/legal/refund-policy) i [Uslovima koriscenja](/legal/terms-of-service)."
+      },
+      "funding": {
+        "question": "Kako HyperWhisper zaradjuje ako je otvorenog koda?",
+        "answer": "HyperWhisper pravi nezavisni tvorac Ray Amjad i uglavnom ga subvencionisu njegovi drugi proizvodi — [AgentStack](https://agentstack.build) i [VidTempla](https://vidtempla.com) — sto je ono sto omogucava da sama aplikacija ostane besplatna i otvorenog koda. Povrh toga, HyperWhisper Cloud dodaje malu naknadu za obradu pri kupovini kredita. To je sve: bez reklama, bez prodaje vasih podataka, bez zamki sa pretplatom."
+      },
+      "selfHost": {
+        "question": "Mogu li sam da hostujem Cloud pozadinu?",
+        "answer": "Da. Cloud pozadina za transkripciju je otvorenog koda pod Apache-2.0, tako da slobodno mozete pokrenuti sopstvenu kopiju ako se radije ne biste oslanjali na nasu. Ipak, vecina ljudi jednostavno koristi HyperWhisper Cloud i placa malu naknadu za obradu — to je opcija bez podesavanja. Sve sto vam je potrebno je [na GitHubu](https://github.com/ray-amjad/hyperwhisper-app)."
       }
     }
   },
@@ -360,5 +385,10 @@
     "custom": "Prilagodjeno",
     "customSub": "vas iznos",
     "topUp": "Dopuni"
+  },
+  "openSource": {
+    "heading": "Otvoreni kod. Nema sta da se krije.",
+    "body": "HyperWhisper je potpuno otvorenog koda pod Apache-2.0 — kako desktop aplikacije, tako i Cloud pozadina. Aplikacija koja slusa vas mikrofon treba da bude nesto sto mozete da proverite, a ne samo da joj verujete: procitajte svaku liniju, proverite tacno kuda ide vas zvuk i znajte da nikada necete biti zakljucani — kod je vas da ga zauvek forkujete i hostujete sami. Napravio ga je u otvorenom nezavisni tvorac Ray Amjad.",
+    "cta": "Pogledajte na GitHubu"
   }
 }
