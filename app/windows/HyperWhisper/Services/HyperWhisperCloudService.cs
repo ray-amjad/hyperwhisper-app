@@ -382,13 +382,33 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         var fileInfo = new FileInfo(audioPath);
         LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
 
+        // Gate `initial_prompt` on the catalog's customVocabulary support flag —
+        // the CORE DOES NOT DO THIS (it only builds the CSV: trim + drop-empty),
+        // so the native gate restored from 1.7.0 is the only thing preventing
+        // vocabulary from being sent to tiers/models that reject or ignore it.
+        // Prefer the per-model flag (a tier can mix vocab-capable and not, e.g.
+        // ElevenLabs scribe_v2 supports keyterms but scribe_v1 doesn't); fall
+        // back to the tier-level flag when the model is unknown/default.
+        var modelKnownForVocab = !string.IsNullOrEmpty(resolvedModel)
+            && Services.AppClassification.CloudSttCatalog.Shared.GetModel(tierStorageId, resolvedModel) != null;
+        var vocabSupported = modelKnownForVocab
+            ? Services.AppClassification.CloudSttCatalog.Shared.ModelSupportsCustomVocabulary(tierStorageId, resolvedModel)
+            : Services.AppClassification.CloudSttCatalog.Shared.SupportsCustomVocabulary(tierStorageId);
+
+        var effectiveVocabulary = vocabulary;
+        if (vocabulary != null && vocabulary.Count > 0 && !vocabSupported)
+        {
+            LoggingService.Info($"HyperWhisper Cloud dropping initial_prompt · tier={tierStorageId} model={(string.IsNullOrEmpty(resolvedModel) ? "(default)" : resolvedModel)} reason=catalog_unsupported");
+            effectiveVocabulary = null;
+        }
+
         // STEP 2: Build the request via the Rust shared core and drive it through
         // the shared executor + core retry loop. The core builds the URL + query
         // (license_key/device_id, language, initial_prompt), the X-STT-* routed
         // headers (from routedProvider/Model/Domain), the Content-Type, and the
-        // @raw raw-stream body. We pass the RAW vocab list — the core builds the
-        // CSV (trim + drop-empty, no lowercase/dedup) AND owns the per-model
-        // customVocabulary gating, so the native catalog gating is dropped.
+        // @raw raw-stream body. We pass the catalog-gated vocab list — the core
+        // builds the CSV (trim + drop-empty, no lowercase/dedup) but does NOT
+        // gate on customVocabulary support (see above).
         // KEEP native: credit-header extraction, no-speech diagnostics, the DNS
         // HttpClient rebuild (via onTransportError), and the /post-process path.
         // TODO-verify (Windows/CI): Rust shared-core swap.
@@ -399,7 +419,7 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
+            vocabulary: effectiveVocabulary ?? Array.Empty<string>(),
             // Core appends `/transcribe` itself — pass the BASE, not the endpoint.
             baseUrl: NetworkConfig.HyperWhisperCloudBaseUrl,
             licenseKey: isLicensed ? identifier : null,
