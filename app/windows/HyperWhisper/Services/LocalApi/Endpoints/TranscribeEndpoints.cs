@@ -302,11 +302,8 @@ internal static class TranscribeEndpoints
         }
 
         var language = mode.Language == "auto" ? null : mode.Language;
-        var effectiveLanguage = language ?? "auto";
 
-        if (parakeetService.IsInitialized &&
-            string.Equals(parakeetService.LoadedModelId, modelInfo.Id, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(parakeetService.LoadedLanguage, effectiveLanguage, StringComparison.OrdinalIgnoreCase))
+        if (!parakeetService.NeedsReload(modelInfo.Id, mode.Language))
         {
             return;
         }

@@ -839,14 +839,10 @@ public partial class MainViewModel : ViewModelBase
         if (model == null) return;
 
         string? language = SelectedMode.Language == "auto" ? null : SelectedMode.Language;
-        var effectiveLanguage = language ?? "auto";
 
-        // Check if already loaded. The daemon's startup language/join hint affects
-        // some Parakeet-family engines, so same-model mode switches with a
-        // different language must reinitialize.
-        if (_parakeetTranscriptionService.IsInitialized &&
-            _parakeetTranscriptionService.LoadedModelId == model.Id &&
-            string.Equals(_parakeetTranscriptionService.LoadedLanguage, effectiveLanguage, StringComparison.OrdinalIgnoreCase))
+        // The daemon's startup language/join hint affects some Parakeet-family
+        // engines; NeedsReload owns the per-engine reload rules.
+        if (!_parakeetTranscriptionService.NeedsReload(model.Id, SelectedMode.Language))
         {
             return;
         }
@@ -2919,14 +2915,10 @@ public partial class MainViewModel : ViewModelBase
             }
 
             string? language = mode.Language == "auto" ? null : mode.Language;
-            var effectiveLanguage = language ?? "auto";
 
-            // The daemon's startup language/join hint affects some Parakeet-family
-            // engines, so a warm daemon matching the model but a different language
-            // must reinitialize before file transcription.
-            if (_parakeetTranscriptionService.IsInitialized &&
-                _parakeetTranscriptionService.LoadedModelId == model.Id &&
-                string.Equals(_parakeetTranscriptionService.LoadedLanguage, effectiveLanguage, StringComparison.OrdinalIgnoreCase))
+            // A warm daemon can be reused for file transcription unless
+            // NeedsReload's per-engine rules say the switch requires a respawn.
+            if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
             {
                 return true;
             }
