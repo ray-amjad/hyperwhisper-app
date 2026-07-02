@@ -249,7 +249,12 @@ class PersistenceController: ObservableObject {
         // two contexts and break the serial-write guarantee.
         let writer = container.newBackgroundContext()
         writer.name = "HyperWhisper.writer"
-        writer.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        // Store-trump (NOT object-trump): user actions on the viewContext win
+        // over background flow writes. If a HistoryView delete lands between the
+        // writer's fetch and its save, the writer's update is discarded instead
+        // of resurrecting the deleted row. Inserts are unaffected, and all writer
+        // updates already guard "row not found — skipping".
+        writer.mergePolicy = NSMergeByPropertyStoreTrumpMergePolicy
         writer.automaticallyMergesChangesFromParent = true
         writer.undoManager = nil
         writerContext = writer
@@ -854,6 +859,11 @@ class PersistenceController: ObservableObject {
     /// `automaticallyMergesChangesFromParent = true` means the `viewContext` picks
     /// up these writes via the standard `NSManagedObjectContextDidSave` merge, so
     /// HistoryView's existing save-notification observer refreshes with no change.
+    ///
+    /// Merge policy is store-trump: user actions committed on the `viewContext`
+    /// (e.g. a HistoryView delete) win over this context's in-flight background
+    /// writes, so a delete racing a slow transcription's completion write stays
+    /// deleted rather than being resurrected.
     private let writerContext: NSManagedObjectContext
 
     /// Debounced view-context maintenance task (cancel-previous). Keeps the

@@ -2,7 +2,20 @@
 //  Retrying.swift
 //  hyperwhisper
 //
-//  Shared retry logic used across transcription flows.
+//  Native retry helper for NON-transcription HTTP.
+//
+//  Retry-policy boundary (intentional, do not unify):
+//  - Cloud STT transcription retry is owned by the Rust shared core — providers
+//    go through `RustRetry.perform`, which drives the core's `nextRetry`
+//    decision loop (8 attempts, exponential backoff up to 64s). That is the
+//    single source of truth for transcription retry classification.
+//  - `performWithRetry` below intentionally remains for user-blocking,
+//    non-transcription HTTP (AI post-processing, license validation) whose
+//    budgets MUST stay tight: post-processing runs inside the stop→paste hot
+//    path, so its `.postProcessing` preset (3 attempts, ≤10s delay) is a
+//    deliberate policy difference, not drift. Do not route these callers
+//    through `RustRetry` — it is coupled to the FFI `HttpRequest`/`HttpResponse`
+//    types and the core's much larger transcription budget.
 
 import Foundation
 
@@ -50,14 +63,6 @@ struct RetryConfiguration {
         let jitter = Double.random(in: jitterRange) * baseDelay
         return min(baseDelay + jitter, maxDelay)
     }
-}
-
-/// Parse the integer Retry-After header from an HTTP response.
-/// Reusable across all cloud providers.
-func parseRetryAfter(from response: HTTPURLResponse) -> Int? {
-    guard let value = response.value(forHTTPHeaderField: "Retry-After"),
-          let seconds = Int(value) else { return nil }
-    return seconds
 }
 
 /// Generic retry helper with exponential backoff

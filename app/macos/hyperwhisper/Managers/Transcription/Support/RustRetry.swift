@@ -137,9 +137,8 @@ enum RustRetry {
         return .rateLimited(retryAfter: retryAfter)
     }
 
-    /// Parse the integer `Retry-After` header from a binding `HttpResponse`.
-    /// Mirrors `parseRetryAfter(from:)` in `Retrying.swift` but reads the
-    /// header list the core captured (case-insensitive).
+    /// Parse the integer `Retry-After` header from a binding `HttpResponse`,
+    /// reading the header list the core captured (case-insensitive).
     private static func parseRetryAfterHeader(_ response: HttpResponse) -> Int? {
         guard let value = response.headers.first(where: {
             $0.name.caseInsensitiveCompare("Retry-After") == .orderedSame
