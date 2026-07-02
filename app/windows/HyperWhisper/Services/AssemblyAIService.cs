@@ -186,7 +186,7 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         LoggingService.Info("  Step 1: Uploading audio...");
         var uploadResp = await PerformAsync(
             () => HyperwhisperCoreMethods.AssemblyaiBuildUploadRequest(coreParams),
-            resp => MapError(resp, "upload"),
+            resp => MapError(resp, "upload", r => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(r)),
             cancellationToken);
         var uploadUrl = ParseStep(() => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(uploadResp));
         LoggingService.Info("  Upload complete");
@@ -195,7 +195,7 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         LoggingService.Info("  Step 2: Creating transcript...");
         var createResp = await PerformAsync(
             () => HyperwhisperCoreMethods.AssemblyaiBuildCreateRequest(coreParams, uploadUrl),
-            resp => MapError(resp, "create transcript"),
+            resp => MapError(resp, "create transcript", r => HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(r)),
             cancellationToken);
         var transcriptId = ParseStep(() => HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(createResp));
         LoggingService.Info($"  Transcript ID: {transcriptId}");
@@ -286,17 +286,24 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         }
     }
 
-    /// <summary>Map a non-2xx step response to a TranscriptionException (retry give-up).</summary>
-    private static TranscriptionException MapError(uniffi.hyperwhisper_core.HttpResponse resp, string operation)
+    /// <summary>
+    /// Map a non-2xx step response to a TranscriptionException (retry give-up).
+    /// <paramref name="classify"/> must be the parser MATCHING the step (upload →
+    /// AssemblyaiParseUploadResponse, create → AssemblyaiParseCreateResponse) —
+    /// both throw the classified error via classify_http on any non-2xx. The poll
+    /// parser is NOT interchangeable: it reads the transcript `status` field and
+    /// would misclassify upload/create error bodies.
+    /// </summary>
+    private static TranscriptionException MapError(
+        uniffi.hyperwhisper_core.HttpResponse resp,
+        string operation,
+        Action<uniffi.hyperwhisper_core.HttpResponse> classify)
     {
-        // Re-run the matching parser to obtain the classified error. The upload/
-        // create parsers throw the classified HwTranscriptionException on non-2xx.
         try
         {
-            // Use the poll parser as a generic classifier: it surfaces the same
-            // status/body-based classification. (Any parser would do — only the
-            // thrown error matters on a non-2xx.)
-            HyperwhisperCoreMethods.AssemblyaiParsePollResponse(resp);
+            classify(resp);
+            // Defense: the step parsers throw on every non-2xx, so this is
+            // unreachable for the responses the retry wrapper hands us.
             return new TranscriptionException(
                 TranscriptionErrorCode.Unknown, $"Unexpected non-error response ({operation})", "AssemblyAI", (int)resp.@status);
         }
