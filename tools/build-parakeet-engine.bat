@@ -156,7 +156,10 @@ echo === Publishing managed parakeet-engine daemon: arm64 ===
 echo.
 
 if exist "%MANAGED_PUBLISH_DIR%" rmdir /s /q "%MANAGED_PUBLISH_DIR%"
-dotnet publish "%MANAGED_DAEMON_DIR%\parakeet-engine-dotnet.csproj" -c Release -r win-arm64 --self-contained false -o "%MANAGED_PUBLISH_DIR%"
+REM Self-contained: end-user ARM64 machines have no .NET runtime installed and
+REM the installer ships no prereq bootstrapper — a framework-dependent daemon
+REM fails to start on a clean Windows-on-ARM install (release blocker for 1.8.0).
+dotnet publish "%MANAGED_DAEMON_DIR%\parakeet-engine-dotnet.csproj" -c Release -r win-arm64 --self-contained true -o "%MANAGED_PUBLISH_DIR%"
 if %ERRORLEVEL% neq 0 (
     echo ERROR: managed ARM64 daemon publish failed
     exit /b 1
