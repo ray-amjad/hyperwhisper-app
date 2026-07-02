@@ -244,6 +244,16 @@ class PersistenceController: ObservableObject {
         // pass in VocabularyView.
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
 
+        // Eagerly create the serial writer context here (not lazily) so exactly one
+        // writer ever exists — a `lazy var` first-touch from two threads can build
+        // two contexts and break the serial-write guarantee.
+        let writer = container.newBackgroundContext()
+        writer.name = "HyperWhisper.writer"
+        writer.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        writer.automaticallyMergesChangesFromParent = true
+        writer.undoManager = nil
+        writerContext = writer
+
         // Initialize default modes on first launch
         if !inMemory {
             initializeDefaultModes()
@@ -844,14 +854,7 @@ class PersistenceController: ObservableObject {
     /// `automaticallyMergesChangesFromParent = true` means the `viewContext` picks
     /// up these writes via the standard `NSManagedObjectContextDidSave` merge, so
     /// HistoryView's existing save-notification observer refreshes with no change.
-    private lazy var writerContext: NSManagedObjectContext = {
-        let context = container.newBackgroundContext()
-        context.name = "HyperWhisper.writer"
-        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        context.automaticallyMergesChangesFromParent = true
-        context.undoManager = nil
-        return context
-    }()
+    private let writerContext: NSManagedObjectContext
 
     /// Debounced view-context maintenance task (cancel-previous). Keeps the
     /// re-faulting benefit off the stop→paste hot path.
@@ -869,13 +872,29 @@ class PersistenceController: ObservableObject {
     /// object — so nothing crosses a context boundary.
     @discardableResult
     func performWrite<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> T {
+        return await performWriteReportingSave(block).value
+    }
+
+    /// Like `performWrite`, but returns `nil` unless the write actually persisted.
+    ///
+    /// Use for creates whose returned value (e.g. an `NSManagedObjectID`) is only
+    /// meaningful if the row was saved — on save failure the writer rolls back, so
+    /// handing the ID out anyway would point at a row that doesn't exist.
+    func performWriteRequiringSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T?) async -> T? {
+        let outcome = await performWriteReportingSave(block)
+        return outcome.saved ? outcome.value : nil
+    }
+
+    private func performWriteReportingSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> (value: T, saved: Bool) {
         let context = writerContext
-        let result = await context.perform {
+        let result: (value: T, saved: Bool) = await context.perform {
             let value = block(context)
+            var saved = true
             if context.hasChanges {
                 do {
                     try context.save()
                 } catch {
+                    saved = false
                     let nsError = error as NSError
                     AppLogger.logCoreData(.save, error: nsError)
                     SentryService.capture(
@@ -889,7 +908,7 @@ class PersistenceController: ObservableObject {
                 // Re-fault so the long-lived writer doesn't accumulate objects.
                 context.refreshAllObjects()
             }
-            return value
+            return (value, saved)
         }
         await MainActor.run { self.scheduleViewContextMaintenance() }
         return result
@@ -916,15 +935,16 @@ class PersistenceController: ObservableObject {
     ///
     /// Mirrors `createProcessingTranscript`'s idempotency guard, and additionally
     /// accepts the VAD trimmed path so the separate `setTrimmedAudioPath` write
-    /// collapses into this single create. Returns the permanent object ID (obtained
-    /// before save) so callers can address the row later without crossing contexts.
+    /// collapses into this single create. Returns the permanent object ID **only if
+    /// the row was actually saved** — a dangling ID after a failed save would make
+    /// later status/text updates silently write to a row that doesn't exist.
     func createProcessingTranscriptInBackground(
         duration: TimeInterval,
         mode: String?,
         audioFilePath: String?,
         trimmedAudioPath: String?
     ) async -> NSManagedObjectID? {
-        return await performWrite { context -> NSManagedObjectID? in
+        return await performWriteRequiringSave { context -> NSManagedObjectID? in
             let normalizedPath = audioFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
             var reused: Transcript?
@@ -976,13 +996,19 @@ class PersistenceController: ObservableObject {
                 transcript.setValue(trimmedAudioPath, forKey: "trimmedAudioFilePath")
             }
 
-            try? context.obtainPermanentIDs(for: [transcript])
+            do {
+                try context.obtainPermanentIDs(for: [transcript])
+            } catch {
+                AppLogger.coreData.error("Failed to obtain permanent ID for processing transcript: \(error.localizedDescription)")
+                return nil
+            }
             return transcript.objectID
         }
     }
 
     /// Create an already-failed transcript on the serial writer in ONE write
     /// (replaces the old create + mutate + second save on the error paths).
+    /// Returns the permanent object ID **only if the row was actually saved**.
     func createFailedTranscriptInBackground(
         duration: TimeInterval,
         mode: String?,
@@ -990,7 +1016,7 @@ class PersistenceController: ObservableObject {
         failedReason: String,
         errorText: String
     ) async -> NSManagedObjectID? {
-        return await performWrite { context -> NSManagedObjectID? in
+        return await performWriteRequiringSave { context -> NSManagedObjectID? in
             let created = Transcript(context: context)
             created.id = UUID()
             created.date = Date()
@@ -1000,7 +1026,12 @@ class PersistenceController: ObservableObject {
             created.setValue("failed", forKey: "status")
             created.setValue(failedReason, forKey: "failedReason")
             created.text = errorText
-            try? context.obtainPermanentIDs(for: [created])
+            do {
+                try context.obtainPermanentIDs(for: [created])
+            } catch {
+                AppLogger.coreData.error("Failed to obtain permanent ID for failed transcript: \(error.localizedDescription)")
+                return nil
+            }
             return created.objectID
         }
     }

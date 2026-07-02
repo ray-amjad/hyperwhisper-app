@@ -1038,6 +1038,11 @@ class RecordingLifecycle {
         let stalledExitWallMs = 400
         var totalWaitMs = 0
         var lastSize: Int64 = -1
+        // Consecutive polls where the size held steady. A single stalled read can
+        // just be a buffer that hasn't flushed yet, so we require 2 in a row
+        // before bailing (worst-case exit ~650ms instead of ~450ms — still far
+        // under the old ~3.75s full wait).
+        var stalledStableReads = 0
         var loggedTooSmall = false
 
         for attempt in 1...maxAttempts {
@@ -1060,9 +1065,15 @@ class RecordingLifecycle {
                 }
 
                 // Stalled-size early exit (wall-time bound): if the file has a
-                // nonzero but sub-threshold size that hasn't grown, and we've
-                // already waited past ~400ms, it isn't going to grow — bail now.
-                if fileSize > 0, fileSize == lastSize, totalWaitMs >= stalledExitWallMs {
+                // nonzero but sub-threshold size that hasn't grown for 2
+                // consecutive polls, and we've already waited past ~400ms, it
+                // isn't going to grow — bail now.
+                if fileSize > 0, fileSize == lastSize {
+                    stalledStableReads += 1
+                } else {
+                    stalledStableReads = 0
+                }
+                if stalledStableReads >= 2, totalWaitMs >= stalledExitWallMs {
                     AppLogger.audio.warning("Raw audio file size stalled at \(fileSize) bytes past \(totalWaitMs)ms, giving up after \(attempt) attempts")
                     break
                 }

@@ -251,17 +251,17 @@ extension RecordingTranscriptionFlow {
 
         // FILE READINESS CHECK (WS3):
         // `recordingLifecycle.stopRecording()` already ran `waitForRawFileReady`,
-        // which guarantees the file exists and is ≥5KB before this flow proceeds.
-        // The old downstream `fileWatcher.waitForFirstWrite` + 5×100ms + 20×150ms
-        // re-waited on that same validated file, adding up to ~1.2s. Collapse it to a
-        // single open/readability test plus one short retry for the genuinely-async
-        // edge (the file was validated moments ago, so this virtually always passes
-        // on the first check).
+        // and the batch path additionally decoded the file via `validateRawWAV`
+        // before rename/conversion, so this strict AVAudioFile check virtually
+        // always passes on the first try at 0ms cost. The retries below are
+        // failure-path-only insurance for the genuinely-async edge (a writer
+        // flush landing just after stop) — ~400ms worst case, still far under
+        // the old ~1.2s re-wait chain this replaced.
         let fileCheckStart = Date()
         var isReadable = isAudioFileReadable(audioURL)
         if !isReadable {
-            for _ in 1...2 {
-                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+            for _ in 1...4 {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
                 if isAudioFileReadable(audioURL) {
                     isReadable = true
                     break

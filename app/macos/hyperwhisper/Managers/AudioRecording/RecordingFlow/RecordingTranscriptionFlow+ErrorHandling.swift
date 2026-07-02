@@ -301,10 +301,12 @@ extension RecordingTranscriptionFlow {
 
     /// Handle transcription errors with appropriate UI updates.
     ///
-    /// The failed-status write goes to the serial background writer via the
-    /// transcript's object ID; UI state is then updated on the main actor. For the
-    /// retry button we resolve the now-failed transcript on the view context AFTER
-    /// awaiting the writer (auto-merge has applied the failed status by then).
+    /// UI state is updated on the main actor FIRST (mirroring the success path) so
+    /// the error surfaces immediately even when the serial writer is busy; the
+    /// failed-status write then goes to the background writer via the transcript's
+    /// object ID. For the retry reference we resolve the now-failed transcript on
+    /// the view context AFTER awaiting the writer (auto-merge has applied the
+    /// failed status by then).
     func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, duration: TimeInterval, audioURL: URL) {
         let isNetworkOutage: Bool
         if let transcriptionError = error as? TranscriptionError, case .transientNetwork = transcriptionError {
@@ -325,13 +327,6 @@ extension RecordingTranscriptionFlow {
         // Special case: streaming interrupted - keep partial text
         if let te = error as? TranscriptionError, case .streamingInterrupted = te {
             Task {
-                if let processingTranscriptID {
-                    await PersistenceController.shared.markTranscriptFailedInBackground(
-                        transcriptID: processingTranscriptID,
-                        failedReason: te.localizedDescription,
-                        errorText: "Transcription failed: \(te.localizedDescription)"
-                    )
-                }
                 await MainActor.run {
                     appState?.recordingState = .idle
 
@@ -341,32 +336,24 @@ extension RecordingTranscriptionFlow {
 
                     powerActivityManager.endPowerActivity()
                 }
+                if let processingTranscriptID {
+                    await PersistenceController.shared.markTranscriptFailedInBackground(
+                        transcriptID: processingTranscriptID,
+                        failedReason: te.localizedDescription,
+                        errorText: "Transcription failed: \(te.localizedDescription)"
+                    )
+                }
             }
             AppLogger.audio.warning("⚠️ Streaming interrupted; kept partial text on screen")
         } else {
             // Handle generic transcription failure
             Task {
-                if let processingTranscriptID {
-                    await PersistenceController.shared.markTranscriptFailedInBackground(
-                        transcriptID: processingTranscriptID,
-                        failedReason: error.localizedDescription,
-                        errorText: "Transcription failed: \(error.localizedDescription)"
-                    )
-                }
                 await MainActor.run {
                     if isNetworkOutage {
                         appState?.errorMessage = ""
                         appState?.showErrorAlert = false
                     } else {
                         appState?.showError(error.localizedDescription)
-
-                        // Store reference to failed transcript for retry button.
-                        // Resolve on the view context now that the writer has persisted
-                        // the failed status (auto-merge has applied it).
-                        if let processingTranscriptID,
-                           let failed = try? PersistenceController.shared.container.viewContext.existingObject(with: processingTranscriptID) as? Transcript {
-                            appState?.lastFailedTranscript = failed
-                        }
                     }
                     appState?.recordingState = .idle
                     appState?.lastTranscription = "Error: \(error.localizedDescription)"
@@ -378,6 +365,26 @@ extension RecordingTranscriptionFlow {
                     // Sentry capture handled in TranscriptionPipeline to avoid duplicates.
 
                     powerActivityManager.endPowerActivity()
+                }
+                if let processingTranscriptID {
+                    await PersistenceController.shared.markTranscriptFailedInBackground(
+                        transcriptID: processingTranscriptID,
+                        failedReason: error.localizedDescription,
+                        errorText: "Transcription failed: \(error.localizedDescription)"
+                    )
+                }
+                if !isNetworkOutage, let processingTranscriptID {
+                    await MainActor.run {
+                        // Store reference to failed transcript for retry.
+                        // Resolve on the view context AFTER awaiting the writer, so
+                        // auto-merge has applied the failed status by now.
+                        // NOTE: `lastFailedTranscript` currently has no readers — the
+                        // Retry button uses `pendingRetryAudioPath` — but it's kept
+                        // honest for the existing AppState contract.
+                        if let failed = (try? PersistenceController.shared.container.viewContext.existingObject(with: processingTranscriptID)) as? Transcript {
+                            appState?.lastFailedTranscript = failed
+                        }
+                    }
                 }
             }
             AppLogger.audio.error("❌ Transcription error: \(error)")

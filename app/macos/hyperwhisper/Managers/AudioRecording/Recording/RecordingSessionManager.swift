@@ -124,7 +124,8 @@ class RecordingSessionManager {
 
         // Create on the shared serial writer so session create/update/delete and
         // transcript writes serialize on one queue (closes the cancel-vs-create race).
-        let objectID: NSManagedObjectID? = await PersistenceController.shared.performWrite { context -> NSManagedObjectID? in
+        // Save-gated: a failed save must not hand back an ID for a row that doesn't exist.
+        let objectID: NSManagedObjectID? = await PersistenceController.shared.performWriteRequiringSave { context -> NSManagedObjectID? in
             let session = RecordingSession(context: context)
             session.id = sessionId
             session.startTime = startTime
@@ -144,7 +145,8 @@ class RecordingSessionManager {
             return session.objectID
         }
 
-        guard let objectID, let session = container.viewContext.object(with: objectID) as? RecordingSession else {
+        guard let objectID,
+              let session = (try? container.viewContext.existingObject(with: objectID)) as? RecordingSession else {
             AppLogger.coreData.error("Recording session background save failed; continuing without session tracking")
             currentRecordingSession = nil
             return nil
