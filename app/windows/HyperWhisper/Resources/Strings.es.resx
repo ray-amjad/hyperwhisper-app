@@ -542,32 +542,8 @@
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>Estado de la licencia</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activar licencia</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Introduzca su clave de licencia para desbloquear el uso ilimitado</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>¿No tiene licencia? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Adquiera una aquí</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Uso de prueba</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Sus límites de uso diarios se restablecen a medianoche</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Borrar</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>Prueba</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>Activar</value>
@@ -583,26 +559,11 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>Créditos de HyperWhisper Cloud</value>
-  </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
     <value>Consulta el saldo y el uso de tus créditos de transcripción en la nube.</value>
   </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Saldo</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Sus créditos de transcripción de HyperWhisper Cloud</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>Actualizar</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>Gestionar créditos</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Añada créditos o gestione su cuenta</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutos restantes</value>
@@ -640,6 +601,9 @@
   <!-- Settings - HyperWhisper Cloud (combined account panel) -->
   <data name="settings.cloud.licenseKey" xml:space="preserve">
     <value>Clave de cuenta</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>Correo electrónico</value>
   </data>
   <data name="settings.cloud.key.reveal" xml:space="preserve">
     <value>Mostrar clave de cuenta</value>
@@ -1081,6 +1045,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>El reintento falló: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>Grabación detenida: límite de seguridad de 20 minutos alcanzado.</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>El streaming alcanzó el límite de seguridad de 20 minutos.</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1393,7 +1363,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>Desactivar licencia</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>¿Está seguro de que desea desactivar su licencia? Volverá al modo de prueba con funciones limitadas.</value>
+    <value>¿Seguro que quieres desactivar este dispositivo? La transcripción en la nube dejará de funcionar hasta que introduzcas de nuevo una clave de cuenta. Tus créditos permanecen en tu clave.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1503,20 +1473,11 @@ Puede volver a descargarlo más tarde.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>Con licencia - Acceso completo</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>Licencia caducada</value>
+    <value>Tu licencia ha caducado. Renuévala o añade créditos para seguir usando HyperWhisper Cloud.</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>Licencia no válida</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Desconocido</value>
+    <value>La clave de licencia ya no es válida. Introduce una nueva clave a continuación u obtén créditos para crear una.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Por favor, introduzca una clave de licencia.</value>
@@ -2011,7 +1972,7 @@ Puede volver a descargarlo más tarde.</value>
     <value>La transmisión de ElevenLabs requiere una clave de API de ElevenLabs en el administrador de claves de API de Modelos.</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Usa tu licencia de HyperWhisper o créditos de prueba. No requiere una clave de API aparte.</value>
+    <value>Usa tus créditos de HyperWhisper Cloud. No se requiere una clave de API separada.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
     <value>La clave de API de xAI está configurada.</value>

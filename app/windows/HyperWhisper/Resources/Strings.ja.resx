@@ -542,32 +542,8 @@
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>ライセンス状態</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>ライセンスを有効化</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>ライセンスキーを入力して無制限の利用を解除</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>ライセンスをお持ちでないですか? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>こちらから購入</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>トライアル利用</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>1日の利用制限は深夜にリセットされます</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>クリア</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>トライアル</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>有効化</value>
@@ -583,26 +559,11 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper Cloudクレジット</value>
-  </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
     <value>クラウド文字起こしクレジットの残高と使用状況を確認します。</value>
   </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>残高</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>HyperWhisper Cloud文字起こしクレジット</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>更新</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>クレジットを管理</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>クレジットの追加やアカウント管理</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>分残り</value>
@@ -640,6 +601,9 @@
   <!-- Settings - HyperWhisper Cloud (combined account panel) -->
   <data name="settings.cloud.licenseKey" xml:space="preserve">
     <value>アカウントキー</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>メール</value>
   </data>
   <data name="settings.cloud.key.reveal" xml:space="preserve">
     <value>アカウントキーを表示</value>
@@ -1081,6 +1045,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>再試行に失敗しました: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>録音が停止しました — 20分の安全制限に達しました。</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>ストリーミングが20分の安全制限に達しました。</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1393,7 +1363,7 @@
     <value>ライセンスを無効化</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>ライセンスを無効化してもよろしいですか?機能が制限されたトライアルモードに戻ります。</value>
+    <value>このデバイスを無効化してよろしいですか？再びアカウントキーを入力するまで、クラウド文字起こしは機能しなくなります。クレジットはキーに残ります。</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1503,20 +1473,11 @@
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>ライセンス済み - フルアクセス</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>ライセンス期限切れ</value>
+    <value>ライセンスの有効期限が切れています。HyperWhisper Cloud の使用を継続するには、更新するかクレジットを追加してください。</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>無効なライセンス</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>不明</value>
+    <value>ライセンスキーは無効です。下に新しいキーを入力するか、クレジットを取得して作成してください。</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>ライセンスキーを入力してください。</value>
@@ -2011,7 +1972,7 @@
     <value>ElevenLabsストリーミングには、モデルのAPIキーマネージャーでElevenLabs APIキーが必要です。</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>HyperWhisperライセンスまたは試用クレジットを使用します。別のAPIキーは不要です。</value>
+    <value>HyperWhisper Cloud のクレジットを使用します。別の API キーは不要です。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
     <value>xAI APIキーが設定されています。</value>

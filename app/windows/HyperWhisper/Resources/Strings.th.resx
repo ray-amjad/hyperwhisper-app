@@ -467,32 +467,8 @@
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>ล้าง</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>ทดลอง</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>เปิดใช้งาน</value>
@@ -508,23 +484,8 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>เครดิต HyperWhisper Cloud</value>
-  </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>รีเฟรช</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>จัดการเครดิต</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -562,6 +523,9 @@
   <!-- Settings - HyperWhisper Cloud (combined account panel) -->
   <data name="settings.cloud.licenseKey" xml:space="preserve">
     <value>คีย์บัญชี</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>อีเมล</value>
   </data>
   <data name="settings.cloud.key.reveal" xml:space="preserve">
     <value>แสดงคีย์บัญชี</value>
@@ -957,6 +921,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>การบันทึกหยุดแล้ว — ถึงขีดจำกัดความปลอดภัย 20 นาทีแล้ว</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>การสตรีมถึงขีดจำกัดความปลอดภัย 20 นาทีแล้ว</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1266,7 +1236,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>คุณแน่ใจหรือไม่ว่าต้องการปิดใช้งานอุปกรณ์นี้? การถอดเสียงผ่านคลาวด์จะหยุดทำงานจนกว่าคุณจะป้อนรหัสบัญชีอีกครั้ง เครดิตของคุณยังคงอยู่บนรหัสของคุณ</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1376,20 +1346,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>ลัทธิ - เข้าถึงแบบเต็ม</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>ลัทธิหมดอายุ</value>
+    <value>ใบอนุญาตของคุณหมดอายุแล้ว ต่ออายุหรือเติมเครดิตเพื่อใช้ HyperWhisper Cloud ต่อไป</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>ลัทธิไม่ถูกต้อง</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>คีย์ใบอนุญาตของคุณไม่ถูกต้องอีกต่อไป กรอกคีย์ใหม่ด้านล่าง หรือรับเครดิตเพื่อสร้างคีย์ใหม่</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
@@ -2063,7 +2024,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>ใช้เครดิต HyperWhisper Cloud ของคุณ ไม่จำเป็นต้องมีคีย์ API แยกต่างหาก</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>

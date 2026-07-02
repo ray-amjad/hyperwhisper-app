@@ -542,32 +542,8 @@
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>许可证状态</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>激活许可证</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>输入许可证密钥以解锁无限使用</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>还没有许可证？</value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>在此购买</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>试用</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>每日使用限额在午夜重置</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>清除</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>试用</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>激活</value>
@@ -583,26 +559,11 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper Cloud 额度</value>
-  </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
     <value>查看你的云端转写额度余额和使用情况。</value>
   </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>余额</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>你的 HyperWhisper Cloud 转写额度</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>刷新</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>管理额度</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>充值额度或管理账户</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>剩余分钟数</value>
@@ -640,6 +601,9 @@
   <!-- Settings - HyperWhisper Cloud (combined account panel) -->
   <data name="settings.cloud.licenseKey" xml:space="preserve">
     <value>账户密钥</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>邮箱</value>
   </data>
   <data name="settings.cloud.key.reveal" xml:space="preserve">
     <value>显示账户密钥</value>
@@ -1081,6 +1045,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>重试失败：{0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>录音已停止 — 已达到 20 分钟的安全限制。</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>直播已达到 20 分钟的安全限制。</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1393,7 +1363,7 @@
     <value>停用许可证</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>你确定要停用你的许可证吗？你将恢复到功能受限的试用模式。</value>
+    <value>确定要停用此设备吗？在重新输入账户密钥之前，云端转录将停止工作。您的点数仍保留在密钥中。</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1503,20 +1473,11 @@
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>已授权 - 完全访问</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>许可证已过期</value>
+    <value>您的许可证已过期。续费或充值以继续使用 HyperWhisper Cloud。</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>许可证无效</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>未知</value>
+    <value>您的许可证密钥已失效。请在下方输入新密钥，或充值以创建一个新密钥。</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>请输入许可证密钥。</value>
@@ -2011,7 +1972,7 @@
     <value>ElevenLabs 流式转写需要在模型的 API 密钥管理器中配置 ElevenLabs API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>使用你的 HyperWhisper 许可证或试用额度。不需要单独的 API 密钥。</value>
+    <value>使用您的 HyperWhisper Cloud 点数。无需单独的 API 密钥。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
     <value>已配置 xAI API 密钥。</value>

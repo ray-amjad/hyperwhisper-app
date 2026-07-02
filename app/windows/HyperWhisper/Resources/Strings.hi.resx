@@ -467,32 +467,8 @@
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>साफ़ करें</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>ट्रायल</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>सक्रिय करें</value>
@@ -508,23 +484,8 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper क्लाउड क्रेडिट</value>
-  </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>रीफ़्रेश करें</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>क्रेडिट प्रबंधित करें</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -562,6 +523,9 @@
   <!-- Settings - HyperWhisper Cloud (combined account panel) -->
   <data name="settings.cloud.licenseKey" xml:space="preserve">
     <value>खाता कुंजी</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>ईमेल</value>
   </data>
   <data name="settings.cloud.key.reveal" xml:space="preserve">
     <value>खाता कुंजी दिखाएं</value>
@@ -957,6 +921,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>रिकॉर्डिंग रुक गई — 20 मिनट की सुरक्षा सीमा पहुँच गई।</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>स्ट्रीमिंग 20 मिनट की सुरक्षा सीमा तक पहुँच गई।</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1266,7 +1236,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>क्या आप वाकई इस डिवाइस को निष्क्रिय करना चाहते हैं? Cloud ट्रांसक्रिप्शन तब तक काम करना बंद कर देगा जब तक आप दोबारा एक खाता कुंजी दर्ज नहीं करते। आपके क्रेडिट आपकी कुंजी पर बने रहेंगे।</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1376,20 +1346,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>लाइसेंसप्राप्त – पूर्ण पहुंच</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>लाइसेंस समाप्त</value>
+    <value>आपका लाइसेंस समाप्त हो गया है। HyperWhisper Cloud का उपयोग जारी रखने के लिए इसे नवीनीकृत करें या क्रेडिट जोड़ें।</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>अमान्य लाइसेंस</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>आपकी लाइसेंस कुंजी अब मान्य नहीं है। नीचे एक नई कुंजी दर्ज करें, या एक बनाने के लिए क्रेडिट प्राप्त करें।</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
@@ -2063,7 +2024,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>आपके HyperWhisper Cloud क्रेडिट का उपयोग करता है। किसी अलग API कुंजी की आवश्यकता नहीं है।</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>
