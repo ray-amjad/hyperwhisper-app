@@ -5,6 +5,7 @@
 //  Created by modularization refactoring
 //
 
+import AVFoundation
 import Foundation
 import KeyboardShortcuts
 
@@ -45,6 +46,13 @@ extension RecordingTranscriptionFlow {
         isStopInProgress = true
         defer { isStopInProgress = false }
         let flowStart = Date()
+        // WS4: lightweight per-stage timings (ms). -1 = stage not reached.
+        var wavReadyMs = -1
+        var fileCheckMs = -1
+        var vadTrimMs = -1
+        var createRowMs = -1
+        var transcribeMs = -1
+        var coreDataUpdateMs = -1
         let slowTranscribingUIThresholdMs = 8_000
         let slowTranscribingUIWithPostProcessingThresholdMs = 15_000
         let slowTranscribingUIWithLocalLLMThresholdMs = 45_000
@@ -136,6 +144,7 @@ extension RecordingTranscriptionFlow {
         // (Extends the HYPERWHISPER-F1 fix to the user-cancel path.)
         recordingMaxDurationTimer?.invalidate()
         recordingMaxDurationTimer = nil
+        let wavReadyStart = Date()
         guard let result = await recordingLifecycle.stopRecording(cancelled: cancelled) else {
             await MainActor.run {
                 appState?.recordingState = .idle
@@ -144,6 +153,7 @@ extension RecordingTranscriptionFlow {
             powerActivityManager.endPowerActivity()
             return
         }
+        wavReadyMs = Int(Date().timeIntervalSince(wavReadyStart) * 1000)
 
         // USER CANCEL: Clean up fully and return immediately.
         // Previously, cancelled recordings skipped transcription but left the audio file
@@ -213,7 +223,7 @@ extension RecordingTranscriptionFlow {
                 try? FileManager.default.removeItem(at: url)
             }
             if let session = result.recordingSession {
-                recordingLifecycle.sessionManager.deleteSession(session, deleteAudioFile: false)
+                await recordingLifecycle.sessionManager.deleteSession(session, deleteAudioFile: false)
             }
 
             await MainActor.run {
@@ -239,155 +249,93 @@ extension RecordingTranscriptionFlow {
             }
         }
 
-        // Wait for file to be ready using DispatchSource
-        do {
-            AppLogger.audio.debug("Waiting for audio file to become ready...")
-            try await fileWatcher.waitForFirstWrite(to: audioURL, timeout: 3.0)
-            AppLogger.audio.debug("Initial write event received. Starting readability check...")
-
-            // Poll briefly to ensure file is fully closed and readable
-            var isReadable = false
-            for attempt in 1...5 {
-                if FileManager.default.isReadableFile(atPath: audioURL.path) {
+        // FILE READINESS CHECK (WS3):
+        // `recordingLifecycle.stopRecording()` already ran `waitForRawFileReady`,
+        // which guarantees the file exists and is ≥5KB before this flow proceeds.
+        // The old downstream `fileWatcher.waitForFirstWrite` + 5×100ms + 20×150ms
+        // re-waited on that same validated file, adding up to ~1.2s. Collapse it to a
+        // single open/readability test plus one short retry for the genuinely-async
+        // edge (the file was validated moments ago, so this virtually always passes
+        // on the first check).
+        let fileCheckStart = Date()
+        var isReadable = isAudioFileReadable(audioURL)
+        if !isReadable {
+            for _ in 1...2 {
+                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
+                if isAudioFileReadable(audioURL) {
                     isReadable = true
-                    AppLogger.audio.debug("File is readable on attempt #\(attempt).")
                     break
                 }
-                AppLogger.audio.debug("Readability check attempt #\(attempt) failed. Retrying in 100ms...")
-                try await Task.sleep(nanoseconds: 100_000_000) // 100ms
             }
+        }
+        fileCheckMs = Int(Date().timeIntervalSince(fileCheckStart) * 1000)
 
-            if !isReadable {
-                AppLogger.audio.error("Audio file not readable after waiting.")
-                if AppLogger.isErrorLoggingEnabled {
-                    SentryService.addBreadcrumb(
-                        message: "Audio file unreadable after wait",
-                        category: "audio.recording",
-                        level: .error,
-                        data: [
-                            "audioPath": audioURL.path,
-                            "mode": sessionModeName,
-                            "attempts": 5,
-                            "recordingsFolder": settingsManager?.recordingsFolder ?? "unknown"
-                        ]
-                    )
-                }
-                await MainActor.run {
-                    appState?.recordingState = .idle
-                    appState?.lastTranscription = "Error: Audio file could not be read"
-                    appState?.pendingRetryAudioPath = audioURL.path
-                    appState?.showRecordingDialog = true
-                }
-                // Persist failed attempt to history so user can retry later
-                let failedTranscript = PersistenceController.shared.createProcessingTranscript(
-                    duration: recordingDuration,
-                    mode: sessionModeName,
-                    audioFilePath: audioURL.path
+        if !isReadable {
+            AppLogger.audio.error("Audio file not readable after stop-flow check.")
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.addBreadcrumb(
+                    message: "Audio file unreadable after wait",
+                    category: "audio.recording",
+                    level: .error,
+                    data: [
+                        "audioPath": audioURL.path,
+                        "mode": sessionModeName,
+                        "recordingsFolder": settingsManager?.recordingsFolder ?? "unknown"
+                    ]
                 )
-                failedTranscript.setValue("failed", forKey: "status")
-                failedTranscript.setValue("Audio file could not be read", forKey: "failedReason")
-                failedTranscript.text = "Error: Audio file could not be read"
-                PersistenceController.shared.save()
-
-                powerActivityManager.endPowerActivity()
-                return
             }
-
-        } catch {
-            AppLogger.audio.error("Failed to wait for audio file: \(error.localizedDescription)")
-
-            var fallbackReadable = false
-            for attempt in 1...20 {
-                let exists = FileManager.default.fileExists(atPath: audioURL.path)
-                let readable = FileManager.default.isReadableFile(atPath: audioURL.path)
-                if exists && readable {
-                    fallbackReadable = true
-                    AppLogger.audio.warning("File watcher failed but file is readable (attempt #\(attempt)) – continuing to transcription")
-                    break
-                }
-                do {
-                    try await Task.sleep(nanoseconds: 150_000_000) // ~150ms per attempt
-                } catch {
-                    break
-                }
+            await MainActor.run {
+                appState?.recordingState = .idle
+                appState?.lastTranscription = "Error: Audio file could not be read"
+                appState?.pendingRetryAudioPath = audioURL.path
+                appState?.showRecordingDialog = true
+                KeyboardShortcuts.disable(.cancelRecording)
             }
+            // Persist failed attempt to history so user can retry later — one write.
+            _ = await PersistenceController.shared.createFailedTranscriptInBackground(
+                duration: recordingDuration,
+                mode: sessionModeName,
+                audioFilePath: audioURL.path,
+                failedReason: "Audio file could not be read",
+                errorText: "Error: Audio file could not be read"
+            )
 
-            if !fallbackReadable {
-                if AppLogger.isErrorLoggingEnabled {
-                    let nsError = error as NSError
-                    SentryService.addBreadcrumb(
-                        message: "File watcher failed",
-                        category: "audio.recording",
-                        level: .error,
-                        data: [
-                            "audioPath": audioURL.path,
-                            "mode": sessionModeName,
-                            "errorDomain": nsError.domain,
-                            "errorCode": nsError.code,
-                            "recordingsFolder": settingsManager?.recordingsFolder ?? "unknown",
-                            "fallbackAttempts": 20
-                        ]
-                    )
-                }
-                await MainActor.run {
-                    appState?.recordingState = .idle
-                    appState?.lastTranscription = "Error: \(error.localizedDescription)"
-                    appState?.showRecordingDialog = true
-                    appState?.pendingRetryAudioPath = audioURL.path
-
-                    // Ensure the cancel shortcut is disabled when we bail out early
-                    KeyboardShortcuts.disable(.cancelRecording)
-                }
-                // Persist failed attempt to history so user can retry later
-                let failedTranscript = PersistenceController.shared.createProcessingTranscript(
-                    duration: recordingDuration,
-                    mode: sessionModeName,
-                    audioFilePath: audioURL.path
-                )
-                failedTranscript.setValue("failed", forKey: "status")
-                failedTranscript.setValue(error.localizedDescription, forKey: "failedReason")
-                failedTranscript.text = "Error: \(error.localizedDescription)"
-                PersistenceController.shared.save()
-
-                powerActivityManager.endPowerActivity()
-                return
-            }
+            powerActivityManager.endPowerActivity()
+            return
         }
 
         // VAD SILENCE TRIMMING (Optional)
         // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
         // Benefits: Reduced API costs, faster transcription, potentially better accuracy.
         // Only applies to recordings >= 30 seconds when VAD is enabled in settings.
+        let vadStart = Date()
         let vadResult = await vadProcessingService.processAudioForTranscription(
             audioURL: audioURL,
             duration: recordingDuration,
             vadEnabled: settingsManager?.enableVAD ?? false,
             context: "Recording"
         )
+        vadTrimMs = Int(Date().timeIntervalSince(vadStart) * 1000)
         let finalAudioURL = vadResult.finalAudioURL
         let trimResult = vadResult.trimResult
 
         // TRANSCRIPTION FLOW
-        // Step 1: Create processing transcript
+        // Step 1: Create processing transcript on the serial background writer.
+        // The VAD trimmed path (if any) is folded into this single create, so the
+        // separate setTrimmedAudioPath write no longer exists on the stop path.
         let actualMode = sessionModeName
-        let processingTranscript = await MainActor.run {
-            PersistenceController.shared.createProcessingTranscript(
-                duration: recordingDuration,
-                mode: actualMode,
-                audioFilePath: audioURL.path
-            )
-        }
-        AppLogger.audio.info("💾 Created processing transcript: duration=\(recordingDuration)s, mode=\(actualMode)")
-
-        // SAVE TRIMMED AUDIO PATH:
-        // If VAD was used and created a valid trimmed file, store the path in Core Data.
-        // This allows users to toggle between original and trimmed audio in the history view,
-        // and ensures the trimmed file is properly cleaned up when the transcript is deleted.
-        if vadResult.wasProcessed, let result = trimResult {
-            await MainActor.run {
-                PersistenceController.shared.setTrimmedAudioPath(processingTranscript, trimmedPath: result.outputURL.path)
-            }
-            AppLogger.audio.debug("📝 Saved trimmed audio path to transcript: \(result.outputURL.path, privacy: .public)")
+        let createRowStart = Date()
+        let processingTranscriptID = await PersistenceController.shared.createProcessingTranscriptInBackground(
+            duration: recordingDuration,
+            mode: actualMode,
+            audioFilePath: audioURL.path,
+            trimmedAudioPath: (vadResult.wasProcessed ? trimResult?.outputURL.path : nil)
+        )
+        createRowMs = Int(Date().timeIntervalSince(createRowStart) * 1000)
+        if processingTranscriptID == nil {
+            AppLogger.audio.warning("⚠️ Failed to create processing transcript row — transcription/paste proceed, persistence updates skipped")
+        } else {
+            AppLogger.audio.info("💾 Created processing transcript: duration=\(recordingDuration)s, mode=\(actualMode)")
         }
 
         // Step 2: Update state to show transcription in progress
@@ -432,57 +380,34 @@ extension RecordingTranscriptionFlow {
                 )
             }
 
-            // Use finalAudioURL which may be VAD-trimmed if VAD was enabled
+            // Use finalAudioURL which may be VAD-trimmed if VAD was enabled.
+            // `transcribe` folds provider selection + transcription + post-processing;
+            // its wall time is surfaced as the transcribe stage.
+            let transcribeStart = Date()
             let transcriptionResult = try await transcriptionMgr.transcribeWithDetails(
                 audioURL: finalAudioURL,
                 mode: transcriptionMode,
                 recordingSession: nil, // Will be set by RecordingLifecycle
                 applicationContext: capturedApplicationContext
             )
-            let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
-            let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
-            let trimmedSeconds = trimResult.map { String(format: "%.1f", $0.silenceRemoved) } ?? "0.0"
-            let uiLogMessage =
-                "Recording transcription flow succeeded · attemptId=\(attemptId) · trigger=\(trigger) · mode=\(actualMode) · provider=\(transcriptionResult.provider) · flowMs=\(flowElapsedMs) · transcribingUiMs=\(transcribingUIElapsedMs) · vadProcessed=\(vadResult.wasProcessed) · silenceRemovedSeconds=\(trimmedSeconds)"
-
-            let isLocalLLM = transcriptionResult.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
-            let effectiveUIThreshold: Int
-            if isLocalLLM {
-                effectiveUIThreshold = slowTranscribingUIWithLocalLLMThresholdMs
-            } else if transcriptionResult.wasPostProcessed {
-                effectiveUIThreshold = slowTranscribingUIWithPostProcessingThresholdMs
-            } else {
-                effectiveUIThreshold = slowTranscribingUIThresholdMs
-            }
-            if transcribingUIElapsedMs >= effectiveUIThreshold {
-                AppLogger.audio.warning("\(uiLogMessage, privacy: .public)")
-            } else {
-                AppLogger.audio.info("\(uiLogMessage, privacy: .public)")
-            }
+            transcribeMs = Int(Date().timeIntervalSince(transcribeStart) * 1000)
 
             // No local usage recording — local transcription is unlimited (open source).
 
-            // Step 5: Update transcript with results
+            // Step 5: paste FIRST (latency independent of the DB write), then persist
+            // the completed transcript on the serial background writer. The order swap
+            // keeps the ~tens-of-ms Core Data update off the stop→paste path.
+            let pasteStart = Date()
             await MainActor.run {
                 appState?.lastTranscription = transcriptionResult.text
                 appState?.recordingState = .idle
                 appState?.pendingRetryAudioPath = nil
-
-                PersistenceController.shared.updateTranscriptWithTranscription(
-                    processingTranscript,
-                    transcribedText: transcriptionResult.rawText,
-                    postProcessedText: transcriptionResult.wasPostProcessed ? transcriptionResult.text : nil,
-                    transcriptionProvider: transcriptionResult.provider,
-                    postProcessingProvider: transcriptionResult.postProcessingProvider,
-                    wordTimestampsJSON: transcriptionResult.timestamps?.wordTimestampsJSON()
-                )
 
                 // CRITICAL: Disable cancel shortcut when transcription completes
                 // Without this, the shortcut stays active even when idle
                 KeyboardShortcuts.disable(.cancelRecording)
                 clearActiveSessionMode()
 
-                AppLogger.audio.info("✅ Updated transcript with transcription")
                 powerActivityManager.endPowerActivity()
 
                 // Quick Capture always routes to Notes, regardless of the
@@ -549,21 +474,24 @@ extension RecordingTranscriptionFlow {
                             delivered = await autoPasteHandler.handleAutoPaste(spacedText)
                         }
 
+                        // Paste runs concurrently with the Core Data write, so its
+                        // latency is logged here rather than in the flow-completion line.
+                        let pasteElapsedMs = Int(Date().timeIntervalSince(pasteStart) * 1000)
                         if delivered {
                             appState?.transcriptionPasteFailed = false
                             appState?.showRecordingDialog = false
                             appState?.isStreamingShortcutTriggered = false
                             if isQuickCaptureRouting {
-                                AppLogger.audio.info("✅ Quick Capture: saved to Notes — closing dialog")
+                                AppLogger.audio.info("✅ Quick Capture: saved to Notes — closing dialog · pasteMs=\(pasteElapsedMs)")
                             } else {
-                                AppLogger.audio.info("✅ Auto-paste succeeded - closing dialog")
+                                AppLogger.audio.info("✅ Auto-paste succeeded - closing dialog · pasteMs=\(pasteElapsedMs)")
                             }
                         } else {
                             // Paste path: text is on the clipboard.
                             // Quick Capture path: NotesDestination has surfaced the banner.
                             appState?.transcriptionPasteFailed = true
                             appState?.showRecordingDialog = true
-                            AppLogger.audio.info("📋 Text delivery failed - keeping dialog open")
+                            AppLogger.audio.info("📋 Text delivery failed - keeping dialog open · pasteMs=\(pasteElapsedMs)")
                         }
                     }
                 } else {
@@ -578,9 +506,27 @@ extension RecordingTranscriptionFlow {
                 AppLogger.audio.info("✅ Transcription complete: \(transcriptionResult.text.count) chars, \(wordCount) words")
             }
 
+            // Persist the completed transcript on the serial background writer.
+            // Runs AFTER paste was dispatched, so paste latency is independent of it.
+            if let processingTranscriptID {
+                let coreDataStart = Date()
+                await PersistenceController.shared.updateTranscriptWithTranscriptionInBackground(
+                    transcriptID: processingTranscriptID,
+                    transcribedText: transcriptionResult.rawText,
+                    postProcessedText: transcriptionResult.wasPostProcessed ? transcriptionResult.text : nil,
+                    transcriptionProvider: transcriptionResult.provider,
+                    postProcessingProvider: transcriptionResult.postProcessingProvider,
+                    wordTimestampsJSON: transcriptionResult.timestamps?.wordTimestampsJSON()
+                )
+                coreDataUpdateMs = Int(Date().timeIntervalSince(coreDataStart) * 1000)
+                AppLogger.audio.info("✅ Updated transcript with transcription")
+            }
+
             // BACKGROUND M4A CONVERSION:
             // After successful transcription, convert WAV to M4A if the setting is enabled.
             // This runs in a detached task to avoid blocking - transcription is already complete.
+            // Enqueues after the completed-status update on the same serial queue, so the
+            // completed status lands before the path rewrite.
             //
             // Why after transcription:
             // 1. WAV files are more reliable for transcription (no codec issues)
@@ -588,13 +534,48 @@ extension RecordingTranscriptionFlow {
             // 3. If conversion fails, we still have the successful transcription
             if audioURL.pathExtension.lowercased() == "wav",
                let settings = settingsManager,
-               settings.storeAsM4A {
+               settings.storeAsM4A,
+               let processingTranscriptID {
                 Task {
                     await recordingLifecycle.performBackgroundWAVToM4AConversion(
-                        transcript: processingTranscript,
+                        transcriptID: processingTranscriptID,
                         wavURL: audioURL
                     )
                 }
+            }
+
+            // FLOW COMPLETION LOG (WS4): all per-stage timings on one line.
+            let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
+            let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+            let trimmedSeconds = trimResult.map { String(format: "%.1f", $0.silenceRemoved) } ?? "0.0"
+            let stageTimings = "wavReadyMs=\(wavReadyMs) · fileCheckMs=\(fileCheckMs) · vadTrimMs=\(vadTrimMs) · createRowMs=\(createRowMs) · transcribeMs=\(transcribeMs) · coreDataUpdateMs=\(coreDataUpdateMs)"
+            let uiLogMessage =
+                "Recording transcription flow succeeded · attemptId=\(attemptId) · trigger=\(trigger) · mode=\(actualMode) · provider=\(transcriptionResult.provider) · flowMs=\(flowElapsedMs) · transcribingUiMs=\(transcribingUIElapsedMs) · vadProcessed=\(vadResult.wasProcessed) · silenceRemovedSeconds=\(trimmedSeconds) · \(stageTimings)"
+
+            let isLocalLLM = transcriptionResult.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
+            let effectiveUIThreshold: Int
+            if isLocalLLM {
+                effectiveUIThreshold = slowTranscribingUIWithLocalLLMThresholdMs
+            } else if transcriptionResult.wasPostProcessed {
+                effectiveUIThreshold = slowTranscribingUIWithPostProcessingThresholdMs
+            } else {
+                effectiveUIThreshold = slowTranscribingUIThresholdMs
+            }
+            if transcribingUIElapsedMs >= effectiveUIThreshold {
+                // Slow path: attach per-stage timings as scope extras (they survive
+                // beforeSend, unlike breadcrumbs) so any subsequent event carries them.
+                SentryService.setExtras([
+                    "stage_wav_ready_ms": wavReadyMs,
+                    "stage_file_check_ms": fileCheckMs,
+                    "stage_vad_trim_ms": vadTrimMs,
+                    "stage_create_row_ms": createRowMs,
+                    "stage_transcribe_ms": transcribeMs,
+                    "stage_core_data_update_ms": coreDataUpdateMs,
+                    "stage_flow_ms": flowElapsedMs
+                ])
+                AppLogger.audio.warning("\(uiLogMessage, privacy: .public)")
+            } else {
+                AppLogger.audio.info("\(uiLogMessage, privacy: .public)")
             }
 
         } catch is CancellationError {
@@ -620,10 +601,31 @@ extension RecordingTranscriptionFlow {
         } catch {
             let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
             let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+            let stageTimings = "wavReadyMs=\(wavReadyMs) · fileCheckMs=\(fileCheckMs) · vadTrimMs=\(vadTrimMs) · createRowMs=\(createRowMs) · transcribeMs=\(transcribeMs)"
             AppLogger.audio.error(
-                "Recording transcription flow failed · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · mode=\(actualMode, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public) · error=\(error.localizedDescription, privacy: .public)"
+                "Recording transcription flow failed · attemptId=\(attemptId, privacy: .public) · trigger=\(trigger, privacy: .public) · mode=\(actualMode, privacy: .public) · flowMs=\(flowElapsedMs, privacy: .public) · transcribingUiMs=\(transcribingUIElapsedMs, privacy: .public) · \(stageTimings, privacy: .public) · error=\(error.localizedDescription, privacy: .public)"
             )
-            handleTranscriptionError(error, processingTranscript: processingTranscript, mode: actualMode, duration: recordingDuration, audioURL: audioURL)
+            // Attach per-stage timings as scope extras so the pipeline's error event carries them.
+            SentryService.setExtras([
+                "stage_wav_ready_ms": wavReadyMs,
+                "stage_file_check_ms": fileCheckMs,
+                "stage_vad_trim_ms": vadTrimMs,
+                "stage_create_row_ms": createRowMs,
+                "stage_transcribe_ms": transcribeMs,
+                "stage_flow_ms": flowElapsedMs
+            ])
+            handleTranscriptionError(error, processingTranscriptID: processingTranscriptID, mode: actualMode, duration: recordingDuration, audioURL: audioURL)
         }
+    }
+
+    /// Definitive readability test for the finalized recording file (WS3).
+    /// The lifecycle already validated existence + size; this confirms the file
+    /// opens as a decodable audio file before handing it to transcription.
+    private func isAudioFileReadable(_ url: URL) -> Bool {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: url.path), fm.isReadableFile(atPath: url.path) else {
+            return false
+        }
+        return (try? AVAudioFile(forReading: url)) != nil
     }
 }

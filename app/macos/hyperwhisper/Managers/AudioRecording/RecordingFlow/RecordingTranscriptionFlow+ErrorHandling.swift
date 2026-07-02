@@ -5,6 +5,7 @@
 //  Created by modularization refactoring
 //
 
+import CoreData
 import Foundation
 import KeyboardShortcuts
 
@@ -298,8 +299,13 @@ extension RecordingTranscriptionFlow {
         return (error.localizedDescription, false)
     }
 
-    /// Handle transcription errors with appropriate UI updates
-    func handleTranscriptionError(_ error: Error, processingTranscript: Transcript, mode: String, duration: TimeInterval, audioURL: URL) {
+    /// Handle transcription errors with appropriate UI updates.
+    ///
+    /// The failed-status write goes to the serial background writer via the
+    /// transcript's object ID; UI state is then updated on the main actor. For the
+    /// retry button we resolve the now-failed transcript on the view context AFTER
+    /// awaiting the writer (auto-merge has applied the failed status by then).
+    func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, duration: TimeInterval, audioURL: URL) {
         let isNetworkOutage: Bool
         if let transcriptionError = error as? TranscriptionError, case .transientNetwork = transcriptionError {
             isNetworkOutage = true
@@ -318,51 +324,61 @@ extension RecordingTranscriptionFlow {
 
         // Special case: streaming interrupted - keep partial text
         if let te = error as? TranscriptionError, case .streamingInterrupted = te {
-            Task { @MainActor in
-                appState?.recordingState = .idle
-                processingTranscript.setValue("failed", forKey: "status")
-                processingTranscript.setValue(te.localizedDescription, forKey: "failedReason")
-                processingTranscript.text = "Transcription failed: \(te.localizedDescription)"
-                PersistenceController.shared.save()
+            Task {
+                if let processingTranscriptID {
+                    await PersistenceController.shared.markTranscriptFailedInBackground(
+                        transcriptID: processingTranscriptID,
+                        failedReason: te.localizedDescription,
+                        errorText: "Transcription failed: \(te.localizedDescription)"
+                    )
+                }
+                await MainActor.run {
+                    appState?.recordingState = .idle
 
-                // CRITICAL: Disable cancel shortcut on error
-                KeyboardShortcuts.disable(.cancelRecording)
-                clearActiveSessionMode()
+                    // CRITICAL: Disable cancel shortcut on error
+                    KeyboardShortcuts.disable(.cancelRecording)
+                    clearActiveSessionMode()
 
-                powerActivityManager.endPowerActivity()
+                    powerActivityManager.endPowerActivity()
+                }
             }
             AppLogger.audio.warning("⚠️ Streaming interrupted; kept partial text on screen")
         } else {
             // Handle generic transcription failure
-            Task { @MainActor in
-                if isNetworkOutage {
-                    appState?.errorMessage = ""
-                    appState?.showErrorAlert = false
-                } else {
-                    appState?.showError(error.localizedDescription)
-
-                    // Store reference to failed transcript for retry button
-                    // This allows RecordingDialog to show a retry button in the error alert
-                    // that navigates to History and retries the transcription
-                    appState?.lastFailedTranscript = processingTranscript
+            Task {
+                if let processingTranscriptID {
+                    await PersistenceController.shared.markTranscriptFailedInBackground(
+                        transcriptID: processingTranscriptID,
+                        failedReason: error.localizedDescription,
+                        errorText: "Transcription failed: \(error.localizedDescription)"
+                    )
                 }
-                appState?.recordingState = .idle
+                await MainActor.run {
+                    if isNetworkOutage {
+                        appState?.errorMessage = ""
+                        appState?.showErrorAlert = false
+                    } else {
+                        appState?.showError(error.localizedDescription)
 
-                processingTranscript.setValue("failed", forKey: "status")
-                processingTranscript.setValue(error.localizedDescription, forKey: "failedReason")
-                processingTranscript.text = "Transcription failed: \(error.localizedDescription)"
+                        // Store reference to failed transcript for retry button.
+                        // Resolve on the view context now that the writer has persisted
+                        // the failed status (auto-merge has applied it).
+                        if let processingTranscriptID,
+                           let failed = try? PersistenceController.shared.container.viewContext.existingObject(with: processingTranscriptID) as? Transcript {
+                            appState?.lastFailedTranscript = failed
+                        }
+                    }
+                    appState?.recordingState = .idle
+                    appState?.lastTranscription = "Error: \(error.localizedDescription)"
 
-                appState?.lastTranscription = "Error: \(error.localizedDescription)"
+                    // CRITICAL: Disable cancel shortcut on error
+                    KeyboardShortcuts.disable(.cancelRecording)
+                    clearActiveSessionMode()
 
-                PersistenceController.shared.save()
+                    // Sentry capture handled in TranscriptionPipeline to avoid duplicates.
 
-                // CRITICAL: Disable cancel shortcut on error
-                KeyboardShortcuts.disable(.cancelRecording)
-                clearActiveSessionMode()
-
-                // Sentry capture handled in TranscriptionPipeline to avoid duplicates.
-
-                powerActivityManager.endPowerActivity()
+                    powerActivityManager.endPowerActivity()
+                }
             }
             AppLogger.audio.error("❌ Transcription error: \(error)")
         }

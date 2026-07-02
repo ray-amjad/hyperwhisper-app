@@ -334,6 +334,25 @@ extension RecordingTranscriptionFlow {
                 return
             }
 
+            // RECORD-START PREWARM (WS2):
+            // Close the residual cold-load window by preparing the EXACT resolved
+            // model as recording starts — covers post-eviction cold state and Quick
+            // Capture's pinned mode (selectedModeId already accounts for it). This is
+            // fire-and-forget: it is never awaited by the start path and must not delay
+            // recording. Cloud modes no-op in prepareModel, so skip them here.
+            let prewarmModelId = modeSnapshot.model.lowercased()
+            if !prewarmModelId.isEmpty, prewarmModelId != "cloud" {
+                Task { [weak self] in
+                    guard let self else { return }
+                    // Guard against a stale prewarm from a cancelled/superseded start.
+                    guard self.currentRecordingAttemptId == attemptId else { return }
+                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: selectedModeId) else { return }
+                    guard self.currentRecordingAttemptId == attemptId else { return }
+                    await self.transcriptionPipeline?.prepareModel(for: mode)
+                    await self.transcriptionPipeline?.prepareLocalRuntime(for: mode)
+                }
+            }
+
             // Run critical checks in parallel for faster validation
             // NOTE: Provider health check removed - errors will surface during transcription instead.
             // This prevents network timeouts from blocking recording start.

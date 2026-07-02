@@ -833,8 +833,328 @@ class PersistenceController: ObservableObject {
         }
     }
     
+    // MARK: - Background Writer (serial)
+
+    /// Long-lived, serial background context that all stop-flow writes funnel
+    /// through. Because every write runs on this single private queue, writes are
+    /// serialized (closing the duplicate-transcript race under rapid stop presses)
+    /// AND kept entirely off the main thread (removing the ~4.7s main-thread Core
+    /// Data stall that froze the stop→paste path).
+    ///
+    /// `automaticallyMergesChangesFromParent = true` means the `viewContext` picks
+    /// up these writes via the standard `NSManagedObjectContextDidSave` merge, so
+    /// HistoryView's existing save-notification observer refreshes with no change.
+    private lazy var writerContext: NSManagedObjectContext = {
+        let context = container.newBackgroundContext()
+        context.name = "HyperWhisper.writer"
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.automaticallyMergesChangesFromParent = true
+        context.undoManager = nil
+        return context
+    }()
+
+    /// Debounced view-context maintenance task (cancel-previous). Keeps the
+    /// re-faulting benefit off the stop→paste hot path.
+    @MainActor private var viewContextMaintenanceTask: Task<Void, Never>?
+
+    /// Run a write block on the serial background writer context.
+    ///
+    /// The block receives the writer context and performs its mutations; if it
+    /// leaves pending changes they are saved on the writer queue. On save failure
+    /// the context is rolled back (never leaving the long-lived context poisoned)
+    /// and the error is logged + captured. After every write the writer context is
+    /// re-faulted to stay lean, and view-context maintenance is scheduled.
+    ///
+    /// Pass ONLY value types + `NSManagedObjectID` into `block` — never a managed
+    /// object — so nothing crosses a context boundary.
+    @discardableResult
+    func performWrite<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> T {
+        let context = writerContext
+        let result = await context.perform {
+            let value = block(context)
+            if context.hasChanges {
+                do {
+                    try context.save()
+                } catch {
+                    let nsError = error as NSError
+                    AppLogger.logCoreData(.save, error: nsError)
+                    SentryService.capture(
+                        error: nsError,
+                        message: "Core Data background write failed",
+                        tags: ["component": "PersistenceController", "operation": "performWrite"]
+                    )
+                    // Never leave the long-lived writer context poisoned.
+                    context.rollback()
+                }
+                // Re-fault so the long-lived writer doesn't accumulate objects.
+                context.refreshAllObjects()
+            }
+            return value
+        }
+        await MainActor.run { self.scheduleViewContextMaintenance() }
+        return result
+    }
+
+    /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
+    /// quiescence, if the view context has no pending edits, re-fault it to keep
+    /// it lean without ever touching the stop→paste path.
+    @MainActor
+    private func scheduleViewContextMaintenance() {
+        viewContextMaintenanceTask?.cancel()
+        viewContextMaintenanceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled, let self else { return }
+            let viewContext = self.container.viewContext
+            guard !viewContext.hasChanges else { return }
+            viewContext.refreshAllObjects()
+        }
+    }
+
+    // MARK: - Background Domain Writes (stop flow)
+
+    /// Create a processing transcript on the serial writer.
+    ///
+    /// Mirrors `createProcessingTranscript`'s idempotency guard, and additionally
+    /// accepts the VAD trimmed path so the separate `setTrimmedAudioPath` write
+    /// collapses into this single create. Returns the permanent object ID (obtained
+    /// before save) so callers can address the row later without crossing contexts.
+    func createProcessingTranscriptInBackground(
+        duration: TimeInterval,
+        mode: String?,
+        audioFilePath: String?,
+        trimmedAudioPath: String?
+    ) async -> NSManagedObjectID? {
+        return await performWrite { context -> NSManagedObjectID? in
+            let normalizedPath = audioFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            var reused: Transcript?
+            if !normalizedPath.isEmpty {
+                let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+                request.predicate = NSPredicate(
+                    format: "status == %@ AND audioFilePath == %@",
+                    "processing",
+                    normalizedPath
+                )
+                request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
+
+                if let existing = try? context.fetch(request), let primary = existing.first {
+                    if existing.count > 1 {
+                        for duplicate in existing.dropFirst() {
+                            context.delete(duplicate)
+                        }
+                        AppLogger.coreData.warning(
+                            "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
+                        )
+                    }
+
+                    primary.text = "Processing transcription..."
+                    primary.date = Date()
+                    primary.duration = max(primary.duration, duration)
+                    primary.mode = mode
+                    primary.audioFilePath = normalizedPath
+                    primary.setValue("processing", forKey: "status")
+                    reused = primary
+                }
+            }
+
+            let transcript: Transcript
+            if let reused {
+                transcript = reused
+            } else {
+                let created = Transcript(context: context)
+                created.id = UUID()
+                created.text = "Processing transcription..."
+                created.date = Date()
+                created.duration = duration
+                created.mode = mode
+                created.audioFilePath = audioFilePath
+                created.setValue("processing", forKey: "status")
+                transcript = created
+            }
+
+            if let trimmedAudioPath, !trimmedAudioPath.isEmpty {
+                transcript.setValue(trimmedAudioPath, forKey: "trimmedAudioFilePath")
+            }
+
+            try? context.obtainPermanentIDs(for: [transcript])
+            return transcript.objectID
+        }
+    }
+
+    /// Create an already-failed transcript on the serial writer in ONE write
+    /// (replaces the old create + mutate + second save on the error paths).
+    func createFailedTranscriptInBackground(
+        duration: TimeInterval,
+        mode: String?,
+        audioFilePath: String?,
+        failedReason: String,
+        errorText: String
+    ) async -> NSManagedObjectID? {
+        return await performWrite { context -> NSManagedObjectID? in
+            let created = Transcript(context: context)
+            created.id = UUID()
+            created.date = Date()
+            created.duration = duration
+            created.mode = mode
+            created.audioFilePath = audioFilePath
+            created.setValue("failed", forKey: "status")
+            created.setValue(failedReason, forKey: "failedReason")
+            created.text = errorText
+            try? context.obtainPermanentIDs(for: [created])
+            return created.objectID
+        }
+    }
+
+    /// Complete a processing transcript on the serial writer. Same field updates
+    /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
+    /// and no view-context `refreshAllObjects()` — the merge notification refreshes
+    /// HistoryView, and maintenance is debounced off the hot path.
+    func updateTranscriptWithTranscriptionInBackground(
+        transcriptID: NSManagedObjectID,
+        transcribedText: String,
+        postProcessedText: String? = nil,
+        transcriptionProvider: String? = nil,
+        postProcessingProvider: String? = nil,
+        wordTimestampsJSON: String? = nil
+    ) async {
+        await performWrite { context in
+            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
+                AppLogger.coreData.warning("updateTranscriptWithTranscriptionInBackground: transcript row not found (cancel race?) — skipping")
+                return
+            }
+
+            transcript.text = postProcessedText ?? transcribedText
+            transcript.setValue("completed", forKey: "status")
+            transcript.setValue(transcribedText, forKey: "transcribedText")
+            if let postProcessedText {
+                transcript.setValue(postProcessedText, forKey: "postProcessedText")
+            }
+            if let transcriptionProvider {
+                transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
+            }
+            if let postProcessingProvider {
+                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
+            }
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
+
+            // Collapse transient near-now duplicates for the same audio path.
+            if let rawPath = transcript.audioFilePath {
+                let audioPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !audioPath.isEmpty {
+                    let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+                    request.predicate = NSPredicate(format: "SELF != %@ AND audioFilePath == %@", transcript.objectID, audioPath)
+
+                    if let candidates = try? context.fetch(request) {
+                        let anchorDate = transcript.date ?? Date()
+                        let anchorDuration = transcript.duration
+                        let anchorText = transcript.text ?? ""
+
+                        for candidate in candidates {
+                            let status = candidate.value(forKey: "status") as? String ?? ""
+                            guard status == "processing" || status == "completed" else { continue }
+
+                            let candidateDate = candidate.date ?? .distantPast
+                            let isNearInTime = abs(candidateDate.timeIntervalSince(anchorDate)) <= 20
+                            let isNearInDuration = abs(candidate.duration - anchorDuration) <= 0.5
+                            let candidateRawText = candidate.value(forKey: "transcribedText") as? String ?? ""
+                            let sameText = (candidate.text ?? "") == anchorText || candidateRawText == transcribedText
+
+                            if isNearInTime && (isNearInDuration || sameText) {
+                                context.delete(candidate)
+                                AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Mark a transcript failed on the serial writer.
+    func markTranscriptFailedInBackground(
+        transcriptID: NSManagedObjectID,
+        failedReason: String,
+        errorText: String
+    ) async {
+        await performWrite { context in
+            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
+                AppLogger.coreData.warning("markTranscriptFailedInBackground: transcript row not found — skipping")
+                return
+            }
+            transcript.setValue("failed", forKey: "status")
+            transcript.setValue(failedReason, forKey: "failedReason")
+            transcript.text = errorText
+        }
+    }
+
+    /// Finalize a recording session on stop in ONE serial write — collapses the
+    /// old `updateRecordingSessionOnStop` + audioFormat mutation + save.
+    func updateRecordingSessionOnStopInBackground(
+        sessionID: NSManagedObjectID,
+        audioFilePath: String,
+        duration: TimeInterval,
+        audioFormat: String
+    ) async {
+        await performWrite { context in
+            guard let session = try? context.existingObject(with: sessionID) as? RecordingSession else {
+                AppLogger.coreData.warning("updateRecordingSessionOnStopInBackground: session row not found — skipping")
+                return
+            }
+            session.audioFilePath = audioFilePath
+            session.durationInSeconds = duration
+            session.endTime = Date()
+            session.audioFormat = audioFormat
+        }
+    }
+
+    /// Update a transcript's audio file path (and its recording session's path)
+    /// on the serial writer — used by the background M4A conversion path.
+    func updateTranscriptAudioFilePathInBackground(
+        transcriptID: NSManagedObjectID,
+        newPath: String
+    ) async {
+        await performWrite { context in
+            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
+                AppLogger.coreData.warning("updateTranscriptAudioFilePathInBackground: transcript row not found — skipping")
+                return
+            }
+            transcript.audioFilePath = newPath
+            if let session = transcript.recordingSession {
+                session.audioFilePath = newPath
+            }
+        }
+    }
+
+    /// Delete a recording session on the serial writer, then remove its audio file
+    /// off the main thread. Reads the path inside the writer so nothing crosses a
+    /// context boundary.
+    func deleteRecordingSessionInBackground(
+        sessionID: NSManagedObjectID,
+        deleteAudioFile: Bool = true
+    ) async {
+        let filePathToRemove: String? = await performWrite { context -> String? in
+            guard let session = try? context.existingObject(with: sessionID) as? RecordingSession else {
+                AppLogger.coreData.debug("deleteRecordingSessionInBackground: session row not found — skipping")
+                return nil
+            }
+            let path = deleteAudioFile ? session.audioFilePath : nil
+            context.delete(session)
+            return path
+        }
+
+        if let filePathToRemove {
+            do {
+                try FileManager.default.removeItem(atPath: filePathToRemove)
+                AppLogger.audio.debug("Deleted incomplete audio file: \(filePathToRemove, privacy: .public)")
+            } catch {
+                AppLogger.audio.debug("Could not delete incomplete audio file (may not exist): \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Transcript Operations
-    
+
     /// Creates a new transcript
     /// - Parameters:
     ///   - text: The transcribed text
