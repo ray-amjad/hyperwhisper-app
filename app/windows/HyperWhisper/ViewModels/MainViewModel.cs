@@ -1733,6 +1733,24 @@ public partial class MainViewModel : ViewModelBase
         return false;
     }
 
+    /// <summary>
+    /// Run <paramref name="action"/> on the UI dispatcher: posted via BeginInvoke
+    /// from background threads, invoked inline when already on the UI thread (or
+    /// when no dispatcher exists).
+    /// </summary>
+    private static void DispatchToUi(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(action);
+        }
+        else
+        {
+            action();
+        }
+    }
+
     private void CheckRecordingDurationLimit()
     {
         if (!IsRecording ||
@@ -1747,18 +1765,9 @@ public partial class MainViewModel : ViewModelBase
         LoggingService.Warn("Recording duration limit reached; auto-stopping session");
         SentryService.AddBreadcrumb("recording_duration_limit_reached", "audio.recording");
 
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher != null && !dispatcher.CheckAccess())
-        {
-            dispatcher.BeginInvoke(async () =>
-            {
-                await AutoStopRecordingAfterDurationLimitAsync();
-            });
-        }
-        else
-        {
-            _ = AutoStopRecordingAfterDurationLimitAsync();
-        }
+        // The async helper re-checks recording state once on the UI thread —
+        // the session may have stopped between this tick and the dispatch.
+        DispatchToUi(() => _ = AutoStopRecordingAfterDurationLimitAsync());
     }
 
     private async Task AutoStopRecordingAfterDurationLimitAsync()
@@ -1769,7 +1778,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-            "Recording stopped — 20-minute safety limit reached.",
+            Loc.S("errors.recordingDurationLimit"),
             showSettingsButton: false));
         await StopRecordingAndTranscribeAsync();
     }
@@ -1784,28 +1793,21 @@ public partial class MainViewModel : ViewModelBase
         }
 
         _streamingDurationLimitReached = true;
-        _streamingFailureMessage = "Streaming reached the 20-minute safety limit.";
+        // Set BEFORE the dispatch: the stop path reads this field to explain the
+        // session end, and the dispatched toast must observe it too.
+        _streamingFailureMessage = Loc.S("errors.streamingDurationLimit");
         LoggingService.Warn("Streaming duration limit reached; stopping session");
         SentryService.AddBreadcrumb("streaming_duration_limit_reached", "audio.streaming");
 
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher != null && !dispatcher.CheckAccess())
+        DispatchToUi(() =>
         {
-            dispatcher.BeginInvoke(() =>
-            {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    _streamingFailureMessage,
-                    showSettingsButton: false));
-                _ = StopStreamingRecordingAsync();
-            });
-        }
-        else
-        {
+            // Toast first, then stop — the stop path clears session state the
+            // toast message derives from.
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 _streamingFailureMessage,
                 showSettingsButton: false));
             _ = StopStreamingRecordingAsync();
-        }
+        });
     }
 
     private SmartPasteResult PasteStreamingFinalSegment(string segment)

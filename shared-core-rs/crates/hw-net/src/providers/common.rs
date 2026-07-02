@@ -225,8 +225,11 @@ pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
 
 /// True when an OpenAI-style 429 body indicates permanent quota exhaustion
 /// (vs. transient rate limiting). Mirrors the `isQuotaError` check in
-/// `CloudWhisperProvider.swift`.
-fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
+/// `CloudWhisperProvider.swift`. Inspects ONLY the nested `error` object —
+/// deliberately no top-level `message` fallback, so this and `retry`'s
+/// classifier (which imports this fn) agree on every status.
+/// pub(crate): shared with `retry::classify_error`.
+pub(crate) fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
     let Some(error) = json.and_then(|j| j.get("error")) else {
         return false;
     };
@@ -245,7 +248,8 @@ fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
 
 /// Best-effort error message: `error.message`, then top-level `message`/`error`
 /// (string), then the first 200 chars of the raw body.
-fn error_message(json: Option<&serde_json::Value>, raw: &str) -> String {
+/// pub(crate): shared with `retry::classify_error`.
+pub(crate) fn error_message(json: Option<&serde_json::Value>, raw: &str) -> String {
     if let Some(j) = json {
         if let Some(m) = j
             .get("error")

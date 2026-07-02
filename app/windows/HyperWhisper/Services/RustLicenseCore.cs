@@ -5,10 +5,8 @@
 // Thin boundary between the C# license/usage services and the `hw-license` Rust
 // core (via the generated `HyperwhisperCoreMethods` binding). Centralizes:
 //   - the single shared KeyValueStore instance,
-//   - the build-flavor flag passed to LicenseLimitsDefaults,
 //   - now-injection,
-//   - HwLicenseStatus <-> HyperWhisper.Models.LicenseStatus mapping,
-//   - the "effective limits" = defaults overlaid with a fresh remote override.
+//   - HwLicenseStatus <-> HyperWhisper.Models.LicenseStatus mapping.
 //
 // now-INJECTION (confirmed UTC-only for Windows):
 //   The native Windows daily-usage reset bucketed by the UTC calendar day
@@ -31,30 +29,8 @@ internal static class RustLicenseCore
     /// <summary>The single shared store passed to every <c>License*</c> call.</summary>
     public static KeyValueStore Store => RustCoreKeyValueStore.Instance;
 
-    /// <summary>Build-flavor flag for <c>LicenseLimitsDefaults</c>.</summary>
-#if DEBUG
-    public const bool DebugBuild = true;
-#else
-    public const bool DebugBuild = false;
-#endif
-
     /// <summary>Plain UTC unix seconds — used for usage AND cache calls on Windows.</summary>
     public static long Now() => System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-    /// <summary>
-    /// Effective trial limits: hardcoded defaults overlaid with a fresh remote
-    /// override (24h TTL), exactly as the core's cache module exposes it.
-    /// </summary>
-    public static Limits EffectiveLimits()
-    {
-        var defaults = HyperwhisperCoreMethods.LicenseLimitsDefaults(DebugBuild);
-        var over = HyperwhisperCoreMethods.LicenseRemoteOverrideIfFresh(Store, Now());
-        if (over != null)
-        {
-            return new Limits(@dailySeconds: over.dailySeconds, @modelDownloads: over.modelDownloads);
-        }
-        return defaults;
-    }
 
     // ---- Status mapping ----
 

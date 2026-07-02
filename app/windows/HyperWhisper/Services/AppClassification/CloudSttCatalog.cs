@@ -36,7 +36,8 @@ public sealed class CloudSttCatalog
     /// <summary>
     /// Look up an entry whose <c>MigrateFrom</c> list contains the given alias
     /// (case-insensitive). Drives legacy <c>cloudAccuracyTier</c> resolution —
-    /// NOT <c>cloudProvider</c> rewriting (see <see cref="GetByLegacyCloudProviderAlias"/>).
+    /// NOT <c>cloudProvider</c> rewriting (that lives in the core, surfaced via
+    /// <see cref="NormalizeCloudProvider"/>).
     /// </summary>
     public CloudSttCatalogEntry? GetByMigrateFromAlias(string? alias)
     {
@@ -46,28 +47,6 @@ public sealed class CloudSttCatalog
         {
             if (entry.MigrateFrom is null) continue;
             foreach (var candidate in entry.MigrateFrom)
-            {
-                if (string.Equals(candidate, needle, StringComparison.OrdinalIgnoreCase))
-                    return entry;
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Look up an entry whose <c>LegacyCloudProviderAliases</c> list contains
-    /// the given alias (case-insensitive). Drives <see cref="NormalizeCloudProvider"/>
-    /// only — kept deliberately separate from <c>MigrateFrom</c> so BYOK
-    /// provider names never get misinterpreted as cloud-tier migrations.
-    /// </summary>
-    public CloudSttCatalogEntry? GetByLegacyCloudProviderAlias(string? alias)
-    {
-        if (string.IsNullOrWhiteSpace(alias)) return null;
-        var needle = alias.Trim();
-        foreach (var entry in Providers)
-        {
-            if (entry.LegacyCloudProviderAliases is null) continue;
-            foreach (var candidate in entry.LegacyCloudProviderAliases)
             {
                 if (string.Equals(candidate, needle, StringComparison.OrdinalIgnoreCase))
                     return entry;

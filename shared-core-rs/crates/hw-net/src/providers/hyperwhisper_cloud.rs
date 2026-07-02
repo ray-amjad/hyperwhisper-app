@@ -56,6 +56,7 @@ use crate::contract::{
 use crate::helpers::{
     normalize_vocabulary_capped, resolve_mime, HW_CLOUD_MAX_VOCAB_TERMS, MULTIPART_BOUNDARY,
 };
+use crate::providers::common::filename_of;
 
 /// Sentinel multipart field name marking a single-`FileRef` body that the
 /// platform must stream as the **raw** request body (not a multipart envelope).
@@ -296,33 +297,14 @@ pub fn parse_credits_used(resp: &HttpResponse) -> Option<f64> {
 // internals
 // ---------------------------------------------------------------------------
 
-/// Map an HTTP status (with parsed JSON body) to a [`TranscriptionError`],
-/// mirroring `handleHTTPError` (macOS) / `HandleErrorResponseAsync` (Windows).
-fn classify_status_json(
+/// Map an HTTP status to a [`TranscriptionError`], mirroring `handleHTTPError`
+/// (macOS) / `HandleErrorResponseAsync` (Windows). The `message` thunk supplies
+/// the BadRequest text — only evaluated for the BadRequest arm, so JSON/non-JSON
+/// callers keep their distinct message shapes without duplicating the table.
+fn classify_status_with_message(
     status: u16,
-    json: &serde_json::Value,
-    raw: &str,
+    message: impl FnOnce() -> String,
 ) -> TranscriptionError {
-    let message = json
-        .get("message")
-        .and_then(|v| v.as_str())
-        .or_else(|| json.get("error").and_then(|v| v.as_str()))
-        .unwrap_or(raw)
-        .to_string();
-    match status {
-        401 | 403 => TranscriptionError::Unauthorized,
-        402 => TranscriptionError::QuotaExceeded,
-        413 => TranscriptionError::FileTooLarge,
-        429 => TranscriptionError::RateLimited {
-            retry_after_secs: None,
-        },
-        500..=599 => TranscriptionError::ProviderUnavailable { status },
-        _ => TranscriptionError::BadRequest { status, message },
-    }
-}
-
-/// Same mapping when the body is not JSON.
-fn classify_status(status: u16, raw: &str) -> TranscriptionError {
     match status {
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
@@ -333,18 +315,31 @@ fn classify_status(status: u16, raw: &str) -> TranscriptionError {
         500..=599 => TranscriptionError::ProviderUnavailable { status },
         _ => TranscriptionError::BadRequest {
             status,
-            message: raw.chars().take(200).collect(),
+            message: message(),
         },
     }
 }
 
-/// Last path component of `path` (for the multipart `filename`).
-fn filename_of(path: &str) -> String {
-    path.rsplit(['/', '\\'])
-        .next()
-        .filter(|s| !s.is_empty())
-        .unwrap_or("audio")
-        .to_string()
+/// Status mapping with a parsed JSON body: BadRequest carries the extracted
+/// `message`/`error` string (falling back to the raw body).
+fn classify_status_json(
+    status: u16,
+    json: &serde_json::Value,
+    raw: &str,
+) -> TranscriptionError {
+    classify_status_with_message(status, || {
+        json.get("message")
+            .and_then(|v| v.as_str())
+            .or_else(|| json.get("error").and_then(|v| v.as_str()))
+            .unwrap_or(raw)
+            .to_string()
+    })
+}
+
+/// Same mapping when the body is not JSON: BadRequest carries the raw body
+/// truncated to 200 chars.
+fn classify_status(status: u16, raw: &str) -> TranscriptionError {
+    classify_status_with_message(status, || raw.chars().take(200).collect())
 }
 
 /// Percent-encode a query string. Deterministic, no deps.
