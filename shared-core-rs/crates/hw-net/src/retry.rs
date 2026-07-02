@@ -57,6 +57,13 @@
 //!   (Soniox/AssemblyAI). We adopt honoring-with-clamp as a deliberate unification:
 //!   when `retry_after` is present it overrides the exponential delay, clamped to
 //!   10s (10_000 ms).
+//! - **Transport errors are capped platform-side, not here.** The core only sees
+//!   HTTP statuses; platforms feed transport failures (no response at all) into
+//!   [`next_retry`] as a synthetic 503 to reuse this backoff schedule. Windows
+//!   additionally caps those attempts client-side (4 for connection-level errors,
+//!   2 for per-attempt timeouts — see `RustRetry.cs`) because grinding through
+//!   all 8 attempts against a dead network stretches a doomed request to ~27 min.
+//!   The core stays transport-agnostic; `MAX_ATTEMPTS` remains the global bound.
 
 use crate::contract::{RetryDecision, TranscriptionError};
 

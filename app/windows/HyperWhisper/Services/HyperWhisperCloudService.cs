@@ -414,15 +414,19 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         try
         {
             response = await RustRetry.PerformAsync(
-                Volatile.Read(ref _httpClient),
+                // Resolved per attempt so the post-rebuild attempts actually run
+                // on the fresh pool (a plain HttpClient argument would pin the
+                // stale pre-rebuild client for the whole sequence).
+                () => Volatile.Read(ref _httpClient),
                 buildRequest: () => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams),
                 parseError: MapCloudError,
                 cancellationToken: cancellationToken,
                 onTransportError: ex =>
                 {
                     // One-shot HttpClient rebuild per retry sequence: a DNS-shaped
-                    // error (network flip → stale cache) drops the pool so the next
-                    // attempt re-resolves. Gated to one rebuild per sequence.
+                    // error (network flip → stale cache) swaps in a fresh client,
+                    // which the clientProvider above hands to the NEXT attempt so
+                    // it re-resolves DNS. Gated to one rebuild per sequence.
                     if (!rebuiltThisSequence && IsDnsError(ex))
                     {
                         RebuildHttpClient();
