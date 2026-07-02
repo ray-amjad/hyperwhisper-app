@@ -88,6 +88,17 @@ internal static class HyperWhisperRoutedTranscriptionClient
 
         var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
 
+        // Fail fast: the guest/device-credit path is dead server-side
+        // (entitlement is enforced there), so an unlicensed request is doomed —
+        // surface guidance instead of burning a network round-trip on a 401.
+        if (!isLicensed)
+        {
+            throw new TranscriptionException(
+                TranscriptionErrorCode.CloudAccountRequired,
+                "HyperWhisper Cloud requires an account key",
+                providerDisplayName);
+        }
+
         LoggingService.Info($"========== HW-ROUTED TRANSCRIPTION ({sttProviderHeader}) ==========");
         LoggingService.Info($"  Auth: {(isLicensed ? "License Key" : "Device Credits")}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
@@ -137,8 +148,11 @@ internal static class HyperWhisperRoutedTranscriptionClient
             // Core appends the `/transcribe` path itself — pass the BASE, not the
             // full endpoint, or the path would double up.
             baseUrl: NetworkConfig.HyperWhisperCloudBaseUrl,
-            licenseKey: isLicensed ? identifier : null,
-            deviceId: isLicensed ? null : identifier,
+            licenseKey: identifier,
+            // Guest/device-credit auth is dead server-side and unreachable past
+            // the pre-check above. The core's deviceId param stays (macOS still
+            // populates it); this call site just never uses it.
+            deviceId: null,
             routedProvider: sttProviderHeader,
             routedModel: string.IsNullOrEmpty(model) ? null : model,
             routedDomain: string.IsNullOrEmpty(domain) ? null : domain);

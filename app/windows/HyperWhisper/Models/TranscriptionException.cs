@@ -71,7 +71,10 @@ public enum TranscriptionErrorCode
     DaemonTimeout = 16,
 
     /// <summary>Provider explicitly reported that no speech was detected in the audio.</summary>
-    NoSpeechDetected = 17
+    NoSpeechDetected = 17,
+
+    /// <summary>HyperWhisper Cloud selected without an account (license) key.</summary>
+    CloudAccountRequired = 18
 }
 
 /// <summary>
@@ -179,6 +182,9 @@ public class TranscriptionException : Exception
 
         TranscriptionErrorCode.NoSpeechDetected =>
             Loc.S("errors.noSpeechDetected"),
+
+        TranscriptionErrorCode.CloudAccountRequired =>
+            "HyperWhisper Cloud requires an account key. Get credits to create one, or use your own API key.",
 
         _ => Message
     };

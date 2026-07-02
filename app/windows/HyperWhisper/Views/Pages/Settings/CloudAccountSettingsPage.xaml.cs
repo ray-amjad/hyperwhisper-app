@@ -65,7 +65,8 @@ public partial class CloudAccountSettingsPage : Page
 
     private void RefreshUI()
     {
-        var isLicensed = LicenseManager.Instance.LicenseStatus == LicenseStatus.Active;
+        var status = LicenseManager.Instance.LicenseStatus;
+        var isLicensed = status == LicenseStatus.Active;
 
         LicensedView.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
         UnlicensedView.Visibility = isLicensed ? Visibility.Collapsed : Visibility.Visible;
@@ -73,12 +74,34 @@ public partial class CloudAccountSettingsPage : Page
 
         LicenseErrorText.Visibility = Visibility.Collapsed;
 
+        // Expired/Invalid: keep the activation view but explain WHY the customer
+        // landed here instead of showing a fresh-install screen. The activation
+        // box below the banner stays usable (renewed key, different key).
+        if (status is LicenseStatus.Expired or LicenseStatus.Invalid)
+        {
+            LicenseStatusBannerText.Text = Loc.S(status == LicenseStatus.Expired
+                ? "license.status.expired.description"
+                : "license.status.invalid.description");
+
+            var email = LicenseManager.Instance.CustomerEmail;
+            LicenseStatusBannerEmail.Text = email ?? string.Empty;
+            LicenseStatusBannerEmail.Visibility = string.IsNullOrEmpty(email)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+            LicenseStatusBanner.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            LicenseStatusBanner.Visibility = Visibility.Collapsed;
+        }
+
         if (isLicensed)
         {
             UpdateKeyRow();
         }
 
-        LoggingService.Debug($"CloudAccountSettingsPage: UI refreshed (licensed: {isLicensed})");
+        LoggingService.Debug($"CloudAccountSettingsPage: UI refreshed (status: {status})");
     }
 
     // =========================================================================
@@ -262,6 +285,14 @@ public partial class CloudAccountSettingsPage : Page
     private void UpdateKeyRow()
     {
         var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
+
+        // Customer email row (account info card) — collapse when the validation
+        // didn't return one.
+        var email = LicenseManager.Instance.CustomerEmail;
+        CloudEmailText.Text = email ?? string.Empty;
+        CloudEmailPanel.Visibility = isLicensed && !string.IsNullOrEmpty(email)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         if (!isLicensed || string.IsNullOrEmpty(identifier))
         {

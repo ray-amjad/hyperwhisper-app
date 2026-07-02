@@ -127,6 +127,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <!-- Row 1: Credits Remaining / Cost per Minute -->
@@ -159,8 +160,18 @@
                                            TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
 
-                            <!-- Row 3: Daily Reset (for anonymous users) -->
-                            <StackPanel x:Name="CreditsDailyResetPanel" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                            <!-- Row 3: Customer email (when the validation returned one) -->
+                            <StackPanel x:Name="CloudEmailPanel" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                        Margin="0,0,8,12" Visibility="Collapsed">
+                                <TextBlock Text="{loc:Loc settings.cloud.account.email}" FontSize="12"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="CloudEmailText" Text="" FontSize="13" FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <!-- Row 4: Daily Reset (for anonymous users) -->
+                            <StackPanel x:Name="CreditsDailyResetPanel" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                                         Visibility="Collapsed">
                                 <TextBlock Text="{loc:Loc settings.credits.accountInfo.dailyReset}" FontSize="12"
                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -226,6 +237,20 @@
             <!-- UNLICENSED VIEW                                                -->
             <!-- ============================================================= -->
             <StackPanel x:Name="UnlicensedView" Visibility="Collapsed">
+
+                <!-- Expired / Invalid license banner: an existing customer whose
+                     key lapsed sees WHY they landed on the activation view instead
+                     of a fresh-install screen. Collapsed for true fresh installs. -->
+                <Border x:Name="LicenseStatusBanner" Visibility="Collapsed"
+                        Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="{StaticResource CardCornerRadius}" Padding="12" Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock x:Name="LicenseStatusBannerText" Text=""
+                                   Foreground="{DynamicResource WarningForegroundBrush}" FontSize="13" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="LicenseStatusBannerEmail" Text="" Visibility="Collapsed"
+                                   Foreground="{DynamicResource WarningForegroundBrush}" FontSize="12" FontWeight="Medium"
+                                   Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
 
                 <!-- Activation Card -->
                 <Border Style="{StaticResource CardStyle}" Margin="0,0,0,20">

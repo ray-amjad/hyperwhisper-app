@@ -1633,9 +1633,13 @@ public partial class MainViewModel : ViewModelBase
             }
 
             var isCredentialError = ex is TranscriptionException { Code: TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized };
+            // CloudAccountRequired routes to the HW Cloud settings page (where
+            // the account key is entered), NOT the BYOK API-keys manager.
+            var isCloudAccountError = ex is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired };
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 ex is TranscriptionException txEx ? txEx.GetUserMessage() : Loc.S("errors.transcriptionFailed", ex.Message),
-                showSettingsButton: isCredentialError,
+                showSettingsButton: isCredentialError || isCloudAccountError,
+                settingsSection: isCloudAccountError ? "Cloud" : null,
                 openApiKeysManager: isCredentialError));
 
             StatusText = Loc.S("status.failed", ex.Message);
@@ -2245,9 +2249,13 @@ public partial class MainViewModel : ViewModelBase
                     MarkTranscriptAsGenericFailure(transcript, txEx);
                 }
                 var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
+                // CloudAccountRequired routes to the HW Cloud settings page
+                // (account key entry), NOT the BYOK API-keys manager.
+                var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
                 ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                     txEx.GetUserMessage(),
-                    showSettingsButton: showSettings,
+                    showSettingsButton: showSettings || isCloudAccountError,
+                    settingsSection: isCloudAccountError ? "Cloud" : null,
                     openApiKeysManager: showSettings));
             }
             else
