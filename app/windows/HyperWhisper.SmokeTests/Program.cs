@@ -176,6 +176,16 @@ internal static class Program
                 Assert(handler.Sends == 1, $"sends {handler.Sends}");
             });
 
+            Run("AssemblyAI MapError classifies via the step's own parser", () =>
+            {
+                var unauthorized = new uniffi.hyperwhisper_core.HttpResponse(
+                    401, new List<Header>(), System.Text.Encoding.UTF8.GetBytes("{\"error\":\"bad key\"}"));
+                var ex = AssemblyAIService.MapError(
+                    unauthorized, "upload", r => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(r));
+                Assert(ex.Code == TranscriptionErrorCode.Unauthorized, $"code {ex.Code}");
+                Assert(ex.HttpStatusCode == 401, $"status {ex.HttpStatusCode}");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

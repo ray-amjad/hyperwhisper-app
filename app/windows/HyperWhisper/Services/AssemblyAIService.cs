@@ -294,7 +294,8 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     /// parser is NOT interchangeable: it reads the transcript `status` field and
     /// would misclassify upload/create error bodies.
     /// </summary>
-    private static TranscriptionException MapError(
+    // internal for SmokeTests.
+    internal static TranscriptionException MapError(
         uniffi.hyperwhisper_core.HttpResponse resp,
         string operation,
         Action<uniffi.hyperwhisper_core.HttpResponse> classify)
