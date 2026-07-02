@@ -60,6 +60,12 @@ struct AudioEnvironmentState {
     /// for devices without a settable master volume element.
     let originalVolume: OutputVolume?
 
+    /// The output device that was muted. Restore writes back to THIS device —
+    /// if the default output changed mid-recording (e.g. AirPods connected),
+    /// writing the saved volume to the new default would clobber a device we
+    /// never muted.
+    let outputDeviceID: AudioDeviceID?
+
     /// Timestamp when the environment was captured
     /// Used to log the duration when restoring
     let timestamp: Date
@@ -97,11 +103,13 @@ class AudioSessionManager {
         AppLogger.audio.info("🔇 Muting system audio for recording")
 
         // Capture the current volume (per-channel when there's no master element)
-        // so we can restore the exact original balance afterwards.
-        guard let originalVolume = captureOutputVolume() else {
+        // AND the device it belongs to, so restore targets the same device even
+        // if the default output changes mid-recording.
+        guard let captured = captureOutputVolume() else {
             AppLogger.audio.error("  ✗ Failed to read system volume")
             return nil
         }
+        let originalVolume = captured.volume
 
         guard muteOutputVolume(originalVolume) else {
             AppLogger.audio.error("  ✗ Failed to mute system volume")
@@ -113,6 +121,7 @@ class AudioSessionManager {
 
         let state = AudioEnvironmentState(
             originalVolume: originalVolume,
+            outputDeviceID: captured.deviceID,
             timestamp: Date()
         )
 
@@ -128,12 +137,20 @@ class AudioSessionManager {
     func restoreAudioEnvironment(_ state: AudioEnvironmentState) {
         AppLogger.audio.info("🔊 Restoring system audio")
 
-        // Restore system volume (each channel to its own captured value)
+        // Restore system volume (each channel to its own captured value) on the
+        // SAME device that was muted. If that device disconnected mid-recording,
+        // skip the write entirely rather than clobber whatever the new default
+        // device's volume is (devices like AirPods restore their own volume
+        // state on reconnect).
         if let volume = state.originalVolume {
-            if restoreOutputVolume(volume) {
-                AppLogger.audio.info("  ✓ System volume restored to \(String(format: "%.0f", volume.representativeScalar * 100))%")
+            if let deviceID = state.outputDeviceID, isDeviceAlive(deviceID) {
+                if restoreOutputVolume(volume, deviceID: deviceID) {
+                    AppLogger.audio.info("  ✓ System volume restored to \(String(format: "%.0f", volume.representativeScalar * 100))%")
+                } else {
+                    AppLogger.audio.error("  ✗ Failed to restore system volume")
+                }
             } else {
-                AppLogger.audio.error("  ✗ Failed to restore system volume")
+                AppLogger.audio.warning("  ⚠️ Muted output device no longer present — skipping volume restore")
             }
         }
 
@@ -144,18 +161,38 @@ class AudioSessionManager {
     // MARK: - System Volume Control (CoreAudio)
 
     /// Mutes the captured output volume (sets every captured element to 0).
+    /// Resolves the current default device — mute runs immediately after
+    /// capture, so the default is the device the snapshot came from.
     /// - Parameter snapshot: The volume captured by `captureOutputVolume()`
     /// - Returns: true if every targeted element was muted, false otherwise
     private func muteOutputVolume(_ snapshot: OutputVolume) -> Bool {
-        return applyOutputVolume(snapshot, muted: true)
+        return applyOutputVolume(snapshot, muted: true, deviceID: nil)
     }
 
     /// Restores the captured output volume, writing each channel back to its
     /// own saved value so the original channel balance is preserved.
-    /// - Parameter snapshot: The volume captured by `captureOutputVolume()`
+    /// - Parameters:
+    ///   - snapshot: The volume captured by `captureOutputVolume()`
+    ///   - deviceID: The device the snapshot was captured from (restore must
+    ///     not write to a different device that became default mid-recording)
     /// - Returns: true if every targeted element was restored, false otherwise
-    private func restoreOutputVolume(_ snapshot: OutputVolume) -> Bool {
-        return applyOutputVolume(snapshot, muted: false)
+    private func restoreOutputVolume(_ snapshot: OutputVolume, deviceID: AudioDeviceID) -> Bool {
+        return applyOutputVolume(snapshot, muted: false, deviceID: deviceID)
+    }
+
+    /// Whether a device is still present and alive on the system.
+    /// Used to skip volume restore after the muted device disconnects.
+    private func isDeviceAlive(_ deviceID: AudioDeviceID) -> Bool {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceIsAlive,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var isAlive: UInt32 = 0
+        var dataSize = UInt32(MemoryLayout<UInt32>.size)
+        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &dataSize, &isAlive)
+        return status == noErr && isAlive != 0
     }
 
     /// Resolves the current system default output device.
@@ -234,8 +271,9 @@ class AudioSessionManager {
     /// each settable per-channel element individually so restore can reproduce
     /// the exact original balance rather than flattening every channel to one
     /// value. Mirrors `CoreAudioDeviceHelper`'s per-channel volume handling.
-    /// - Returns: The captured `OutputVolume`, or nil if no volume is settable
-    private func captureOutputVolume() -> OutputVolume? {
+    /// - Returns: The captured `OutputVolume` and the device it was read from,
+    ///   or nil if no volume is settable
+    private func captureOutputVolume() -> (deviceID: AudioDeviceID, volume: OutputVolume)? {
         guard let deviceID = getSystemDefaultOutputDeviceID() else {
             AppLogger.audio.error("Failed to get default output device")
             return nil
@@ -245,7 +283,7 @@ class AudioSessionManager {
         // could capture a master value we'd be unable to mute or restore.
         if isOutputVolumeSettable(deviceID, element: kAudioObjectPropertyElementMain),
            let master = readOutputVolume(deviceID, element: kAudioObjectPropertyElementMain) {
-            return .master(master)
+            return (deviceID, .master(master))
         }
 
         // No settable master volume: capture every settable output channel.
@@ -267,19 +305,24 @@ class AudioSessionManager {
             return nil
         }
 
-        return .channels(entries)
+        return (deviceID, .channels(entries))
     }
 
-    /// Writes a captured `OutputVolume` back to the default output device,
-    /// either muted (every element to 0) or restored (each element to its own
-    /// captured value). Requires every targeted element to succeed — a partial
-    /// write would leave some channels audible when muting.
+    /// Writes a captured `OutputVolume` back to an output device, either muted
+    /// (every element to 0) or restored (each element to its own captured
+    /// value). Requires every targeted element to succeed — a partial write
+    /// would leave some channels audible when muting.
     /// - Parameters:
     ///   - snapshot: The volume captured by `captureOutputVolume()`
     ///   - muted: When true, writes 0 to every element instead of its value
+    ///   - deviceID: Target device; nil resolves the current default output
+    ///     (mute path). Restore passes the captured device explicitly so a
+    ///     mid-recording default switch can't clobber the wrong device. The
+    ///     partial-mute rollback below uses the same resolved ID, staying
+    ///     consistent.
     /// - Returns: true if every targeted element was written, false otherwise
-    private func applyOutputVolume(_ snapshot: OutputVolume, muted: Bool) -> Bool {
-        guard let deviceID = getSystemDefaultOutputDeviceID() else {
+    private func applyOutputVolume(_ snapshot: OutputVolume, muted: Bool, deviceID explicitDeviceID: AudioDeviceID?) -> Bool {
+        guard let deviceID = explicitDeviceID ?? getSystemDefaultOutputDeviceID() else {
             AppLogger.audio.error("Failed to get default output device")
             return false
         }

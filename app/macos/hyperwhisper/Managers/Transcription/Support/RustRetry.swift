@@ -76,6 +76,17 @@ enum RustRetry {
                     throw CancellationError()
                 }
 
+                // Local file-read failures (the request body streams from a
+                // file) are NOT network blips: retrying can't make a missing or
+                // unreadable file appear, and would burn the full ~2-minute
+                // backoff budget before surfacing the real error. Fast-fail as
+                // the non-retryable audioFileNotFound instead. Covers all three
+                // upload paths (multipart / .fileStream / @raw), which all
+                // throw through the executor.
+                if Self.isLocalFileError(nsError) {
+                    throw TranscriptionError.audioFileNotFound
+                }
+
                 // No HTTP response — treat as a retryable 503-equivalent.
                 let decision = nextRetry(attempt: attempt, status: 503, body: "", retryAfter: nil)
                 switch decision {
@@ -124,6 +135,26 @@ enum RustRetry {
                 // here so the "try again in N seconds" UI is preserved.
                 throw enrichRateLimited(parseError(response), retryAfter: retryAfter)
             }
+        }
+    }
+
+    /// True when `error` is a local file-read failure rather than a network
+    /// transport error:
+    /// - Cocoa file-read errors (`NSFileReadUnknownError`(256) through
+    ///   `NSFileReadCorruptFileError`(259), incl. `NSFileReadNoSuchFileError`
+    ///   (260)),
+    /// - POSIX errors (e.g. ENOENT surfaced by the body stream),
+    /// - `NSURLErrorFileDoesNotExist` in the URL domain.
+    private static func isLocalFileError(_ error: NSError) -> Bool {
+        switch error.domain {
+        case NSCocoaErrorDomain:
+            return (256...260).contains(error.code)
+        case NSPOSIXErrorDomain:
+            return true
+        case NSURLErrorDomain:
+            return error.code == NSURLErrorFileDoesNotExist
+        default:
+            return false
         }
     }
 

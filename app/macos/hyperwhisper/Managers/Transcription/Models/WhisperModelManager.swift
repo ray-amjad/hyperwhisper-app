@@ -419,13 +419,23 @@ class WhisperModelManager: NSObject, ObservableObject {
     
     /// Cancel a download
     func cancelDownload(_ modelName: String) {
-        // Read+remove the task under stateQueue, then cancel outside the lock.
-        let task = stateQueue.sync { () -> URLSessionDownloadTask? in
-            let task = downloadTasks[modelName]
-            downloadTasks.removeValue(forKey: modelName)
-            return task
+        // Read+remove ALL tracking for the task under stateQueue, then cancel
+        // outside the lock. Removing `taskModelNames` here means post-cancel
+        // delegate callbacks can no longer resolve the model name — a late
+        // didWriteData can't repopulate the progress UI we're about to clear
+        // (the stuck-progress-ring bug). Because that also silences
+        // didCompleteWithError, the completion is resumed HERE instead (it is
+        // atomically guarded against double-resume, so a racing delegate
+        // callback stays safe).
+        let (task, completion) = stateQueue.sync { () -> (URLSessionDownloadTask?, ((URL?, Error?) -> Void)?) in
+            let task = downloadTasks.removeValue(forKey: modelName)
+            guard let taskIdentifier = task?.taskIdentifier else { return (task, nil) }
+            taskModelNames.removeValue(forKey: taskIdentifier)
+            let completion = downloadCompletions.removeValue(forKey: taskIdentifier)
+            return (task, completion)
         }
         task?.cancel()
+        completion?(nil, URLError(.cancelled))
         downloadingModels.remove(modelName)
         downloadProgress.removeValue(forKey: modelName)
         lastReportedProgress.removeValue(forKey: modelName)
@@ -512,6 +522,12 @@ extension WhisperModelManager: URLSessionDownloadDelegate {
         // Throttle UI updates: only update when integer percentage changes
         let currentPercentage = progress >= 0 ? Int(progress * 100) : Int(progress)
         Task { @MainActor in
+            // TASK-IDENTITY GUARD: this hop can land AFTER cancelDownload
+            // cleared the progress dictionaries; re-checking that this task is
+            // still the model's active download keeps a late callback from
+            // repopulating them (a cancelled download would otherwise show a
+            // stuck progress ring). Same identity pattern as removeTracking.
+            guard self.stateQueue.sync(execute: { self.downloadTasks[modelName]?.taskIdentifier }) == taskIdentifier else { return }
             let previousPercentage = self.lastReportedProgress[modelName] ?? -1
             guard currentPercentage != previousPercentage else { return }
             self.downloadProgress[modelName] = progress
