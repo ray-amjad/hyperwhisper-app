@@ -20,6 +20,7 @@
     "githubAria": "HyperWhisper'ı GitHub'da görüntüleyin"
   },
   "hero": {
+    "openSourceBadge": "Açık kaynak · Apache-2.0",
     "logoAlt": "HyperWhisper Logosu",
     "headline": "Yazın, üretin ve oluşturun",
     "headlineAccent": "Yapay zeka ile 5x daha hızlı",
