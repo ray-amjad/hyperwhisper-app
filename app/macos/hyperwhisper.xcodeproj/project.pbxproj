@@ -13,13 +13,13 @@
 		71A82C002E9542830068427B /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 71A82BFF2E9542830068427B /* Sentry */; };
 		71AEEF022E5D123400ABCDEF /* FluidAudio in Frameworks */ = {isa = PBXBuildFile; productRef = 71AEEF012E5D123400ABCDEF /* FluidAudio */; };
 		71APPCLS2F0A000000000002 /* shared-app-classification in Resources */ = {isa = PBXBuildFile; fileRef = 71APPCLS2F0A000000000001 /* shared-app-classification */; };
-		71SHMODL2F0A000000000002 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
-		71SHMODL2F0A000000000003 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
-		71SHMODL2F0A000000000004 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
 		71D234382FD01F260053A8B4 /* FlyingFox in Frameworks */ = {isa = PBXBuildFile; productRef = 71FLYFOX2F0B000000000002 /* FlyingFox */; };
 		71D982782ED74E1400A377A6 /* MediaRemoteAdapter in Frameworks */ = {isa = PBXBuildFile; productRef = 71D982772ED74E1400A377A6 /* MediaRemoteAdapter */; };
 		71D982792ED74E1400A377A6 /* MediaRemoteAdapter in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 71D982772ED74E1400A377A6 /* MediaRemoteAdapter */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		71D98B662ED7E42A00A377A6 /* Atomics in Frameworks */ = {isa = PBXBuildFile; productRef = 71ATOMIC2EF8B00000000002 /* Atomics */; };
+		71SHMODL2F0A000000000002 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
+		71SHMODL2F0A000000000003 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
+		71SHMODL2F0A000000000004 /* shared-models in Resources */ = {isa = PBXBuildFile; fileRef = 71SHMODL2F0A000000000001 /* shared-models */; };
 		71SHPROM2F0A000000000002 /* shared-prompts in Resources */ = {isa = PBXBuildFile; fileRef = 71SHPROM2F0A000000000001 /* shared-prompts */; };
 		9FE695711C6C4BC6814E7706 /* whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DC36D0393491E7AE3B3A38B6 /* whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BCDA8BC9FE1EEA1C2909F0CE /* whisper.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = DC36D0393491E7AE3B3A38B6 /* whisper.xcframework */; };
@@ -589,11 +589,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = "hyperwhisper/hyperwhisper-dev.entitlements";
-				CODE_SIGN_IDENTITY = "Developer ID Application";
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 109;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 110;
+				DEVELOPMENT_TEAM = C7KD6A98A8;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -618,10 +618,10 @@
 					"$(PROJECT_DIR)/hyperwhisper/Libraries",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 2.40.0;
+				MARKETING_VERSION = 2.41.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisper;
 				PRODUCT_NAME = HyperWhisper;
-				PROVISIONING_PROFILE_SPECIFIER = "HyperWhisper Developer ID";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/hyperwhisper/HyperWhisper-Bridging-Header.h";
@@ -636,12 +636,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = "hyperwhisper/hyperwhisper-release.entitlements";
-				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
-				CODE_SIGN_STYLE = Manual;
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 109;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 110;
+				DEVELOPMENT_TEAM = C7KD6A98A8;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -666,11 +666,11 @@
 					"$(PROJECT_DIR)/hyperwhisper/Libraries",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 2.40.0;
+				MARKETING_VERSION = 2.41.0;
 				OTHER_CODE_SIGN_FLAGS = "--deep --timestamp";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisper;
 				PRODUCT_NAME = HyperWhisper;
-				PROVISIONING_PROFILE_SPECIFIER = "HyperWhisper Developer ID";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/hyperwhisper/HyperWhisper-Bridging-Header.h";
