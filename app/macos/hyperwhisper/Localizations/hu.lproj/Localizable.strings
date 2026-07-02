@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud kreditek";
 "settings.credits.refresh" = "Frissítés";
-"settings.credits.subtitle" = "Átírási kreditek és használat figyelése";
-"settings.credits.manage" = "Kreditek kezelése";
 "settings.credits.timeRemaining" = "Hátralevő átírási idő";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "perc";
 "settings.credits.creditsRemaining" = "%@ kredit van hátra";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Ingyenes napi limit (100 kredit)";
-"settings.credits.resets" = "Visszaáll %@";
 "settings.credits.warning.low" = "Kevés kredit van hátra. Fontold meg licenc vásárlását további kreditekért.";
-"settings.credits.warning.exhausted.daily" = "Napi limit elfogyott. Vásárolj licencet korlátlan használatért vagy várj a visszaállításra.";
 "settings.credits.warning.exhausted" = "Kreditek elfogytak. Vásárolj több kreditet a HyperWhisper Cloud használatának folytatásához.";
 "settings.credits.accountInfo" = "Fiók információ";
-"settings.credits.stat.creditsRemaining" = "Hátralevő kreditek";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Hátralevő percek";
-"settings.credits.stat.accountType" = "Fiók típus";
-"settings.credits.accountType.licensed" = "Licencelt";
-"settings.credits.accountType.anonymous" = "Névtelen";
-"settings.credits.accountType.trial" = "Próba";
-"settings.credits.stat.customerId" = "Ügyfél azonosító";
-"settings.credits.stat.dailyLimit" = "Napi limit";
-"settings.credits.dailyLimit.value" = "100 kredit";
 "settings.credits.loading" = "Kredit egyenleg betöltése...";
 "settings.credits.error.title" = "Nem sikerült a kredit egyenleg betöltése";
 "settings.credits.error.retry" = "Újra";
@@ -842,9 +827,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 // MARK: - Audio Manager
 "audio.device.default" = "Alapértelmezett mikrofon";
 "audio.error.permissionDenied" = "Mikrofon hozzáférés megtagadva. Kérlek engedélyezd a Rendszerbeállításokban.";
-"audio.error.fileWatcher.open" = "Nem sikerült fájl leírót megnyitni az audio fájl figyeléséhez.";
-"audio.error.fileWatcher.timeout" = "A művelet időtúllépés miatt megszakadt az audio fájl írására várva.";
-"audio.error.fileWatcher.creation" = "Az audio fájl nem jött létre időben.";
 "audio.error.microphonePermission" = "Mikrofon engedély nincs megadva";
 "audio.error.microphoneInUse" = "A HyperWhisper nem fér hozzá a mikrofonhoz, mert egy másik alkalmazás használja. Szüneteltess a másik alkalmazást vagy válts bemenetet, majd próbáld újra.";
 "audio.error.createEngine" = "Nem sikerült az audio motor létrehozása";
@@ -1052,3 +1034,12 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "history.autoDelete.status.enabled" = "Felvételek törlése %d %@ után";
 "history.autoDelete.cleanup.noItems" = "Nincs törlendő felvétel";
 "history.autoDelete.cleanup.summary" = "%d felvétel törölve és %@ felszabadítva";
+"history.status.interrupted" = "Az átirat megszakadt — az alkalmazás kilépett, mielőtt befejezte volna";
+"recording.maxDuration.reachedToast" = "A felvétel leállt — elérte a %d perces korlátot";
+"streaming.maxDuration.reachedToast" = "A streamelés leállt — elérte a %d perces korlátot";
+"settings.storage.maxRecordingDuration.title" = "Maximális felvételi időtartam";
+"settings.storage.maxRecordingDuration.subtitle" = "Az ennél hosszabb felvételek automatikus leállítása és átírása.";
+"settings.storage.maxRecordingDuration.minutes" = "%d perc";
+"settings.storage.maxRecordingDuration.hour" = "1 óra";
+"settings.storage.maxRecordingDuration.hours" = "%d óra";
+"settings.storage.maxRecordingDuration.off" = "Kikapcsolva";

@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper क्लाउड क्रेडिट";
 "settings.credits.refresh" = "रीफ़्रेश करें";
-"settings.credits.subtitle" = "अपने ट्रांसक्रिप्शन क्रेडिट और उपयोग की निगरानी करें";
-"settings.credits.manage" = "क्रेडिट प्रबंधित करें";
 "settings.credits.timeRemaining" = "ट्रांसक्रिप्शन समय शेष";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "मिनट";
 "settings.credits.creditsRemaining" = "%@ क्रेडिट शेष";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "मुफ्त दैनिक सीमा (100 क्रेडिट)";
-"settings.credits.resets" = "रीसेट %@";
 "settings.credits.warning.low" = "क्रेडिट कम चल रहे हैं। अतिरिक्त क्रेडिट के लिए लाइसेंस खरीदने पर विचार करें।";
-"settings.credits.warning.exhausted.daily" = "दैनिक सीमा समाप्त। असीमित उपयोग के लिए लाइसेंस खरीदें या रीसेट की प्रतीक्षा करें।";
 "settings.credits.warning.exhausted" = "क्रेडिट समाप्त। HyperWhisper क्लाउड का उपयोग जारी रखने के लिए अधिक क्रेडिट खरीदें।";
 "settings.credits.accountInfo" = "खाता जानकारी";
-"settings.credits.stat.creditsRemaining" = "शेष क्रेडिट";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "शेष मिनट";
-"settings.credits.stat.accountType" = "खाता प्रकार";
-"settings.credits.accountType.licensed" = "लाइसेंसप्राप्त";
-"settings.credits.accountType.anonymous" = "गुमनाम";
-"settings.credits.accountType.trial" = "ट्रायल";
-"settings.credits.stat.customerId" = "ग्राहक ID";
-"settings.credits.stat.dailyLimit" = "दैनिक सीमा";
-"settings.credits.dailyLimit.value" = "100 क्रेडिट";
 "settings.credits.loading" = "क्रेडिट बैलेंस लोड हो रहा है...";
 "settings.credits.error.title" = "क्रेडिट बैलेंस लोड करने में असमर्थ";
 "settings.credits.error.retry" = "पुनः प्रयास करें";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "डिफ़ॉल्ट माइक्रोफ़ोन";
 "audio.error.permissionDenied" = "माइक्रोफ़ोन एक्सेस अस्वीकृत। कृपया सिस्टम सेटिंग्स में सक्षम करें।";
-"audio.error.fileWatcher.open" = "ऑडियो फ़ाइल की निगरानी करने के लिए एक फ़ाइल विवरणक को खोल नहीं सके।";
-"audio.error.fileWatcher.timeout" = "ऑडियो फ़ाइल के लिखे जाने की प्रतीक्षा करते समय ऑपरेशन का समय समाप्त हो गया।";
-"audio.error.fileWatcher.creation" = "ऑडियो फ़ाइल समय पर नहीं बनाई गई।";
 "audio.error.microphonePermission" = "माइक्रोफ़ोन अनुमति नहीं दी गई";
 "audio.error.microphoneInUse" = "HyperWhisper माइक्रोफ़ोन तक पहुंच नहीं सकता क्योंकि एक अन्य ऐप वर्तमान में इसका उपयोग कर रहा है। अन्य ऐप को रोकें या इनपुट स्विच करें, फिर फिर से प्रयास करें।";
 "audio.error.createEngine" = "ऑडियो इंजन बनाने में विफल";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "%d %@ से पुरानी रिकॉर्डिंग हटाएं";
 "history.autoDelete.cleanup.noItems" = "हटाने के लिए कोई रिकॉर्डिंग नहीं";
 "history.autoDelete.cleanup.summary" = "%d रिकॉर्डिंग हटाई गई और %@ खाली किया गया";
+"history.status.interrupted" = "ट्रांसक्रिप्शन बाधित हुआ — पूरा होने से पहले ऐप बंद हो गया";
+"recording.maxDuration.reachedToast" = "रिकॉर्डिंग रोकी गई — %d-मिनट की सीमा पूरी हुई";
+"streaming.maxDuration.reachedToast" = "स्ट्रीमिंग रोकी गई — %d-मिनट की सीमा पूरी हुई";
+"settings.storage.maxRecordingDuration.title" = "अधिकतम रिकॉर्डिंग अवधि";
+"settings.storage.maxRecordingDuration.subtitle" = "इस समय से लंबी चलने वाली रिकॉर्डिंग को अपने आप रोकें और ट्रांसक्राइब करें।";
+"settings.storage.maxRecordingDuration.minutes" = "%d मिनट";
+"settings.storage.maxRecordingDuration.hour" = "1 घंटा";
+"settings.storage.maxRecordingDuration.hours" = "%d घंटे";
+"settings.storage.maxRecordingDuration.off" = "बंद";

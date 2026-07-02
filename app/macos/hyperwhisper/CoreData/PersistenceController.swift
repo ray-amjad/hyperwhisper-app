@@ -2083,24 +2083,6 @@ class PersistenceController: ObservableObject {
         return session
     }
     
-    /// Updates a recording session when recording stops
-    /// - Parameters:
-    ///   - session: The recording session to update
-    ///   - audioFilePath: Path to the recorded audio file
-    ///   - duration: Recording duration in seconds
-    func updateRecordingSessionOnStop(
-        _ session: RecordingSession,
-        audioFilePath: String,
-        duration: TimeInterval
-    ) {
-        session.endTime = Date()
-        session.audioFilePath = audioFilePath
-        session.durationInSeconds = duration
-        session.status = "processing"
-        
-        save()
-    }
-    
     /// Updates a recording session with transcription result
     /// - Parameters:
     ///   - session: The recording session to update
@@ -2328,26 +2310,11 @@ class PersistenceController: ObservableObject {
         return usage
     }
     
-    /// Updates daily transcription usage
-    /// - Parameter seconds: Number of seconds to add to daily usage
-    func updateDailyUsage(seconds: Int64) {
-        let usage = getOrCreateUsageTracking()
-        
-        // Check if we need to reset daily usage (new day)
-        if let lastReset = usage.lastResetDate {
-            let calendar = Calendar.current
-            if !calendar.isDateInToday(lastReset) {
-                // Reset daily usage for new day
-                usage.dailyTranscriptionSeconds = 0
-                usage.lastResetDate = Date()
-            }
-        }
-        
-        // Add new usage
-        usage.dailyTranscriptionSeconds += seconds
-        save()
-    }
-    
+    // NOTE: usage WRITES (updateDailyUsage / updateModelDownloadCount /
+    // resetDailyUsage) were removed — the Rust hw-license core owns usage
+    // tracking now. The getters below remain solely for the one-shot
+    // Core Data → UserDefaults seed in RustLicenseStore.
+
     /// Gets current daily usage in seconds
     /// - Returns: Number of seconds used today
     func getDailyUsage() -> Int64 {
@@ -2366,14 +2333,6 @@ class PersistenceController: ObservableObject {
         }
         
         return usage.dailyTranscriptionSeconds
-    }
-    
-    /// Updates the count of downloaded models
-    /// - Parameter count: New total count of downloaded models
-    func updateModelDownloadCount(_ count: Int16) {
-        let usage = getOrCreateUsageTracking()
-        usage.totalModelsDownloaded = count
-        save()
     }
     
     /// Gets the count of downloaded models
@@ -2404,14 +2363,6 @@ class PersistenceController: ObservableObject {
         save()
     }
     
-    /// Resets daily usage (called at midnight or manually)
-    func resetDailyUsage() {
-        let usage = getOrCreateUsageTracking()
-        usage.dailyTranscriptionSeconds = 0
-        usage.lastResetDate = Date()
-        save()
-    }
-
     // MARK: - Bulk Import Operations (Backup/Restore)
 
     /// Imports modes from backup data with conflict resolution

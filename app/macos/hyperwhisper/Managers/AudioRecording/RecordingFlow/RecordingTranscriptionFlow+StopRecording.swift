@@ -17,7 +17,7 @@ extension RecordingTranscriptionFlow {
     /// Recordings shorter than this are automatically discarded to prevent:
     /// 1. "Recording too short" errors from insufficient audio data
     /// 2. Wasted API calls for audio that can't be meaningfully transcribed
-    /// 3. FileWatcher timeout errors when the audio file is too small to finalize
+    /// 3. File-readiness timeout errors when the audio file is too small to finalize
     private static let minimumRecordingDuration: TimeInterval = 1.0
 
     /// Handle stopping recording with transcription
@@ -26,7 +26,7 @@ extension RecordingTranscriptionFlow {
     /// Complete workflow from stop to transcription result:
     /// 1. Stop recording and get audio file
     /// 2. Check minimum duration (discard if too short)
-    /// 3. Wait for file to be ready (FileWatcher)
+    /// 3. Wait for file to be ready (readiness probe)
     /// 4. If cancelled: clean up and return
     /// 5. Create processing transcript
     /// 6. Transcribe audio

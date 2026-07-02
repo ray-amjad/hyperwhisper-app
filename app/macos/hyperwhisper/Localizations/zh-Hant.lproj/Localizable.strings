@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper 雲端額度";
 "settings.credits.refresh" = "重新整理";
-"settings.credits.subtitle" = "監控您的轉錄額度和使用情況";
-"settings.credits.manage" = "管理額度";
 "settings.credits.timeRemaining" = "轉錄時間剩餘";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "分鐘";
 "settings.credits.creditsRemaining" = "%@ 額度剩餘";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "免費每日限制 (100 額度)";
-"settings.credits.resets" = "於 %@ 重設";
 "settings.credits.warning.low" = "額度即將耗盡。考慮購買授權以取得額外額度。";
-"settings.credits.warning.exhausted.daily" = "每日限制已耗盡。購買授權以取得無限使用，或等待重設。";
 "settings.credits.warning.exhausted" = "額度已耗盡。購買更多額度以繼續使用 HyperWhisper 雲端。";
 "settings.credits.accountInfo" = "帳戶資訊";
-"settings.credits.stat.creditsRemaining" = "額度剩餘";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "分鐘剩餘";
-"settings.credits.stat.accountType" = "帳戶類型";
-"settings.credits.accountType.licensed" = "已授權";
-"settings.credits.accountType.anonymous" = "匿名";
-"settings.credits.accountType.trial" = "試用版";
-"settings.credits.stat.customerId" = "客戶編號";
-"settings.credits.stat.dailyLimit" = "每日限制";
-"settings.credits.dailyLimit.value" = "100 額度";
 "settings.credits.loading" = "載入額度餘額中...";
 "settings.credits.error.title" = "無法載入額度餘額";
 "settings.credits.error.retry" = "重試";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "預設麥克風";
 "audio.error.permissionDenied" = "麥克風存取被拒。請在系統設定中啟用。";
-"audio.error.fileWatcher.open" = "無法開啟檔案描述符以監控音頻檔案。";
-"audio.error.fileWatcher.timeout" = "在等待音頻檔案寫入時操作逾時。";
-"audio.error.fileWatcher.creation" = "音頻檔案未及時建立。";
 "audio.error.microphonePermission" = "未授予麥克風許可";
 "audio.error.microphoneInUse" = "HyperWhisper 無法存取麥克風，因為另一個應用程式目前正在使用它。暫停另一個應用程式或切換輸入，然後再試一次。";
 "audio.error.createEngine" = "無法建立音頻引擎";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "刪除早於 %d %@ 的錄音";
 "history.autoDelete.cleanup.noItems" = "沒有錄音要刪除";
 "history.autoDelete.cleanup.summary" = "已刪除 %d 個錄音並釋放 %@";
+"history.status.interrupted" = "轉錄已中斷 — 應用程式在完成前結束了";
+"recording.maxDuration.reachedToast" = "錄音已停止 — 已達到 %d 分鐘上限";
+"streaming.maxDuration.reachedToast" = "串流已停止 — 已達到 %d 分鐘上限";
+"settings.storage.maxRecordingDuration.title" = "最長錄音時間";
+"settings.storage.maxRecordingDuration.subtitle" = "自動停止並轉錄超過此時間長度的錄音。";
+"settings.storage.maxRecordingDuration.minutes" = "%d 分鐘";
+"settings.storage.maxRecordingDuration.hour" = "1 小時";
+"settings.storage.maxRecordingDuration.hours" = "%d 小時";
+"settings.storage.maxRecordingDuration.off" = "關閉";

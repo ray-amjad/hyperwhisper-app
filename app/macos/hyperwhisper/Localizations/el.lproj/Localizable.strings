@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Πιστώσεις HyperWhisper Cloud";
 "settings.credits.refresh" = "Ανανέωση";
-"settings.credits.subtitle" = "Παρακολουθήστε τις πιστώσεις και τη χρήση της μεταγραφής";
-"settings.credits.manage" = "Διαχείριση Πιστώσεων";
 "settings.credits.timeRemaining" = "Χρόνος Μεταγραφής Απομένει";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "λεπτά";
 "settings.credits.creditsRemaining" = "%@ πιστώσεις απομένουν";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Δωρεάν Καθημερινό Όριο (100 πιστώσεις)";
-"settings.credits.resets" = "Εκκινήσεις %@";
 "settings.credits.warning.low" = "Πιστώσεις που τρέχουν χαμηλά. Σκεφτείτε να αγοράσετε μια άδεια για πρόσθετες πιστώσεις.";
-"settings.credits.warning.exhausted.daily" = "Καθημερινό όριο εξαντλημένο. Αγοράστε μια άδεια για απεριόριστη χρήση ή περιμένετε για επαναφορά.";
 "settings.credits.warning.exhausted" = "Πιστώσεις εξαντλημένες. Αγοράστε περισσότερες πιστώσεις για να συνεχίσετε τη χρήση του HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Πληροφορίες Λογαριασμού";
-"settings.credits.stat.creditsRemaining" = "Πιστώσεις Απομένουν";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Λεπτά Απομένουν";
-"settings.credits.stat.accountType" = "Τύπος Λογαριασμού";
-"settings.credits.accountType.licensed" = "Αδειοδοτημένο";
-"settings.credits.accountType.anonymous" = "Ανώνυμο";
-"settings.credits.accountType.trial" = "Δοκιμή";
-"settings.credits.stat.customerId" = "Αναγνωριστικό Πελάτη";
-"settings.credits.stat.dailyLimit" = "Καθημερινό Όριο";
-"settings.credits.dailyLimit.value" = "100 πιστώσεις";
 "settings.credits.loading" = "Φόρτωση υπολοίπου πιστώσεων...";
 "settings.credits.error.title" = "Δεν είναι δυνατή η φόρτωση του υπολοίπου πιστώσεων";
 "settings.credits.error.retry" = "Επανάληψη";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "Προεπιλεγμένο Μικροφώνο";
 "audio.error.permissionDenied" = "Πρόσβαση μικροφώνου αρνήθηκε. Παρακαλώ ενεργοποιήστε στις Ρυθμίσεις Συστήματος.";
-"audio.error.fileWatcher.open" = "Δεν ήταν δυνατό το άνοιγμα ενός περιγραφέα αρχείου για παρακολούθηση του αρχείου ήχου.";
-"audio.error.fileWatcher.timeout" = "Η ενέργεια έληξε κατά την αναμονή για το αρχείο ήχου να γραφτεί.";
-"audio.error.fileWatcher.creation" = "Το αρχείο ήχου δεν δημιουργήθηκε εγκαίρως.";
 "audio.error.microphonePermission" = "Άδεια μικροφώνου δεν δoθείσα";
 "audio.error.microphoneInUse" = "Το HyperWhisper δεν μπορεί να αποκτήσει πρόσβαση στο μικροφώνο επειδή μια άλλη εφαρμογή το χρησιμοποιεί. Παύστε την άλλη εφαρμογή ή αλλάξτε τις εισόδους, στη συνέχεια δοκιμάστε ξανά.";
 "audio.error.createEngine" = "Αποτυχία δημιουργίας κινητήρα ήχου";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "Διαγραφή εγγραφών παλιότερων από %d %@";
 "history.autoDelete.cleanup.noItems" = "Δεν υπάρχουν εγγραφές για διαγραφή";
 "history.autoDelete.cleanup.summary" = "Διαγράφηκε %d εγγραφή(έ) και ελευθερώθησε %@";
+"history.status.interrupted" = "Η μεταγραφή διακόπηκε — η εφαρμογή τερματίστηκε πριν ολοκληρωθεί";
+"recording.maxDuration.reachedToast" = "Η εγγραφή σταμάτησε — συμπληρώθηκε το όριο των %d λεπτών";
+"streaming.maxDuration.reachedToast" = "Η ροή σταμάτησε — συμπληρώθηκε το όριο των %d λεπτών";
+"settings.storage.maxRecordingDuration.title" = "Μέγιστη διάρκεια εγγραφής";
+"settings.storage.maxRecordingDuration.subtitle" = "Αυτόματη διακοπή και μεταγραφή εγγραφών που διαρκούν περισσότερο από αυτό το χρονικό διάστημα.";
+"settings.storage.maxRecordingDuration.minutes" = "%d λεπτά";
+"settings.storage.maxRecordingDuration.hour" = "1 ώρα";
+"settings.storage.maxRecordingDuration.hours" = "%d ώρες";
+"settings.storage.maxRecordingDuration.off" = "Απενεργοποιημένο";

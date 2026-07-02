@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud einingar";
 "settings.credits.refresh" = "Endurhlaða";
-"settings.credits.subtitle" = "Fylgstu með afritunareiningunum þínum og notkun";
-"settings.credits.manage" = "Stjórna einingum";
 "settings.credits.timeRemaining" = "Afritunatími eftir";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "mínútur";
 "settings.credits.creditsRemaining" = "%@ einingar eftir";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Ókeypis dagleg mörk (100 einingar)";
-"settings.credits.resets" = "Endurstillir %@";
 "settings.credits.warning.low" = "Einingar að verða litlar. Íhugaðu að kaupa leyfi fyrir fleiri einingar.";
-"settings.credits.warning.exhausted.daily" = "Dagleg mörk tæmd. Keyptu leyfi fyrir ótakmarkaða notkun eða bíddu eftir endurstillingu.";
 "settings.credits.warning.exhausted" = "Einingar tæmdar. Keyptu fleiri einingar til að halda áfram að nota HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Reikningsupplýsingar";
-"settings.credits.stat.creditsRemaining" = "Einingar eftir";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Mínútur eftir";
-"settings.credits.stat.accountType" = "Reikningsgerð";
-"settings.credits.accountType.licensed" = "Leyfishafi";
-"settings.credits.accountType.anonymous" = "Nafnlaus";
-"settings.credits.accountType.trial" = "Prufuútgáfa";
-"settings.credits.stat.customerId" = "Viðskiptavinur auðkenni";
-"settings.credits.stat.dailyLimit" = "Dagleg mörk";
-"settings.credits.dailyLimit.value" = "100 einingar";
 "settings.credits.loading" = "Hleð einingastöðu...";
 "settings.credits.error.title" = "Ógat að hlaða einingastöðu";
 "settings.credits.error.retry" = "Reyna aftur";
@@ -842,9 +827,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 // MARK: - Audio Manager
 "audio.device.default" = "Sjálfgefinn hljóðnemi";
 "audio.error.permissionDenied" = "Aðgangur að hljóðnema hafnað. Vinsamlegast virkjaðu í kerfisstillingum.";
-"audio.error.fileWatcher.open" = "Gat ekki opnað skráarlýsing til að fylgjast með hljóðskránni.";
-"audio.error.fileWatcher.timeout" = "Aðgerðin tímafór á meðan beðið var eftir að hljóðskráin yrði skrifuð.";
-"audio.error.fileWatcher.creation" = "Hljóðskráin var ekki búin til í tíma.";
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
@@ -1052,3 +1034,12 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "history.autoDelete.status.enabled" = "Eyða upptökum eldri en %d %@";
 "history.autoDelete.cleanup.noItems" = "Engar upptökur til að eyða";
 "history.autoDelete.cleanup.summary" = "Eyddi %d upptöku(m) og losaði %@";
+"history.status.interrupted" = "Umritun rofnaði — forritið hætti áður en því lauk";
+"recording.maxDuration.reachedToast" = "Upptöku hætt — %d mínútna hámarki náð";
+"streaming.maxDuration.reachedToast" = "Streymi hætt — %d mínútna hámarki náð";
+"settings.storage.maxRecordingDuration.title" = "Hámarkslengd upptöku";
+"settings.storage.maxRecordingDuration.subtitle" = "Stöðva og umrita sjálfkrafa upptökur sem eru lengri en þetta.";
+"settings.storage.maxRecordingDuration.minutes" = "%d mínútur";
+"settings.storage.maxRecordingDuration.hour" = "1 klukkustund";
+"settings.storage.maxRecordingDuration.hours" = "%d klukkustundir";
+"settings.storage.maxRecordingDuration.off" = "Slökkt";

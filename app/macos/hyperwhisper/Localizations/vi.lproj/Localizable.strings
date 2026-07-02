@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Tín dụng HyperWhisper Cloud";
 "settings.credits.refresh" = "Làm mới";
-"settings.credits.subtitle" = "Theo dõi tín dụng chuyển đổi và sử dụng của bạn";
-"settings.credits.manage" = "Quản lý Tín dụng";
 "settings.credits.timeRemaining" = "Thời gian Chuyển đổi Còn lại";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "phút";
 "settings.credits.creditsRemaining" = "%@ tín dụ còn lại";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Giới hạn Miễn phí Hàng ngày (100 tín dụ)";
-"settings.credits.resets" = "Đặt lại %@";
 "settings.credits.warning.low" = "Tín dụ sắp hết. Cân nhắc mua giấy phép để có tín dụ bổ sung.";
-"settings.credits.warning.exhausted.daily" = "Giới hạn hàng ngày đã cạn kiệt. Mua giấy phép để sử dụng không giới hạn hoặc chờ để đặt lại.";
 "settings.credits.warning.exhausted" = "Tín dụ đã hết. Mua thêm tín dụ để tiếp tục sử dụng HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Thông tin Tài khoản";
-"settings.credits.stat.creditsRemaining" = "Tín dụ Còn lại";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Phút Còn lại";
-"settings.credits.stat.accountType" = "Loại Tài khoản";
-"settings.credits.accountType.licensed" = "Được cấp phép";
-"settings.credits.accountType.anonymous" = "Ẩn danh";
-"settings.credits.accountType.trial" = "Dùng thử";
-"settings.credits.stat.customerId" = "ID Khách hàng";
-"settings.credits.stat.dailyLimit" = "Giới hạn Hàng ngày";
-"settings.credits.dailyLimit.value" = "100 tín dụ";
 "settings.credits.loading" = "Đang tải số dư tín dụ...";
 "settings.credits.error.title" = "Không thể tải số dư tín dụ";
 "settings.credits.error.retry" = "Thử lại";
@@ -842,9 +827,6 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 // MARK: - Audio Manager
 "audio.device.default" = "Micrô Mặc định";
 "audio.error.permissionDenied" = "Truy cập micrô bị từ chối. Vui lòng bật trong Cài đặt Hệ thống.";
-"audio.error.fileWatcher.open" = "Không thể mở bộ mô tả tệp để giám sát tệp âm thanh.";
-"audio.error.fileWatcher.timeout" = "Thao tác đã hết thời gian chờ trong khi chờ tệp âm thanh được viết.";
-"audio.error.fileWatcher.creation" = "Tệp âm thanh không được tạo trong thời gian.";
 "audio.error.microphonePermission" = "Quyền micrô không được cấp";
 "audio.error.microphoneInUse" = "HyperWhisper không thể truy cập micrô vì một ứng dụng khác hiện đang sử dụng nó. Tạm dừng ứng dụng khác hoặc chuyển đầu vào, sau đó thử lại.";
 "audio.error.createEngine" = "Không thể tạo động cơ âm thanh";
@@ -1052,3 +1034,12 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "history.autoDelete.status.enabled" = "Xóa các bản ghi âm cũ hơn %d %@";
 "history.autoDelete.cleanup.noItems" = "Không có bản ghi âm nào để xóa";
 "history.autoDelete.cleanup.summary" = "Đã xóa %d bản ghi âm và giải phóng %@";
+"history.status.interrupted" = "Bản ghi bị gián đoạn — ứng dụng đã thoát trước khi hoàn tất";
+"recording.maxDuration.reachedToast" = "Đã dừng ghi âm — đạt giới hạn %d phút";
+"streaming.maxDuration.reachedToast" = "Đã dừng phát trực tuyến — đạt giới hạn %d phút";
+"settings.storage.maxRecordingDuration.title" = "Thời lượng ghi âm tối đa";
+"settings.storage.maxRecordingDuration.subtitle" = "Tự động dừng và phiên âm các bản ghi dài hơn thời gian này.";
+"settings.storage.maxRecordingDuration.minutes" = "%d phút";
+"settings.storage.maxRecordingDuration.hour" = "1 giờ";
+"settings.storage.maxRecordingDuration.hours" = "%d giờ";
+"settings.storage.maxRecordingDuration.off" = "Tắt";

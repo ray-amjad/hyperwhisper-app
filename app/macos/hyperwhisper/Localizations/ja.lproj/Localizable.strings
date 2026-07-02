@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisperクラウドクレジット";
 "settings.credits.refresh" = "更新";
-"settings.credits.subtitle" = "文字起こしのクレジットと利用状況を確認できます";
-"settings.credits.manage" = "クレジットを管理";
 "settings.credits.timeRemaining" = "残りの文字起こし時間";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "分";
 "settings.credits.creditsRemaining" = "%@ クレジット残り";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "無料の1日上限（100クレジット）";
-"settings.credits.resets" = "%@ にリセット";
 "settings.credits.warning.low" = "クレジット残量が少なくなっています。ライセンスを購入して追加クレジットをご検討ください。";
-"settings.credits.warning.exhausted.daily" = "1日の上限に達しました。リセットを待つか、ライセンスを購入して無制限にご利用ください。";
 "settings.credits.warning.exhausted" = "クレジットを使い切りました。HyperWhisper Cloudを継続利用するには追加クレジットを購入してください。";
 "settings.credits.accountInfo" = "アカウント情報";
-"settings.credits.stat.creditsRemaining" = "残りクレジット";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "残り分数";
-"settings.credits.stat.accountType" = "アカウント種別";
-"settings.credits.accountType.licensed" = "ライセンス済み";
-"settings.credits.accountType.anonymous" = "匿名";
-"settings.credits.accountType.trial" = "トライアル";
-"settings.credits.stat.customerId" = "顧客ID";
-"settings.credits.stat.dailyLimit" = "1日の上限";
-"settings.credits.dailyLimit.value" = "100 クレジット";
 "settings.credits.loading" = "クレジット残高を読み込み中...";
 "settings.credits.error.title" = "クレジット残高を読み込めませんでした";
 "settings.credits.error.retry" = "再試行";
@@ -843,9 +828,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "デフォルトマイク";
 "audio.error.permissionDenied" = "マイクへのアクセスが拒否されています。システム設定で許可してください。";
-"audio.error.fileWatcher.open" = "音声ファイルを監視するためのファイルディスクリプタを開けませんでした。";
-"audio.error.fileWatcher.timeout" = "音声ファイルが書き込まれるまでの待機がタイムアウトしました。";
-"audio.error.fileWatcher.creation" = "音声ファイルが規定時間内に作成されませんでした。";
 "audio.error.microphonePermission" = "マイクの許可が付与されていません";
 "audio.error.microphoneInUse" = "他のアプリがマイクを使用しているため HyperWhisper はマイクにアクセスできません。他の録音や通話を一時停止するか、別の入力を選択してから再度お試しください。";
 "audio.error.createEngine" = "オーディオエンジンの作成に失敗しました";
@@ -1053,3 +1035,12 @@
 "history.autoDelete.status.enabled" = "%d%@より古い録音を削除";
 "history.autoDelete.cleanup.noItems" = "削除する録音はありません";
 "history.autoDelete.cleanup.summary" = "%d件の録音を削除し、%@を解放しました";
+"history.status.interrupted" = "文字起こしが中断されました — 完了前にアプリが終了しました";
+"recording.maxDuration.reachedToast" = "録音を停止しました — %d分の上限に達しました";
+"streaming.maxDuration.reachedToast" = "ストリーミングを停止しました — %d分の上限に達しました";
+"settings.storage.maxRecordingDuration.title" = "最大録音時間";
+"settings.storage.maxRecordingDuration.subtitle" = "この時間を超える録音を自動的に停止して文字起こしします。";
+"settings.storage.maxRecordingDuration.minutes" = "%d分";
+"settings.storage.maxRecordingDuration.hour" = "1時間";
+"settings.storage.maxRecordingDuration.hours" = "%d時間";
+"settings.storage.maxRecordingDuration.off" = "オフ";

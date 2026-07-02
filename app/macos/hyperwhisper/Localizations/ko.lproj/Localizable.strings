@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud 크레딧";
 "settings.credits.refresh" = "새로 고침";
-"settings.credits.subtitle" = "음성 인식 크레딧 및 사용량 모니터링";
-"settings.credits.manage" = "크레딧 관리";
 "settings.credits.timeRemaining" = "남은 음성 인식 시간";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "분";
 "settings.credits.creditsRemaining" = "%@ 크레딧 남음";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "무료 일일 한도 (100 크레딧)";
-"settings.credits.resets" = "%@ 재설정";
 "settings.credits.warning.low" = "크레딧이 부족합니다. 추가 크레딧을 위해 라이선스 구매를 고려하세요.";
-"settings.credits.warning.exhausted.daily" = "일일 한도가 소진되었습니다. 무제한 사용을 위해 라이선스를 구매하거나 재설정을 기다리세요.";
 "settings.credits.warning.exhausted" = "크레딧이 소진되었습니다. HyperWhisper Cloud를 계속 사용하려면 더 많은 크레딧을 구매하세요.";
 "settings.credits.accountInfo" = "계정 정보";
-"settings.credits.stat.creditsRemaining" = "남은 크레딧";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "남은 분";
-"settings.credits.stat.accountType" = "계정 유형";
-"settings.credits.accountType.licensed" = "라이선스";
-"settings.credits.accountType.anonymous" = "익명";
-"settings.credits.accountType.trial" = "체험판";
-"settings.credits.stat.customerId" = "고객 ID";
-"settings.credits.stat.dailyLimit" = "일일 한도";
-"settings.credits.dailyLimit.value" = "100 크레딧";
 "settings.credits.loading" = "크레딧 잔액 로딩 중...";
 "settings.credits.error.title" = "크레딧 잔액을 로드할 수 없음";
 "settings.credits.error.retry" = "재시도";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "기본 마이크";
 "audio.error.permissionDenied" = "마이크 액세스가 거부되었습니다. 시스템 설정에서 활성화하세요.";
-"audio.error.fileWatcher.open" = "오디오 파일을 모니터링하기 위해 파일 디스크립터를 열 수 없습니다.";
-"audio.error.fileWatcher.timeout" = "오디오 파일이 작성되기를 기다리는 동안 작업 시간이 초과되었습니다.";
-"audio.error.fileWatcher.creation" = "오디오 파일이 제시간에 생성되지 않았습니다.";
 "audio.error.microphonePermission" = "마이크 권한이 부여되지 않음";
 "audio.error.microphoneInUse" = "다른 앱이 현재 사용 중이므로 HyperWhisper가 마이크에 액세스할 수 없습니다. 다른 앱을 일시 중지하거나 입력을 전환한 다음 다시 시도하세요.";
 "audio.error.createEngine" = "오디오 엔진 생성 실패";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "%d %@보다 오래된 녹음 삭제";
 "history.autoDelete.cleanup.noItems" = "삭제할 녹음 없음";
 "history.autoDelete.cleanup.summary" = "%d개 녹음 삭제 및 %@ 확보";
+"history.status.interrupted" = "전사가 중단되었습니다 — 앱이 완료되기 전에 종료되었습니다";
+"recording.maxDuration.reachedToast" = "녹음이 중지되었습니다 — %d분 제한에 도달했습니다";
+"streaming.maxDuration.reachedToast" = "스트리밍이 중지되었습니다 — %d분 제한에 도달했습니다";
+"settings.storage.maxRecordingDuration.title" = "최대 녹음 시간";
+"settings.storage.maxRecordingDuration.subtitle" = "이 시간보다 길게 실행되는 녹음을 자동으로 중지하고 전사합니다.";
+"settings.storage.maxRecordingDuration.minutes" = "%d분";
+"settings.storage.maxRecordingDuration.hour" = "1시간";
+"settings.storage.maxRecordingDuration.hours" = "%d시간";
+"settings.storage.maxRecordingDuration.off" = "끄기";

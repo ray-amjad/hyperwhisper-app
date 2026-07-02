@@ -154,9 +154,23 @@ class LicenseManager: ObservableObject {
         }
     }
 
-    /// Opens the purchase page
-    func openPurchasePage() {
-        if let url = URL(string: "\(NetworkConfig.baseURL)/checkout") {
+    /// Builds the identifier-aware credits purchase URL — `/credits` tagged
+    /// with the caller's license key (licensed) or device ID (guest) so the
+    /// purchase is attributed to the right wallet. Mirrors Windows
+    /// `LicenseManager.GetCreditsPurchaseUrl()`; single source of truth for
+    /// the credits URL on macOS.
+    func creditsPurchaseURL() -> URL? {
+        let (identifier, isLicensed) = getTranscriptionIdentifier()
+        var components = URLComponents(string: "\(NetworkConfig.baseURL)/credits")
+        components?.queryItems = [
+            URLQueryItem(name: isLicensed ? "license_key" : "device_id", value: identifier)
+        ]
+        return components?.url
+    }
+
+    /// Opens the credits purchase page in the browser.
+    func openCreditsPurchasePage() {
+        if let url = creditsPurchaseURL() {
             NSWorkspace.shared.open(url)
         }
     }

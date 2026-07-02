@@ -189,7 +189,7 @@ class RecordingLifecycle {
     ///
     /// **File Collision Fix:**
     /// Always clears file references to ensure each recording has unique URLs
-    /// based on current timestamp. Prevents FileWatcher from monitoring wrong files.
+    /// based on current timestamp. Prevents the readiness probe from watching stale files.
     ///
     /// **Hardware Format Validation:**
     /// Some audio interfaces report invalid formats (sampleRate = 0) on first query.
@@ -227,7 +227,7 @@ class RecordingLifecycle {
         // STEP 2: FILE COLLISION FIX
         // Clear stale file references from previous recordings
         // Problem: If a new recording starts before the previous one fully completes,
-        // the FileWatcher could try to monitor the wrong file
+        // the readiness probe could inspect the wrong file
         // Solution: Always clear these references to ensure each recording session
         // has fresh, unique file URLs based on current timestamp
         self.finalURL = nil

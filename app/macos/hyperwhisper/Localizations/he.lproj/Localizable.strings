@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "נקודות זכות של HyperWhisper Cloud";
 "settings.credits.refresh" = "רענן";
-"settings.credits.subtitle" = "עקוב אחר נקודות הזכות והשימוש שלך בתמלול";
-"settings.credits.manage" = "נהל נקודות זכות";
 "settings.credits.timeRemaining" = "זמן תמלול שנותר";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "דקות";
 "settings.credits.creditsRemaining" = "%@ נקודות זכות נותרו";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "מגבלה יומית חינמית (100 נקודות זכות)";
-"settings.credits.resets" = "מתאפס %@";
 "settings.credits.warning.low" = "נקודות הזכות אוזלות. שקול לרכוש רישיון לנקודות זכות נוספות.";
-"settings.credits.warning.exhausted.daily" = "המגבלה היומית אזלה. רכוש רישיון לשימוש בלתי מוגבל או המתן לאיפוס.";
 "settings.credits.warning.exhausted" = "נקודות הזכות אזלו. רכוש נקודות זכות נוספות כדי להמשיך להשתמש ב-HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "מידע על חשבון";
-"settings.credits.stat.creditsRemaining" = "נקודות זכות נותרות";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "דקות נותרות";
-"settings.credits.stat.accountType" = "סוג חשבון";
-"settings.credits.accountType.licensed" = "מורשה";
-"settings.credits.accountType.anonymous" = "אנונימי";
-"settings.credits.accountType.trial" = "ניסיון";
-"settings.credits.stat.customerId" = "מזהה לקוח";
-"settings.credits.stat.dailyLimit" = "מגבלה יומית";
-"settings.credits.dailyLimit.value" = "100 נקודות זכות";
 "settings.credits.loading" = "טוען יתרת נקודות זכות...";
 "settings.credits.error.title" = "לא ניתן לטעון יתרת נקודות זכות";
 "settings.credits.error.retry" = "נסה שוב";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "מיקרופון ברירת מחדל";
 "audio.error.permissionDenied" = "גישה למיקרופון נדחתה. אנא אפשר בהגדרות מערכת.";
-"audio.error.fileWatcher.open" = "לא ניתן לפתוח מתאר קובץ לניטור קובץ האודיו.";
-"audio.error.fileWatcher.timeout" = "הפעולה תם זמנה בזמן המתנה לכתיבת קובץ האודיו.";
-"audio.error.fileWatcher.creation" = "קובץ האודיו לא נוצר בזמן.";
 "audio.error.microphonePermission" = "הרשאת מיקרופון לא ניתנה";
 "audio.error.microphoneInUse" = "HyperWhisper לא יכול לגשת למיקרופון מכיוון שאפליקציה אחרת משתמשת בו כרגע. השהה את האפליקציה האחרת או החלף קלטים, ואז נסה שוב.";
 "audio.error.createEngine" = "כשל ביצירת מנוע אודיו";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "מחק הקלטות ישנות מ-%d %@";
 "history.autoDelete.cleanup.noItems" = "אין הקלטות למחיקה";
 "history.autoDelete.cleanup.summary" = "נמחקו %d הקלטה/ות ושוחררו %@";
+"history.status.interrupted" = "התמלול הופרע — האפליקציה נסגרה לפני שהסתיים";
+"recording.maxDuration.reachedToast" = "ההקלטה נעצרה — הגעת למגבלת %d דקות";
+"streaming.maxDuration.reachedToast" = "ההזרמה נעצרה — הגעת למגבלת %d דקות";
+"settings.storage.maxRecordingDuration.title" = "משך הקלטה מרבי";
+"settings.storage.maxRecordingDuration.subtitle" = "עצירה ותמלול אוטומטיים של הקלטות שאורכן עולה על משך זה.";
+"settings.storage.maxRecordingDuration.minutes" = "%d דקות";
+"settings.storage.maxRecordingDuration.hour" = "שעה אחת";
+"settings.storage.maxRecordingDuration.hours" = "%d שעות";
+"settings.storage.maxRecordingDuration.off" = "כבוי";
