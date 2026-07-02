@@ -22,16 +22,19 @@ import CoreData
 /// - Track current recording session for cleanup and recovery
 ///
 /// **Core Data Integration:**
-/// Session creation saves on a background context to avoid blocking the main thread.
-/// Updates and deletions use the viewContext since the managed object is already there.
+/// All writes funnel through `PersistenceController.performWrite` (the serial
+/// background writer), so session create/update/delete share one queue with the
+/// transcript writes — this serializes the cancel-vs-create sequence structurally
+/// and keeps Core Data off the main thread.
 ///
 /// **Session Lifecycle:**
 /// 1. **Start Recording**: scheduleRecordingSessionCreation() → saves after the start transaction
-/// 2. **Stop Recording**: updateRecordingSessionOnStop() → updates with final data
+/// 2. **Stop Recording**: RecordingLifecycle calls the writer directly with the session's objectID
 /// 3. **Crash**: Session remains with endTime = nil → recovered by CrashRecoveryManager
 ///
 /// **Thread Safety:**
-/// All methods run on main actor for Core Data consistency.
+/// This class is `@MainActor`; the actual Core Data mutations run on the serial
+/// background writer context inside `performWrite`.
 @MainActor
 class RecordingSessionManager {
 
@@ -117,11 +120,13 @@ class RecordingSessionManager {
         startTime: Date
     ) async -> RecordingSession? {
         let container = PersistenceController.shared.container
-        let backgroundContext = container.newBackgroundContext()
         let sessionId = UUID()
 
-        let objectID: NSManagedObjectID? = await backgroundContext.perform {
-            let session = RecordingSession(context: backgroundContext)
+        // Create on the shared serial writer so session create/update/delete and
+        // transcript writes serialize on one queue (closes the cancel-vs-create race).
+        // Save-gated: a failed save must not hand back an ID for a row that doesn't exist.
+        let objectID: NSManagedObjectID? = await PersistenceController.shared.performWriteRequiringSave { context -> NSManagedObjectID? in
+            let session = RecordingSession(context: context)
             session.id = sessionId
             session.startTime = startTime
             session.deviceId = deviceId
@@ -132,16 +137,16 @@ class RecordingSessionManager {
             session.audioFilePath = audioFilePath
 
             do {
-                try backgroundContext.obtainPermanentIDs(for: [session])
-                try backgroundContext.save()
+                try context.obtainPermanentIDs(for: [session])
             } catch {
-                AppLogger.coreData.error("Failed to save recording session on background context: \(error.localizedDescription)")
+                AppLogger.coreData.error("Failed to obtain permanent ID for recording session: \(error.localizedDescription)")
                 return nil
             }
             return session.objectID
         }
 
-        guard let objectID, let session = container.viewContext.object(with: objectID) as? RecordingSession else {
+        guard let objectID,
+              let session = (try? container.viewContext.existingObject(with: objectID)) as? RecordingSession else {
             AppLogger.coreData.error("Recording session background save failed; continuing without session tracking")
             currentRecordingSession = nil
             return nil
@@ -155,40 +160,6 @@ class RecordingSessionManager {
     }
 
     // MARK: - Session Updates
-
-    /// Update recording session with final audio file and duration
-    ///
-    /// **What This Does:**
-    /// 1. Updates the session with final M4A file path
-    /// 2. Sets duration and end time
-    /// 3. Saves to Core Data
-    /// 4. Clears currentRecordingSession reference
-    ///
-    /// **When to Call:**
-    /// After recording stops and M4A conversion completes successfully.
-    ///
-    /// **Parameters:**
-    /// - `session`: The recording session to update
-    /// - `audioFilePath`: Full path to the final M4A file
-    /// - `duration`: Recording duration in seconds
-    func updateRecordingSessionOnStop(
-        session: RecordingSession,
-        audioFilePath: String,
-        duration: TimeInterval
-    ) {
-        // Update session with final data
-        session.audioFilePath = audioFilePath
-        session.durationInSeconds = duration
-        session.endTime = Date()
-
-        // Save changes
-        PersistenceController.shared.save()
-
-        // Clear reference
-        currentRecordingSession = nil
-
-        AppLogger.audio.info("✅ Updated recording session: duration=\(String(format: "%.1f", duration))s, path=\(audioFilePath)")
-    }
 
     /// Update session format metadata after conversion
     ///
@@ -244,34 +215,23 @@ class RecordingSessionManager {
             return
         }
 
-        deleteSession(session)
+        await deleteSession(session)
     }
 
-    /// Delete a specific recording session from Core Data.
+    /// Delete a specific recording session from Core Data on the serial writer.
     ///
     /// Use this when the caller already resolved the session before clearing
     /// `currentRecordingSession`, such as the too-short discard path.
-    func deleteSession(_ session: RecordingSession, deleteAudioFile: Bool = true) {
-        let context = PersistenceController.shared.container.viewContext
+    func deleteSession(_ session: RecordingSession, deleteAudioFile: Bool = true) async {
+        let sessionID = session.objectID
 
-        // Delete associated audio file if it exists
-        if deleteAudioFile, let filePath = session.audioFilePath {
-            do {
-                try FileManager.default.removeItem(atPath: filePath)
-                AppLogger.audio.debug("Deleted incomplete audio file: \(filePath)")
-            } catch {
-                AppLogger.audio.debug("Could not delete incomplete audio file (may not exist): \(error.localizedDescription)")
-            }
-        }
+        await PersistenceController.shared.deleteRecordingSessionInBackground(
+            sessionID: sessionID,
+            deleteAudioFile: deleteAudioFile
+        )
 
-        // Delete the session entity
-        context.delete(session)
-
-        // Save changes
-        PersistenceController.shared.save()
-
-        // Clear reference
-        if currentRecordingSession?.objectID == session.objectID {
+        // Clear reference by objectID compare
+        if currentRecordingSession?.objectID == sessionID {
             currentRecordingSession = nil
         }
 

@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import CoreData
 
 /// Manages core recording start/stop lifecycle
 ///
@@ -838,34 +839,39 @@ class RecordingLifecycle {
         if let session = await sessionManager.resolveCurrentSession() {
             if let fileURL = finalURL {
                 stoppedRecordingSession = session
-                sessionManager.updateRecordingSessionOnStop(
-                    session: session,
-                    audioFilePath: fileURL.path,
-                    duration: duration
-                )
 
-                // Update the audio format to reflect actual output format
+                // Compute the human-readable audio format label for the final output.
+                let formatLabel: String
                 if let (sr, ch) = audioFileConverter.getAudioFormatInfo(url: fileURL) {
                     let ext = fileURL.pathExtension.lowercased()
-                    let formatLabel: String
+                    let base: String
                     switch ext {
                     case "m4a":
-                        formatLabel = "M4A AAC"
+                        base = "M4A AAC"
                     case "wav":
-                        formatLabel = "WAV PCM"
+                        base = "WAV PCM"
                     case "caf":
-                        formatLabel = "CAF PCM"
+                        base = "CAF PCM"
                     default:
-                        formatLabel = ext.uppercased()
+                        base = ext.uppercased()
                     }
-                    session.audioFormat = "\(formatLabel) \(Int(sr))Hz \(ch)ch"
+                    formatLabel = "\(base) \(Int(sr))Hz \(ch)ch"
                 } else {
                     let ext = fileURL.pathExtension.uppercased()
-                    session.audioFormat = ext.isEmpty ? "Audio (unknown)" : "\(ext) (unknown)"
+                    formatLabel = ext.isEmpty ? "Audio (unknown)" : "\(ext) (unknown)"
                 }
-                PersistenceController.shared.save()
+
+                // ONE serial write: final path + duration + endTime + audioFormat.
+                await PersistenceController.shared.updateRecordingSessionOnStopInBackground(
+                    sessionID: session.objectID,
+                    audioFilePath: fileURL.path,
+                    duration: duration,
+                    audioFormat: formatLabel
+                )
+                sessionManager.clearCurrentSession()
+                AppLogger.audio.info("✅ Updated recording session: duration=\(String(format: "%.1f", duration))s, path=\(fileURL.path)")
             } else {
-                sessionManager.deleteSession(session)
+                await sessionManager.deleteSession(session)
             }
         }
 
@@ -1026,9 +1032,17 @@ class RecordingLifecycle {
         // Tiered backoff: 1-10 at 25ms, 11-20 at 100ms, 21-30 at 250ms
         // Total max wait ~3.75s with fewer polls than the old 40x50ms approach
         let maxAttempts = 30
+        // Wall-time bound for the stalled-size early exit: if the file has a
+        // nonzero but sub-threshold size that stops growing, bail once we've
+        // waited this long rather than polling all the way to ~3.75s.
+        let stalledExitWallMs = 400
         var totalWaitMs = 0
         var lastSize: Int64 = -1
-        var stalledChecks = 0
+        // Consecutive polls where the size held steady. A single stalled read can
+        // just be a buffer that hasn't flushed yet, so we require 2 in a row
+        // before bailing (worst-case exit ~650ms instead of ~450ms — still far
+        // under the old ~3.75s full wait).
+        var stalledStableReads = 0
         var loggedTooSmall = false
 
         for attempt in 1...maxAttempts {
@@ -1050,18 +1064,18 @@ class RecordingLifecycle {
                     AppLogger.audio.warning("Raw audio file still too small at check \(attempt): \(fileSize) bytes (minimum: \(minimumAudioFileSize))")
                 }
 
-                // Stalled-size early exit: if size unchanged for 5 consecutive checks
-                // after attempt 10, the file isn't growing — bail immediately
-                if attempt > 10 {
-                    if fileSize == lastSize {
-                        stalledChecks += 1
-                        if stalledChecks >= 5 {
-                            AppLogger.audio.warning("Raw audio file size stalled at \(fileSize) bytes for \(stalledChecks) checks, giving up after \(attempt) attempts (\(totalWaitMs)ms)")
-                            break
-                        }
-                    } else {
-                        stalledChecks = 0
-                    }
+                // Stalled-size early exit (wall-time bound): if the file has a
+                // nonzero but sub-threshold size that hasn't grown for 2
+                // consecutive polls, and we've already waited past ~400ms, it
+                // isn't going to grow — bail now.
+                if fileSize > 0, fileSize == lastSize {
+                    stalledStableReads += 1
+                } else {
+                    stalledStableReads = 0
+                }
+                if stalledStableReads >= 2, totalWaitMs >= stalledExitWallMs {
+                    AppLogger.audio.warning("Raw audio file size stalled at \(fileSize) bytes past \(totalWaitMs)ms, giving up after \(attempt) attempts")
+                    break
                 }
                 lastSize = fileSize
             }
@@ -1260,9 +1274,9 @@ class RecordingLifecycle {
     /// It runs in a detached task to avoid blocking the UI.
     ///
     /// - Parameters:
-    ///   - transcript: The Transcript entity to update with the new file path
+    ///   - transcriptID: The Transcript object ID to update with the new file path
     ///   - wavURL: The WAV file to convert
-    nonisolated func performBackgroundWAVToM4AConversion(transcript: Transcript, wavURL: URL) async {
+    nonisolated func performBackgroundWAVToM4AConversion(transcriptID: NSManagedObjectID, wavURL: URL) async {
         // Only process WAV files
         guard wavURL.pathExtension.lowercased() == "wav" else {
             AppLogger.audio.debug("Skipping background M4A conversion - file is not WAV: \(wavURL.lastPathComponent, privacy: .public)")
@@ -1293,10 +1307,8 @@ class RecordingLifecycle {
                 throw AudioError.exportFailed
             }
 
-            // Update transcript with new path (on main thread for Core Data)
-            await MainActor.run {
-                PersistenceController.shared.updateTranscriptAudioFilePath(transcript, newPath: m4aURL.path)
-            }
+            // Update transcript with new path on the serial background writer.
+            await PersistenceController.shared.updateTranscriptAudioFilePathInBackground(transcriptID: transcriptID, newPath: m4aURL.path)
 
             // Delete the WAV file since M4A was created successfully
             try? FileManager.default.removeItem(at: wavURL)
@@ -1337,10 +1349,8 @@ class RecordingLifecycle {
                 throw AudioError.exportFailed
             }
 
-            // Update transcript with new path
-            await MainActor.run {
-                PersistenceController.shared.updateTranscriptAudioFilePath(transcript, newPath: m4aURL.path)
-            }
+            // Update transcript with new path on the serial background writer.
+            await PersistenceController.shared.updateTranscriptAudioFilePathInBackground(transcriptID: transcriptID, newPath: m4aURL.path)
 
             // Delete the WAV file since M4A was created successfully
             try? FileManager.default.removeItem(at: wavURL)

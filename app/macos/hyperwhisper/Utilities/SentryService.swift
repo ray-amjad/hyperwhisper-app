@@ -294,6 +294,19 @@ enum SentryService {
         #endif
     }
 
+    /// Set multiple scope extras at once. Unlike breadcrumbs (which `beforeSend`
+    /// strips for privacy), scope extras survive and ride along with the next
+    /// captured event — use for lightweight diagnostics like per-stage timings.
+    static func setExtras(_ extras: [String: Any]) {
+        #if canImport(Sentry)
+        SentrySDK.configureScope { scope in
+            for (key, value) in extras {
+                scope.setExtra(value: value, key: key)
+            }
+        }
+        #endif
+    }
+
     /// Set multiple tags at once for efficiency.
     static func setTags(_ tags: [String: String]) {
         #if canImport(Sentry)
