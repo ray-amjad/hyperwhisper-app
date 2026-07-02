@@ -193,6 +193,8 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
         }
     }
 
+    private static readonly JsonSerializerOptions SaveMapOptions = new() { WriteIndented = true };
+
     // Caller must hold _lock.
     private void SaveMap()
     {
@@ -204,8 +206,15 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
                 Directory.CreateDirectory(directory);
             }
 
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            File.WriteAllText(KvStorePath, JsonSerializer.Serialize(_map, options));
+            // Atomic write (same shape as SettingsService.Save): serialize to a
+            // sibling .tmp, then rename over the real file so a crash or force-kill
+            // mid-write can never leave a truncated kvstore.json. No .bak needed —
+            // LoadMap() already degrades to an empty map on parse failure, and the
+            // atomic rename removes the truncation trigger that made that lossy.
+            var tmpPath = KvStorePath + ".tmp";
+            File.WriteAllText(tmpPath, JsonSerializer.Serialize(_map, SaveMapOptions));
+            AppPaths.PrepareForOverwrite(KvStorePath, "RustCoreKeyValueStore.SaveMap");
+            File.Move(tmpPath, KvStorePath, overwrite: true);
         }
         catch (Exception ex)
         {
