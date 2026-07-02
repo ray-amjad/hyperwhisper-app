@@ -109,3 +109,7 @@ Apache License 2.0 — see [`LICENSE`](./LICENSE). The code for everything,
 including the backend, is covered by this license. The hosted **HyperWhisper
 Cloud** *service* — our managed instance and prepaid credits — is a separate paid
 offering, even though its backend source is included here under the same license.
+
+The **"HyperWhisper" name, logo, and app icon are not covered by the Apache
+license** — see [`TRADEMARKS.md`](./TRADEMARKS.md). You can fork and ship the
+code, but under your own name and branding, not as the official HyperWhisper.
