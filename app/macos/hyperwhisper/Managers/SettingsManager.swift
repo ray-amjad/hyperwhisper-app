@@ -133,7 +133,14 @@ class SettingsManager: ObservableObject {
 
     // MARK: - Advanced Settings
 
-    @AppStorage("maxRecordingDuration") var maxRecordingDuration: Int = 300
+    /// Maximum recording length in seconds before auto-stopping to prevent
+    /// runaway captures. 0 = no limit. Stored under a NEW key
+    /// (`maxRecordingDurationSeconds`) rather than the legacy
+    /// `maxRecordingDuration`: that key was never exposed in UI, so its old
+    /// default (300) leaked into exported backups without ever reflecting a
+    /// user choice — `migrateLegacyMaxRecordingDuration()` carries over only a
+    /// non-300 legacy value.
+    @AppStorage("maxRecordingDurationSeconds") var maxRecordingDurationSeconds: Int = 3600
     @AppStorage("audioSampleRate") var audioSampleRate: Double = 16000
     @AppStorage("keepAudioFiles") var keepAudioFiles: Bool = false
     @AppStorage("historyRetentionDays") var historyRetentionDays: Int = 30
@@ -224,11 +231,38 @@ class SettingsManager: ObservableObject {
 
     init() {
         validateSettings()
-        
+
         // Normalize legacy language values
         if defaultLanguage == "en-US" { defaultLanguage = "en" }
 
+        migrateLegacyMaxRecordingDuration()
+
         bindSubManagerChanges()
+    }
+
+    /// The recording cap as a `TimeInterval`, or `nil` when disabled (0 = off).
+    var maxRecordingDurationInterval: TimeInterval? {
+        maxRecordingDurationSeconds > 0 ? TimeInterval(maxRecordingDurationSeconds) : nil
+    }
+
+    /// One-time carry-over from the legacy `maxRecordingDuration` key. The
+    /// legacy default (300) was never surfaced in UI and never enforced, so it
+    /// can't represent a user choice — treat it as unset and keep the new 1h
+    /// default. Any other legacy value (e.g. restored from a backup that was
+    /// hand-edited) is preserved.
+    ///
+    /// Reads the persistent domain, NOT `object(forKey:)`, because the latter
+    /// also returns values registered via `registerHyperWhisperDefaults()` and
+    /// would make the new key look "already set" on every launch.
+    private func migrateLegacyMaxRecordingDuration() {
+        let stored = UserDefaults.standard.persistentDomain(
+            forName: Bundle.main.bundleIdentifier ?? "com.hyperwhisper"
+        ) ?? [:]
+        guard stored["maxRecordingDurationSeconds"] == nil,
+              let legacy = stored["maxRecordingDuration"] as? Int,
+              legacy != 300
+        else { return }
+        maxRecordingDurationSeconds = legacy
     }
     
     // MARK: - Forwarding Properties - General Settings
@@ -575,7 +609,7 @@ extension UserDefaults {
             "showExperimentalModels": false,
             "defaultTranscriptionModel": "base",
             "defaultLanguage": "en",
-            "maxRecordingDuration": 300,
+            "maxRecordingDurationSeconds": 3600,
             "audioSampleRate": 16000.0,
             "keepAudioFiles": false,
             "historyRetentionDays": 30,

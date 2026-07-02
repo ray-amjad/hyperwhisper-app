@@ -63,6 +63,8 @@
 "streaming.warning.apiKeyInvalid.action" = "Update Key";
 "streaming.language.title" = "Language";
 "streaming.shortcut.title" = "Shortcut";
+"streaming.maxDuration.reachedToast" = "Streaming stopped — %d-minute limit reached";
+"recording.maxDuration.reachedToast" = "Recording stopped — %d-minute limit reached";
 
 // MARK: - Home View
 "home.get.started" = "Get started";
@@ -363,6 +365,12 @@
 "settings.storage.dialog.message" = "Choose a folder to store recordings";
 "settings.storage.storeAsM4A.title" = "Compress recordings to M4A";
 "settings.storage.storeAsM4A.subtitle" = "Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files (larger but lossless).";
+"settings.storage.maxRecordingDuration.title" = "Max recording duration";
+"settings.storage.maxRecordingDuration.subtitle" = "Automatically stop and transcribe recordings that run longer than this.";
+"settings.storage.maxRecordingDuration.off" = "Off";
+"settings.storage.maxRecordingDuration.hour" = "1 hour";
+"settings.storage.maxRecordingDuration.hours" = "%d hours";
+"settings.storage.maxRecordingDuration.minutes" = "%d minutes";
 
 // MARK: - Settings · Output
 "settings.output.paste.title" = "Paste result automatically";

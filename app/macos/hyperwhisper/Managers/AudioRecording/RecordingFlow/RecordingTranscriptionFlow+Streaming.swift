@@ -608,23 +608,29 @@ extension RecordingTranscriptionFlow {
                 ]
             )
 
-            // Start max duration safety timer
+            // Start max duration safety timer (user setting: 0 = no limit).
             streamingStartTime = Date()
             streamingMaxDurationTimer?.invalidate()
-            streamingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecordingDuration, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self = self, self.isStreamingActive, !self.isStopInProgress else { return }
-                    self.isStopInProgress = true
-                    defer { self.isStopInProgress = false }
+            streamingMaxDurationTimer = nil
+            if let maxDuration = settingsManager?.maxRecordingDurationInterval {
+                let limitMinutes = Int(maxDuration) / 60
+                streamingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: maxDuration, repeats: false) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self = self, self.isStreamingActive, !self.isStopInProgress else { return }
+                        self.isStopInProgress = true
+                        defer { self.isStopInProgress = false }
 
-                    let modeName = self.appState?.selectedModeName ?? "Unknown"
-                    AppLogger.audio.warning("⏱️ Streaming max duration (20 minutes) reached — auto-stopping")
-                    self.appState?.showWarning("Streaming stopped — 20-minute safety limit reached")
-                    self.currentRecordingTriggerSource = .autoStop
-                    await self.stopStreamingTranscription(mode: modeName)
+                        let modeName = self.appState?.selectedModeName ?? "Unknown"
+                        AppLogger.audio.warning("⏱️ Streaming max duration (\(limitMinutes) minutes) reached — auto-stopping")
+                        self.appState?.showWarning(String(format: "streaming.maxDuration.reachedToast".localized, limitMinutes))
+                        self.currentRecordingTriggerSource = .autoStop
+                        await self.stopStreamingTranscription(mode: modeName)
+                    }
                 }
+                AppLogger.audio.info("⏱️ Streaming max duration timer set (\(limitMinutes) minutes)")
+            } else {
+                AppLogger.audio.info("⏱️ Streaming max duration timer off (no limit set)")
             }
-            AppLogger.audio.info("⏱️ Streaming max duration timer set (20 minutes)")
 
             // Update state to show streaming is active
             await MainActor.run {

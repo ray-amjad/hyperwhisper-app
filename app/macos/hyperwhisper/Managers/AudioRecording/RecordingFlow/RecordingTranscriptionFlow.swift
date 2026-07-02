@@ -105,9 +105,6 @@ class RecordingTranscriptionFlow {
     /// We register the handler only once to prevent accumulation
     static var cancelShortcutHandlerRegistered = false
 
-    /// Maximum recording length before auto-stopping to prevent runaway captures.
-    static let maxRecordingDuration: TimeInterval = 20 * 60
-
     // MARK: - Dependencies
 
     weak var transcriptionPipeline: TranscriptionPipeline?

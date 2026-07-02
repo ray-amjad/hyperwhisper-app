@@ -155,7 +155,9 @@ class BackupManager: ObservableObject {
                 defaultModelByMode: settingsManager.defaultModelByMode
             ),
             advanced: BackupAdvancedSettings(
-                maxRecordingDuration: settingsManager.maxRecordingDuration,
+                // The backup field keeps its cross-platform name; macOS now
+                // stores the value under maxRecordingDurationSeconds.
+                maxRecordingDuration: settingsManager.maxRecordingDurationSeconds,
                 audioSampleRate: settingsManager.audioSampleRate,
                 keepAudioFiles: settingsManager.keepAudioFiles,
                 historyRetentionDays: settingsManager.historyRetentionDays
@@ -1105,7 +1107,12 @@ class BackupManager: ObservableObject {
         settingsManager.defaultLanguage = settings.aiModel.defaultLanguage
 
         // Advanced settings
-        settingsManager.maxRecordingDuration = settings.advanced.maxRecordingDuration
+        // Legacy backups carry 300 in advanced.maxRecordingDuration — the old
+        // never-exposed default, not a user choice. Treat it as unset so the
+        // import doesn't silently cap recordings at 5 minutes.
+        if settings.advanced.maxRecordingDuration != 300 {
+            settingsManager.maxRecordingDurationSeconds = settings.advanced.maxRecordingDuration
+        }
         settingsManager.audioSampleRate = settings.advanced.audioSampleRate
         settingsManager.keepAudioFiles = settings.advanced.keepAudioFiles
         settingsManager.historyRetentionDays = settings.advanced.historyRetentionDays

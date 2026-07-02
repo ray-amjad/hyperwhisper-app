@@ -35,15 +35,18 @@ $MacStart = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperw
 $MacStop = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow+StopRecording.swift")
 $MacStreaming = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow+Streaming.swift")
 
+# macOS's cap is user-configurable (SettingsManager.maxRecordingDurationSeconds,
+# default 1 hour, 0 = off) — the assertions below verify the setting-driven timer
+# still auto-stops into transcription, not a hardcoded duration.
 Assert-Match `
     -Content $MacFlow `
-    -Pattern "static let maxRecordingDuration: TimeInterval = 20 \* 60.*?var recordingMaxDurationTimer: Timer\?" `
-    -Message "macOS must define one 20-minute recording cap and a batch recording safety timer."
+    -Pattern "var recordingMaxDurationTimer: Timer\?" `
+    -Message "macOS must define a batch recording safety timer."
 
 Assert-Match `
     -Content $MacStart `
-    -Pattern "armRecordingMaxDurationTimer\(mode: mode, attemptId: attemptId\).*?Timer\.scheduledTimer\(withTimeInterval: Self\.maxRecordingDuration.*?currentRecordingTriggerSource = \.autoStop.*?handleStopRecordingWithTranscription\(mode: mode, cancelled: false\)" `
-    -Message "macOS batch recording must auto-stop at the cap and continue into transcription, not cancellation."
+    -Pattern "armRecordingMaxDurationTimer\(mode: mode, attemptId: attemptId\).*?maxRecordingDurationInterval.*?Timer\.scheduledTimer\(withTimeInterval: maxDuration.*?currentRecordingTriggerSource = \.autoStop.*?handleStopRecordingWithTranscription\(mode: mode, cancelled: false\)" `
+    -Message "macOS batch recording must arm the user-configured cap and auto-stop into transcription, not cancellation."
 
 Assert-Match `
     -Content $MacStop `
@@ -57,13 +60,13 @@ Assert-Match `
 
 Assert-Match `
     -Content $MacStreaming `
-    -Pattern "Timer\.scheduledTimer\(withTimeInterval: Self\.maxRecordingDuration.*?!self\.isStopInProgress.*?self\.isStopInProgress = true.*?Streaming stopped.*?20-minute safety limit reached.*?currentRecordingTriggerSource = \.autoStop.*?stopStreamingTranscription\(mode: modeName\)" `
-    -Message "macOS streaming must use the same 20-minute cap, claim the stop latch, and stop normally."
+    -Pattern "Timer\.scheduledTimer\(withTimeInterval: maxDuration.*?!self\.isStopInProgress.*?self\.isStopInProgress = true.*?streaming\.maxDuration\.reachedToast.*?currentRecordingTriggerSource = \.autoStop.*?stopStreamingTranscription\(mode: modeName\)" `
+    -Message "macOS streaming must use the same user-configured cap, claim the stop latch, and stop normally."
 
 Assert-NotMatch `
     -Content $MacStreaming `
-    -Pattern "withTimeInterval: 3600|1-hour limit|1 hour" `
-    -Message "macOS streaming must not keep the previous 1-hour runaway limit."
+    -Pattern "withTimeInterval: 3600|withTimeInterval: 20 \* 60|withTimeInterval: Self\.maxRecordingDuration" `
+    -Message "macOS streaming must not hardcode a runaway limit; the cap comes from the user setting."
 
 Assert-Match `
     -Content $WindowsViewModel `
