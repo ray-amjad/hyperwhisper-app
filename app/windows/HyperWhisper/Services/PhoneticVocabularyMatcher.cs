@@ -92,6 +92,15 @@ public sealed class PhoneticVocabularyMatcher
         var corrected = text;
         var words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
+        // Per-call memo: skip tokens already processed this call. The first
+        // \b-anchored regex pass for a token rewrites ALL its occurrences, so a
+        // repeat is pure waste — and skipping it also collapses the FFI encode
+        // (BeiderMorse.Encode) to one call per unique token. Deliberately no
+        // cross-call LRU: transcripts repeat within a call far more than the
+        // same rare token recurs across calls, and an unbounded static cache
+        // would grow for the process lifetime.
+        var processedWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var word in words)
         {
             // Skip very short words to avoid false positives.
@@ -105,6 +114,11 @@ public sealed class PhoneticVocabularyMatcher
             // word characters), so no manual re-attachment is needed.
             var cleanWord = StripTrailingPunctuation(word);
             if (string.IsNullOrEmpty(cleanWord))
+            {
+                continue;
+            }
+
+            if (!processedWords.Add(cleanWord))
             {
                 continue;
             }
