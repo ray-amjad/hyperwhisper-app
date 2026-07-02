@@ -204,6 +204,21 @@ export async function getAllAccountKeysForAdmin(limit = 1000): Promise<AccountKe
   return rows.map(drizzleAccountKeyToRow);
 }
 
+/**
+ * Distinct normalized emails that hold at least one *granted* Account Key (from
+ * the internal bundle or a paid purchase). Powers the ACS admin backfill, which
+ * reconciles its claim flag against emails that already have a key. Read-only.
+ */
+export async function getGrantedEmails(): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ email: accountKeys.email })
+    .from(accountKeys)
+    .where(eq(accountKeys.status, "granted"));
+  return rows
+    .map((r) => r.email.toLowerCase().trim())
+    .filter((email) => email.length > 0);
+}
+
 export async function searchAccountKeysByEmail(
   email: string,
   limit = 1000
@@ -217,15 +232,20 @@ export async function searchAccountKeysByEmail(
   return attachPooledCredits(licenses);
 }
 
+// Credits granted with each internal-bundle Account Key mint. $10 at the
+// 1000-credits-per-dollar rate. This is the ACS member perk; only brand-new
+// emails receive it (an email that already has a granted key gets no top-up).
+const INTERNAL_BUNDLE_CREDITS = 10000;
+
 /**
  * Mint a fresh internal-bundle license for an email: generate a collision-free
  * key, ensure the user exists, insert the license as "granted", and grant the
- * standard 5,000-credit internal bundle.
+ * standard 10,000-credit ($10) internal bundle.
  *
- * This is the single source of truth for the internal mint flow shared by the
- * grant-license and licenses-for-email endpoints. Callers decide *whether* to
- * mint (e.g. only when no license exists); this just performs the mint and
- * returns the new row. Throws on any failure.
+ * This is the single source of truth for the internal mint flow. Its only
+ * caller is the grant-license endpoint (driven by the ACS claim flow), which
+ * mints only when the email has no granted key. licenses-for-email is read-only
+ * and never mints. Throws on any failure.
  */
 export async function provisionAccountKeyForEmail(email: string): Promise<AccountKeyRow> {
   const normalizedEmail = email.toLowerCase().trim();
@@ -259,7 +279,7 @@ export async function provisionAccountKeyForEmail(email: string): Promise<Accoun
 
   await grantCreditLot({
     userId: license.userId,
-    amount: 5000,
+    amount: INTERNAL_BUNDLE_CREDITS,
     sourceType: "internal_bundle",
     sourceId: license.id,
   });
