@@ -179,10 +179,23 @@ class CrashRecoveryManager {
         let request = RecordingSession.fetchRequest()
         request.predicate = NSPredicate(format: "endTime == nil")
 
-        guard let orphans = try? await context.perform({ try context.fetch(request) }) else {
+        guard var orphans = try? await context.perform({ try context.fetch(request) }) else {
             AppLogger.audio.warning("Failed to fetch orphaned sessions")
             return
         }
+
+        // STEP 1b: ORPHAN-WAV SWEEP. The record-start session insert is deferred
+        // off the record-start hot path, so a crash in the first ~100ms of a
+        // recording can leave an `.incomplete_*.wav` on disk with NO session row
+        // — invisible to the fetch above and never recovered or cleaned up.
+        // Synthesize a stub session for each unclaimed, stale incomplete WAV and
+        // let the existing validation/recovery/quarantine loop below handle it
+        // unchanged.
+        orphans += synthesizeStubSessionsForUnclaimedWAVs(
+            existingOrphans: orphans,
+            context: context,
+            staleSessionCutoff: staleSessionCutoff
+        )
 
         guard !orphans.isEmpty else {
             AppLogger.audio.info("No orphaned recordings found")
@@ -334,8 +347,12 @@ class CrashRecoveryManager {
             // Check if WAV file exists and is recoverable
             // Note: isRecoverableWAV is nonisolated so can be called directly
             guard isRecoverableWAV(url) else {
-                // File missing or corrupted, delete session
+                // File missing or corrupted: delete the session AND the file —
+                // leaving the file behind accumulates junk `.incomplete_` WAVs
+                // (and the orphan-WAV sweep would re-synthesize a stub for it
+                // on every launch).
                 AppLogger.audio.warning("Session \(sessionId) has unrecoverable audio, deleting")
+                try? FileManager.default.removeItem(at: url)
                 await MainActor.run {
                     context.delete(session)
                 }
@@ -414,6 +431,91 @@ class CrashRecoveryManager {
 
         // NOTE: Transcription is NOT auto-triggered here.
         // Users can manually transcribe recovered sessions from the History page.
+    }
+
+    // MARK: - Orphan-WAV Sweep
+
+    /// Synthesize stub `RecordingSession` rows for `.incomplete_*.wav` files in
+    /// the recordings directory that no session row claims.
+    ///
+    /// **Why:** the record-start session insert is intentionally asynchronous
+    /// (kept off the record-start hot path — do NOT make it synchronous again),
+    /// which opens a small crash window where the recorder has created the WAV
+    /// but the row doesn't exist yet. Those files were previously unrecoverable
+    /// AND uncollectable junk.
+    ///
+    /// **Safety:** a file is only claimed if (a) no session row (orphaned or
+    /// completed) references its path, and (b) its creation date predates
+    /// `staleSessionCutoff` — so the live recording of this process is never
+    /// touched. No sidecar marker files are needed: the WAV filename embeds the
+    /// session UUID, which the stub reuses so recovery attempt-counting stays
+    /// stable across launches.
+    private func synthesizeStubSessionsForUnclaimedWAVs(
+        existingOrphans: [RecordingSession],
+        context: NSManagedObjectContext,
+        staleSessionCutoff: Date
+    ) -> [RecordingSession] {
+        let fm = FileManager.default
+        // options: [] (NOT .skipsHiddenFiles) — the incomplete files are
+        // dot-prefixed and would otherwise be invisible to the sweep.
+        guard let entries = try? fm.contentsOfDirectory(
+            at: recordingsDirectory,
+            includingPropertiesForKeys: [.creationDateKey],
+            options: []
+        ) else {
+            return []
+        }
+
+        let candidates = entries.filter {
+            $0.lastPathComponent.hasPrefix(".incomplete_") && $0.pathExtension.lowercased() == "wav"
+        }
+        guard !candidates.isEmpty else { return [] }
+
+        let claimedPaths = Set(existingOrphans.compactMap { $0.audioFilePath })
+        var stubs: [RecordingSession] = []
+
+        for url in candidates {
+            let path = url.path
+            if claimedPaths.contains(path) { continue }
+
+            // A non-orphaned row may still claim this file — cheap existence check.
+            let claimCheck = RecordingSession.fetchRequest()
+            claimCheck.predicate = NSPredicate(format: "audioFilePath == %@", path)
+            claimCheck.fetchLimit = 1
+            if let count = try? context.count(for: claimCheck), count > 0 { continue }
+
+            // Never touch a file that could belong to this process's live recording.
+            let creationDate = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
+            guard creationDate <= staleSessionCutoff else { continue }
+
+            // Filename is ".incomplete_<sessionUUID>.wav" — reuse that UUID.
+            let stem = url.deletingPathExtension().lastPathComponent
+                .replacingOccurrences(of: ".incomplete_", with: "")
+            let sessionId = UUID(uuidString: stem) ?? UUID()
+
+            // Fixed recorder format metadata: SimpleRecorder always records
+            // 16kHz mono WAV (same constants as persistSessionForActiveRecording).
+            let stub = RecordingSession(context: context)
+            stub.id = sessionId
+            stub.startTime = creationDate
+            stub.audioFilePath = path
+            stub.sampleRate = 16000
+            stub.channelCount = 1
+            stub.audioFormat = "WAV PCM 16000Hz 1ch"
+            stub.endTime = nil
+            stubs.append(stub)
+
+            AppLogger.audio.info("🩹 Synthesized stub session \(sessionId.uuidString, privacy: .public) for unclaimed incomplete WAV: \(url.lastPathComponent, privacy: .public)")
+        }
+
+        if !stubs.isEmpty, AppLogger.isErrorLoggingEnabled {
+            SentryService.addBreadcrumb(
+                message: "Synthesized stub sessions for unclaimed incomplete WAVs",
+                category: "audio.recovery",
+                data: ["count": stubs.count]
+            )
+        }
+        return stubs
     }
 
     // MARK: - Validation

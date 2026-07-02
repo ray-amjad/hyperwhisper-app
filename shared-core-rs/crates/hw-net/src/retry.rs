@@ -88,6 +88,8 @@ pub const MAX_RETRY_AFTER_SECS: u64 = 10;
 ///   (`error.code`/`error.type` == `insufficient_quota`, or a message mentioning
 ///   `quota` / `billing` / `insufficient_quota`), else
 ///   `RateLimited { retry_after_secs }` parsed from the body when present.
+/// - 408 → `ProviderUnavailable { status }` (request timeout is transient, same
+///   as 5xx; agrees with `classify_http` — see module doc)
 /// - 5xx → `ProviderUnavailable { status }`
 /// - any other status (other 4xx, and any non-2xx not above) → `BadRequest`
 ///
@@ -101,6 +103,7 @@ pub fn classify_error(status: u16, body: &str) -> TranscriptionError {
     match status {
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => {
             if is_quota_error(json.as_ref()) {
@@ -381,6 +384,20 @@ mod tests {
     }
 
     #[test]
+    fn classify_408_provider_unavailable() {
+        // Request timeout is transient — retryable ProviderUnavailable, not the
+        // terminal BadRequest fallthrough.
+        assert_eq!(
+            classify_error(408, ""),
+            TranscriptionError::ProviderUnavailable { status: 408 }
+        );
+        assert_eq!(
+            classify_error(408, r#"{"message":"Request Timeout"}"#),
+            TranscriptionError::ProviderUnavailable { status: 408 }
+        );
+    }
+
+    #[test]
     fn classify_5xx_provider_unavailable() {
         assert_eq!(
             classify_error(500, ""),
@@ -477,6 +494,20 @@ mod tests {
             RetryDecision::Retry { delay_ms: 8_000 }
         );
         assert_eq!(next_retry(8, 503, "", None), RetryDecision::GiveUp);
+    }
+
+    #[test]
+    fn retry_408_is_retryable_until_exhausted() {
+        // 408 request timeout retries like a 5xx.
+        assert_eq!(
+            next_retry(1, 408, "", None),
+            RetryDecision::Retry { delay_ms: 1_000 }
+        );
+        assert_eq!(
+            next_retry(3, 408, "", None),
+            RetryDecision::Retry { delay_ms: 4_000 }
+        );
+        assert_eq!(next_retry(8, 408, "", None), RetryDecision::GiveUp);
     }
 
     #[test]

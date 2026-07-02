@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Credite HyperWhisper Cloud";
 "settings.credits.refresh" = "Actualizați";
-"settings.credits.subtitle" = "Monitorizați creditele și utilizarea transcrierii";
-"settings.credits.manage" = "Gestionați creditele";
 "settings.credits.timeRemaining" = "Timp de transcriere rămas";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minute";
 "settings.credits.creditsRemaining" = "%@ credite rămase";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Limită zilnică gratuită (100 credite)";
-"settings.credits.resets" = "Se resetează %@";
 "settings.credits.warning.low" = "Creditele se termină. Considerați achiziționarea unei licențe pentru credite suplimentare.";
-"settings.credits.warning.exhausted.daily" = "Limita zilnică a fost depășită. Achiziționați o licență pentru utilizare nelimitată sau așteptați resetare.";
 "settings.credits.warning.exhausted" = "Creditele s-au epuizat. Achiziționați mai multe credite pentru a continua utilizarea HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Informații cont";
-"settings.credits.stat.creditsRemaining" = "Credite rămase";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minute rămase";
-"settings.credits.stat.accountType" = "Tip cont";
-"settings.credits.accountType.licensed" = "Cu licență";
-"settings.credits.accountType.anonymous" = "Anonim";
-"settings.credits.accountType.trial" = "Versiune de probă";
-"settings.credits.stat.customerId" = "ID client";
-"settings.credits.stat.dailyLimit" = "Limită zilnică";
-"settings.credits.dailyLimit.value" = "100 credite";
 "settings.credits.loading" = "Se încarcă soldul de credite...";
 "settings.credits.error.title" = "Nu se poate încărca soldul de credite";
 "settings.credits.error.retry" = "Reîncercați";
@@ -842,9 +827,6 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 // MARK: - Audio Manager
 "audio.device.default" = "Microfon implicit";
 "audio.error.permissionDenied" = "Acces microfon refuzat. Vă rugăm activați în Setări de sistem.";
-"audio.error.fileWatcher.open" = "Nu s-a putut deschide un descriptor de fișier pentru a monitoriza fișierul audio.";
-"audio.error.fileWatcher.timeout" = "Operația a expirat în timp ce aștepta ca fișierul audio să fie scris.";
-"audio.error.fileWatcher.creation" = "Fișierul audio nu a fost creat la timp.";
 "audio.error.microphonePermission" = "Permisiune microfon nu a fost acordată";
 "audio.error.microphoneInUse" = "HyperWhisper nu poate accesa microfonul pentru că o altă aplicație o folosește în prezent. Pauzați cealaltă aplicație sau comutați intrări, apoi încercați din nou.";
 "audio.error.createEngine" = "Nu s-a putut crea motor audio";
@@ -1052,3 +1034,12 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "history.autoDelete.status.enabled" = "Ștergeți înregistrări mai vechi decât %d %@";
 "history.autoDelete.cleanup.noItems" = "Nicio înregistrare de șters";
 "history.autoDelete.cleanup.summary" = "Șterse %d înregistrări și eliberate %@";
+"history.status.interrupted" = "Transcrierea a fost întreruptă — aplicația s-a închis înainte de finalizare";
+"recording.maxDuration.reachedToast" = "Înregistrarea s-a oprit — a fost atinsă limita de %d minute";
+"streaming.maxDuration.reachedToast" = "Transmisia s-a oprit — a fost atinsă limita de %d minute";
+"settings.storage.maxRecordingDuration.title" = "Durata maximă de înregistrare";
+"settings.storage.maxRecordingDuration.subtitle" = "Oprește și transcrie automat înregistrările mai lungi decât această durată.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minute";
+"settings.storage.maxRecordingDuration.hour" = "1 oră";
+"settings.storage.maxRecordingDuration.hours" = "%d ore";
+"settings.storage.maxRecordingDuration.off" = "Dezactivat";

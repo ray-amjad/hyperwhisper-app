@@ -608,23 +608,29 @@ extension RecordingTranscriptionFlow {
                 ]
             )
 
-            // Start max duration safety timer
+            // Start max duration safety timer (user setting: 0 = no limit).
             streamingStartTime = Date()
             streamingMaxDurationTimer?.invalidate()
-            streamingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecordingDuration, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    guard let self = self, self.isStreamingActive, !self.isStopInProgress else { return }
-                    self.isStopInProgress = true
-                    defer { self.isStopInProgress = false }
+            streamingMaxDurationTimer = nil
+            if let maxDuration = settingsManager?.maxRecordingDurationInterval {
+                let limitMinutes = Int(maxDuration) / 60
+                streamingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: maxDuration, repeats: false) { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self = self, self.isStreamingActive, !self.isStopInProgress else { return }
+                        self.isStopInProgress = true
+                        defer { self.isStopInProgress = false }
 
-                    let modeName = self.appState?.selectedModeName ?? "Unknown"
-                    AppLogger.audio.warning("⏱️ Streaming max duration (20 minutes) reached — auto-stopping")
-                    self.appState?.showWarning("Streaming stopped — 20-minute safety limit reached")
-                    self.currentRecordingTriggerSource = .autoStop
-                    await self.stopStreamingTranscription(mode: modeName)
+                        let modeName = self.appState?.selectedModeName ?? "Unknown"
+                        AppLogger.audio.warning("⏱️ Streaming max duration (\(limitMinutes) minutes) reached — auto-stopping")
+                        self.appState?.showWarning(String(format: "streaming.maxDuration.reachedToast".localized, limitMinutes))
+                        self.currentRecordingTriggerSource = .autoStop
+                        await self.stopStreamingTranscription(mode: modeName)
+                    }
                 }
+                AppLogger.audio.info("⏱️ Streaming max duration timer set (\(limitMinutes) minutes)")
+            } else {
+                AppLogger.audio.info("⏱️ Streaming max duration timer off (no limit set)")
             }
-            AppLogger.audio.info("⏱️ Streaming max duration timer set (20 minutes)")
 
             // Update state to show streaming is active
             await MainActor.run {
@@ -739,26 +745,32 @@ extension RecordingTranscriptionFlow {
             }
         }
 
-        // Save accumulated transcript to history
+        // Save accumulated transcript to history on the serial background
+        // writer (same ID-based pattern as the batch stop path) so a large
+        // history can't stall the main thread here.
         if !commitText.isEmpty {
-            let processingTranscript = PersistenceController.shared.createProcessingTranscript(
+            let processingTranscriptID = await PersistenceController.shared.createProcessingTranscriptInBackground(
                 duration: 0, // Duration is tracked on server side
                 mode: mode,
-                audioFilePath: nil // No audio file for streaming
+                audioFilePath: nil, // No audio file for streaming
+                trimmedAudioPath: nil
             )
 
-            // Update transcript with streamed text
-            // Use the strategy's provider label for history entries (e.g., "Deepgram (Streaming)")
-            let providerLabel = service.transcriptionProviderLabel
-            PersistenceController.shared.updateTranscriptWithTranscription(
-                processingTranscript,
-                transcribedText: commitText,
-                postProcessedText: nil, // No post-processing for streaming yet
-                transcriptionProvider: providerLabel,
-                postProcessingProvider: nil
-            )
-
-            AppLogger.audio.info("💾 Saved streaming transcript: \(commitText.count, privacy: .public) chars")
+            if let processingTranscriptID {
+                // Update transcript with streamed text
+                // Use the strategy's provider label for history entries (e.g., "Deepgram (Streaming)")
+                let providerLabel = service.transcriptionProviderLabel
+                await PersistenceController.shared.updateTranscriptWithTranscriptionInBackground(
+                    transcriptID: processingTranscriptID,
+                    transcribedText: commitText,
+                    postProcessedText: nil, // No post-processing for streaming yet
+                    transcriptionProvider: providerLabel,
+                    postProcessingProvider: nil
+                )
+                AppLogger.audio.info("💾 Saved streaming transcript: \(commitText.count, privacy: .public) chars")
+            } else {
+                AppLogger.audio.warning("⚠️ Failed to create streaming transcript row — history entry skipped")
+            }
 
             // Update lastTranscription for UI
             await MainActor.run {

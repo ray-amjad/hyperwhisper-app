@@ -538,7 +538,16 @@ extension RecordingTranscriptionFlow {
 
     private func armRecordingMaxDurationTimer(mode: String, attemptId: String) {
         recordingMaxDurationTimer?.invalidate()
-        recordingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecordingDuration, repeats: false) { [weak self] _ in
+        recordingMaxDurationTimer = nil
+
+        // User setting: 0 = no limit, so no timer is armed.
+        guard let maxDuration = settingsManager?.maxRecordingDurationInterval else {
+            AppLogger.audio.info("⏱️ Recording max duration timer off (no limit set)")
+            return
+        }
+        let limitMinutes = Int(maxDuration) / 60
+
+        recordingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: maxDuration, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self,
                       self.recordingLifecycle.isRecording,
@@ -547,21 +556,21 @@ extension RecordingTranscriptionFlow {
                       self.currentRecordingAttemptId == attemptId
                 else { return }
 
-                AppLogger.audio.warning("⏱️ Recording max duration (20 minutes) reached — auto-stopping")
+                AppLogger.audio.warning("⏱️ Recording max duration (\(limitMinutes) minutes) reached — auto-stopping")
                 SentryService.addBreadcrumb(
                     message: "Recording max duration reached",
                     category: "audio.recording",
                     level: .warning,
                     data: [
                         "attemptId": attemptId,
-                        "maxDurationSeconds": Int(Self.maxRecordingDuration)
+                        "maxDurationSeconds": Int(maxDuration)
                     ]
                 )
-                self.appState?.showWarning("Recording stopped — 20-minute safety limit reached")
+                self.appState?.showWarning(String(format: "recording.maxDuration.reachedToast".localized, limitMinutes))
                 self.currentRecordingTriggerSource = .autoStop
                 await self.handleStopRecordingWithTranscription(mode: mode, cancelled: false)
             }
         }
-        AppLogger.audio.info("⏱️ Recording max duration timer set (20 minutes)")
+        AppLogger.audio.info("⏱️ Recording max duration timer set (\(limitMinutes) minutes)")
     }
 }

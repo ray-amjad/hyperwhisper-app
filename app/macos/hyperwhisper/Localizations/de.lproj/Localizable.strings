@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud-Credits";
 "settings.credits.refresh" = "Aktualisieren";
-"settings.credits.subtitle" = "Überwachen Sie Ihr Transkriptionsguthaben und Ihre Nutzung";
-"settings.credits.manage" = "Credits verwalten";
 "settings.credits.timeRemaining" = "Verbleibende Transkriptionszeit";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "Minuten";
 "settings.credits.creditsRemaining" = "%@ Credits verbleiben";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Kostenloses Tageslimit (100 Credits)";
-"settings.credits.resets" = "Setzt %@ zurück";
 "settings.credits.warning.low" = "Die Credits gehen zur Neige. Erwägen Sie den Kauf einer Lizenz für zusätzliche Credits.";
-"settings.credits.warning.exhausted.daily" = "Tageslimit ausgeschöpft. Kaufen Sie eine Lizenz für unbegrenzte Nutzung oder warten Sie auf das Zurücksetzen.";
 "settings.credits.warning.exhausted" = "Credits erschöpft. Erwerben Sie weitere Credits, um HyperWhisper Cloud weiterhin nutzen zu können.";
 "settings.credits.accountInfo" = "Kontoinformationen";
-"settings.credits.stat.creditsRemaining" = "Verbleibende Credits";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Verbleibende Minuten";
-"settings.credits.stat.accountType" = "Kontotyp";
-"settings.credits.accountType.licensed" = "Lizenziert";
-"settings.credits.accountType.anonymous" = "Anonym";
-"settings.credits.accountType.trial" = "Versuch";
-"settings.credits.stat.customerId" = "Kunden-ID";
-"settings.credits.stat.dailyLimit" = "Tageslimit";
-"settings.credits.dailyLimit.value" = "100 Credits";
 "settings.credits.loading" = "Guthaben wird geladen...";
 "settings.credits.error.title" = "Guthaben kann nicht geladen werden";
 "settings.credits.error.retry" = "Wiederholen";
@@ -842,9 +827,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 // MARK: - Audio Manager
 "audio.device.default" = "Standardmikrofon";
 "audio.error.permissionDenied" = "Mikrofonzugriff verweigert. Bitte in den Systemeinstellungen aktivieren.";
-"audio.error.fileWatcher.open" = "Es konnte kein Dateideskriptor zum Überwachen der Audiodatei geöffnet werden.";
-"audio.error.fileWatcher.timeout" = "Der Vorgang ist beim Warten auf die Audiodatei abgelaufen geschrieben.";
-"audio.error.fileWatcher.creation" = "Die Audiodatei wurde nicht rechtzeitig erstellt.";
 "audio.error.microphonePermission" = "Mikrofonberechtigung nicht erteilt";
 "audio.error.microphoneInUse" = "HyperWhisper kann nicht auf das Mikrofon zugreifen, da es derzeit von einer anderen App verwendet wird. Halten Sie die andere App an oder wechseln Sie die Eingaben und versuchen Sie es dann erneut.";
 "audio.error.createEngine" = "Audio-Engine konnte nicht erstellt werden";
@@ -1052,3 +1034,12 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "history.autoDelete.status.enabled" = "Aufnahmen löschen, die älter als %d %@ sind";
 "history.autoDelete.cleanup.noItems" = "Keine Aufnahmen zum Löschen vorhanden";
 "history.autoDelete.cleanup.summary" = "%d Aufnahme(n) gelöscht und %@ freigegeben";
+"history.status.interrupted" = "Transkription unterbrochen — die App wurde beendet, bevor sie fertig war";
+"recording.maxDuration.reachedToast" = "Aufnahme gestoppt — %d-Minuten-Limit erreicht";
+"streaming.maxDuration.reachedToast" = "Streaming gestoppt — %d-Minuten-Limit erreicht";
+"settings.storage.maxRecordingDuration.title" = "Maximale Aufnahmedauer";
+"settings.storage.maxRecordingDuration.subtitle" = "Aufnahmen, die länger als diese Zeit dauern, automatisch stoppen und transkribieren.";
+"settings.storage.maxRecordingDuration.minutes" = "%d Minuten";
+"settings.storage.maxRecordingDuration.hour" = "1 Stunde";
+"settings.storage.maxRecordingDuration.hours" = "%d Stunden";
+"settings.storage.maxRecordingDuration.off" = "Aus";

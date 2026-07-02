@@ -6,6 +6,13 @@ cd "$(dirname "$0")"
 
 DEST="../app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a"
 
+# Strip local filesystem paths out of the committed artifact: panic/debug
+# metadata otherwise embeds $HOME and the workspace path, and this repo is
+# public. (`trim-paths = "all"` in Cargo.toml would replace this once it
+# stabilizes on the pinned toolchain; also remap the cargo registry src dir
+# that dependency paths resolve under.)
+export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$PWD=/build --remap-path-prefix=$HOME/.cargo=/cargo --remap-path-prefix=$HOME=~"
+
 echo "==> building aarch64-apple-darwin"
 cargo build --release --target aarch64-apple-darwin
 echo "==> building x86_64-apple-darwin"

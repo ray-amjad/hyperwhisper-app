@@ -189,7 +189,7 @@ class RecordingLifecycle {
     ///
     /// **File Collision Fix:**
     /// Always clears file references to ensure each recording has unique URLs
-    /// based on current timestamp. Prevents FileWatcher from monitoring wrong files.
+    /// based on current timestamp. Prevents the readiness probe from watching stale files.
     ///
     /// **Hardware Format Validation:**
     /// Some audio interfaces report invalid formats (sampleRate = 0) on first query.
@@ -227,7 +227,7 @@ class RecordingLifecycle {
         // STEP 2: FILE COLLISION FIX
         // Clear stale file references from previous recordings
         // Problem: If a new recording starts before the previous one fully completes,
-        // the FileWatcher could try to monitor the wrong file
+        // the readiness probe could inspect the wrong file
         // Solution: Always clear these references to ensure each recording session
         // has fresh, unique file URLs based on current timestamp
         self.finalURL = nil
@@ -1038,10 +1038,12 @@ class RecordingLifecycle {
         let stalledExitWallMs = 400
         var totalWaitMs = 0
         var lastSize: Int64 = -1
-        // Consecutive polls where the size held steady. A single stalled read can
-        // just be a buffer that hasn't flushed yet, so we require 2 in a row
-        // before bailing (worst-case exit ~650ms instead of ~450ms — still far
-        // under the old ~3.75s full wait).
+        // Consecutive polls where the size held steady. A stalled read can just
+        // be a buffer that hasn't flushed yet (one flat polling window on a slow
+        // volume looks identical), so we require 3 in a row — counted only past
+        // `stalledExitWallMs`, where polls are already >= 100ms apart — before
+        // bailing (worst-case exit well under 1s, still far under the old
+        // ~3.75s full wait).
         var stalledStableReads = 0
         var loggedTooSmall = false
 
@@ -1065,15 +1067,18 @@ class RecordingLifecycle {
                 }
 
                 // Stalled-size early exit (wall-time bound): if the file has a
-                // nonzero but sub-threshold size that hasn't grown for 2
-                // consecutive polls, and we've already waited past ~400ms, it
-                // isn't going to grow — bail now.
+                // nonzero but sub-threshold size that hasn't grown for 3
+                // consecutive polls past ~400ms (polls there are >= 100ms
+                // apart, so one flat window can't fake a stall), it isn't
+                // going to grow — bail now.
                 if fileSize > 0, fileSize == lastSize {
-                    stalledStableReads += 1
+                    if totalWaitMs >= stalledExitWallMs {
+                        stalledStableReads += 1
+                    }
                 } else {
                     stalledStableReads = 0
                 }
-                if stalledStableReads >= 2, totalWaitMs >= stalledExitWallMs {
+                if stalledStableReads >= 3 {
                     AppLogger.audio.warning("Raw audio file size stalled at \(fileSize) bytes past \(totalWaitMs)ms, giving up after \(attempt) attempts")
                     break
                 }

@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "เครดิต HyperWhisper Cloud";
 "settings.credits.refresh" = "รีเฟรช";
-"settings.credits.subtitle" = "ตรวจสอบเครดิตการสัญลักษณ์และการใช้งานของคุณ";
-"settings.credits.manage" = "จัดการเครดิต";
 "settings.credits.timeRemaining" = "เวลาการสัญลักษณ์ที่เหลือ";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "นาที";
 "settings.credits.creditsRemaining" = "%@ เครดิตคงเหลือ";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "ขีดจำกัดรายวันฟรี (100 เครดิต)";
-"settings.credits.resets" = "รีเซ็ต %@";
 "settings.credits.warning.low" = "เครดิตกำลังจะหมด พิจารณาซื้อลัทธิสำหรับเครดิตเพิ่มเติม";
-"settings.credits.warning.exhausted.daily" = "ขีดจำกัดรายวันหมดแล้ว ซื้อลัทธิเพื่อการใช้งานแบบไม่จำกัดหรือรอการรีเซ็ต";
 "settings.credits.warning.exhausted" = "เครดิตหมดแล้ว ซื้อเครดิตเพิ่มเติมเพื่อใช้งาน HyperWhisper Cloud ต่อ";
 "settings.credits.accountInfo" = "ข้อมูลบัญชี";
-"settings.credits.stat.creditsRemaining" = "เครดิตคงเหลือ";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "นาทีคงเหลือ";
-"settings.credits.stat.accountType" = "ประเภทบัญชี";
-"settings.credits.accountType.licensed" = "ลัทธิ";
-"settings.credits.accountType.anonymous" = "ไม่ระบุตัว";
-"settings.credits.accountType.trial" = "ทดลอง";
-"settings.credits.stat.customerId" = "รหัสลูกค้า";
-"settings.credits.stat.dailyLimit" = "ขีดจำกัดรายวัน";
-"settings.credits.dailyLimit.value" = "100 เครดิต";
 "settings.credits.loading" = "กำลังโหลดยอดคงเหลือเครดิต...";
 "settings.credits.error.title" = "ไม่สามารถโหลดยอดคงเหลือเครดิต";
 "settings.credits.error.retry" = "ลองใหม่";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "ไมโครโฟนเริ่มต้น";
 "audio.error.permissionDenied" = "การเข้าถึงไมโครโฟนถูกปฏิเสธ โปรดเปิดใช้งานในการตั้งค่าระบบ";
-"audio.error.fileWatcher.open" = "ไม่สามารถเปิดตัวอธิบายไฟล์เพื่อตรวจสอบไฟล์เสียง";
-"audio.error.fileWatcher.timeout" = "การดำเนินการหมดเวลาขณะรอการเขียนไฟล์เสียง";
-"audio.error.fileWatcher.creation" = "ไฟล์เสียงไม่ได้สร้างขึ้นตรงเวลา";
 "audio.error.microphonePermission" = "ไม่ได้รับสิทธิ์ไมโครโฟน";
 "audio.error.microphoneInUse" = "HyperWhisper ไม่สามารถเข้าถึงไมโครโฟนเพราะแอปอื่นใช้งานอยู่ หยุดแอปอื่นหรือสลับอินพุต แล้วลองใหม่";
 "audio.error.createEngine" = "ไม่สามารถสร้างเอนจิ้นเสียง";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "ลบการบันทึกที่เก่ากว่า %d %@";
 "history.autoDelete.cleanup.noItems" = "ไม่มีการบันทึกที่จะลบ";
 "history.autoDelete.cleanup.summary" = "ลบ %d การบันทึก และปลดปล่อย %@";
+"history.status.interrupted" = "การถอดเสียงถูกขัดจังหวะ — แอปปิดตัวก่อนที่จะเสร็จสิ้น";
+"recording.maxDuration.reachedToast" = "หยุดการบันทึกแล้ว — ถึงขีดจำกัด %d นาที";
+"streaming.maxDuration.reachedToast" = "หยุดการสตรีมแล้ว — ถึงขีดจำกัด %d นาที";
+"settings.storage.maxRecordingDuration.title" = "ระยะเวลาบันทึกสูงสุด";
+"settings.storage.maxRecordingDuration.subtitle" = "หยุดและถอดเสียงการบันทึกที่นานเกินระยะเวลานี้โดยอัตโนมัติ";
+"settings.storage.maxRecordingDuration.minutes" = "%d นาที";
+"settings.storage.maxRecordingDuration.hour" = "1 ชั่วโมง";
+"settings.storage.maxRecordingDuration.hours" = "%d ชั่วโมง";
+"settings.storage.maxRecordingDuration.off" = "ปิด";

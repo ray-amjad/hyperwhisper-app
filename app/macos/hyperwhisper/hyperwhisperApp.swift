@@ -154,6 +154,9 @@ struct HyperWhisperApp: App {
         let sharedLicenseManager = LicenseManager()
         _licenseManager = StateObject(wrappedValue: sharedLicenseManager)
         _hyperWhisperCloudManager = StateObject(wrappedValue: HyperWhisperCloudManager(licenseManager: sharedLicenseManager))
+        // Backup imports that carry a license key force a revalidation through
+        // the same manager instance the rest of the app observes.
+        BackupManager.shared.licenseManager = sharedLicenseManager
 
         // Register default preferences at first launch
         UserDefaults.registerHyperWhisperDefaults()

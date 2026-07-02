@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "رصيد HyperWhisper Cloud";
 "settings.credits.refresh" = "تحديث";
-"settings.credits.subtitle" = "مراقبة رصيدك ومستخدم النسخ";
-"settings.credits.manage" = "إدارة الأرصدة";
 "settings.credits.timeRemaining" = "وقت النسخ المتبقي";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "دقائق";
 "settings.credits.creditsRemaining" = "%@ رصيد متبقي";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "حد مجاني يومي (100 رصيد)";
-"settings.credits.resets" = "يعاد تعيينه %@";
 "settings.credits.warning.low" = "الأرصدة تنخفض. تفكر في شراء ترخيص للحصول على أرصدة إضافية.";
-"settings.credits.warning.exhausted.daily" = "تم استنفاد الحد اليومي. اشتري ترخيصاً للاستخدام غير المحدود أو انتظر إعادة التعيين.";
 "settings.credits.warning.exhausted" = "تم استنفاد الأرصدة. اشتري أرصدة إضافية لمتابعة استخدام HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "معلومات الحساب";
-"settings.credits.stat.creditsRemaining" = "الأرصدة المتبقية";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "الدقائق المتبقية";
-"settings.credits.stat.accountType" = "نوع الحساب";
-"settings.credits.accountType.licensed" = "مرخص";
-"settings.credits.accountType.anonymous" = "مجهول";
-"settings.credits.accountType.trial" = "تجربة";
-"settings.credits.stat.customerId" = "معرف العميل";
-"settings.credits.stat.dailyLimit" = "الحد اليومي";
-"settings.credits.dailyLimit.value" = "100 رصيد";
 "settings.credits.loading" = "جارٍ تحميل رصيد الحساب...";
 "settings.credits.error.title" = "لم يتمكن من تحميل رصيد الحساب";
 "settings.credits.error.retry" = "إعادة المحاولة";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "ميكروفون افتراضي";
 "audio.error.permissionDenied" = "تم رفض الوصول إلى الميكروفون. يرجى التفعيل في إعدادات النظام.";
-"audio.error.fileWatcher.open" = "تعذر فتح واصف الملف لمراقبة ملف الصوت.";
-"audio.error.fileWatcher.timeout" = "انتهت مهلة العملية أثناء انتظار كتابة ملف الصوت.";
-"audio.error.fileWatcher.creation" = "لم يتم إنشاء ملف الصوت في الوقت المناسب.";
 "audio.error.microphonePermission" = "لم يتم منح إذن الميكروفون";
 "audio.error.microphoneInUse" = "لا يمكن لـ HyperWhisper الوصول إلى الميكروفون لأن تطبيقاً آخر يستخدمه حالياً. أوقف التطبيق الآخر أو بدّل المدخلات، ثم حاول مرة أخرى.";
 "audio.error.createEngine" = "فشل إنشاء محرك الصوت";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "حذف التسجيلات الأقدم من %d %@";
 "history.autoDelete.cleanup.noItems" = "لا توجد تسجيلات لحذفها";
 "history.autoDelete.cleanup.summary" = "تم حذف %d تسجيلات وتحرير %@";
+"history.status.interrupted" = "تم مقاطعة النسخ — أُغلق التطبيق قبل الانتهاء";
+"recording.maxDuration.reachedToast" = "تم إيقاف التسجيل — تم بلوغ الحد الأقصى %d دقيقة";
+"streaming.maxDuration.reachedToast" = "تم إيقاف البث — تم بلوغ الحد الأقصى %d دقيقة";
+"settings.storage.maxRecordingDuration.title" = "الحد الأقصى لمدة التسجيل";
+"settings.storage.maxRecordingDuration.subtitle" = "إيقاف التسجيلات الأطول من هذه المدة تلقائيًا ونسخها.";
+"settings.storage.maxRecordingDuration.minutes" = "%d دقيقة";
+"settings.storage.maxRecordingDuration.hour" = "ساعة واحدة";
+"settings.storage.maxRecordingDuration.hours" = "%d ساعات";
+"settings.storage.maxRecordingDuration.off" = "إيقاف";

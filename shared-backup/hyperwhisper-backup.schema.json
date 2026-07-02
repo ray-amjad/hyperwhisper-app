@@ -116,7 +116,10 @@
         "advanced": {
           "type": "object",
           "properties": {
-            "maxRecordingDuration": { "type": "integer" },
+            "maxRecordingDuration": {
+              "type": "integer",
+              "description": "Recording cap in seconds; 0 = no limit. macOS treats the legacy value 300 (the old never-exposed default) as unset on import."
+            },
             "typingSpeedWPM": { "type": "integer" }
           },
           "additionalProperties": false

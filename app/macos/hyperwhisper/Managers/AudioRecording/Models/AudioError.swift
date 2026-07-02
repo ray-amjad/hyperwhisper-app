@@ -92,30 +92,3 @@ enum AudioError: LocalizedError {
 /// Custom errors for the file watcher utility
 ///
 /// **Purpose:**
-/// Errors that can occur when waiting for audio files to be written to disk
-/// after recording stops.
-///
-/// **Error Cases:**
-/// - `failedToOpenFileDescriptor`: Cannot open file for monitoring
-/// - `timeout`: File was not written within timeout period
-/// - `fileNotCreated`: File does not exist after waiting
-///
-/// **Usage:**
-/// Used by FileWatcher to signal failures when monitoring file creation
-/// and write completion for audio files.
-enum FileWatcherError: LocalizedError {
-    case failedToOpenFileDescriptor
-    case timeout
-    case fileNotCreated
-
-    var errorDescription: String? {
-        switch self {
-        case .failedToOpenFileDescriptor:
-            return "audio.error.fileWatcher.open".localized
-        case .timeout:
-            return "audio.error.fileWatcher.timeout".localized
-        case .fileNotCreated:
-            return "audio.error.fileWatcher.creation".localized
-        }
-    }
-}

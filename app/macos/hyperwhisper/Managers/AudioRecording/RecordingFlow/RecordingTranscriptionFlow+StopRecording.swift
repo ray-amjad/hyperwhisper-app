@@ -17,7 +17,7 @@ extension RecordingTranscriptionFlow {
     /// Recordings shorter than this are automatically discarded to prevent:
     /// 1. "Recording too short" errors from insufficient audio data
     /// 2. Wasted API calls for audio that can't be meaningfully transcribed
-    /// 3. FileWatcher timeout errors when the audio file is too small to finalize
+    /// 3. File-readiness timeout errors when the audio file is too small to finalize
     private static let minimumRecordingDuration: TimeInterval = 1.0
 
     /// Handle stopping recording with transcription
@@ -26,7 +26,7 @@ extension RecordingTranscriptionFlow {
     /// Complete workflow from stop to transcription result:
     /// 1. Stop recording and get audio file
     /// 2. Check minimum duration (discard if too short)
-    /// 3. Wait for file to be ready (FileWatcher)
+    /// 3. Wait for file to be ready (readiness probe)
     /// 4. If cancelled: clean up and return
     /// 5. Create processing transcript
     /// 6. Transcribe audio
@@ -258,11 +258,11 @@ extension RecordingTranscriptionFlow {
         // flush landing just after stop) — ~400ms worst case, still far under
         // the old ~1.2s re-wait chain this replaced.
         let fileCheckStart = Date()
-        var isReadable = isAudioFileReadable(audioURL)
+        var isReadable = await Self.isAudioFileReadable(audioURL)
         if !isReadable {
             for _ in 1...4 {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-                if isAudioFileReadable(audioURL) {
+                if await Self.isAudioFileReadable(audioURL) {
                     isReadable = true
                     break
                 }
@@ -621,11 +621,17 @@ extension RecordingTranscriptionFlow {
     /// Definitive readability test for the finalized recording file (WS3).
     /// The lifecycle already validated existence + size; this confirms the file
     /// opens as a decodable audio file before handing it to transcription.
-    private func isAudioFileReadable(_ url: URL) -> Bool {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: url.path), fm.isReadableFile(atPath: url.path) else {
-            return false
-        }
-        return (try? AVAudioFile(forReading: url)) != nil
+    ///
+    /// `nonisolated` + detached: `AVAudioFile(forReading:)` does synchronous
+    /// file I/O (open + header decode), which must not run on the main actor —
+    /// a slow volume would stall the stop→paste path.
+    nonisolated private static func isAudioFileReadable(_ url: URL) async -> Bool {
+        await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            guard fm.fileExists(atPath: url.path), fm.isReadableFile(atPath: url.path) else {
+                return false
+            }
+            return (try? AVAudioFile(forReading: url)) != nil
+        }.value
     }
 }

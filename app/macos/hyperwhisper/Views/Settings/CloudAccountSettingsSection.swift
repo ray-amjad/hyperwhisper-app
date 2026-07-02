@@ -84,19 +84,19 @@ struct CloudAccountSettingsSection: View {
         } else if let credits = hyperWhisperCloudManager.credits {
             VStack(spacing: 20) {
                 balanceCard(credits)
-                accountInfoCard(credits)
+                accountInfoCard
                 actionRow
             }
         } else if let error = errorMessage {
             VStack(spacing: 20) {
                 errorView(error)
-                accountInfoCard(nil)
+                accountInfoCard
                 actionRow
             }
         } else {
             VStack(spacing: 20) {
                 emptyStateView
-                accountInfoCard(nil)
+                accountInfoCard
                 actionRow
             }
         }
@@ -178,9 +178,7 @@ struct CloudAccountSettingsSection: View {
                     .foregroundColor(.secondary)
                 Spacer()
                 Button(LocalizedStringKey("settings.license.recovery.button")) {
-                    if let url = URL(string: "\(NetworkConfig.baseURL)/user") {
-                        NSWorkspace.shared.open(url)
-                    }
+                    licenseManager.openCustomerPortal()
                 }
                 .buttonStyle(.bordered)
             }
@@ -258,7 +256,7 @@ struct CloudAccountSettingsSection: View {
         }
     }
 
-    private func accountInfoCard(_ credits: HyperWhisperCloudCredits?) -> some View {
+    private var accountInfoCard: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 Label(LocalizedStringKey("settings.credits.accountInfo"), systemImage: "info.circle.fill")
@@ -266,36 +264,6 @@ struct CloudAccountSettingsSection: View {
                     .foregroundColor(.secondary)
 
                 Divider()
-
-                if let credits = credits {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 16) {
-                        statisticItem(
-                            title: LocalizedStringKey("settings.credits.stat.creditsRemaining"),
-                            value: String(format: "settings.credits.amount".localized, credits.creditsRemaining / 1000.0),
-                            icon: "dollarsign.circle.fill",
-                            color: .green
-                        )
-
-                        statisticItem(
-                            title: LocalizedStringKey("settings.credits.stat.minutesRemaining"),
-                            value: "~\(credits.minutesRemaining)",
-                            icon: "clock.fill",
-                            color: .orange
-                        )
-
-                        statisticItem(
-                            title: LocalizedStringKey("settings.credits.stat.accountType"),
-                            value: "settings.credits.accountType.licensed".localized,
-                            icon: "checkmark.seal.fill",
-                            color: .green
-                        )
-                    }
-
-                    Divider()
-                }
 
                 // License key (the wallet) — masked, reveal + copy
                 licenseKeyRow
@@ -394,26 +362,6 @@ struct CloudAccountSettingsSection: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(color.opacity(0.12))
         )
-    }
-
-    private func statisticItem(title: LocalizedStringKey, value: String, icon: String, color: Color) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
-                .frame(width: 30)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(value)
-                    .font(.system(.body, design: .rounded))
-                    .fontWeight(.medium)
-            }
-
-            Spacer()
-        }
     }
 
     private func licenseErrorBanner(message: String) -> some View {
@@ -537,12 +485,11 @@ struct CloudAccountSettingsSection: View {
     }
 
     /// Opens the web credits page — the single "purchase more" path.
-    /// No in-app tier picker; the web page handles amounts and minting/emailing the key.
+    /// No in-app tier picker; the web page handles amounts and minting/emailing
+    /// the key. URL building lives in LicenseManager (identifier-aware:
+    /// license_key when licensed, device_id for guests).
     private func openCreditsPage() {
-        let (identifier, _) = licenseManager.getTranscriptionIdentifier()
-        if let url = URL(string: "\(NetworkConfig.baseURL)/credits?license_key=\(identifier)") {
-            NSWorkspace.shared.open(url)
-        }
+        licenseManager.openCreditsPurchasePage()
     }
 
     private func copyKey(_ key: String) {

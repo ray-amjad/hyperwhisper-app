@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud 额度";
 "settings.credits.refresh" = "刷新";
-"settings.credits.subtitle" = "查看你的转写额度和使用情况";
-"settings.credits.manage" = "管理额度";
 "settings.credits.timeRemaining" = "剩余转写时长";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "分钟";
 "settings.credits.creditsRemaining" = "剩余 %@ 额度";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "每日免费额度（100 积分）";
-"settings.credits.resets" = "%@ 重置";
 "settings.credits.warning.low" = "额度不足。考虑购买许可证以获得更多额度。";
-"settings.credits.warning.exhausted.daily" = "每日额度已用尽。购买许可证以无限使用或等待重置。";
 "settings.credits.warning.exhausted" = "额度已用尽。购买更多额度以继续使用 HyperWhisper Cloud。";
 "settings.credits.accountInfo" = "账户信息";
-"settings.credits.stat.creditsRemaining" = "剩余额度";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "剩余分钟数";
-"settings.credits.stat.accountType" = "账户类型";
-"settings.credits.accountType.licensed" = "已授权";
-"settings.credits.accountType.anonymous" = "匿名";
-"settings.credits.accountType.trial" = "试用";
-"settings.credits.stat.customerId" = "客户 ID";
-"settings.credits.stat.dailyLimit" = "每日上限";
-"settings.credits.dailyLimit.value" = "100 积分";
 "settings.credits.loading" = "正在加载额度余额...";
 "settings.credits.error.title" = "无法加载额度余额";
 "settings.credits.error.retry" = "重试";
@@ -843,9 +828,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "默认麦克风";
 "audio.error.permissionDenied" = "麦克风访问被拒绝。请在系统设置中启用。";
-"audio.error.fileWatcher.open" = "无法打开用于监控音频文件的文件描述符。";
-"audio.error.fileWatcher.timeout" = "等待写入音频文件时操作超时。";
-"audio.error.fileWatcher.creation" = "音频文件未能及时创建。";
 "audio.error.microphonePermission" = "未授予麦克风权限";
 "audio.error.microphoneInUse" = "HyperWhisper 无法访问麦克风，因为其他应用正在使用。请暂停其他应用或切换输入后再试。";
 "audio.error.createEngine" = "无法创建音频引擎";
@@ -1053,3 +1035,12 @@
 "history.autoDelete.status.enabled" = "删除早于 %d %@ 的录音";
 "history.autoDelete.cleanup.noItems" = "没有可删除的录音";
 "history.autoDelete.cleanup.summary" = "已删除 %d 条录音并释放 %@";
+"history.status.interrupted" = "转录已中断 — 应用在完成前退出了";
+"recording.maxDuration.reachedToast" = "录音已停止 — 已达到 %d 分钟上限";
+"streaming.maxDuration.reachedToast" = "流式转录已停止 — 已达到 %d 分钟上限";
+"settings.storage.maxRecordingDuration.title" = "最长录音时长";
+"settings.storage.maxRecordingDuration.subtitle" = "自动停止并转录超过此时长的录音。";
+"settings.storage.maxRecordingDuration.minutes" = "%d 分钟";
+"settings.storage.maxRecordingDuration.hour" = "1 小时";
+"settings.storage.maxRecordingDuration.hours" = "%d 小时";
+"settings.storage.maxRecordingDuration.off" = "关闭";

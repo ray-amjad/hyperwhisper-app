@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Krediti HyperWhisper Cloud";
 "settings.credits.refresh" = "Osveži";
-"settings.credits.subtitle" = "Spremljaj svoje kredite za prepis in uporabo";
-"settings.credits.manage" = "Upravljaj kredite";
 "settings.credits.timeRemaining" = "Čas prepisa, ki ostane";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minut";
 "settings.credits.creditsRemaining" = "%@ kreditov preostalo";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Brezplačna dnevna omejitev (100 kreditov)";
-"settings.credits.resets" = "Ponastavi se %@";
 "settings.credits.warning.low" = "Krediti se izčrpavajo. Razmisli o nakupu licence za dodatne kredite.";
-"settings.credits.warning.exhausted.daily" = "Dnevna omejitev je izčrpana. Nakupi licenco za neomejeno uporabo ali počakaj, da se ponastavi.";
 "settings.credits.warning.exhausted" = "Krediti so izčrpani. Kupi več kreditov za nadaljevanje uporabe HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Informacije o računu";
-"settings.credits.stat.creditsRemaining" = "Krediti, ki so preostali";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minut, ki ostanejo";
-"settings.credits.stat.accountType" = "Vrsta računa";
-"settings.credits.accountType.licensed" = "Licenciran";
-"settings.credits.accountType.anonymous" = "Anonimen";
-"settings.credits.accountType.trial" = "Preizkus";
-"settings.credits.stat.customerId" = "ID stranke";
-"settings.credits.stat.dailyLimit" = "Dnevna omejitev";
-"settings.credits.dailyLimit.value" = "100 kreditov";
 "settings.credits.loading" = "Nalagam stanje kreditov...";
 "settings.credits.error.title" = "Ni mogoče naložiti stanja kreditov";
 "settings.credits.error.retry" = "Poskusi znova";
@@ -842,9 +827,6 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 // MARK: - Audio Manager
 "audio.device.default" = "Privzeti mikrofon";
 "audio.error.permissionDenied" = "Dostop do mikrofonskega vhoda je zavrnjen. Prosimo, omogoči v Sistemskih nastavitvah.";
-"audio.error.fileWatcher.open" = "Ni bilo mogoče odpreti deskriptorja datoteke za spremljanje zvočne datoteke.";
-"audio.error.fileWatcher.timeout" = "Operacija je potekla, medtem ko se je čakalo na pisanje zvočne datoteke.";
-"audio.error.fileWatcher.creation" = "Zvočna datoteka ni bila pravočasno ustvarjena.";
 "audio.error.microphonePermission" = "Dozvoljenje za mikrofon ni odobreno";
 "audio.error.microphoneInUse" = "HyperWhisper ne more dostopati do mikrofonskega vhoda, ker ga trenutno uporabljam druga aplikacija. Prekini drugo aplikacijo ali zamenjaj vhode in poskusi znova.";
 "audio.error.createEngine" = "Napaka pri ustvarjanju audio motorja";
@@ -1052,3 +1034,12 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "history.autoDelete.status.enabled" = "Izbriši posnetke, starejše od %d %@";
 "history.autoDelete.cleanup.noItems" = "Ni posnetkov za brisanje";
 "history.autoDelete.cleanup.summary" = "Izbrisano %d posnetek(ov) in sprošćeno %@";
+"history.status.interrupted" = "Prepis je bil prekinjen — aplikacija se je zaprla, preden je končala";
+"recording.maxDuration.reachedToast" = "Snemanje ustavljeno — doseženo je %d-minutno omejitev";
+"streaming.maxDuration.reachedToast" = "Pretakanje ustavljeno — doseženo je %d-minutno omejitev";
+"settings.storage.maxRecordingDuration.title" = "Najdaljše trajanje snemanja";
+"settings.storage.maxRecordingDuration.subtitle" = "Samodejno ustavi in prepiši posnetke, ki trajajo dlje od tega časa.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minut";
+"settings.storage.maxRecordingDuration.hour" = "1 ura";
+"settings.storage.maxRecordingDuration.hours" = "%d ur";
+"settings.storage.maxRecordingDuration.off" = "Izklopljeno";

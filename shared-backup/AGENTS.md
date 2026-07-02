@@ -55,7 +55,7 @@ key automatically round-trips into the correct category instead of drifting. See
 | `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` |
 | `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | — (local Whisper word/segment timestamps; macOS-only) |
 | `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `SettingsData.StoreAsM4A` |
-| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDuration` | `SettingsData.MaxRecordingDuration` |
+| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | `SettingsData.MaxRecordingDuration` |
 | `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `SettingsData.TypingSpeedWPM` |
 
 macOS-only shortcut settings live under `platformExtensions.macos.settings.shortcuts` (the

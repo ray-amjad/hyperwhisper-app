@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Кредиты HyperWhisper Cloud";
 "settings.credits.refresh" = "Обновить";
-"settings.credits.subtitle" = "Отслеживайте кредиты транскрипции и использование";
-"settings.credits.manage" = "Управлять кредитами";
 "settings.credits.timeRemaining" = "Оставшееся время транскрипции";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "минут";
 "settings.credits.creditsRemaining" = "%@ кредитов осталось";
 "settings.credits.currency" = "(%.2f$)";
-"settings.credits.freeLimit" = "Бесплатный дневной лимит (100 кредитов)";
-"settings.credits.resets" = "Сбрасывается %@";
 "settings.credits.warning.low" = "Кредиты заканчиваются. Рассмотрите возможность покупки лицензии для дополнительных кредитов.";
-"settings.credits.warning.exhausted.daily" = "Дневной лимит исчерпан. Купите лицензию для неограниченного использования или дождитесь сброса.";
 "settings.credits.warning.exhausted" = "Кредиты исчерпаны. Купите больше кредитов, чтобы продолжить использование HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Информация об учетной записи";
-"settings.credits.stat.creditsRemaining" = "Осталось кредитов";
-"settings.credits.amount" = "%.2f$";
-"settings.credits.stat.minutesRemaining" = "Осталось минут";
-"settings.credits.stat.accountType" = "Тип учетной записи";
-"settings.credits.accountType.licensed" = "Лицензировано";
-"settings.credits.accountType.anonymous" = "Анонимно";
-"settings.credits.accountType.trial" = "Пробная версия";
-"settings.credits.stat.customerId" = "ID клиента";
-"settings.credits.stat.dailyLimit" = "Дневной лимит";
-"settings.credits.dailyLimit.value" = "100 кредитов";
 "settings.credits.loading" = "Загрузка баланса кредитов...";
 "settings.credits.error.title" = "Невозможно загрузить баланс кредитов";
 "settings.credits.error.retry" = "Повторить";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "Микрофон по умолчанию";
 "audio.error.permissionDenied" = "Доступ к микрофону запрещен. Пожалуйста, включите в параметры системы.";
-"audio.error.fileWatcher.open" = "Не удалось открыть дескриптор файла для отслеживания аудиофайла.";
-"audio.error.fileWatcher.timeout" = "Истекло время ожидания при ожидании записи аудиофайла.";
-"audio.error.fileWatcher.creation" = "Аудиофайл не был создан вовремя.";
 "audio.error.microphonePermission" = "Разрешение на микрофон не предоставлено";
 "audio.error.microphoneInUse" = "HyperWhisper не может получить доступ к микрофону, потому что другое приложение в настоящее время его использует. Приостановите другое приложение или переключитесь на входы, а затем повторите попытку.";
 "audio.error.createEngine" = "Ошибка создания аудиомеханизма";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "Удалить записи старше %d %@";
 "history.autoDelete.cleanup.noItems" = "Нет записей для удаления";
 "history.autoDelete.cleanup.summary" = "Удалено %d запись(и) и освобождено %@";
+"history.status.interrupted" = "Транскрипция прервана — приложение закрылось до завершения";
+"recording.maxDuration.reachedToast" = "Запись остановлена — достигнут лимит %d минут";
+"streaming.maxDuration.reachedToast" = "Трансляция остановлена — достигнут лимит %d минут";
+"settings.storage.maxRecordingDuration.title" = "Максимальная длительность записи";
+"settings.storage.maxRecordingDuration.subtitle" = "Автоматически останавливать и расшифровывать записи длиннее этого времени.";
+"settings.storage.maxRecordingDuration.minutes" = "%d минут";
+"settings.storage.maxRecordingDuration.hour" = "1 час";
+"settings.storage.maxRecordingDuration.hours" = "%d часов";
+"settings.storage.maxRecordingDuration.off" = "Выключено";

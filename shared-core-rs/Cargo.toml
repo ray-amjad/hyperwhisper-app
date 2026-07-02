@@ -24,6 +24,11 @@ lto = true
 strip = true
 codegen-units = 1
 panic = "abort"
+# NOTE: `trim-paths = "all"` would be the clean fix for source paths leaking
+# into the committed artifacts, but it is nightly-only on the pinned 1.86
+# toolchain. Until it stabilizes, build-apple.sh passes
+# `--remap-path-prefix` via RUSTFLAGS to keep $HOME and the workspace path
+# out of the committed .a (this repo is public).
 
 # UniFFI versions are pinned in one place. uniffi-bindgen-cs (the community C#
 # generator) is version-locked to a specific uniffi release; its latest tag

@@ -63,6 +63,8 @@
 "streaming.warning.apiKeyInvalid.action" = "Update Key";
 "streaming.language.title" = "Language";
 "streaming.shortcut.title" = "Shortcut";
+"streaming.maxDuration.reachedToast" = "Streaming stopped — %d-minute limit reached";
+"recording.maxDuration.reachedToast" = "Recording stopped — %d-minute limit reached";
 
 // MARK: - Home View
 "home.get.started" = "Get started";
@@ -363,6 +365,12 @@
 "settings.storage.dialog.message" = "Choose a folder to store recordings";
 "settings.storage.storeAsM4A.title" = "Compress recordings to M4A";
 "settings.storage.storeAsM4A.subtitle" = "Converts WAV recordings to smaller files after transcription. Turn off to keep original WAV files (larger but lossless).";
+"settings.storage.maxRecordingDuration.title" = "Max recording duration";
+"settings.storage.maxRecordingDuration.subtitle" = "Automatically stop and transcribe recordings that run longer than this.";
+"settings.storage.maxRecordingDuration.off" = "Off";
+"settings.storage.maxRecordingDuration.hour" = "1 hour";
+"settings.storage.maxRecordingDuration.hours" = "%d hours";
+"settings.storage.maxRecordingDuration.minutes" = "%d minutes";
 
 // MARK: - Settings · Output
 "settings.output.paste.title" = "Paste result automatically";
@@ -495,29 +503,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud Credits";
 "settings.credits.refresh" = "Refresh";
-"settings.credits.subtitle" = "Monitor your transcription credits and usage";
-"settings.credits.manage" = "Manage Credits";
 "settings.credits.timeRemaining" = "Transcription Time Remaining";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minutes";
 "settings.credits.creditsRemaining" = "%@ credits remaining";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Free Daily Limit (100 credits)";
-"settings.credits.resets" = "Resets %@";
 "settings.credits.warning.low" = "Credits running low. Consider purchasing a license for additional credits.";
-"settings.credits.warning.exhausted.daily" = "Daily limit exhausted. Purchase a license for unlimited usage or wait for reset.";
 "settings.credits.warning.exhausted" = "Credits exhausted. Purchase more credits to continue using HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Account Information";
-"settings.credits.stat.creditsRemaining" = "Credits Remaining";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minutes Remaining";
-"settings.credits.stat.accountType" = "Account Type";
-"settings.credits.accountType.licensed" = "Licensed";
-"settings.credits.accountType.anonymous" = "Anonymous";
-"settings.credits.accountType.trial" = "Trial";
-"settings.credits.stat.customerId" = "Customer ID";
-"settings.credits.stat.dailyLimit" = "Daily Limit";
-"settings.credits.dailyLimit.value" = "100 credits";
 "settings.credits.loading" = "Loading credit balance...";
 "settings.credits.error.title" = "Unable to load credit balance";
 "settings.credits.error.retry" = "Retry";
@@ -599,6 +592,7 @@
 "history.section.yesterday" = "Yesterday";
 "history.duration.format" = "%dm %ds";
 "history.status.failed" = "Failed";
+"history.status.interrupted" = "Transcription interrupted — the app quit before it finished";
 "history.status.transcription.failed.prefix" = "Transcription failed:";
 "history.status.retry.failed.prefix" = "Retry failed:";
 "history.failure.reason" = "Reason: %@";
@@ -835,9 +829,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "Default Microphone";
 "audio.error.permissionDenied" = "Microphone access denied. Please enable in System Settings.";
-"audio.error.fileWatcher.open" = "Could not open a file descriptor to monitor the audio file.";
-"audio.error.fileWatcher.timeout" = "The operation timed out while waiting for the audio file to be written.";
-"audio.error.fileWatcher.creation" = "The audio file was not created in time.";
 "audio.error.microphonePermission" = "Microphone permission not granted";
 "audio.error.microphoneInUse" = "HyperWhisper can't access the microphone because another app is currently using it. Pause the other app or switch inputs, then try again.";
 "audio.error.createEngine" = "Failed to create audio engine";

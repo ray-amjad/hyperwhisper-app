@@ -82,7 +82,6 @@ Full playbook (`cktool` commands + CloudKit Console walkthrough + the v2.33.0 in
 Use Swift Atomics (`ManagedAtomic<Bool>`) to guard `continuation.resume(...)` whenever more than one path can call it (timer vs event, multi-fire callback, cancellation + completion). The pattern: `if finished.exchange(true, ordering: .acquiring) == false { continuation.resume(...) }`.
 
 Lock-free, ~1–5 ns vs ~100–200 ns for `NSLock`, no deadlock risk. Reference implementations:
-- `FileWatcher.swift` — timer timeout vs file-write event
 - `AudioFileConverter.swift` — `AVAssetWriter` callback protection
 - `WhisperModelManager.swift` — `URLSession` delegate completion
 </important>

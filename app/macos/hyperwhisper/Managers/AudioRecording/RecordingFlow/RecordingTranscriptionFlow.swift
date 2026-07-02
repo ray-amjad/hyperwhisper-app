@@ -75,7 +75,7 @@ struct QuickCaptureContext {
 ///
 /// **Transcription Flow (handleStopRecordingWithTranscription):**
 /// 1. Stop recording and get audio file
-/// 2. Wait for file to be ready (FileWatcher)
+/// 2. Wait for file to be ready (readiness probe)
 /// 3. If cancelled: clean up and return
 /// 4. Create processing transcript in Core Data
 /// 5. Update state to "transcribing"
@@ -105,9 +105,6 @@ class RecordingTranscriptionFlow {
     /// We register the handler only once to prevent accumulation
     static var cancelShortcutHandlerRegistered = false
 
-    /// Maximum recording length before auto-stopping to prevent runaway captures.
-    static let maxRecordingDuration: TimeInterval = 20 * 60
-
     // MARK: - Dependencies
 
     weak var transcriptionPipeline: TranscriptionPipeline?
@@ -119,7 +116,6 @@ class RecordingTranscriptionFlow {
     let recordingLifecycle: RecordingLifecycle
     let autoPasteHandler: AutoPasteHandler
     let powerActivityManager: PowerActivityManager
-    let fileWatcher: FileWatcher
     let permissionManager: MicrophonePermissionManager
     let vadProcessingService = VADProcessingService()
 
@@ -213,13 +209,11 @@ class RecordingTranscriptionFlow {
         recordingLifecycle: RecordingLifecycle,
         autoPasteHandler: AutoPasteHandler,
         powerActivityManager: PowerActivityManager,
-        fileWatcher: FileWatcher,
         permissionManager: MicrophonePermissionManager
     ) {
         self.recordingLifecycle = recordingLifecycle
         self.autoPasteHandler = autoPasteHandler
         self.powerActivityManager = powerActivityManager
-        self.fileWatcher = fileWatcher
         self.permissionManager = permissionManager
     }
 

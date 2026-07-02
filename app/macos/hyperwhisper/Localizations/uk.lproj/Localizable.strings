@@ -447,29 +447,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Кредити HyperWhisper Cloud";
 "settings.credits.refresh" = "Оновити";
-"settings.credits.subtitle" = "Контролюйте кредити для транскрипції та використання";
-"settings.credits.manage" = "Керувати кредитами";
 "settings.credits.timeRemaining" = "Час транскрипції, що залишився";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "хвилин";
 "settings.credits.creditsRemaining" = "%@ кредитів залишилось";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Безплатний щоденний ліміт (100 кредитів)";
-"settings.credits.resets" = "Скидання %@";
 "settings.credits.warning.low" = "Кредити закінчуються. Розглянете можливість придбання ліцензії для додаткових кредитів.";
-"settings.credits.warning.exhausted.daily" = "Щоденний ліміт вичерпаний. Придбайте ліцензію для необмеженого використання або чекайте скидання.";
 "settings.credits.warning.exhausted" = "Кредити вичерпані. Придбайте більше кредитів для продовження використання HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Інформація про обліковий запис";
-"settings.credits.stat.creditsRemaining" = "Кредити, що залишилась";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Хвилин, що залишилось";
-"settings.credits.stat.accountType" = "Тип облікового запису";
-"settings.credits.accountType.licensed" = "Ліцензовано";
-"settings.credits.accountType.anonymous" = "Анонімно";
-"settings.credits.accountType.trial" = "Пробна версія";
-"settings.credits.stat.customerId" = "Ідентифікатор клієнта";
-"settings.credits.stat.dailyLimit" = "Щоденний ліміт";
-"settings.credits.dailyLimit.value" = "100 кредитів";
 "settings.credits.loading" = "Завантаження залишку кредитів...";
 "settings.credits.error.title" = "Не вдалося завантажити залишок кредитів";
 "settings.credits.error.retry" = "Повторити";
@@ -842,9 +827,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "Мікрофон за замовчуванням";
 "audio.error.permissionDenied" = "Доступ до мікрофона заборонено. Активуйте його в параметрах системи.";
-"audio.error.fileWatcher.open" = "Не вдалося відкрити дескриптор файла для моніторингу аудіо файла.";
-"audio.error.fileWatcher.timeout" = "Операція істекла під час очікування запису аудіо файла.";
-"audio.error.fileWatcher.creation" = "Аудіо файл не був створений вчасно.";
 "audio.error.microphonePermission" = "Дозвіл на мікрофон не надано";
 "audio.error.microphoneInUse" = "HyperWhisper не може отримати доступ до мікрофона, оскільки його використовує інший застосунок. Призупиніть інший застосунок або перемкніть входи, а потім спробуйте ще раз.";
 "audio.error.createEngine" = "Не вдалося створити аудіо рушій";
@@ -1052,3 +1034,12 @@
 "history.autoDelete.status.enabled" = "Видалити записи старіші за %d %@";
 "history.autoDelete.cleanup.noItems" = "Нема записів для видалення";
 "history.autoDelete.cleanup.summary" = "Видалено %d запис(ів) та звільнено %@";
+"history.status.interrupted" = "Транскрипцію перервано — застосунок закрився до завершення";
+"recording.maxDuration.reachedToast" = "Запис зупинено — досягнуто ліміту %d хв";
+"streaming.maxDuration.reachedToast" = "Трансляцію зупинено — досягнуто ліміту %d хв";
+"settings.storage.maxRecordingDuration.title" = "Максимальна тривалість запису";
+"settings.storage.maxRecordingDuration.subtitle" = "Автоматично зупиняти та транскрибувати записи, довші за цей час.";
+"settings.storage.maxRecordingDuration.minutes" = "%d хв";
+"settings.storage.maxRecordingDuration.hour" = "1 година";
+"settings.storage.maxRecordingDuration.hours" = "%d годин";
+"settings.storage.maxRecordingDuration.off" = "Вимкнено";
