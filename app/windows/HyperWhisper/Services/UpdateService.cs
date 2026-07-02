@@ -75,6 +75,14 @@ public static class UpdateService
     private static int _installerLaunched = 0;
     private static string? _launchingInstallerPath;
 
+    // Set by PrepareInstallerLaunch (pre-shutdown) and consumed by
+    // StartInstallerProcess (exit-time). The lock stream is held OPEN across the
+    // shutdown so the verified installer bytes stay immutable until launch
+    // (FileShare.Read denies write/delete but permits the installer's own
+    // read+execute). On abnormal process death the OS releases the handle.
+    private static FileStream? _installerLockStream;
+    private static ProcessStartInfo? _installerStartInfo;
+
     public static bool IsUpdateShutdownRequested => Volatile.Read(ref _updateShutdownRequested) == 1;
 
     // =========================================================================
@@ -392,26 +400,24 @@ public static class UpdateService
     }
 
     /// <summary>
-    /// Shuts the application down gracefully, then launches the downloaded installer.
+    /// Prepares the installer launch, shuts the application down gracefully, then
+    /// starts the installer at exit.
     ///
-    /// ORDER MATTERS: the installer runs with /FORCECLOSEAPPLICATIONS. If it starts
-    /// before the app exits, the installer can force-kill HyperWhisper.exe before
-    /// App.OnExit flushes Sentry and persistent state.
+    /// ORDER MATTERS twice over:
+    /// - The installer runs with /FORCECLOSEAPPLICATIONS. If it starts before the
+    ///   app exits, it can force-kill HyperWhisper.exe before App.OnExit flushes
+    ///   Sentry and persistent state — so the actual Process.Start stays at exit.
+    /// - Everything that can FAIL (path guards, lock acquisition, signature
+    ///   re-verify, scope detection) runs HERE, pre-shutdown, via
+    ///   PrepareInstallerLaunch. A failure leaves the app alive (and telemetry
+    ///   working) instead of exiting into nothing.
     /// </summary>
     private static void LaunchInstallerAndExit()
     {
-        // GUARD CLAUSE: Validate installer path
-        if (string.IsNullOrEmpty(_installerPath))
+        if (!PrepareInstallerLaunch())
         {
-            LoggingService.Error("UpdateService: Cannot launch installer - path is null");
-            ResetInstallerLaunchState();
-            return;
-        }
-
-        if (!File.Exists(_installerPath))
-        {
-            LoggingService.Error($"UpdateService: Cannot launch installer - file not found: {_installerPath}");
-            ResetInstallerLaunchState();
+            // Preparation failed and already logged/reset — do NOT register the
+            // Exit handler or shut down; the app stays alive.
             return;
         }
 
@@ -449,8 +455,10 @@ public static class UpdateService
     }
 
     /// <summary>
-    /// Runs after App.OnExit has finished cleanup. Safe to start the installer now
-    /// because persistent state and Sentry have been flushed.
+    /// Runs from base.OnExit's Exit event after App.OnExit has persisted state.
+    /// Only Process.Start happens here (preparation ran pre-shutdown); Sentry is
+    /// flushed by App.OnExit right after this returns, so exit-time captures from
+    /// the launch still make it out.
     /// </summary>
     private static void OnApplicationExitForUpdate(object? sender, ExitEventArgs e)
     {
@@ -463,27 +471,28 @@ public static class UpdateService
     }
 
     /// <summary>
-    /// Spawns the downloaded installer with Inno Setup silent flags.
+    /// Runs every failable step of the installer launch BEFORE the app shuts
+    /// down: path guards, installer lock acquisition, Ed25519 re-verification,
+    /// install-scope detection, and ProcessStartInfo construction. Returns true
+    /// when <see cref="StartInstallerProcess"/> only has Process.Start left to
+    /// do. On any failure: logs + reports to Sentry (the app is still alive so
+    /// telemetry works), releases the lock, resets launch state, returns false —
+    /// and the caller must NOT shut the app down.
     /// </summary>
-    private static void StartInstallerProcess()
+    private static bool PrepareInstallerLaunch()
     {
-        if (Interlocked.Exchange(ref _installerLaunched, 1) == 1)
-        {
-            return;
-        }
-
         if (string.IsNullOrEmpty(_installerPath))
         {
             LoggingService.Error("UpdateService: Cannot launch installer - path is null");
             ResetInstallerLaunchState();
-            return;
+            return false;
         }
 
         if (!File.Exists(_installerPath))
         {
             LoggingService.Error($"UpdateService: Cannot launch installer - file not found: {_installerPath}");
             ResetInstallerLaunchState();
-            return;
+            return false;
         }
 
         // SECURITY: Close the TOCTOU window completely by holding an exclusive
@@ -494,45 +503,44 @@ public static class UpdateService
         // We open the file denying writes and DELETES (FileShare.Read only) so no
         // other process can replace, rename, truncate or delete it while our handle
         // is open. We then verify the signature against the on-disk bytes (which are
-        // now immutable under our lock) and keep the handle open until the installer
-        // process has started — the launched Inno Setup process only needs read+execute
-        // access, which FileShare.Read permits. This guarantees the bytes the installer
-        // executes are the exact bytes we verified.
-        FileStream? lockStream = null;
-        var installerStarted = false;
+        // now immutable under our lock) and keep the handle open ACROSS THE APP
+        // SHUTDOWN until the installer process has started — the launched Inno
+        // Setup process only needs read+execute access, which FileShare.Read
+        // permits. This guarantees the bytes the installer executes are the exact
+        // bytes we verified.
         try
         {
-            try
-            {
-                lockStream = new FileStream(
-                    _installerPath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    // Deny write + delete from other processes; allow read so the
-                    // launched installer (and the signature verifier) can read it.
-                    FileShare.Read);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Error("UpdateService: Could not obtain exclusive lock on installer before launch - refusing to launch", ex);
-                SentryService.Capture(ex, "Installer lock acquisition failed");
-                ResetInstallerLaunchState();
-                return;
-            }
+            _installerLockStream = new FileStream(
+                _installerPath,
+                FileMode.Open,
+                FileAccess.Read,
+                // Deny write + delete from other processes; allow read so the
+                // launched installer (and the signature verifier) can read it.
+                FileShare.Read);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("UpdateService: Could not obtain exclusive lock on installer before launch - refusing to launch", ex);
+            SentryService.Capture(ex, "Installer lock acquisition failed");
+            ResetInstallerLaunchState();
+            return false;
+        }
 
-            if (!ReVerifyInstallerSignature())
-            {
-                ResetInstallerLaunchState();
-                return;
-            }
+        if (!ReVerifyInstallerSignature())
+        {
+            ResetInstallerLaunchState();
+            return false;
+        }
 
+        try
+        {
             // Detect whether the running app was installed per-machine (Program Files)
             // or per-user (%LOCALAPPDATA%\Programs). This drives both elevation and the
             // Inno scope flag so a silent update preserves the original install location.
             var isPerMachine = IsPerMachineInstall();
 
             LoggingService.Info(
-                $"UpdateService: Launching installer ({(isPerMachine ? "per-machine" : "per-user")}): {_installerPath}");
+                $"UpdateService: Prepared installer launch ({(isPerMachine ? "per-machine" : "per-user")}): {_installerPath}");
 
             // Launch installer with Inno Setup silent flags.
             //
@@ -551,7 +559,7 @@ public static class UpdateService
             //
             // A per-machine install must run elevated; Inno's manifest is asInvoker,
             // so ShellExecute does NOT auto-elevate. Verb="runas" requests UAC.
-            var startInfo = new ProcessStartInfo
+            _installerStartInfo = new ProcessStartInfo
             {
                 FileName = _installerPath,
                 UseShellExecute = true,
@@ -560,37 +568,94 @@ public static class UpdateService
                     : "/VERYSILENT /FORCECLOSEAPPLICATIONS /CURRENTUSER",
                 Verb = isPerMachine ? "runas" : string.Empty
             };
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("UpdateService: Failed to prepare installer launch", ex);
+            SentryService.Capture(ex, "Installer launch preparation failed");
+            ResetInstallerLaunchState();
+            return false;
+        }
+    }
 
-            // The lock is still held here: the file an attacker would need to swap
-            // cannot be replaced between the verify above and this launch.
+    /// <summary>
+    /// Exit-time tail of the launch: Process.Start only — every failable step
+    /// already ran in <see cref="PrepareInstallerLaunch"/> while the app was
+    /// alive. If the start still fails (UAC decline, ShellExecute error), the
+    /// app has already exited, so relaunch it instead of stranding the user.
+    /// </summary>
+    private static void StartInstallerProcess()
+    {
+        if (Interlocked.Exchange(ref _installerLaunched, 1) == 1)
+        {
+            return;
+        }
+
+        var startInfo = _installerStartInfo;
+        if (startInfo == null)
+        {
+            LoggingService.Error("UpdateService: StartInstallerProcess called without a prepared launch");
+            ResetInstallerLaunchState();
+            return;
+        }
+
+        try
+        {
+            // The lock acquired in PrepareInstallerLaunch is still held here: the
+            // file an attacker would need to swap cannot have been replaced
+            // between the pre-shutdown verify and this launch.
             Process.Start(startInfo);
-            installerStarted = true;
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
             // ERROR_CANCELLED (1223): user declined the UAC elevation prompt for a
-            // per-machine update. Leave the installer on disk and allow retry if
-            // this process is still running. Not a bug — don't report to Sentry.
+            // per-machine update. Not a bug — don't report to Sentry. The app has
+            // already shut down by now, so relaunch it; the update can be retried
+            // from the new instance.
             LoggingService.Warn(
-                "UpdateService: User cancelled UAC elevation; per-machine update not installed");
+                "UpdateService: User cancelled UAC elevation; per-machine update not installed - relaunching app");
+            RelaunchApplication();
         }
         catch (Exception ex)
         {
             LoggingService.Error("UpdateService: Failed to launch installer", ex);
             SentryService.Capture(ex, "Failed to launch installer");
-
-            // Reset only if the installer was not actually spawned. Once Process.Start
-            // succeeds, keep the guard closed so later shutdown/logging failures cannot
-            // let a duplicate callback launch a second installer.
-            if (!installerStarted)
-                ResetInstallerLaunchState();
+            RelaunchApplication();
         }
         finally
         {
             // Release the lock only after the installer process has been started
             // (or on failure). The launched installer keeps its own read+execute
             // handle, so closing ours here does not interrupt it.
-            lockStream?.Dispose();
+            _installerLockStream?.Dispose();
+            _installerLockStream = null;
+        }
+    }
+
+    /// <summary>
+    /// Best-effort restart of HyperWhisper after an exit-time installer launch
+    /// failure — the app committed to shutting down, so without this the user is
+    /// left with nothing running and no update installed.
+    /// </summary>
+    private static void RelaunchApplication()
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exePath))
+            {
+                LoggingService.Error("UpdateService: Cannot relaunch app - process path unresolved");
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo { FileName = exePath, UseShellExecute = true });
+            LoggingService.Info("UpdateService: Relaunched app after installer launch failure");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("UpdateService: Failed to relaunch app after installer launch failure", ex);
+            SentryService.Capture(ex, "App relaunch after installer failure failed");
         }
     }
 
@@ -598,6 +663,9 @@ public static class UpdateService
     {
         _installerPath = null;
         _installerSignature = null;
+        _installerStartInfo = null;
+        _installerLockStream?.Dispose();
+        _installerLockStream = null;
         Interlocked.Exchange(ref _installerLaunched, 0);
         Interlocked.Exchange(ref _launchingInstallerPath, null);
     }
@@ -710,13 +778,41 @@ public static class UpdateService
             if (TryGetPerMachineInstallFromRegistry(exePath, out var isPerMachine))
                 return isPerMachine;
 
+            // Fast path for missing registry entries: default per-user installs
+            // live under %LOCALAPPDATA%.
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            if (string.IsNullOrEmpty(localAppData))
+            if (!string.IsNullOrEmpty(localAppData)
+                && exePath.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Fallback: probe whether the install directory is writable without
+            // elevation — that is the actual question the flag answers ("can the
+            // installer replace files here as this user"). A custom per-user
+            // destination outside %LOCALAPPDATA% probes writable → per-user; a
+            // Program Files install probes UnauthorizedAccess/IO → per-machine.
+            // Runs pre-shutdown (via PrepareInstallerLaunch), so a wrong answer is
+            // visible in logs/Sentry rather than lost at exit.
+            var installDirectory = Path.GetDirectoryName(exePath);
+            if (string.IsNullOrEmpty(installDirectory))
                 return true;
 
-            // Fallback for missing registry entries: default per-user installs live
-            // under %LOCALAPPDATA%; everything else should request elevation.
-            return !exePath.StartsWith(localAppData, StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                var probePath = Path.Combine(installDirectory, $".hw-write-probe-{Environment.ProcessId}");
+                using (new FileStream(
+                    probePath, FileMode.Create, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose))
+                {
+                }
+                LoggingService.Debug("UpdateService: Install scope probed as per-user (install dir writable unelevated)");
+                return false;
+            }
+            catch (Exception probeEx) when (probeEx is UnauthorizedAccessException or IOException)
+            {
+                LoggingService.Debug($"UpdateService: Install scope probed as per-machine (install dir not writable: {probeEx.GetType().Name})");
+                return true;
+            }
         }
         catch (Exception ex)
         {
