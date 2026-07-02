@@ -20,6 +20,7 @@
     "githubAria": "Visualizza HyperWhisper su GitHub"
   },
   "hero": {
+    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Scrivi, componi e crea",
     "headlineAccent": "5x più veloce con l'AI",
