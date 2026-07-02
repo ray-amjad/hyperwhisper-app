@@ -192,6 +192,9 @@ pub fn parse_text_response(resp: &HttpResponse) -> Result<Transcript, Transcript
 ///   exhaustion (`code`/`type` = `insufficient_quota`, or a message mentioning
 ///   "quota"/"billing"), else `RateLimited { retry_after_secs }` from the
 ///   `Retry-After` header (matches `CloudWhisperProvider.swift`'s 429 branch).
+/// - 408 → `ProviderUnavailable` (request timeout is transient, same as 5xx;
+///   keying it into the retryable variant keeps it retried instead of the
+///   terminal `BadRequest` fallthrough)
 /// - 5xx → `ProviderUnavailable`
 /// - other 4xx → `BadRequest { message }` from `error.message` / `error` / body.
 pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
@@ -201,6 +204,7 @@ pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
     match status {
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => {
             if is_quota_error(json.as_ref()) {
@@ -374,5 +378,25 @@ mod tests {
         assert_eq!(build_prompt(&p), "A,B Be terse.");
         p.vocabulary.clear();
         assert_eq!(build_prompt(&p), "Be terse.");
+    }
+
+    #[test]
+    fn classify_408_provider_unavailable() {
+        // Request timeout is transient — retryable ProviderUnavailable, not the
+        // terminal BadRequest fallthrough. Must agree with retry::classify_error
+        // (the two classifiers agree on every status — see retry.rs module doc).
+        let resp = HttpResponse {
+            status: 408,
+            headers: Vec::new(),
+            body: Vec::new(),
+        };
+        assert_eq!(
+            classify_http(&resp, ""),
+            TranscriptionError::ProviderUnavailable { status: 408 }
+        );
+        assert_eq!(
+            classify_http(&resp, ""),
+            crate::retry::classify_error(408, "")
+        );
     }
 }
