@@ -26,6 +26,7 @@ import {
   type SttProviderId,
 } from '../lib/stt-models';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
+import { rawQuery } from '../lib/query';
 import {
   FLY_REPLAY_MAX_BODY_BYTES,
   GEMINI_INLINE_MAX_BYTES,
@@ -174,7 +175,7 @@ function extractProvider(c: Context): ProviderSelection {
 }
 
 function extractModel(c: Context): string | undefined {
-  return c.req.header('X-STT-Model')?.trim() || c.req.query('model')?.trim() || undefined;
+  return c.req.header('X-STT-Model')?.trim() || rawQuery(c.req.url, 'model')?.trim() || undefined;
 }
 
 function extractDomain(c: Context): string | undefined {
@@ -307,9 +308,11 @@ export async function transcribeRoute(c: Context) {
   }
 
   const { contentType, contentLength } = headerValidation;
-  const language = c.req.query('language') || undefined;
-  const initialPrompt = c.req.query('initial_prompt') || undefined;
-  const mode = c.req.query('mode') || undefined;
+  // rawQuery, not c.req.query(): Hono's decoder adds an HTML-form `+` → space
+  // step, corrupting values like a `C++` vocabulary term. See lib/query.ts.
+  const language = rawQuery(c.req.url, 'language');
+  const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
+  const mode = rawQuery(c.req.url, 'mode');
 
   // ElevenLabs blocks API access from certain countries — the block surfaces
   // as a 200 OK with a text/html FAQ page ("Do you restrict access ... for any
@@ -367,7 +370,7 @@ export async function transcribeRoute(c: Context) {
   // that installed native apps still send, so we accept either.
   const authResult = await validateAuth({
     licenseKey:
-      c.req.query('account_key') || c.req.query('license_key') || undefined,
+      rawQuery(c.req.url, 'account_key') ?? rawQuery(c.req.url, 'license_key'),
   });
   if (!authResult.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {

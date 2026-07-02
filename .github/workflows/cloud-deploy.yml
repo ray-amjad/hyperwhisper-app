@@ -46,14 +46,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: oven-sh/setup-bun@v2
+
+      # Gate the deploy on typecheck + unit tests — previously nothing ran
+      # before `fly deploy`.
+      - name: Typecheck + unit tests
+        run: |
+          bun install --frozen-lockfile
+          bun run typecheck
+          bun test src
+
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly (${{ inputs.environment }})
         run: flyctl deploy --config ${{ inputs.fly_config }} --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - uses: oven-sh/setup-bun@v2
 
       - name: Smoke test (${{ inputs.environment }})
         run: bun run scripts/smoke-test.ts

@@ -144,4 +144,46 @@ describe('transcribeRoute provider fallback', () => {
     expect(response.status).toBe(500);
     expect(deepgramCalled).toBe(false);
   });
+
+  test('preserves a literal + in initial_prompt end-to-end (no plus-to-space decode)', async () => {
+    let deepgramUrl = '';
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes('api.deepgram.com')) {
+        deepgramUrl = url;
+        return Response.json({
+          results: {
+            channels: [{ alternatives: [{ transcript: 'ok' }], detected_language: 'en' }],
+          },
+          metadata: { duration: 1, request_id: 'dg-req-2' },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const audio = new Uint8Array(2048);
+    const request = new Request(
+      // `C%2B%2B` must reach the provider as the term `C++` — Hono's default
+      // query decoder applied an extra + → space step (see lib/query.ts).
+      'http://localhost/transcribe?license_key=test-license&language=en&initial_prompt=C%2B%2B',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'deepgram',
+        },
+        body: audio,
+      },
+    );
+
+    const response = await buildApp().fetch(request);
+
+    expect(response.status).toBe(200);
+    // Deepgram converts initial_prompt terms to repeated keyterm params,
+    // percent-encoded — the + must survive as %2B, not become a space.
+    expect(deepgramUrl).toContain('keyterm=C%2B%2B');
+  });
 });
