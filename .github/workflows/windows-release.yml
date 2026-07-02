@@ -176,6 +176,16 @@ jobs:
           Write-Host "ARM64 DLL: $((Get-Item "$dest\arm64\hyperwhisper_core.dll").Length) bytes"
 
       # ----------------------------------------------------------------
+      # 4c. Smoke tests: the first FFI call trips the UniFFI checksum
+      #     handshake, catching generated-binding ↔ DLL drift before the
+      #     installers are built, plus fast unit checks over the retry/
+      #     vocabulary machinery. x64-only coverage on this runner; ARM64
+      #     is exercised manually before tagging.
+      # ----------------------------------------------------------------
+      - name: Run smoke tests (FFI + unit checks)
+        run: dotnet run --project app/windows/HyperWhisper.SmokeTests -c Release
+
+      # ----------------------------------------------------------------
       # 5. Build both x64 + ARM64 installers
       # ----------------------------------------------------------------
       - name: Build installers

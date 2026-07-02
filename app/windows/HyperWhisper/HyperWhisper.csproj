@@ -179,6 +179,20 @@
            Text="hyperwhisper_core.dll (arm64) is missing from Resources\rust-core\arm64\. Build it from shared-core-rs (cargo build --release --target aarch64-pc-windows-msvc) and copy it there, or let CI produce it. See Resources/rust-core/README.md." />
   </Target>
 
+  <!-- Warn on RID-less builds on an ARM64 host: the RID-less build copies the
+       x64 parakeet-engine + rust-core payloads, which cannot load in an ARM64
+       process. Warning (not Error) so x64-emulated flows keep working. -->
+  <Target Name="WarnRidlessArm64Build" BeforeTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(RuntimeIdentifier)' == '' And $(NETCoreSdkRuntimeIdentifier.Contains('arm64'))">
+    <Warning Text="Building without a RuntimeIdentifier on an ARM64 host: this build carries the x64 parakeet-engine and rust-core, which cannot load in an ARM64 process. Pass -r win-arm64 for a runnable ARM64 build." />
+  </Target>
+
+  <!-- SmokeTests exercise internals (RustRetry, GrokSttService.GetRequestTimeout,
+       the UniFFI binding) directly. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HyperWhisper.SmokeTests" />
+  </ItemGroup>
+
   <!-- Localization resource files -->
   <!-- Satellite assemblies are automatically generated for each culture -->
   <ItemGroup>
