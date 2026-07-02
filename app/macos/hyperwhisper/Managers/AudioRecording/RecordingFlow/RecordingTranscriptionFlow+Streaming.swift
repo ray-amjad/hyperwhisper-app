@@ -745,26 +745,32 @@ extension RecordingTranscriptionFlow {
             }
         }
 
-        // Save accumulated transcript to history
+        // Save accumulated transcript to history on the serial background
+        // writer (same ID-based pattern as the batch stop path) so a large
+        // history can't stall the main thread here.
         if !commitText.isEmpty {
-            let processingTranscript = PersistenceController.shared.createProcessingTranscript(
+            let processingTranscriptID = await PersistenceController.shared.createProcessingTranscriptInBackground(
                 duration: 0, // Duration is tracked on server side
                 mode: mode,
-                audioFilePath: nil // No audio file for streaming
+                audioFilePath: nil, // No audio file for streaming
+                trimmedAudioPath: nil
             )
 
-            // Update transcript with streamed text
-            // Use the strategy's provider label for history entries (e.g., "Deepgram (Streaming)")
-            let providerLabel = service.transcriptionProviderLabel
-            PersistenceController.shared.updateTranscriptWithTranscription(
-                processingTranscript,
-                transcribedText: commitText,
-                postProcessedText: nil, // No post-processing for streaming yet
-                transcriptionProvider: providerLabel,
-                postProcessingProvider: nil
-            )
-
-            AppLogger.audio.info("💾 Saved streaming transcript: \(commitText.count, privacy: .public) chars")
+            if let processingTranscriptID {
+                // Update transcript with streamed text
+                // Use the strategy's provider label for history entries (e.g., "Deepgram (Streaming)")
+                let providerLabel = service.transcriptionProviderLabel
+                await PersistenceController.shared.updateTranscriptWithTranscriptionInBackground(
+                    transcriptID: processingTranscriptID,
+                    transcribedText: commitText,
+                    postProcessedText: nil, // No post-processing for streaming yet
+                    transcriptionProvider: providerLabel,
+                    postProcessingProvider: nil
+                )
+                AppLogger.audio.info("💾 Saved streaming transcript: \(commitText.count, privacy: .public) chars")
+            } else {
+                AppLogger.audio.warning("⚠️ Failed to create streaming transcript row — history entry skipped")
+            }
 
             // Update lastTranscription for UI
             await MainActor.run {

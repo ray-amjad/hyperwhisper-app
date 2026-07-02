@@ -266,6 +266,7 @@ class PersistenceController: ObservableObject {
             migrateRemovedDeepgramModelsIfNeeded()
             normalizeCloudProviderIfNeeded()
             repairBrokenLocalModesOnLaunch()
+            repairStaleProcessingTranscriptsOnLaunch()
         }
     }
 
@@ -715,6 +716,37 @@ class PersistenceController: ObservableObject {
         }
     }
 
+    /// Launch hook: any transcript still marked "processing" at init is stale —
+    /// nothing can be in flight this early in the process lifetime — left behind
+    /// by a quit/crash between record-stop and the completion write. Mark it
+    /// failed ("interrupted") so it doesn't sit in HistoryView as processing
+    /// forever; rows that kept their audio file get the standard Retry
+    /// affordance for free (canRetry = failed + audio path present).
+    private func repairStaleProcessingTranscriptsOnLaunch() {
+        let context = container.viewContext
+        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+        request.predicate = NSPredicate(format: "status == %@", "processing")
+        do {
+            let stale = try context.fetch(request)
+            guard !stale.isEmpty else { return }
+            for transcript in stale {
+                transcript.setValue("failed", forKey: "status")
+                transcript.setValue("interrupted", forKey: "failedReason")
+                transcript.text = "history.status.interrupted".localized
+            }
+            try context.save()
+            AppLogger.coreData.info("Launch repair marked \(stale.count, privacy: .public) stale processing transcript(s) as interrupted")
+        } catch {
+            let nsError = error as NSError
+            AppLogger.logCoreData(.save, error: nsError)
+            SentryService.capture(
+                error: nsError,
+                message: "Failed to repair stale processing transcripts on launch",
+                tags: ["component": "PersistenceController", "operation": "repairStaleProcessingTranscripts"]
+            )
+        }
+    }
+
     /// One-time data migration that rewrites Modes, the per-mode default-model map,
     /// and the streaming Deepgram setting away from the 25 Deepgram model IDs that
     /// were removed in the 2026-05 catalog cleanup. Everything in
@@ -869,6 +901,15 @@ class PersistenceController: ObservableObject {
     /// Debounced view-context maintenance task (cancel-previous). Keeps the
     /// re-faulting benefit off the stop→paste hot path.
     @MainActor private var viewContextMaintenanceTask: Task<Void, Never>?
+
+    /// Flush the serial writer before process exit. An empty `performAndWait`
+    /// barrier queues behind any already-enqueued write blocks (each block
+    /// saves itself), so returning means everything enqueued so far is
+    /// persisted. Writer blocks are milliseconds each — safe to call from
+    /// `applicationWillTerminate` without beachball risk.
+    func drainWriterOnTerminate() {
+        writerContext.performAndWait { }
+    }
 
     /// Run a write block on the serial background writer context.
     ///
@@ -1228,6 +1269,13 @@ class PersistenceController: ObservableObject {
     }
     
     /// Creates a new transcript in processing state
+    ///
+    /// LEGACY (main-context, synchronous): blocks on `viewContext`, so a large
+    /// store can stall the main thread. New callers on any hot path should use
+    /// `createProcessingTranscriptInBackground` (serial writer, ID-based)
+    /// instead. Remaining callers are UI-initiated flows (file transcription,
+    /// retry, transcript actions) where the returned object is bound to UI.
+    ///
     /// - Parameters:
     ///   - duration: Recording duration in seconds
     ///   - mode: The transcription mode used
@@ -1296,7 +1344,13 @@ class PersistenceController: ObservableObject {
     
     /// Updates a transcript with the transcription result
     /// This method is called when transcription completes (either successfully or with error)
-    /// 
+    ///
+    /// LEGACY (main-context, synchronous): new callers on any hot path should
+    /// use `updateTranscriptWithTranscriptionInBackground` (serial writer,
+    /// ID-based) instead. Remaining callers mutate viewContext objects that are
+    /// directly bound to UI (e.g. TranscriptionRetryController on a
+    /// HistoryView-bound row).
+    ///
     /// The @MainActor attribute ensures this runs on the main thread, which is critical because:
     /// 1. Core Data UI updates must happen on the main thread
     /// 2. This guarantees immediate UI refresh without threading delays

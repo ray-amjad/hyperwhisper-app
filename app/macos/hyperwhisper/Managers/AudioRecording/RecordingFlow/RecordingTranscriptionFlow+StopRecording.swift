@@ -258,11 +258,11 @@ extension RecordingTranscriptionFlow {
         // flush landing just after stop) — ~400ms worst case, still far under
         // the old ~1.2s re-wait chain this replaced.
         let fileCheckStart = Date()
-        var isReadable = isAudioFileReadable(audioURL)
+        var isReadable = await Self.isAudioFileReadable(audioURL)
         if !isReadable {
             for _ in 1...4 {
                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-                if isAudioFileReadable(audioURL) {
+                if await Self.isAudioFileReadable(audioURL) {
                     isReadable = true
                     break
                 }
@@ -621,11 +621,17 @@ extension RecordingTranscriptionFlow {
     /// Definitive readability test for the finalized recording file (WS3).
     /// The lifecycle already validated existence + size; this confirms the file
     /// opens as a decodable audio file before handing it to transcription.
-    private func isAudioFileReadable(_ url: URL) -> Bool {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: url.path), fm.isReadableFile(atPath: url.path) else {
-            return false
-        }
-        return (try? AVAudioFile(forReading: url)) != nil
+    ///
+    /// `nonisolated` + detached: `AVAudioFile(forReading:)` does synchronous
+    /// file I/O (open + header decode), which must not run on the main actor —
+    /// a slow volume would stall the stop→paste path.
+    nonisolated private static func isAudioFileReadable(_ url: URL) async -> Bool {
+        await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            guard fm.fileExists(atPath: url.path), fm.isReadableFile(atPath: url.path) else {
+                return false
+            }
+            return (try? AVAudioFile(forReading: url)) != nil
+        }.value
     }
 }

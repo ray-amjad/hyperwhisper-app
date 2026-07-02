@@ -607,6 +607,7 @@
 "history.section.yesterday" = "Yesterday";
 "history.duration.format" = "%dm %ds";
 "history.status.failed" = "Failed";
+"history.status.interrupted" = "Transcription interrupted — the app quit before it finished";
 "history.status.transcription.failed.prefix" = "Transcription failed:";
 "history.status.retry.failed.prefix" = "Retry failed:";
 "history.failure.reason" = "Reason: %@";
