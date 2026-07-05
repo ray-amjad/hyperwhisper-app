@@ -676,33 +676,59 @@ jobs:
           node scripts/validate-windows-appcast.js
 
       # ----------------------------------------------------------------
-      # 13. Commit and push version bump + appcast
+      # 13. Commit version bump + appcast and land via auto-merged PR
       # ----------------------------------------------------------------
-      - name: Commit and push changes
+      # The default branch is protected by a ruleset that requires changes to
+      # go through a pull request (0 approvals). A direct push from the release
+      # bot is rejected (GH013), so we land the commit via an auto-merged PR
+      # instead — rule-compliant and needs no ruleset bypass or human review.
+      # (Mirrors the macOS release workflow.)
+      - name: Commit and merge release PR
         if: ${{ inputs.skip_upload != true }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $ver = "${{ inputs.version }}"
+          set -euo pipefail
+          VERSION="${{ inputs.version }}"
+          BASE="${GITHUB_REF_NAME}"
+          BRANCH="release/windows-v${VERSION}"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/windows/HyperWhisper/HyperWhisper.csproj
-          git add app/windows/setup-x64.iss
-          git add app/windows/setup-arm64.iss
-          git add nextjs/public/appcast-windows.xml
-          git commit -m "release: Windows v$ver — bump version and update appcast"
-          for ($i = 1; $i -le 5; $i++) {
-            git pull --rebase --autostash origin $env:GITHUB_REF_NAME
-            if ($LASTEXITCODE -eq 0) {
-              git push
-              if ($LASTEXITCODE -eq 0) { break }
-            }
 
-            if ($i -eq 5) {
-              throw "git push failed after 5 attempts"
-            }
+          # Fresh branch off the base (clear any stale branch from a failed run)
+          git push origin --delete "$BRANCH" 2>/dev/null || true
+          git checkout -b "$BRANCH"
+          git add app/windows/HyperWhisper/HyperWhisper.csproj \
+                  app/windows/setup-x64.iss \
+                  app/windows/setup-arm64.iss \
+                  nextjs/public/appcast-windows.xml
+          git commit -m "release: Windows v${VERSION} — bump version and update appcast"
+          git push -u origin "$BRANCH"
 
-            Write-Host "push attempt $i failed, retrying after fetch/rebase..."
-            Start-Sleep -Seconds 5
-          }
+          gh pr create --base "$BASE" --head "$BRANCH" \
+            --title "release: Windows v${VERSION} — version bump + appcast" \
+            --body "Automated release commit from windows-release.yml."
+
+          # Merge with a short retry — a brand-new PR can take a moment to
+          # report as mergeable.
+          for i in 1 2 3 4 5; do
+            if gh pr merge "$BRANCH" --squash --delete-branch; then
+              break
+            fi
+            if [ "$i" = 5 ]; then
+              echo "PR merge failed after 5 attempts"
+              exit 1
+            fi
+            echo "merge attempt $i failed, retrying..."
+            sleep 5
+          done
+
+          # Ensure the release step below tags the merged commit on the base.
+          git fetch origin "$BASE"
+          git checkout "$BASE"
+          git reset --hard "origin/$BASE"
 
       # ----------------------------------------------------------------
       # 14. Create GitHub Release
