@@ -29,6 +29,7 @@ export default function FooterSection() {
       },
       { label: t("links.olderVersions"), href: "/older-versions" },
       { label: t("links.blog"), href: "/blog" },
+      { label: "Open Source", href: "/open-source" },
     ],
     [t("company")]: [
       { label: t("links.about"), href: "/" },
