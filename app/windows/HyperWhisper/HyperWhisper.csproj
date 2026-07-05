@@ -19,9 +19,9 @@
     <!-- Prevent .NET 8+ from appending +git-hash to AssemblyInformationalVersion,
          which causes NetSparkle to treat the same version as a new update -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>1.7.0</Version>
-    <AssemblyVersion>1.7.0.0</AssemblyVersion>
-    <FileVersion>1.7.0.0</FileVersion>
+    <Version>1.8.0</Version>
+    <AssemblyVersion>1.8.0.0</AssemblyVersion>
+    <FileVersion>1.8.0.0</FileVersion>
     <!-- Scratch/workstream builds sometimes leave alternate intermediate folders
          inside the project tree. Keep SDK globs from compiling their generated
          WPF sources and duplicate assembly attributes. -->
@@ -255,6 +255,7 @@
   </Target>
 
 </Project>
+
 
 
 

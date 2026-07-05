@@ -25,6 +25,61 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.8.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.0 - ARM64 -->
+<item>
+<title>1.8.0 (ARM64)</title>
+<pubDate>Sun, 05 Jul 2026 14:32:43 +0000</pubDate>
+<sparkle:version>1.8.0</sparkle:version>
+<sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.0-arm64-Setup.exe"
+length="143909672"
+type="application/octet-stream"
+sparkle:edSignature="83Qpabq67xHLeGtW3CX7fxujkh8tBPf8bwgaapwsJFIxTfvPETEb4STz1qof32qYsZAlbrgiMWD34eaEZn+iDA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.0</h2>
+<ul>
+<li>Local transcription is now completely free and unlimited</li>
+<li>Fixed large cloud uploads being cut off on slow connections</li>
+<li>License and credits now live in one HyperWhisper Cloud panel</li>
+<li>More reliable transcription on Windows on ARM PCs</li>
+<li>Bug fixes and stability improvements</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.0 - x64 -->
+<item>
+<title>1.8.0 (x64)</title>
+<pubDate>Sun, 05 Jul 2026 14:32:43 +0000</pubDate>
+<sparkle:version>1.8.0</sparkle:version>
+<sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.0-x64-Setup.exe"
+length="181439400"
+type="application/octet-stream"
+sparkle:edSignature="cpB4QJS4y5iifOPkehbW3LxXt7IqqwOYQtWOVmSXKsTQZxHWrbFkuWOs35dRAoFNQH5cKzZ9WOpccTgll7XRBg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.0</h2>
+<ul>
+<li>Local transcription is now completely free and unlimited</li>
+<li>Fixed large cloud uploads being cut off on slow connections</li>
+<li>License and credits now live in one HyperWhisper Cloud panel</li>
+<li>More reliable transcription on Windows on ARM PCs</li>
+<li>Bug fixes and stability improvements</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.7.0 -->
 <!-- ================================================================== -->
 
