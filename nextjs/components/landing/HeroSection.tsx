@@ -3,12 +3,10 @@
 import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
 import { m } from "framer-motion";
-import { Download, Github, Play } from "lucide-react";
+import { Download, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useDownloadModal } from "@/contexts/DownloadModalContext";
-
-const GITHUB_URL = "https://github.com/ray-amjad/hyperwhisper-app";
 
 export default function HeroSection() {
   const { openModal } = useDownloadModal();
@@ -29,18 +27,6 @@ export default function HeroSection() {
         initial={{ opacity: 0, y: 20 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Open source badge */}
-        <div className="mb-8 flex justify-center">
-          <Link
-            isExternal
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-800/60 border border-gray-700 text-sm text-gray-300 hover:border-gray-500 hover:text-white transition-colors"
-            href={GITHUB_URL}
-          >
-            <Github className="w-4 h-4" />
-            {t("openSourceBadge")}
-          </Link>
-        </div>
-
         {/* Logo */}
         <div className="mb-8 flex justify-center">
           <img
