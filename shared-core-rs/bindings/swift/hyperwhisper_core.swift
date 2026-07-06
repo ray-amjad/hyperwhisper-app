@@ -5309,6 +5309,23 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
     )
 })
 }
+/**
+ * Persist a server validation verdict for the attempted key: stores the key on
+ * a valid (`Active`) verdict, and updates the validation cache only when the
+ * verdict is valid or the attempted key matches the stored key. Prefer this
+ * over the raw `license_update_validation_cache` after a validate response —
+ * it prevents a rejected *replacement* key from clobbering the stored key's
+ * cached status (a 24h lockout for a valid user).
+ */
+public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
+        FfiConverterTypeKeyValueStore.lower(store),
+        FfiConverterTypeHwLicenseStatus.lower(status),
+        FfiConverterString.lower(attemptedKey),
+        FfiConverterInt64.lower(nowUnixSecs),$0
+    )
+}
+}
 public func licenseRecordModelDownload(store: KeyValueStore) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_record_model_download(
         FfiConverterTypeKeyValueStore.lower(store),$0
@@ -5983,6 +6000,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 58908) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_record_model_download() != 39727) {

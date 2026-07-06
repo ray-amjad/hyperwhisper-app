@@ -159,12 +159,15 @@ class LicenseNetworkService {
                 let outcome = licenseParseValidateResponse(body: data)
 
                 // Persist the key + cache the result through the core's store.
-                if outcome.isValid {
-                    licenseStoreLicenseKey(store: store, key: trimmedKey)
-                }
-                licenseUpdateValidationCache(
+                // The core stores the key only on a valid verdict and updates the
+                // (global, key-less) validation cache only when the attempted key
+                // is the stored key — a rejected replacement key must not
+                // overwrite the stored key's cached status with Invalid, which
+                // would lock out a valid user for up to 24h.
+                licensePersistValidationVerdict(
                     store: store,
                     status: outcome.status,
+                    attemptedKey: trimmedKey,
                     nowUnixSecs: RustLicenseTime.nowUTC()
                 )
                 AppLogger.network.info("License validation · status=\(Self.adapt(outcome.status).rawValue)")

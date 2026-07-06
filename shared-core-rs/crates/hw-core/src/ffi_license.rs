@@ -250,6 +250,27 @@ pub fn license_update_validation_cache(
     hw_license::cache::update_validation_cache(&KvAdapter(store), status.into(), now_unix_secs)
 }
 
+/// Persist a server validation verdict for the attempted key: stores the key on
+/// a valid (`Active`) verdict, and updates the validation cache only when the
+/// verdict is valid or the attempted key matches the stored key. Prefer this
+/// over the raw `license_update_validation_cache` after a validate response —
+/// it prevents a rejected *replacement* key from clobbering the stored key's
+/// cached status (a 24h lockout for a valid user).
+#[uniffi::export]
+pub fn license_persist_validation_verdict(
+    store: Arc<dyn KeyValueStore>,
+    status: HwLicenseStatus,
+    attempted_key: String,
+    now_unix_secs: i64,
+) {
+    hw_license::cache::persist_validation_verdict(
+        &KvAdapter(store),
+        status.into(),
+        &attempted_key,
+        now_unix_secs,
+    )
+}
+
 #[uniffi::export]
 pub fn license_should_revalidate(store: Arc<dyn KeyValueStore>, now_unix_secs: i64) -> bool {
     hw_license::cache::should_revalidate(&KvAdapter(store), now_unix_secs)
