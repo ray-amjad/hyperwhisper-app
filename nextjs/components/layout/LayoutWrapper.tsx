@@ -50,13 +50,16 @@ export default function LayoutWrapper({
   // Regular layout: with navbar and footer
   return (
     <div className="relative flex flex-col min-h-screen">
-      {/* Sticky header container for announcement banner + navbar */}
-      <div className="fixed top-0 z-50 w-full flex flex-col">
+      {/*
+        Sticky header holds the announcement banner + navbar. Using `sticky`
+        (not `fixed`) keeps it in normal document flow, so the banner naturally
+        pushes the navbar and page content down — no manual spacer / height math
+        to keep in sync, which previously caused the header to be cut off.
+      */}
+      <div className="sticky top-0 z-50 w-full flex flex-col">
         {showBanner && <OpenSourceBanner onDismiss={dismissBanner} />}
         <Navbar />
       </div>
-      {/* Spacer for fixed header height (navbar 64px + 48px banner when shown) */}
-      <div className={showBanner ? "h-[112px]" : "h-[64px]"} />
       <main className="container mx-auto max-w-7xl px-6 flex-grow">
         {children}
       </main>
