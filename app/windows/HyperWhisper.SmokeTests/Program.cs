@@ -18,6 +18,7 @@
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Windows;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
@@ -99,6 +100,71 @@ internal static class Program
                     "100MB → 5min + 300s");
                 Assert(GrokSttService.GetRequestTimeout(600L * 1024 * 1024) == TimeSpan.FromMinutes(30),
                     "600MB → capped at 30min");
+            });
+
+            Run("OpenAI post-processing omits an output-token cap", () =>
+            {
+                var requestJson = PostProcessingService.BuildOpenAIRequestJson(
+                    "gpt-4.1-nano", "system", "user");
+                using var request = JsonDocument.Parse(requestJson);
+
+                Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
+                    "OpenAI request should not contain max_tokens");
+                Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _),
+                    "OpenAI request should not contain max_completion_tokens");
+            });
+
+            Run("OpenAI post-processing accepts a complete natural stop", () =>
+            {
+                var completion = PostProcessingService.ParseOpenAICompletionResponseJson(
+                    """{"choices":[{"message":{"content":"<<CLEANED>>clean transcript<<END>>"},"finish_reason":"stop"}]}""");
+                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                    "raw transcript",
+                    completion);
+
+                Assert(completion.FinishReason == "stop", $"finish reason '{completion.FinishReason}'");
+                Assert(evaluation.IsAccepted, $"rejected as {evaluation.Failure}");
+                Assert(evaluation.Result.WasApplied, "complete response should be applied");
+                Assert(evaluation.Result.Text == "clean transcript", $"got '{evaluation.Result.Text}'");
+            });
+
+            Run("OpenAI post-processing rejects length truncation and preserves raw text", () =>
+            {
+                const string raw = "complete raw transcript";
+                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                    raw,
+                    new OpenAICompletionResponse("<<CLEANED>>partial output", "length"));
+
+                Assert(!evaluation.IsAccepted, "length response should be rejected");
+                Assert(!evaluation.Result.WasApplied, "rejected response should not be applied");
+                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
+                Assert(evaluation.Failure == OpenAICompletionFailure.IncompleteFinishReason,
+                    $"failure {evaluation.Failure}");
+            });
+
+            Run("OpenAI post-processing rejects other incomplete terminal reasons", () =>
+            {
+                const string raw = "complete raw transcript";
+                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                    raw,
+                    new OpenAICompletionResponse("<<CLEANED>>partial output<<END>>", "content_filter"));
+
+                Assert(!evaluation.IsAccepted, "non-stop response should be rejected");
+                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
+            });
+
+            Run("OpenAI post-processing requires the closing marker and preserves raw text", () =>
+            {
+                const string raw = "complete raw transcript";
+                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                    raw,
+                    new OpenAICompletionResponse("<<CLEANED>>partial output", "stop"));
+
+                Assert(!evaluation.IsAccepted, "missing <<END>> should be rejected");
+                Assert(!evaluation.Result.WasApplied, "rejected response should not be applied");
+                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
+                Assert(evaluation.Failure == OpenAICompletionFailure.MissingCompleteWrapper,
+                    $"failure {evaluation.Failure}");
             });
 
             RunAsync("RustRetry caps transport failures at 4 and resolves the client per attempt", async () =>

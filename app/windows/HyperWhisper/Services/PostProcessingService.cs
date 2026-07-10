@@ -214,6 +214,27 @@ public class PostProcessingService : IDisposable
 
         try
         {
+            if (!isCustomEndpoint && provider == PostProcessingProvider.OpenAI)
+            {
+                LoggingService.Info($"PostProcessingService: Processing with {provider}/{resolvedModelId}");
+
+                var completion = await CallOpenAIAsync(
+                    apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken);
+                var evaluation = EvaluateOpenAICompletion(text, completion);
+                if (!evaluation.IsAccepted)
+                {
+                    LoggingService.Warn(
+                        $"PostProcessingService: OpenAI response rejected ({evaluation.Failure}); keeping original transcription");
+                    WarningOccurred?.Invoke(this, new ErrorToastEventArgs(
+                        Loc.S("postprocessing.error.failed")));
+                    return evaluation.Result;
+                }
+
+                LoggingService.Info(
+                    $"PostProcessingService: Successfully processed ({text.Length} -> {evaluation.Result.Text.Length} chars)");
+                return evaluation.Result;
+            }
+
             string response;
 
             if (isCustomEndpoint)
@@ -226,7 +247,6 @@ public class PostProcessingService : IDisposable
 
                 response = provider switch
                 {
-                    PostProcessingProvider.OpenAI => await CallOpenAIAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
                     PostProcessingProvider.Anthropic => await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
                     PostProcessingProvider.Groq => await CallGroqAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
                     PostProcessingProvider.Grok => await CallGrokAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
@@ -298,28 +318,17 @@ public class PostProcessingService : IDisposable
     /// <summary>
     /// Calls the OpenAI Chat Completions API.
     /// </summary>
-    private async Task<string> CallOpenAIAsync(
+    private async Task<OpenAICompletionResponse> CallOpenAIAsync(
         string apiKey,
         string model,
         string systemPrompt,
         string userMessage,
         CancellationToken cancellationToken)
     {
-        var requestBody = new
-        {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
+            BuildOpenAIRequestJson(model, systemPrompt, userMessage),
             Encoding.UTF8,
             "application/json"
         );
@@ -328,13 +337,81 @@ public class PostProcessingService : IDisposable
         response.EnsureSuccessStatusCode();
 
         var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
+        return ParseOpenAICompletionResponseJson(responseJson);
+    }
 
-        return doc.RootElement
-            .GetProperty("choices")[0]
+    internal static string BuildOpenAIRequestJson(
+        string model,
+        string systemPrompt,
+        string userMessage)
+    {
+        var requestBody = new
+        {
+            model,
+            messages = new[]
+            {
+                new { role = "system", content = systemPrompt },
+                new { role = "user", content = userMessage }
+            }
+        };
+
+        return JsonSerializer.Serialize(requestBody);
+    }
+
+    internal static OpenAICompletionResponse ParseOpenAICompletionResponseJson(string responseJson)
+    {
+        using var doc = JsonDocument.Parse(responseJson);
+        var choice = doc.RootElement.GetProperty("choices")[0];
+        var content = choice
             .GetProperty("message")
             .GetProperty("content")
             .GetString() ?? "";
+        var finishReason = choice.TryGetProperty("finish_reason", out var finishReasonElement)
+            ? finishReasonElement.GetString()
+            : null;
+
+        return new OpenAICompletionResponse(content, finishReason);
+    }
+
+    internal static OpenAICompletionEvaluation EvaluateOpenAICompletion(
+        string originalText,
+        OpenAICompletionResponse completion)
+    {
+        if (!string.Equals(completion.FinishReason, "stop", StringComparison.Ordinal))
+        {
+            return OpenAICompletionEvaluation.Rejected(
+                originalText,
+                OpenAICompletionFailure.IncompleteFinishReason);
+        }
+
+        const string startMarker = "<<CLEANED>>";
+        const string endMarker = "<<END>>";
+        var start = completion.Content.IndexOf(startMarker, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return OpenAICompletionEvaluation.Rejected(
+                originalText,
+                OpenAICompletionFailure.MissingCompleteWrapper);
+        }
+
+        var contentStart = start + startMarker.Length;
+        var end = completion.Content.IndexOf(endMarker, contentStart, StringComparison.Ordinal);
+        if (end < 0)
+        {
+            return OpenAICompletionEvaluation.Rejected(
+                originalText,
+                OpenAICompletionFailure.MissingCompleteWrapper);
+        }
+
+        var cleanedText = completion.Content[contentStart..end].Trim();
+        if (string.IsNullOrWhiteSpace(cleanedText))
+        {
+            return OpenAICompletionEvaluation.Rejected(
+                originalText,
+                OpenAICompletionFailure.EmptyCleanedText);
+        }
+
+        return OpenAICompletionEvaluation.Accepted(cleanedText);
     }
 
     /// <summary>
@@ -733,4 +810,29 @@ public readonly record struct PostProcessingResult(string Text, bool WasApplied)
 {
     public static PostProcessingResult Applied(string text) => new(text, true);
     public static PostProcessingResult Skipped(string text) => new(text, false);
+}
+
+internal readonly record struct OpenAICompletionResponse(string Content, string? FinishReason);
+
+internal enum OpenAICompletionFailure
+{
+    None,
+    IncompleteFinishReason,
+    MissingCompleteWrapper,
+    EmptyCleanedText
+}
+
+internal readonly record struct OpenAICompletionEvaluation(
+    PostProcessingResult Result,
+    OpenAICompletionFailure Failure)
+{
+    public bool IsAccepted => Failure == OpenAICompletionFailure.None;
+
+    public static OpenAICompletionEvaluation Accepted(string cleanedText) =>
+        new(PostProcessingResult.Applied(cleanedText), OpenAICompletionFailure.None);
+
+    public static OpenAICompletionEvaluation Rejected(
+        string originalText,
+        OpenAICompletionFailure failure) =>
+        new(PostProcessingResult.Skipped(originalText), failure);
 }
