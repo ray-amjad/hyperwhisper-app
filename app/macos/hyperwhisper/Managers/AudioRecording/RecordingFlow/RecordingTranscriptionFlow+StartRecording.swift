@@ -129,6 +129,7 @@ extension RecordingTranscriptionFlow {
             appState?.pendingRetryAudioPath = nil
             appState?.transcriptionPasteFailed = false
             appState?.lastDeliveryWasQuickCapture = false
+            appState?.showCancelConfirmation = false
         }
 
         // 1. CAPTURE FRONTMOST APP CONTEXT (instant, ~1ms)
