@@ -4,7 +4,7 @@
 import type { Context } from 'hono';
 import { defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
 import { generateRequestId, getClientIP } from '../lib/request-id';
-import { buildTranscriptUserContent, containsPromptLeakage, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
+import { buildTranscriptUserContent, containsPromptLeakage, extractCompleteCleanedText } from '../lib/text-processing';
 import { buildCorrectionRequest } from '../providers/groq-llm';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
@@ -12,6 +12,7 @@ import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { logEvent } from '../lib/logging';
+import { getLLMCompletionStatus } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
@@ -179,9 +180,31 @@ export async function postProcessRoute(c: Context) {
 
   let correctedText: string;
   let costUsd = llmResponse.costUsd;
+  const completionStatus = getLLMCompletionStatus(llmResponse.raw);
 
   try {
-    correctedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
+    if (completionStatus.state !== 'complete') {
+      logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+        provider: providerUsed,
+        state: completionStatus.state,
+        reason: completionStatus.reason,
+        fallbackToRaw: true,
+      });
+      correctedText = text;
+    } else {
+      const completeText = extractCompleteCleanedText(llmResponse.raw);
+      if (completeText === undefined) {
+        logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+          provider: providerUsed,
+          state: 'incomplete',
+          reason: 'missing_complete_wrapper',
+          fallbackToRaw: true,
+        });
+        correctedText = text;
+      } else {
+        correctedText = completeText;
+      }
+    }
   } catch (extractError) {
     // The LLM call already succeeded (and cost us money) — bill the user
     // even though we can't return usable text.
@@ -222,9 +245,26 @@ export async function postProcessRoute(c: Context) {
     try {
       const alternateModel = defaultModelFor(alternateProvider);
       const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateRetries, alternateModel);
-      const retryText = stripCleanMarkers(extractCorrectedText(retryResponse.raw));
+      const retryCompletionStatus = getLLMCompletionStatus(retryResponse.raw);
+      const retryCompleteText = retryCompletionStatus.state === 'complete'
+        ? extractCompleteCleanedText(retryResponse.raw)
+        : undefined;
+      const retryText = retryCompleteText ?? text;
 
-      if (containsPromptLeakage(retryText)) {
+      if (retryCompletionStatus.state !== 'complete' || retryCompleteText === undefined) {
+        logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+          provider: alternateProvider,
+          state: retryCompletionStatus.state === 'complete' ? 'incomplete' : retryCompletionStatus.state,
+          reason: retryCompleteText === undefined && retryCompletionStatus.state === 'complete'
+            ? 'missing_complete_wrapper'
+            : retryCompletionStatus.reason,
+          fallbackToRaw: true,
+        });
+        correctedText = text;
+        providerUsed = alternateProvider;
+        modelUsed = alternateModel;
+        costUsd += retryResponse.costUsd;
+      } else if (containsPromptLeakage(retryText)) {
         logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
           provider: alternateProvider,
           fallbackToRaw: true,

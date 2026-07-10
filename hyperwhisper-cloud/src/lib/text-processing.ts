@@ -120,6 +120,28 @@ export function extractCorrectedText(response: unknown): string {
 }
 
 /**
+ * Extract a provider response only when it contains the complete post-processing
+ * wrapper contract. A natural provider stop is not enough: models can stop early
+ * while still returning HTTP 200 and a non-empty prefix.
+ */
+export function extractCompleteCleanedText(response: unknown): string | undefined {
+  const text = tryExtractCorrectionText(response);
+  if (typeof text !== 'string') return undefined;
+
+  const startMarker = '<<CLEANED>>';
+  const endMarker = '<<END>>';
+  const start = text.indexOf(startMarker);
+  if (start < 0) return undefined;
+
+  const contentStart = start + startMarker.length;
+  const end = text.indexOf(endMarker, contentStart);
+  if (end < 0) return undefined;
+
+  const cleaned = text.slice(contentStart, end).trim();
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+/**
  * Wrap the raw transcript in clear delimiters for the post-processing prompt
  */
 export function buildTranscriptUserContent(text: string): string {

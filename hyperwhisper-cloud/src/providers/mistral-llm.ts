@@ -4,8 +4,8 @@ import { computeMistralChatCost, isGroqUsage, type GroqUsage } from '../lib/cost
 import { isRecord, safeReadText } from '../lib/utils';
 import { reportMissingUsage, type CorrectionRequestPayload } from './groq-llm';
 
-// Mistral's chat/completions accepts the standard chat payload (messages,
-// temperature: 0, max_tokens) unchanged. Verified 2026-06-19.
+// Mistral's chat/completions accepts the shared chat payload unchanged.
+// Verified 2026-06-19.
 const MISTRAL_BASE_URL = 'https://api.mistral.ai/v1';
 
 export async function requestMistralChat(

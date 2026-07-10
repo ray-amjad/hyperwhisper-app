@@ -9,18 +9,16 @@ const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 /**
  * GPT-5 family on /v1/chat/completions diverges from the shared OpenAI chat
  * payload that buildCorrectionRequest() produces:
- *   - `max_tokens` is rejected → must be renamed to `max_completion_tokens`;
  *   - only the default `temperature` (1) is supported → `temperature: 0` errors,
  *     so we drop it entirely.
  * `reasoning_effort: 'minimal'` is the lowest-latency setting GPT-5 accepts and
  * keeps post-processing fast/cheap. Verified against OpenAI docs 2026-06-19.
  */
-function buildOpenAIBody(payload: CorrectionRequestPayload, model: string): Record<string, unknown> {
-  const { temperature, max_tokens, ...rest } = payload;
+export function buildOpenAIBody(payload: CorrectionRequestPayload, model: string): Record<string, unknown> {
+  const { temperature, ...rest } = payload;
   return {
     model,
     ...rest,
-    max_completion_tokens: max_tokens,
     reasoning_effort: 'minimal',
     stream: false,
   };

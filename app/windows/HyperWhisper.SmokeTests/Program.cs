@@ -116,13 +116,14 @@ internal static class Program
 
             Run("OpenAI post-processing accepts a complete natural stop", () =>
             {
-                var completion = PostProcessingService.ParseOpenAICompletionResponseJson(
+                var completion = PostProcessingService.ParseOpenAICompatibleResponseJson(
                     """{"choices":[{"message":{"content":"<<CLEANED>>clean transcript<<END>>"},"finish_reason":"stop"}]}""");
-                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                var evaluation = PostProcessingService.EvaluateCompletion(
                     "raw transcript",
                     completion);
 
-                Assert(completion.FinishReason == "stop", $"finish reason '{completion.FinishReason}'");
+                Assert(completion.State == CompletionState.Complete, $"state '{completion.State}'");
+                Assert(completion.ProviderReason == "stop", $"finish reason '{completion.ProviderReason}'");
                 Assert(evaluation.IsAccepted, $"rejected as {evaluation.Failure}");
                 Assert(evaluation.Result.WasApplied, "complete response should be applied");
                 Assert(evaluation.Result.Text == "clean transcript", $"got '{evaluation.Result.Text}'");
@@ -131,23 +132,23 @@ internal static class Program
             Run("OpenAI post-processing rejects length truncation and preserves raw text", () =>
             {
                 const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                var evaluation = PostProcessingService.EvaluateCompletion(
                     raw,
-                    new OpenAICompletionResponse("<<CLEANED>>partial output", "length"));
+                    new CompletionResponse("<<CLEANED>>partial output", CompletionState.OutputLimit, "length"));
 
                 Assert(!evaluation.IsAccepted, "length response should be rejected");
                 Assert(!evaluation.Result.WasApplied, "rejected response should not be applied");
                 Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
-                Assert(evaluation.Failure == OpenAICompletionFailure.IncompleteFinishReason,
+                Assert(evaluation.Failure == CompletionFailure.IncompleteResponse,
                     $"failure {evaluation.Failure}");
             });
 
             Run("OpenAI post-processing rejects other incomplete terminal reasons", () =>
             {
                 const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                var evaluation = PostProcessingService.EvaluateCompletion(
                     raw,
-                    new OpenAICompletionResponse("<<CLEANED>>partial output<<END>>", "content_filter"));
+                    new CompletionResponse("<<CLEANED>>partial output<<END>>", CompletionState.Incomplete, "content_filter"));
 
                 Assert(!evaluation.IsAccepted, "non-stop response should be rejected");
                 Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
@@ -156,15 +157,79 @@ internal static class Program
             Run("OpenAI post-processing requires the closing marker and preserves raw text", () =>
             {
                 const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateOpenAICompletion(
+                var evaluation = PostProcessingService.EvaluateCompletion(
                     raw,
-                    new OpenAICompletionResponse("<<CLEANED>>partial output", "stop"));
+                    new CompletionResponse("<<CLEANED>>partial output", CompletionState.Complete, "stop"));
 
                 Assert(!evaluation.IsAccepted, "missing <<END>> should be rejected");
                 Assert(!evaluation.Result.WasApplied, "rejected response should not be applied");
                 Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
-                Assert(evaluation.Failure == OpenAICompletionFailure.MissingCompleteWrapper,
+                Assert(evaluation.Failure == CompletionFailure.MissingCompleteWrapper,
                     $"failure {evaluation.Failure}");
+            });
+
+            Run("OpenAI-compatible providers share uncapped request JSON", () =>
+            {
+                var requestJson = PostProcessingService.BuildOpenAIRequestJson("model", "system", "user");
+                using var request = JsonDocument.Parse(requestJson);
+                Assert(!request.RootElement.TryGetProperty("max_tokens", out _), "request should not contain max_tokens");
+                Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _), "request should not contain max_completion_tokens");
+            });
+
+            Run("OpenAI-compatible providers retain their endpoints", () =>
+            {
+                Assert(OpenAICompatibleProvider.OpenAI.Endpoint() == "https://api.openai.com/v1/chat/completions", "OpenAI endpoint");
+                Assert(OpenAICompatibleProvider.Groq.Endpoint() == "https://api.groq.com/openai/v1/chat/completions", "Groq endpoint");
+                Assert(OpenAICompatibleProvider.Grok.Endpoint() == "https://api.x.ai/v1/chat/completions", "Grok endpoint");
+                Assert(OpenAICompatibleProvider.Gemini.Endpoint() == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "Gemini endpoint");
+                Assert(OpenAICompatibleProvider.Cerebras.Endpoint() == "https://api.cerebras.ai/v1/chat/completions", "Cerebras endpoint");
+                Assert(OpenAICompatibleProvider.Mistral.Endpoint() == "https://api.mistral.ai/v1/chat/completions", "Mistral endpoint");
+            });
+
+            Run("Anthropic keeps its required 8192 output limit", () =>
+            {
+                var requestJson = PostProcessingService.BuildAnthropicRequestJson("model", "system", "user");
+                using var request = JsonDocument.Parse(requestJson);
+                Assert(request.RootElement.GetProperty("max_tokens").GetInt32() == 8192, "Anthropic max_tokens should be 8192");
+            });
+
+            Run("Anthropic output-limit stop is rejected", () =>
+            {
+                const string raw = "complete raw transcript";
+                var evaluation = PostProcessingService.EvaluateCompletion(
+                    raw,
+                    new CompletionResponse("<<CLEANED>>partial<<END>>", CompletionState.OutputLimit, "max_tokens"));
+
+                Assert(!evaluation.IsAccepted, "max_tokens response should be rejected");
+                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
+                Assert(PostProcessingService.NormalizeAnthropicStopReason("end_turn") == CompletionState.Complete,
+                    "end_turn should be complete");
+                Assert(PostProcessingService.NormalizeAnthropicStopReason("max_tokens") == CompletionState.OutputLimit,
+                    "max_tokens should be output-limited");
+            });
+
+            Run("Local and cloud responses require a complete wrapper", () =>
+            {
+                const string raw = "complete raw transcript";
+                var rejected = PostProcessingService.EvaluateCompletion(raw, CompletionResponse.Unspecified("<<CLEANED>>partial"));
+                var accepted = PostProcessingService.EvaluateCompletion(raw, CompletionResponse.Unspecified("<<CLEANED>>clean<<END>>"));
+
+                Assert(!rejected.IsAccepted && rejected.Result.Text == raw, "incomplete unspecified response should preserve raw text");
+                Assert(accepted.IsAccepted && accepted.Result.Text == "clean", "complete unspecified response should be accepted");
+            });
+
+            Run("Local LLM reserves an 8192-token output without context shifting", () =>
+            {
+                Assert(LocalLlmService.MaxTokens == 8_192, "local output ceiling should be 8192");
+                Assert(LocalLlmService.ContextSize >= 16_384, "local context should be at least 16384");
+
+                var promptBudget = LocalLlmService.ContextSize
+                    - LocalLlmService.MaxTokens
+                    - LocalLlmService.ChatTemplateTokenReserve;
+                LocalLlmService.EnsureTokenBudgetFits(500, promptBudget - 500);
+
+                Expect<InvalidOperationException>(() =>
+                    LocalLlmService.EnsureTokenBudgetFits(500, promptBudget - 499));
             });
 
             RunAsync("RustRetry caps transport failures at 4 and resolves the client per attempt", async () =>
@@ -320,6 +385,19 @@ internal static class Program
         try
         {
             await action();
+        }
+        catch (T expected)
+        {
+            return expected;
+        }
+        throw new InvalidOperationException($"expected {typeof(T).Name} was not thrown");
+    }
+
+    private static T Expect<T>(Action action) where T : Exception
+    {
+        try
+        {
+            action();
         }
         catch (T expected)
         {

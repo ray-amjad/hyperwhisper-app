@@ -25,6 +25,19 @@ final class MutationSignal {
     var didMutate: Bool = false
 }
 
+enum LocalLlmGenerationPolicy {
+    static let maxOutputTokens = 8_192
+
+    static func hasCompleteWrapper(_ text: String) -> Bool {
+        guard let start = text.range(of: "<<CLEANED>>") else { return false }
+        return text.range(of: "<<END>>", range: start.upperBound..<text.endIndex) != nil
+    }
+
+    static func isComplete(text: String, finishReason: String?) -> Bool {
+        finishReason?.lowercased() != "length" && hasCompleteWrapper(text)
+    }
+}
+
 /// AI Post-Processor for transcribed text
 /// This service enhances transcribed text based on mode presets using OpenAI's API
 /// 
@@ -335,7 +348,7 @@ class AIPostProcessor: ObservableObject {
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
             requestBody = [
                 "model": languageModel,
-                "max_tokens": 4096,
+                "max_tokens": 8192,
                 "system": [
                     [
                         "type": "text",
@@ -360,9 +373,7 @@ class AIPostProcessor: ObservableObject {
 
         if provider == .localLLM {
             localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
-            // Match Anthropic path: cap output so verbose presets can't stretch a
-            // post-process run to multiple minutes. 4096 is generous for normal output.
-            requestBody["max_tokens"] = 4096
+            requestBody["max_tokens"] = LocalLlmGenerationPolicy.maxOutputTokens
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -389,6 +400,7 @@ class AIPostProcessor: ObservableObject {
                 if httpResponse.statusCode == 200 {
                     // Parse successful response — format differs by provider
                     let responseContent: String?
+                    let finishReason: String?
                     if provider == .anthropic {
                         // Anthropic native: { "content": [{ "type": "text", "text": "..." }] }
                         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -399,6 +411,7 @@ class AIPostProcessor: ObservableObject {
                         } else {
                             responseContent = nil
                         }
+                        finishReason = nil
                     } else {
                         // OpenAI-compatible: { "choices": [{ "message": { "content": "..." } }] }
                         if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -407,13 +420,24 @@ class AIPostProcessor: ObservableObject {
                            let message = firstChoice["message"] as? [String: Any],
                            let text = message["content"] as? String {
                             responseContent = text
+                            finishReason = firstChoice["finish_reason"] as? String
                         } else {
                             responseContent = nil
+                            finishReason = nil
                         }
                     }
 
                     if let responseContent = responseContent {
                         let trimmedResponse = responseContent.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if provider == .localLLM,
+                           !LocalLlmGenerationPolicy.isComplete(text: trimmedResponse, finishReason: finishReason) {
+                            let reason = finishReason?.lowercased() == "length"
+                                ? "Local AI reached its output limit"
+                                : "Local AI returned an incomplete response"
+                            AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript")
+                            self.onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
+                            return trimmed
+                        }
                         let result = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedResponse)
                         if result.isEmpty {
                             // The model didn't emit the strict <<CLEANED>> wrapper.
@@ -656,9 +680,7 @@ class AIPostProcessor: ObservableObject {
         ]
 
         localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
-        // Cap output so verbose presets can't stretch a post-process run to
-        // multiple minutes. 4096 is generous for normal output.
-        requestBody["max_tokens"] = 4096
+        requestBody["max_tokens"] = LocalLlmGenerationPolicy.maxOutputTokens
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
@@ -669,6 +691,7 @@ class AIPostProcessor: ObservableObject {
         var buffer = ""
         var receivedAnyChunk = false
         var localLLMContentDone = false
+        var localLLMFinishReason: String?
         // Tracks whether the stream ended on a real terminator (`[DONE]` or the
         // OpenAI-compatible `finish_reason`). If llama-server closes the socket
         // mid-response without a terminator, `bytes.lines` ends without throwing —
@@ -726,6 +749,7 @@ class AIPostProcessor: ObservableObject {
                     onStreamingTextUpdate?(display)
                 }
                 if let finishReason = first["finish_reason"] as? String, !finishReason.isEmpty {
+                    localLLMFinishReason = finishReason
                     sawTerminator = true
                     // Don't break mid-stream — cancelling the URLSessionDataTask
                     // before llama-server's trailing `data: [DONE]` write makes the
@@ -759,6 +783,18 @@ class AIPostProcessor: ObservableObject {
                 return trimmed
             }
             let trimmedBuffer = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !LocalLlmGenerationPolicy.isComplete(
+                text: trimmedBuffer,
+                finishReason: localLLMFinishReason
+            ) {
+                let reason = localLLMFinishReason?.lowercased() == "length"
+                    ? "Local AI reached its output limit"
+                    : "Local AI returned an incomplete response"
+                AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript")
+                onStreamingTextUpdate?("")
+                onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
+                return trimmed
+            }
             let result = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedBuffer)
             if result.isEmpty {
                 // The model didn't emit the strict <<CLEANED>> wrapper. Before

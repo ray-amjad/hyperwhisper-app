@@ -26,7 +26,7 @@ final class LlamaServerController: ObservableObject {
     struct Configuration: Equatable {
         var host: String = "127.0.0.1"
         var port: Int = 37219
-        var contextSize: Int = 4096
+        var contextSize: Int = LlamaServerController.defaultContextSize()
         var threads: Int = max(1, ProcessInfo.processInfo.activeProcessorCount - 1)
         // TODO: revisit if llama.cpp auto-fit solver is fixed upstream — see github.com/ggml-org/llama.cpp issues for "auto-fit"
         var gpuLayers: Int? = 99
@@ -47,6 +47,12 @@ final class LlamaServerController: ObservableObject {
         if gb > 32 { return .high }
         if gb > 16 { return .mid }
         return .low
+    }
+
+    /// Reserve enough context for an 8,192-token rewrite without evicting the
+    /// source prompt. Higher-memory Macs get additional room for long transcripts.
+    nonisolated static func defaultContextSize() -> Int {
+        hardwareTier() == .high ? 32_768 : 16_384
     }
 
     // `--mlock` is actively harmful on Apple Silicon: Metal already keeps active
@@ -626,6 +632,7 @@ final class LlamaServerController: ObservableObject {
             "--port", String(configuration.port),
             "--threads", String(configuration.threads),
             "--ctx-size", String(configuration.contextSize),
+            "--no-context-shift",
             "--no-webui"
         ]
 

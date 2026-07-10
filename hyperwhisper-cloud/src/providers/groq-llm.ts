@@ -1,7 +1,6 @@
 // GROQ LLM CLIENT (CHAT COMPLETIONS)
 
 import { computeGroqChatCost, estimateUsageFromChars, isGroqUsage, type GroqUsage } from '../lib/cost-calculator';
-import { LLM_MAX_TOKENS } from '../lib/llm-token-limits';
 import { isRecord, safeReadText } from '../lib/utils';
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
@@ -15,7 +14,6 @@ export type ChatMessage = {
 export type CorrectionRequestPayload = {
   messages: ChatMessage[];
   temperature: number;
-  max_tokens: number;
 };
 
 export async function requestGroqChat(
@@ -104,6 +102,5 @@ export function buildCorrectionRequest(systemPrompt: string, userContent: string
       { role: 'user', content: userContent },
     ],
     temperature: 0,
-    max_tokens: LLM_MAX_TOKENS,
   };
 }

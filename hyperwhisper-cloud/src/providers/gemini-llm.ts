@@ -4,8 +4,8 @@ import { computeGeminiChatCost, isGroqUsage, type GroqUsage } from '../lib/cost-
 import { isRecord, safeReadText } from '../lib/utils';
 import { reportMissingUsage, type CorrectionRequestPayload } from './groq-llm';
 
-// Gemini exposes an OpenAI-compatible surface that accepts the standard chat
-// payload (messages, temperature: 0, max_tokens) unchanged. Verified 2026-06-19.
+// Gemini exposes an OpenAI-compatible surface that accepts the shared chat
+// payload unchanged. Verified 2026-06-19.
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/openai';
 
 export async function requestGeminiChat(

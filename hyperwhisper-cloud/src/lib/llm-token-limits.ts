@@ -1,6 +1,8 @@
 import type { LLMProvider } from './llm-provider';
 
-export const LLM_MAX_TOKENS = 8192;
+// Anthropic's Messages API requires an explicit output ceiling. Providers with
+// optional limit fields omit them and use their model/API defaults instead.
+export const ANTHROPIC_MAX_TOKENS = 8192;
 
 // Documented provider ceilings, checked 2026-05-27 (new PP providers 2026-06-19):
 // anthropic: Claude Haiku 4.5 supports 64k output tokens.
