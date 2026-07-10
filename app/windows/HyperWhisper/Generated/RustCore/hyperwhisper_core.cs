@@ -1018,6 +1018,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1364,6 +1366,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_parse_validate_response(RustBuffer @body,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(IntPtr @store,RustBuffer @status,RustBuffer @attemptedKey,long @nowUnixSecs,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2091,6 +2097,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_record_model_download(
     );
 
@@ -2772,6 +2782,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response();
             if (checksum != 51801) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response` checksum `51801`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict();
+            if (checksum != 58908) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict` checksum `58908`, library returned `{checksum}`");
             }
         }
         {
@@ -6965,6 +6981,22 @@ internal static class HyperwhisperCoreMethods {
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_parse_validate_response(FfiConverterByteArray.INSTANCE.Lower(@body), ref _status)
 ));
+    }
+
+
+    /// <summary>
+    /// Persist a server validation verdict for the attempted key: stores the key on
+    /// a valid (`Active`) verdict, and updates the validation cache only when the
+    /// verdict is valid or the attempted key matches the stored key. Prefer this
+    /// over the raw `license_update_validation_cache` after a validate response —
+    /// it prevents a rejected *replacement* key from clobbering the stored key's
+    /// cached status (a 24h lockout for a valid user).
+    /// </summary>
+    public static void LicensePersistValidationVerdict(KeyValueStore @store, HwLicenseStatus @status, string @attemptedKey, long @nowUnixSecs) {
+        
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(FfiConverterTypeKeyValueStore.INSTANCE.Lower(@store), FfiConverterTypeHwLicenseStatus.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@attemptedKey), FfiConverterInt64.INSTANCE.Lower(@nowUnixSecs), ref _status)
+);
     }
 
 
