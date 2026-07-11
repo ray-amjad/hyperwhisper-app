@@ -3,16 +3,22 @@ import { isRecord } from './utils';
 export type LLMCompletionStatus =
   | { state: 'complete'; reason: string }
   | { state: 'output_limit'; reason: string }
-  | { state: 'incomplete'; reason: string };
+  | { state: 'incomplete'; reason: string }
+  | { state: 'unspecified'; reason: string };
 
 /**
  * Normalize terminal reasons from Anthropic Messages and OpenAI-compatible
- * Chat Completions responses. A missing or unfamiliar reason fails closed so
- * partial, filtered, or otherwise interrupted text never replaces a transcript.
+ * Chat Completions responses. Recognized terminal reasons are classified as
+ * complete, output-limited, or incomplete, and only a recognized
+ * non-terminal reason (e.g. `length`, `content_filter`, `refusal`) fails
+ * closed. Missing termination metadata — no response object, no stop_reason,
+ * no finish_reason — is `unspecified` rather than a rejection: some
+ * custom/self-hosted servers omit it entirely, and callers proceed to text
+ * handling for `unspecified` the same as they do for `complete`.
  */
 export function getLLMCompletionStatus(raw: unknown): LLMCompletionStatus {
   if (!isRecord(raw)) {
-    return { state: 'incomplete', reason: 'missing_response_object' };
+    return { state: 'unspecified', reason: 'missing_response_object' };
   }
 
   const anthropicReason = raw['stop_reason'];
@@ -40,5 +46,5 @@ export function getLLMCompletionStatus(raw: unknown): LLMCompletionStatus {
     return { state: 'incomplete', reason: finishReason };
   }
 
-  return { state: 'incomplete', reason: 'missing_finish_reason' };
+  return { state: 'unspecified', reason: 'missing_finish_reason' };
 }
