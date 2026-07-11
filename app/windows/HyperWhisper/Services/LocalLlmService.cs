@@ -78,11 +78,12 @@ public sealed class LocalLlmService : IDisposable
 
             timeoutCts.CancelAfter(InferenceTimeout);
 
+            EnsurePromptFitsLocalContext(systemPrompt, userMessage);
+
             using var context = _weights!.CreateContext(_parameters!);
             var executor = new InteractiveExecutor(context);
             var chatHistory = new ChatHistory();
             chatHistory.AddMessage(AuthorRole.System, systemPrompt);
-            EnsurePromptFitsLocalContext(systemPrompt, userMessage);
 
             var session = new ChatSession(executor, chatHistory);
             var inferenceParams = new InferenceParams

@@ -316,20 +316,9 @@ public partial class CustomEndpointManager : IDisposable
 
         try
         {
-            var requestBody = new
-            {
-                model = modelName,
-                messages = new[]
-                {
-                    new { role = "user", content = "Say hello in one word." }
-                },
-                max_tokens = 10,
-                temperature = 0.0
-            };
-
             using var request = new HttpRequestMessage(HttpMethod.Post, uri);
             request.Content = new StringContent(
-                JsonSerializer.Serialize(requestBody),
+                PostProcessingService.BuildOpenAIRequestJson(modelName, "You are a helpful assistant.", "Say hello in one word."),
                 Encoding.UTF8,
                 "application/json"
             );

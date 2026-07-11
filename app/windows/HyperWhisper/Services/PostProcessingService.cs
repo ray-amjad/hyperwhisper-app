@@ -232,13 +232,10 @@ public class PostProcessingService : IDisposable
 
                 evaluation = provider switch
                 {
-                    PostProcessingProvider.OpenAI => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.OpenAI, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.OpenAI or PostProcessingProvider.Groq or PostProcessingProvider.Grok
+                        or PostProcessingProvider.Gemini or PostProcessingProvider.Cerebras or PostProcessingProvider.Mistral =>
+                        HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(MapToOpenAICompatibleProvider(provider), apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
                     PostProcessingProvider.Anthropic => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.AnthropicMessages, await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
-                    PostProcessingProvider.Groq => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Groq, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
-                    PostProcessingProvider.Grok => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Grok, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
-                    PostProcessingProvider.Gemini => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Gemini, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
-                    PostProcessingProvider.Cerebras => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Cerebras, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
-                    PostProcessingProvider.Mistral => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Mistral, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
                     PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
                     _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
@@ -340,6 +337,21 @@ public class PostProcessingService : IDisposable
 
         return JsonSerializer.Serialize(requestBody);
     }
+
+    /// <summary>
+    /// Maps the OpenAI-compatible subset of <see cref="PostProcessingProvider"/> to the
+    /// dedicated <see cref="OpenAICompatibleProvider"/> enum used by <see cref="CallOpenAICompatibleAsync"/>.
+    /// </summary>
+    private static OpenAICompatibleProvider MapToOpenAICompatibleProvider(PostProcessingProvider provider) => provider switch
+    {
+        PostProcessingProvider.OpenAI => OpenAICompatibleProvider.OpenAI,
+        PostProcessingProvider.Groq => OpenAICompatibleProvider.Groq,
+        PostProcessingProvider.Grok => OpenAICompatibleProvider.Grok,
+        PostProcessingProvider.Gemini => OpenAICompatibleProvider.Gemini,
+        PostProcessingProvider.Cerebras => OpenAICompatibleProvider.Cerebras,
+        PostProcessingProvider.Mistral => OpenAICompatibleProvider.Mistral,
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Provider is not OpenAI-compatible")
+    };
 
     /// <summary>
     /// Calls the Anthropic Messages API.

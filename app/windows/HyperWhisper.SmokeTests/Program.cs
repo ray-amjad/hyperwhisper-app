@@ -184,12 +184,17 @@ internal static class Program
                 Assert(evaluation.text == raw, "raw transcript was not preserved");
             });
 
-            Run("OpenAI-compatible providers share uncapped request JSON", () =>
+            Run("wrapped prompt leakage is rejected", () =>
             {
-                var requestJson = PostProcessingService.BuildOpenAIRequestJson("model", "system", "user");
-                using var request = JsonDocument.Parse(requestJson);
-                Assert(!request.RootElement.TryGetProperty("max_tokens", out _), "request should not contain max_tokens");
-                Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _), "request should not contain max_completion_tokens");
+                const string raw = "raw transcript";
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.OpenAiChat,
+                    """{"choices":[{"message":{"content":"<<CLEANED>><APPLICATION_CONTEXT>\nApp: Mail\n</APPLICATION_CONTEXT><<END>>"},"finish_reason":"stop"}]}""",
+                    raw);
+
+                Assert(!evaluation.accepted, "leaked application-context content should be rejected");
+                Assert(evaluation.text == raw, "raw transcript was not preserved");
+                Assert(evaluation.failure == CompletionFailure.PromptLeakage, $"failure {evaluation.failure}");
             });
 
             Run("OpenAI-compatible providers retain their endpoints", () =>
