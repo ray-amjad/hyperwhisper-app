@@ -94,8 +94,9 @@ pub fn normalize_termination(wire_protocol: WireProtocol, reason: Option<&str>) 
 /// Rejecting states short-circuit; `Complete`/`Unspecified` fall through to the
 /// same lenient marker handling as [`crate::strip_wrapper_markers`] (extract the
 /// wrapped content when a start-marker variant is present, otherwise strip stray
-/// markers and reject leaked prompt scaffolding), with the leakage and empty
-/// outcomes reported as distinct failures instead of a bare empty string.
+/// markers), then reject leaked prompt scaffolding on either path, with the
+/// leakage and empty outcomes reported as distinct failures instead of a bare
+/// empty string.
 pub fn evaluate_completion(
     original_transcript: &str,
     content: &str,
@@ -115,14 +116,7 @@ pub fn evaluate_completion(
             // Mirrors `strip_wrapper_markers` (see module docs) — kept in one
             // place via the shared marker tables and helpers.
             let cleaned = match earliest(content, START_VARIANTS, 0) {
-                None => {
-                    let stripped =
-                        strip_all(content.to_string(), END_VARIANTS).trim().to_string();
-                    if contains_prompt_markers(&stripped) {
-                        return reject(CompletionFailure::PromptLeakage);
-                    }
-                    stripped
-                }
+                None => strip_all(content.to_string(), END_VARIANTS).trim().to_string(),
                 Some((start_idx, start_len)) => {
                     let after_start = start_idx + start_len;
                     let inner = match earliest(content, END_VARIANTS, after_start) {
@@ -133,7 +127,9 @@ pub fn evaluate_completion(
                     strip_all(result, END_VARIANTS).trim().to_string()
                 }
             };
-            if cleaned.is_empty() {
+            if contains_prompt_markers(&cleaned) {
+                reject(CompletionFailure::PromptLeakage)
+            } else if cleaned.is_empty() {
                 reject(CompletionFailure::EmptyCleanedText)
             } else {
                 CompletionEvaluation {

@@ -170,6 +170,14 @@
       "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "prompt_leakage" }
     },
     {
+      "name": "leakage-inside-wrapper-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>><APPLICATION_CONTEXT>\nApp: Mail\n</APPLICATION_CONTEXT><<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "prompt_leakage" }
+    },
+    {
       "name": "empty-content-rejected",
       "wireProtocol": "openai_chat",
       "reason": "stop",
