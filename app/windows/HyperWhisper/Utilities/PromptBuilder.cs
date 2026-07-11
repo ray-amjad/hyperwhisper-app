@@ -18,7 +18,9 @@
 // separate cleanup. The loader helpers below are unused but retained for the
 // same reason.
 //
-// - <<CLEANED>>...<<END>> output wrapping (ExtractCleanedText) stays native
+// - <<CLEANED>>...<<END>> output wrapping/extraction moved to the shared core's
+//   completion policy (see PostProcessingService.EvaluateLlmResponseJson /
+//   EvaluateCompletion) — no longer lives here.
 // - WrapTranscript stays native
 
 using System.Globalization;
@@ -562,87 +564,4 @@ public static class PromptBuilder
     /// </summary>
     public static string WrapTranscript(string transcript) =>
         $"--TRANSCRIPT--\n{transcript}\n--ENDTRANSCRIPT--";
-
-    /// <summary>
-    /// Extracts the cleaned text from the LLM response.
-    /// Looks for text between <<CLEANED>> and <<END>> markers.
-    /// </summary>
-    private static readonly string[] StartVariants = ["<<CLEANED>>", "<<CLEANED>", "<CLEANED>>", "<CLEANED>", "<</CLEANED>>"];
-    private static readonly string[] EndVariants = ["<<END>>", "<<END>", "<END>>", "<END>", "<</END>>"];
-
-    public static string ExtractCleanedText(string response)
-    {
-        var trimmed = response;
-
-        // Find earliest start variant
-        int bestStart = -1;
-        int bestStartLen = 0;
-        foreach (var tag in StartVariants)
-        {
-            var idx = trimmed.IndexOf(tag, StringComparison.Ordinal);
-            if (idx >= 0 && (bestStart < 0 || idx < bestStart))
-            {
-                bestStart = idx;
-                bestStartLen = tag.Length;
-            }
-        }
-
-        if (bestStart < 0)
-        {
-            // No <<CLEANED>> start marker => the model did not follow the wrapping contract.
-            // Returning the raw response here would leak the system prompt / app-context /
-            // screen-OCR text as the user's transcription. Return empty so the caller treats it
-            // as a failed extraction and keeps the original transcription.
-            return string.Empty;
-        }
-
-        // Find earliest end variant after start
-        var afterStart = bestStart + bestStartLen;
-        int bestEnd = -1;
-        foreach (var tag in EndVariants)
-        {
-            var idx = trimmed.IndexOf(tag, afterStart, StringComparison.Ordinal);
-            if (idx >= 0 && (bestEnd < 0 || idx < bestEnd))
-            {
-                bestEnd = idx;
-            }
-        }
-
-        string inner;
-        if (bestEnd >= 0)
-        {
-            inner = trimmed[afterStart..bestEnd];
-        }
-        else
-        {
-            inner = trimmed[afterStart..];
-        }
-
-        // Final cleanup pass for residual markers
-        var result = inner;
-        foreach (var tag in StartVariants)
-            result = result.Replace(tag, "");
-        foreach (var tag in EndVariants)
-            result = result.Replace(tag, "");
-
-        return result.Trim();
-    }
-
-    /// <summary>
-    /// Extract the cleaned text, falling back to a lenient marker-strip when the
-    /// model omitted the strict &lt;&lt;CLEANED&gt;&gt; wrapper. Returns empty only
-    /// when even the lenient strip yields nothing — so a model that ignores the
-    /// wrapping contract no longer silently loses ALL post-processing (it would
-    /// otherwise fall back to the raw transcript). Mirrors the macOS
-    /// AIPostProcessor lenient fallback via the core's strip_wrapper_markers.
-    /// </summary>
-    public static string ExtractCleanedTextLenient(string response)
-    {
-        var strict = ExtractCleanedText(response);
-        if (!string.IsNullOrWhiteSpace(strict))
-        {
-            return strict;
-        }
-        return HyperwhisperCoreMethods.StripWrapperMarkers(response).Trim();
-    }
 }

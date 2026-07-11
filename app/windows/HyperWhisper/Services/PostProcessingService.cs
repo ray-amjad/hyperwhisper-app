@@ -22,6 +22,9 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Utilities;
+// LLM completion termination/wrapper policy lives in the shared Rust core so all
+// platforms share one implementation. See EvaluateLlmResponseJson / EvaluateCompletion.
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
 
@@ -216,40 +219,40 @@ public class PostProcessingService : IDisposable
 
         try
         {
-            CompletionResponse completion;
+            CompletionEvaluation evaluation;
 
             if (isCustomEndpoint)
             {
-                completion = await CallCustomEndpointAsync(mode, systemPrompt, userMessage, cancellationToken);
+                var responseJson = await CallCustomEndpointAsync(mode, systemPrompt, userMessage, cancellationToken);
+                evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, responseJson, text);
             }
             else
             {
                 LoggingService.Info($"PostProcessingService: Processing with {provider}/{resolvedModelId}");
 
-                completion = provider switch
+                evaluation = provider switch
                 {
-                    PostProcessingProvider.OpenAI => await CallOpenAICompatibleAsync(OpenAICompatibleProvider.OpenAI, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Anthropic => await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Groq => await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Groq, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Grok => await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Grok, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Gemini => await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Gemini, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Cerebras => await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Cerebras, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Mistral => await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Mistral, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.LocalLlm => CompletionResponse.Unspecified(await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken)),
-                    _ => CompletionResponse.Malformed("")
+                    PostProcessingProvider.OpenAI => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.OpenAI, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Anthropic => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.AnthropicMessages, await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Groq => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Groq, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Grok => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Grok, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Gemini => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Gemini, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Cerebras => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Cerebras, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Mistral => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(OpenAICompatibleProvider.Mistral, apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
+                    _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
             }
 
-            var evaluation = EvaluateCompletion(text, completion);
-            if (!evaluation.IsAccepted)
+            if (!evaluation.accepted)
             {
-                LoggingService.Warn($"PostProcessingService: Response rejected ({evaluation.Failure}, {completion.ProviderReason ?? "no reason"}); keeping original transcription");
+                LoggingService.Warn($"PostProcessingService: Response rejected ({evaluation.failure}); keeping original transcription");
                 WarningOccurred?.Invoke(this, new ErrorToastEventArgs(Loc.S("postprocessing.error.failed")));
-                return evaluation.Result;
+                return PostProcessingResult.Skipped(evaluation.text);
             }
-            LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {evaluation.Result.Text.Length} chars)");
+            LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {evaluation.text.Length} chars)");
 
-            return evaluation.Result;
+            return PostProcessingResult.Applied(evaluation.text);
         }
         catch (OperationCanceledException)
         {
@@ -298,7 +301,7 @@ public class PostProcessingService : IDisposable
     /// Calls any provider that implements the OpenAI Chat Completions protocol.
     /// Provider-specific behavior belongs in <see cref="OpenAICompatibleProviderExtensions"/>.
     /// </summary>
-    private async Task<CompletionResponse> CallOpenAICompatibleAsync(
+    private async Task<string> CallOpenAICompatibleAsync(
         OpenAICompatibleProvider provider,
         string apiKey,
         string model,
@@ -306,7 +309,7 @@ public class PostProcessingService : IDisposable
         string userMessage,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, provider.Endpoint());
+        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, provider.Endpoint());
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = new StringContent(
             BuildOpenAIRequestJson(model, systemPrompt, userMessage),
@@ -317,8 +320,7 @@ public class PostProcessingService : IDisposable
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ParseOpenAICompatibleResponseJson(responseJson);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     internal static string BuildOpenAIRequestJson(
@@ -339,82 +341,17 @@ public class PostProcessingService : IDisposable
         return JsonSerializer.Serialize(requestBody);
     }
 
-    internal static CompletionResponse ParseOpenAICompatibleResponseJson(string responseJson)
-    {
-        using var doc = JsonDocument.Parse(responseJson);
-        var choice = doc.RootElement.GetProperty("choices")[0];
-        var content = choice
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
-        var finishReason = choice.TryGetProperty("finish_reason", out var finishReasonElement)
-            ? finishReasonElement.GetString()
-            : null;
-
-        return new CompletionResponse(content, NormalizeOpenAICompatibleFinishReason(finishReason), finishReason);
-    }
-
-    internal static CompletionState NormalizeOpenAICompatibleFinishReason(string? finishReason) =>
-        finishReason switch
-        {
-            "stop" => CompletionState.Complete,
-            "length" => CompletionState.OutputLimit,
-            null or "" => CompletionState.Malformed,
-            _ => CompletionState.Incomplete
-        };
-
-    internal static CompletionEvaluation EvaluateCompletion(
-        string originalText,
-        CompletionResponse completion)
-    {
-        if (completion.State is CompletionState.OutputLimit or CompletionState.Incomplete or CompletionState.Malformed)
-        {
-            return CompletionEvaluation.Rejected(
-                originalText,
-                CompletionFailure.IncompleteResponse);
-        }
-
-        const string startMarker = "<<CLEANED>>";
-        const string endMarker = "<<END>>";
-        var start = completion.Content.IndexOf(startMarker, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return CompletionEvaluation.Rejected(
-                originalText,
-                CompletionFailure.MissingCompleteWrapper);
-        }
-
-        var contentStart = start + startMarker.Length;
-        var end = completion.Content.IndexOf(endMarker, contentStart, StringComparison.Ordinal);
-        if (end < 0)
-        {
-            return CompletionEvaluation.Rejected(
-                originalText,
-                CompletionFailure.MissingCompleteWrapper);
-        }
-
-        var cleanedText = completion.Content[contentStart..end].Trim();
-        if (string.IsNullOrWhiteSpace(cleanedText))
-        {
-            return CompletionEvaluation.Rejected(
-                originalText,
-                CompletionFailure.EmptyCleanedText);
-        }
-
-        return CompletionEvaluation.Accepted(cleanedText);
-    }
-
     /// <summary>
     /// Calls the Anthropic Messages API.
     /// </summary>
-    private async Task<CompletionResponse> CallAnthropicAsync(
+    private async Task<string> CallAnthropicAsync(
         string apiKey,
         string model,
         string systemPrompt,
         string userMessage,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://api.anthropic.com/v1/messages");
         request.Headers.Add("x-api-key", apiKey);
         request.Headers.Add("anthropic-version", "2023-06-01");
         request.Content = new StringContent(
@@ -426,18 +363,7 @@ public class PostProcessingService : IDisposable
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        var content = doc.RootElement
-            .GetProperty("content")[0]
-            .GetProperty("text")
-            .GetString() ?? "";
-        var stopReason = doc.RootElement.TryGetProperty("stop_reason", out var stopReasonElement)
-            ? stopReasonElement.GetString()
-            : null;
-
-        return new CompletionResponse(content, NormalizeAnthropicStopReason(stopReason), stopReason);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     internal static string BuildAnthropicRequestJson(
@@ -469,15 +395,6 @@ public class PostProcessingService : IDisposable
 
         return JsonSerializer.Serialize(requestBody);
     }
-
-    internal static CompletionState NormalizeAnthropicStopReason(string? stopReason) =>
-        stopReason switch
-        {
-            "end_turn" or "stop_sequence" => CompletionState.Complete,
-            "max_tokens" => CompletionState.OutputLimit,
-            null or "" => CompletionState.Malformed,
-            _ => CompletionState.Incomplete
-        };
 
     /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.
@@ -515,7 +432,7 @@ public class PostProcessingService : IDisposable
     /// Calls a custom OpenAI-compatible endpoint for post-processing.
     /// Prompts are built by the caller (ProcessAsync) to avoid duplication.
     /// </summary>
-    private async Task<CompletionResponse> CallCustomEndpointAsync(
+    private async Task<string> CallCustomEndpointAsync(
         Mode mode,
         string systemPrompt,
         string userMessage,
@@ -526,12 +443,12 @@ public class PostProcessingService : IDisposable
         if (endpoint == null)
         {
             LoggingService.Warn($"PostProcessingService: Custom endpoint not found for '{mode.PostProcessingProvider}'");
-            return CompletionResponse.Malformed("");
+            throw new InvalidOperationException($"Custom endpoint not found for '{mode.PostProcessingProvider}'");
         }
 
         LoggingService.Info($"PostProcessingService: Processing with custom endpoint '{endpoint.Name}' / {endpoint.ModelName}");
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint.EndpointURL);
+        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, endpoint.EndpointURL);
         request.Content = new StringContent(
             BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage),
             Encoding.UTF8,
@@ -548,8 +465,7 @@ public class PostProcessingService : IDisposable
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        return ParseOpenAICompatibleResponseJson(responseJson);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     // =========================================================================
@@ -580,50 +496,6 @@ public readonly record struct PostProcessingResult(string Text, bool WasApplied)
 {
     public static PostProcessingResult Applied(string text) => new(text, true);
     public static PostProcessingResult Skipped(string text) => new(text, false);
-}
-
-internal readonly record struct CompletionResponse(
-    string Content,
-    CompletionState State,
-    string? ProviderReason)
-{
-    public static CompletionResponse Unspecified(string content) =>
-        new(content, CompletionState.Unspecified, null);
-
-    public static CompletionResponse Malformed(string content) =>
-        new(content, CompletionState.Malformed, null);
-}
-
-internal enum CompletionState
-{
-    Complete,
-    OutputLimit,
-    Incomplete,
-    Unspecified,
-    Malformed
-}
-
-internal enum CompletionFailure
-{
-    None,
-    IncompleteResponse,
-    MissingCompleteWrapper,
-    EmptyCleanedText
-}
-
-internal readonly record struct CompletionEvaluation(
-    PostProcessingResult Result,
-    CompletionFailure Failure)
-{
-    public bool IsAccepted => Failure == CompletionFailure.None;
-
-    public static CompletionEvaluation Accepted(string cleanedText) =>
-        new(PostProcessingResult.Applied(cleanedText), CompletionFailure.None);
-
-    public static CompletionEvaluation Rejected(
-        string originalText,
-        CompletionFailure failure) =>
-        new(PostProcessingResult.Skipped(originalText), failure);
 }
 
 internal enum OpenAICompatibleProvider

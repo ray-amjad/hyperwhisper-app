@@ -114,58 +114,74 @@ internal static class Program
                     "OpenAI request should not contain max_completion_tokens");
             });
 
-            Run("OpenAI post-processing accepts a complete natural stop", () =>
-            {
-                var completion = PostProcessingService.ParseOpenAICompatibleResponseJson(
-                    """{"choices":[{"message":{"content":"<<CLEANED>>clean transcript<<END>>"},"finish_reason":"stop"}]}""");
-                var evaluation = PostProcessingService.EvaluateCompletion(
-                    "raw transcript",
-                    completion);
+            // These checks call straight into the generated FFI surface
+            // (HyperwhisperCoreMethods.EvaluateLlmResponseJson / EvaluateCompletion /
+            // NormalizeTermination), which doubles as the uniffi API-checksum drift
+            // gate for the completion-policy functions on the real Windows DLL.
 
-                Assert(completion.State == CompletionState.Complete, $"state '{completion.State}'");
-                Assert(completion.ProviderReason == "stop", $"finish reason '{completion.ProviderReason}'");
-                Assert(evaluation.IsAccepted, $"rejected as {evaluation.Failure}");
-                Assert(evaluation.Result.WasApplied, "complete response should be applied");
-                Assert(evaluation.Result.Text == "clean transcript", $"got '{evaluation.Result.Text}'");
+            Run("OpenAI wire: complete + wrapped content is accepted", () =>
+            {
+                const string raw = "raw transcript";
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.OpenAiChat,
+                    """{"choices":[{"message":{"content":"<<CLEANED>>clean transcript<<END>>"},"finish_reason":"stop"}]}""",
+                    raw);
+
+                Assert(evaluation.accepted, $"rejected as {evaluation.failure}");
+                Assert(evaluation.text == "clean transcript", $"got '{evaluation.text}'");
             });
 
-            Run("OpenAI post-processing rejects length truncation and preserves raw text", () =>
+            Run("OpenAI wire: finish_reason=length is rejected and returns original", () =>
             {
                 const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateCompletion(
-                    raw,
-                    new CompletionResponse("<<CLEANED>>partial output", CompletionState.OutputLimit, "length"));
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.OpenAiChat,
+                    """{"choices":[{"message":{"content":"<<CLEANED>>partial output"},"finish_reason":"length"}]}""",
+                    raw);
 
-                Assert(!evaluation.IsAccepted, "length response should be rejected");
-                Assert(!evaluation.Result.WasApplied, "rejected response should not be applied");
-                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
-                Assert(evaluation.Failure == CompletionFailure.IncompleteResponse,
-                    $"failure {evaluation.Failure}");
+                Assert(!evaluation.accepted, "length response should be rejected");
+                Assert(evaluation.text == raw, "raw transcript was not preserved");
+                Assert(evaluation.failure == CompletionFailure.OutputLimit, $"failure {evaluation.failure}");
             });
 
-            Run("OpenAI post-processing rejects other incomplete terminal reasons", () =>
+            Run("OpenAI wire: missing finish_reason proceeds (Unspecified)", () =>
             {
-                const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateCompletion(
-                    raw,
-                    new CompletionResponse("<<CLEANED>>partial output<<END>>", CompletionState.Incomplete, "content_filter"));
+                Assert(
+                    HyperwhisperCoreMethods.NormalizeTermination(WireProtocol.OpenAiChat, null) == CompletionState.Unspecified,
+                    "missing finish_reason should normalize to Unspecified");
 
-                Assert(!evaluation.IsAccepted, "non-stop response should be rejected");
-                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
+                const string raw = "raw transcript";
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.OpenAiChat,
+                    """{"choices":[{"message":{"content":"<<CLEANED>>clean<<END>>"}}]}""",
+                    raw);
+
+                Assert(evaluation.accepted, $"missing finish_reason should still proceed to lenient evaluation, got {evaluation.failure}");
+                Assert(evaluation.text == "clean", $"got '{evaluation.text}'");
             });
 
-            Run("OpenAI post-processing requires the closing marker and preserves raw text", () =>
+            Run("OpenAI wire: markerless content is accepted (lenient variant matching)", () =>
+            {
+                const string raw = "raw transcript";
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.OpenAiChat,
+                    """{"choices":[{"message":{"content":"clean transcript, no markers"},"finish_reason":"stop"}]}""",
+                    raw);
+
+                Assert(evaluation.accepted, $"markerless complete content should be accepted leniently, got {evaluation.failure}");
+                Assert(evaluation.text == "clean transcript, no markers", $"got '{evaluation.text}'");
+            });
+
+            Run("OpenAI wire: malformed JSON is rejected and returns original", () =>
             {
                 const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateCompletion(
-                    raw,
-                    new CompletionResponse("<<CLEANED>>partial output", CompletionState.Complete, "stop"));
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.OpenAiChat,
+                    "not json",
+                    raw);
 
-                Assert(!evaluation.IsAccepted, "missing <<END>> should be rejected");
-                Assert(!evaluation.Result.WasApplied, "rejected response should not be applied");
-                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
-                Assert(evaluation.Failure == CompletionFailure.MissingCompleteWrapper,
-                    $"failure {evaluation.Failure}");
+                Assert(!evaluation.accepted, "malformed body should be rejected");
+                Assert(evaluation.text == raw, "raw transcript was not preserved");
             });
 
             Run("OpenAI-compatible providers share uncapped request JSON", () =>
@@ -193,29 +209,35 @@ internal static class Program
                 Assert(request.RootElement.GetProperty("max_tokens").GetInt32() == 8192, "Anthropic max_tokens should be 8192");
             });
 
-            Run("Anthropic output-limit stop is rejected", () =>
+            Run("Anthropic wire: max_tokens stop is rejected", () =>
             {
                 const string raw = "complete raw transcript";
-                var evaluation = PostProcessingService.EvaluateCompletion(
-                    raw,
-                    new CompletionResponse("<<CLEANED>>partial<<END>>", CompletionState.OutputLimit, "max_tokens"));
+                var evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                    WireProtocol.AnthropicMessages,
+                    """{"content":[{"type":"text","text":"<<CLEANED>>partial<<END>>"}],"stop_reason":"max_tokens"}""",
+                    raw);
 
-                Assert(!evaluation.IsAccepted, "max_tokens response should be rejected");
-                Assert(evaluation.Result.Text == raw, "raw transcript was not preserved");
-                Assert(PostProcessingService.NormalizeAnthropicStopReason("end_turn") == CompletionState.Complete,
+                Assert(!evaluation.accepted, "max_tokens response should be rejected");
+                Assert(evaluation.text == raw, "raw transcript was not preserved");
+                Assert(evaluation.failure == CompletionFailure.OutputLimit, $"failure {evaluation.failure}");
+
+                Assert(HyperwhisperCoreMethods.NormalizeTermination(WireProtocol.AnthropicMessages, "end_turn") == CompletionState.Complete,
                     "end_turn should be complete");
-                Assert(PostProcessingService.NormalizeAnthropicStopReason("max_tokens") == CompletionState.OutputLimit,
+                Assert(HyperwhisperCoreMethods.NormalizeTermination(WireProtocol.AnthropicMessages, "max_tokens") == CompletionState.OutputLimit,
                     "max_tokens should be output-limited");
             });
 
-            Run("Local and cloud responses require a complete wrapper", () =>
+            Run("Local/in-process completions (Unspecified state) require lenient acceptance", () =>
             {
                 const string raw = "complete raw transcript";
-                var rejected = PostProcessingService.EvaluateCompletion(raw, CompletionResponse.Unspecified("<<CLEANED>>partial"));
-                var accepted = PostProcessingService.EvaluateCompletion(raw, CompletionResponse.Unspecified("<<CLEANED>>clean<<END>>"));
+                var rejected = HyperwhisperCoreMethods.EvaluateCompletion(raw, "", CompletionState.Unspecified);
+                var accepted = HyperwhisperCoreMethods.EvaluateCompletion(raw, "<<CLEANED>>clean<<END>>", CompletionState.Unspecified);
+                var acceptedMarkerless = HyperwhisperCoreMethods.EvaluateCompletion(raw, "clean, no markers", CompletionState.Unspecified);
 
-                Assert(!rejected.IsAccepted && rejected.Result.Text == raw, "incomplete unspecified response should preserve raw text");
-                Assert(accepted.IsAccepted && accepted.Result.Text == "clean", "complete unspecified response should be accepted");
+                Assert(!rejected.accepted && rejected.text == raw, "empty unspecified response should preserve raw text");
+                Assert(accepted.accepted && accepted.text == "clean", "wrapped unspecified response should be accepted");
+                Assert(acceptedMarkerless.accepted && acceptedMarkerless.text == "clean, no markers",
+                    "markerless unspecified response should be accepted leniently");
             });
 
             Run("Local LLM reserves an 8192-token output without context shifting", () =>
