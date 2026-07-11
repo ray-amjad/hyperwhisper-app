@@ -88,6 +88,20 @@ struct CompletionPolicyTests {
         #expect(evaluation.failure == .promptLeakage)
     }
 
+    @Test func promptLeakageInsideWrapperIsRejected() {
+        // Vector: leakage-inside-wrapper-rejected — scaffolding leaked inside
+        // the <<CLEANED>>…<<END>> wrapper must not reach the user either.
+        let state = TranscriptionTextProcessing.normalizeTermination(wireProtocol: .openAiChat, reason: "stop")
+        let evaluation = TranscriptionTextProcessing.evaluateCompletion(
+            original: "raw transcript",
+            content: "<<CLEANED>><APPLICATION_CONTEXT>\nApp: Mail\n</APPLICATION_CONTEXT><<END>>",
+            state: state
+        )
+        #expect(!evaluation.accepted)
+        #expect(evaluation.text == "raw transcript")
+        #expect(evaluation.failure == .promptLeakage)
+    }
+
     @Test func anthropicMaxTokensIsRejected() {
         // Vector: anthropic-max-tokens-rejected — Anthropic's stop_reason is
         // parsed inside the core, so BYO Anthropic gets the same enforcement.
