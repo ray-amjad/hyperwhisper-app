@@ -1,4 +1,5 @@
 import { isRecord } from './utils';
+import { containsPromptLeakage, extractCorrectedText, stripCleanMarkers } from './text-processing';
 
 export type LLMCompletionStatus =
   | { state: 'complete'; reason: string }
@@ -47,4 +48,38 @@ export function getLLMCompletionStatus(raw: unknown): LLMCompletionStatus {
   }
 
   return { state: 'unspecified', reason: 'missing_finish_reason' };
+}
+
+export type CompletionFailure = 'none' | 'output_limit' | 'incomplete_response' | 'prompt_leakage' | 'empty_cleaned_text';
+
+/**
+ * Composed completion policy — the TS analog of the Rust core's
+ * `evaluate_completion`. Gates on completion state, extracts and strips
+ * markers, then rejects on prompt leakage or an empty result. A throw from
+ * `extractCorrectedText` (a response with no text field anywhere) is
+ * genuinely malformed and propagates to the caller rather than being
+ * absorbed here.
+ */
+export function evaluateCompletionResponse(
+  raw: unknown,
+  original: string
+): { accepted: boolean; text: string; failure: CompletionFailure; state: LLMCompletionStatus['state']; reason: string } {
+  const status = getLLMCompletionStatus(raw);
+
+  if (status.state !== 'complete' && status.state !== 'unspecified') {
+    const failure: CompletionFailure = status.state === 'output_limit' ? 'output_limit' : 'incomplete_response';
+    return { accepted: false, text: original, failure, state: status.state, reason: status.reason };
+  }
+
+  const cleaned = stripCleanMarkers(extractCorrectedText(raw));
+
+  if (containsPromptLeakage(cleaned)) {
+    return { accepted: false, text: original, failure: 'prompt_leakage', state: status.state, reason: status.reason };
+  }
+
+  if (cleaned.length === 0) {
+    return { accepted: false, text: original, failure: 'empty_cleaned_text', state: status.state, reason: status.reason };
+  }
+
+  return { accepted: true, text: cleaned, failure: 'none', state: status.state, reason: status.reason };
 }

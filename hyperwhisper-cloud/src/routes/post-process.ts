@@ -4,7 +4,7 @@
 import type { Context } from 'hono';
 import { defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
 import { generateRequestId, getClientIP } from '../lib/request-id';
-import { buildTranscriptUserContent, containsPromptLeakage, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
+import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
 import { buildCorrectionRequest } from '../providers/groq-llm';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
@@ -12,7 +12,7 @@ import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { logEvent } from '../lib/logging';
-import { getLLMCompletionStatus } from '../lib/llm-completion';
+import { evaluateCompletionResponse } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
@@ -180,51 +180,20 @@ export async function postProcessRoute(c: Context) {
 
   let correctedText: string;
   let costUsd = llmResponse.costUsd;
-  const completionStatus = getLLMCompletionStatus(llmResponse.raw);
 
-  if (completionStatus.state !== 'complete' && completionStatus.state !== 'unspecified') {
-    // Rejecting states (output-limited, or a recognized-but-non-terminal
-    // reason) keep the raw transcript without ever attempting extraction.
-    logEvent(requestId, startTime, 'post_process.llm_incomplete', {
-      provider: providerUsed,
-      state: completionStatus.state,
-      reason: completionStatus.reason,
-      fallbackToRaw: true,
-    });
-    correctedText = text;
-  } else {
-    try {
-      correctedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
-    } catch (extractError) {
-      // The LLM call already succeeded (and cost us money) — bill the user
-      // even though we can't return usable text.
-      deductCredits(
-        authResult.value,
-        costUsd,
-        {
-          post_processing_cost_usd: costUsd,
-          input_length: text.length,
-          output_length: 0,
-          endpoint: '/post-process',
-          llm_provider: providerUsed,
-        },
-        clientIP
-      ).catch(console.error);
+  try {
+    const evaluation = evaluateCompletionResponse(llmResponse.raw, text);
 
-      logEvent(requestId, startTime, 'post_process.request_fail', {
-        reason: 'extract_failed',
-        provider: providerUsed,
-        costUsd,
-        error: extractError instanceof Error ? extractError.message : String(extractError),
-      });
-      return errorResponse(500, 'Post-processing failed', extractError instanceof Error ? extractError.message : String(extractError), { requestId });
-    }
-
-    if (containsPromptLeakage(correctedText)) {
+    if (evaluation.accepted) {
+      correctedText = evaluation.text;
+    } else if (evaluation.failure === 'prompt_leakage') {
+      // Recomputed only for the outputChars metric below — evaluateCompletionResponse
+      // already extracted this successfully, so this call cannot throw.
+      const leakedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
       logEvent(requestId, startTime, 'post_process.prompt_leakage_detected', {
         provider: providerUsed,
         inputChars: text.length,
-        outputChars: correctedText.length,
+        outputChars: leakedText.length,
       });
 
       const alternateProvider: LLMProvider = fallbackProviderFor(providerUsed);
@@ -235,41 +204,33 @@ export async function postProcessRoute(c: Context) {
       try {
         const alternateModel = defaultModelFor(alternateProvider);
         const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateRetries, alternateModel);
-        const retryCompletionStatus = getLLMCompletionStatus(retryResponse.raw);
 
-        if (retryCompletionStatus.state !== 'complete' && retryCompletionStatus.state !== 'unspecified') {
-          logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+        // Bill the retry the moment it succeeds, before any evaluation step
+        // below can throw — otherwise a successful (and billed-by-the-provider)
+        // retry's cost would be silently dropped if extraction failed.
+        providerUsed = alternateProvider;
+        modelUsed = alternateModel;
+        costUsd += retryResponse.costUsd;
+
+        const retryEvaluation = evaluateCompletionResponse(retryResponse.raw, text);
+
+        if (retryEvaluation.accepted) {
+          correctedText = retryEvaluation.text;
+        } else if (retryEvaluation.failure === 'prompt_leakage') {
+          logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
             provider: alternateProvider,
-            state: retryCompletionStatus.state,
-            reason: retryCompletionStatus.reason,
             fallbackToRaw: true,
           });
           correctedText = text;
         } else {
-          const retryText = stripCleanMarkers(extractCorrectedText(retryResponse.raw));
-
-          if (retryText.length === 0) {
-            logEvent(requestId, startTime, 'post_process.llm_incomplete', {
-              provider: alternateProvider,
-              state: retryCompletionStatus.state,
-              reason: 'empty_cleaned_text',
-              fallbackToRaw: true,
-            });
-            correctedText = text;
-          } else if (containsPromptLeakage(retryText)) {
-            logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
-              provider: alternateProvider,
-              fallbackToRaw: true,
-            });
-            correctedText = text;
-          } else {
-            correctedText = retryText;
-          }
+          logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+            provider: alternateProvider,
+            state: retryEvaluation.state,
+            reason: retryEvaluation.failure === 'empty_cleaned_text' ? 'empty_cleaned_text' : retryEvaluation.reason,
+            fallbackToRaw: true,
+          });
+          correctedText = text;
         }
-
-        providerUsed = alternateProvider;
-        modelUsed = alternateModel;
-        costUsd += retryResponse.costUsd;
       } catch (retryError) {
         logEvent(requestId, startTime, 'post_process.llm_leakage_retry_fail', {
           provider: alternateProvider,
@@ -278,18 +239,40 @@ export async function postProcessRoute(c: Context) {
         });
         correctedText = text;
       }
-    } else if (correctedText.length === 0) {
-      // No prompt leakage, but nothing usable survived marker stripping
-      // (e.g. an empty or whitespace-only wrapped response). Fall back to
-      // the raw transcript without spending on an alternate-provider retry.
+    } else {
+      // output_limit, incomplete_response, or empty_cleaned_text: keep the
+      // raw transcript without spending on an alternate-provider retry.
       logEvent(requestId, startTime, 'post_process.llm_incomplete', {
         provider: providerUsed,
-        state: completionStatus.state,
-        reason: 'empty_cleaned_text',
+        state: evaluation.state,
+        reason: evaluation.failure === 'empty_cleaned_text' ? 'empty_cleaned_text' : evaluation.reason,
         fallbackToRaw: true,
       });
       correctedText = text;
     }
+  } catch (extractError) {
+    // The LLM call already succeeded (and cost us money) — bill the user
+    // even though we can't return usable text.
+    deductCredits(
+      authResult.value,
+      costUsd,
+      {
+        post_processing_cost_usd: costUsd,
+        input_length: text.length,
+        output_length: 0,
+        endpoint: '/post-process',
+        llm_provider: providerUsed,
+      },
+      clientIP
+    ).catch(console.error);
+
+    logEvent(requestId, startTime, 'post_process.request_fail', {
+      reason: 'extract_failed',
+      provider: providerUsed,
+      costUsd,
+      error: extractError instanceof Error ? extractError.message : String(extractError),
+    });
+    return errorResponse(500, 'Post-processing failed', extractError instanceof Error ? extractError.message : String(extractError), { requestId });
   }
 
   const creditsUsed = creditsForCost(costUsd);

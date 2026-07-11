@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { getLLMCompletionStatus } from './llm-completion';
-import { containsPromptLeakage, extractCorrectedText, stripCleanMarkers } from './text-processing';
+import { evaluateCompletionResponse, getLLMCompletionStatus } from './llm-completion';
 
 describe('getLLMCompletionStatus', () => {
   test('accepts normal terminal reasons from both supported response protocols', () => {
@@ -79,45 +78,17 @@ function buildRaw(testCase: ConformanceCase): unknown {
   }
 }
 
-// Mirrors the composed policy in src/routes/post-process.ts's primary
-// attempt path: gate on completion state, extract + strip markers, then
-// reject on leakage or an empty result.
+// Runs the same composed policy the TS route applies via
+// evaluateCompletionResponse; a throw (genuinely malformed response, no text
+// field anywhere) is mapped to 'extract_failed' for safety, though none of
+// the current vectors are expected to hit it.
 function evaluate(testCase: ConformanceCase): { accepted: boolean; text: string; failure: string } {
-  const status = getLLMCompletionStatus(buildRaw(testCase));
-
-  if (status.state !== 'complete' && status.state !== 'unspecified') {
-    const failure = status.state === 'output_limit' ? 'output_limit' : 'incomplete_response';
-    return { accepted: false, text: testCase.original, failure };
-  }
-
-  let extracted: string;
   try {
-    extracted = stripCleanMarkers(extractCorrectedText(buildRaw(testCase)));
+    return evaluateCompletionResponse(buildRaw(testCase), testCase.original);
   } catch {
-    // A response with genuinely no text anywhere (e.g. a top-level empty
-    // string with no wrapper) makes extractCorrectedText throw rather than
-    // return an empty string. The route treats this as an extraction
-    // failure (a 500), not a graceful empty-text rejection, so it lands
-    // here instead of the empty_cleaned_text branch below. See the
-    // 'empty-content-rejected' case handling in the test below.
     return { accepted: false, text: testCase.original, failure: 'extract_failed' };
   }
-
-  if (containsPromptLeakage(extracted)) {
-    return { accepted: false, text: testCase.original, failure: 'prompt_leakage' };
-  }
-  if (extracted.length === 0) {
-    return { accepted: false, text: testCase.original, failure: 'empty_cleaned_text' };
-  }
-  return { accepted: true, text: extracted, failure: 'none' };
 }
-
-// Vector cases whose `expect.failure` doesn't map cleanly onto the TS
-// extraction path (documented above) and is intentionally skipped. accepted
-// and text are still asserted for every case, including these.
-const SKIP_FAILURE_ASSERTION = new Set<string>([
-  'empty-content-rejected', // TS extractCorrectedText throws on a top-level empty string instead of returning '', so it surfaces as 'extract_failed' rather than 'empty_cleaned_text'.
-]);
 
 describe('completion policy conformance vectors', () => {
   const vectorsPromise = Bun.file(
@@ -133,10 +104,7 @@ describe('completion policy conformance vectors', () => {
 
       expect(result.accepted, `${testCase.name}: accepted`).toBe(testCase.expect.accepted);
       expect(result.text, `${testCase.name}: text`).toBe(testCase.expect.text);
-
-      if (!SKIP_FAILURE_ASSERTION.has(testCase.name)) {
-        expect(result.failure, `${testCase.name}: failure`).toBe(testCase.expect.failure);
-      }
+      expect(result.failure, `${testCase.name}: failure`).toBe(testCase.expect.failure);
     }
   });
 });
