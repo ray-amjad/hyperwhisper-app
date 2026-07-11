@@ -430,20 +430,13 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 try throwIfCancelled()
 
                 if !corrected.isEmpty {
-                    // Post-processed output should be <<CLEANED>>-wrapped. Prefer
-                    // strict extraction; when the model didn't wrap, fall back to
-                    // the lenient strip (which itself guards against a prompt/OCR
-                    // leak) before skipping — mirrors the AIPostProcessor pattern so
-                    // a valid-but-unwrapped correction isn't silently dropped after
-                    // the credit was already charged.
+                    // The backend already enforces the completion policy server-side
+                    // (rejects incomplete/truncated output there) — use the returned
+                    // text as-is rather than re-extracting wrapper markers here.
                     let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
-                    var cleanedCorrected = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedCorrected)
-                    if cleanedCorrected.isEmpty {
-                        cleanedCorrected = TranscriptionTextProcessing.stripWrapperMarkers(trimmedCorrected)
-                    }
-                    if !cleanedCorrected.isEmpty {
-                        aiEnhancedText = cleanedCorrected
-                        AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(cleanedCorrected.count, privacy: .public)")
+                    if !trimmedCorrected.isEmpty {
+                        aiEnhancedText = trimmedCorrected
+                        AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(trimmedCorrected.count, privacy: .public)")
                     }
                 }
             } catch is CancellationError {

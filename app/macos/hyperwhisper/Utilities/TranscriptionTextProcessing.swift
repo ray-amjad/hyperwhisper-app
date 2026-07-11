@@ -50,4 +50,26 @@ enum TranscriptionTextProcessing {
     static func processVoiceCommands(_ text: String) -> String {
         HyperWhisper.processVoiceCommands(text: text)
     }
+
+    /// Normalize a provider's raw termination signal (e.g. OpenAI `finish_reason`,
+    /// Anthropic `stop_reason`) into a `CompletionState`. Missing `reason` yields
+    /// `.unspecified` (proceeds) rather than being treated as truncation.
+    static func normalizeTermination(wireProtocol: WireProtocol, reason: String?) -> CompletionState {
+        HyperWhisper.normalizeTermination(wireProtocol: wireProtocol, reason: reason)
+    }
+
+    /// Apply the completion policy gate: `state` decides accept/reject; on accept,
+    /// lenient marker handling extracts wrapped content (or strips stray markers)
+    /// and rejects prompt leakage / empty results. `evaluation.text` is always safe
+    /// to use directly — the cleaned text when accepted, `original` when rejected.
+    static func evaluateCompletion(original: String, content: String, state: CompletionState) -> CompletionEvaluation {
+        HyperWhisper.evaluateCompletion(original: original, content: content, state: state)
+    }
+
+    /// Convenience that parses a raw provider response body (as a JSON string),
+    /// extracts the termination reason for the given wire protocol, and runs the
+    /// full completion policy in one call.
+    static func evaluateLlmResponseJson(wireProtocol: WireProtocol, responseJson: String, original: String) -> CompletionEvaluation {
+        HyperWhisper.evaluateLlmResponseJson(wireProtocol: wireProtocol, responseJson: responseJson, original: original)
+    }
 }
