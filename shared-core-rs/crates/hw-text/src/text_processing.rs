@@ -6,19 +6,21 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-const START_VARIANTS: &[&str] = &[
+// Shared with `crate::completion` (`pub(crate)`) so the completion policy's
+// text handling and this module can never drift apart.
+pub(crate) const START_VARIANTS: &[&str] = &[
     "<<CLEANED>>",
     "<<CLEANED>",
     "<CLEANED>>",
     "<CLEANED>",
     "<</CLEANED>>",
 ];
-const END_VARIANTS: &[&str] =
+pub(crate) const END_VARIANTS: &[&str] =
     &["<<END>>", "<<END>", "<END>>", "<END>", "<</END>>"];
 
 /// Earliest (lowest) byte index at which any of `needles` occurs, plus the
 /// matched needle's length.
-fn earliest(haystack: &str, needles: &[&str], from: usize) -> Option<(usize, usize)> {
+pub(crate) fn earliest(haystack: &str, needles: &[&str], from: usize) -> Option<(usize, usize)> {
     let mut best: Option<(usize, usize)> = None;
     for n in needles {
         if let Some(rel) = haystack[from..].find(n) {
@@ -31,7 +33,7 @@ fn earliest(haystack: &str, needles: &[&str], from: usize) -> Option<(usize, usi
     best
 }
 
-fn strip_all(mut s: String, needles: &[&str]) -> String {
+pub(crate) fn strip_all(mut s: String, needles: &[&str]) -> String {
     for n in needles {
         s = s.replace(n, "");
     }
@@ -117,7 +119,7 @@ const PROMPT_MARKERS: &[&str] = &[
 
 /// Whether `s` contains any known prompt section tag — the signal that an
 /// unwrapped response leaked the prompt rather than a cleaned transcript.
-fn contains_prompt_markers(s: &str) -> bool {
+pub(crate) fn contains_prompt_markers(s: &str) -> bool {
     PROMPT_MARKERS.iter().any(|m| s.contains(m))
 }
 

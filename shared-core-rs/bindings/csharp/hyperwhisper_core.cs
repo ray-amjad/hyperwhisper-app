@@ -1020,6 +1020,12 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1210,6 +1216,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_english_spelling_from_raw(RustBuffer @raw,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_evaluate_completion(RustBuffer @original,RustBuffer @content,RustBuffer @state,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_evaluate_llm_response_json(RustBuffer @wireProtocol,RustBuffer @responseJson,RustBuffer @original,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1454,6 +1468,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_backup_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_termination(RustBuffer @wireProtocol,RustBuffer @reason,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1941,6 +1959,14 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_evaluate_completion(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_evaluate_llm_response_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_extract_cleaned_from_wrapped(
     );
 
@@ -2182,6 +2208,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_backup_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_termination(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2551,6 +2581,18 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_evaluate_completion();
+            if (checksum != 41679) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_evaluate_completion` checksum `41679`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_evaluate_llm_response_json();
+            if (checksum != 62965) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_evaluate_llm_response_json` checksum `62965`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_extract_cleaned_from_wrapped();
             if (checksum != 20216) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_extract_cleaned_from_wrapped` checksum `20216`, library returned `{checksum}`");
@@ -2914,6 +2956,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_backup_json();
             if (checksum != 37661) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_backup_json` checksum `37661`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_termination();
+            if (checksum != 6367) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_termination` checksum `6367`, library returned `{checksum}`");
             }
         }
         {
@@ -3639,6 +3687,45 @@ class FfiConverterTypeAppClassification: FfiConverterRustBuffer<AppClassificatio
             FfiConverterString.INSTANCE.Write(value.@confidence, stream);
             FfiConverterString.INSTANCE.Write(value.@source, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@matched, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Policy verdict: `text` is the cleaned content when `accepted`, the untouched
+/// original transcript otherwise. Mirrors
+/// `hw_text::completion::CompletionEvaluation`.
+/// </summary>
+internal record CompletionEvaluation (
+    bool @accepted, 
+    string @text, 
+    CompletionFailure @failure
+) {
+}
+
+class FfiConverterTypeCompletionEvaluation: FfiConverterRustBuffer<CompletionEvaluation> {
+    public static FfiConverterTypeCompletionEvaluation INSTANCE = new FfiConverterTypeCompletionEvaluation();
+
+    public override CompletionEvaluation Read(BigEndianStream stream) {
+        return new CompletionEvaluation(
+            @accepted: FfiConverterBoolean.INSTANCE.Read(stream),
+            @text: FfiConverterString.INSTANCE.Read(stream),
+            @failure: FfiConverterTypeCompletionFailure.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(CompletionEvaluation value) {
+        return 0
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@accepted)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@text)
+            + FfiConverterTypeCompletionFailure.INSTANCE.AllocationSize(value.@failure);
+    }
+
+    public override void Write(CompletionEvaluation value, BigEndianStream stream) {
+            FfiConverterBoolean.INSTANCE.Write(value.@accepted, stream);
+            FfiConverterString.INSTANCE.Write(value.@text, stream);
+            FfiConverterTypeCompletionFailure.INSTANCE.Write(value.@failure, stream);
     }
 }
 
@@ -4853,6 +4940,86 @@ class FfiConverterTypeClassifiedAppType: FfiConverterRustBuffer<ClassifiedAppTyp
 
 
 /// <summary>
+/// Rejection reason for logs/telemetry. Mirrors
+/// `hw_text::completion::CompletionFailure`.
+/// </summary>
+internal enum CompletionFailure: int {
+    
+    None,
+    OutputLimit,
+    IncompleteResponse,
+    MalformedResponse,
+    PromptLeakage,
+    EmptyCleanedText
+}
+
+class FfiConverterTypeCompletionFailure: FfiConverterRustBuffer<CompletionFailure> {
+    public static FfiConverterTypeCompletionFailure INSTANCE = new FfiConverterTypeCompletionFailure();
+
+    public override CompletionFailure Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(CompletionFailure), value)) {
+            return (CompletionFailure)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeCompletionFailure.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(CompletionFailure value) {
+        return 4;
+    }
+
+    public override void Write(CompletionFailure value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Normalized termination state. Mirrors `hw_text::completion::CompletionState`.
+/// </summary>
+internal enum CompletionState: int {
+    
+    Complete,
+    OutputLimit,
+    Incomplete,
+    Unspecified,
+    Malformed
+}
+
+class FfiConverterTypeCompletionState: FfiConverterRustBuffer<CompletionState> {
+    public static FfiConverterTypeCompletionState INSTANCE = new FfiConverterTypeCompletionState();
+
+    public override CompletionState Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(CompletionState), value)) {
+            return (CompletionState)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeCompletionState.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(CompletionState value) {
+        return 4;
+    }
+
+    public override void Write(CompletionState value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// Where the caret sits relative to sentence boundaries (from the platform's
 /// native cursor probe). Mirrors `hw_text::CursorContext`.
 /// </summary>
@@ -5625,6 +5792,44 @@ class FfiConverterTypeSonioxPollStatus: FfiConverterRustBuffer<SonioxPollStatus>
     }
 
     public override void Write(SonioxPollStatus value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Wire protocol a response's termination metadata is expressed in. Mirrors
+/// `hw_text::completion::WireProtocol`.
+/// </summary>
+internal enum WireProtocol: int {
+    
+    OpenAiChat,
+    AnthropicMessages,
+    Unspecified
+}
+
+class FfiConverterTypeWireProtocol: FfiConverterRustBuffer<WireProtocol> {
+    public static FfiConverterTypeWireProtocol INSTANCE = new FfiConverterTypeWireProtocol();
+
+    public override WireProtocol Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(WireProtocol), value)) {
+            return (WireProtocol)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeWireProtocol.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(WireProtocol value) {
+        return 4;
+    }
+
+    public override void Write(WireProtocol value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }
@@ -6616,6 +6821,31 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Decide whether `content` may replace `original` given the normalized state.
+    /// </summary>
+    public static CompletionEvaluation EvaluateCompletion(string @original, string @content, CompletionState @state) {
+        return FfiConverterTypeCompletionEvaluation.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_evaluate_completion(FfiConverterString.INSTANCE.Lower(@original), FfiConverterString.INSTANCE.Lower(@content), FfiConverterTypeCompletionState.INSTANCE.Lower(@state), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// One-call convenience over a raw response body: extract the message content
+    /// and finish/stop reason for `wire_protocol`, normalize, and evaluate.
+    /// A body that doesn't parse to the expected shape evaluates as `Malformed`
+    /// (rejected, `original` returned).
+    /// </summary>
+    public static CompletionEvaluation EvaluateLlmResponseJson(WireProtocol @wireProtocol, string @responseJson, string @original) {
+        return FfiConverterTypeCompletionEvaluation.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_evaluate_llm_response_json(FfiConverterTypeWireProtocol.INSTANCE.Lower(@wireProtocol), FfiConverterString.INSTANCE.Lower(@responseJson), FfiConverterString.INSTANCE.Lower(@original), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Extract `<<CLEANED>>…<<END>>`-wrapped text from a post-processing response
     /// (strict: empty if no start marker).
     /// </summary>
@@ -7207,6 +7437,19 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_backup_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Map a wire-level finish/stop reason to a [`CompletionState`]. Missing (or
+    /// empty) reason → `Unspecified` (proceed); `WireProtocol::Unspecified` always
+    /// → `Unspecified`.
+    /// </summary>
+    public static CompletionState NormalizeTermination(WireProtocol @wireProtocol, string? @reason) {
+        return FfiConverterTypeCompletionState.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_termination(FfiConverterTypeWireProtocol.INSTANCE.Lower(@wireProtocol), FfiConverterOptionalString.INSTANCE.Lower(@reason), ref _status)
 ));
     }
 

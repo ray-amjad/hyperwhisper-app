@@ -1,0 +1,56 @@
+# Tests + lints for the shared Rust core and its conformance vectors.
+#
+# Without this gate the Rust half of the completion-policy conformance contract
+# (shared-conformance/completion-vectors.json, consumed by both the Rust vector
+# tests and the cloud backend's bun tests) would be honor-system: the macOS and
+# Windows release workflows only BUILD the core, they never run its tests.
+#
+# Deliberately a plain `cargo test` (not --release): the workspace release
+# profile pins lto=true / codegen-units=1 for the shipped artifacts, which is
+# brutally slow for a PR check and buys nothing here.
+name: Shared Core Tests
+
+on:
+  pull_request:
+    paths:
+      - "shared-core-rs/**"
+      - "shared-conformance/**"
+      - ".github/workflows/shared-core-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared-core-rs/**"
+      - "shared-conformance/**"
+      - ".github/workflows/shared-core-tests.yml"
+
+jobs:
+  test:
+    name: cargo test + clippy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared-core-rs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # rustup reads shared-core-rs/rust-toolchain.toml (pinned 1.86.0 with
+      # clippy) on first cargo invocation; `rustup show` triggers the install
+      # up front so the log separates toolchain setup from the build.
+      - name: Install pinned toolchain
+        run: rustup show
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            shared-core-rs/target
+          key: shared-core-tests-${{ runner.os }}-${{ hashFiles('shared-core-rs/Cargo.lock', 'shared-core-rs/rust-toolchain.toml') }}
+
+      - name: cargo test
+        run: cargo test
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings

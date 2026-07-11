@@ -10,6 +10,7 @@
 //! host) passed in and has its own cross-platform divergences.
 
 mod autocapitalize;
+pub mod completion;
 pub mod prompt;
 mod smart_spacing;
 mod text_processing;
