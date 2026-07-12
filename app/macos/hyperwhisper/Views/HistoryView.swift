@@ -254,6 +254,8 @@ private final class HistoryViewModel: ObservableObject {
     private var viewContext: NSManagedObjectContext?
     private var saveObserver: NSObjectProtocol?
     private var refreshTask: Task<Void, Never>?
+    /// Monotonic token so out-of-order loads can't overwrite a newer query's results.
+    private var refreshGeneration: Int = 0
     private var fetchLimit: Int = 200
     private var isConfigured = false
 
@@ -291,12 +293,20 @@ private final class HistoryViewModel: ObservableObject {
 
     private func scheduleRefresh(debounceNanoseconds: UInt64) {
         refreshTask?.cancel()
+        refreshGeneration += 1
+        let generation = refreshGeneration
         refreshTask = Task { [weak self] in
             guard let self else { return }
             if debounceNanoseconds > 0 {
-                try? await Task.sleep(nanoseconds: debounceNanoseconds)
+                do {
+                    try await Task.sleep(nanoseconds: debounceNanoseconds)
+                } catch {
+                    // Cancelled mid-debounce: a newer refresh superseded this one.
+                    return
+                }
             }
-            await self.refresh()
+            guard !Task.isCancelled else { return }
+            await self.refresh(generation: generation)
         }
     }
 
@@ -342,13 +352,17 @@ private final class HistoryViewModel: ObservableObject {
         return false
     }
 
-    private func refresh() async {
+    private func refresh(generation: Int) async {
         let query = searchText
         let filter = dateFilter
         let limit = fetchLimit
 
         isLoading = true
         let result = await dataLoader.load(searchText: query, dateFilter: filter, limit: limit)
+
+        // Loads interleave at the await above; only the newest scheduled
+        // refresh may publish, so stale results can't overwrite fresh ones.
+        guard generation == refreshGeneration else { return }
 
         sections = result.sections
         loadedObjectIDs = result.objectIDs
@@ -469,6 +483,10 @@ private struct HistoryScreen: View, Equatable {
                 }
             }
             .listStyle(.sidebar)
+            // Rebuild the NSTableView-backed List when the query changes instead of
+            // diffing rows across unrelated result sets — reused rows could render
+            // another record's content while keeping the old tag/selection.
+            .id("\(viewModel.searchText)|\(viewModel.dateFilter)")
             .background(
                 Group {
                     Button("") {
