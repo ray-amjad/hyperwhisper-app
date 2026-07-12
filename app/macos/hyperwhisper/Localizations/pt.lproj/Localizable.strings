@@ -659,6 +659,8 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "modes.toggle.punctuation.subtitle" = "Adicione automaticamente períodos e vírgulas";
 "modes.toggle.capitalization.title" = "Capitalizar frases";
 "modes.toggle.capitalization.subtitle" = "Letra maiúscula no início de frases";
+"modes.toggle.autoFormat.title" = "Formatação inteligente";
+"modes.toggle.autoFormat.subtitle" = "Dividir parágrafos e formatar listas automaticamente";
 "modes.toggle.profanity.title" = "Filtrar palavrões";
 "modes.toggle.profanity.subtitle" = "Substituir palavras inadequadas";
 "modes.toggle.removeTrailingPeriod.title" = "Remover ponto final";

@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "Аутоматски додај тачке и зарезе";
 "modes.toggle.capitalization.title" = "Капитализуј реченице";
 "modes.toggle.capitalization.subtitle" = "Велико слово на почетку реченице";
+"modes.toggle.autoFormat.title" = "Паметно форматирање";
+"modes.toggle.autoFormat.subtitle" = "Аутоматски дели пасусе и форматирај листе";
 "modes.toggle.profanity.title" = "Филтрирај Нелојалност";
 "modes.toggle.profanity.subtitle" = "Замени неприлике речи";
 "modes.toggle.removeTrailingPeriod.title" = "Уклони завршну тачку";

@@ -95,6 +95,7 @@ Shared mode fields (top-level in the schema):
 | `punctuation` | `Mode.punctuation` | `Mode.Punctuation` |
 | `capitalization` | `Mode.capitalization` | `Mode.Capitalization` |
 | `profanityFilter` | `Mode.profanityFilter` | `Mode.ProfanityFilter` |
+| `autoFormat` | `Mode.autoFormat` | — (not yet on the Windows Mode entity; unknown-key passthrough preserves it on round-trip. Absent = `true`) |
 | `removeTrailingPeriod` | `Mode.removeTrailingPeriod` | `Mode.RemoveTrailingPeriod` |
 | `englishSpelling` | `Mode.englishSpelling` | `Mode.EnglishSpelling` |
 | `cloudProvider` | `Mode.cloudProvider` | `Mode.CloudProvider` |

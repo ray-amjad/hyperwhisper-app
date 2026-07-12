@@ -659,6 +659,8 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.toggle.punctuation.subtitle" = "Voeg automatisch punten en komma's toe";
 "modes.toggle.capitalization.title" = "Zinnen uitschrijven";
 "modes.toggle.capitalization.subtitle" = "Eerste letter van zinnen in hoofdletters";
+"modes.toggle.autoFormat.title" = "Slimme opmaak";
+"modes.toggle.autoFormat.subtitle" = "Alinea's automatisch splitsen en lijsten opmaken";
 "modes.toggle.profanity.title" = "Filter schuttingtaal";
 "modes.toggle.profanity.subtitle" = "Vervang ongepaste woorden";
 "modes.toggle.removeTrailingPeriod.title" = "Eindpunt verwijderen";

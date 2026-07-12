@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "마침표 및 쉼표 자동 추가";
 "modes.toggle.capitalization.title" = "문장 대문자화";
 "modes.toggle.capitalization.subtitle" = "문장의 첫 글자를 대문자로";
+"modes.toggle.autoFormat.title" = "스마트 서식";
+"modes.toggle.autoFormat.subtitle" = "단락 나누기와 목록 서식을 자동으로 적용";
 "modes.toggle.profanity.title" = "욕설 필터";
 "modes.toggle.profanity.subtitle" = "부적절한 단어 교체";
 "modes.toggle.removeTrailingPeriod.title" = "마침표 제거";

@@ -659,6 +659,8 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.toggle.punctuation.subtitle" = "Automaticky pridajte bodky a čiarky";
 "modes.toggle.capitalization.title" = "Kapitalizovať vety";
 "modes.toggle.capitalization.subtitle" = "Veľké písmeno na začiatku viet";
+"modes.toggle.autoFormat.title" = "Inteligentné formátovanie";
+"modes.toggle.autoFormat.subtitle" = "Automaticky rozdeľovať odseky a formátovať zoznamy";
 "modes.toggle.profanity.title" = "Filtrovať vulgárne výrazy";
 "modes.toggle.profanity.subtitle" = "Nahraďte nevhodné slová";
 "modes.toggle.removeTrailingPeriod.title" = "Odstrániť koncovú bodku";

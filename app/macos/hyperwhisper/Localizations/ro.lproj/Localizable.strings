@@ -659,6 +659,8 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.toggle.punctuation.subtitle" = "Adăugați automat puncte și virgule";
 "modes.toggle.capitalization.title" = "Capitalizați propoziții";
 "modes.toggle.capitalization.subtitle" = "Majusculă litera inițială a propozițiilor";
+"modes.toggle.autoFormat.title" = "Formatare inteligentă";
+"modes.toggle.autoFormat.subtitle" = "Împarte automat paragrafele și formatează listele";
 "modes.toggle.profanity.title" = "Filtrați profanitate";
 "modes.toggle.profanity.subtitle" = "Înlocuiți cuvinte inadecvate";
 "modes.toggle.removeTrailingPeriod.title" = "Elimină punctul final";

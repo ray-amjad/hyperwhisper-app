@@ -659,6 +659,8 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.toggle.punctuation.subtitle" = "Afegir automàticament punts i comes";
 "modes.toggle.capitalization.title" = "Posar en majúscules les frases";
 "modes.toggle.capitalization.subtitle" = "Primera lletra de les frases en majúscula";
+"modes.toggle.autoFormat.title" = "Format intel·ligent";
+"modes.toggle.autoFormat.subtitle" = "Divideix paràgrafs i formata llistes automàticament";
 "modes.toggle.profanity.title" = "Filtrar blasfèmies";
 "modes.toggle.profanity.subtitle" = "Substituir paraules inadequades";
 "modes.toggle.removeTrailingPeriod.title" = "Eliminar punt final";

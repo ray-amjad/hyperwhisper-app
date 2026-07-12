@@ -659,6 +659,8 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.toggle.punctuation.subtitle" = "Fügen Sie automatisch Punkte und Kommas hinzu";
 "modes.toggle.capitalization.title" = "Sätze groß schreiben";
 "modes.toggle.capitalization.subtitle" = "Anfangsbuchstaben von Sätzen in Großbuchstaben schreiben";
+"modes.toggle.autoFormat.title" = "Intelligente Formatierung";
+"modes.toggle.autoFormat.subtitle" = "Absätze automatisch aufteilen und Listen formatieren";
 "modes.toggle.profanity.title" = "Schimpfwörter filtern";
 "modes.toggle.profanity.subtitle" = "Ersetzen Sie unpassende Wörter";
 "modes.toggle.removeTrailingPeriod.title" = "Schlusspunkt entfernen";

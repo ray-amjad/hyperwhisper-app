@@ -4196,7 +4196,8 @@ internal record PromptContext (
     string @computerName, 
     bool @punctuation, 
     bool @capitalization, 
-    bool @profanityFilter
+    bool @profanityFilter, 
+    bool @autoFormat
 ) {
 }
 
@@ -4230,7 +4231,8 @@ class FfiConverterTypePromptContext: FfiConverterRustBuffer<PromptContext> {
             @computerName: FfiConverterString.INSTANCE.Read(stream),
             @punctuation: FfiConverterBoolean.INSTANCE.Read(stream),
             @capitalization: FfiConverterBoolean.INSTANCE.Read(stream),
-            @profanityFilter: FfiConverterBoolean.INSTANCE.Read(stream)
+            @profanityFilter: FfiConverterBoolean.INSTANCE.Read(stream),
+            @autoFormat: FfiConverterBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -4261,7 +4263,8 @@ class FfiConverterTypePromptContext: FfiConverterRustBuffer<PromptContext> {
             + FfiConverterString.INSTANCE.AllocationSize(value.@computerName)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@punctuation)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@capitalization)
-            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@profanityFilter);
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@profanityFilter)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@autoFormat);
     }
 
     public override void Write(PromptContext value, BigEndianStream stream) {
@@ -4291,6 +4294,7 @@ class FfiConverterTypePromptContext: FfiConverterRustBuffer<PromptContext> {
             FfiConverterBoolean.INSTANCE.Write(value.@punctuation, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@capitalization, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@profanityFilter, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@autoFormat, stream);
     }
 }
 

@@ -167,6 +167,10 @@
         "profanityFilter": {
           "type": "boolean"
         },
+        "autoFormat": {
+          "type": ["boolean", "null"],
+          "description": "Smart formatting: LLM post-processing may split paragraphs / format lists. Absent/null = true (the pre-field behavior)."
+        },
         "removeTrailingPeriod": {
           "type": ["boolean", "null"]
         },

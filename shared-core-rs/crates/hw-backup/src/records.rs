@@ -105,6 +105,8 @@ pub struct UniversalMode {
         skip_serializing_if = "Option::is_none"
     )]
     pub profanity_filter: Option<bool>,
+    #[serde(rename = "autoFormat", default, skip_serializing_if = "Option::is_none")]
+    pub auto_format: Option<bool>,
     #[serde(
         rename = "removeTrailingPeriod",
         default,
@@ -244,6 +246,7 @@ pub struct ModeRecord {
     pub punctuation: Option<bool>,
     pub capitalization: Option<bool>,
     pub profanity_filter: Option<bool>,
+    pub auto_format: Option<bool>,
     pub remove_trailing_period: Option<bool>,
     pub english_spelling: Option<String>,
     pub cloud_provider: Option<String>,

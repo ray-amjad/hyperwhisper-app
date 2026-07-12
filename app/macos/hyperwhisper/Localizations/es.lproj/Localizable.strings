@@ -659,6 +659,8 @@ Edita esos modos para seleccionar un modelo diferente antes de eliminarlo.";
 "modes.toggle.punctuation.subtitle" = "Añadir automáticamente puntos y comas";
 "modes.toggle.capitalization.title" = "Poner mayúsculas al inicio de frase";
 "modes.toggle.capitalization.subtitle" = "Poner en mayúscula la primera letra de las frases";
+"modes.toggle.autoFormat.title" = "Formato inteligente";
+"modes.toggle.autoFormat.subtitle" = "Dividir párrafos y dar formato a listas automáticamente";
 "modes.toggle.profanity.title" = "Filtrar palabrotas";
 "modes.toggle.profanity.subtitle" = "Reemplazar palabras inapropiadas";
 "modes.toggle.removeTrailingPeriod.title" = "Eliminar punto final";

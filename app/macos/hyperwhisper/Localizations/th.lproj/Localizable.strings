@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "อัตโนมัติเพิ่มจุดและเครื่องหมายจุลภาค";
 "modes.toggle.capitalization.title" = "ใช้ตัวพิมพ์ใหญ่ประโยค";
 "modes.toggle.capitalization.subtitle" = "ตัวพิมพ์ใหญ่อักษรตัวแรกของประโยค";
+"modes.toggle.autoFormat.title" = "การจัดรูปแบบอัจฉริยะ";
+"modes.toggle.autoFormat.subtitle" = "แบ่งย่อหน้าและจัดรูปแบบรายการโดยอัตโนมัติ";
 "modes.toggle.profanity.title" = "กรองคำหยาบคาย";
 "modes.toggle.profanity.subtitle" = "แทนที่คำที่ไม่เหมาะสม";
 "modes.toggle.removeTrailingPeriod.title" = "ลบจุดท้ายประโยค";

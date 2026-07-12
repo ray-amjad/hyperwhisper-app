@@ -894,6 +894,7 @@ class BackupManager: ObservableObject {
             punctuation: dto.punctuation ?? true,
             capitalization: dto.capitalization ?? true,
             profanityFilter: dto.profanityFilter ?? false,
+            autoFormat: dto.autoFormat,
             customInstructions: dto.customInstructions,
             languageModel: dto.languageModel,
             cloudProvider: dto.cloudProvider,

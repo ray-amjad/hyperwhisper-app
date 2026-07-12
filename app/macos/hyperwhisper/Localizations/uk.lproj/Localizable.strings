@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "Автоматично додавати крапки та коми";
 "modes.toggle.capitalization.title" = "Kapitalizувати речення";
 "modes.toggle.capitalization.subtitle" = "Велика перша буква речення";
+"modes.toggle.autoFormat.title" = "Розумне форматування";
+"modes.toggle.autoFormat.subtitle" = "Автоматично розбивати абзаци та форматувати списки";
 "modes.toggle.profanity.title" = "Фільтр лайки";
 "modes.toggle.profanity.subtitle" = "Замінювати невідповідні слова";
 "modes.toggle.removeTrailingPeriod.title" = "Видалити крапку в кінці";

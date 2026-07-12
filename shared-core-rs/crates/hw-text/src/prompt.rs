@@ -65,6 +65,7 @@ const FRAG_EMAIL_RULES: &str = shared!("fragments/email-formatting-rules.txt");
 const FLAG_PUNCTUATION: &str = shared!("flags/punctuation.txt");
 const FLAG_CAPITALIZATION: &str = shared!("flags/capitalization.txt");
 const FLAG_PROFANITY: &str = shared!("flags/profanity-filter.txt");
+const FLAG_PRESERVE_STRUCTURE: &str = shared!("flags/preserve-structure.txt");
 
 // ---------------------------------------------------------------------------
 // Public data model (POD — all values supplied by the platform)
@@ -188,7 +189,10 @@ impl EnglishSpelling {
 /// All inputs needed to assemble both the static system prompt and the dynamic
 /// system info. Plain data — the platform fills it in (including runtime values
 /// like time/locale/host that Rust must NOT compute itself).
-#[derive(Debug, Clone, Default)]
+///
+/// `Default` is implemented manually because `auto_format` defaults to `true`
+/// (smart formatting on = the long-standing behavior), unlike the other flags.
+#[derive(Debug, Clone)]
 pub struct PromptContext {
     // --- preset / instructions ---
     pub preset: Preset,
@@ -247,6 +251,44 @@ pub struct PromptContext {
     pub punctuation: bool,
     pub capitalization: bool,
     pub profanity_filter: bool,
+    /// Smart formatting: when true (default) the LLM may split paragraphs /
+    /// format lists per the preset rules; when false the preserve-structure
+    /// flag is injected so the output keeps the dictated structure literally.
+    pub auto_format: bool,
+}
+
+impl Default for PromptContext {
+    fn default() -> Self {
+        PromptContext {
+            preset: Preset::default(),
+            custom_instructions: String::new(),
+            english_spelling: EnglishSpelling::default(),
+            language: String::new(),
+            user_system_prompt: String::new(),
+            app_type: AppType::default(),
+            app_name: String::new(),
+            category: String::new(),
+            description: String::new(),
+            text_format: String::new(),
+            browser_host: String::new(),
+            browser_tab_title: String::new(),
+            focused_element: String::new(),
+            focused_content: String::new(),
+            screen_ocr_text: String::new(),
+            app_type_confidence: String::new(),
+            app_type_source: String::new(),
+            has_application_context: false,
+            vocabulary_words: Vec::new(),
+            time: String::new(),
+            timezone: String::new(),
+            locale: String::new(),
+            computer_name: String::new(),
+            punctuation: false,
+            capitalization: false,
+            profanity_filter: false,
+            auto_format: true,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -474,6 +516,10 @@ fn mode_flags(ctx: &PromptContext) -> String {
     if ctx.profanity_filter {
         block.push('\n');
         block.push_str(FLAG_PROFANITY);
+    }
+    if !ctx.auto_format {
+        block.push('\n');
+        block.push_str(FLAG_PRESERVE_STRUCTURE);
     }
     block.push_str("\n</MODE_FLAGS>");
     block

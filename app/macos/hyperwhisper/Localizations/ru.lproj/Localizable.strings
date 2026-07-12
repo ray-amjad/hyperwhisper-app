@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "Автоматически добавляйте точки и запятые";
 "modes.toggle.capitalization.title" = "Заглавные буквы для предложений";
 "modes.toggle.capitalization.subtitle" = "Прописная первая буква предложений";
+"modes.toggle.autoFormat.title" = "Умное форматирование";
+"modes.toggle.autoFormat.subtitle" = "Автоматически разбивать абзацы и оформлять списки";
 "modes.toggle.profanity.title" = "Фильтровать ненормативную лексику";
 "modes.toggle.profanity.subtitle" = "Заменяйте неприемлемые слова";
 "modes.toggle.removeTrailingPeriod.title" = "Удалить точку в конце";

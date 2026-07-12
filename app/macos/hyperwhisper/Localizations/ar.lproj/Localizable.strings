@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "إضافة فترات وفواصل تلقائياً";
 "modes.toggle.capitalization.title" = "جعل الجمل بأحرف كبيرة";
 "modes.toggle.capitalization.subtitle" = "الحرف الكبير لأول حرف في الجمل";
+"modes.toggle.autoFormat.title" = "التنسيق الذكي";
+"modes.toggle.autoFormat.subtitle" = "تقسيم الفقرات وتنسيق القوائم تلقائيًا";
 "modes.toggle.profanity.title" = "تصفية الكلمات البذيئة";
 "modes.toggle.profanity.subtitle" = "استبدال الكلمات غير اللائقة";
 "modes.toggle.removeTrailingPeriod.title" = "إزالة النقطة الأخيرة";

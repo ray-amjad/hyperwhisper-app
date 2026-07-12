@@ -72,6 +72,7 @@ enum ModesEndpoint {
             punctuation: dto.punctuation,
             capitalization: dto.capitalization,
             profanityFilter: dto.profanityFilter,
+            autoFormat: dto.autoFormat ?? true,
             customInstructions: dto.customInstructions,
             languageModel: dto.languageModel,
             cloudProvider: normalized.provider,
@@ -178,6 +179,7 @@ enum ModesEndpoint {
         if let v = patch.model { mode.model = v }
         if let v = patch.punctuation { mode.punctuation = v }
         if let v = patch.capitalization { mode.capitalization = v }
+        if let v = patch.autoFormat { mode.autoFormat = v }
         if let v = patch.profanityFilter { mode.profanityFilter = v }
         if let v = patch.customInstructions { mode.customInstructions = v }
         if let v = patch.userSystemPrompt { mode.userSystemPrompt = v.isEmpty ? nil : v }
@@ -219,6 +221,7 @@ enum ModesEndpoint {
             punctuation: mode.punctuation,
             capitalization: mode.capitalization,
             profanityFilter: mode.profanityFilter,
+            autoFormat: mode.autoFormat,
             customInstructions: mode.customInstructions,
             userSystemPrompt: mode.userSystemPrompt,
             isDefault: mode.isDefault,

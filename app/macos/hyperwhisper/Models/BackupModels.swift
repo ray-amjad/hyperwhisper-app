@@ -147,6 +147,7 @@ struct UniversalModeDTO: Codable {
     let punctuation: Bool?
     let capitalization: Bool?
     let profanityFilter: Bool?
+    let autoFormat: Bool?
     let removeTrailingPeriod: Bool?
     let englishSpelling: String?
     let cloudProvider: String?
@@ -177,6 +178,7 @@ struct UniversalModeDTO: Codable {
         self.punctuation = m.punctuation
         self.capitalization = m.capitalization
         self.profanityFilter = m.profanityFilter
+        self.autoFormat = m.autoFormat
         self.removeTrailingPeriod = m.removeTrailingPeriod
         self.englishSpelling = m.englishSpelling
         self.cloudProvider = m.cloudProvider
@@ -478,6 +480,7 @@ struct BackupMode: Codable {
     let punctuation: Bool
     let capitalization: Bool
     let profanityFilter: Bool
+    let autoFormat: Bool?  // Optional: absent in pre-v31 backups (defaults to true on import)
     let customInstructions: String?
     let languageModel: String?
     let cloudProvider: String?
@@ -510,7 +513,7 @@ struct BackupMode: Codable {
         case cloudTranscriptionModel, postProcessingMode, postProcessingProvider
         case englishSpelling, userSystemPrompt, isDefault, sortOrder
         case cloudAccuracyTier, removeTrailingPeriod, geminiCustomPrompt
-        case cloudPostProcessingModel, cloudTranscriptionDomain
+        case cloudPostProcessingModel, cloudTranscriptionDomain, autoFormat
     }
 
     /// Creates a BackupMode from a Core Data Mode entity
@@ -523,6 +526,7 @@ struct BackupMode: Codable {
         self.punctuation = mode.punctuation
         self.capitalization = mode.capitalization
         self.profanityFilter = mode.profanityFilter
+        self.autoFormat = mode.autoFormat
         self.customInstructions = mode.customInstructions
         self.languageModel = mode.languageModel
         self.cloudProvider = mode.cloudProvider
@@ -553,6 +557,7 @@ struct BackupMode: Codable {
         punctuation: Bool,
         capitalization: Bool,
         profanityFilter: Bool,
+        autoFormat: Bool? = nil,
         customInstructions: String?,
         languageModel: String?,
         cloudProvider: String?,
@@ -578,6 +583,7 @@ struct BackupMode: Codable {
         self.punctuation = punctuation
         self.capitalization = capitalization
         self.profanityFilter = profanityFilter
+        self.autoFormat = autoFormat
         self.customInstructions = customInstructions
         self.languageModel = languageModel
         self.cloudProvider = cloudProvider

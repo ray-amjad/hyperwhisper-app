@@ -1,0 +1,1 @@
+- Preserve the user's dictated structure exactly: do NOT split the text into paragraphs, merge paragraphs, or reformat prose into lists on your own judgement. Only insert a line or paragraph break where the user explicitly dictates one (e.g. "new line", "new paragraph"). Keep sentences in the order they were spoken.

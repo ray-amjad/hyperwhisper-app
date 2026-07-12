@@ -659,6 +659,8 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.toggle.punctuation.subtitle" = "Bæta sjálfkrafa við punktum og kommum";
 "modes.toggle.capitalization.title" = "Hástafa málsgreinar";
 "modes.toggle.capitalization.subtitle" = "Stór stafur í fyrsta staf málsgreina";
+"modes.toggle.autoFormat.title" = "Snjallsnið";
+"modes.toggle.autoFormat.subtitle" = "Skipta málsgreinum og forsníða lista sjálfkrafa";
 "modes.toggle.profanity.title" = "Sía blótsyrði";
 "modes.toggle.profanity.subtitle" = "Skipta út óviðeigandi orðum";
 "modes.toggle.removeTrailingPeriod.title" = "Fjarlægja punkt í lok";

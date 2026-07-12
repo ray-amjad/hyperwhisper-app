@@ -662,6 +662,8 @@
 "modes.toggle.punctuation.subtitle" = "Automatically add periods and commas";
 "modes.toggle.capitalization.title" = "Capitalize sentences";
 "modes.toggle.capitalization.subtitle" = "Uppercase first letter of sentences";
+"modes.toggle.autoFormat.title" = "Smart formatting";
+"modes.toggle.autoFormat.subtitle" = "Automatically split paragraphs and format lists";
 "modes.toggle.profanity.title" = "Filter profanity";
 "modes.toggle.profanity.subtitle" = "Replace inappropriate words";
 "modes.toggle.removeTrailingPeriod.title" = "Remove trailing period";

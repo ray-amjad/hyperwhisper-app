@@ -1906,6 +1906,7 @@ class PersistenceController: ObservableObject {
         punctuation: Bool,
         capitalization: Bool,
         profanityFilter: Bool,
+        autoFormat: Bool = true,
         customInstructions: String? = nil,
         languageModel: String? = nil,
         cloudProvider: String? = nil,
@@ -1954,6 +1955,7 @@ class PersistenceController: ObservableObject {
         mode?.punctuation = punctuation
         mode?.capitalization = capitalization
         mode?.profanityFilter = profanityFilter
+        mode?.autoFormat = autoFormat
         mode?.customInstructions = customInstructions ?? ""
         let trimmedUserPrompt = userSystemPrompt?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if trimmedUserPrompt.isEmpty {
@@ -2460,6 +2462,7 @@ class PersistenceController: ObservableObject {
                 punctuation: backupMode.punctuation,
                 capitalization: backupMode.capitalization,
                 profanityFilter: backupMode.profanityFilter,
+                autoFormat: backupMode.autoFormat ?? true,
                 customInstructions: backupMode.customInstructions,
                 languageModel: backupMode.languageModel,
                 cloudProvider: normalized.provider,

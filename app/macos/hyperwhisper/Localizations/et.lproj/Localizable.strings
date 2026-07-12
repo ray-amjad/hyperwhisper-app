@@ -659,6 +659,8 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.toggle.punctuation.subtitle" = "Lisa automaatselt punktid ja komad";
 "modes.toggle.capitalization.title" = "Suurtähesta laused";
 "modes.toggle.capitalization.subtitle" = "Suurta lausete esimene täht";
+"modes.toggle.autoFormat.title" = "Nutikas vormindus";
+"modes.toggle.autoFormat.subtitle" = "Jaga lõigud ja vorminda loendid automaatselt";
 "modes.toggle.profanity.title" = "Filtreeri ropendamine";
 "modes.toggle.profanity.subtitle" = "Asenda sobimatud sõnad";
 "modes.toggle.removeTrailingPeriod.title" = "Eemalda lõpupunkt";

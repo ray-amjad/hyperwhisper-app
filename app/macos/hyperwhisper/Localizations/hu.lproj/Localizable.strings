@@ -659,6 +659,8 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.toggle.punctuation.subtitle" = "Pontok és vesszők automatikus hozzáadása";
 "modes.toggle.capitalization.title" = "Mondatok nagybetűsítése";
 "modes.toggle.capitalization.subtitle" = "Mondatok első betűjének nagybetűvé alakítása";
+"modes.toggle.autoFormat.title" = "Intelligens formázás";
+"modes.toggle.autoFormat.subtitle" = "Bekezdések automatikus tagolása és listák formázása";
 "modes.toggle.profanity.title" = "Trágárság szűrés";
 "modes.toggle.profanity.subtitle" = "Nem megfelelő szavak cseréje";
 "modes.toggle.removeTrailingPeriod.title" = "Záró pont eltávolítása";

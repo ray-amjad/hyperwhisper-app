@@ -659,6 +659,8 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.toggle.punctuation.subtitle" = "Secara otomatis menambahkan titik dan koma";
 "modes.toggle.capitalization.title" = "Kapitalisasi kalimat";
 "modes.toggle.capitalization.subtitle" = "Huruf besar huruf pertama kalimat";
+"modes.toggle.autoFormat.title" = "Pemformatan cerdas";
+"modes.toggle.autoFormat.subtitle" = "Pisahkan paragraf dan format daftar secara otomatis";
 "modes.toggle.profanity.title" = "Saring kata-kata kotor";
 "modes.toggle.profanity.subtitle" = "Ganti kata-kata yang tidak pantas";
 "modes.toggle.removeTrailingPeriod.title" = "Hapus titik akhir";

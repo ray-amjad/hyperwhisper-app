@@ -659,6 +659,8 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "modes.toggle.punctuation.subtitle" = "Automaticky pridat tecky a carky";
 "modes.toggle.capitalization.title" = "Psat vety velkym pismenem";
 "modes.toggle.capitalization.subtitle" = "Velke pismeno na zacatku vet";
+"modes.toggle.autoFormat.title" = "Chytré formátování";
+"modes.toggle.autoFormat.subtitle" = "Automaticky rozdělovat odstavce a formátovat seznamy";
 "modes.toggle.profanity.title" = "Filtrovat vulgarismy";
 "modes.toggle.profanity.subtitle" = "Nahradit nevhodna slova";
 "modes.toggle.removeTrailingPeriod.title" = "Odstranit koncovou tečku";

@@ -120,6 +120,7 @@ struct ModeData {
     let punctuation: Bool
     let capitalization: Bool
     let profanityFilter: Bool
+    let autoFormat: Bool  // Smart formatting: LLM may split paragraphs / format lists (off = preserve dictated structure)
     let customInstructions: String
     let languageModel: String  // Language model (e.g., "gpt-4.1-nano")
     let cloudProvider: String  // Cloud provider (e.g., "openai")
@@ -144,6 +145,7 @@ struct ModeData {
          punctuation: Bool,
          capitalization: Bool,
          profanityFilter: Bool,
+         autoFormat: Bool = true,
          customInstructions: String = "",
          languageModel: String = PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-4.1-nano",
          cloudProvider: String = "hyperwhisper",
@@ -167,6 +169,7 @@ struct ModeData {
         self.punctuation = punctuation
         self.capitalization = capitalization
         self.profanityFilter = profanityFilter
+        self.autoFormat = autoFormat
         self.customInstructions = customInstructions
         self.languageModel = languageModel
         self.cloudProvider = cloudProvider
@@ -237,6 +240,7 @@ struct ModeData {
         self.punctuation = mode.punctuation
         self.capitalization = mode.capitalization
         self.profanityFilter = mode.profanityFilter
+        self.autoFormat = mode.autoFormat
         self.customInstructions = mode.customInstructions ?? ""
         self.englishSpelling = EnglishSpelling(rawValue: mode.englishSpelling ?? "american") ?? .american
         if let prompt = mode.userSystemPrompt {

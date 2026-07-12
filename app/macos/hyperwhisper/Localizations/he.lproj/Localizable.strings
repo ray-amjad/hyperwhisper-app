@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "הוסף אוטומטית נקודות ופסיקים";
 "modes.toggle.capitalization.title" = "השתמש באותיות רישיות במשפטים";
 "modes.toggle.capitalization.subtitle" = "אות ראשונה גדולה של משפטים";
+"modes.toggle.autoFormat.title" = "עיצוב חכם";
+"modes.toggle.autoFormat.subtitle" = "פיצול פסקאות ועיצוב רשימות באופן אוטומטי";
 "modes.toggle.profanity.title" = "סנן גסויות";
 "modes.toggle.profanity.subtitle" = "החלף מילים לא הולמות";
 "modes.toggle.removeTrailingPeriod.title" = "הסרת נקודה סופית";

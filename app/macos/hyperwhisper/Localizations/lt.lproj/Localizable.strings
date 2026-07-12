@@ -659,6 +659,8 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.toggle.punctuation.subtitle" = "Automatiškai pridėti taškus ir kableliu";
 "modes.toggle.capitalization.title" = "Didinti sakinio pradžias";
 "modes.toggle.capitalization.subtitle" = "Didinti pirmą raidę sakinių pradžioje";
+"modes.toggle.autoFormat.title" = "Išmanusis formatavimas";
+"modes.toggle.autoFormat.subtitle" = "Automatiškai skaidyti pastraipas ir formatuoti sąrašus";
 "modes.toggle.profanity.title" = "Filtruoti nešvarūs žodžius";
 "modes.toggle.profanity.subtitle" = "Pakeisti neproporcingus žodžius";
 "modes.toggle.removeTrailingPeriod.title" = "Pašalinti galutinį tašką";

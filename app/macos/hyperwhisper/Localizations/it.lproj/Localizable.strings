@@ -659,6 +659,8 @@ Modifica queste modalità per selezionare un modello diverso prima di rimuoverlo
 "modes.toggle.punctuation.subtitle" = "Aggiungi automaticamente punti e virgole";
 "modes.toggle.capitalization.title" = "Capitalizza frasi";
 "modes.toggle.capitalization.subtitle" = "Lettera maiuscola all'inizio delle frasi";
+"modes.toggle.autoFormat.title" = "Formattazione intelligente";
+"modes.toggle.autoFormat.subtitle" = "Dividi i paragrafi e formatta gli elenchi automaticamente";
 "modes.toggle.profanity.title" = "Filtra parolacce";
 "modes.toggle.profanity.subtitle" = "Sostituisci parole inappropriate";
 "modes.toggle.removeTrailingPeriod.title" = "Rimuovi punto finale";

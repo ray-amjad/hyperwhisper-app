@@ -659,6 +659,8 @@
 "modes.toggle.punctuation.subtitle" = "स्वचालित रूप से अवधि और अल्पविराम जोड़ें";
 "modes.toggle.capitalization.title" = "वाक्य को बड़े अक्षरों में लिखें";
 "modes.toggle.capitalization.subtitle" = "वाक्यों का पहला अक्षर बड़ा करें";
+"modes.toggle.autoFormat.title" = "स्मार्ट फ़ॉर्मेटिंग";
+"modes.toggle.autoFormat.subtitle" = "पैराग्राफ़ को स्वचालित रूप से विभाजित करें और सूचियाँ फ़ॉर्मेट करें";
 "modes.toggle.profanity.title" = "अश्लीलता फ़िल्टर करें";
 "modes.toggle.profanity.subtitle" = "अनुपयुक्त शब्दों को प्रतिस्थापित करें";
 "modes.toggle.removeTrailingPeriod.title" = "अंतिम पूर्णविराम हटाएँ";

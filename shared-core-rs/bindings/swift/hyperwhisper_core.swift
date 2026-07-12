@@ -1934,10 +1934,11 @@ public struct PromptContext {
     public var punctuation: Bool
     public var capitalization: Bool
     public var profanityFilter: Bool
+    public var autoFormat: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(preset: Preset, customInstructions: String, englishSpelling: HwEnglishSpelling, language: String, userSystemPrompt: String, appType: HwAppType, appName: String, category: String, description: String, textFormat: String, browserHost: String, browserTabTitle: String, focusedElement: String, focusedContent: String, screenOcrText: String, appTypeConfidence: String, appTypeSource: String, hasApplicationContext: Bool, vocabularyWords: [String], time: String, timezone: String, locale: String, computerName: String, punctuation: Bool, capitalization: Bool, profanityFilter: Bool) {
+    public init(preset: Preset, customInstructions: String, englishSpelling: HwEnglishSpelling, language: String, userSystemPrompt: String, appType: HwAppType, appName: String, category: String, description: String, textFormat: String, browserHost: String, browserTabTitle: String, focusedElement: String, focusedContent: String, screenOcrText: String, appTypeConfidence: String, appTypeSource: String, hasApplicationContext: Bool, vocabularyWords: [String], time: String, timezone: String, locale: String, computerName: String, punctuation: Bool, capitalization: Bool, profanityFilter: Bool, autoFormat: Bool) {
         self.preset = preset
         self.customInstructions = customInstructions
         self.englishSpelling = englishSpelling
@@ -1964,6 +1965,7 @@ public struct PromptContext {
         self.punctuation = punctuation
         self.capitalization = capitalization
         self.profanityFilter = profanityFilter
+        self.autoFormat = autoFormat
     }
 }
 
@@ -2049,6 +2051,9 @@ extension PromptContext: Equatable, Hashable {
         if lhs.profanityFilter != rhs.profanityFilter {
             return false
         }
+        if lhs.autoFormat != rhs.autoFormat {
+            return false
+        }
         return true
     }
 
@@ -2079,6 +2084,7 @@ extension PromptContext: Equatable, Hashable {
         hasher.combine(punctuation)
         hasher.combine(capitalization)
         hasher.combine(profanityFilter)
+        hasher.combine(autoFormat)
     }
 }
 
@@ -2115,7 +2121,8 @@ public struct FfiConverterTypePromptContext: FfiConverterRustBuffer {
                 computerName: FfiConverterString.read(from: &buf), 
                 punctuation: FfiConverterBool.read(from: &buf), 
                 capitalization: FfiConverterBool.read(from: &buf), 
-                profanityFilter: FfiConverterBool.read(from: &buf)
+                profanityFilter: FfiConverterBool.read(from: &buf), 
+                autoFormat: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -2146,6 +2153,7 @@ public struct FfiConverterTypePromptContext: FfiConverterRustBuffer {
         FfiConverterBool.write(value.punctuation, into: &buf)
         FfiConverterBool.write(value.capitalization, into: &buf)
         FfiConverterBool.write(value.profanityFilter, into: &buf)
+        FfiConverterBool.write(value.autoFormat, into: &buf)
     }
 }
 
