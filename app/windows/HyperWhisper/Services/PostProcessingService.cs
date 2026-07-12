@@ -65,6 +65,52 @@ public class PostProcessingService : IDisposable
     // =========================================================================
 
     /// <summary>
+    /// Processes transcription text while honouring the paragraph breaks the user
+    /// dictated ("new line" / "new paragraph").
+    /// <para>
+    /// The LLM will not keep a mid-body break, whatever the prompt says: measured
+    /// against the cloud model, it merged a dictated "new paragraph" back into one
+    /// paragraph on 5 of 5 runs — even with the break already inserted in its input
+    /// and the preserve-structure flag set (issue #1). So the break is never shown
+    /// to the LLM. The transcript is split on the dictated commands, each segment is
+    /// post-processed independently, and the breaks are restored afterwards.
+    /// </para>
+    /// <para>
+    /// A transcript with no dictated break is a single segment and takes exactly the
+    /// old path — one LLM call, no added latency for the common case.
+    /// </para>
+    /// </summary>
+    public async Task<PostProcessingResult> ProcessPreservingBreaksAsync(
+        string text,
+        Mode mode,
+        ApplicationContext? applicationContext = null,
+        CancellationToken cancellationToken = default)
+    {
+        var segments = TranscriptionTextProcessing.SplitOnDictatedBreaks(text);
+        if (segments.Count <= 1)
+        {
+            return await ProcessAsync(text, mode, applicationContext, cancellationToken);
+        }
+
+        LoggingService.Info($"PostProcessingService: dictated break(s) found — post-processing {segments.Count} segments separately");
+
+        var processed = new List<string>(segments.Count);
+        var anyApplied = false;
+        foreach (var segment in segments)
+        {
+            var result = await ProcessAsync(segment, mode, applicationContext, cancellationToken);
+            anyApplied |= result.WasApplied;
+            var trimmed = result.Text.Trim();
+            if (trimmed.Length > 0)
+            {
+                processed.Add(trimmed);
+            }
+        }
+
+        return new PostProcessingResult(string.Join("\n\n", processed), anyApplied);
+    }
+
+    /// <summary>
     /// Processes transcription text using the LLM configured in the mode.
     /// </summary>
     /// <param name="text">The raw transcription text.</param>

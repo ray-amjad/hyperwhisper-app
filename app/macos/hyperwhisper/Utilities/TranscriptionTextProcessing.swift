@@ -51,6 +51,20 @@ enum TranscriptionTextProcessing {
         HyperWhisper.processVoiceCommands(text: text)
     }
 
+    /// Split a transcript at the breaks the user dictated ("new line" /
+    /// "new paragraph"), returning one segment per paragraph. A transcript with
+    /// no dictated break yields a single segment (the text itself).
+    ///
+    /// Reuses the shared core's command regex — `processVoiceCommands` turns each
+    /// command into a paragraph break, so splitting on the break it produced keeps
+    /// macOS and Windows on exactly one definition of "what counts as a command".
+    static func splitOnDictatedBreaks(_ text: String) -> [String] {
+        processVoiceCommands(text)
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     /// Normalize a provider's raw termination signal (e.g. OpenAI `finish_reason`,
     /// Anthropic `stop_reason`) into a `CompletionState`. Missing `reason` yields
     /// `.unspecified` (proceeds) rather than being treated as truncation.

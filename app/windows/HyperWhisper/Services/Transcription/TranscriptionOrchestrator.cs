@@ -235,7 +235,7 @@ public class TranscriptionOrchestrator : IDisposable
         if (applyPostProcessing && mode.PostProcessingMode != 0)
         {
             LoggingService.Info("TranscriptionOrchestrator: Starting post-processing");
-            var postProcessingResult = await _postProcessingService.ProcessAsync(rawText, mode, applicationContext, cancellationToken);
+            var postProcessingResult = await _postProcessingService.ProcessPreservingBreaksAsync(rawText, mode, applicationContext, cancellationToken);
             // Apply vocabulary replacements whether or not AI post-processing succeeded.
             // Matches macOS + v1.6: when post-processing fails/skips, ProcessAsync returns the
             // original transcription, and the user's vocabulary corrections must still be applied.

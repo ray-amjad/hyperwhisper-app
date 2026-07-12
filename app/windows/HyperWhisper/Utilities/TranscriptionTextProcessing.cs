@@ -23,6 +23,29 @@ public static class TranscriptionTextProcessing
     }
 
     /// <summary>
+    /// Splits a transcript at the breaks the user dictated ("new line" /
+    /// "new paragraph"), returning one segment per paragraph. A transcript with no
+    /// dictated break yields a single segment (the text itself).
+    /// <para>
+    /// Reuses the shared core's command regex: <see cref="ProcessVoiceCommands"/>
+    /// turns each command into a paragraph break, so splitting on the break it
+    /// produced keeps Windows and macOS on exactly one definition of "what counts
+    /// as a command".
+    /// </para>
+    /// </summary>
+    public static List<string> SplitOnDictatedBreaks(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return new List<string>();
+
+        return ProcessVoiceCommands(text)
+            .Split("\n\n")
+            .Select(segment => segment.Trim())
+            .Where(segment => segment.Length > 0)
+            .ToList();
+    }
+
+    /// <summary>
     /// Final cleanup before saving a completed streaming session to history.
     /// </summary>
     public static string FinalizeStreamingText(string text)

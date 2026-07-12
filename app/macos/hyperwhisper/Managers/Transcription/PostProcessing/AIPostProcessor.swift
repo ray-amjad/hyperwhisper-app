@@ -461,6 +461,63 @@ class AIPostProcessor: ObservableObject {
         }
     }
 
+    /// Post-process while honouring the paragraph breaks the user dictated.
+    ///
+    /// The LLM will not keep a mid-body break, whatever the prompt says: measured
+    /// against the cloud model, it merged a dictated "new paragraph" back into one
+    /// paragraph on 5 of 5 runs — even with the break already inserted in its input
+    /// and the preserve-structure flag set (issue #1). So the break is never shown
+    /// to the LLM. The transcript is split on the dictated commands, each segment is
+    /// post-processed independently, and the breaks are restored afterwards.
+    ///
+    /// A transcript with no dictated break is a single segment and takes exactly the
+    /// old path — one LLM call, no added latency for the common case.
+    func performAIPostProcessingPreservingBreaks(
+        text: String,
+        mode: Mode?,
+        applicationContext: ApplicationContext? = nil
+    ) async throws -> String {
+        let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(text)
+        guard segments.count > 1 else {
+            return try await performAIPostProcessingStreaming(
+                text: text,
+                mode: mode,
+                applicationContext: applicationContext
+            )
+        }
+
+        AppLogger.transcription.info("Dictated break(s) found — post-processing \(segments.count) segments separately")
+
+        // Each per-segment call restarts its own streaming buffer from "", so the
+        // live preview would show only the segment in flight and drop the ones
+        // already done. Re-emit the completed text ahead of each chunk.
+        let originalUpdate = onStreamingTextUpdate
+        defer { onStreamingTextUpdate = originalUpdate }
+
+        var processed: [String] = []
+        var anyMutated = false
+        for segment in segments {
+            let completed = processed.joined(separator: "\n\n")
+            onStreamingTextUpdate = { chunk in
+                let prefix = completed.isEmpty ? "" : completed + "\n\n"
+                originalUpdate?(prefix + chunk)
+            }
+            let output = try await performAIPostProcessingStreaming(
+                text: segment,
+                mode: mode,
+                applicationContext: applicationContext
+            )
+            anyMutated = anyMutated || didMutateLastRun
+            processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+
+        // `performAIPostProcessingStreaming` resets this per call, so the loop would
+        // leave only the last segment's verdict. The pipeline's "was it actually
+        // post-processed?" signal must reflect the whole run.
+        didMutateLastRun = anyMutated
+        return processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+
     /// Streaming variant of AI post-processing using OpenAI Chat Completions SSE
     /// Attempts streaming first; if it fails before any chunk arrives, falls back to non-streaming.
     /// If it fails after chunks arrived, throws `.streamingInterrupted` and keeps partial text in callbacks.

@@ -238,7 +238,7 @@ extension TranscriptionPipeline {
                 if let processor = self.aiPostProcessor {
                     let providerName = resolvedPostProcessingProvider?.displayName ?? resolvedPostProcessingProviderId
                     AppLogger.transcription.info("✅ Starting AI post-processing with provider: \(providerName, privacy: .public)")
-                    aiProcessedText = try await processor.performAIPostProcessingStreaming(
+                    aiProcessedText = try await processor.performAIPostProcessingPreservingBreaks(
                         text: text,
                         mode: mode,
                         applicationContext: applicationContext
