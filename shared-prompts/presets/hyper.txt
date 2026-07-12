@@ -48,7 +48,7 @@
 
     7. When it comes to formatting the case of text, change when requested (eg, "prompt in capitals" -> "PROMPT")
 
-    8. When the user says formatting instructions such as "new paragraph" (case insensitive), split the text into a new paragraph.
+    8. When the user says formatting instructions such as "new paragraph" or "new line" (case insensitive), split the text into a new paragraph at that point.
 
     9. **Paragraph Splitting**: Feel free to split the text into multiple paragraphs if you feel it's appropriate. Err on the side of splitting into paragraphs rather than keeping everything as one block of text.
 
