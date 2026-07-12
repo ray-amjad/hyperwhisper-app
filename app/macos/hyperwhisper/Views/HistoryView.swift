@@ -16,6 +16,7 @@
 //  - Copy/share functionality
 
 import SwiftUI
+import Combine
 import CoreData
 import AVFoundation
 import os
@@ -24,6 +25,20 @@ import os
 private let historyViewLogger = Logger(subsystem: "com.hyperwhisper.app", category: "HistoryView")
 
 // MARK: - History View
+
+/// A complete description of one history fetch.
+///
+/// INVARIANT: never yield a bare "please refresh" signal into the query stream —
+/// always yield a whole `HistoryQuery` built from current state at yield time.
+/// That's what makes the stream's `.bufferingNewest(1)` conflation lossless:
+/// whichever query survives always carries the current searchText, dateFilter,
+/// and fetchLimit together (e.g. a save-triggered refresh mid-typing still
+/// queries the current text).
+private struct HistoryQuery {
+    let searchText: String
+    let dateFilter: DateFilter
+    let fetchLimit: Int
+}
 
 private struct HistoryItemSnapshot: Identifiable, Hashable {
     let objectID: NSManagedObjectID
@@ -34,6 +49,21 @@ private struct HistoryItemSnapshot: Identifiable, Hashable {
     let isFailed: Bool
     let hasAudioPath: Bool
     let canRetry: Bool
+    let text: String
+    /// nil when empty — preserves the "only write postProcessedText if it was
+    /// non-empty" edit-save semantics in the detail view.
+    let postProcessedText: String?
+    let transcribedText: String?
+    let mode: String?
+    let transcriptionProvider: String?
+    let postProcessingProvider: String?
+    let retryCount: Int16
+    let status: String?
+    /// nil when empty.
+    let failedReason: String?
+    /// Whitespace-trimmed original audio path; nil when empty.
+    let audioFilePath: String?
+    let trimmedAudioFilePath: String?
 
     var id: NSManagedObjectID { objectID }
 }
@@ -52,7 +82,11 @@ private struct HistoryQueryResult {
 }
 
 private actor HistoryDataLoader {
-    func load(searchText: String, dateFilter: DateFilter, limit: Int) async -> HistoryQueryResult {
+    func load(query: HistoryQuery) async -> HistoryQueryResult {
+        let searchText = query.searchText
+        let dateFilter = query.dateFilter
+        let limit = query.fetchLimit
+
         let context = PersistenceController.shared.container.newBackgroundContext()
         context.mergePolicy = NSMergeByPropertyStoreTrumpMergePolicy
         context.automaticallyMergesChangesFromParent = false
@@ -80,7 +114,8 @@ private actor HistoryDataLoader {
                     let previewSource = processedText.isEmpty ? fallbackText : processedText
 
                     let status = transcript.value(forKey: "status") as? String
-                    let hasFailedReason = ((transcript.value(forKey: "failedReason") as? String)?.isEmpty == false)
+                    let failedReason = transcript.value(forKey: "failedReason") as? String
+                    let hasFailedReason = (failedReason?.isEmpty == false)
                     let localizedTranscriptionFailed = "history.status.transcription.failed.prefix".localized
                     let localizedRetryFailed = "history.status.retry.failed.prefix".localized
 
@@ -134,7 +169,18 @@ private actor HistoryDataLoader {
                         duration: duration,
                         isFailed: isFailed,
                         hasAudioPath: hasAudioPath,
-                        canRetry: isFailed && hasAudioPath
+                        canRetry: isFailed && hasAudioPath,
+                        text: fallbackText,
+                        postProcessedText: processedText.isEmpty ? nil : processedText,
+                        transcribedText: transcript.value(forKey: "transcribedText") as? String,
+                        mode: transcript.mode,
+                        transcriptionProvider: transcript.value(forKey: "transcriptionProvider") as? String,
+                        postProcessingProvider: transcript.value(forKey: "postProcessingProvider") as? String,
+                        retryCount: transcript.value(forKey: "retryCount") as? Int16 ?? 0,
+                        status: status,
+                        failedReason: hasFailedReason ? failedReason : nil,
+                        audioFilePath: hasAudioPath ? audioPath : nil,
+                        trimmedAudioFilePath: transcript.value(forKey: "trimmedAudioFilePath") as? String
                     )
 
                     built.append(snapshot)
@@ -236,13 +282,23 @@ private actor HistoryDataLoader {
     }
 }
 
+/// Owns the history query pipeline: every trigger (typing, date filter, save
+/// notifications, pagination) is funneled into one conflating `AsyncStream` of
+/// complete `HistoryQuery` values, consumed by a single serial loop. Ordering
+/// and only-newest-applies fall out of the structure — no debounce tasks or
+/// generation counters to get wrong.
 @MainActor
 private final class HistoryViewModel: ObservableObject {
     @Published var searchText: String = "" {
-        didSet { scheduleRefresh(debounceNanoseconds: 180_000_000) }
+        // The debounced enqueue happens via the Combine sink in init; here we
+        // only reset pagination so a new search starts from the first page.
+        didSet { fetchLimit = Self.defaultFetchLimit }
     }
     @Published var dateFilter: DateFilter = .all {
-        didSet { scheduleRefresh(debounceNanoseconds: 0) }
+        didSet {
+            fetchLimit = Self.defaultFetchLimit
+            enqueueCurrentQuery()
+        }
     }
     @Published private(set) var sections: [HistorySectionSnapshot] = []
     @Published private(set) var loadedObjectIDs: Set<NSManagedObjectID> = []
@@ -250,16 +306,48 @@ private final class HistoryViewModel: ObservableObject {
     @Published private(set) var availableModes: [Mode] = []
     @Published private(set) var isLoading: Bool = false
 
+    private static let defaultFetchLimit = 200
+
     private let dataLoader = HistoryDataLoader()
     private var viewContext: NSManagedObjectContext?
     private var saveObserver: NSObjectProtocol?
-    private var refreshTask: Task<Void, Never>?
-    /// Monotonic token so out-of-order loads can't overwrite a newer query's results.
-    private var refreshGeneration: Int = 0
-    private var fetchLimit: Int = 200
+    private let queryContinuation: AsyncStream<HistoryQuery>.Continuation
+    /// Held until configureIfNeeded starts the consumer; consumed exactly once.
+    private var pendingQueryStream: AsyncStream<HistoryQuery>?
+    private var consumerTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
+    private var fetchLimit = HistoryViewModel.defaultFetchLimit
     private var isConfigured = false
 
+    init() {
+        // Conflating stream: only the newest pending query is kept while a load
+        // is in flight, and the consumer applies queries strictly one at a time,
+        // so a stale result can never overwrite a newer one.
+        let (stream, continuation) = AsyncStream<HistoryQuery>.makeStream(
+            bufferingPolicy: .bufferingNewest(1)
+        )
+        pendingQueryStream = stream
+        queryContinuation = continuation
+
+        // Debounced search. The sink ignores the published value and re-reads
+        // current state via enqueueCurrentQuery — @Published publishers fire on
+        // willSet, so the parameter can be stale; live state is always current.
+        // A save arriving mid-debounce may query the partially-typed text early —
+        // that's current truth too, never stale.
+        $searchText
+            .dropFirst() // @Published replays the initial value on subscription
+            .removeDuplicates()
+            .debounce(for: .milliseconds(180), scheduler: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.enqueueCurrentQuery()
+            }
+            .store(in: &cancellables)
+    }
+
     deinit {
+        // finish() alone terminates the consumer loop; cancel is belt-and-braces.
+        queryContinuation.finish()
+        consumerTask?.cancel()
         if let saveObserver {
             NotificationCenter.default.removeObserver(saveObserver)
         }
@@ -271,7 +359,8 @@ private final class HistoryViewModel: ObservableObject {
         self.viewContext = viewContext
         refreshAvailableModes()
         observeTranscriptChanges()
-        scheduleRefresh(debounceNanoseconds: 0)
+        startQueryConsumer()
+        enqueueCurrentQuery()
     }
 
     func transcript(for objectID: NSManagedObjectID) -> Transcript? {
@@ -287,27 +376,45 @@ private final class HistoryViewModel: ObservableObject {
         guard hasMoreResults, !isLoading else { return }
         guard let lastID = sections.last?.items.last?.objectID else { return }
         guard currentItemID == lastID else { return }
-        fetchLimit += 200
-        scheduleRefresh(debounceNanoseconds: 0)
+        fetchLimit += Self.defaultFetchLimit
+        enqueueCurrentQuery()
     }
 
-    private func scheduleRefresh(debounceNanoseconds: UInt64) {
-        refreshTask?.cancel()
-        refreshGeneration += 1
-        let generation = refreshGeneration
-        refreshTask = Task { [weak self] in
-            guard let self else { return }
-            if debounceNanoseconds > 0 {
-                do {
-                    try await Task.sleep(nanoseconds: debounceNanoseconds)
-                } catch {
-                    // Cancelled mid-debounce: a newer refresh superseded this one.
-                    return
-                }
+    private func startQueryConsumer() {
+        // Started from a @MainActor context, so the loop inherits MainActor.
+        consumerTask = Task { [weak self] in
+            guard let stream = self?.takePendingQueryStream() else { return }
+            for await query in stream {
+                // Hold self strongly only for the duration of one iteration.
+                guard let self else { break }
+                await self.perform(query)
             }
-            guard !Task.isCancelled else { return }
-            await self.refresh(generation: generation)
         }
+    }
+
+    private func takePendingQueryStream() -> AsyncStream<HistoryQuery>? {
+        defer { pendingQueryStream = nil }
+        return pendingQueryStream
+    }
+
+    /// Single entry point for all refresh triggers. Always yields a complete
+    /// query built from current state (see the invariant on `HistoryQuery`).
+    private func enqueueCurrentQuery() {
+        queryContinuation.yield(
+            HistoryQuery(searchText: searchText, dateFilter: dateFilter, fetchLimit: fetchLimit)
+        )
+    }
+
+    private func perform(_ query: HistoryQuery) async {
+        isLoading = true
+        let result = await dataLoader.load(query: query)
+        // Serial consumption: no other load can interleave at the await above,
+        // so the result always belongs to the newest applied query — no
+        // staleness guard needed.
+        sections = result.sections
+        loadedObjectIDs = result.objectIDs
+        hasMoreResults = result.hasMoreResults
+        isLoading = false
     }
 
     private func refreshAvailableModes() {
@@ -334,7 +441,7 @@ private final class HistoryViewModel: ObservableObject {
         ) { [weak self] notification in
             Task { @MainActor [weak self] in
                 guard let self, self.containsTranscriptChanges(notification) else { return }
-                self.scheduleRefresh(debounceNanoseconds: 0)
+                self.enqueueCurrentQuery()
             }
         }
     }
@@ -350,24 +457,6 @@ private final class HistoryViewModel: ObservableObject {
             }
         }
         return false
-    }
-
-    private func refresh(generation: Int) async {
-        let query = searchText
-        let filter = dateFilter
-        let limit = fetchLimit
-
-        isLoading = true
-        let result = await dataLoader.load(searchText: query, dateFilter: filter, limit: limit)
-
-        // Loads interleave at the await above; only the newest scheduled
-        // refresh may publish, so stale results can't overwrite fresh ones.
-        guard generation == refreshGeneration else { return }
-
-        sections = result.sections
-        loadedObjectIDs = result.objectIDs
-        hasMoreResults = result.hasMoreResults
-        isLoading = false
     }
 }
 
@@ -399,11 +488,14 @@ private struct HistoryScreen: View, Equatable {
         viewModel.transcripts(for: selectedTranscriptIDs)
     }
 
-    private var selectedTranscript: Transcript? {
+    private var selectedSnapshot: HistoryItemSnapshot? {
         guard selectedTranscriptIDs.count == 1, let objectID = selectedTranscriptIDs.first else {
             return nil
         }
-        return viewModel.transcript(for: objectID)
+        // Look up the snapshot in the same sections array the rows rendered
+        // from, so the detail pane can never disagree with the row the user
+        // clicked — the load-bearing property of this pipeline.
+        return viewModel.sections.lazy.flatMap(\.items).first { $0.objectID == objectID }
     }
 
     var body: some View {
@@ -412,13 +504,13 @@ private struct HistoryScreen: View, Equatable {
                 .frame(width: 280)
 
             Group {
-                if let transcript = selectedTranscript, let handler = actionHandler {
+                if let snapshot = selectedSnapshot, let handler = actionHandler {
                     TranscriptDetailView(
-                        transcript: transcript,
+                        snapshot: snapshot,
                         actionHandler: handler,
                         onDelete: { selectedTranscriptIDs.removeAll() }
                     )
-                    .id(transcript.objectID)
+                    .id(snapshot.objectID)
                 } else if selectedTranscriptIDs.count > 1 {
                     multiSelectionView
                 } else {
@@ -483,9 +575,8 @@ private struct HistoryScreen: View, Equatable {
                 }
             }
             .listStyle(.sidebar)
-            // Rebuild the NSTableView-backed List when the query changes instead of
-            // diffing rows across unrelated result sets — reused rows could render
-            // another record's content while keeping the old tag/selection.
+            // Cheap insurance: rebuild the NSTableView-backed List when the query
+            // changes rather than diffing rows across unrelated result sets.
             .id("\(viewModel.searchText)|\(viewModel.dateFilter)")
             .background(
                 Group {
@@ -887,31 +978,28 @@ enum AudioFileState {
 
 // MARK: - Transcript Detail View
 
-/// Detailed view of a single transcript
-/// NOTE: Uses `let` instead of `@ObservedObject` to prevent view thrashing.
-/// Core Data's @ObservedObject triggers rebuilds on ANY context save (including unrelated
-/// batch operations), causing severe lag with long recordings (100+ rebuilds, 139+ seconds).
-/// Live status observation is handled via targeted @FetchRequest for processing transcripts only.
-struct TranscriptDetailView: View {
-    let transcript: Transcript
+/// Detailed view of a single transcript.
+/// Renders exclusively from the same immutable `HistoryItemSnapshot` value the
+/// selected list row rendered, so the detail pane can never show a different
+/// record than the row the user clicked (the row/detail mismatch bug class).
+/// Live managed objects are resolved only at action time (edit-save, retry,
+/// delete); every save round-trips through the view model's query pipeline and
+/// flows back here as a fresh snapshot — including processing → completed/failed
+/// transitions, which all post NSManagedObjectContextDidSave.
+private struct TranscriptDetailView: View {
+    let snapshot: HistoryItemSnapshot
     let actionHandler: TranscriptActionHandler
     let onDelete: (() -> Void)?
 
-    // LIVE STATUS OBSERVATION:
-    // Only observe transcripts that might still change status (processing → completed/failed).
-    // For completed transcripts, this is a no-op fetch with zero overhead.
-    @FetchRequest private var observed: FetchedResults<Transcript>
+    /// Used only to resolve the live object at action time — never for rendering.
+    @Environment(\.managedObjectContext) private var viewContext
 
-    /// Live version of transcript - uses observed fetch for processing transcripts,
-    /// otherwise falls back to the passed-in transcript. Use this for status checks.
-    private var liveTranscript: Transcript {
-        observed.first ?? transcript
-    }
-    
     @EnvironmentObject var transcriptionPipeline: TranscriptionPipeline
-    
+
     @State private var isEditing = false
-    @State private var editedText: String
+    /// Edit draft, seeded when the Edit button is pressed (not at init) so an
+    /// external save mid-edit refreshes the snapshot without clobbering the draft.
+    @State private var editedText = ""
     @State private var audioPlayer: AVAudioPlayer?
     @State private var isPlaying = false
 
@@ -955,37 +1043,12 @@ struct TranscriptDetailView: View {
     /// Cached existence of selected audio path for Finder button / playback guard.
     @State private var selectedAudioPathExists: Bool = false
 
-    init(transcript: Transcript, actionHandler: TranscriptActionHandler, onDelete: (() -> Void)? = nil) {
-        self.transcript = transcript
-        self.actionHandler = actionHandler
-        self.onDelete = onDelete
-        let initialText: String = {
-            if let pp = transcript.value(forKey: "postProcessedText") as? String, !pp.isEmpty {
-                return pp
-            }
-            return transcript.text ?? ""
-        }()
-        _editedText = State(initialValue: initialText)
-
-        // CONDITIONAL LIVE OBSERVATION:
-        // Only set up FetchRequest for transcripts still processing.
-        // Completed/failed transcripts use NSPredicate(value: false) which is a no-op fetch.
-        let status = transcript.value(forKey: "status") as? String
-        let needsObservation = status == "processing"
-        self._observed = FetchRequest(
-            sortDescriptors: [],
-            predicate: needsObservation
-                ? NSPredicate(format: "SELF == %@", transcript.objectID)
-                : NSPredicate(value: false)
-        )
+    /// Resolves the live managed object for action-time mutations (edit-save,
+    /// retry, delete). Render paths must never call this — they read the snapshot.
+    private func resolveTranscript() -> Transcript? {
+        (try? viewContext.existingObject(with: snapshot.objectID)) as? Transcript
     }
 
-    // MARK: - Failure Metadata
-    private var failedReasonText: String? {
-        guard let reason = transcript.value(forKey: "failedReason") as? String, !reason.isEmpty else { return nil }
-        return reason
-    }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header with date and metadata badges
@@ -1039,7 +1102,7 @@ struct TranscriptDetailView: View {
                         // Display the appropriate version based on toggle state
                         if isFailedTranscript {
                             VStack(alignment: .leading, spacing: 4) {
-                                if let reason = failedReasonText {
+                                if let reason = snapshot.failedReason {
                                     Text("history.failure.reason".localized(arguments: reason))
                                         .font(.caption)
                                         .foregroundColor(.red)
@@ -1099,7 +1162,7 @@ struct TranscriptDetailView: View {
     private var detailHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 8) {
-                Text(formatDetailDate(transcript.date ?? Date()))
+                Text(formatDetailDate(snapshot.date))
                     .font(.title2)
 
                 // METADATA BADGES:
@@ -1107,7 +1170,7 @@ struct TranscriptDetailView: View {
                 // Duration and Mode use neutral colors, providers use distinct colors
                 HStack(spacing: 8) {
                     // Duration badge (neutral)
-                    Label(formatDuration(transcript.duration), systemImage: "clock")
+                    Label(formatDuration(snapshot.duration), systemImage: "clock")
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -1116,7 +1179,7 @@ struct TranscriptDetailView: View {
 
                     // Mode/Preset badge (neutral)
                     Label {
-                        Text(transcript.mode?.isEmpty == false ? transcript.mode! : "history.mode.default".localized)
+                        Text(snapshot.mode?.isEmpty == false ? snapshot.mode! : "history.mode.default".localized)
                     } icon: {
                         Image(systemName: "square.stack.3d.up")
                     }
@@ -1127,7 +1190,7 @@ struct TranscriptDetailView: View {
                     .clipShape(Capsule())
 
                     // Transcription provider badge (green) - conditional
-                    if let provider = transcript.value(forKey: "transcriptionProvider") as? String {
+                    if let provider = snapshot.transcriptionProvider {
                         Label(provider, systemImage: "waveform")
                             .font(.caption)
                             .padding(.horizontal, 8)
@@ -1138,7 +1201,7 @@ struct TranscriptDetailView: View {
                     }
 
                     // Post-processing provider badge (blue) - conditional
-                    if let provider = transcript.value(forKey: "postProcessingProvider") as? String,
+                    if let provider = snapshot.postProcessingProvider,
                        let providerEnum = PostProcessingProvider(rawValue: provider) {
                         Label(providerEnum.displayName, systemImage: "brain")
                             .font(.caption)
@@ -1194,14 +1257,26 @@ struct TranscriptDetailView: View {
             if !showRawText {
                 Button {
                     if isEditing {
-                        // Save edited text to the field being displayed
-                        if let pp = transcript.value(forKey: "postProcessedText") as? String, !pp.isEmpty {
-                            transcript.setValue(editedText, forKey: "postProcessedText")
+                        // Resolve the live object only now, at save time. The save
+                        // round-trips through the query pipeline and the fresh
+                        // snapshot flows back into this view.
+                        if let transcript = resolveTranscript() {
+                            // Only write postProcessedText if it was non-empty —
+                            // that's the field the user was actually shown editing.
+                            if snapshot.postProcessedText != nil {
+                                transcript.setValue(editedText, forKey: "postProcessedText")
+                            }
+                            transcript.text = editedText
+                            PersistenceController.shared.save()
                         }
-                        transcript.text = editedText
-                        PersistenceController.shared.save()
+                        isEditing = false
+                    } else {
+                        // Seed the draft from the freshest snapshot on entry.
+                        // External saves mid-edit won't clobber it: identity is
+                        // stable, so this @State survives snapshot value updates.
+                        editedText = displayedText
+                        isEditing = true
                     }
-                    isEditing.toggle()
                 } label: {
                     let titleKey = isEditing ? "common.done" : "common.edit"
                     Text(localized: titleKey)
@@ -1380,7 +1455,7 @@ struct TranscriptDetailView: View {
                 } label: {
                     Label(retryButtonText, systemImage: "arrow.clockwise")
                 }
-                .disabled(actionHandler.isRetrying(transcript))
+                .disabled(isRetryInProgress)
                 .help("history.retry.help".localized)
             }
 
@@ -1398,19 +1473,11 @@ struct TranscriptDetailView: View {
     
     // MARK: - Computed Properties for Text Display
     
-    /// Check if this is a failed transcription
+    /// Check if this is a failed transcription.
+    /// The loader computes this with the identical status/failedReason/legacy-prefix
+    /// expression the list rows use, so row and detail always agree.
     private var isFailedTranscript: Bool {
-        // Use liveTranscript for status to get live updates when processing → failed
-        let status = liveTranscript.value(forKey: "status") as? String
-        let hasFailedReason = (liveTranscript.value(forKey: "failedReason") as? String)?.isEmpty == false
-        let localizedTranscriptionFailed = "history.status.transcription.failed.prefix".localized
-        let localizedRetryFailed = "history.status.retry.failed.prefix".localized
-        // Prefer structured status/failedReason; keep legacy text prefix checks for old records
-        return status == "failed" || hasFailedReason ||
-               transcript.text?.starts(with: localizedTranscriptionFailed) == true ||
-               transcript.text?.starts(with: "Transcription failed:") == true ||
-               transcript.text?.starts(with: localizedRetryFailed) == true ||
-               transcript.text?.starts(with: "Retry failed:") == true
+        snapshot.isFailed
     }
 
     /// True when the file is confirmed missing (not during checking state).
@@ -1432,13 +1499,7 @@ struct TranscriptDetailView: View {
     /// Check if we can retry this transcription.
     /// Only true when audio file is confirmed to exist (not during checking).
     private var canRetry: Bool {
-        guard transcript.audioFilePath != nil else { return false }
-        return audioFileExists
-    }
-
-    /// The trimmed audio file path, if VAD was used for this transcript.
-    private var trimmedAudioFilePath: String? {
-        transcript.value(forKey: "trimmedAudioFilePath") as? String
+        snapshot.audioFilePath != nil && audioFileExists
     }
 
     /// True if this transcript has a VAD-trimmed audio file.
@@ -1455,89 +1516,99 @@ struct TranscriptDetailView: View {
     /// The duration of the currently selected audio file (original or trimmed).
     /// Computes duration from the audio file on disk.
     private var selectedAudioDuration: Double {
-        selectedAudioDurationCache ?? transcript.duration
+        selectedAudioDurationCache ?? snapshot.duration
+    }
+
+    /// Whether a retry for this record is in flight, keyed by the transcript's
+    /// UUID (mirrors HistoryScreen.isRetrying). Note actionHandler isn't observed,
+    /// so this reflects state as of the last render — same as before the refactor.
+    private var isRetryInProgress: Bool {
+        snapshot.transcriptID.map { actionHandler.retryingTranscripts.contains($0) } ?? false
     }
 
     /// Text for the retry button
     private var retryButtonText: String {
-        if actionHandler.isRetrying(transcript) {
+        if isRetryInProgress {
             return "recording.retry.inProgress".localized
         }
-        let retryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
-        return retryCount > 0 ? "recording.retry.count".localized(arguments: Int(retryCount)) : "recording.retry".localized
+        return snapshot.retryCount > 0
+            ? "recording.retry.count".localized(arguments: Int(snapshot.retryCount))
+            : "recording.retry".localized
     }
-    
+
     /// Check if the transcript has raw text available
     /// Returns true if transcribedText exists and differs from the final text
     private var hasRawText: Bool {
-        guard let rawText = transcript.value(forKey: "transcribedText") as? String,
-              !rawText.isEmpty else {
+        guard let rawText = snapshot.transcribedText, !rawText.isEmpty else {
             return false
         }
         // Show toggle whenever post-processing was attempted
-        if let provider = transcript.value(forKey: "postProcessingProvider") as? String,
-           !provider.isEmpty {
+        if let provider = snapshot.postProcessingProvider, !provider.isEmpty {
             return true
         }
         // Fallback for legacy transcripts without postProcessingProvider
-        let postProcessedText = transcript.value(forKey: "postProcessedText") as? String
-        if let postProcessed = postProcessedText, !postProcessed.isEmpty {
+        if let postProcessed = snapshot.postProcessedText {
             return rawText != postProcessed
         }
-        return rawText != transcript.text
+        return rawText != snapshot.text
     }
-    
+
     /// Get the text to display based on current toggle state
     private var displayedText: String {
         if showRawText {
             // SHOW RAW TEXT:
             // Display the original transcribed text before any post-processing
             // This includes text before AI enhancement and vocabulary replacements
-            if let rawText = transcript.value(forKey: "transcribedText") as? String {
+            if let rawText = snapshot.transcribedText {
                 return rawText
             }
         }
-        
+
         // SHOW PROCESSED TEXT:
         // Priority order for processed text:
         // 1. postProcessedText (if available) - the AI-enhanced version
         // 2. text field (always present) - the final stored version
         // This handles both new transcripts (with separate fields) and old ones
-        
-        if let postProcessed = transcript.value(forKey: "postProcessedText") as? String,
-           !postProcessed.isEmpty {
+
+        if let postProcessed = snapshot.postProcessedText {
             return postProcessed
         }
-        
+
         // Fall back to the main text field
         // For old transcripts, this is the only text available
         // For new ones without post-processing, this equals transcribedText
-        return transcript.text ?? ""
+        return snapshot.text
     }
 
     /// Triggers metadata refresh when transcript identity or audio paths change.
+    /// A snapshot value-update with unchanged paths leaves the ID stable, so
+    /// playback continues; a path change re-runs the metadata task.
     private var audioMetadataTaskID: String {
-        let objectID = transcript.objectID.uriRepresentation().absoluteString
-        let originalPath = transcript.audioFilePath ?? ""
-        let trimmedPath = trimmedAudioFilePath ?? ""
+        let objectID = snapshot.objectID.uriRepresentation().absoluteString
+        let originalPath = snapshot.audioFilePath ?? ""
+        let trimmedPath = snapshot.trimmedAudioFilePath ?? ""
         return "\(objectID)|\(originalPath)|\(trimmedPath)"
     }
 
     /// Refreshes original/trimmed availability and computes selected playback metadata.
     private func refreshAudioMetadata() async {
+        // The audio paths changed (this task re-ran): stop any stale playback
+        // before recomputing what's playable.
+        stopPlayback()
+
         audioFileState = .checking
         hasTrimmedAudioCached = false
         selectedAudioPathCache = nil
-        selectedAudioDurationCache = transcript.duration
+        selectedAudioDurationCache = snapshot.duration
         selectedAudioPathExists = false
 
-        guard let originalPath = transcript.audioFilePath, !originalPath.isEmpty else {
+        guard let originalPath = snapshot.audioFilePath else {
             historyViewLogger.debug("No audio path for transcript, marking as missing")
             audioFileState = .missing
             return
         }
 
-        let trimmedPath = trimmedAudioFilePath
+        let trimmedPath = snapshot.trimmedAudioFilePath
         let startTime = CFAbsoluteTimeGetCurrent()
 
         let metadata = await Task.detached(priority: .userInitiated) {
@@ -1562,16 +1633,16 @@ struct TranscriptDetailView: View {
     /// Updates selected audio path and duration after toggle/path changes.
     private func updateSelectedAudioMetadata() async {
         let selectedPath: String?
-        if showTrimmedAudio, hasTrimmedAudioCached, let trimmedPath = trimmedAudioFilePath {
+        if showTrimmedAudio, hasTrimmedAudioCached, let trimmedPath = snapshot.trimmedAudioFilePath {
             selectedPath = trimmedPath
         } else {
-            selectedPath = transcript.audioFilePath
+            selectedPath = snapshot.audioFilePath
         }
 
         guard let selectedPath, !selectedPath.isEmpty else {
             selectedAudioPathCache = nil
             selectedAudioPathExists = false
-            selectedAudioDurationCache = transcript.duration
+            selectedAudioDurationCache = snapshot.duration
             return
         }
 
@@ -1586,7 +1657,7 @@ struct TranscriptDetailView: View {
 
         selectedAudioPathCache = selectedPath
         selectedAudioPathExists = metadata.0
-        selectedAudioDurationCache = metadata.1 ?? transcript.duration
+        selectedAudioDurationCache = metadata.1 ?? snapshot.duration
     }
     
     private func formatDetailDate(_ date: Date) -> String {
@@ -1611,7 +1682,9 @@ struct TranscriptDetailView: View {
     
     private func deleteItem() {
         // USE ACTION HANDLER:
-        // Delegate to centralized action handler for consistency
+        // Delegate to centralized action handler for consistency.
+        // Resolve the live object only at action time.
+        guard let transcript = resolveTranscript() else { return }
         Task {
             let success = await actionHandler.deleteTranscript(transcript)
             if success {
@@ -1621,20 +1694,15 @@ struct TranscriptDetailView: View {
             }
         }
     }
-    
+
     private func retryTranscription() {
         // USE ACTION HANDLER:
-        // Delegate to centralized action handler for consistency
-        guard !actionHandler.isRetrying(transcript) else { return }
-        
+        // Delegate to centralized action handler for consistency.
+        // Resolve the live object only at action time; the completion save
+        // flows a fresh snapshot back through the pipeline.
+        guard !isRetryInProgress, let transcript = resolveTranscript() else { return }
         Task {
-            let success = await actionHandler.retryTranscription(transcript)
-            if success {
-                // Update local state on success
-                await MainActor.run {
-                    editedText = transcript.text ?? ""
-                }
-            }
+            await actionHandler.retryTranscription(transcript)
         }
     }
 }
