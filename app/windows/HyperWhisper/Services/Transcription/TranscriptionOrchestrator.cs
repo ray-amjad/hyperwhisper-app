@@ -259,6 +259,10 @@ public class TranscriptionOrchestrator : IDisposable
             {
                 finalText = SmartSpacing.RemoveFillerWords(finalText);
             }
+            // Honor dictated break commands ("new line" / "new paragraph") in the
+            // batch path too — they were streaming-only, so with AI post-processing
+            // off they were silently dropped (issue #1).
+            finalText = TranscriptionTextProcessing.ProcessVoiceCommands(finalText);
         }
 
         return new TranscriptionResult(

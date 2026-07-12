@@ -210,22 +210,22 @@ pub fn remove_filler_words(text: &str, language: Option<&str>) -> String {
     current
 }
 
-fn new_line_command_re() -> &'static Regex {
+fn break_command_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     // The trailing `\b` sits BEFORE the optional punctuation so "new line." still
-    // matches (boundary between "line" and ".") but "newlines"/"new lines" do NOT
-    // (no boundary between "line" and the following "s") — otherwise the command
-    // would fire mid-word and leave an orphan "s".
-    RE.get_or_init(|| Regex::new(r"(?i)\bnew\s*line\b[.,!?]?").unwrap())
+    // matches (boundary between "line" and ".") but "newlines"/"new lines" and
+    // "new paragraphs" do NOT (no boundary before the following "s") — otherwise
+    // the command would fire mid-word and leave an orphan "s".
+    RE.get_or_init(|| Regex::new(r"(?i)\bnew\s*(?:line|paragraph)\b[.,!?]?").unwrap())
 }
 
-/// Replace the spoken command "new line" / "newline" (+ optional trailing
-/// punctuation) with a paragraph break.
+/// Replace the spoken commands "new line" / "newline" / "new paragraph"
+/// (+ optional trailing punctuation) with a paragraph break.
 pub fn process_voice_commands(text: &str) -> String {
     if text.is_empty() {
         return text.to_string();
     }
-    new_line_command_re().replace_all(text, "\n\n").into_owned()
+    break_command_re().replace_all(text, "\n\n").into_owned()
 }
 
 fn three_plus_newlines_re() -> &'static Regex {
