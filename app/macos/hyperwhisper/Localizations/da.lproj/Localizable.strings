@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Hjem";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Tilstande";
 "sidebar.vocabulary" = "Ordforråd";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kom i gang med HyperWhisper";
-"sidebar.statistics.help" = "Se brugsstatistik og analyser";
 "sidebar.modes.help" = "Administrer transskriptionstilstande til forskellige sammenhænge";
 "sidebar.vocabulary.help" = "Tilføj brugerdefinerede ord og udtryk for bedre genkendelse";
 "sidebar.streaming.help" = "Indstillinger for realtids-streamingtransskription (kræver internet)";
@@ -553,22 +551,6 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "models.error.checksumFailed" = "Verifikation af modelkontrolsum mislykkedes. Downloaden kan være beskadiget.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Din brugsstatistik";
-"statistics.header.subtitle" = "Følg din transskriptionsaktivitet og ydeevne";
-"statistics.card.recordings" = "Samlede optagelser";
-"statistics.card.recordings.subtitle" = "Fuldførte transskriptioner";
-"statistics.card.duration" = "Samlet tid";
-"statistics.card.duration.subtitle" = "Tid brugt på optagelse";
-"statistics.card.words" = "Samlede ord";
-"statistics.card.words.subtitle" = "Transskriberede ord";
-"statistics.card.average" = "Gennemsnitlig varighed";
-"statistics.card.average.subtitle" = "Pr. optagelse";
-"statistics.graph.title" = "Aktivitet over tid";
-"statistics.daily.empty" = "Ingen optagelser endnu";
-"statistics.filter.week" = "Denne uge";
-"statistics.filter.month" = "Denne måned";
-"statistics.filter.alltime" = "Alt tid";
 
 // MARK: - History View
 "history.title" = "Historik";

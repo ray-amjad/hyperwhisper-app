@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Avaleht";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Režiimid";
 "sidebar.vocabulary" = "Sõnavara";
 "sidebar.streaming" = "Voogedastus";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Alusta HyperWhisperiga";
-"sidebar.statistics.help" = "Vaata kasutusstatistikat ja analüüse";
 "sidebar.modes.help" = "Halda transkriptsiooni režiime erinevate kontekstide jaoks";
 "sidebar.vocabulary.help" = "Lisa kohandatud sõnu ja fraase parema äratundmise jaoks";
 "sidebar.streaming.help" = "Reaalajas voogedastuse transkriptsiooni seaded (nõuab internetti)";
@@ -553,22 +551,6 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "models.error.checksumFailed" = "Mudeli kontrollsumma kontrollimine ebaõnnestus. Allalaadimine võib olla rikutud.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Teie kasutusstatistika";
-"statistics.header.subtitle" = "Jälgi oma transkriptsiooni tegevust ja jõudlust";
-"statistics.card.recordings" = "Kokku salvestusi";
-"statistics.card.recordings.subtitle" = "Lõpetatud transkriptsioonid";
-"statistics.card.duration" = "Kogu aeg";
-"statistics.card.duration.subtitle" = "Aeg salvestamiseks kulunud";
-"statistics.card.words" = "Kokku sõnu";
-"statistics.card.words.subtitle" = "Transkribeeritud sõnad";
-"statistics.card.average" = "Keskmine kestus";
-"statistics.card.average.subtitle" = "Salvestuse kohta";
-"statistics.graph.title" = "Tegevus aja jooksul";
-"statistics.daily.empty" = "Salvestusi pole veel";
-"statistics.filter.week" = "See nädal";
-"statistics.filter.month" = "See kuu";
-"statistics.filter.alltime" = "Kogu aeg";
 
 // MARK: - History View
 "history.title" = "Ajalugu";

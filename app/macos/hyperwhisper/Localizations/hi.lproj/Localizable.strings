@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "होम";
-"sidebar.statistics" = "आंकड़े";
 "sidebar.modes" = "मोड";
 "sidebar.vocabulary" = "शब्दावली";
 "sidebar.streaming" = "स्ट्रीमिंग";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisper के साथ शुरुआत करें";
-"sidebar.statistics.help" = "उपयोग आंकड़े और विश्लेषण देखें";
 "sidebar.modes.help" = "विभिन्न संदर्भों के लिए ट्रांसक्रिप्शन मोड प्रबंधित करें";
 "sidebar.vocabulary.help" = "बेहतर पहचान के लिए कस्टम शब्द और वाक्यांश जोड़ें";
 "sidebar.streaming.help" = "रीयल-टाइम स्ट्रीमिंग ट्रांसक्रिप्शन सेटिंग्स (इंटरनेट की आवश्यकता है)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "मॉडल चेकसम सत्यापन विफल। डाउनलोड क्षतिग्रस्त हो सकता है।";
 
 // MARK: - Statistics View
-"statistics.title" = "आंकड़े";
-"statistics.header.title" = "आपके उपयोग के आंकड़े";
-"statistics.header.subtitle" = "अपनी ट्रांसक्रिप्शन गतिविधि और प्रदर्शन को ट्रैक करें";
-"statistics.card.recordings" = "कुल रिकॉर्डिंग";
-"statistics.card.recordings.subtitle" = "पूर्ण ट्रांसक्रिप्शन";
-"statistics.card.duration" = "कुल समय";
-"statistics.card.duration.subtitle" = "रिकॉर्डिंग में बिताया गया समय";
-"statistics.card.words" = "कुल शब्द";
-"statistics.card.words.subtitle" = "ट्रांसक्राइब किए गए शब्द";
-"statistics.card.average" = "औसत अवधि";
-"statistics.card.average.subtitle" = "प्रति रिकॉर्डिंग";
-"statistics.graph.title" = "समय के साथ गतिविधि";
-"statistics.daily.empty" = "अभी तक कोई रिकॉर्डिंग नहीं";
-"statistics.filter.week" = "इस हफ्ते";
-"statistics.filter.month" = "इस महीने";
-"statistics.filter.alltime" = "सभी समय";
 
 // MARK: - History View
 "history.title" = "इतिहास";

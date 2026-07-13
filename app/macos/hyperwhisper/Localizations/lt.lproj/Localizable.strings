@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Pradžia";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Režimai";
 "sidebar.vocabulary" = "Žodynas";
 "sidebar.streaming" = "Srautinis";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Pradėkite su HyperWhisper";
-"sidebar.statistics.help" = "Žiūrėkite naudojimo statistiką ir analitika";
 "sidebar.modes.help" = "Valdyti transkriptsiniu režimai skirtingiems kontekstams";
 "sidebar.vocabulary.help" = "Pridėkite pasirinktinius žodžius ir žodžių junginius geresniam atpažinimui";
 "sidebar.streaming.help" = "Realiojo laiko srautinio transkriptsiniu nustatymai (reikalingas internetas)";
@@ -553,22 +551,6 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "models.error.checksumFailed" = "Modelio kontrol sumos patikra nepavyko. Atsisiunčiamą failą gali sugadinti.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Jūsų naudojimo statistika";
-"statistics.header.subtitle" = "Sekite savo transkriptsiniu veiklą ir produktyvumą";
-"statistics.card.recordings" = "Iš viso įrašymų";
-"statistics.card.recordings.subtitle" = "Baigta transkripcija";
-"statistics.card.duration" = "Bendras laikas";
-"statistics.card.duration.subtitle" = "Laikas praleistas įrašant";
-"statistics.card.words" = "Bendri žodžiai";
-"statistics.card.words.subtitle" = "Transkripcijos žodžiai";
-"statistics.card.average" = "Vidutinis trukmė";
-"statistics.card.average.subtitle" = "Per įrašymą";
-"statistics.graph.title" = "Veikla bėgant laikui";
-"statistics.daily.empty" = "Dar nėra įrašymų";
-"statistics.filter.week" = "Šią savaitę";
-"statistics.filter.month" = "Šį mėnesį";
-"statistics.filter.alltime" = "Visą laiką";
 
 // MARK: - History View
 "history.title" = "Istorija";

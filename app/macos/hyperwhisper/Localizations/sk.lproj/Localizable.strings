@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Domov";
-"sidebar.statistics" = "Štatistika";
 "sidebar.modes" = "Režimy";
 "sidebar.vocabulary" = "Slovník";
 "sidebar.streaming" = "Streamovanie";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Začať s HyperWhisper";
-"sidebar.statistics.help" = "Zobraziť štatistiku použitia a analýzy";
 "sidebar.modes.help" = "Spravovať režimy prepisu pre rôzne kontexty";
 "sidebar.vocabulary.help" = "Pridať vlastné slová a frázy pre lepšie rozpoznávanie";
 "sidebar.streaming.help" = "Nastavenia streamovania prepisov v reálnom čase (vyžaduje Internet)";
@@ -553,22 +551,6 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "models.error.checksumFailed" = "Overenie kontrolného súčtu modelu zlyhalo. Stiahnutie môže byť poškodené.";
 
 // MARK: - Statistics View
-"statistics.title" = "Štatistika";
-"statistics.header.title" = "Vaša štatistika použitia";
-"statistics.header.subtitle" = "Sledujte svoju aktivitu prepisu a výkon";
-"statistics.card.recordings" = "Spolu nahrávok";
-"statistics.card.recordings.subtitle" = "Dokončené prepisy";
-"statistics.card.duration" = "Celkový čas";
-"statistics.card.duration.subtitle" = "Čas strávený nahrávaním";
-"statistics.card.words" = "Celkem slov";
-"statistics.card.words.subtitle" = "Prepísaných slov";
-"statistics.card.average" = "Priemerné trvanie";
-"statistics.card.average.subtitle" = "Na nahrávku";
-"statistics.graph.title" = "Aktivita v čase";
-"statistics.daily.empty" = "Zatiaľ žiadne nahrávky";
-"statistics.filter.week" = "Tento týždeň";
-"statistics.filter.month" = "Tento mesiac";
-"statistics.filter.alltime" = "Všetky časy";
 
 // MARK: - History View
 "history.title" = "História";

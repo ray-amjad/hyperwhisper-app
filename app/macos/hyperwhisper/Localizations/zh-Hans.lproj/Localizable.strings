@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "主页";
-"sidebar.statistics" = "统计";
 "sidebar.modes" = "模式";
 "sidebar.vocabulary" = "词汇";
 "sidebar.streaming" = "流式转写";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "开始使用 HyperWhisper";
-"sidebar.statistics.help" = "查看使用统计和分析";
 "sidebar.modes.help" = "为不同场景管理转写模式";
 "sidebar.vocabulary.help" = "添加自定义词语和短语以提升识别";
 "sidebar.streaming.help" = "流式转写设置（需互联网）";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "模型校验和验证失败。下载可能已损坏。";
 
 // MARK: - Statistics View
-"statistics.title" = "统计";
-"statistics.header.title" = "你的使用统计";
-"statistics.header.subtitle" = "跟踪转写活动与表现";
-"statistics.card.recordings" = "总录音数";
-"statistics.card.recordings.subtitle" = "已完成的转写";
-"statistics.card.duration" = "总时长";
-"statistics.card.duration.subtitle" = "录音时间";
-"statistics.card.words" = "总字数";
-"statistics.card.words.subtitle" = "已转写的字数";
-"statistics.card.average" = "平均时长";
-"statistics.card.average.subtitle" = "每次录音";
-"statistics.graph.title" = "活动趋势";
-"statistics.daily.empty" = "还没有录音";
-"statistics.filter.week" = "本周";
-"statistics.filter.month" = "本月";
-"statistics.filter.alltime" = "全部";
 
 // MARK: - History View
 "history.title" = "历史记录";

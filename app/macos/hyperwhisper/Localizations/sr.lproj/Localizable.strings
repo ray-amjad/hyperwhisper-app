@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Почетна";
-"sidebar.statistics" = "Статистика";
 "sidebar.modes" = "Режими";
 "sidebar.vocabulary" = "Речник";
 "sidebar.streaming" = "Стриминг";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Почни са HyperWhisper";
-"sidebar.statistics.help" = "Преглед статистике употребе и аналитике";
 "sidebar.modes.help" = "Управљај режимима транскрипције за различите контексте";
 "sidebar.vocabulary.help" = "Додај прилагођене речи и фразе за бољу препознаву";
 "sidebar.streaming.help" = "Поставке стриминга транскрипције у стварном времену (захтева интернет)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "Провера суме модела неуспешна. Преузимање може бити корупирано.";
 
 // MARK: - Statistics View
-"statistics.title" = "Статистика";
-"statistics.header.title" = "Твоја Статистика Употребе";
-"statistics.header.subtitle" = "Праћење твоје активности транскрипције и перформанси";
-"statistics.card.recordings" = "Укупна Снимања";
-"statistics.card.recordings.subtitle" = "Завршене транскрипције";
-"statistics.card.duration" = "Укупно Време";
-"statistics.card.duration.subtitle" = "Време проведено снимањем";
-"statistics.card.words" = "Укупне Речи";
-"statistics.card.words.subtitle" = "Речи транскрибоване";
-"statistics.card.average" = "Просечно Трајање";
-"statistics.card.average.subtitle" = "По снимању";
-"statistics.graph.title" = "Активност Кроз Време";
-"statistics.daily.empty" = "Нема снимања";
-"statistics.filter.week" = "Ове Недеље";
-"statistics.filter.month" = "Овог Месеца";
-"statistics.filter.alltime" = "Од Почетка";
 
 // MARK: - History View
 "history.title" = "Историја";

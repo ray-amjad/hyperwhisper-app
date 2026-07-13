@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Kezdőlap";
-"sidebar.statistics" = "Statisztikák";
 "sidebar.modes" = "Módok";
 "sidebar.vocabulary" = "Szókincs";
 "sidebar.streaming" = "Streamelés";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kezdj el a HyperWhisperrel";
-"sidebar.statistics.help" = "Használati statisztikák és elemzések megtekintése";
 "sidebar.modes.help" = "Átírási módok kezelése különböző kontextusokhoz";
 "sidebar.vocabulary.help" = "Egyéni szavak és kifejezések hozzáadása jobb felismerésért";
 "sidebar.streaming.help" = "Valós idejű streamelési átírás beállítások (Internet szükséges)";
@@ -553,22 +551,6 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "models.error.checksumFailed" = "Modell ellenőrző összeg ellenőrzés sikertelen. A letöltés sérült lehet.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statisztikák";
-"statistics.header.title" = "Használati statisztikáid";
-"statistics.header.subtitle" = "Átírási aktivitás és teljesítmény követése";
-"statistics.card.recordings" = "Összes felvétel";
-"statistics.card.recordings.subtitle" = "Befejezett átírások";
-"statistics.card.duration" = "Összes idő";
-"statistics.card.duration.subtitle" = "Felvételre fordított idő";
-"statistics.card.words" = "Összes szó";
-"statistics.card.words.subtitle" = "Átírt szavak";
-"statistics.card.average" = "Átlagos időtartam";
-"statistics.card.average.subtitle" = "Felvételenként";
-"statistics.graph.title" = "Aktivitás idővel";
-"statistics.daily.empty" = "Még nincsenek felvételek";
-"statistics.filter.week" = "Ez a hét";
-"statistics.filter.month" = "Ez a hónap";
-"statistics.filter.alltime" = "Minden idők";
 
 // MARK: - History View
 "history.title" = "Előzmények";

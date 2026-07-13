@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Trang chủ";
-"sidebar.statistics" = "Thống kê";
 "sidebar.modes" = "Chế độ";
 "sidebar.vocabulary" = "Từ vựng";
 "sidebar.streaming" = "Luồng phát";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Bắt đầu với HyperWhisper";
-"sidebar.statistics.help" = "Xem thống kê sử dụng và phân tích";
 "sidebar.modes.help" = "Quản lý chế độ phiên bản chuyển đổi cho các bối cảnh khác nhau";
 "sidebar.vocabulary.help" = "Thêm các từ và cụm từ tùy chỉnh để nhận dạng tốt hơn";
 "sidebar.streaming.help" = "Cài đặt phiên bản chuyển đổi luồng phát thực tế (yêu cầu Internet)";
@@ -553,22 +551,6 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "models.error.checksumFailed" = "Xác minh tổng kiểm tra mô hình không thành công. Bản tải xuống có thể bị hỏng.";
 
 // MARK: - Statistics View
-"statistics.title" = "Thống kê";
-"statistics.header.title" = "Thống kê Sử dụng của Bạn";
-"statistics.header.subtitle" = "Theo dõi hoạt động và hiệu suất chuyển đổi của bạn";
-"statistics.card.recordings" = "Tổng số Bản ghi âm";
-"statistics.card.recordings.subtitle" = "Bản chuyển đổi hoàn tất";
-"statistics.card.duration" = "Tổng Thời gian";
-"statistics.card.duration.subtitle" = "Thời gian dành cho ghi âm";
-"statistics.card.words" = "Tổng số Từ";
-"statistics.card.words.subtitle" = "Từ được chuyển đổi";
-"statistics.card.average" = "Thời lượng Trung bình";
-"statistics.card.average.subtitle" = "Mỗi bản ghi âm";
-"statistics.graph.title" = "Hoạt động Theo Thời gian";
-"statistics.daily.empty" = "Chưa có bản ghi âm nào";
-"statistics.filter.week" = "Tuần Này";
-"statistics.filter.month" = "Tháng Này";
-"statistics.filter.alltime" = "Toàn thời gian";
 
 // MARK: - History View
 "history.title" = "Lịch sử";

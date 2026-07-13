@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Hjem";
-"sidebar.statistics" = "Statistikk";
 "sidebar.modes" = "Moduser";
 "sidebar.vocabulary" = "Ordforråd";
 "sidebar.streaming" = "Strømming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kom i gang med HyperWhisper";
-"sidebar.statistics.help" = "Vis bruksstatistikk og analyser";
 "sidebar.modes.help" = "Administrer transkripsjonsmodi for ulike kontekster";
 "sidebar.vocabulary.help" = "Legg til tilpassede ord og fraser for bedre gjenkjenning";
 "sidebar.streaming.help" = "Sanntids strømmetranskripsjon innstillinger (krever internett)";
@@ -553,22 +551,6 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "models.error.checksumFailed" = "Modellsjekksumverifisering mislyktes. Nedlastingen kan være korrupt.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistikk";
-"statistics.header.title" = "Din bruksstatistikk";
-"statistics.header.subtitle" = "Spor transkripsjonaktivitet og ytelse";
-"statistics.card.recordings" = "Totalt antall opptak";
-"statistics.card.recordings.subtitle" = "Fullførte transkripsjoner";
-"statistics.card.duration" = "Totaltid";
-"statistics.card.duration.subtitle" = "Tid brukt på opptak";
-"statistics.card.words" = "Totalt antall ord";
-"statistics.card.words.subtitle" = "Ord transkribert";
-"statistics.card.average" = "Gjennomsnittlig varighet";
-"statistics.card.average.subtitle" = "Per opptak";
-"statistics.graph.title" = "Aktivitet over tid";
-"statistics.daily.empty" = "Ingen opptak ennå";
-"statistics.filter.week" = "Denne uken";
-"statistics.filter.month" = "Denne måneden";
-"statistics.filter.alltime" = "All tid";
 
 // MARK: - History View
 "history.title" = "Historikk";

@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Hem";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Lägen";
 "sidebar.vocabulary" = "Ordförråd";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kom igång med HyperWhisper";
-"sidebar.statistics.help" = "Visa användningsstatistik och analys";
 "sidebar.modes.help" = "Hantera transkriptionslägen för olika sammanhang";
 "sidebar.vocabulary.help" = "Lägg till anpassade ord och fraser för bättre igenkänning";
 "sidebar.streaming.help" = "Inställningar för transkription i realtid (kräver Internet)";
@@ -553,22 +551,6 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "models.error.checksumFailed" = "Modellkontrollsummaverifiering misslyckades. Nedladdningen kan vara skadad.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Din användningsstatistik";
-"statistics.header.subtitle" = "Spåra din transkriptionsaktivitet och prestanda";
-"statistics.card.recordings" = "Totala inspelningar";
-"statistics.card.recordings.subtitle" = "Slutförda transkriptioner";
-"statistics.card.duration" = "Total tid";
-"statistics.card.duration.subtitle" = "Tid använd för inspelning";
-"statistics.card.words" = "Totala ord";
-"statistics.card.words.subtitle" = "Ord transkriberade";
-"statistics.card.average" = "Genomsnittlig varaktighet";
-"statistics.card.average.subtitle" = "Per inspelning";
-"statistics.graph.title" = "Aktivitet över tid";
-"statistics.daily.empty" = "Inga inspelningar än";
-"statistics.filter.week" = "Denna vecka";
-"statistics.filter.month" = "Denna månad";
-"statistics.filter.alltime" = "All tid";
 
 // MARK: - History View
 "history.title" = "Historik";

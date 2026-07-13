@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Startpagina";
-"sidebar.statistics" = "Statistieken";
 "sidebar.modes" = "Modi";
 "sidebar.vocabulary" = "Woordenlijst";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Aan de slag met HyperWhisper";
-"sidebar.statistics.help" = "Bekijk gebruiksstatistieken en analyses";
 "sidebar.modes.help" = "Beheer transcriptiemodi voor verschillende contexten";
 "sidebar.vocabulary.help" = "Voeg aangepaste woorden en zinnen toe voor betere herkenning";
 "sidebar.streaming.help" = "Instellingen voor real-time streamingtranscriptie (vereist internet)";
@@ -553,22 +551,6 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "models.error.checksumFailed" = "Verificatie van modelcontrolesom mislukt. De download is mogelijk beschadigd.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistieken";
-"statistics.header.title" = "Je gebruiksstatistieken";
-"statistics.header.subtitle" = "Volg je transcriptieactiviteit en prestaties";
-"statistics.card.recordings" = "Totale opnamen";
-"statistics.card.recordings.subtitle" = "Voltooide transcripties";
-"statistics.card.duration" = "Totale tijd";
-"statistics.card.duration.subtitle" = "Tijd besteed aan opnamen";
-"statistics.card.words" = "Totale woorden";
-"statistics.card.words.subtitle" = "Getranscribeerde woorden";
-"statistics.card.average" = "Gemiddelde duur";
-"statistics.card.average.subtitle" = "Per opname";
-"statistics.graph.title" = "Activiteit in de loop van de tijd";
-"statistics.daily.empty" = "Nog geen opnamen";
-"statistics.filter.week" = "Deze week";
-"statistics.filter.month" = "Deze maand";
-"statistics.filter.alltime" = "Altijd";
 
 // MARK: - History View
 "history.title" = "Geschiedenis";

@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "בית";
-"sidebar.statistics" = "סטטיסטיקה";
 "sidebar.modes" = "מצבים";
 "sidebar.vocabulary" = "אוצר מילים";
 "sidebar.streaming" = "סטרימינג";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "התחל עם HyperWhisper";
-"sidebar.statistics.help" = "הצג סטטיסטיקות שימוש וניתוח";
 "sidebar.modes.help" = "נהל מצבי תמלול להקשרים שונים";
 "sidebar.vocabulary.help" = "הוסף מילים וביטויים מותאמים אישית לזיהוי טוב יותר";
 "sidebar.streaming.help" = "הגדרות תמלול סטרימינג בזמן אמת (דורש אינטרנט)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "אימות סכום ביקורת של המודל נכשל. ייתכן שההורדה פגומה.";
 
 // MARK: - Statistics View
-"statistics.title" = "סטטיסטיקה";
-"statistics.header.title" = "סטטיסטיקת השימוש שלך";
-"statistics.header.subtitle" = "עקוב אחר פעילות התמלול והביצועים שלך";
-"statistics.card.recordings" = "סה\"כ הקלטות";
-"statistics.card.recordings.subtitle" = "תמלולים שהושלמו";
-"statistics.card.duration" = "זמן כולל";
-"statistics.card.duration.subtitle" = "זמן שהוקדש להקלטה";
-"statistics.card.words" = "סה\"כ מילים";
-"statistics.card.words.subtitle" = "מילים שתומללו";
-"statistics.card.average" = "משך ממוצע";
-"statistics.card.average.subtitle" = "לכל הקלטה";
-"statistics.graph.title" = "פעילות לאורך זמן";
-"statistics.daily.empty" = "אין עדיין הקלטות";
-"statistics.filter.week" = "השבוע";
-"statistics.filter.month" = "החודש";
-"statistics.filter.alltime" = "כל הזמנים";
 
 // MARK: - History View
 "history.title" = "היסטוריה";

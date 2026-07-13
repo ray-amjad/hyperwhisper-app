@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "الرئيسية";
-"sidebar.statistics" = "الإحصائيات";
 "sidebar.modes" = "الأوضاع";
 "sidebar.vocabulary" = "المفردات";
 "sidebar.streaming" = "البث المباشر";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "ابدأ مع HyperWhisper";
-"sidebar.statistics.help" = "عرض إحصائيات الاستخدام والتحليلات";
 "sidebar.modes.help" = "إدارة أوضاع النسخ لسياقات مختلفة";
 "sidebar.vocabulary.help" = "إضافة كلمات وعبارات مخصصة لتحسين التعرف";
 "sidebar.streaming.help" = "إعدادات البث المباشر في الوقت الفعلي (يتطلب الإنترنت)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "فشل التحقق من المجموع الاختياري للنموذج. قد يكون التحميل تالفاً.";
 
 // MARK: - Statistics View
-"statistics.title" = "الإحصائيات";
-"statistics.header.title" = "إحصائيات استخدامك";
-"statistics.header.subtitle" = "تتبع نشاط وأداء النسخ الخاص بك";
-"statistics.card.recordings" = "إجمالي التسجيلات";
-"statistics.card.recordings.subtitle" = "النسخ المكتملة";
-"statistics.card.duration" = "الوقت الإجمالي";
-"statistics.card.duration.subtitle" = "الوقت المستغرق في التسجيل";
-"statistics.card.words" = "إجمالي الكلمات";
-"statistics.card.words.subtitle" = "الكلمات المنسوخة";
-"statistics.card.average" = "متوسط المدة";
-"statistics.card.average.subtitle" = "لكل تسجيل";
-"statistics.graph.title" = "النشاط على مدى الوقت";
-"statistics.daily.empty" = "لا توجد تسجيلات حتى الآن";
-"statistics.filter.week" = "هذا الأسبوع";
-"statistics.filter.month" = "هذا الشهر";
-"statistics.filter.alltime" = "منذ البداية";
 
 // MARK: - History View
 "history.title" = "السجل";

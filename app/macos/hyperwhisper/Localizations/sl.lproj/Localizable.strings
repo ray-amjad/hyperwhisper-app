@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Domov";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Načini";
 "sidebar.vocabulary" = "Besednjak";
 "sidebar.streaming" = "Pretakanje";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Začni s HyperWhisper";
-"sidebar.statistics.help" = "Ogled uporabniške statistike in analitike";
 "sidebar.modes.help" = "Upravljaj načine prepisa za različne kontekste";
 "sidebar.vocabulary.help" = "Dodaj prilagojene besede in fraze za boljše prepoznavanje";
 "sidebar.streaming.help" = "Nastavitve pretakanja v realnem času (zahteva internet)";
@@ -553,22 +551,6 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "models.error.checksumFailed" = "Neuspešna preverka vsote modela. Prenos je morda poškodovan.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Tvoja statistika uporabe";
-"statistics.header.subtitle" = "Spremljaj svojo aktivnost prepisa in delovanje";
-"statistics.card.recordings" = "Skupni posnetki";
-"statistics.card.recordings.subtitle" = "Zaključeni prepisi";
-"statistics.card.duration" = "Skupni čas";
-"statistics.card.duration.subtitle" = "Čas za snemanje";
-"statistics.card.words" = "Skupne besede";
-"statistics.card.words.subtitle" = "Prepisane besede";
-"statistics.card.average" = "Povprečna trajanja";
-"statistics.card.average.subtitle" = "Na posnetek";
-"statistics.graph.title" = "Aktivnost skozi čas";
-"statistics.daily.empty" = "Še ni posnetkov";
-"statistics.filter.week" = "To sedo";
-"statistics.filter.month" = "Ta mesec";
-"statistics.filter.alltime" = "Vse čase";
 
 // MARK: - History View
 "history.title" = "Zgodovina";

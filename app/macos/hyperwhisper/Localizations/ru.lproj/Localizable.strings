@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Главная";
-"sidebar.statistics" = "Статистика";
 "sidebar.modes" = "Режимы";
 "sidebar.vocabulary" = "Словарь";
 "sidebar.streaming" = "Потоковая передача";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Начните работу с HyperWhisper";
-"sidebar.statistics.help" = "Просмотрите статистику использования и аналитику";
 "sidebar.modes.help" = "Управляйте режимами транскрипции для различных контекстов";
 "sidebar.vocabulary.help" = "Добавьте пользовательские слова и фразы для лучшего распознавания";
 "sidebar.streaming.help" = "Параметры потоковой транскрипции в реальном времени (требует интернета)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "Ошибка проверки контрольной суммы модели. Загрузка может быть повреждена.";
 
 // MARK: - Statistics View
-"statistics.title" = "Статистика";
-"statistics.header.title" = "Ваша статистика использования";
-"statistics.header.subtitle" = "Отслеживайте активность транскрипции и производительность";
-"statistics.card.recordings" = "Всего записей";
-"statistics.card.recordings.subtitle" = "Завершенных транскрипций";
-"statistics.card.duration" = "Общее время";
-"statistics.card.duration.subtitle" = "Время, потраченное на запись";
-"statistics.card.words" = "Всего слов";
-"statistics.card.words.subtitle" = "Слов транскрибировано";
-"statistics.card.average" = "Средняя продолжительность";
-"statistics.card.average.subtitle" = "На одну запись";
-"statistics.graph.title" = "Активность во времени";
-"statistics.daily.empty" = "Записей нет";
-"statistics.filter.week" = "На этой неделе";
-"statistics.filter.month" = "В этом месяце";
-"statistics.filter.alltime" = "Всегда";
 
 // MARK: - History View
 "history.title" = "История";

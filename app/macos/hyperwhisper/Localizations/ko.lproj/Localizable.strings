@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "홈";
-"sidebar.statistics" = "통계";
 "sidebar.modes" = "모드";
 "sidebar.vocabulary" = "어휘";
 "sidebar.streaming" = "스트리밍";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisper 시작하기";
-"sidebar.statistics.help" = "사용 통계 및 분석 보기";
 "sidebar.modes.help" = "다양한 컨텍스트에 대한 음성 인식 모드 관리";
 "sidebar.vocabulary.help" = "더 나은 인식을 위한 사용자 정의 단어 및 구문 추가";
 "sidebar.streaming.help" = "실시간 스트리밍 음성 인식 설정 (인터넷 필요)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "모델 체크섬 확인 실패. 다운로드가 손상되었을 수 있습니다.";
 
 // MARK: - Statistics View
-"statistics.title" = "통계";
-"statistics.header.title" = "사용 통계";
-"statistics.header.subtitle" = "음성 인식 활동 및 성능 추적";
-"statistics.card.recordings" = "총 녹음";
-"statistics.card.recordings.subtitle" = "완료된 음성 인식";
-"statistics.card.duration" = "총 시간";
-"statistics.card.duration.subtitle" = "녹음에 소요된 시간";
-"statistics.card.words" = "총 단어";
-"statistics.card.words.subtitle" = "음성 인식된 단어";
-"statistics.card.average" = "평균 기간";
-"statistics.card.average.subtitle" = "녹음당";
-"statistics.graph.title" = "시간에 따른 활동";
-"statistics.daily.empty" = "아직 녹음이 없습니다";
-"statistics.filter.week" = "이번 주";
-"statistics.filter.month" = "이번 달";
-"statistics.filter.alltime" = "전체 기간";
 
 // MARK: - History View
 "history.title" = "기록";

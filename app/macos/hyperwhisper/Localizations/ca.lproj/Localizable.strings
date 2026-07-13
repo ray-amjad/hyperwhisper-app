@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Inici";
-"sidebar.statistics" = "Estadístiques";
 "sidebar.modes" = "Modes";
 "sidebar.vocabulary" = "Vocabulari";
 "sidebar.streaming" = "Transmissió en temps real";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Comenceu amb HyperWhisper";
-"sidebar.statistics.help" = "Visualitzeu estadístiques d'ús i analítiques";
 "sidebar.modes.help" = "Gestioneu els modes de transcripció per a diferents contextos";
 "sidebar.vocabulary.help" = "Afegiu paraules i frases personalitzades per a un millor reconeixement";
 "sidebar.streaming.help" = "Configuració de la transmissió en temps real (requereix Internet)";
@@ -553,22 +551,6 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "models.error.checksumFailed" = "La verificació de la suma de comprovació del model ha fallat. La descàrrega pot estar corrompuda.";
 
 // MARK: - Statistics View
-"statistics.title" = "Estadístiques";
-"statistics.header.title" = "Les vostres estadístiques d'ús";
-"statistics.header.subtitle" = "Feu seguiment de la vostra activitat i rendiment de transcripció";
-"statistics.card.recordings" = "Gravacions totals";
-"statistics.card.recordings.subtitle" = "Transcripcions completades";
-"statistics.card.duration" = "Temps total";
-"statistics.card.duration.subtitle" = "Temps dedicat a gravar";
-"statistics.card.words" = "Paraules totals";
-"statistics.card.words.subtitle" = "Paraules transcrites";
-"statistics.card.average" = "Durada mitjana";
-"statistics.card.average.subtitle" = "Per gravació";
-"statistics.graph.title" = "Activitat al llarg del temps";
-"statistics.daily.empty" = "Encara no hi ha gravacions";
-"statistics.filter.week" = "Aquesta setmana";
-"statistics.filter.month" = "Aquest mes";
-"statistics.filter.alltime" = "Tot el temps";
 
 // MARK: - History View
 "history.title" = "Historial";

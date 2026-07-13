@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Utama";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Mod";
 "sidebar.vocabulary" = "Perbendaharaan Kata";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Mulakan dengan HyperWhisper";
-"sidebar.statistics.help" = "Lihat statistik penggunaan dan analitik";
 "sidebar.modes.help" = "Urus mod transkripsi untuk konteks berbeza";
 "sidebar.vocabulary.help" = "Tambah perkataan dan frasa tersuai untuk pengiktirafan yang lebih baik";
 "sidebar.streaming.help" = "Tetapan transkripsi streaming masa nyata (memerlukan Internet)";
@@ -553,22 +551,6 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "models.error.checksumFailed" = "Pengesahan checksum model gagal. Muat turun mungkin rosak.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Statistik Penggunaan Anda";
-"statistics.header.subtitle" = "Jejaki aktiviti dan prestasi transkripsi anda";
-"statistics.card.recordings" = "Jumlah Rakaman";
-"statistics.card.recordings.subtitle" = "Transkripsi yang selesai";
-"statistics.card.duration" = "Jumlah Masa";
-"statistics.card.duration.subtitle" = "Masa dihabiskan merakam";
-"statistics.card.words" = "Jumlah Perkataan";
-"statistics.card.words.subtitle" = "Perkataan yang ditranskrip";
-"statistics.card.average" = "Tempoh Purata";
-"statistics.card.average.subtitle" = "Setiap rakaman";
-"statistics.graph.title" = "Aktiviti Sepanjang Masa";
-"statistics.daily.empty" = "Belum ada rakaman lagi";
-"statistics.filter.week" = "Minggu Ini";
-"statistics.filter.month" = "Bulan Ini";
-"statistics.filter.alltime" = "Sepanjang Masa";
 
 // MARK: - History View
 "history.title" = "Sejarah";

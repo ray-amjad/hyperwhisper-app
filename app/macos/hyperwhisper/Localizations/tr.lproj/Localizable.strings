@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Ana Sayfa";
-"sidebar.statistics" = "İstatistikler";
 "sidebar.modes" = "Modlar";
 "sidebar.vocabulary" = "Kelime Hazinesi";
 "sidebar.streaming" = "Akış";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisper'ı kullanmaya başlayın";
-"sidebar.statistics.help" = "Kullanım istatistiklerini ve analizlerini görüntüleyin";
 "sidebar.modes.help" = "Farklı bağlamlar için transkripsiyon modlarını yönet";
 "sidebar.vocabulary.help" = "Daha iyi tanıma için özel kelimeler ve ifadeler ekleyin";
 "sidebar.streaming.help" = "Gerçek zamanlı akış transkripsiyon ayarları (İnternet gerekir)";
@@ -553,22 +551,6 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "models.error.checksumFailed" = "Model sağlama toplamı doğrulaması başarısız oldu. İndirme bozulmuş olabilir.";
 
 // MARK: - Statistics View
-"statistics.title" = "İstatistikler";
-"statistics.header.title" = "Kullanım İstatistikleriniz";
-"statistics.header.subtitle" = "Transkripsiyon aktivitenizi ve performansını izleyin";
-"statistics.card.recordings" = "Toplam Kayıtlar";
-"statistics.card.recordings.subtitle" = "Tamamlanan transkripsiyon";
-"statistics.card.duration" = "Toplam Zaman";
-"statistics.card.duration.subtitle" = "Kaydı yapılan zaman";
-"statistics.card.words" = "Toplam Kelimeler";
-"statistics.card.words.subtitle" = "Transkribe edilen kelimeler";
-"statistics.card.average" = "Ortalama Süre";
-"statistics.card.average.subtitle" = "Kayıt başına";
-"statistics.graph.title" = "Zaman İçinde Aktivite";
-"statistics.daily.empty" = "Henüz kayıt yok";
-"statistics.filter.week" = "Bu Hafta";
-"statistics.filter.month" = "Bu Ay";
-"statistics.filter.alltime" = "Tüm Zaman";
 
 // MARK: - History View
 "history.title" = "Geçmiş";

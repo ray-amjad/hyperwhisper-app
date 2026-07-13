@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Heim";
-"sidebar.statistics" = "Tölfræði";
 "sidebar.modes" = "Hamar";
 "sidebar.vocabulary" = "Orðaforði";
 "sidebar.streaming" = "Streymi";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Byrjaðu með HyperWhisper";
-"sidebar.statistics.help" = "Skoða notkunartölfræði og greiningar";
 "sidebar.modes.help" = "Stjórna afritunarhamum fyrir mismunandi samhengi";
 "sidebar.vocabulary.help" = "Bæta við sérsniðnum orðum og orðasamböndum fyrir betri þekkingu";
 "sidebar.streaming.help" = "Rauntímastraumsafritun stillingar (krefst internets)";
@@ -553,22 +551,6 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "models.error.checksumFailed" = "Líkans gátsumustaðfesting mistókst. Sóttin gæti verið skemmd.";
 
 // MARK: - Statistics View
-"statistics.title" = "Tölfræði";
-"statistics.header.title" = "Notkunartölfræði þín";
-"statistics.header.subtitle" = "Fylgstu með afritunarstarfsemi og frammistöðu";
-"statistics.card.recordings" = "Heildarupptökur";
-"statistics.card.recordings.subtitle" = "Loknar afritanir";
-"statistics.card.duration" = "Heildartími";
-"statistics.card.duration.subtitle" = "Tími í upptöku";
-"statistics.card.words" = "Heildarorð";
-"statistics.card.words.subtitle" = "Orð afrituð";
-"statistics.card.average" = "Meðallengd";
-"statistics.card.average.subtitle" = "Á hverja upptöku";
-"statistics.graph.title" = "Starfsemi með tímanum";
-"statistics.daily.empty" = "Engar upptökur ennþá";
-"statistics.filter.week" = "Þessi vika";
-"statistics.filter.month" = "Þessi mánuður";
-"statistics.filter.alltime" = "Allan tímann";
 
 // MARK: - History View
 "history.title" = "Saga";

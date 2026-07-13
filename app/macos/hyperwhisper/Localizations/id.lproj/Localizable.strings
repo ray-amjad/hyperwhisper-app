@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Beranda";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Mode";
 "sidebar.vocabulary" = "Kosakata";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Mulai dengan HyperWhisper";
-"sidebar.statistics.help" = "Lihat statistik penggunaan dan analitik";
 "sidebar.modes.help" = "Kelola mode transkripsi untuk konteks berbeda";
 "sidebar.vocabulary.help" = "Tambahkan kata dan frasa khusus untuk pengenalan lebih baik";
 "sidebar.streaming.help" = "Pengaturan transkripsi streaming waktu nyata (memerlukan Internet)";
@@ -553,22 +551,6 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "models.error.checksumFailed" = "Verifikasi checksum model gagal. Unduhan mungkin rusak.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Statistik Penggunaan Anda";
-"statistics.header.subtitle" = "Lacak aktivitas dan kinerja transkripsi Anda";
-"statistics.card.recordings" = "Total Rekaman";
-"statistics.card.recordings.subtitle" = "Transkripsi selesai";
-"statistics.card.duration" = "Total Waktu";
-"statistics.card.duration.subtitle" = "Waktu yang dihabiskan untuk merekam";
-"statistics.card.words" = "Total Kata";
-"statistics.card.words.subtitle" = "Kata-kata yang ditranskripsi";
-"statistics.card.average" = "Durasi Rata-rata";
-"statistics.card.average.subtitle" = "Per rekaman";
-"statistics.graph.title" = "Aktivitas Seiring Waktu";
-"statistics.daily.empty" = "Belum ada rekaman";
-"statistics.filter.week" = "Minggu Ini";
-"statistics.filter.month" = "Bulan Ini";
-"statistics.filter.alltime" = "Sepanjang Waktu";
 
 // MARK: - History View
 "history.title" = "Riwayat";

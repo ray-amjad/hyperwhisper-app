@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Начало";
-"sidebar.statistics" = "Статистики";
 "sidebar.modes" = "Режими";
 "sidebar.vocabulary" = "Речник";
 "sidebar.streaming" = "Поточно предаване";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Започнете работа с HyperWhisper";
-"sidebar.statistics.help" = "Преглед на статистики и анализи за използването";
 "sidebar.modes.help" = "Управление на режимите за транскрипция за различни контексти";
 "sidebar.vocabulary.help" = "Добавяне на потребителски думи и фрази за по-добро разпознаване";
 "sidebar.streaming.help" = "Настройки за поточна транскрипция в реално време (изисква интернет)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "Проверката на контролната сума на модела е неуспешна. Изтеглянето може да е повредено.";
 
 // MARK: - Statistics View
-"statistics.title" = "Статистики";
-"statistics.header.title" = "Вашата статистика за използване";
-"statistics.header.subtitle" = "Следете вашата активност и ефективност при транскрипция";
-"statistics.card.recordings" = "Общо записи";
-"statistics.card.recordings.subtitle" = "Завършени транскрипции";
-"statistics.card.duration" = "Общо време";
-"statistics.card.duration.subtitle" = "Време, прекарано в запис";
-"statistics.card.words" = "Общо думи";
-"statistics.card.words.subtitle" = "Транскрибирани думи";
-"statistics.card.average" = "Средна продължителност";
-"statistics.card.average.subtitle" = "За запис";
-"statistics.graph.title" = "Активност във времето";
-"statistics.daily.empty" = "Все още няма записи";
-"statistics.filter.week" = "Тази седмица";
-"statistics.filter.month" = "Този месец";
-"statistics.filter.alltime" = "За всички времена";
 
 // MARK: - History View
 "history.title" = "История";

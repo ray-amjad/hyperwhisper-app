@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Sākums";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Režīmi";
 "sidebar.vocabulary" = "Vārdu krājums";
 "sidebar.streaming" = "Straumēšana";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Sākt darbību ar HyperWhisper";
-"sidebar.statistics.help" = "Skatiet lietojuma statistiku un analītiku";
 "sidebar.modes.help" = "Pārvaldiet transkripciijas režīmus dažādiem kontekstiem";
 "sidebar.vocabulary.help" = "Pievienojiet pielāgotus vārdus un frāzes labākai atpazīšanai";
 "sidebar.streaming.help" = "Reāllaika straumēšanas transkripciijas iestatījumi (nepieciešams internets)";
@@ -553,22 +551,6 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "models.error.checksumFailed" = "Modeļa kontrolsummas verifikācija neizdevās. Lejupielāde var būt bojāta.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Jūsu lietojuma statistika";
-"statistics.header.subtitle" = "Izsekot transkripciijas darbības un veiktspēju";
-"statistics.card.recordings" = "Kopējie ieraksti";
-"statistics.card.recordings.subtitle" = "Pabeigtas transkripciijas";
-"statistics.card.duration" = "Kopējais laiks";
-"statistics.card.duration.subtitle" = "Laiks, kas pavadīts ierakstīšanai";
-"statistics.card.words" = "Kopējie vārdi";
-"statistics.card.words.subtitle" = "Transkriēti vārdi";
-"statistics.card.average" = "Vidējais ilgums";
-"statistics.card.average.subtitle" = "Par ierakstu";
-"statistics.graph.title" = "Darbības laika gaitā";
-"statistics.daily.empty" = "Vēl nav ierakstu";
-"statistics.filter.week" = "Šonedēļ";
-"statistics.filter.month" = "Šomēnesi";
-"statistics.filter.alltime" = "Visu laiku";
 
 // MARK: - History View
 "history.title" = "Vēsture";

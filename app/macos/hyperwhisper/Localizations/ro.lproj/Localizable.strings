@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Acasă";
-"sidebar.statistics" = "Statistici";
 "sidebar.modes" = "Moduri";
 "sidebar.vocabulary" = "Vocabular";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Porniți cu HyperWhisper";
-"sidebar.statistics.help" = "Vizualizați statisticile de utilizare și analitica";
 "sidebar.modes.help" = "Gestionați moduri de transcriere pentru contexte diferite";
 "sidebar.vocabulary.help" = "Adăugați cuvinte și expresii personalizate pentru o recunoaștere mai bună";
 "sidebar.streaming.help" = "Setări de transcriere de streaming în timp real (necesită Internet)";
@@ -553,22 +551,6 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "models.error.checksumFailed" = "Verificarea sumei de control a modelului a eșuat. Descărcarea poate fi coruptă.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistici";
-"statistics.header.title" = "Statisticile dvs. de utilizare";
-"statistics.header.subtitle" = "Urmăriți activitatea și performanța transcrierii";
-"statistics.card.recordings" = "Total înregistrări";
-"statistics.card.recordings.subtitle" = "Transcrieri completate";
-"statistics.card.duration" = "Timp total";
-"statistics.card.duration.subtitle" = "Timp petrecut înregistrând";
-"statistics.card.words" = "Total cuvinte";
-"statistics.card.words.subtitle" = "Cuvinte transcrise";
-"statistics.card.average" = "Durată medie";
-"statistics.card.average.subtitle" = "Per înregistrare";
-"statistics.graph.title" = "Activitate în timp";
-"statistics.daily.empty" = "Nicio înregistrare încă";
-"statistics.filter.week" = "Săptămâna aceasta";
-"statistics.filter.month" = "Luna aceasta";
-"statistics.filter.alltime" = "Tot timpul";
 
 // MARK: - History View
 "history.title" = "Istoric";

@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "ホーム";
-"sidebar.statistics" = "統計";
 "sidebar.modes" = "モード";
 "sidebar.vocabulary" = "語彙";
 "sidebar.streaming" = "ストリーミング";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisperを始めましょう";
-"sidebar.statistics.help" = "使用統計と分析を表示します";
 "sidebar.modes.help" = "利用シーンに合わせて文字起こしモードを管理します";
 "sidebar.vocabulary.help" = "精度向上のためにカスタム単語やフレーズを追加します";
 "sidebar.streaming.help" = "リアルタイムストリーミング文字起こしの設定（インターネット接続が必要）";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "モデルのチェックサム検証に失敗しました。ダウンロードが破損している可能性があります。";
 
 // MARK: - Statistics View
-"statistics.title" = "統計";
-"statistics.header.title" = "使用統計";
-"statistics.header.subtitle" = "文字起こしの活動とパフォーマンスを追跡します";
-"statistics.card.recordings" = "総録音数";
-"statistics.card.recordings.subtitle" = "完了した文字起こし";
-"statistics.card.duration" = "総時間";
-"statistics.card.duration.subtitle" = "録音に費やした時間";
-"statistics.card.words" = "総単語数";
-"statistics.card.words.subtitle" = "文字起こしされた単語";
-"statistics.card.average" = "平均時間";
-"statistics.card.average.subtitle" = "録音あたり";
-"statistics.graph.title" = "時間経過";
-"statistics.daily.empty" = "まだ録音がありません";
-"statistics.filter.week" = "今週";
-"statistics.filter.month" = "今月";
-"statistics.filter.alltime" = "すべて";
 
 // MARK: - History View
 "history.title" = "履歴";

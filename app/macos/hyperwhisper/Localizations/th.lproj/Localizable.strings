@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "หน้าแรก";
-"sidebar.statistics" = "สถิติ";
 "sidebar.modes" = "โหมด";
 "sidebar.vocabulary" = "ศัพท์เฉพาะ";
 "sidebar.streaming" = "สตรีมมิง";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "เริ่มต้นใช้งาน HyperWhisper";
-"sidebar.statistics.help" = "ดูสถิติการใช้งานและการวิเคราะห์";
 "sidebar.modes.help" = "จัดการโหมดการสัญลักษณ์สำหรับบริบทต่างๆ";
 "sidebar.vocabulary.help" = "เพิ่มคำศัพท์และวลีที่กำหนดเองเพื่อการรู้จำที่ดีขึ้น";
 "sidebar.streaming.help" = "การตั้งค่าการสัญลักษณ์สตรีมมิงแบบเรียลไทม์ (ต้องเชื่อมต่ออินเทอร์เน็ต)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "การตรวจสอบ checksum โมเดลล้มเหลว การดาวน์โหลดอาจเสียหาย";
 
 // MARK: - Statistics View
-"statistics.title" = "สถิติ";
-"statistics.header.title" = "สถิติการใช้งานของคุณ";
-"statistics.header.subtitle" = "ติดตามกิจกรรมการสัญลักษณ์และประสิทธิภาพ";
-"statistics.card.recordings" = "การบันทึกทั้งหมด";
-"statistics.card.recordings.subtitle" = "การสัญลักษณ์ที่เสร็จสิ้น";
-"statistics.card.duration" = "เวลาทั้งหมด";
-"statistics.card.duration.subtitle" = "เวลาที่ใช้บันทึก";
-"statistics.card.words" = "คำทั้งหมด";
-"statistics.card.words.subtitle" = "คำที่สัญลักษณ์";
-"statistics.card.average" = "ระยะเวลาเฉลี่ย";
-"statistics.card.average.subtitle" = "ต่อการบันทึก";
-"statistics.graph.title" = "กิจกรรมเมื่อเวลาผ่านไป";
-"statistics.daily.empty" = "ยังไม่มีการบันทึก";
-"statistics.filter.week" = "สัปดาห์นี้";
-"statistics.filter.month" = "เดือนนี้";
-"statistics.filter.alltime" = "ทั้งหมด";
 
 // MARK: - History View
 "history.title" = "ประวัติ";

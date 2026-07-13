@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Início";
-"sidebar.statistics" = "Estatísticas";
 "sidebar.modes" = "Modos";
 "sidebar.vocabulary" = "Vocabulário";
 "sidebar.streaming" = "Streaming";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Comece com o HyperWhisper";
-"sidebar.statistics.help" = "Ver estatísticas de uso e análises";
 "sidebar.modes.help" = "Gerenciar modos de transcrição para diferentes contextos";
 "sidebar.vocabulary.help" = "Adicione palavras e frases personalizadas para melhor reconhecimento";
 "sidebar.streaming.help" = "Configurações de transcrição de streaming em tempo real (requer Internet)";
@@ -553,22 +551,6 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "models.error.checksumFailed" = "Falha na verificação de checksum do modelo. O download pode estar corrompido.";
 
 // MARK: - Statistics View
-"statistics.title" = "Estatísticas";
-"statistics.header.title" = "Suas Estatísticas de Uso";
-"statistics.header.subtitle" = "Rastreie sua atividade de transcrição e desempenho";
-"statistics.card.recordings" = "Gravações Totais";
-"statistics.card.recordings.subtitle" = "Transcrições concluídas";
-"statistics.card.duration" = "Tempo Total";
-"statistics.card.duration.subtitle" = "Tempo gasto gravando";
-"statistics.card.words" = "Palavras Totais";
-"statistics.card.words.subtitle" = "Palavras transcritas";
-"statistics.card.average" = "Duração Média";
-"statistics.card.average.subtitle" = "Por gravação";
-"statistics.graph.title" = "Atividade ao Longo do Tempo";
-"statistics.daily.empty" = "Nenhuma gravação ainda";
-"statistics.filter.week" = "Esta Semana";
-"statistics.filter.month" = "Este Mês";
-"statistics.filter.alltime" = "Tempo Total";
 
 // MARK: - History View
 "history.title" = "Histórico";

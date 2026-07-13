@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Strona główna";
-"sidebar.statistics" = "Statystyki";
 "sidebar.modes" = "Tryby";
 "sidebar.vocabulary" = "Słownictwo";
 "sidebar.streaming" = "Transmisja";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Rozpocznij pracę z HyperWhisper";
-"sidebar.statistics.help" = "Przeglądaj statystyki użycia i analitykę";
 "sidebar.modes.help" = "Zarządzaj trybami transkrypcji dla różnych kontekstów";
 "sidebar.vocabulary.help" = "Dodaj niestandardowe słowa i zwroty dla lepszego rozpoznawania";
 "sidebar.streaming.help" = "Ustawienia transkrypcji przesyłania w czasie rzeczywistym (wymaga Internetu)";
@@ -553,22 +551,6 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "models.error.checksumFailed" = "Weryfikacja sumy kontrolnej modelu nie powiodła się. Pobieranie może być uszkodzone.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statystyki";
-"statistics.header.title" = "Twoje statystyki użycia";
-"statistics.header.subtitle" = "Śledź działalność transkrypcji i wydajność";
-"statistics.card.recordings" = "Wszystkie nagrania";
-"statistics.card.recordings.subtitle" = "Ukończone transkrypcje";
-"statistics.card.duration" = "Całkowity czas";
-"statistics.card.duration.subtitle" = "Czas spędzony na nagrywaniu";
-"statistics.card.words" = "Wszystkie słowa";
-"statistics.card.words.subtitle" = "Słowa transkrybowane";
-"statistics.card.average" = "Średni czas";
-"statistics.card.average.subtitle" = "Na nagranie";
-"statistics.graph.title" = "Aktywność w czasie";
-"statistics.daily.empty" = "Brak nagrań";
-"statistics.filter.week" = "Ten tydzień";
-"statistics.filter.month" = "Ten miesiąc";
-"statistics.filter.alltime" = "Cały czas";
 
 // MARK: - History View
 "history.title" = "Historia";

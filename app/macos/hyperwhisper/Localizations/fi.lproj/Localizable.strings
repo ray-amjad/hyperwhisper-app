@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Koti";
-"sidebar.statistics" = "Tilastot";
 "sidebar.modes" = "Tilat";
 "sidebar.vocabulary" = "Sanasto";
 "sidebar.streaming" = "Suoratoisto";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Aloita HyperWhisperin käyttö";
-"sidebar.statistics.help" = "Näytä käyttötilastot ja analytiikka";
 "sidebar.modes.help" = "Hallinnoi transkriptiotiloja eri konteksteissa";
 "sidebar.vocabulary.help" = "Lisää mukautettuja sanoja ja lauseita paremman tunnistuksen saavuttamiseksi";
 "sidebar.streaming.help" = "Reaaliaikaisen suoratranskription asetukset (vaatii internetin)";
@@ -553,22 +551,6 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "models.error.checksumFailed" = "Mallin tarkistussumman vahvistus epäonnistui. Lataus saattaa olla vaurioitunut.";
 
 // MARK: - Statistics View
-"statistics.title" = "Tilastot";
-"statistics.header.title" = "Käyttötilastosi";
-"statistics.header.subtitle" = "Seuraa transkriptiotoimintaasi ja suorituskykyäsi";
-"statistics.card.recordings" = "Nauhoitukset yhteensä";
-"statistics.card.recordings.subtitle" = "Valmiit transkriptiot";
-"statistics.card.duration" = "Aika yhteensä";
-"statistics.card.duration.subtitle" = "Nauhoitukseen käytetty aika";
-"statistics.card.words" = "Sanat yhteensä";
-"statistics.card.words.subtitle" = "Transkriptoituja sanoja";
-"statistics.card.average" = "Keskimääräinen kesto";
-"statistics.card.average.subtitle" = "Per nauhoitus";
-"statistics.graph.title" = "Toiminta ajan mittaan";
-"statistics.daily.empty" = "Ei vielä nauhoituksia";
-"statistics.filter.week" = "Tällä viikolla";
-"statistics.filter.month" = "Tässä kuussa";
-"statistics.filter.alltime" = "Kaikkina aikoina";
 
 // MARK: - History View
 "history.title" = "Historia";

@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "主頁";
-"sidebar.statistics" = "統計";
 "sidebar.modes" = "模式";
 "sidebar.vocabulary" = "詞彙";
 "sidebar.streaming" = "串流";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "開始使用 HyperWhisper";
-"sidebar.statistics.help" = "檢視使用統計和分析";
 "sidebar.modes.help" = "管理不同內容的轉錄模式";
 "sidebar.vocabulary.help" = "新增自訂詞語和短語以提高識別率";
 "sidebar.streaming.help" = "即時串流轉錄設定（需要網際網路）";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "模型校驗和驗證失敗。下載可能已損毀。";
 
 // MARK: - Statistics View
-"statistics.title" = "統計";
-"statistics.header.title" = "您的使用統計";
-"statistics.header.subtitle" = "追蹤您的轉錄活動和效能";
-"statistics.card.recordings" = "總錄音數";
-"statistics.card.recordings.subtitle" = "已完成的轉錄";
-"statistics.card.duration" = "總時間";
-"statistics.card.duration.subtitle" = "錄音花費時間";
-"statistics.card.words" = "總詞數";
-"statistics.card.words.subtitle" = "轉錄的詞";
-"statistics.card.average" = "平均時長";
-"statistics.card.average.subtitle" = "每次錄音";
-"statistics.graph.title" = "一段時間內的活動";
-"statistics.daily.empty" = "還沒有錄音";
-"statistics.filter.week" = "本週";
-"statistics.filter.month" = "本月";
-"statistics.filter.alltime" = "全部時間";
 
 // MARK: - History View
 "history.title" = "歷史記錄";

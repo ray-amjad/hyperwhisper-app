@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Domov";
-"sidebar.statistics" = "Statistiky";
 "sidebar.modes" = "Rezimy";
 "sidebar.vocabulary" = "Slovnik";
 "sidebar.streaming" = "Streamovani";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Zacnete s HyperWhisper";
-"sidebar.statistics.help" = "Zobrazit statistiky pouzivani a analyzy";
 "sidebar.modes.help" = "Spravovat rezimy prepisu pro ruzne kontexty";
 "sidebar.vocabulary.help" = "Pridat vlastni slova a fraze pro lepsi rozpoznavani";
 "sidebar.streaming.help" = "Nastaveni streamovani prepisu v realnem case (vyzaduje internet)";
@@ -553,22 +551,6 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "models.error.checksumFailed" = "Overeni kontrolniho souctu modelu selhalo. Stahovani muze byt poskozene.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistiky";
-"statistics.header.title" = "Vase statistiky pouzivani";
-"statistics.header.subtitle" = "Sledujte svou aktivitu a vykon prepisu";
-"statistics.card.recordings" = "Celkem nahravek";
-"statistics.card.recordings.subtitle" = "Dokoncene prepisy";
-"statistics.card.duration" = "Celkovy cas";
-"statistics.card.duration.subtitle" = "Cas straveny nahravanim";
-"statistics.card.words" = "Celkem slov";
-"statistics.card.words.subtitle" = "Prepsana slova";
-"statistics.card.average" = "Prumerna doba trvani";
-"statistics.card.average.subtitle" = "Na nahravku";
-"statistics.graph.title" = "Aktivita v case";
-"statistics.daily.empty" = "Zatim zadne nahravky";
-"statistics.filter.week" = "Tento tyden";
-"statistics.filter.month" = "Tento mesic";
-"statistics.filter.alltime" = "Celkem";
 
 // MARK: - History View
 "history.title" = "Historie";

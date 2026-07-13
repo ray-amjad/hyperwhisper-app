@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Αρχική";
-"sidebar.statistics" = "Στατιστικά";
 "sidebar.modes" = "Λειτουργίες";
 "sidebar.vocabulary" = "Λεξιλόγιο";
 "sidebar.streaming" = "Ροή";
@@ -169,7 +168,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Ξεκινήστε με το HyperWhisper";
-"sidebar.statistics.help" = "Δείτε τα στατιστικά χρήσης και ανάλυση";
 "sidebar.modes.help" = "Διαχειρίστε τις λειτουργίες μεταγραφής για διαφορετικά πλαίσια";
 "sidebar.vocabulary.help" = "Προσθέστε προσαρμοσμένες λέξεις και φράσεις για καλύτερη αναγνώριση";
 "sidebar.streaming.help" = "Ρυθμίσεις ροής ρεμάτων σε πραγματικό χρόνο (απαιτείται Διαδίκτυο)";
@@ -553,22 +551,6 @@
 "models.error.checksumFailed" = "Η επαλήθευση ελέγχου μοντέλου απέτυχε. Η λήψη μπορεί να είναι κατεστραμμένη.";
 
 // MARK: - Statistics View
-"statistics.title" = "Στατιστικά";
-"statistics.header.title" = "Τα Στατιστικά Χρήσης σας";
-"statistics.header.subtitle" = "Παρακολουθήστε τη δραστηριότητα μεταγραφής και την απόδοση";
-"statistics.card.recordings" = "Σύνολο Εγγραφών";
-"statistics.card.recordings.subtitle" = "Ολοκληρωμένες μεταγραφές";
-"statistics.card.duration" = "Συνολικός Χρόνος";
-"statistics.card.duration.subtitle" = "Χρόνος ξοδεμένος στην εγγραφή";
-"statistics.card.words" = "Σύνολο Λέξεων";
-"statistics.card.words.subtitle" = "Λέξεις μεταγραφείες";
-"statistics.card.average" = "Μέση Διάρκεια";
-"statistics.card.average.subtitle" = "Ανά εγγραφή";
-"statistics.graph.title" = "Δραστηριότητα Κατά τη Διάρκεια του Χρόνου";
-"statistics.daily.empty" = "Καμία εγγραφή ακόμα";
-"statistics.filter.week" = "Αυτή τη Εβδομάδα";
-"statistics.filter.month" = "Αυτό το Μήνα";
-"statistics.filter.alltime" = "Όλες τις Ώρες";
 
 // MARK: - History View
 "history.title" = "Ιστορικό";
