@@ -418,14 +418,40 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             do {
                 try throwIfCancelled()
 
-                let corrected = try await performPostProcess(
-                    session: session,
-                    text: transcript.text,
-                    prompt: prompt,
-                    identifier: identifier,
-                    isLicensed: isLicensed,
-                    mode: mode
-                )
+                // Dictated break commands must never reach the LLM — it merges
+                // mid-body breaks whatever the prompt says (issue #1). Mirror
+                // AIPostProcessor.performAIPostProcessingPreservingBreaks: split
+                // on the dictated commands, post-process each segment separately,
+                // and restore the breaks afterwards. A transcript with no dictated
+                // break is a single segment and takes the old single-call path.
+                let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(transcript.text)
+                let corrected: String
+                if segments.count > 1 {
+                    AppLogger.network.info("HyperWhisper Cloud post-processing \(segments.count, privacy: .public) dictated segments separately")
+                    var processed: [String] = []
+                    for segment in segments {
+                        try throwIfCancelled()
+                        let output = try await performPostProcess(
+                            session: session,
+                            text: segment,
+                            prompt: prompt,
+                            identifier: identifier,
+                            isLicensed: isLicensed,
+                            mode: mode
+                        )
+                        processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
+                    corrected = processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
+                } else {
+                    corrected = try await performPostProcess(
+                        session: session,
+                        text: transcript.text,
+                        prompt: prompt,
+                        identifier: identifier,
+                        isLicensed: isLicensed,
+                        mode: mode
+                    )
+                }
 
                 try throwIfCancelled()
 
