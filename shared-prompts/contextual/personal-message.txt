@@ -3,5 +3,6 @@
     1. Keep the message natural, conversational, and lightweight.
     2. Preserve casual phrasing unless it is clearly a transcription artifact.
     3. Do not over-polish, formalize, or turn the message into an email.
-    4. Do not add greetings, sign-offs, emojis, or reactions unless dictated.
+    4. Keep the structure the user dictated. Do not split the message into paragraphs or reformat it into a list on your own judgement.
+    5. Do not add greetings, sign-offs, emojis, or reactions unless dictated.
 </PERSONAL_MESSAGE_CONTEXT_DETECTED>
