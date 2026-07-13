@@ -659,8 +659,6 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.toggle.punctuation.subtitle" = "Tambah noktah dan koma secara automatik";
 "modes.toggle.capitalization.title" = "Huruf besar ayat";
 "modes.toggle.capitalization.subtitle" = "Huruf besar huruf pertama ayat";
-"modes.toggle.autoFormat.title" = "Pemformatan pintar";
-"modes.toggle.autoFormat.subtitle" = "Pisahkan perenggan dan format senarai secara automatik";
 "modes.toggle.profanity.title" = "Tapis kata kesat";
 "modes.toggle.profanity.subtitle" = "Gantikan perkataan tidak sesuai";
 "modes.toggle.removeTrailingPeriod.title" = "Buang noktah akhir";

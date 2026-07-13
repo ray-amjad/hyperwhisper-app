@@ -659,8 +659,6 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.toggle.punctuation.subtitle" = "Legg automatisk til punktum og kommaer";
 "modes.toggle.capitalization.title" = "Bruk stor forbokstav i setninger";
 "modes.toggle.capitalization.subtitle" = "Bruk stor forbokstav i begynnelsen av setninger";
-"modes.toggle.autoFormat.title" = "Smart formatering";
-"modes.toggle.autoFormat.subtitle" = "Del opp avsnitt og formater lister automatisk";
 "modes.toggle.profanity.title" = "Filtrer banning";
 "modes.toggle.profanity.subtitle" = "Erstatt upassende ord";
 "modes.toggle.removeTrailingPeriod.title" = "Fjern avsluttende punktum";

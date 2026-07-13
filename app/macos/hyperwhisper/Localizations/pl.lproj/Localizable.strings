@@ -659,8 +659,6 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.toggle.punctuation.subtitle" = "Automatycznie dodaj kropki i przecinki";
 "modes.toggle.capitalization.title" = "Kapitalizuj zdania";
 "modes.toggle.capitalization.subtitle" = "Wielkie litery na początkach zdań";
-"modes.toggle.autoFormat.title" = "Inteligentne formatowanie";
-"modes.toggle.autoFormat.subtitle" = "Automatycznie dziel akapity i formatuj listy";
 "modes.toggle.profanity.title" = "Filtr wulgaryzmów";
 "modes.toggle.profanity.subtitle" = "Zamień nieodpowiednie słowa";
 "modes.toggle.removeTrailingPeriod.title" = "Usuń kropkę końcową";

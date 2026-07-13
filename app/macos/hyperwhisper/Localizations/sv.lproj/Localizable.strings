@@ -659,8 +659,6 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.toggle.punctuation.subtitle" = "Lägg automatiskt till punkter och kommatecken";
 "modes.toggle.capitalization.title" = "Använd stora bokstäver för meningar";
 "modes.toggle.capitalization.subtitle" = "Stor bokstav för första bokstaven i meningar";
-"modes.toggle.autoFormat.title" = "Smart formatering";
-"modes.toggle.autoFormat.subtitle" = "Dela upp stycken och formatera listor automatiskt";
 "modes.toggle.profanity.title" = "Filtrera svordomar";
 "modes.toggle.profanity.subtitle" = "Ersätt olämpliga ord";
 "modes.toggle.removeTrailingPeriod.title" = "Ta bort avslutande punkt";

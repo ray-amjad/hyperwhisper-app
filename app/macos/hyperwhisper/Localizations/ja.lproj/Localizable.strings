@@ -659,8 +659,6 @@
 "modes.toggle.punctuation.subtitle" = "ピリオドやカンマを自動挿入します";
 "modes.toggle.capitalization.title" = "文頭を大文字にする";
 "modes.toggle.capitalization.subtitle" = "文の先頭を自動的に大文字化します";
-"modes.toggle.autoFormat.title" = "スマートフォーマット";
-"modes.toggle.autoFormat.subtitle" = "段落の分割やリストの整形を自動で行う";
 "modes.toggle.profanity.title" = "不適切な語を置換";
 "modes.toggle.profanity.subtitle" = "不適切な語句を別の語に置き換えます";
 "modes.toggle.removeTrailingPeriod.title" = "末尾のピリオドを削除";

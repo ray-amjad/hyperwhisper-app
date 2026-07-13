@@ -659,8 +659,6 @@
 "modes.toggle.punctuation.subtitle" = "自动添加句号和逗号";
 "modes.toggle.capitalization.title" = "句首大写";
 "modes.toggle.capitalization.subtitle" = "将句子的首字母大写";
-"modes.toggle.autoFormat.title" = "智能排版";
-"modes.toggle.autoFormat.subtitle" = "自动分段并格式化列表";
 "modes.toggle.profanity.title" = "过滤脏话";
 "modes.toggle.profanity.subtitle" = "替换不当词语";
 "modes.toggle.removeTrailingPeriod.title" = "移除末尾句号";

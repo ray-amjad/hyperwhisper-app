@@ -659,8 +659,6 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.toggle.punctuation.subtitle" = "Automātiski pievienot punktus un komatus";
 "modes.toggle.capitalization.title" = "Kapitalizēt teikumus";
 "modes.toggle.capitalization.subtitle" = "Liels pirmais teikuma burts";
-"modes.toggle.autoFormat.title" = "Viedā formatēšana";
-"modes.toggle.autoFormat.subtitle" = "Automātiski sadalīt rindkopas un formatēt sarakstus";
 "modes.toggle.profanity.title" = "Filtrēt lamības";
 "modes.toggle.profanity.subtitle" = "Aizstāt nepiemērotus vārdus";
 "modes.toggle.removeTrailingPeriod.title" = "Noņemt beigu punktu";

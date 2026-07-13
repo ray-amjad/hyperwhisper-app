@@ -110,30 +110,6 @@ fn mode_flags_all_on() {
     assert!(p.contains("Remove profanity"));
 }
 
-// `auto_format` is the one INVERTED flag: it defaults to true (smart formatting
-// on = long-standing behavior) and injects the preserve-structure flag only
-// when the user turns it OFF.
-#[test]
-fn auto_format_on_by_default_injects_nothing() {
-    let ctx = base_ctx();
-    assert!(ctx.auto_format, "auto_format must default to true");
-    let p = build_system_prompt(&ctx);
-    assert!(!p.contains("Preserve the user's dictated structure"));
-    assert!(p.ends_with("<MODE_FLAGS>\n</MODE_FLAGS>"));
-}
-
-#[test]
-fn auto_format_off_injects_preserve_structure_flag() {
-    let mut ctx = base_ctx();
-    ctx.auto_format = false;
-    let p = build_system_prompt(&ctx);
-    assert!(p.contains("Preserve the user's dictated structure"));
-    // Inside the MODE_FLAGS block, like every other flag.
-    let i_flags = p.find("<MODE_FLAGS>").unwrap();
-    let i_preserve = p.find("Preserve the user's dictated structure").unwrap();
-    assert!(i_flags < i_preserve);
-}
-
 // ---------------------------------------------------------------------------
 // Presets
 // ---------------------------------------------------------------------------

@@ -140,7 +140,6 @@ struct ModesView: View {
                     punctuation: newModeData.punctuation,
                     capitalization: newModeData.capitalization,
                     profanityFilter: newModeData.profanityFilter,
-                    autoFormat: newModeData.autoFormat,
                     customInstructions: newModeData.customInstructions,
                     languageModel: newModeData.languageModel,
                     cloudProvider: newModeData.cloudProvider,
@@ -179,7 +178,6 @@ struct ModesView: View {
                     mode.punctuation = updatedModeData.punctuation
                     mode.capitalization = updatedModeData.capitalization
                     mode.profanityFilter = updatedModeData.profanityFilter
-                    mode.autoFormat = updatedModeData.autoFormat
                     mode.customInstructions = updatedModeData.customInstructions
                     let trimmedUserPrompt = updatedModeData.userSystemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
                     if trimmedUserPrompt.isEmpty {

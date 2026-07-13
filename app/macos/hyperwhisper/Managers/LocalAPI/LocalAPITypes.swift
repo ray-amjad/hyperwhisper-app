@@ -128,7 +128,6 @@ struct ModeDTO: Codable, Sendable {
     let punctuation: Bool
     let capitalization: Bool
     let profanityFilter: Bool
-    let autoFormat: Bool?
     let customInstructions: String?
     let userSystemPrompt: String?
     let isDefault: Bool?
@@ -161,7 +160,6 @@ struct ModePatchDTO: Codable, Sendable {
     let punctuation: Bool?
     let capitalization: Bool?
     let profanityFilter: Bool?
-    let autoFormat: Bool?
     let customInstructions: String?
     let userSystemPrompt: String?
     let isDefault: Bool?

@@ -659,8 +659,6 @@
 "modes.toggle.punctuation.subtitle" = "Автоматично добавяне на точки и запетаи";
 "modes.toggle.capitalization.title" = "Главни букви на изреченията";
 "modes.toggle.capitalization.subtitle" = "Главна буква в началото на изреченията";
-"modes.toggle.autoFormat.title" = "Интелигентно форматиране";
-"modes.toggle.autoFormat.subtitle" = "Автоматично разделяне на абзаци и форматиране на списъци";
 "modes.toggle.profanity.title" = "Филтриране на нецензурни думи";
 "modes.toggle.profanity.subtitle" = "Заместване на неподходящи думи";
 "modes.toggle.removeTrailingPeriod.title" = "Премахване на крайната точка";

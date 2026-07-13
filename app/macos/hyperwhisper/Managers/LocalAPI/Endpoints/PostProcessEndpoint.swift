@@ -167,7 +167,6 @@ enum PostProcessEndpoint {
         mode.model = baseline?.model ?? "base"
         mode.punctuation = baseline?.punctuation ?? true
         mode.capitalization = baseline?.capitalization ?? true
-        mode.autoFormat = baseline?.autoFormat ?? true
         mode.profanityFilter = baseline?.profanityFilter ?? false
         mode.customInstructions = baseline?.customInstructions ?? ""
         mode.userSystemPrompt = baseline?.userSystemPrompt

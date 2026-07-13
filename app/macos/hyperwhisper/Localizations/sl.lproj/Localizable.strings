@@ -659,8 +659,6 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.toggle.punctuation.subtitle" = "Samodejno dodaj pike in vejice";
 "modes.toggle.capitalization.title" = "Pismenka velika";
 "modes.toggle.capitalization.subtitle" = "Velika črka na začetku stavka";
-"modes.toggle.autoFormat.title" = "Pametno oblikovanje";
-"modes.toggle.autoFormat.subtitle" = "Samodejno razdeli odstavke in oblikuj sezname";
 "modes.toggle.profanity.title" = "Filtriraj neprekladan jezik";
 "modes.toggle.profanity.subtitle" = "Zamenjaj neprimerne besede";
 "modes.toggle.removeTrailingPeriod.title" = "Odstrani končno piko";

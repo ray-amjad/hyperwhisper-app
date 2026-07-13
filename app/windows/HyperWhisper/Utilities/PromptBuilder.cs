@@ -229,12 +229,7 @@ public static class PromptBuilder
             @computerName: Environment.MachineName,
             @punctuation: mode.Punctuation,
             @capitalization: mode.Capitalization,
-            @profanityFilter: mode.ProfanityFilter,
-            // TODO(windows-parity): smart formatting is not yet surfaced on the
-            // Windows Mode entity (needs an EF migration + Mode editor toggle).
-            // Always-on preserves the pre-toggle behavior; macOS mode setting is
-            // `Mode.autoFormat`.
-            @autoFormat: true
+            @profanityFilter: mode.ProfanityFilter
         );
     }
 

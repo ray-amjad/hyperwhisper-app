@@ -659,8 +659,6 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.toggle.punctuation.subtitle" = "Tự động thêm các dấu chấm và dấu phẩy";
 "modes.toggle.capitalization.title" = "Viết hoa câu";
 "modes.toggle.capitalization.subtitle" = "Chữ cái hoa đầu tiên của câu";
-"modes.toggle.autoFormat.title" = "Định dạng thông minh";
-"modes.toggle.autoFormat.subtitle" = "Tự động tách đoạn và định dạng danh sách";
 "modes.toggle.profanity.title" = "Lọc những lời lăng mạ";
 "modes.toggle.profanity.subtitle" = "Thay thế những từ không phù hợp";
 "modes.toggle.removeTrailingPeriod.title" = "Xóa dấu chấm cuối";

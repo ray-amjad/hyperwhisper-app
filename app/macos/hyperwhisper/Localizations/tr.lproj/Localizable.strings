@@ -659,8 +659,6 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.toggle.punctuation.subtitle" = "Otomatik olarak nokta ve virgül ekle";
 "modes.toggle.capitalization.title" = "Cümleleri Büyüt";
 "modes.toggle.capitalization.subtitle" = "Cümlelerin ilk harfini büyüt";
-"modes.toggle.autoFormat.title" = "Akıllı biçimlendirme";
-"modes.toggle.autoFormat.subtitle" = "Paragrafları otomatik böl ve listeleri biçimlendir";
 "modes.toggle.profanity.title" = "Küfürü Filtrele";
 "modes.toggle.profanity.subtitle" = "Uygunsuz kelimeleri değiştir";
 "modes.toggle.removeTrailingPeriod.title" = "Sondaki noktayı kaldır";

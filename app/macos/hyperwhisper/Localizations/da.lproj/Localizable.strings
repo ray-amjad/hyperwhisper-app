@@ -659,8 +659,6 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.toggle.punctuation.subtitle" = "Tilføj automatisk punktummer og kommaer";
 "modes.toggle.capitalization.title" = "Brug stort begyndelsesbogstav";
 "modes.toggle.capitalization.subtitle" = "Stort begyndelsesbogstav i sætninger";
-"modes.toggle.autoFormat.title" = "Smart formatering";
-"modes.toggle.autoFormat.subtitle" = "Opdel afsnit og formatér lister automatisk";
 "modes.toggle.profanity.title" = "Filtrer bandeord";
 "modes.toggle.profanity.subtitle" = "Erstat upassende ord";
 "modes.toggle.removeTrailingPeriod.title" = "Fjern afsluttende punktum";

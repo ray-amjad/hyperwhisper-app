@@ -165,7 +165,6 @@ pub struct PromptContext {
     pub punctuation: bool,
     pub capitalization: bool,
     pub profanity_filter: bool,
-    pub auto_format: bool,
 }
 
 impl From<PromptContext> for hw_text::PromptContext {
@@ -197,7 +196,6 @@ impl From<PromptContext> for hw_text::PromptContext {
             punctuation: c.punctuation,
             capitalization: c.capitalization,
             profanity_filter: c.profanity_filter,
-            auto_format: c.auto_format,
         }
     }
 }

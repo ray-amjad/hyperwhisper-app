@@ -466,7 +466,7 @@ class AIPostProcessor: ObservableObject {
     /// The LLM will not keep a mid-body break, whatever the prompt says: measured
     /// against the cloud model, it merged a dictated "new paragraph" back into one
     /// paragraph on 5 of 5 runs — even with the break already inserted in its input
-    /// and the preserve-structure flag set (issue #1). So the break is never shown
+    /// and an explicit do-not-merge-paragraphs instruction (issue #1). So the break is never shown
     /// to the LLM. The transcript is split on the dictated commands, each segment is
     /// post-processed independently, and the breaks are restored afterwards.
     ///

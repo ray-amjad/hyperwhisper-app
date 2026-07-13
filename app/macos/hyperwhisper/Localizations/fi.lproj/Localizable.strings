@@ -659,8 +659,6 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.toggle.punctuation.subtitle" = "Lisää pisteet ja pilkut automaattisesti";
 "modes.toggle.capitalization.title" = "Aloita lauseet isolla kirjaimella";
 "modes.toggle.capitalization.subtitle" = "Aloita lauseiden ensimmäinen kirjain isolla";
-"modes.toggle.autoFormat.title" = "Älykäs muotoilu";
-"modes.toggle.autoFormat.subtitle" = "Jaa kappaleet ja muotoile luettelot automaattisesti";
 "modes.toggle.profanity.title" = "Suodata kiroilu";
 "modes.toggle.profanity.subtitle" = "Korvaa sopimattomia sanoja";
 "modes.toggle.removeTrailingPeriod.title" = "Poista loppupiste";

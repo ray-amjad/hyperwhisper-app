@@ -641,7 +641,6 @@ enum TranscribeEndpoint {
             mode.model = baseline.model ?? "base"
             mode.punctuation = baseline.punctuation
             mode.capitalization = baseline.capitalization
-            mode.autoFormat = baseline.autoFormat
             mode.profanityFilter = baseline.profanityFilter
             mode.customInstructions = baseline.customInstructions ?? ""
             mode.userSystemPrompt = baseline.userSystemPrompt
@@ -663,7 +662,6 @@ enum TranscribeEndpoint {
             mode.language = "auto"
             mode.punctuation = true
             mode.capitalization = true
-            mode.autoFormat = true
             mode.profanityFilter = false
             mode.customInstructions = ""
             mode.postProcessingMode = 0

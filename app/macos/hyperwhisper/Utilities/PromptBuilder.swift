@@ -106,8 +106,7 @@ enum PromptBuilder {
             computerName: Host.current().name ?? "Unknown",
             punctuation: mode.punctuation,
             capitalization: mode.capitalization,
-            profanityFilter: mode.profanityFilter,
-            autoFormat: mode.autoFormat
+            profanityFilter: mode.profanityFilter
         )
     }
 

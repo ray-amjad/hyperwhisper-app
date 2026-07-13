@@ -659,8 +659,6 @@
 "modes.toggle.punctuation.subtitle" = "Προσθέστε αυτόματα τελείες και κόμματα";
 "modes.toggle.capitalization.title" = "Κεφαλαιοποίηση προτάσεων";
 "modes.toggle.capitalization.subtitle" = "Κεφάλαιο πρώτο γράμμα προτάσεων";
-"modes.toggle.autoFormat.title" = "Έξυπνη μορφοποίηση";
-"modes.toggle.autoFormat.subtitle" = "Αυτόματος διαχωρισμός παραγράφων και μορφοποίηση λιστών";
 "modes.toggle.profanity.title" = "Φιλτράρισμα χυδαιότητας";
 "modes.toggle.profanity.subtitle" = "Αντικατάστασης ακατάλληλων λέξεων";
 "modes.toggle.removeTrailingPeriod.title" = "Αφαίρεση τελικής τελείας";

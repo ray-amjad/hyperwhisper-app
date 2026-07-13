@@ -659,8 +659,6 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.toggle.punctuation.subtitle" = "Automatski dodaj točke i zareze";
 "modes.toggle.capitalization.title" = "Velika slova na početku rečenica";
 "modes.toggle.capitalization.subtitle" = "Veliko prvo slovo rečenica";
-"modes.toggle.autoFormat.title" = "Pametno oblikovanje";
-"modes.toggle.autoFormat.subtitle" = "Automatski dijeli odlomke i oblikuj popise";
 "modes.toggle.profanity.title" = "Filtriraj psovke";
 "modes.toggle.profanity.subtitle" = "Zamijeni neprikladne riječi";
 "modes.toggle.removeTrailingPeriod.title" = "Ukloni završnu točku";

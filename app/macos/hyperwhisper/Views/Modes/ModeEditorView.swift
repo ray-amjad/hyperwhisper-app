@@ -61,7 +61,6 @@ struct ModeEditorView: View {
     @State private var punctuation: Bool
     @State private var capitalization: Bool
     @State private var profanityFilter: Bool
-    @State private var autoFormat: Bool
     @State private var customInstructions: String
     @State private var languageModel: String
     @State private var postProcessingMode: PostProcessingMode
@@ -140,7 +139,6 @@ struct ModeEditorView: View {
             _punctuation = State(initialValue: mode.punctuation)
             _capitalization = State(initialValue: mode.capitalization)
             _profanityFilter = State(initialValue: mode.profanityFilter)
-            _autoFormat = State(initialValue: mode.autoFormat)
             _customInstructions = State(initialValue: mode.customInstructions ?? "")
             _languageModel = State(initialValue: mode.languageModel ?? "gpt-4.1-nano")
             let processingMode = isLegacyVoiceToText ? PostProcessingMode.off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
@@ -200,7 +198,6 @@ struct ModeEditorView: View {
             _punctuation = State(initialValue: true)
             _capitalization = State(initialValue: true)
             _profanityFilter = State(initialValue: false)
-            _autoFormat = State(initialValue: true)
             _customInstructions = State(initialValue: "")
             _languageModel = State(initialValue: PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-4.1-nano")
             _postProcessingMode = State(initialValue: .cloud)
@@ -691,15 +688,6 @@ struct ModeEditorView: View {
                                     title: LocalizedStringKey("modes.toggle.capitalization.title"),
                                     subtitle: LocalizedStringKey("modes.toggle.capitalization.subtitle"),
                                     isOn: $capitalization,
-                                    standalone: false
-                                )
-
-                                Divider()
-
-                                SettingsToggleRow(
-                                    title: LocalizedStringKey("modes.toggle.autoFormat.title"),
-                                    subtitle: LocalizedStringKey("modes.toggle.autoFormat.subtitle"),
-                                    isOn: $autoFormat,
                                     standalone: false
                                 )
                             } else {
@@ -1240,7 +1228,6 @@ struct ModeEditorView: View {
                     punctuation: punctuation,
                     capitalization: capitalization,
                     profanityFilter: profanityFilter,
-                    autoFormat: autoFormat,
                     customInstructions: customInstructions,
                     languageModel: languageModel,
                     cloudProvider: cloudProvider,
