@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Verzió %@";
 "home.recent.updates.new.badge" = "ÚJ";
 "home.recent.updates.no.notes" = "Nincsenek kiadási megjegyzések";
+"home.stats.words.week" = "Szavak ezen a héten";
+"home.stats.words.month" = "Szavak ebben a hónapban";
+"home.stats.speed" = "Átlagos sebesség";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB egységesített memóriával vagy többel rendelkező Mac számítógépekhez ajánlott. A sebesség a chiptől függ — gyorsabb M3/M4 Pro és újabb chipeken.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Szavak ebben az évben";
+"home.stats.typing.speed.help" = "Az időmegtakarítás becsléséhez használt feltételezett gépelési sebesség (WPM) módosítása.";
+"home.stats.saved.week" = "Megtakarítva ezen a héten";
+"home.stats.minutes.value" = "%d perc";
 "vocabulary.input.placeholder" = "Adjon hozzá egy szót vagy hozzon létre részletet";
 "vocabulary.action.addWord" = "Szó hozzáadása";
 "vocabulary.action.replaceWith" = "Csere erre…";
@@ -671,8 +677,13 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.cloudAccuracy.groqWhisper.description" = "Gyors és megfizethető. Legjobb gyors átírásokhoz.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kiegyensúlyozott sebesség és pontosság. Ajánlott a legtöbb felhasználónak.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/perc";
 "modes.cloudAccuracy.grokStt.label" = "Legmagasabb (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
+"modes.cloudAccuracy.googleChirp3.label" = "Magas (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 a Google Chirp 3 modellel. Többnyelvű, kifejezésadaptációval.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Magas (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 az Azure Speech szolgáltatáson keresztül. 43 nyelv, kontextusalapú súlyozással.";
 
 "modes.create.title" = "Új mód létrehozása";
 "modes.create.subtitle" = "Egyéni átírási profil konfigurálása";
@@ -883,6 +894,15 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.guidance.timeout" = "A kérés túl sokáig tartott. Ellenőrizd az internet sebességet és próbáld újra.";
 "transcription.error.noSpeechDetected" = "Nem észlelhető beszéd a felvételben.";
 "transcription.guidance.noSpeechDetected" = "Tippek:\n• Beszélj tisztán a mikrofonba\n• Tartsd lenyomva a billentyűt hosszabb ideig beszélés előtt\n• Ellenőrizd, hogy a mikrofonod működik-e\n• Győződj meg róla, hogy a helyes bemeneti eszköz van kiválasztva";
+"transcription.guidance.needsNativeRelaunch" = "A helyi utófeldolgozáshoz lépjen ki, és indítsa újra a HyperWhispert natív módban.";
+"transcription.guidance.localRuntimeUnavailable" = "Próbálja újra, vagy válasszon kisebb helyi modellt a Mód beállításaiban.";
+"transcription.error.localRuntimeUnavailable" = "A helyi MI nem tudta befejezni — a nyers átirat megmaradt.";
+"settings.backup.localDownload.title" = "Letölti a helyi modelleket?";
+"settings.backup.localDownload.message" = "A visszaállított módok közül %d olyan helyi MI-modellt használ, amely még nincs letöltve.";
+"settings.backup.localDownload.downloadAll" = "Az összes letöltése";
+"settings.backup.localDownload.dismiss" = "Elvetés";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon szükséges";
+"modelLibrary.local.needsNativeRelaunch" = "Újraindítás natív módban";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";

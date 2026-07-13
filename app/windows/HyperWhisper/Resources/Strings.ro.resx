@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Fișierul audio nu a putut fi încărcat</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -286,6 +289,9 @@
   </data>
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Înlocuire</value>
+  </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Sursă</value>
   </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Niciun cuvânt de vocabular încă</value>
@@ -464,6 +470,12 @@
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
+  </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Repornire necesară</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Aplicația trebuie repornită pentru ca schimbarea temei să aibă efect.\n\nDorești să repornești acum?</value>
   </data>
 
   <!-- Settings - License -->
@@ -1245,6 +1257,9 @@ You can re-download it later.</value>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
   </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Folderul cu înregistrări nu a putut fi deschis. {0}</value>
+  </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
   </data>
@@ -1286,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Curățare eșuată</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Înregistrările vechi nu au putut fi șterse. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1813,6 +1834,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Manual</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1980,6 +2004,54 @@ You can re-download it later.</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 de limbi, adaptare contextuală</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 limbi, adaptare contextuală</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - transcriere cu LLM multimodal</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - sugestii de termeni-cheie, mod medical</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Versiune preliminară)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Versiune preliminară</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Fără vocabular personalizat)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Fără vocabular personalizat</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Recomandat)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Vocabular medical (supliment Mod medical)</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
@@ -2223,6 +2295,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Tokenul nu este încă disponibil.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Token regenerat.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Locația fișierului de descoperire a fost deschisă.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Locația fișierului de descoperire nu a putut fi deschisă: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Portul nu este disponibil până când serverul nu rulează.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Documentația nu a putut fi deschisă: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Fișierul de descoperire nu este încă disponibil. Pornește serverul și așteaptă finalizarea pornirii.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Nu s-a putut copia în clipboard: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Copiat în clipboard.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Versi %@";
 "home.recent.updates.new.badge" = "BARU";
 "home.recent.updates.no.notes" = "Tidak ada catatan rilis";
+"home.stats.words.week" = "Kata minggu ini";
+"home.stats.words.month" = "Kata bulan ini";
+"home.stats.speed" = "Kecepatan rata-rata";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Direkomendasikan untuk Mac dengan 24 GB unified memory atau lebih. Kecepatan tergantung pada chip — lebih cepat di M3/M4 Pro dan yang lebih tinggi.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Kata tahun ini";
+"home.stats.typing.speed.help" = "Sesuaikan asumsi kecepatan mengetik (WPM) yang dipakai untuk memperkirakan waktu yang dihemat.";
+"home.stats.saved.week" = "Dihemat minggu ini";
+"home.stats.minutes.value" = "%d menit";
 "vocabulary.input.placeholder" = "Tambahkan kata atau buat cuplikan";
 "vocabulary.action.addWord" = "Tambah kata";
 "vocabulary.action.replaceWith" = "Ganti dengan…";
@@ -671,8 +677,13 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.cloudAccuracy.groqWhisper.description" = "Cepat dan terjangkau. Terbaik untuk transkripsi cepat.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kecepatan dan akurasi seimbang. Direkomendasikan untuk sebagian besar pengguna.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/mnt";
 "modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
+"modes.cloudAccuracy.googleChirp3.label" = "Tinggi (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 dengan Chirp 3. Multibahasa dengan adaptasi frasa.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 melalui Azure Speech. 43 bahasa dengan bias kontekstual.";
 
 "modes.create.title" = "Buat Mode Baru";
 "modes.create.subtitle" = "Konfigurasi profil transkripsi khusus";
@@ -883,6 +894,15 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.guidance.timeout" = "Permintaan memakan waktu terlalu lama. Periksa kecepatan internet Anda dan coba lagi.";
 "transcription.error.noSpeechDetected" = "Tidak ada ucapan terdeteksi dalam rekaman.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Berbicara dengan jelas ke mikrofon\n• Tahan tombol lebih lama sebelum berbicara\n• Periksa apakah mikrofon Anda berfungsi\n• Pastikan perangkat input yang benar dipilih";
+"transcription.guidance.needsNativeRelaunch" = "Keluar lalu buka kembali HyperWhisper secara native untuk memakai pasca-pemrosesan lokal.";
+"transcription.guidance.localRuntimeUnavailable" = "Coba lagi, atau pilih model lokal yang lebih kecil di pengaturan Mode Anda.";
+"transcription.error.localRuntimeUnavailable" = "AI lokal tidak dapat menyelesaikan prosesnya — transkrip mentah Anda tetap disimpan.";
+"settings.backup.localDownload.title" = "Unduh model lokal?";
+"settings.backup.localDownload.message" = "%d mode yang Anda pulihkan menggunakan model AI di perangkat yang belum diunduh.";
+"settings.backup.localDownload.downloadAll" = "Unduh Semua";
+"settings.backup.localDownload.dismiss" = "Abaikan";
+"modelLibrary.local.requiresAppleSilicon" = "Memerlukan Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Jalankan ulang secara native";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambahkan lebih banyak kredit di Pengaturan.";

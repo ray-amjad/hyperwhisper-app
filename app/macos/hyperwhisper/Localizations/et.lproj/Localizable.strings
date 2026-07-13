@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Versioon %@";
 "home.recent.updates.new.badge" = "UUS";
 "home.recent.updates.no.notes" = "Väljalaskemärkmed puuduvad";
+"home.stats.words.week" = "Sõnu sel nädalal";
+"home.stats.words.month" = "Sõnu sel kuul";
+"home.stats.speed" = "Keskmine kiirus";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Soovitatav Mac-idele, millel on 24 GB ühendatud mälu või rohkem. Kiirus sõltub kiibist — kiirem M3/M4 Pro ja uuematel.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Sõnad sel aastal";
+"home.stats.typing.speed.help" = "Muuda eeldatavat kirjutamiskiirust (WPM), mille alusel säästetud aega hinnatakse.";
+"home.stats.saved.week" = "Sel nädalal säästetud";
+"home.stats.minutes.value" = "%d minutit";
 "vocabulary.input.placeholder" = "Lisa sõna või loo katkend";
 "vocabulary.action.addWord" = "Lisa sõna";
 "vocabulary.action.replaceWith" = "Asenda järgmisega…";
@@ -671,8 +677,13 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.cloudAccuracy.groqWhisper.description" = "Kiire ja taskukohane. Parim kiire transkriptsioonide jaoks.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Tasakaalustatud kiirus ja täpsus. Soovitatav enamikule kasutajatele.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ krediiti/min";
 "modes.cloudAccuracy.grokStt.label" = "Kõrgeim (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+"modes.cloudAccuracy.googleChirp3.label" = "Kõrge (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 mudeliga Chirp 3. Mitmekeelne, fraasikohandusega.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech kaudu. 43 keelt koos kontekstipõhise kohandusega.";
 
 "modes.create.title" = "Loo uus režiim";
 "modes.create.subtitle" = "Konfigureeri kohandatud transkriptsiooni profiil";
@@ -883,6 +894,15 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.guidance.timeout" = "Päring võttis liiga kaua aega. Kontrollige oma interneti kiirust ja proovige uuesti.";
 "transcription.error.noSpeechDetected" = "Salvestuses ei tuvastatud kõnet.";
 "transcription.guidance.noSpeechDetected" = "Näpunäited:\n• Rääkige selgelt mikrofonisse\n• Hoidke klahvi kauem enne rääkimist\n• Kontrollige, et teie mikrofon töötab\n• Veenduge, et õige sisendseade on valitud";
+"transcription.guidance.needsNativeRelaunch" = "Kohaliku järeltöötluse kasutamiseks sulge HyperWhisper ja ava see uuesti natiivselt.";
+"transcription.guidance.localRuntimeUnavailable" = "Proovi uuesti või vali režiimi seadetes väiksem kohalik mudel.";
+"transcription.error.localRuntimeUnavailable" = "Kohalik tehisintellekt ei saanud tööd lõpetada — töötlemata transkriptsioon säilitati.";
+"settings.backup.localDownload.title" = "Kas laadida kohalikud mudelid alla?";
+"settings.backup.localDownload.message" = "%d taastatud režiimi kasutavad seadmesisese tehisintellekti mudeleid, mida pole veel alla laaditud.";
+"settings.backup.localDownload.downloadAll" = "Laadi kõik alla";
+"settings.backup.localDownload.dismiss" = "Sulge";
+"modelLibrary.local.requiresAppleSilicon" = "Vajalik on Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Taaskäivita natiivselt";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";

@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Version %@";
 "home.recent.updates.new.badge" = "NOUVEAU";
 "home.recent.updates.no.notes" = "Aucune note de version disponible";
+"home.stats.words.week" = "Mots cette semaine";
+"home.stats.words.month" = "Mots ce mois-ci";
+"home.stats.speed" = "Vitesse moyenne";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Recommandé pour les Mac avec 24 GB de mémoire unifiée ou plus. La vitesse dépend de la puce — plus rapide sur M3/M4 Pro et supérieur.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Mots cette année";
+"home.stats.typing.speed.help" = "Ajustez la vitesse de frappe supposée (WPM) utilisée pour estimer le temps gagné.";
+"home.stats.saved.week" = "Gagné cette semaine";
+"home.stats.minutes.value" = "%d minutes";
 "vocabulary.input.placeholder" = "Ajouter un mot ou créer un extrait";
 "vocabulary.action.addWord" = "Ajouter un mot";
 "vocabulary.action.replaceWith" = "Remplacer par…";
@@ -671,8 +677,13 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "modes.cloudAccuracy.groqWhisper.description" = "Rapide et économique. Idéal pour les transcriptions rapides.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Équilibre entre vitesse et précision. Recommandé pour la plupart des utilisateurs.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Précision maximale avec traitement plus lent. Idéal pour les transcriptions importantes.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ crédits/min";
 "modes.cloudAccuracy.grokStt.label" = "Maximale (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Précision maximale avec traitement plus lent. Idéal pour les transcriptions importantes.";
+"modes.cloudAccuracy.googleChirp3.label" = "Élevée (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 avec Chirp 3. Multilingue avec adaptation d'expressions.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Élevée (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 langues avec adaptation contextuelle.";
 
 "modes.create.title" = "Créer un nouveau mode";
 "modes.create.subtitle" = "Configurer un profil de transcription personnalisé";
@@ -883,6 +894,15 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "transcription.guidance.timeout" = "La requête a pris trop de temps. Vérifiez votre vitesse Internet et réessayez.";
 "transcription.error.noSpeechDetected" = "Aucune parole détectée dans l'enregistrement.";
 "transcription.guidance.noSpeechDetected" = "Conseils :\n• Parlez clairement dans le microphone\n• Maintenez la touche plus longtemps avant de parler\n• Vérifiez que votre microphone fonctionne\n• Assurez-vous que le bon périphérique d'entrée est sélectionné";
+"transcription.guidance.needsNativeRelaunch" = "Quittez puis rouvrez HyperWhisper en mode natif pour utiliser le post-traitement local.";
+"transcription.guidance.localRuntimeUnavailable" = "Réessayez ou choisissez un modèle local plus léger dans les réglages de votre mode.";
+"transcription.error.localRuntimeUnavailable" = "L'IA locale n'a pas pu terminer — votre transcription brute a été conservée.";
+"settings.backup.localDownload.title" = "Télécharger les modèles locaux ?";
+"settings.backup.localDownload.message" = "%d de vos modes restaurés utilisent des modèles d'IA sur l'appareil qui ne sont pas encore téléchargés.";
+"settings.backup.localDownload.downloadAll" = "Tout télécharger";
+"settings.backup.localDownload.dismiss" = "Ignorer";
+"modelLibrary.local.requiresAppleSilicon" = "Nécessite Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Relancer en mode natif";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Crédits insuffisants. Ajoutez des crédits dans Réglages.";

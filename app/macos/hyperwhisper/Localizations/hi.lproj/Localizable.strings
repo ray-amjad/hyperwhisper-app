@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "संस्करण %@";
 "home.recent.updates.new.badge" = "नया";
 "home.recent.updates.no.notes" = "कोई रिलीज़ नोट उपलब्ध नहीं";
+"home.stats.words.week" = "इस सप्ताह के शब्द";
+"home.stats.words.month" = "इस महीने के शब्द";
+"home.stats.speed" = "औसत गति";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB यूनिफाइड मेमोरी या अधिक वाले Mac के लिए अनुशंसित। गति आपके चिप पर निर्भर करती है — M3/M4 Pro और उससे ऊपर पर तेज़।";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "इस वर्ष के शब्द";
+"home.stats.typing.speed.help" = "बचे हुए समय का अनुमान लगाने के लिए मानी गई टाइपिंग गति (WPM) समायोजित करें।";
+"home.stats.saved.week" = "इस सप्ताह बचा समय";
+"home.stats.minutes.value" = "%d मिनट";
 "vocabulary.input.placeholder" = "कोई शब्द जोड़ें या स्निपेट बनाएं";
 "vocabulary.action.addWord" = "शब्द जोड़ें";
 "vocabulary.action.replaceWith" = "इससे बदलें…";
@@ -671,8 +677,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "तेज़ और सस्ता। त्वरित ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.deepgramNova3.description" = "संतुलित गति और सटीकता। अधिकांश उपयोगकर्ताओं के लिए अनुशंसित।";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ क्रेडिट/मिनट";
 "modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.googleChirp3.label" = "उच्च (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 के साथ Google Cloud Speech-to-Text V2। फ़्रेज़ अनुकूलन के साथ बहुभाषी।";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe 1.5। संदर्भ-आधारित बायसिंग के साथ 43 भाषाएँ।";
 
 "modes.create.title" = "नया मोड बनाएं";
 "modes.create.subtitle" = "एक कस्टम ट्रांसक्रिप्शन प्रोफ़ाइल कॉन्फ़िगर करें";
@@ -883,6 +894,15 @@
 "transcription.guidance.timeout" = "अनुरोध में बहुत समय लगा। अपनी इंटरनेट गति जांचें और फिर से प्रयास करें।";
 "transcription.error.noSpeechDetected" = "रिकॉर्डिंग में कोई भाषण का पता नहीं चला।";
 "transcription.guidance.noSpeechDetected" = "सुझाव:\n• माइक्रोफ़ोन में स्पष्ट रूप से बोलें\n• कुंजी को दबाने से पहले लंबे समय तक दबाएं\n• जांचें कि आपका माइक्रोफ़ोन काम कर रहा है\n• सुनिश्चित करें कि सही इनपुट डिवाइस चयनित है";
+"transcription.guidance.needsNativeRelaunch" = "लोकल पोस्ट-प्रोसेसिंग इस्तेमाल करने के लिए HyperWhisper को बंद करके नेटिव रूप से फिर से खोलें।";
+"transcription.guidance.localRuntimeUnavailable" = "फिर से कोशिश करें, या अपनी मोड सेटिंग में कोई छोटा लोकल मॉडल चुनें।";
+"transcription.error.localRuntimeUnavailable" = "लोकल AI पूरा नहीं कर सका — आपका मूल ट्रांसक्रिप्ट सहेज लिया गया है।";
+"settings.backup.localDownload.title" = "लोकल मॉडल डाउनलोड करें?";
+"settings.backup.localDownload.message" = "आपके पुनर्स्थापित किए गए %d मोड ऐसे ऑन-डिवाइस AI मॉडल का उपयोग करते हैं जो अभी डाउनलोड नहीं हुए हैं।";
+"settings.backup.localDownload.downloadAll" = "सभी डाउनलोड करें";
+"settings.backup.localDownload.dismiss" = "खारिज करें";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon आवश्यक है";
+"modelLibrary.local.needsNativeRelaunch" = "नेटिव रूप से फिर से लॉन्च करें";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";

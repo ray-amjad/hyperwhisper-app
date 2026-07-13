@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Version %@";
 "home.recent.updates.new.badge" = "NEU";
 "home.recent.updates.no.notes" = "Keine Versionshinweise verfügbar";
+"home.stats.words.week" = "Wörter diese Woche";
+"home.stats.words.month" = "Wörter diesen Monat";
+"home.stats.speed" = "Durchschnittliche Geschwindigkeit";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Empfohlen für Mac mit 24 GB Unified Memory oder mehr. Die Geschwindigkeit hängt vom Chip ab — schneller auf M3/M4 Pro und höher.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Wörter dieses Jahr";
+"home.stats.typing.speed.help" = "Passen Sie die angenommene Tippgeschwindigkeit (WPM) an, mit der die gesparte Zeit geschätzt wird.";
+"home.stats.saved.week" = "Diese Woche gespart";
+"home.stats.minutes.value" = "%d Minuten";
 "vocabulary.input.placeholder" = "Ein Wort hinzufügen oder einen Ausschnitt erstellen";
 "vocabulary.action.addWord" = "Wort hinzufügen";
 "vocabulary.action.replaceWith" = "Ersetzen durch…";
@@ -671,8 +677,13 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.cloudAccuracy.groqWhisper.description" = "Schnell und erschwinglich. Am besten für schnelle Transkriptionen geeignet.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Ausgewogene Geschwindigkeit und Genauigkeit. Für die meisten Benutzer empfohlen.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Höchste Genauigkeit bei langsamerer Verarbeitung. Am besten für wichtige Transkriptionen geeignet.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ Credits/Min.";
 "modes.cloudAccuracy.grokStt.label" = "Höchste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Höchste Genauigkeit bei langsamerer Verarbeitung. Am besten für wichtige Transkriptionen geeignet.";
+"modes.cloudAccuracy.googleChirp3.label" = "Hoch (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 mit Chirp 3. Mehrsprachig mit Phrasenanpassung.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoch (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 über Azure Speech. 43 Sprachen mit kontextbezogener Gewichtung.";
 
 "modes.create.title" = "Neuen Modus erstellen";
 "modes.create.subtitle" = "Konfigurieren Sie ein benutzerdefiniertes Transkriptionsprofil";
@@ -883,6 +894,15 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.guidance.timeout" = "Die Anfrage hat zu lange gedauert. Überprüfen Sie Ihre Internetgeschwindigkeit und versuchen Sie es erneut.";
 "transcription.error.noSpeechDetected" = "Keine Sprache in der Aufnahme erkannt.";
 "transcription.guidance.noSpeechDetected" = "Tipps:\n• Sprechen Sie deutlich in das Mikrofon\n• Halten Sie die Taste länger gedrückt, bevor Sie sprechen\n• Überprüfen Sie, ob Ihr Mikrofon funktioniert\n• Stellen Sie sicher, dass das richtige Eingabegerät ausgewählt ist";
+"transcription.guidance.needsNativeRelaunch" = "Beenden Sie HyperWhisper und öffnen Sie es nativ erneut, um die lokale Nachbearbeitung zu verwenden.";
+"transcription.guidance.localRuntimeUnavailable" = "Versuchen Sie es erneut, oder wählen Sie in Ihren Modus-Einstellungen ein kleineres lokales Modell.";
+"transcription.error.localRuntimeUnavailable" = "Die lokale KI konnte nicht abgeschlossen werden — Ihr Rohtranskript wurde beibehalten.";
+"settings.backup.localDownload.title" = "Lokale Modelle herunterladen?";
+"settings.backup.localDownload.message" = "%d Ihrer wiederhergestellten Modi verwenden lokale KI-Modelle, die noch nicht heruntergeladen sind.";
+"settings.backup.localDownload.downloadAll" = "Alle herunterladen";
+"settings.backup.localDownload.dismiss" = "Schließen";
+"modelLibrary.local.requiresAppleSilicon" = "Erfordert Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Nativ neu starten";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nicht genügend Credits. Fügen Sie in den Einstellungen weitere Credits hinzu.";

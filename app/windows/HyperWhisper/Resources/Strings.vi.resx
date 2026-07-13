@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Không thể tải tệp âm thanh</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -286,6 +289,9 @@
   </data>
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Thay thế</value>
+  </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Nguồn</value>
   </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Chưa có từ vựng nào</value>
@@ -464,6 +470,12 @@
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
+  </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Cần khởi động lại</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Ứng dụng cần khởi động lại để áp dụng thay đổi về giao diện.\n\nBạn có muốn khởi động lại ngay bây giờ không?</value>
   </data>
 
   <!-- Settings - License -->
@@ -1245,6 +1257,9 @@ You can re-download it later.</value>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
   </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Không thể mở thư mục chứa bản ghi. {0}</value>
+  </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
   </data>
@@ -1286,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Dọn dẹp thất bại</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Không thể xóa các bản ghi cũ. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1812,6 +1833,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Thủ công</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1979,6 +2003,54 @@ You can re-download it later.</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 ngôn ngữ, điều chỉnh theo ngữ cảnh</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 ngôn ngữ, điều chỉnh theo ngữ cảnh</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - chép lời bằng LLM đa phương thức</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - nhắc thuật ngữ chính, chế độ y khoa</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Bản xem trước)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Bản xem trước</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Không hỗ trợ từ vựng tùy chỉnh)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Không hỗ trợ từ vựng tùy chỉnh</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Khuyến nghị)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Từ vựng y khoa (tiện ích bổ sung Chế độ Y khoa)</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
@@ -2222,6 +2294,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Token chưa sẵn sàng.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Đã tạo lại token.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Đã mở vị trí của tệp khám phá.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Không thể mở vị trí của tệp khám phá: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Cổng chỉ khả dụng khi máy chủ đang chạy.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Không thể mở tài liệu: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Tệp khám phá chưa sẵn sàng. Hãy bật máy chủ và đợi máy chủ khởi động xong.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Không thể sao chép vào bảng nhớ tạm: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Đã sao chép vào bảng nhớ tạm.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

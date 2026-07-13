@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Versiunea %@";
 "home.recent.updates.new.badge" = "NOU";
 "home.recent.updates.no.notes" = "Nicio notă de lansare disponibilă";
+"home.stats.words.week" = "Cuvinte săptămâna aceasta";
+"home.stats.words.month" = "Cuvinte luna aceasta";
+"home.stats.speed" = "Viteză medie";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Recomandat pentru Mac cu 24 GB de memorie unificată sau mai mult. Viteza depinde de cip — mai rapid pe M3/M4 Pro și superioare.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Cuvinte în acest an";
+"home.stats.typing.speed.help" = "Ajustează viteza de tastare presupusă (WPM) folosită pentru a estima timpul economisit.";
+"home.stats.saved.week" = "Timp economisit săptămâna aceasta";
+"home.stats.minutes.value" = "%d minute";
 "vocabulary.input.placeholder" = "Adaugă un cuvânt sau creează un fragment";
 "vocabulary.action.addWord" = "Adaugă cuvânt";
 "vocabulary.action.replaceWith" = "Înlocuiește cu…";
@@ -671,8 +677,13 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "modes.cloudAccuracy.groqWhisper.description" = "Rapid și accesibil. Cel mai bun pentru transcrieri rapide.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Echilibru între viteză și precizie. Recomandat pentru cei mai mulți utilizatori.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ credite/min";
 "modes.cloudAccuracy.grokStt.label" = "Cel mai înalt (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Precizie maximă cu procesare mai lentă. Cel mai bun pentru transcrieri importante.";
+"modes.cloudAccuracy.googleChirp3.label" = "Ridicată (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 cu Chirp 3. Multilingv, cu adaptare de expresii.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Ridicată (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 prin Azure Speech. 43 de limbi, cu adaptare contextuală.";
 
 "modes.create.title" = "Creați mod nou";
 "modes.create.subtitle" = "Configurați un profil de transcriere personalizat";
@@ -883,6 +894,15 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.guidance.timeout" = "Cererea a durat prea mult. Verificați viteza internetului și reîncercați.";
 "transcription.error.noSpeechDetected" = "Nicio vorbire detectată în înregistrare.";
 "transcription.guidance.noSpeechDetected" = "Sfaturi:\n• Vorbiți clar în microfon\n• Țineti cheia mai mult înainte de a vorbi\n• Verificați că microfonul funcționează\n• Asigurați-vă că dispozitivul de intrare corect este selectat";
+"transcription.guidance.needsNativeRelaunch" = "Închide și redeschide HyperWhisper în mod nativ pentru a folosi post-procesarea locală.";
+"transcription.guidance.localRuntimeUnavailable" = "Încearcă din nou sau alege un model local mai mic în setările modului.";
+"transcription.error.localRuntimeUnavailable" = "AI-ul local nu a putut finaliza — transcrierea brută a fost păstrată.";
+"settings.backup.localDownload.title" = "Descarci modelele locale?";
+"settings.backup.localDownload.message" = "%d dintre modurile restaurate folosesc modele AI locale care nu sunt încă descărcate.";
+"settings.backup.localDownload.downloadAll" = "Descarcă toate";
+"settings.backup.localDownload.dismiss" = "Ignoră";
+"modelLibrary.local.requiresAppleSilicon" = "Necesită Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Repornește nativ";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";

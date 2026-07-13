@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Phiên bản %@";
 "home.recent.updates.new.badge" = "MỚI";
 "home.recent.updates.no.notes" = "Không có ghi chú phát hành";
+"home.stats.words.week" = "Số từ tuần này";
+"home.stats.words.month" = "Số từ tháng này";
+"home.stats.speed" = "Tốc độ trung bình";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Được khuyến nghị cho Mac có 24 GB bộ nhớ hợp nhất trở lên. Tốc độ phụ thuộc vào chip — nhanh hơn trên M3/M4 Pro trở lên.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Từ trong năm nay";
+"home.stats.typing.speed.help" = "Điều chỉnh tốc độ gõ phím giả định (WPM) dùng để ước tính thời gian tiết kiệm được.";
+"home.stats.saved.week" = "Tiết kiệm được tuần này";
+"home.stats.minutes.value" = "%d phút";
 "vocabulary.input.placeholder" = "Thêm từ hoặc tạo đoạn trích";
 "vocabulary.action.addWord" = "Thêm từ";
 "vocabulary.action.replaceWith" = "Thay thế bằng…";
@@ -671,8 +677,13 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.cloudAccuracy.groqWhisper.description" = "Nhanh và giá cả phải chăng. Tốt nhất cho chuyển đổi nhanh.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Cân bằng tốc độ và độ chính xác. Được đề xuất cho hầu hết người dùng.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ tín dụng/phút";
 "modes.cloudAccuracy.grokStt.label" = "Cao nhất (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
+"modes.cloudAccuracy.googleChirp3.label" = "Cao (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 với Chirp 3. Đa ngôn ngữ, có thích ứng cụm từ.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 qua Azure Speech. 43 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
 
 "modes.create.title" = "Tạo Chế độ Mới";
 "modes.create.subtitle" = "Cấu hình hồ sơ chuyển đổi tùy chỉnh";
@@ -883,6 +894,15 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.guidance.timeout" = "Yêu cầu mất quá lâu. Kiểm tra tốc độ internet của bạn và thử lại.";
 "transcription.error.noSpeechDetected" = "Không phát hiện lời nói trong bản ghi âm.";
 "transcription.guidance.noSpeechDetected" = "Mẹo:\n• Nói rõ ràng vào micrô\n• Giữ chìa khóa lâu hơn trước khi nói\n• Kiểm tra micrô của bạn đang hoạt động\n• Đảm bảo thiết bị đầu vào chính xác được chọn";
+"transcription.guidance.needsNativeRelaunch" = "Hãy thoát và mở lại HyperWhisper ở chế độ gốc để dùng hậu xử lý cục bộ.";
+"transcription.guidance.localRuntimeUnavailable" = "Hãy thử lại hoặc chọn một mô hình cục bộ nhỏ hơn trong cài đặt Chế độ.";
+"transcription.error.localRuntimeUnavailable" = "AI cục bộ không thể hoàn tất — bản chép lời gốc của bạn đã được giữ lại.";
+"settings.backup.localDownload.title" = "Tải xuống mô hình cục bộ?";
+"settings.backup.localDownload.message" = "%d chế độ đã khôi phục của bạn dùng mô hình AI trên thiết bị nhưng chưa được tải xuống.";
+"settings.backup.localDownload.downloadAll" = "Tải xuống tất cả";
+"settings.backup.localDownload.dismiss" = "Bỏ qua";
+"modelLibrary.local.requiresAppleSilicon" = "Yêu cầu Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Khởi động lại ở chế độ gốc";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";

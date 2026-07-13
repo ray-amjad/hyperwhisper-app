@@ -2099,6 +2099,54 @@ Puede volver a descargarlo más tarde.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 idiomas, adaptación contextual</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 idiomas, adaptación contextual</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - transcripción con LLM multimodal</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - sugerencia de términos clave, modo médico</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Versión preliminar)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Versión preliminar</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Sin vocabulario personalizado)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Sin vocabulario personalizado</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Recomendado)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Vocabulario médico (complemento Modo Médico)</value>
+  </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
@@ -2229,31 +2277,31 @@ Puede volver a descargarlo más tarde.</value>
     <value>Pre-filled with your port and token.</value>
   </data>
   <data name="settings.localApi.action.copied" xml:space="preserve">
-    <value>Copied to clipboard.</value>
+    <value>Copiado en el portapapeles.</value>
   </data>
   <data name="settings.localApi.action.copyFailed" xml:space="preserve">
-    <value>Could not copy to clipboard: {0}</value>
+    <value>No se pudo copiar en el portapapeles: {0}</value>
   </data>
   <data name="settings.localApi.action.openFailed" xml:space="preserve">
-    <value>Could not open docs: {0}</value>
+    <value>No se pudo abrir la documentación: {0}</value>
   </data>
   <data name="settings.localApi.action.fileMissing" xml:space="preserve">
-    <value>Discovery file is not available yet. Turn on the server and wait for it to finish starting.</value>
+    <value>El archivo de detección aún no está disponible. Activa el servidor y espera a que termine de iniciarse.</value>
   </data>
   <data name="settings.localApi.action.revealed" xml:space="preserve">
-    <value>Opened the discovery file location.</value>
+    <value>Se ha abierto la ubicación del archivo de detección.</value>
   </data>
   <data name="settings.localApi.action.revealFailed" xml:space="preserve">
-    <value>Could not open the discovery file location: {0}</value>
+    <value>No se pudo abrir la ubicación del archivo de detección: {0}</value>
   </data>
   <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
-    <value>Port is not available until the server is running.</value>
+    <value>El puerto no estará disponible hasta que el servidor esté en marcha.</value>
   </data>
   <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
-    <value>Token is not available yet.</value>
+    <value>El token aún no está disponible.</value>
   </data>
   <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
-    <value>Token regenerated.</value>
+    <value>Token regenerado.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>
@@ -2265,27 +2313,25 @@ Puede volver a descargarlo más tarde.</value>
     <value>127.0.0.1:{0} · token ••••{1}</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
-    <value>Audio file could not be loaded</value>
+    <value>No se pudo cargar el archivo de audio</value>
   </data>
   <data name="settings.appearance.theme.restart.title" xml:space="preserve">
-    <value>Restart Required</value>
+    <value>Es necesario reiniciar</value>
   </data>
   <data name="settings.appearance.theme.restart.message" xml:space="preserve">
-    <value>The application needs to restart for the theme change to take effect.
-
-Do you want to restart now?</value>
+    <value>La aplicación debe reiniciarse para que se aplique el cambio de tema.\n\n¿Quieres reiniciarla ahora?</value>
   </data>
   <data name="settings.storage.error.openFolder" xml:space="preserve">
-    <value>Unable to open the recordings folder. {0}</value>
+    <value>No se ha podido abrir la carpeta de grabaciones. {0}</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
-    <value>Cleanup Failed</value>
+    <value>Error en la limpieza</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
-    <value>Unable to delete old recordings. {0}</value>
+    <value>No se han podido eliminar las grabaciones antiguas. {0}</value>
   </data>
   <data name="vocabulary.source.column" xml:space="preserve">
-    <value>Source</value>
+    <value>Origen</value>
   </data>
   <data name="vocabulary.manual.badge" xml:space="preserve">
     <value>Manual</value>

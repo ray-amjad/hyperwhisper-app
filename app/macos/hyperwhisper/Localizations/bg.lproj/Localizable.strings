@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Версия %@";
 "home.recent.updates.new.badge" = "НОВО";
 "home.recent.updates.no.notes" = "Няма налични бележки за изданието";
+"home.stats.words.week" = "Думи тази седмица";
+"home.stats.words.month" = "Думи този месец";
+"home.stats.speed" = "Средна скорост";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Препоръчва се за Mac с 24 GB унифицирана памет или повече. Скоростта зависи от чипа — по-бърз на M3/M4 Pro и по-нови.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Думи тази година";
+"home.stats.typing.speed.help" = "Коригирайте приетата скорост на писане (WPM), използвана за изчисляване на спестеното време.";
+"home.stats.saved.week" = "Спестени тази седмица";
+"home.stats.minutes.value" = "%d минути";
 "vocabulary.input.placeholder" = "Добавете дума или създайте фрагмент";
 "vocabulary.action.addWord" = "Добавяне на дума";
 "vocabulary.action.replaceWith" = "Замяна с…";
@@ -671,8 +677,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "Бърза и достъпна. Най-добра за бързи транскрипции.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Балансирана скорост и точност. Препоръчва се за повечето потребители.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ кредита/мин";
 "modes.cloudAccuracy.grokStt.label" = "Най-висока (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
+"modes.cloudAccuracy.googleChirp3.label" = "Висока (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 с Chirp 3. Многоезичен, с адаптация на фрази.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 през Azure Speech. 43 езика с контекстно насочване.";
 
 "modes.create.title" = "Създаване на нов режим";
 "modes.create.subtitle" = "Конфигуриране на потребителски профил за транскрипция";
@@ -883,6 +894,15 @@
 "transcription.guidance.timeout" = "Заявката отне твърде дълго. Проверете скоростта на интернет и опитайте отново.";
 "transcription.error.noSpeechDetected" = "В записа не е открита реч.";
 "transcription.guidance.noSpeechDetected" = "Съвети:\n• Говорете ясно в микрофона\n• Задръжте клавиша по-дълго, преди да говорите\n• Проверете дали микрофонът ви работи\n• Уверете се, че е избрано правилното входно устройство";
+"transcription.guidance.needsNativeRelaunch" = "Затворете и отворете отново HyperWhisper в нативен режим, за да използвате локална последваща обработка.";
+"transcription.guidance.localRuntimeUnavailable" = "Опитайте отново или изберете по-малък локален модел в настройките на режима.";
+"transcription.error.localRuntimeUnavailable" = "Локалният AI не успя да завърши — необработената транскрипция е запазена.";
+"settings.backup.localDownload.title" = "Да се изтеглят ли локалните модели?";
+"settings.backup.localDownload.message" = "%d от възстановените ви режими използват AI модели на устройството, които още не са изтеглени.";
+"settings.backup.localDownload.downloadAll" = "Изтегляне на всички";
+"settings.backup.localDownload.dismiss" = "Отхвърляне";
+"modelLibrary.local.requiresAppleSilicon" = "Изисква Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Рестартиране в нативен режим";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";

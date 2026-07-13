@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "גרסה %@";
 "home.recent.updates.new.badge" = "חדש";
 "home.recent.updates.no.notes" = "אין הערות שחרור זמינות";
+"home.stats.words.week" = "מילים השבוע";
+"home.stats.words.month" = "מילים החודש";
+"home.stats.speed" = "מהירות ממוצעת";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "מומלץ עבור Mac עם 24 GB של זיכרון מאוחד או יותר. המהירות תלויה בשבב — מהיר יותר ב-M3/M4 Pro ומעלה.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "מילים השנה";
+"home.stats.typing.speed.help" = "התאמת מהירות ההקלדה המשוערת (WPM) המשמשת לחישוב הזמן שנחסך.";
+"home.stats.saved.week" = "נחסכו השבוע";
+"home.stats.minutes.value" = "%d דקות";
 "vocabulary.input.placeholder" = "הוסף מילה או צור קטע";
 "vocabulary.action.addWord" = "הוסף מילה";
 "vocabulary.action.replaceWith" = "החלף בـ…";
@@ -671,8 +677,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "מהיר ומשתלם. הטוב ביותר לתמלולים מהירים.";
 "modes.cloudAccuracy.deepgramNova3.description" = "מאוזן בין מהירות לדיוק. מומלץ לרוב המשתמשים.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ קרדיטים/דק׳";
 "modes.cloudAccuracy.grokStt.label" = "הגבוה ביותר (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
+"modes.cloudAccuracy.googleChirp3.label" = "גבוהה (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 עם Chirp 3. רב-לשוני עם התאמת ביטויים.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 דרך Azure Speech. 43 שפות עם הטיה לפי הקשר.";
 
 "modes.create.title" = "צור מצב חדש";
 "modes.create.subtitle" = "הגדר פרופיל תמלול מותאם אישית";
@@ -883,6 +894,15 @@
 "transcription.guidance.timeout" = "הבקשה ארכה יותר מדי זמן. בדוק את מהירות האינטרנט שלך ונסה שוב.";
 "transcription.error.noSpeechDetected" = "לא זוהה דיבור בהקלטה.";
 "transcription.guidance.noSpeechDetected" = "טיפים:\n• דבר בבירור למיקרופון\n• החזק את המקש זמן רב יותר לפני הדיבור\n• בדוק שהמיקרופון שלך עובד\n• ודא שהתקן הקלט הנכון נבחר";
+"transcription.guidance.needsNativeRelaunch" = "צא מ-HyperWhisper ופתח אותה מחדש כאפליקציה מקורית כדי להשתמש בעיבוד מקומי.";
+"transcription.guidance.localRuntimeUnavailable" = "נסה שוב, או בחר מודל מקומי קטן יותר בהגדרות המצב.";
+"transcription.error.localRuntimeUnavailable" = "ה-AI המקומי לא הצליח לסיים — התמלול הגולמי נשמר.";
+"settings.backup.localDownload.title" = "להוריד מודלים מקומיים?";
+"settings.backup.localDownload.message" = "%d מהמצבים ששוחזרו משתמשים במודלי AI מקומיים שטרם הורדו.";
+"settings.backup.localDownload.downloadAll" = "הורד הכול";
+"settings.backup.localDownload.dismiss" = "התעלם";
+"modelLibrary.local.requiresAppleSilicon" = "דורש Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "הפעלה מחדש כאפליקציה מקורית";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";

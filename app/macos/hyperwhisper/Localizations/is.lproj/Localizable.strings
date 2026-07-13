@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Útgáfa %@";
 "home.recent.updates.new.badge" = "NÝTT";
 "home.recent.updates.no.notes" = "Engar útgáfuupplýsingar tiltækar";
+"home.stats.words.week" = "Orð í þessari viku";
+"home.stats.words.month" = "Orð í þessum mánuði";
+"home.stats.speed" = "Meðalhraði";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Mælt með fyrir Mac með 24 GB sameinað minni eða meira. Hraði fer eftir örgjörvanum — hraðari á M3/M4 Pro og nýrri.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Orð þetta ár";
+"home.stats.typing.speed.help" = "Stilltu áætlaðan innsláttarhraða (WPM) sem notaður er til að meta sparaðan tíma.";
+"home.stats.saved.week" = "Sparað í þessari viku";
+"home.stats.minutes.value" = "%d mínútur";
 "vocabulary.input.placeholder" = "Bættu við orði eða búðu til brot";
 "vocabulary.action.addWord" = "Bæta við orði";
 "vocabulary.action.replaceWith" = "Skipta út með…";
@@ -671,8 +677,13 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.cloudAccuracy.groqWhisper.description" = "Hratt og hagkvæmt. Best fyrir skjótar afritanir.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Jafnvægi hraða og nákvæmni. Mælt með fyrir flesta notendur.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ einingar/mín";
 "modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.googleChirp3.label" = "Há (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 með Chirp 3. Fjöltyngt með frasaaðlögun.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 í gegnum Azure Speech. 43 tungumál með samhengisaðlögun.";
 
 "modes.create.title" = "Búa til nýjan ham";
 "modes.create.subtitle" = "Stilltu sérsniðna afritunarnotendaupplýsingu";
@@ -883,6 +894,15 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
 "transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
 "transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
+"transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
+"transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
+"transcription.error.localRuntimeUnavailable" = "Staðbundna gervigreindin gat ekki lokið verkinu — hráa uppskriftin þín var varðveitt.";
+"settings.backup.localDownload.title" = "Sækja staðbundin líkön?";
+"settings.backup.localDownload.message" = "%d af endurheimtu hömunum þínum nota gervigreindarlíkön í tækinu sem hafa ekki verið sótt.";
+"settings.backup.localDownload.downloadAll" = "Hlaða öllu niður";
+"settings.backup.localDownload.dismiss" = "Loka";
+"modelLibrary.local.requiresAppleSilicon" = "Krefst Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Endurræsa sem innbyggt forrit";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";

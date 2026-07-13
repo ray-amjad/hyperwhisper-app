@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Lydfilen kunne ikke indlæses</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -286,6 +289,9 @@
   </data>
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Erstatning</value>
+  </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Kilde</value>
   </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Ingen ordforrådsord endnu</value>
@@ -464,6 +470,12 @@
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
+  </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Genstart påkrævet</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Programmet skal genstartes, før ændringen af temaet træder i kraft.\n\nVil du genstarte nu?</value>
   </data>
 
   <!-- Settings - License -->
@@ -1245,6 +1257,9 @@ You can re-download it later.</value>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
   </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Optagelsesmappen kunne ikke åbnes. {0}</value>
+  </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
   </data>
@@ -1286,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Oprydning mislykkedes</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Gamle optagelser kunne ikke slettes. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1813,6 +1834,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Manuel</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1980,6 +2004,54 @@ You can re-download it later.</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 sprog, kontekstuel tilpasning</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 sprog, kontekstuel tilpasning</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - multimodal LLM-transskription</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - prompting med nøgletermer, medicinsk tilstand</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Prøveversion)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Prøveversion</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Intet brugerdefineret ordforråd)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Intet brugerdefineret ordforråd</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Anbefalet)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Medicinsk ordforråd (Medical Mode-tilvalg)</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
@@ -2223,6 +2295,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Token er ikke tilgængeligt endnu.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Token genereret på ny.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Åbnede placeringen af discovery-filen.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Kunne ikke åbne placeringen af discovery-filen: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Porten er ikke tilgængelig, før serveren kører.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Kunne ikke åbne dokumentationen: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Discovery-filen er ikke tilgængelig endnu. Slå serveren til, og vent, til den er startet helt op.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Kunne ikke kopiere til udklipsholderen: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Kopieret til udklipsholderen.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

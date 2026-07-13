@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Različica %@";
 "home.recent.updates.new.badge" = "NOVO";
 "home.recent.updates.no.notes" = "Ni dostopnih opomb izdaje";
+"home.stats.words.week" = "Besede ta teden";
+"home.stats.words.month" = "Besede ta mesec";
+"home.stats.speed" = "Povprečna hitrost";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Priporočeno za Mac z 24 GB poenotenega pomnilnika ali več. Hitrost je odvisna od čipa — hitrejše na M3/M4 Pro in novejših.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Besede letos";
+"home.stats.typing.speed.help" = "Prilagodite predvideno hitrost tipkanja (WPM), ki se uporablja za oceno prihranjenega časa.";
+"home.stats.saved.week" = "Prihranjeno ta teden";
+"home.stats.minutes.value" = "%d min";
 "vocabulary.input.placeholder" = "Dodajte besedo ali ustvarite odlomek";
 "vocabulary.action.addWord" = "Dodaj besedo";
 "vocabulary.action.replaceWith" = "Zamenjaj z…";
@@ -671,8 +677,13 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "modes.cloudAccuracy.groqWhisper.description" = "Hitro in prihodljivo. Najbolje za hitre prepise.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Uravnotežena hitrost in natančnost. Priporočljivo za večino uporabnikov.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvišja natančnost s počasnejšo obdelavo. Najbolje za pomembne prepise.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditov/min";
 "modes.cloudAccuracy.grokStt.label" = "Najvišja (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najvišja natančnost s počasnejšo obdelavo. Najbolje za pomembne prepise.";
+"modes.cloudAccuracy.googleChirp3.label" = "Visoka (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 s Chirp 3. Večjezično s prilagajanjem fraz.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 prek Azure Speech. 43 jezikov s kontekstnim usmerjanjem.";
 
 "modes.create.title" = "Ustvari novi način";
 "modes.create.subtitle" = "Nastavi prilagojeni profil prepisa";
@@ -883,6 +894,15 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.guidance.timeout" = "Zahteva je trajala predolgo. Preveri hitrost svojega interneta in poskusi znova.";
 "transcription.error.noSpeechDetected" = "V posnetku ni bil zaznan glas.";
 "transcription.guidance.noSpeechDetected" = "Namigi:\n• Jasno govori v mikrofon\n• Drži tipko dlje, preden govoriš\n• Preveri, da tvoj mikrofon deluje\n• Poskupi, da je izbrana pravilna vhodna naprava";
+"transcription.guidance.needsNativeRelaunch" = "Zaprite in znova odprite HyperWhisper kot izvorno aplikacijo, da boste lahko uporabljali lokalno naknadno obdelavo.";
+"transcription.guidance.localRuntimeUnavailable" = "Poskusite znova ali v nastavitvah načina izberite manjši lokalni model.";
+"transcription.error.localRuntimeUnavailable" = "Lokalna umetna inteligenca ni mogla dokončati obdelave — vaš neobdelan prepis je ohranjen.";
+"settings.backup.localDownload.title" = "Ali želite prenesti lokalne modele?";
+"settings.backup.localDownload.message" = "%d obnovljenih načinov uporablja modele umetne inteligence v napravi, ki še niso preneseni.";
+"settings.backup.localDownload.downloadAll" = "Prenesi vse";
+"settings.backup.localDownload.dismiss" = "Opusti";
+"modelLibrary.local.requiresAppleSilicon" = "Zahteva Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Znova zaženi izvorno";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";

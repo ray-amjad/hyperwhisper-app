@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Версия %@";
 "home.recent.updates.new.badge" = "НОВОЕ";
 "home.recent.updates.no.notes" = "Примечания к выпуску недоступны";
+"home.stats.words.week" = "Слов за неделю";
+"home.stats.words.month" = "Слов за месяц";
+"home.stats.speed" = "Средняя скорость";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Рекомендуется для Mac с 24 GB объединённой памяти или более. Скорость зависит от чипа — быстрее на M3/M4 Pro и выше.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Слов за этот год";
+"home.stats.typing.speed.help" = "Укажите предполагаемую скорость печати (WPM), по которой оценивается сэкономленное время.";
+"home.stats.saved.week" = "Сэкономлено за неделю";
+"home.stats.minutes.value" = "%d мин";
 "vocabulary.input.placeholder" = "Добавьте слово или создайте фрагмент";
 "vocabulary.action.addWord" = "Добавить слово";
 "vocabulary.action.replaceWith" = "Заменить на…";
@@ -671,8 +677,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "Быстро и доступно. Лучше для быстрых транскрипций.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Сбалансированная скорость и точность. Рекомендуется для большинства пользователей.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Наивысшая точность с более медленной обработкой. Лучше для важных транскрипций.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ кред./мин";
 "modes.cloudAccuracy.grokStt.label" = "Наивысшая (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Наивысшая точность с более медленной обработкой. Лучше для важных транскрипций.";
+"modes.cloudAccuracy.googleChirp3.label" = "Высокая (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 с Chirp 3. Многоязычная модель с адаптацией по фразам.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Высокая (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 через Azure Speech. 43 языка с контекстной адаптацией.";
 
 "modes.create.title" = "Создать новый режим";
 "modes.create.subtitle" = "Настроить пользовательский профиль транскрипции";
@@ -883,6 +894,15 @@
 "transcription.guidance.timeout" = "Запрос занял слишком много времени. Проверьте скорость интернета и повторите попытку.";
 "transcription.error.noSpeechDetected" = "В записи не обнаружена речь.";
 "transcription.guidance.noSpeechDetected" = "Советы:\n• Говорите четко в микрофон\n• Держите клавишу дольше перед разговором\n• Проверьте, что микрофон работает\n• Убедитесь, что выбрано правильное устройство ввода";
+"transcription.guidance.needsNativeRelaunch" = "Завершите работу HyperWhisper и откройте программу в нативном режиме, чтобы использовать локальную постобработку.";
+"transcription.guidance.localRuntimeUnavailable" = "Повторите попытку или выберите более компактную локальную модель в настройках режима.";
+"transcription.error.localRuntimeUnavailable" = "Локальный ИИ не смог завершить обработку — исходная расшифровка сохранена.";
+"settings.backup.localDownload.title" = "Загрузить локальные модели?";
+"settings.backup.localDownload.message" = "Восстановленных режимов, использующих локальные ИИ-модели, которые ещё не загружены: %d.";
+"settings.backup.localDownload.downloadAll" = "Загрузить все";
+"settings.backup.localDownload.dismiss" = "Закрыть";
+"modelLibrary.local.requiresAppleSilicon" = "Требуется Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Перезапустить в нативном режиме";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостаточно кредитов. Добавьте больше кредитов в Настройках.";

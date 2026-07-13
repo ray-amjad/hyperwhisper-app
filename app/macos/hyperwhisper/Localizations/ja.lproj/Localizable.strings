@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "バージョン %@";
 "home.recent.updates.new.badge" = "新着";
 "home.recent.updates.no.notes" = "リリースノートはありません";
+"home.stats.words.week" = "今週の単語数";
+"home.stats.words.month" = "今月の単語数";
+"home.stats.speed" = "平均速度";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB以上のユニファイドメモリを搭載したMacに推奨されます。速度はチップに依存します — M3/M4 Pro以上でより高速です。";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "今年の単語数";
+"home.stats.typing.speed.help" = "節約時間の推定に使用するタイピング速度（WPM）を調整します。";
+"home.stats.saved.week" = "今週の節約時間";
+"home.stats.minutes.value" = "%d 分";
 "vocabulary.input.placeholder" = "単語を追加するかスニペットを作成";
 "vocabulary.action.addWord" = "単語を追加";
 "vocabulary.action.replaceWith" = "置換先…";
@@ -677,8 +683,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "高速で手頃。素早い文字起こしに最適。";
 "modes.cloudAccuracy.deepgramNova3.description" = "速度と精度のバランス。ほとんどのユーザーにおすすめ。";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高精度、処理は遅め。重要な文字起こしに最適。";
+"modes.cloudAccuracy.creditsPerMinute" = "約 %@ クレジット/分";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高精度、処理は遅め。重要な文字起こしに最適。";
+"modes.cloudAccuracy.googleChirp3.label" = "高 (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 を使用する Google Cloud Speech-to-Text V2。多言語に対応し、フレーズ適応を利用できます。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高 (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 経由の Microsoft MAI-Transcribe 1.5。43 言語に対応し、文脈バイアスを利用できます。";
 
 "modes.create.title" = "新しいモードを作成";
 "modes.create.subtitle" = "カスタム文字起こしプロファイルを設定します";
@@ -884,6 +895,15 @@
 "transcription.guidance.timeout" = "リクエストに時間がかかり過ぎました。ネットワーク速度を確認して再試行してください。";
 "transcription.error.noSpeechDetected" = "録音内に音声が検出されませんでした。";
 "transcription.guidance.noSpeechDetected" = "ヒント:\n• マイクに向かってはっきり話してください\n• 話し始める前にキーを長めに押し続けてください\n• マイクが正常に動作しているか確認してください\n• 正しい入力デバイスが選択されているか確認してください";
+"transcription.guidance.needsNativeRelaunch" = "ローカル後処理を使用するには、HyperWhisper を終了し、ネイティブで開き直してください。";
+"transcription.guidance.localRuntimeUnavailable" = "もう一度お試しいただくか、モード設定でより小さいローカルモデルを選択してください。";
+"transcription.error.localRuntimeUnavailable" = "ローカル AI が処理を完了できませんでした — 未処理の文字起こしは保持されています。";
+"settings.backup.localDownload.title" = "ローカルモデルをダウンロードしますか？";
+"settings.backup.localDownload.message" = "復元したモードのうち %d 個は、まだダウンロードされていないオンデバイス AI モデルを使用します。";
+"settings.backup.localDownload.downloadAll" = "すべてダウンロード";
+"settings.backup.localDownload.dismiss" = "閉じる";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon が必要です";
+"modelLibrary.local.needsNativeRelaunch" = "ネイティブで再起動";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "クレジットが不足しています。設定でクレジットを追加してください。";

@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Versie %@";
 "home.recent.updates.new.badge" = "NIEUW";
 "home.recent.updates.no.notes" = "Geen opmerkingen uitgebracht beschikbaar";
+"home.stats.words.week" = "Woorden deze week";
+"home.stats.words.month" = "Woorden deze maand";
+"home.stats.speed" = "Gemiddelde snelheid";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Aanbevolen voor Mac met 24 GB unified memory of meer. De snelheid hangt af van de chip — sneller op M3/M4 Pro en hoger.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Woorden dit jaar";
+"home.stats.typing.speed.help" = "Pas de aangenomen typesnelheid (WPM) aan die wordt gebruikt om de bespaarde tijd te schatten.";
+"home.stats.saved.week" = "Bespaard deze week";
+"home.stats.minutes.value" = "%d minuten";
 "vocabulary.input.placeholder" = "Voeg een woord toe of maak een fragment";
 "vocabulary.action.addWord" = "Woord toevoegen";
 "vocabulary.action.replaceWith" = "Vervangen door…";
@@ -671,8 +677,13 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.cloudAccuracy.groqWhisper.description" = "Snel en betaalbaar. Het beste voor snelle transcripties.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Evenwichtige snelheid en nauwkeurigheid. Aanbevolen voor de meeste gebruikers.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.googleChirp3.label" = "Hoog (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 met Chirp 3. Meertalig met woordgroepaanpassing.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 talen met contextuele afstemming.";
 
 "modes.create.title" = "Nieuwe modus maken";
 "modes.create.subtitle" = "Configureer een aangepast transcriptieprofiel";
@@ -883,6 +894,15 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.guidance.timeout" = "Het verzoek duurde te lang. Controleer je internetsnelheid en probeer het opnieuw.";
 "transcription.error.noSpeechDetected" = "Geen spraak gedetecteerd in de opname.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Spreek duidelijk in de microfoon\n• Houd de toets langer vast voordat je spreekt\n• Controleer of je microfoon werkt\n• Zorg ervoor dat het juiste invoerapparaat is geselecteerd";
+"transcription.guidance.needsNativeRelaunch" = "Stop HyperWhisper en open het native opnieuw om lokale nabewerking te gebruiken.";
+"transcription.guidance.localRuntimeUnavailable" = "Probeer het opnieuw of kies een kleiner lokaal model in je modusinstellingen.";
+"transcription.error.localRuntimeUnavailable" = "Lokale AI kon niet worden voltooid — je onbewerkte transcriptie is behouden.";
+"settings.backup.localDownload.title" = "Lokale modellen downloaden?";
+"settings.backup.localDownload.message" = "%d van je herstelde modi gebruiken lokale AI-modellen die nog niet zijn gedownload.";
+"settings.backup.localDownload.downloadAll" = "Download alles";
+"settings.backup.localDownload.dismiss" = "Negeer";
+"modelLibrary.local.requiresAppleSilicon" = "Vereist Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Native opnieuw starten";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";

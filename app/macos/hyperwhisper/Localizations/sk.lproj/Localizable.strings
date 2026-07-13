@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Verzia %@";
 "home.recent.updates.new.badge" = "NOVÉ";
 "home.recent.updates.no.notes" = "Žiadne poznámky k vydaniu dostupné";
+"home.stats.words.week" = "Slová tento týždeň";
+"home.stats.words.month" = "Slová tento mesiac";
+"home.stats.speed" = "Priemerná rýchlosť";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Odporúčané pre Mac s 24 GB zjednotenej pamäte alebo viac. Rýchlosť závisí od čipu — rýchlejšie na M3/M4 Pro a vyšších.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Slová tento rok";
+"home.stats.typing.speed.help" = "Upravte predpokladanú rýchlosť písania (WPM), ktorá sa používa na odhad ušetreného času.";
+"home.stats.saved.week" = "Ušetrené tento týždeň";
+"home.stats.minutes.value" = "%d min";
 "vocabulary.input.placeholder" = "Pridajte slovo alebo vytvorte úryvok";
 "vocabulary.action.addWord" = "Pridať slovo";
 "vocabulary.action.replaceWith" = "Nahradiť za…";
@@ -671,8 +677,13 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.cloudAccuracy.groqWhisper.description" = "Rýchla a dostupná. Najvhodnejšia na rýchle prepisy.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Vyvážená rýchlosť a presnosť. Odporúčané pre väčšinu používateľov.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditov/min";
 "modes.cloudAccuracy.grokStt.label" = "Najvyššia (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
+"modes.cloudAccuracy.googleChirp3.label" = "Vysoká (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 s Chirp 3. Viacjazyčné, s prispôsobením fráz.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 cez Azure Speech. 43 jazykov s kontextovým prispôsobením.";
 
 "modes.create.title" = "Vytvoriť nový režim";
 "modes.create.subtitle" = "Konfigurovať vlastný profil prepisu";
@@ -883,6 +894,15 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcription.guidance.timeout" = "Požiadavka trvala príliš dlho. Skontrolujte rýchlosť internetu a skúste znova.";
 "transcription.error.noSpeechDetected" = "V nahrávke nebola detekovaná reč.";
 "transcription.guidance.noSpeechDetected" = "Tipy:\n• Jasne rozprávajtea do mikrofónu\n• Držte kľúč dlhšie pred rozprávaním\n• Skontrolujte, či mikrofón funguje\n• Uistite sa, že je vybrané správne vstupné zariadenie";
+"transcription.guidance.needsNativeRelaunch" = "Ukončite a znova otvorte HyperWhisper natívne, aby ste mohli používať lokálne dodatočné spracovanie.";
+"transcription.guidance.localRuntimeUnavailable" = "Skúste to znova alebo v nastaveniach režimu vyberte menší lokálny model.";
+"transcription.error.localRuntimeUnavailable" = "Lokálna AI nedokázala dokončiť spracovanie — váš pôvodný prepis sa zachoval.";
+"settings.backup.localDownload.title" = "Stiahnuť lokálne modely?";
+"settings.backup.localDownload.message" = "%d z vašich obnovených režimov používa modely AI v zariadení, ktoré ešte nie sú stiahnuté.";
+"settings.backup.localDownload.downloadAll" = "Stiahnuť všetky";
+"settings.backup.localDownload.dismiss" = "Zavrieť";
+"modelLibrary.local.requiresAppleSilicon" = "Vyžaduje Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Spustiť natívne";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";

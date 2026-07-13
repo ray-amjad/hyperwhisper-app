@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Versija %@";
 "home.recent.updates.new.badge" = "NAUJA";
 "home.recent.updates.no.notes" = "Nėra išleistos informacijos";
+"home.stats.words.week" = "Žodžiai šią savaitę";
+"home.stats.words.month" = "Žodžiai šį mėnesį";
+"home.stats.speed" = "Vidutinis greitis";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Rekomenduojama Mac su 24 GB suvienodintos atminties arba daugiau. Greitis priklauso nuo lusto — greitesnis su M3/M4 Pro ir naujesniais.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Žodžiai šiais metais";
+"home.stats.typing.speed.help" = "Pakoreguokite numatomą rašymo greitį (WPM), pagal kurį apskaičiuojamas sutaupytas laikas.";
+"home.stats.saved.week" = "Sutaupyta šią savaitę";
+"home.stats.minutes.value" = "%d min.";
 "vocabulary.input.placeholder" = "Pridėkite žodį arba sukurkite ištrauką";
 "vocabulary.action.addWord" = "Pridėti žodį";
 "vocabulary.action.replaceWith" = "Pakeisti į…";
@@ -671,8 +677,13 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.cloudAccuracy.groqWhisper.description" = "Greitas ir paaustas. Geriausias greitams transkriptsiniu.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Subalansuotas greitis ir tikslumas. Rekomenduojamas daugumai vartotojų.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditų/min";
 "modes.cloudAccuracy.grokStt.label" = "Aukščiausias (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
+"modes.cloudAccuracy.googleChirp3.label" = "Aukštas (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 su Chirp 3. Daugiakalbis, su frazių pritaikymu.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 per Azure Speech. 43 kalbos su kontekstiniu pritaikymu.";
 
 "modes.create.title" = "Sukurti naują režimą";
 "modes.create.subtitle" = "Sukonfigūruokite pasirinktą transkriptsiniu profilį";
@@ -883,6 +894,15 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.guidance.timeout" = "Užklausa užtruko per ilgai. Patikrinkite savo interneto greitį ir bandykite iš naujo.";
 "transcription.error.noSpeechDetected" = "Neaptiktas joks balsas įrašyme.";
 "transcription.guidance.noSpeechDetected" = "Patarimai:\n• Kalbėkite aiškiai į mikrofon\n• Laikykite raktą ilgiau prieš pradėdami kalbėti\n• Patikrinkite, ar jūsų mikrofon veikia\n• Įsitikinkite, kad pasirinktas teisingas įvesties įrenginys";
+"transcription.guidance.needsNativeRelaunch" = "Uždarykite ir vėl atidarykite HyperWhisper natyviai, kad galėtumėte naudoti vietinį papildomą apdorojimą.";
+"transcription.guidance.localRuntimeUnavailable" = "Bandykite dar kartą arba režimo nustatymuose pasirinkite mažesnį vietinį modelį.";
+"transcription.error.localRuntimeUnavailable" = "Vietiniam DI nepavyko baigti apdorojimo — jūsų neapdorotas nuorašas išsaugotas.";
+"settings.backup.localDownload.title" = "Atsisiųsti vietinius modelius?";
+"settings.backup.localDownload.message" = "%d iš jūsų atkurtų režimų naudoja įrenginyje veikiančius DI modelius, kurie dar neatsisiųsti.";
+"settings.backup.localDownload.downloadAll" = "Atsisiųsti visus";
+"settings.backup.localDownload.dismiss" = "Atmesti";
+"modelLibrary.local.requiresAppleSilicon" = "Reikia Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Paleisti iš naujo natyviai";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";

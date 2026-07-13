@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "版本 %@";
 "home.recent.updates.new.badge" = "新";
 "home.recent.updates.no.notes" = "沒有可用的發行說明";
+"home.stats.words.week" = "本週字數";
+"home.stats.words.month" = "本月字數";
+"home.stats.speed" = "平均速度";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "建議配備 24 GB 統一記憶體或更多的 Mac 使用。速度取決於晶片 — 在 M3/M4 Pro 及以上機型上更快。";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "今年的字數";
+"home.stats.typing.speed.help" = "調整用來估算節省時間的預設打字速度（WPM）。";
+"home.stats.saved.week" = "本週節省時間";
+"home.stats.minutes.value" = "%d 分鐘";
 "vocabulary.input.placeholder" = "新增單詞或建立片段";
 "vocabulary.action.addWord" = "新增單詞";
 "vocabulary.action.replaceWith" = "取代為…";
@@ -671,8 +677,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "快速且價廉。最適合快速轉錄。";
 "modes.cloudAccuracy.deepgramNova3.description" = "速度和準確性平衡。為大多數用戶推薦。";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高準確性，處理較慢。最適合重要轉錄。";
+"modes.cloudAccuracy.creditsPerMinute" = "約 %@ 點數/分鐘";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高準確性，處理較慢。最適合重要轉錄。";
+"modes.cloudAccuracy.googleChirp3.label" = "高（Google Chirp 3）";
+"modes.cloudAccuracy.googleChirp3.description" = "採用 Chirp 3 的 Google Cloud Speech-to-Text V2。支援多語言與詞組調適。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "透過 Azure Speech 使用 Microsoft MAI-Transcribe 1.5。支援 43 種語言，並具備上下文偏詞功能。";
 
 "modes.create.title" = "建立新模式";
 "modes.create.subtitle" = "設定自訂轉錄設定檔";
@@ -883,6 +894,15 @@
 "transcription.guidance.timeout" = "請求耗時過長。檢查您的網際網路速度並重試。";
 "transcription.error.noSpeechDetected" = "在錄音中未偵測到語音。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 清楚地對著麥克風說話\n• 在說話前按住按鍵較長時間\n• 檢查您的麥克風是否運作正常\n• 確保選擇了正確的輸入裝置";
+"transcription.guidance.needsNativeRelaunch" = "請結束並以原生模式重新開啟 HyperWhisper，才能使用本機後處理。";
+"transcription.guidance.localRuntimeUnavailable" = "請再試一次，或在模式設定中選擇較小的本機模型。";
+"transcription.error.localRuntimeUnavailable" = "本機 AI 無法完成處理 — 已保留你的原始逐字稿。";
+"settings.backup.localDownload.title" = "要下載本機模型嗎？";
+"settings.backup.localDownload.message" = "你還原的模式中有 %d 個使用尚未下載的裝置端 AI 模型。";
+"settings.backup.localDownload.downloadAll" = "全部下載";
+"settings.backup.localDownload.dismiss" = "關閉";
+"modelLibrary.local.requiresAppleSilicon" = "需要 Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "以原生模式重新啟動";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "額度不足。請在設定中新增更多額度。";

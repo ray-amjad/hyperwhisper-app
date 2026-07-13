@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Versija %@";
 "home.recent.updates.new.badge" = "JAUNS";
 "home.recent.updates.no.notes" = "Nav pieejamu izlaišanas piezīmju";
+"home.stats.words.week" = "Vārdi šonedēļ";
+"home.stats.words.month" = "Vārdi šomēnes";
+"home.stats.speed" = "Vidējais ātrums";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Ieteicams Mac ar 24 GB vienotas atmiņas vai vairāk. Ātrums ir atkarīgs no mikroshēmas — ātrāk ar M3/M4 Pro un jaunākiem.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Vārdi šogad";
+"home.stats.typing.speed.help" = "Pielāgojiet pieņemto rakstīšanas ātrumu (WPM), ko izmanto ietaupītā laika aprēķinam.";
+"home.stats.saved.week" = "Ietaupīts šonedēļ";
+"home.stats.minutes.value" = "%d minūtes";
 "vocabulary.input.placeholder" = "Pievienojiet vārdu vai izveidojiet fragmentu";
 "vocabulary.action.addWord" = "Pievienot vārdu";
 "vocabulary.action.replaceWith" = "Aizstāt ar…";
@@ -671,8 +677,13 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.cloudAccuracy.groqWhisper.description" = "Ātrs un pieejams. Labākais ātrajiem transkripcijām.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Līdzsvarots ātrums un precizitāte. Ieteicams lielākajai daļai lietotāju.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredīti/min";
 "modes.cloudAccuracy.grokStt.label" = "Augstākā (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
+"modes.cloudAccuracy.googleChirp3.label" = "Augsta (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 ar Chirp 3. Daudzvalodu atpazīšana ar frāžu pielāgošanu.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Augsta (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5, izmantojot Azure Speech. 43 valodas ar konteksta pielāgošanu.";
 
 "modes.create.title" = "Izveidot jaunu režīmu";
 "modes.create.subtitle" = "Konfigurējiet pielāgotu transkripciijas profilu";
@@ -883,6 +894,15 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.guidance.timeout" = "Pieprasījums aizņēma pārāk daudz laika. Pārbaudiet interneta ātrumu un mēģiniet vēlreiz.";
 "transcription.error.noSpeechDetected" = "Ierakstā runas nav noteikta.";
 "transcription.guidance.noSpeechDetected" = "Padomi:\n• Runājiet skaidri mikrofonā\n• Turiet taustiņu ilgāk, pirms sākat runāt\n• Pārbaudiet, ka jūsu mikrofons darbojas\n• Pārliecinieties, ka ir atlasīta pareizā ievades ierīce";
+"transcription.guidance.needsNativeRelaunch" = "Aizveriet un atveriet HyperWhisper natīvajā režīmā, lai izmantotu lokālo pēcapstrādi.";
+"transcription.guidance.localRuntimeUnavailable" = "Mēģiniet vēlreiz vai režīma iestatījumos izvēlieties mazāku lokālo modeli.";
+"transcription.error.localRuntimeUnavailable" = "Lokālais AI nevarēja pabeigt darbu — jūsu sākotnējais transkripts tika saglabāts.";
+"settings.backup.localDownload.title" = "Vai lejupielādēt lokālos modeļus?";
+"settings.backup.localDownload.message" = "%d no atjaunotajiem režīmiem izmanto ierīcē darbināmus AI modeļus, kas vēl nav lejupielādēti.";
+"settings.backup.localDownload.downloadAll" = "Lejupielādēt visus";
+"settings.backup.localDownload.dismiss" = "Aizvērt";
+"modelLibrary.local.requiresAppleSilicon" = "Nepieciešams Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Pārstartēt natīvajā režīmā";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepietiekami kredīti. Pievienojiet vairāk kredītu iestatījumos.";

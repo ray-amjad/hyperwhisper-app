@@ -2099,6 +2099,54 @@
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 言語対応、文脈バイアス</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 言語対応、文脈バイアス</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - マルチモーダル LLM による文字起こし</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - キーワードプロンプト、医療モード</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0}（プレビュー）</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0}（カスタム語彙なし）</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>カスタム語彙なし</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0}（推奨）</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>医療用語（医療モードアドオン）</value>
+  </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
@@ -2229,31 +2277,31 @@
     <value>Pre-filled with your port and token.</value>
   </data>
   <data name="settings.localApi.action.copied" xml:space="preserve">
-    <value>Copied to clipboard.</value>
+    <value>クリップボードにコピーしました。</value>
   </data>
   <data name="settings.localApi.action.copyFailed" xml:space="preserve">
-    <value>Could not copy to clipboard: {0}</value>
+    <value>クリップボードにコピーできませんでした: {0}</value>
   </data>
   <data name="settings.localApi.action.openFailed" xml:space="preserve">
-    <value>Could not open docs: {0}</value>
+    <value>ドキュメントを開けませんでした: {0}</value>
   </data>
   <data name="settings.localApi.action.fileMissing" xml:space="preserve">
-    <value>Discovery file is not available yet. Turn on the server and wait for it to finish starting.</value>
+    <value>ディスカバリファイルはまだ利用できません。サーバーをオンにして、起動が完了するまでお待ちください。</value>
   </data>
   <data name="settings.localApi.action.revealed" xml:space="preserve">
-    <value>Opened the discovery file location.</value>
+    <value>ディスカバリファイルの場所を開きました。</value>
   </data>
   <data name="settings.localApi.action.revealFailed" xml:space="preserve">
-    <value>Could not open the discovery file location: {0}</value>
+    <value>ディスカバリファイルの場所を開けませんでした: {0}</value>
   </data>
   <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
-    <value>Port is not available until the server is running.</value>
+    <value>ポートはサーバーの実行中のみ利用できます。</value>
   </data>
   <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
-    <value>Token is not available yet.</value>
+    <value>トークンはまだ利用できません。</value>
   </data>
   <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
-    <value>Token regenerated.</value>
+    <value>トークンを再生成しました。</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>
@@ -2265,30 +2313,28 @@
     <value>127.0.0.1:{0} · token ••••{1}</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
-    <value>Audio file could not be loaded</value>
+    <value>オーディオファイルを読み込めませんでした</value>
   </data>
   <data name="settings.appearance.theme.restart.title" xml:space="preserve">
-    <value>Restart Required</value>
+    <value>再起動が必要です</value>
   </data>
   <data name="settings.appearance.theme.restart.message" xml:space="preserve">
-    <value>The application needs to restart for the theme change to take effect.
-
-Do you want to restart now?</value>
+    <value>テーマの変更を適用するには、アプリケーションを再起動する必要があります。\n\n今すぐ再起動しますか？</value>
   </data>
   <data name="settings.storage.error.openFolder" xml:space="preserve">
-    <value>Unable to open the recordings folder. {0}</value>
+    <value>録音フォルダを開けません。{0}</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
-    <value>Cleanup Failed</value>
+    <value>クリーンアップに失敗しました</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
-    <value>Unable to delete old recordings. {0}</value>
+    <value>古い録音を削除できません。{0}</value>
   </data>
   <data name="vocabulary.source.column" xml:space="preserve">
-    <value>Source</value>
+    <value>ソース</value>
   </data>
   <data name="vocabulary.manual.badge" xml:space="preserve">
-    <value>Manual</value>
+    <value>手動</value>
   </data>
   <data name="settings.backup.export.section.modes" xml:space="preserve">
     <value>モード</value>

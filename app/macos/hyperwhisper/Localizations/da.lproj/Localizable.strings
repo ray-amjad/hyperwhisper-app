@@ -132,6 +132,9 @@
 "home.recent.updates.version" = "Version %@";
 "home.recent.updates.new.badge" = "NYT";
 "home.recent.updates.no.notes" = "Ingen udgivelsesnoter tilgængelige";
+"home.stats.words.week" = "Ord i denne uge";
+"home.stats.words.month" = "Ord i denne måned";
+"home.stats.speed" = "Gennemsnitshastighed";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -490,6 +493,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Anbefales til Mac med 24 GB unified memory eller mere. Hastigheden afhænger af din chip — hurtigere på M3/M4 Pro og derover.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Ord i år";
+"home.stats.typing.speed.help" = "Justér den antagne skrivehastighed (WPM), der bruges til at estimere den sparede tid.";
+"home.stats.saved.week" = "Sparet i denne uge";
+"home.stats.minutes.value" = "%d minutter";
 "vocabulary.input.placeholder" = "Tilføj et ord eller opret et uddrag";
 "vocabulary.action.addWord" = "Tilføj ord";
 "vocabulary.action.replaceWith" = "Erstat med…";
@@ -671,8 +677,13 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.cloudAccuracy.groqWhisper.description" = "Hurtig og overkommelig. Bedst til hurtige transskriptioner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanceret hastighed og nøjagtighed. Anbefalet til de fleste brugere.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Højest (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
+"modes.cloudAccuracy.googleChirp3.label" = "Høj (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 med Chirp 3. Flersproget med frasetilpasning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høj (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 sprog med kontekstuel tilpasning.";
 
 "modes.create.title" = "Opret ny tilstand";
 "modes.create.subtitle" = "Konfigurer en brugerdefineret transskriptionsprofil";
@@ -883,6 +894,15 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.guidance.timeout" = "Anmodningen tog for lang tid. Kontroller din internethastighed, og prøv igen.";
 "transcription.error.noSpeechDetected" = "Ingen tale registreret i optagelsen.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Tal tydeligt i mikrofonen\n• Hold tasten nede længere, før du taler\n• Kontroller, at din mikrofon virker\n• Sørg for, at den korrekte inputenhed er valgt";
+"transcription.guidance.needsNativeRelaunch" = "Afslut og åbn HyperWhisper igen som native app for at bruge lokal efterbehandling.";
+"transcription.guidance.localRuntimeUnavailable" = "Prøv igen, eller vælg en mindre lokal model i dine tilstandsindstillinger.";
+"transcription.error.localRuntimeUnavailable" = "Lokal AI kunne ikke gøre det færdigt — din rå transskription blev bevaret.";
+"settings.backup.localDownload.title" = "Download lokale modeller?";
+"settings.backup.localDownload.message" = "%d af dine gendannede tilstande bruger AI-modeller på enheden, som endnu ikke er downloadet.";
+"settings.backup.localDownload.downloadAll" = "Download alle";
+"settings.backup.localDownload.dismiss" = "Afvis";
+"modelLibrary.local.requiresAppleSilicon" = "Kræver Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Genstart som native app";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrækkelige credits. Tilføj flere credits i Indstillinger.";

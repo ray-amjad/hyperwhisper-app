@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>無法載入音訊檔案</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -286,6 +289,9 @@
   </data>
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>替換</value>
+  </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>來源</value>
   </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>還沒有詞彙詞語</value>
@@ -464,6 +470,12 @@
   </data>
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
+  </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>需要重新啟動</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>應用程式必須重新啟動，主題變更才會生效。\n\n要立即重新啟動嗎？</value>
   </data>
 
   <!-- Settings - License -->
@@ -1245,6 +1257,9 @@ You can re-download it later.</value>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
   </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>無法開啟錄音資料夾。{0}</value>
+  </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
   </data>
@@ -1286,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>清理失敗</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>無法刪除舊的錄音。{0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1812,6 +1833,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>手動</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1979,6 +2003,54 @@ You can re-download it later.</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 種語言、上下文偏詞</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 種語言、上下文偏詞</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - 多模態 LLM 轉錄</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - 關鍵詞提示、醫療模式</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0}（預覽版）</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>預覽版</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0}（不支援自訂詞彙）</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>不支援自訂詞彙</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0}（建議）</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>醫療詞彙（醫療模式附加元件）</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
@@ -2222,6 +2294,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>權杖尚未可用。</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>已重新產生權杖。</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>已開啟探索檔案的位置。</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>無法開啟探索檔案的位置：{0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>伺服器執行後才會顯示連接埠。</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>無法開啟說明文件：{0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>探索檔案尚未產生。請開啟伺服器，並等待其啟動完成。</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>無法複製到剪貼簿：{0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>已複製到剪貼簿。</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>
