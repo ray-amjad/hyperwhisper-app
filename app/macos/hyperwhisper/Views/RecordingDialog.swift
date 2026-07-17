@@ -321,7 +321,7 @@ struct RecordingDialog: View {
             // When user starts a new recording, these must be cleared or the dialog
             // will show the previous transcription instead of the waveform
             appState.lastTranscription = ""
-            appState.streamingText = ""
+            liveStreamingText.text = ""
             appState.isStreaming = false
             appState.transcriptionPasteFailed = false
 
@@ -350,7 +350,7 @@ struct RecordingDialog: View {
                 
                 // Clear any lingering transcription data
                 appState.lastTranscription = ""
-                appState.streamingText = ""
+                liveStreamingText.text = ""
                 appState.isStreaming = false
                 appState.transcriptionPasteFailed = false
                 break
@@ -432,7 +432,7 @@ struct RecordingDialog: View {
             // When streaming ends, there is a brief moment before final text is set.
             // Defer classification slightly to avoid flashing error state on success.
             if !isNowStreaming {
-                let partial = appState.streamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let partial = liveStreamingText.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !partial.isEmpty else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     // Only treat as error if we still have no final text and streaming hasn't resumed
