@@ -512,10 +512,10 @@ class CrashRecoveryManager {
             // NSCocoaErrorDomain code 1570 "deviceId is a required value", silently
             // dropping the whole recovery pass (see HYPERWHISPER-V3/V4). The real
             // device is unrecoverable at this point, so fall back to a sentinel —
-            // consistent with the "unknown" fallback already used elsewhere for
-            // unresolvable device info (see RecordingLifecycle.swift).
-            stub.deviceId = "unknown"
-            stub.deviceName = "Unknown Device"
+            // consistent with the "default" fallback already used elsewhere when no
+            // input device resolves (see RecordingLifecycle.swift:459-460).
+            stub.deviceId = "default"
+            stub.deviceName = "audio.device.default".localized
             stubs.append(stub)
 
             AppLogger.audio.info("🩹 Synthesized stub session \(sessionId.uuidString, privacy: .public) for unclaimed incomplete WAV: \(url.lastPathComponent, privacy: .public)")
