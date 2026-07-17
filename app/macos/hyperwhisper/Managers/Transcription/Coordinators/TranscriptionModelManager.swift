@@ -193,6 +193,22 @@ class TranscriptionModelManager: ObservableObject {
                 modelReadyState = .ready(name: parakeetDisplayName)
             } catch is CancellationError {
                 AppLogger.models.info("Parakeet preparation cancelled")
+            } catch TranscriptionError.modelNotDownloaded {
+                // EXPECTED, NOT A CRASH (HYPERWHISPER-TD): the selected mode
+                // points at a Parakeet model that isn't on disk (fresh
+                // install, or evicted after being downloaded). This used to
+                // fall into the generic `catch` below, which Sentry-reported
+                // it as "Parakeet prepare failed" on every launch/mode-switch
+                // without actually doing anything about it — the "will use
+                // cloud fallback" log never turned into real fallback
+                // behavior. Kick off the same download the Models UI uses,
+                // tell the user their local mode needs a download, and mark
+                // the model ready as Cloud so transcription isn't blocked
+                // while the download completes in the background.
+                AppLogger.models.warning("Parakeet \(modelId, privacy: .public) not downloaded — starting download, using cloud fallback in the meantime")
+                parakeetModelManager.startDownload(modelId)
+                modelReadyState = .ready(name: "Cloud")
+                onStateChange?(.error(message: "\(parakeetDisplayName) isn't downloaded yet — downloading now. Using cloud until it's ready."))
             } catch {
                 AppLogger.models.error("Failed to prepare Parakeet provider: \(error.localizedDescription, privacy: .public)")
                 modelReadyState = .none
