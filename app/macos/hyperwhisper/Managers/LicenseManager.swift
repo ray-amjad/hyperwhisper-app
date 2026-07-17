@@ -99,18 +99,27 @@ class LicenseManager: ObservableObject {
     }
 
     /// Validates a license key with the backend.
-    func validateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+    /// - Parameter isLaunchValidation: forwarded to `LicenseNetworkService` — `true`
+    ///   only for the silent background revalidation `loadStoredLicense()` fires at
+    ///   launch, selecting its tighter retry budget. See HYPERWHISPER-F4.
+    func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
         isValidating = true
         lastError = nil
         defer { isValidating = false }
 
-        let result = await networkService.validateLicense(licenseKey)
+        let result = await networkService.validateLicense(licenseKey, isLaunchValidation: isLaunchValidation)
         await processValidationResult(result)
 
         return result
     }
 
     /// Loads stored license from UserDefaults, revalidates if cache expired (24h).
+    ///
+    /// The revalidation call is tagged `isLaunchValidation: true` so a stale
+    /// network at launch (wake-from-sleep, captive portal, DNS not up yet) gets a
+    /// short bounded retry and — if that's still not enough — falls back to the
+    /// last cached server verdict instead of leaving `licenseStatus` stuck at its
+    /// default `.trial` for the whole `.cloud` retry budget. HYPERWHISPER-F4.
     func loadStoredLicense() async {
         guard let storedKey = networkService.getStoredLicenseKey() else {
             licenseStatus = .trial
@@ -118,7 +127,7 @@ class LicenseManager: ObservableObject {
         }
 
         if networkService.shouldRevalidateLicense() {
-            _ = await validateLicense(storedKey)
+            _ = await validateLicense(storedKey, isLaunchValidation: true)
         } else if let cachedStatus = networkService.getCachedLicenseStatus() {
             licenseStatus = cachedStatus
         }

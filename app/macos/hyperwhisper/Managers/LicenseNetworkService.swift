@@ -14,6 +14,20 @@
 //  - 24-hour validation cache
 //  - 7-day offline grace period
 //
+//  NETWORK RESILIENCE (HYPERWHISPER-F4):
+//  - validateLicense() retries a NETWORK failure (timeout/no connection/DNS/
+//    connection refused) with a short bounded backoff before giving up — a real
+//    non-2xx server verdict is never retried (see licenseHttpErrorOutcome).
+//  - The launch-time revalidation (LicenseManager.loadStoredLicense(), passing
+//    isLaunchValidation: true) uses a tighter retry budget than explicit,
+//    user-triggered activation (`.licenseLaunchValidation` vs `.cloud`) so a
+//    flaky network at launch self-heals in a couple of seconds instead of
+//    leaving a paying user looking unlicensed for the ~30s `.cloud` budget.
+//  - If retries are exhausted, we fall back to the last cached SERVER verdict
+//    (never a fabricated one) for the key on file, within its 7-day grace, and
+//    let the app proceed — no hard error shown to the user. Only the "no usable
+//    cache" case gets a distinct diagnostic signal.
+//
 
 import Foundation
 
@@ -23,8 +37,9 @@ import Foundation
 ///
 /// M3-C: the validate/cache/grace LOGIC now lives in the Rust shared core
 /// (`hw-license`). This service keeps the macOS-owned I/O — URLSession config,
-/// `performWithRetry(.cloud)`, and Sentry — and delegates request building,
-/// response parsing, and persistence to the core over a shared `RustLicenseStore`.
+/// `performWithRetry(.cloud / .licenseLaunchValidation)`, and Sentry — and
+/// delegates request building, response parsing, and persistence to the core
+/// over a shared `RustLicenseStore`.
 class LicenseNetworkService {
 
     // MARK: - UserDefaults Keys
@@ -81,7 +96,17 @@ class LicenseNetworkService {
 
     /// Validates a license key with the backend and tracks device usage.
     /// Falls back to cached status if network fails (within 7-day grace period).
-    func validateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+    ///
+    /// - Parameter isLaunchValidation: `true` for the silent, background
+    ///   revalidation `LicenseManager.loadStoredLicense()` fires on every app
+    ///   launch when the cache is stale — uses the tighter `.licenseLaunchValidation`
+    ///   retry budget instead of `.cloud` so a flaky network at launch (wake from
+    ///   sleep, captive portal, DNS not up yet) self-heals in a couple of seconds
+    ///   rather than leaving a paying user looking unlicensed for ~30s. Explicit,
+    ///   user-triggered activation (the default, `false`) keeps the `.cloud` budget,
+    ///   matching the wait a user already expects after tapping "Activate".
+    ///   HYPERWHISPER-F4.
+    func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
         let trimmedKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
             AppLogger.network.warning("License validation rejected: empty license key")
@@ -121,7 +146,7 @@ class LicenseNetworkService {
         request.httpBody = coreRequest.body
 
         do {
-            return try await performWithRetry(config: .cloud) { [self] _ in
+            return try await performWithRetry(config: isLaunchValidation ? .licenseLaunchValidation : .cloud) { [self] _ in
                 let (data, response) = try await session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
@@ -210,9 +235,41 @@ class LicenseNetworkService {
                 store: store,
                 nowUnixSecs: RustLicenseTime.nowUTC()
             )
-            AppLogger.network.info(
-                "License validation offline · status=\(Self.adapt(outcome.status).rawValue)"
-            )
+
+            if outcome.isValid {
+                // Retries exhausted, but we have a last-known-good server verdict
+                // for this exact key within its 7-day grace — serve it and move on.
+                // This is the resilience behavior we WANT (HYPERWHISPER-F4): no
+                // hard error, no Sentry noise, the app just proceeds on the cached
+                // verdict as if the network blip never happened.
+                AppLogger.network.info(
+                    "License validation offline · serving cached verdict status=\(Self.adapt(outcome.status).rawValue) after retries exhausted (launch=\(isLaunchValidation))"
+                )
+            } else {
+                // No usable cached fallback (never validated yet, or the 7-day
+                // grace has elapsed) — the user is genuinely stuck offline with no
+                // safety net. Worth its own distinct signal: unlike the 200-path
+                // "License validation server error" above (a real, non-2xx server
+                // verdict), this is a pure connectivity failure with nothing to
+                // fall back on. Tagged distinctly so it doesn't get lumped in with
+                // either of those. HYPERWHISPER-F4.
+                if AppLogger.isErrorLoggingEnabled {
+                    SentryService.capture(
+                        error: error,
+                        message: "License validation offline — no cached fallback available",
+                        extras: [
+                            "endpoint": NetworkConfig.licenseValidateEndpoint,
+                            "isLaunchValidation": isLaunchValidation,
+                            "isNetworkFailure": Self.isNetworkFailure(error),
+                        ],
+                        tags: ["component": "license", "reason": "offline_no_cache"]
+                    )
+                }
+                AppLogger.network.warning(
+                    "License validation offline · no cached fallback available (launch=\(isLaunchValidation))"
+                )
+            }
+
             return Self.adapt(outcome)
         }
     }
@@ -250,6 +307,40 @@ class LicenseNetworkService {
     /// remote-override config untouched).
     func clearStoredLicense() {
         licenseClearStoredLicense(store: store)
+    }
+
+    // MARK: - Error classification
+
+    /// Whether `error` represents a network-connectivity failure (timeout, no
+    /// connection, DNS lookup failure, connection refused, dropped connection,
+    /// etc.) as opposed to a real server-issued verdict.
+    ///
+    /// Real non-2xx verdicts never reach this classifier — the request closure
+    /// above resolves them to a `ValidationOutcome` directly instead of throwing
+    /// (see `licenseHttpErrorOutcome`). The 500/599 and 429 statuses ARE thrown
+    /// (as a same-domain `URLError`) so `performWithRetry` treats a transient
+    /// server hiccup as retryable, but their raw status codes don't match any
+    /// case here — this classifier answers "was this specifically a connectivity
+    /// problem," which is used only to enrich the offline diagnostic signal above,
+    /// not to gate retry/fallback eligibility. HYPERWHISPER-F4.
+    static func isNetworkFailure(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return false }
+        switch nsError.code {
+        case NSURLErrorTimedOut,
+             NSURLErrorCannotFindHost,
+             NSURLErrorCannotConnectToHost,
+             NSURLErrorNetworkConnectionLost,
+             NSURLErrorDNSLookupFailed,
+             NSURLErrorNotConnectedToInternet,
+             NSURLErrorInternationalRoamingOff,
+             NSURLErrorCallIsActive,
+             NSURLErrorDataNotAllowed,
+             NSURLErrorSecureConnectionFailed:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - ValidationOutcome → app-type adapters
