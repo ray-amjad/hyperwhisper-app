@@ -351,9 +351,39 @@ internal static class Program
                 var application = new Application();
                 LoadApplicationResources(application);
 
+                // Constructing the page exercises the exact construction-order NRE the
+                // `_initialized` guard fixes: IsChecked="True" on the export checkboxes
+                // fires ExportSection_Changed synchronously *during* InitializeComponent,
+                // before sibling checkboxes further down the visual tree exist. If the
+                // guard is ever removed, or `_initialized` is set before InitializeComponent
+                // finishes, BuildExportSelection dereferences a not-yet-created checkbox and
+                // this constructor call throws NullReferenceException.
                 var page = new BackupExportSettingsPage();
                 if (!page.IsInitialized)
                     throw new InvalidOperationException("BackupExportSettingsPage did not finish WPF initialization.");
+
+                // All three export checkboxes default to IsChecked="True" in XAML, so
+                // UpdateExportButtonState should already have computed HasAnySection == true
+                // and left the export button enabled. This only holds if `_initialized`
+                // was set correctly by the time the constructor finished.
+                Assert(page.ExportButton.IsEnabled,
+                    "expected ExportButton to be enabled after construction (all sections checked)");
+
+                // Exercise the guard again post-construction: unchecking every export
+                // section should disable the button, and re-checking one should re-enable
+                // it. This fails if `_initialized` is ever re-inverted (e.g.
+                // `if (_initialized) return;`) or never set, since UpdateExportButtonState
+                // would then never run and the button would stay stuck at its initial state
+                // regardless of checkbox changes.
+                page.ExportSettingsCheckbox.IsChecked = false;
+                page.ExportModesCheckbox.IsChecked = false;
+                page.ExportVocabularyCheckbox.IsChecked = false;
+                Assert(!page.ExportButton.IsEnabled,
+                    "expected ExportButton to be disabled once all export sections are unchecked");
+
+                page.ExportModesCheckbox.IsChecked = true;
+                Assert(page.ExportButton.IsEnabled,
+                    "expected ExportButton to be re-enabled after re-checking a section");
 
                 application.Shutdown();
             });
