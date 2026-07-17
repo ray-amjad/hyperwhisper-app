@@ -59,4 +59,23 @@ struct LicenseValidationResult {
     /// Displayed to users when operations fail
     /// nil when operation succeeds
     let errorMessage: String?
+
+    /// `true` when this result was served from a cached (or Invalid, if no
+    /// cache exists) verdict because the live validation call exhausted its
+    /// retries due to a genuine connectivity failure — as opposed to a real
+    /// server-issued verdict (a 200 response, a terminal non-2xx error, or
+    /// exhausted retries against repeated 5xx/429 responses).
+    ///
+    /// Distinct from the normal "24h cache is still fresh, no live call was
+    /// even attempted" path (`LicenseManager.loadStoredLicense()`'s
+    /// `getCachedLicenseStatus()` branch), where no revalidation is needed.
+    /// `LicenseManager` uses this flag to schedule a short, one-shot
+    /// background retry after a launch-time validation falls back this way —
+    /// a merely-slow-but-live network (weak wifi, VPN overhead) shouldn't
+    /// leave a legitimately-licensed user riding a stale cached verdict for up
+    /// to the full 7-day offline grace period. HYPERWHISPER-F4 (review round 2).
+    ///
+    /// Defaults to `false`; only `LicenseNetworkService.validateLicense`'s
+    /// offline-fallback catch branch sets it `true`.
+    let networkFailureFallback: Bool = false
 }

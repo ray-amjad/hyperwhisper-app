@@ -29,6 +29,17 @@
 //  / offline_fallback_invalid_after_grace), since that's where the cache
 //  semantics are the single source of truth for all platforms.
 //
+//  REVIEW ROUND 2 additions:
+//    - `LicenseNetworkService.requestPolicy(isLaunchValidation:)` pairs the
+//      per-request timeout and retry preset from a single lookup so they can't
+//      drift out of sync (previously two independent ternaries).
+//    - `NetworkConfig.licenseLaunchValidationRetrySoonDelay` backs a short,
+//      one-shot background retry `LicenseManager` schedules after a launch-time
+//      validation falls back to cache specifically due to a network failure —
+//      so a merely-slow-but-live network doesn't ride a stale cached verdict
+//      for up to a week. `LicenseValidationResult.networkFailureFallback` is
+//      the signal that triggers it.
+//
 
 import Testing
 import Foundation
@@ -183,6 +194,78 @@ struct LicenseNetworkResilienceTests {
 
         let hasCachedVerdict = licenseCachedStatusWithinGrace(store: store, nowUnixSecs: now) != nil
         #expect(!hasCachedVerdict)
+    }
+
+    // MARK: - RequestPolicy: single lookup pairing timeout + retry preset
+
+    @Test func requestPolicyPairsTighterSettingsForLaunchValidation() {
+        // Regression test for the review-round-2 fix: the per-request timeout
+        // and retry preset used to be selected via two independent ternaries on
+        // the same `isLaunchValidation` bool ~18 lines apart. Now both come from
+        // one lookup — assert they stay paired correctly for the launch case.
+        let policy = LicenseNetworkService.requestPolicy(isLaunchValidation: true)
+        #expect(policy.requestTimeout == NetworkConfig.licenseLaunchValidationTimeout)
+        #expect(policy.retryConfig.maxAttempts == RetryConfiguration.licenseLaunchValidation.maxAttempts)
+        #expect(policy.retryConfig.initialDelay == RetryConfiguration.licenseLaunchValidation.initialDelay)
+        #expect(policy.retryConfig.maxDelay == RetryConfiguration.licenseLaunchValidation.maxDelay)
+    }
+
+    @Test func requestPolicyPairsNormalSettingsForExplicitActivation() {
+        let policy = LicenseNetworkService.requestPolicy(isLaunchValidation: false)
+        #expect(policy.requestTimeout == NetworkConfig.licenseValidationTimeout)
+        #expect(policy.retryConfig.maxAttempts == RetryConfiguration.cloud.maxAttempts)
+        #expect(policy.retryConfig.initialDelay == RetryConfiguration.cloud.initialDelay)
+        #expect(policy.retryConfig.maxDelay == RetryConfiguration.cloud.maxDelay)
+    }
+
+    // MARK: - networkFailureFallback signal (drives the launch-time retry-soon)
+
+    @Test func licenseValidationResultDefaultsNetworkFailureFallbackToFalse() {
+        let result = LicenseValidationResult(
+            isValid: true,
+            status: .active,
+            customerId: nil,
+            customerEmail: nil,
+            customerName: nil,
+            errorMessage: nil
+        )
+        #expect(!result.networkFailureFallback)
+    }
+
+    @Test func adaptPropagatesNetworkFailureFallbackFlagWhenSet() {
+        // `adapt(_:networkFailureFallback:)` is what `validateLicense`'s offline
+        // catch-branch uses to tag a result as "served from cache because we
+        // couldn't reach the network" — the signal `LicenseManager` checks to
+        // decide whether to schedule the short background retry-soon.
+        let outcome = ValidationOutcome(
+            isValid: true,
+            status: .active,
+            customerId: "cust_1",
+            customerEmail: "person@example.com",
+            expiresAt: nil,
+            errorMessage: "Using cached license (offline)"
+        )
+
+        let fellBackDueToNetwork = LicenseNetworkService.adapt(outcome, networkFailureFallback: true)
+        #expect(fellBackDueToNetwork.networkFailureFallback)
+        #expect(fellBackDueToNetwork.isValid) // adapt() doesn't touch the underlying verdict
+
+        // Default (omitted) stays false — every non-offline-fallback call site
+        // (200 success, terminal HTTP error, `getCachedLicenseStatus`) must not
+        // be misclassified as a network-failure fallback.
+        let normal = LicenseNetworkService.adapt(outcome)
+        #expect(!normal.networkFailureFallback)
+    }
+
+    // MARK: - Retry-soon delay: prompt, and nowhere close to the cache cycle it shortcuts
+
+    @Test func retrySoonDelayIsPromptAndFarShorterThanTheCacheCycle() {
+        // "Soon" means within roughly the next minute, not anywhere near the
+        // 24h validation cache or the 7-day offline grace it exists to shortcut.
+        #expect(NetworkConfig.licenseLaunchValidationRetrySoonDelay > 0)
+        #expect(NetworkConfig.licenseLaunchValidationRetrySoonDelay <= 120)
+        #expect(NetworkConfig.licenseLaunchValidationRetrySoonDelay < NetworkConfig.validationCacheDuration)
+        #expect(NetworkConfig.licenseLaunchValidationRetrySoonDelay < NetworkConfig.offlineGracePeriod)
     }
 
     @Test func cachedVerdictPastGraceIsCorrectlyDetectedAsNoCache() {

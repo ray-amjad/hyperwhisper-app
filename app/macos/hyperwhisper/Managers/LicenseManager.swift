@@ -59,6 +59,14 @@ class LicenseManager: ObservableObject {
     /// Network service for license API calls
     private let networkService: LicenseNetworkService
 
+    /// One-shot background retry, scheduled only when launch-time validation
+    /// fell back to a cached verdict because of a genuine network failure (see
+    /// `loadStoredLicense()`). Held so a second `loadStoredLicense()` call
+    /// (unlikely in practice — `LicenseManager` is a long-lived singleton — but
+    /// possible in tests) cancels any still-pending retry rather than stacking
+    /// them. HYPERWHISPER-F4 (review round 2).
+    private var networkFailureRetryTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
     init() {
@@ -120,6 +128,11 @@ class LicenseManager: ObservableObject {
     /// short bounded retry and — if that's still not enough — falls back to the
     /// last cached server verdict instead of leaving `licenseStatus` stuck at its
     /// default `.trial` for the whole `.cloud` retry budget. HYPERWHISPER-F4.
+    ///
+    /// If that fallback happened specifically because the network couldn't be
+    /// reached (`result.networkFailureFallback`), a short background retry is
+    /// scheduled — see `scheduleRetrySoonAfterNetworkFallback`. HYPERWHISPER-F4
+    /// (review round 2).
     func loadStoredLicense() async {
         guard let storedKey = networkService.getStoredLicenseKey() else {
             licenseStatus = .trial
@@ -127,9 +140,45 @@ class LicenseManager: ObservableObject {
         }
 
         if networkService.shouldRevalidateLicense() {
-            _ = await validateLicense(storedKey, isLaunchValidation: true)
+            let result = await validateLicense(storedKey, isLaunchValidation: true)
+            if result.networkFailureFallback {
+                scheduleRetrySoonAfterNetworkFallback(licenseKey: storedKey)
+            }
         } else if let cachedStatus = networkService.getCachedLicenseStatus() {
             licenseStatus = cachedStatus
+        }
+    }
+
+    /// Schedules ONE short, background revalidation after launch-time
+    /// validation fell back to a cached (or Invalid) verdict due to a genuine
+    /// network failure, rather than waiting out the full 24h cache TTL / 7-day
+    /// offline grace before trying the real server again.
+    ///
+    /// A merely-slow-but-live network (weak wifi, VPN overhead) can trip the
+    /// deliberately tight launch-time timeout/retry budget
+    /// (`NetworkConfig.licenseLaunchValidationTimeout` +
+    /// `.licenseLaunchValidation`) without the user actually being offline —
+    /// that budget is tuned for a fast self-heal, not for correctly
+    /// distinguishing "dead" from "slow." Without this follow-up, a
+    /// legitimately-licensed user who hit that misclassification would silently
+    /// ride the cached fallback for up to a week. By the time this fires, a
+    /// merely-slow connection has almost certainly stabilized, so this quietly
+    /// re-confirms against the real server. Deliberately a simple one-shot
+    /// delayed `Task` rather than wiring up `NetworkStatus`/reachability
+    /// observation — a single retry in the background costs nothing extra if
+    /// the network happens to still be down (it just repeats the same
+    /// fallback), and avoids the added complexity of debouncing a
+    /// possibly-flapping reachability signal for what is already a rare edge
+    /// case. HYPERWHISPER-F4 (review round 2).
+    private func scheduleRetrySoonAfterNetworkFallback(licenseKey: String) {
+        networkFailureRetryTask?.cancel()
+        networkFailureRetryTask = Task { [weak self] in
+            let delayNanoseconds = UInt64(NetworkConfig.licenseLaunchValidationRetrySoonDelay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard let self, !Task.isCancelled else { return }
+
+            AppLogger.network.info("License validation · retrying soon after launch-time network-failure fallback")
+            _ = await self.validateLicense(licenseKey, isLaunchValidation: true)
         }
     }
 

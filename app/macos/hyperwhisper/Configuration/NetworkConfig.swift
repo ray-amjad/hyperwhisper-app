@@ -109,6 +109,26 @@ struct NetworkConfig {
     /// point of the tighter launch-time budget. HYPERWHISPER-F4.
     static let licenseLaunchValidationTimeout: TimeInterval = 2.5
 
+    /// Delay before `LicenseManager` retries launch-time license validation
+    /// again in the background, after the first attempt exhausted its retries
+    /// due to a genuine connectivity failure and fell back to a cached (or
+    /// Invalid) verdict.
+    ///
+    /// The tight `licenseLaunchValidationTimeout` + `.licenseLaunchValidation`
+    /// retry budget above is a deliberate trade-off: it self-heals quickly from
+    /// a truly dead network, but it can also misclassify a merely-SLOW-but-live
+    /// network (weak wifi, VPN overhead) as a network failure, since a request
+    /// that's still hanging past ~2.5s is treated as stuck rather than "about to
+    /// succeed." Without a prompt follow-up, a legitimately-licensed user who
+    /// hit that misclassification would ride the cached fallback verdict for up
+    /// to the full 24h cache TTL / 7-day offline grace before the app tries the
+    /// real server again. This short one-shot retry closes that gap: by the
+    /// time it fires, a merely-slow connection has almost certainly stabilized,
+    /// so the app promptly re-confirms against the real server instead of
+    /// silently trusting a stale-but-still-"valid"-looking cache for up to a
+    /// week. HYPERWHISPER-F4 (review round 2).
+    static let licenseLaunchValidationRetrySoonDelay: TimeInterval = 45
+
     // MARK: - Caching and Retry Configuration
     
     /// Duration to cache successful license validation (24 hours)

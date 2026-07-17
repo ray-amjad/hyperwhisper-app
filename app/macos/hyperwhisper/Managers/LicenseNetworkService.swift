@@ -133,19 +133,21 @@ class LicenseNetworkService {
         // core-built body. `createRequest` defaults to POST + JSON content type,
         // matching the core's request.
         //
-        // The per-request timeout is also split by call site (like the retry
-        // preset below): launch-time validation uses the much shorter
+        // Both the per-request timeout AND the retry preset are selected off the
+        // same `isLaunchValidation` bool via `Self.requestPolicy(isLaunchValidation:)`
+        // — a single lookup instead of two independent ternaries, so the two
+        // values (which must stay paired: a short timeout with a short retry
+        // budget, a long timeout with the long one) can't drift out of sync in a
+        // future edit. Launch-time validation uses the much shorter
         // `licenseLaunchValidationTimeout` so a hung request doesn't eat the
         // whole per-attempt budget — otherwise 3 attempts at the full 10s
         // `licenseValidationTimeout` would still cost ~30s worst case, defeating
         // the point of the tighter `.licenseLaunchValidation` retry preset.
         // HYPERWHISPER-F4.
-        let requestTimeout = isLaunchValidation
-            ? NetworkConfig.licenseLaunchValidationTimeout
-            : NetworkConfig.licenseValidationTimeout
+        let policy = Self.requestPolicy(isLaunchValidation: isLaunchValidation)
         guard var request = NetworkConfig.createRequest(
             for: NetworkConfig.licenseValidateEndpoint,
-            timeout: requestTimeout
+            timeout: policy.requestTimeout
         ) else {
             return LicenseValidationResult(
                 isValid: false,
@@ -160,7 +162,7 @@ class LicenseNetworkService {
         request.httpBody = coreRequest.body
 
         do {
-            return try await performWithRetry(config: isLaunchValidation ? .licenseLaunchValidation : .cloud) { [self] _ in
+            return try await performWithRetry(config: policy.retryConfig) { [self] _ in
                 let (data, response) = try await session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
@@ -258,10 +260,34 @@ class LicenseNetworkService {
             // returns it as-is); it's just not an active entitlement. Gating the
             // Sentry signal below on `outcome.isValid` would misfire it for every
             // offline Expired/Invalid user even though the cache did its job.
+            //
+            // NOTE: this is a second, separate FFI read of the same underlying
+            // cache that `licenseOfflineFallbackOutcome` above just read — in
+            // principle a concurrent `clearStoredLicense()` landing between the
+            // two calls could make them disagree (e.g. `outcome` reflects the
+            // pre-clear cache while `hasCachedVerdict` reflects the post-clear
+            // empty state), which would only mislabel the diagnostic below, not
+            // the `outcome` actually returned to the caller. Narrow and
+            // theoretical (deactivation racing an in-flight offline validation),
+            // not worth a Swift-side workaround (duplicating the core's
+            // is-valid/customer-id derivation here to collapse this to one call
+            // would re-introduce cache logic on the client, which is exactly what
+            // the Rust core migration was meant to centralize). A real fix is a
+            // single combined Rust core accessor (e.g. returning the outcome
+            // alongside a `hadCache` flag from one read) — tracked as a follow-up,
+            // out of scope for this Swift-only PR. HYPERWHISPER-F4 (review round 2).
             let hasCachedVerdict = licenseCachedStatusWithinGrace(
                 store: store,
                 nowUnixSecs: nowUnixSecs
             ) != nil
+
+            // Distinguishes a genuine connectivity failure (can't reach the
+            // network at all) from repeated 5xx/429 responses that exhausted
+            // retries (the server WAS reached, it just kept erroring) — used to
+            // split both the Sentry signal below and the "should we retry again
+            // soon" decision surfaced to `LicenseManager`. HYPERWHISPER-F4
+            // (review round 2).
+            let isNetworkFailure = Self.isNetworkFailure(error)
 
             if hasCachedVerdict {
                 // Retries exhausted, but we have a last-known-good server verdict
@@ -271,7 +297,7 @@ class LicenseNetworkService {
                 // no Sentry noise, the app just proceeds on the cached verdict as
                 // if the network blip never happened.
                 AppLogger.network.info(
-                    "License validation offline · serving cached verdict status=\(Self.adapt(outcome.status).rawValue) after retries exhausted (launch=\(isLaunchValidation))"
+                    "License validation offline · serving cached verdict status=\(Self.adapt(outcome.status).rawValue) after retries exhausted (launch=\(isLaunchValidation), networkFailure=\(isNetworkFailure))"
                 )
             } else {
                 // No usable cached fallback (never validated yet, or the 7-day
@@ -280,25 +306,48 @@ class LicenseNetworkService {
                 // "License validation server error" above (a real, non-2xx server
                 // verdict), this is a pure connectivity failure with nothing to
                 // fall back on. Tagged distinctly so it doesn't get lumped in with
-                // either of those. HYPERWHISPER-F4.
+                // either of those.
+                //
+                // `failure_kind` further splits this signal by `isNetworkFailure`:
+                // a genuine connectivity failure (dead network, DNS, etc.) is a
+                // very different operational condition from repeated 5xx/429
+                // responses exhausting retries (the server IS reachable, it's
+                // unhealthy) — conflating them into one tag would make this signal
+                // much less actionable. HYPERWHISPER-F4.
                 if AppLogger.isErrorLoggingEnabled {
                     SentryService.capture(
                         error: error,
-                        message: "License validation offline — no cached fallback available",
+                        message: isNetworkFailure
+                            ? "License validation offline — no cached fallback available (network unreachable)"
+                            : "License validation offline — no cached fallback available (server error exhausted retries)",
                         extras: [
                             "endpoint": NetworkConfig.licenseValidateEndpoint,
                             "isLaunchValidation": isLaunchValidation,
-                            "isNetworkFailure": Self.isNetworkFailure(error),
                         ],
-                        tags: ["component": "license", "reason": "offline_no_cache"]
+                        tags: [
+                            "component": "license",
+                            "reason": "offline_no_cache",
+                            "failure_kind": isNetworkFailure ? "network" : "server_error",
+                        ]
                     )
                 }
                 AppLogger.network.warning(
-                    "License validation offline · no cached fallback available (launch=\(isLaunchValidation))"
+                    "License validation offline · no cached fallback available (launch=\(isLaunchValidation), networkFailure=\(isNetworkFailure))"
                 )
             }
 
-            return Self.adapt(outcome)
+            // Surface "this specific result was served from a cached verdict (or
+            // Invalid) because we couldn't reach the network" so a launch-time
+            // caller (`LicenseManager.loadStoredLicense()`) can schedule a prompt
+            // background retry instead of waiting out the full 24h cache TTL / 7-
+            // day grace — a merely-slow-but-live network shouldn't ride a stale
+            // cached verdict for up to a week. Deliberately NOT set for the
+            // "submitted key differs from stored" early-return above (that path
+            // never applies to launch validation, which always revalidates the
+            // stored key) or for exhausted-5xx/429 fallbacks (a real server
+            // response, not a connectivity problem — retrying again in a minute
+            // is unlikely to help). HYPERWHISPER-F4 (review round 2).
+            return Self.adapt(outcome, networkFailureFallback: isNetworkFailure)
         }
     }
 
@@ -335,6 +384,39 @@ class LicenseNetworkService {
     /// remote-override config untouched).
     func clearStoredLicense() {
         licenseClearStoredLicense(store: store)
+    }
+
+    // MARK: - Per-call-site request policy
+
+    /// The per-request timeout and retry budget to use for a `validateLicense`
+    /// call — paired together so callers only make ONE `isLaunchValidation`
+    /// decision instead of two independent ternaries (one for the timeout, one
+    /// for the retry preset) that have to be kept in sync by hand. HYPERWHISPER-F4
+    /// (review round 2).
+    struct RequestPolicy {
+        let requestTimeout: TimeInterval
+        let retryConfig: RetryConfiguration
+    }
+
+    /// Single source of truth for `isLaunchValidation`'s two derived settings.
+    /// Launch-time (silent, background) revalidation gets both the shorter
+    /// `licenseLaunchValidationTimeout` AND the tighter `.licenseLaunchValidation`
+    /// retry budget; explicit, user-triggered activation gets the normal
+    /// `licenseValidationTimeout` AND `.cloud` budget. These two values are
+    /// deliberately paired (a short per-request timeout is only useful alongside
+    /// a short retry budget, and vice versa) — computing them together here
+    /// means a future change to one can't accidentally leave the other on the
+    /// wrong preset.
+    static func requestPolicy(isLaunchValidation: Bool) -> RequestPolicy {
+        isLaunchValidation
+            ? RequestPolicy(
+                requestTimeout: NetworkConfig.licenseLaunchValidationTimeout,
+                retryConfig: .licenseLaunchValidation
+            )
+            : RequestPolicy(
+                requestTimeout: NetworkConfig.licenseValidationTimeout,
+                retryConfig: .cloud
+            )
     }
 
     // MARK: - Error classification
@@ -388,14 +470,23 @@ class LicenseNetworkService {
     /// Adapts the core's `ValidationOutcome` to the app's `LicenseValidationResult`.
     /// Note: the core does not surface `customerName`; it is always nil here
     /// (matches the prior native behavior, which also never populated it).
-    static func adapt(_ outcome: ValidationOutcome) -> LicenseValidationResult {
+    ///
+    /// - Parameter networkFailureFallback: `true` only for the offline-fallback
+    ///   catch-branch case where retries were exhausted due to a genuine
+    ///   connectivity failure (see `isNetworkFailure`) — signals to
+    ///   `LicenseManager` that this result rode a cached/Invalid verdict because
+    ///   the network couldn't be reached, not because the server issued it.
+    ///   Defaults to `false` for every other call site (200-path success, empty
+    ///   key, terminal HTTP error, cancellation). HYPERWHISPER-F4 (review round 2).
+    static func adapt(_ outcome: ValidationOutcome, networkFailureFallback: Bool = false) -> LicenseValidationResult {
         LicenseValidationResult(
             isValid: outcome.isValid,
             status: adapt(outcome.status),
             customerId: outcome.customerId,
             customerEmail: outcome.customerEmail,
             customerName: nil,
-            errorMessage: outcome.errorMessage
+            errorMessage: outcome.errorMessage,
+            networkFailureFallback: networkFailureFallback
         )
     }
 }
