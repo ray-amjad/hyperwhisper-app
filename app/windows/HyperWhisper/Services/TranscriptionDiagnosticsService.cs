@@ -28,7 +28,8 @@ public static class TranscriptionDiagnosticsService
         string? inputDeviceName = null,
         string? transcriptionProviderDisplayName = null,
         TranscriptionProviderDiagnostics? providerDiagnostics = null,
-        TranscriptionException? exception = null)
+        TranscriptionException? exception = null,
+        int? captureDeviceCount = null)
     {
         var audioDiagnostics = AnalyzeAudioFile(audioPath, fallbackDurationSeconds);
 
@@ -56,7 +57,15 @@ public static class TranscriptionDiagnosticsService
             ["cloud_accuracy_tier"] = mode?.CloudAccuracyTier ?? "none",
             ["local_engine"] = mode?.LocalEngine ?? "none",
             ["backend_no_speech_detected"] = (providerDiagnostics?.BackendNoSpeechDetected ?? false).ToString().ToLowerInvariant(),
-            ["audio_analysis_succeeded"] = audioDiagnostics.AnalysisSucceeded.ToString().ToLowerInvariant()
+            ["audio_analysis_succeeded"] = audioDiagnostics.AnalysisSucceeded.ToString().ToLowerInvariant(),
+            // Promoted from extras so Sentry can facet/segment on them (extras
+            // aren't aggregable - see HYPERWHISPER-PA). RMS is bucketed to 5dBFS
+            // steps rather than passed raw: a continuous float as a tag has
+            // near-100% cardinality (every event gets its own "bucket" of one),
+            // which defeats faceting entirely - the whole point of promoting it.
+            ["audio_rms_dbfs_bucket"] = BucketDbfs(audioDiagnostics.RmsDbfs),
+            ["selected_input_device_name"] = inputDeviceName ?? "n/a",
+            ["capture_device_count"] = captureDeviceCount?.ToString() ?? "unknown"
         };
 
         var extras = new Dictionary<string, object>
@@ -199,6 +208,22 @@ public static class TranscriptionDiagnosticsService
         }
 
         return Math.Round(20 * Math.Log10(linear), 2);
+    }
+
+    /// <summary>
+    /// Buckets a dBFS value to the nearest 5dB step (e.g. -38.2 -> "-40dbfs") for
+    /// use as a low-cardinality Sentry tag. A raw float would give every event its
+    /// own effectively-unique value, making it useless for faceting/segmenting.
+    /// </summary>
+    private static string BucketDbfs(double dbfs)
+    {
+        if (dbfs <= MinimumDbfs)
+        {
+            return "silent";
+        }
+
+        var bucket = (int)(Math.Floor(dbfs / 5.0) * 5.0);
+        return $"{bucket}dbfs";
     }
 
     private static bool ShouldCaptureNoSpeechDiagnostic(

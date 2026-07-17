@@ -2234,7 +2234,8 @@ public partial class MainViewModel : ViewModelBase
                             inputDeviceName: SelectedAudioDevice?.Name,
                             transcriptionProviderDisplayName: txEx.ProviderName,
                             providerDiagnostics: txEx.ProviderDiagnostics,
-                            exception: txEx);
+                            exception: txEx,
+                            captureDeviceCount: AudioDevices.Count);
                     }
 
                     ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
