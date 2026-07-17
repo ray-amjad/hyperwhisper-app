@@ -19,10 +19,12 @@
 //    connection refused) with a short bounded backoff before giving up — a real
 //    non-2xx server verdict is never retried (see licenseHttpErrorOutcome).
 //  - The launch-time revalidation (LicenseManager.loadStoredLicense(), passing
-//    isLaunchValidation: true) uses a tighter retry budget than explicit,
-//    user-triggered activation (`.licenseLaunchValidation` vs `.cloud`) so a
-//    flaky network at launch self-heals in a couple of seconds instead of
-//    leaving a paying user looking unlicensed for the ~30s `.cloud` budget.
+//    isLaunchValidation: true) uses both a tighter retry budget AND a much
+//    shorter per-request timeout than explicit, user-triggered activation
+//    (`.licenseLaunchValidation` + `licenseLaunchValidationTimeout` vs `.cloud`
+//    + `licenseValidationTimeout`) so a flaky network at launch self-heals in a
+//    few seconds instead of leaving a paying user looking unlicensed for the
+//    ~30s `.cloud` budget.
 //  - If retries are exhausted, we fall back to the last cached SERVER verdict
 //    (never a fabricated one) for the key on file, within its 7-day grace, and
 //    let the app proceed — no hard error shown to the user. Only the "no usable
@@ -100,12 +102,13 @@ class LicenseNetworkService {
     /// - Parameter isLaunchValidation: `true` for the silent, background
     ///   revalidation `LicenseManager.loadStoredLicense()` fires on every app
     ///   launch when the cache is stale — uses the tighter `.licenseLaunchValidation`
-    ///   retry budget instead of `.cloud` so a flaky network at launch (wake from
-    ///   sleep, captive portal, DNS not up yet) self-heals in a couple of seconds
-    ///   rather than leaving a paying user looking unlicensed for ~30s. Explicit,
-    ///   user-triggered activation (the default, `false`) keeps the `.cloud` budget,
-    ///   matching the wait a user already expects after tapping "Activate".
-    ///   HYPERWHISPER-F4.
+    ///   retry budget AND the shorter `licenseLaunchValidationTimeout` per-request
+    ///   timeout instead of `.cloud` / `licenseValidationTimeout`, so a flaky
+    ///   network at launch (wake from sleep, captive portal, DNS not up yet)
+    ///   self-heals in a few seconds rather than leaving a paying user looking
+    ///   unlicensed for ~30s. Explicit, user-triggered activation (the default,
+    ///   `false`) keeps the `.cloud` budget and full request timeout, matching
+    ///   the wait a user already expects after tapping "Activate". HYPERWHISPER-F4.
     func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
         let trimmedKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
@@ -129,9 +132,20 @@ class LicenseNetworkService {
         // Create the URLRequest shell natively (timeout, headers), then attach the
         // core-built body. `createRequest` defaults to POST + JSON content type,
         // matching the core's request.
+        //
+        // The per-request timeout is also split by call site (like the retry
+        // preset below): launch-time validation uses the much shorter
+        // `licenseLaunchValidationTimeout` so a hung request doesn't eat the
+        // whole per-attempt budget — otherwise 3 attempts at the full 10s
+        // `licenseValidationTimeout` would still cost ~30s worst case, defeating
+        // the point of the tighter `.licenseLaunchValidation` retry preset.
+        // HYPERWHISPER-F4.
+        let requestTimeout = isLaunchValidation
+            ? NetworkConfig.licenseLaunchValidationTimeout
+            : NetworkConfig.licenseValidationTimeout
         guard var request = NetworkConfig.createRequest(
             for: NetworkConfig.licenseValidateEndpoint,
-            timeout: NetworkConfig.licenseValidationTimeout
+            timeout: requestTimeout
         ) else {
             return LicenseValidationResult(
                 isValid: false,
@@ -231,17 +245,31 @@ class LicenseNetworkService {
 
             // Core decides the offline fallback (cached status within the 7-day
             // grace, else Invalid) for the key currently on file.
+            let nowUnixSecs = RustLicenseTime.nowUTC()
             let outcome = licenseOfflineFallbackOutcome(
                 store: store,
-                nowUnixSecs: RustLicenseTime.nowUTC()
+                nowUnixSecs: nowUnixSecs
             )
 
-            if outcome.isValid {
+            // Whether there is a genuinely cached SERVER verdict at all — distinct
+            // from `outcome.isValid`, which only means "the cached verdict is
+            // currently Active." A cached Expired/Invalid verdict within the 7-day
+            // grace is still a real cache hit (the core's `licenseOfflineFallbackOutcome`
+            // returns it as-is); it's just not an active entitlement. Gating the
+            // Sentry signal below on `outcome.isValid` would misfire it for every
+            // offline Expired/Invalid user even though the cache did its job.
+            let hasCachedVerdict = licenseCachedStatusWithinGrace(
+                store: store,
+                nowUnixSecs: nowUnixSecs
+            ) != nil
+
+            if hasCachedVerdict {
                 // Retries exhausted, but we have a last-known-good server verdict
-                // for this exact key within its 7-day grace — serve it and move on.
-                // This is the resilience behavior we WANT (HYPERWHISPER-F4): no
-                // hard error, no Sentry noise, the app just proceeds on the cached
-                // verdict as if the network blip never happened.
+                // for this exact key within its 7-day grace — serve it and move on
+                // (whatever that verdict is — Active, Expired, or Invalid). This is
+                // the resilience behavior we WANT (HYPERWHISPER-F4): no hard error,
+                // no Sentry noise, the app just proceeds on the cached verdict as
+                // if the network blip never happened.
                 AppLogger.network.info(
                     "License validation offline · serving cached verdict status=\(Self.adapt(outcome.status).rawValue) after retries exhausted (launch=\(isLaunchValidation))"
                 )
@@ -323,24 +351,15 @@ class LicenseNetworkService {
     /// case here — this classifier answers "was this specifically a connectivity
     /// problem," which is used only to enrich the offline diagnostic signal above,
     /// not to gate retry/fallback eligibility. HYPERWHISPER-F4.
+    ///
+    /// Reuses `TranscriptionPipeline.transientURLErrorCodes` (the same
+    /// connectivity-code set already used for transcription's Sentry-capture
+    /// classification) rather than maintaining an independent copy of the
+    /// NSURLErrorDomain code list — see that property's doc comment.
     static func isNetworkFailure(_ error: Error) -> Bool {
         let nsError = error as NSError
         guard nsError.domain == NSURLErrorDomain else { return false }
-        switch nsError.code {
-        case NSURLErrorTimedOut,
-             NSURLErrorCannotFindHost,
-             NSURLErrorCannotConnectToHost,
-             NSURLErrorNetworkConnectionLost,
-             NSURLErrorDNSLookupFailed,
-             NSURLErrorNotConnectedToInternet,
-             NSURLErrorInternationalRoamingOff,
-             NSURLErrorCallIsActive,
-             NSURLErrorDataNotAllowed,
-             NSURLErrorSecureConnectionFailed:
-            return true
-        default:
-            return false
-        }
+        return TranscriptionPipeline.transientURLErrorCodes.contains(URLError.Code(rawValue: nsError.code))
     }
 
     // MARK: - ValidationOutcome → app-type adapters

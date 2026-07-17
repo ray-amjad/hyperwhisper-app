@@ -9,9 +9,19 @@
 //  synchronously-testable pieces of that fix:
 //    - RetryConfiguration.licenseLaunchValidation stays short and bounded
 //      (tighter than the general-purpose `.cloud` budget).
+//    - NetworkConfig.licenseLaunchValidationTimeout (the per-request timeout
+//      for the same call) is also much shorter than the normal
+//      `licenseValidationTimeout`, so the retry preset's short backoff isn't
+//      undermined by each individual attempt still hanging for the full 10s.
 //    - LicenseNetworkService.isNetworkFailure classifies connectivity errors
 //      (timeout/no connection/DNS/connection refused) distinctly from other
 //      errors, so the offline diagnostic signal can tell them apart.
+//    - A cached Expired/Invalid verdict within the 7-day grace is a real cache
+//      hit (`licenseCachedStatusWithinGrace` returns non-nil) even though it's
+//      not an "active" verdict (`licenseOfflineFallbackOutcome(...).isValid`
+//      is false) — this is the exact distinction `validateLicense`'s offline
+//      branch must make to avoid firing the `offline_no_cache` Sentry signal
+//      for a genuinely-cached, merely-non-active verdict.
 //
 //  The end-to-end retry → cache-fallback flow itself lives in
 //  `LicenseNetworkService.validateLicense` and is exercised indirectly via the
@@ -23,6 +33,19 @@
 import Testing
 import Foundation
 @testable import HyperWhisper
+
+/// Minimal in-memory `KeyValueStore` (the `hw-license` core's callback
+/// interface) for exercising the cache/grace/offline-fallback core functions
+/// directly, without touching `RustLicenseStore`'s real UserDefaults +
+/// one-shot Core Data usage seed (irrelevant here and unnecessary coupling
+/// for a pure cache-semantics test).
+private final class FakeKeyValueStore: KeyValueStore {
+    private var storage: [String: String] = [:]
+
+    func get(key: String) -> String? { storage[key] }
+    func set(key: String, value: String) { storage[key] = value }
+    func delete(key: String) { storage.removeValue(forKey: key) }
+}
 
 struct LicenseNetworkResilienceTests {
 
@@ -83,5 +106,98 @@ struct LicenseNetworkResilienceTests {
     @Test func doesNotClassifyUnrelatedErrorsAsNetworkFailures() {
         let unrelated = NSError(domain: "SomeOtherDomain", code: 1, userInfo: nil)
         #expect(!LicenseNetworkService.isNetworkFailure(unrelated))
+    }
+
+    // MARK: - NetworkConfig.licenseLaunchValidationTimeout
+
+    @Test func launchValidationPerRequestTimeoutIsMuchShorterThanDefault() {
+        // The retry preset's short backoff is pointless if each individual
+        // attempt still hangs for the full 10s `licenseValidationTimeout` — the
+        // per-request timeout for launch-time validation must also be tightened
+        // (see `LicenseNetworkService.validateLicense`'s `requestTimeout`
+        // selection) so the worst case (all attempts time out) stays a
+        // single-digit-second budget instead of ~30s.
+        #expect(NetworkConfig.licenseLaunchValidationTimeout < NetworkConfig.licenseValidationTimeout)
+        #expect(NetworkConfig.licenseLaunchValidationTimeout <= 3.0)
+
+        // Sanity bound on the actual worst case this enables: 3 attempts at the
+        // shorter per-request timeout plus the launch retry preset's total
+        // backoff sleep should land in the single digits, nowhere near the old
+        // ~30s (3 × 10s) worst case.
+        let launch = RetryConfiguration.licenseLaunchValidation
+        let totalBackoff = (1..<launch.maxAttempts).reduce(0.0) { $0 + launch.delay(for: $1) }
+        let worstCase = Double(launch.maxAttempts) * NetworkConfig.licenseLaunchValidationTimeout + totalBackoff
+        #expect(worstCase < 10.0)
+    }
+
+    // MARK: - Offline fallback: cached-but-non-active verdicts are still a cache hit
+
+    @Test func cachedExpiredVerdictWithinGraceIsARealCacheHit() {
+        // Regression test for the mislabeled `offline_no_cache` signal: a cached
+        // Expired verdict within the 7-day grace is a genuine cache hit — just
+        // not an ACTIVE one. `outcome.isValid` alone (`status == .active`) must
+        // NOT be used to decide whether to fire the "no cached fallback"
+        // diagnostic; `licenseCachedStatusWithinGrace` is the correct signal for
+        // "is there a cached verdict at all."
+        let store = FakeKeyValueStore()
+        let now = RustLicenseTime.nowUTC()
+
+        licensePersistValidationVerdict(store: store, status: .active, attemptedKey: "KEY-1", nowUnixSecs: now)
+        // Re-validating the same key later comes back Expired, still within grace.
+        licensePersistValidationVerdict(store: store, status: .expired, attemptedKey: "KEY-1", nowUnixSecs: now)
+
+        let outcome = licenseOfflineFallbackOutcome(store: store, nowUnixSecs: now)
+        #expect(outcome.status == .expired)
+        #expect(!outcome.isValid) // Expired ≠ Active, so isValid is false here...
+
+        // ...but there IS a real cached verdict to fall back on — the
+        // offline_no_cache alarm must NOT fire in this case.
+        let hasCachedVerdict = licenseCachedStatusWithinGrace(store: store, nowUnixSecs: now) != nil
+        #expect(hasCachedVerdict)
+    }
+
+    @Test func cachedInvalidVerdictWithinGraceIsARealCacheHit() {
+        let store = FakeKeyValueStore()
+        let now = RustLicenseTime.nowUTC()
+
+        licensePersistValidationVerdict(store: store, status: .active, attemptedKey: "KEY-1", nowUnixSecs: now)
+        licensePersistValidationVerdict(store: store, status: .invalid, attemptedKey: "KEY-1", nowUnixSecs: now)
+
+        let outcome = licenseOfflineFallbackOutcome(store: store, nowUnixSecs: now)
+        #expect(outcome.status == .invalid)
+        #expect(!outcome.isValid)
+
+        let hasCachedVerdict = licenseCachedStatusWithinGrace(store: store, nowUnixSecs: now) != nil
+        #expect(hasCachedVerdict)
+    }
+
+    @Test func noCachedVerdictAtAllIsCorrectlyDetectedAsNoCache() {
+        // The complementary case: nothing was ever validated, so there is truly
+        // no cached verdict — THIS is the case that should fire the
+        // offline_no_cache signal.
+        let store = FakeKeyValueStore()
+        let now = RustLicenseTime.nowUTC()
+
+        let outcome = licenseOfflineFallbackOutcome(store: store, nowUnixSecs: now)
+        #expect(!outcome.isValid)
+
+        let hasCachedVerdict = licenseCachedStatusWithinGrace(store: store, nowUnixSecs: now) != nil
+        #expect(!hasCachedVerdict)
+    }
+
+    @Test func cachedVerdictPastGraceIsCorrectlyDetectedAsNoCache() {
+        // A cached verdict that has fallen out of the 7-day grace window is, for
+        // this purpose, equivalent to "no cache" — it's no longer a usable
+        // safety net.
+        let store = FakeKeyValueStore()
+        let t0 = RustLicenseTime.nowUTC()
+        licensePersistValidationVerdict(store: store, status: .active, attemptedKey: "KEY-1", nowUnixSecs: t0)
+
+        let farFuture = t0 + 604_800 + 10 // just past the 7-day grace period
+        let outcome = licenseOfflineFallbackOutcome(store: store, nowUnixSecs: farFuture)
+        #expect(!outcome.isValid)
+
+        let hasCachedVerdict = licenseCachedStatusWithinGrace(store: store, nowUnixSecs: farFuture) != nil
+        #expect(!hasCachedVerdict)
     }
 }

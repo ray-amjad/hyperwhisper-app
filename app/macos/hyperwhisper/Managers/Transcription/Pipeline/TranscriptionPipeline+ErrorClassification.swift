@@ -124,7 +124,12 @@ extension TranscriptionPipeline {
         }
     }
 
-    private static let transientURLErrorCodes: Set<URLError.Code> = [
+    /// Connectivity-error codes treated as transient (not code defects) for
+    /// Sentry-capture purposes. Not `private`: `LicenseNetworkService
+    /// .isNetworkFailure` reuses this same canonical set rather than
+    /// maintaining its own independent copy — see that call site.
+    /// HYPERWHISPER-F4.
+    static let transientURLErrorCodes: Set<URLError.Code> = [
         .notConnectedToInternet, .networkConnectionLost, .timedOut,
         .dnsLookupFailed, .cannotFindHost, .cannotConnectToHost,
         .dataNotAllowed, .internationalRoamingOff
