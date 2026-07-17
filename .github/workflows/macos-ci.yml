@@ -12,22 +12,51 @@ on:
     paths:
       - "app/macos/**"
       - "shared-core-rs/**"
+      # These three repo-root dirs are bundled as Resources into the
+      # HyperWhisper.app target (see project.pbxproj) and are read at
+      # runtime by Swift tests (catalog/classifier tests etc.), so a
+      # catalog-only change must still trigger this gate.
+      - "shared-app-classification/**"
+      - "shared-models/**"
+      - "shared-prompts/**"
       - ".github/workflows/macos-ci.yml"
   push:
     branches: [main]
     paths:
       - "app/macos/**"
       - "shared-core-rs/**"
+      - "shared-app-classification/**"
+      - "shared-models/**"
+      - "shared-prompts/**"
       - ".github/workflows/macos-ci.yml"
 
 concurrency:
-  group: macos-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # PR runs: a newer push to the same PR branch supersedes the older run,
+  # so cancelling the in-progress one is correct and desired.
+  #
+  # push-to-main runs: github.ref is the same literal string
+  # (refs/heads/main) for every push, so keying on it alone would mean a
+  # second commit landing on main while the first's CI is still running
+  # cancels that first run outright — losing its pass/fail record. Keying
+  # push events on github.sha instead gives every push its own group, and
+  # cancel-in-progress is scoped to pull_request only so push runs never
+  # cancel each other.
+  group: macos-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-and-test:
     name: Build & Test (macOS, unsigned)
     runs-on: macos-26
+    env:
+      # Signing is fully disabled for every xcodebuild invocation below
+      # since this is a compile+test gate, not a release — no keychain,
+      # cert, or provisioning profile is available (or needed) here.
+      # Shared as a job-level env block so there's one place to change it.
+      CODE_SIGNING_ALLOWED: "NO"
+      CODE_SIGNING_REQUIRED: "NO"
+      CODE_SIGN_IDENTITY: ""
+      CODE_SIGN_ENTITLEMENTS: ""
     steps:
       # ----------------------------------------------------------------
       # 1. Checkout
@@ -41,6 +70,10 @@ jobs:
       # Mirrors macos-release.yml's selection exactly: pin to Xcode 26.3
       # because 26.4 has strict concurrency errors in FluidAudio. Debug and
       # release builds must compile against the same toolchain.
+      #
+      # This block is duplicated verbatim from macos-release.yml. That's a
+      # known, accepted duplication for two callers — not worth a composite
+      # action for a handful of lines; revisit if a third workflow needs it.
       - name: Select Xcode 26.3
         run: |
           XCODE_PATH=$(ls -d /Applications/Xcode_26.3*.app 2>/dev/null | sort -V | tail -1)
@@ -64,29 +97,32 @@ jobs:
       # by shared-core-tests.yml, so this job just trusts the committed
       # lib and builds/tests the Swift app on top of it.
       #
-      # Signing is fully disabled (CODE_SIGNING_ALLOWED=NO / _REQUIRED=NO /
-      # empty CODE_SIGN_IDENTITY) since this is a compile+test gate, not a
-      # release — no keychain, cert, or provisioning profile is available
-      # (or needed) here.
+      # NOTE: this compiles BOTH hyperwhisperTests and hyperwhisperUITests.
+      # -only-testing/-skip-testing are test-execution filters — per
+      # xcodebuild's documented behavior they constrain what runs during a
+      # test action, not what gets compiled — so `build-for-testing` builds
+      # every testable listed in the scheme's Test Action (both test
+      # targets here) regardless of any filter passed to a later step.
+      # There's no build-time flag to drop hyperwhisperUITests from this
+      # step; the "Run unit tests" step below is what excludes it, and only
+      # from execution, not from this build.
       - name: Build for testing
         run: |
           xcodebuild build-for-testing \
             -project app/macos/hyperwhisper.xcodeproj \
             -scheme hyperwhisper \
             -configuration Debug \
-            -destination "platform=macOS" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS=""
+            -destination "platform=macOS"
 
       # ----------------------------------------------------------------
       # 4. Run unit tests
       # ----------------------------------------------------------------
-      # Scoped to hyperwhisperTests only. hyperwhisperUITests launches the
-      # full app UI and needs Accessibility/Input-Monitoring permissions
-      # that can't be granted non-interactively on a hosted runner, so it's
-      # excluded to keep this gate fast and non-flaky.
+      # Scoped to hyperwhisperTests only via -only-testing. hyperwhisperUITests
+      # launches the full app UI and needs Accessibility/Input-Monitoring
+      # permissions that can't be granted non-interactively on a hosted
+      # runner, so it's excluded from *running* here to keep this gate fast
+      # and non-flaky — note it was still compiled in the step above (see
+      # the comment there).
       - name: Run unit tests
         run: |
           xcodebuild test-without-building \
@@ -94,8 +130,4 @@ jobs:
             -scheme hyperwhisper \
             -configuration Debug \
             -destination "platform=macOS" \
-            -only-testing:hyperwhisperTests \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGN_ENTITLEMENTS=""
+            -only-testing:hyperwhisperTests
