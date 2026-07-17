@@ -718,6 +718,22 @@ class TranscriptionProviderRouter {
                     parakeetModelManager.refreshState()
                 }
             }
+
+            // HYPERWHISPER-SV: a Parakeet mode can be selected while the model
+            // was never downloaded (or was evicted after the fact) — `prepareIfNeeded`
+            // used to throw `.modelNotDownloaded` straight into the caller here,
+            // even though nothing ever implemented the "cloud fallback" this app
+            // logs elsewhere. Check availability up front and actually route to
+            // HyperWhisper Cloud instead of hard-failing the transcription.
+            guard parakeetProvider.isAvailable(for: modelId) else {
+                AppLogger.transcription.warning("⚠️ Parakeet model not downloaded, falling back to HyperWhisper Cloud: \(modelId, privacy: .public)")
+                ensureHyperWhisperCloudProvider()
+                guard let hwProvider = hyperwhisperCloudProvider else {
+                    throw TranscriptionError.modelNotDownloaded
+                }
+                return hwProvider
+            }
+
             // Pass specific modelId to prepare the correct version (V2 or V3)
             try await parakeetProvider.prepareIfNeeded(language: language, modelId: modelId)
             AppLogger.transcription.info("✅ Parakeet provider selected for model: \(modelId)")

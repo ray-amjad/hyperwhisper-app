@@ -183,6 +183,22 @@ class TranscriptionModelManager: ObservableObject {
            let parakeetProvider,
            let parakeetModelManager {
             let parakeetDisplayName = modelId.lowercased().contains("v2") ? "Parakeet V2" : "Parakeet V3"
+
+            // HYPERWHISPER-TD: the model can be selected without ever being
+            // downloaded (or evicted after the fact). This used to call
+            // `prepareIfNeeded` unconditionally, which throws `.modelNotDownloaded`
+            // into a hard user-facing error dialog plus an unconditional Sentry
+            // capture on every affected launch. A real transcription attempt now
+            // falls back to HyperWhisper Cloud (`TranscriptionProviderRouter.
+            // selectLocalProvider`), and preloading isn't required for that
+            // fallback to work — so treat "not downloaded" like the cloud/no-mode
+            // case above instead of erroring.
+            guard parakeetProvider.isAvailable(for: modelId) else {
+                AppLogger.models.warning("Parakeet model not downloaded, will use HyperWhisper Cloud fallback at transcribe time: \(modelId, privacy: .public)")
+                modelReadyState = .ready(name: "Cloud")
+                return
+            }
+
             AppLogger.models.info("Preparing Parakeet model for mode selection: \(modelId)")
             modelReadyState = .loading(name: parakeetDisplayName)
             parakeetModelManager.refreshState()
