@@ -2048,66 +2048,18 @@ class PersistenceController: ObservableObject {
     }
     
     // MARK: - RecordingSession Operations
-    
-    /// Creates a new recording session
-    /// - Parameters:
-    ///   - deviceId: The audio device ID
-    ///   - deviceName: The audio device name
-    ///   - sampleRate: Audio sample rate
-    ///   - channelCount: Number of audio channels
-    ///   - audioFormat: Audio format description
-    /// - Returns: The created recording session
-    @discardableResult
-    func createRecordingSession(
-        deviceId: String,
-        deviceName: String,
-        sampleRate: Double,
-        channelCount: Int16,
-        audioFormat: String
-    ) -> RecordingSession {
-        let context = container.viewContext
-        
-        let session = RecordingSession(context: context)
-        session.id = UUID()
-        session.startTime = Date()
-        session.deviceId = deviceId
-        session.deviceName = deviceName
-        session.sampleRate = sampleRate
-        session.channelCount = channelCount
-        session.audioFormat = audioFormat
-        session.status = "recording"
-        session.retryCount = 0
-        
-        save()
-        
-        return session
-    }
-    
-    /// Updates a recording session with transcription result
-    /// - Parameters:
-    ///   - session: The recording session to update
-    ///   - transcript: The resulting transcript (if successful)
-    ///   - error: Error message (if failed)
-    ///   - retryCount: Number of retry attempts made
-    func updateRecordingSessionWithResult(
-        _ session: RecordingSession,
-        transcript: Transcript? = nil,
-        error: String? = nil,
-        retryCount: Int16 = 0
-    ) {
-        session.retryCount = retryCount
-        
-        if let transcript = transcript {
-            session.transcript = transcript
-            session.status = "completed"
-        } else if let error = error {
-            session.errorMessage = error
-            session.status = "failed"
-        }
-        
-        save()
-    }
-    
+    //
+    // NOTE: Session create/update/delete live on RecordingSessionManager +
+    // performWriteRequiringSave (serial background writer context), NOT here.
+    // A pre-refactor synchronous pair (`createRecordingSession(deviceId:...)` /
+    // `updateRecordingSessionWithResult`) used to live in this section — it
+    // inserted + saved a RecordingSession directly on `container.viewContext`
+    // (main thread, no `perform`/`performAndWait`), which reproduced Sentry
+    // HYPERWHISPER-SH / HYPERWHISPER-R0 ("DB on Main Thread at Recording
+    // Start"). It had no remaining callers after the async rewrite, so it was
+    // deleted rather than fixed in place — do not reintroduce a synchronous
+    // viewContext insert/save for RecordingSession here.
+
     // MARK: - Vocabulary Operations
     
     /// Adds a new vocabulary item to Core Data
