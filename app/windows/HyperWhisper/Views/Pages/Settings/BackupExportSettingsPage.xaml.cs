@@ -13,6 +13,16 @@ public partial class BackupExportSettingsPage : Page
     /// <summary>Path of the backup file currently staged for selective import.</summary>
     private string? _pendingImportPath;
 
+    /// <summary>
+    /// True once the constructor has fully finished. A CheckBox's IsChecked="True" in
+    /// XAML fires Checked/ExportSection_Changed *during* InitializeComponent, before
+    /// sibling checkboxes further down the tree have been created — guard on this
+    /// explicit flag (set at the very end of the constructor) rather than on WPF's own
+    /// IsInitialized, whose exact timing relative to nested BAML parsing isn't a
+    /// documented contract we want to depend on.
+    /// </summary>
+    private bool _initialized;
+
     public BackupExportSettingsPage()
     {
         InitializeComponent();
@@ -22,6 +32,7 @@ public partial class BackupExportSettingsPage : Page
         ExportVocabularyCheckbox.Content =
             Loc.S("settings.backup.export.section.vocabulary", vocabCount);
 
+        _initialized = true;
         UpdateExportButtonState();
     }
 
@@ -36,11 +47,9 @@ public partial class BackupExportSettingsPage : Page
 
     private void UpdateExportButtonState()
     {
-        // Setting a checkbox's IsChecked in XAML fires Checked/ExportSection_Changed
-        // *during* InitializeComponent, before the sibling checkboxes below it have
-        // been created. Bail out until the whole control tree is built so
+        // Bail out until the constructor has finished (see _initialized) so
         // BuildExportSelection never dereferences a not-yet-created checkbox.
-        if (!IsInitialized)
+        if (!_initialized)
             return;
 
         ExportButton.IsEnabled = BuildExportSelection().HasAnySection;
