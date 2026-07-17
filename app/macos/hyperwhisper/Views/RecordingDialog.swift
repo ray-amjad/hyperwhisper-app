@@ -49,6 +49,8 @@ struct RecordingDialog: View {
     /// High-frequency metrics (audioLevel, recordingDuration) isolated for performance.
     /// This prevents MainAppView from re-evaluating at 30 FPS during recording.
     @EnvironmentObject var liveMetrics: RecordingLiveMetrics
+    /// High-frequency streaming preview text, isolated for the same reason (HYPERWHISPER-F7).
+    @EnvironmentObject var liveStreamingText: StreamingLiveText
     @ObservedObject private var network = NetworkStatus.shared
     
     @Binding var isPresented: Bool
@@ -107,7 +109,7 @@ struct RecordingDialog: View {
             case .ready:
                 return "streaming.status.ready".localized
             case .streaming:
-                if !appState.streamingText.isEmpty {
+                if !liveStreamingText.text.isEmpty {
                     return "streaming.status.streaming".localized
                 } else {
                     return "streaming.status.listening".localized
@@ -1336,8 +1338,11 @@ struct VisualEffectBackground: NSViewRepresentable {
 // MARK: - Preview
 
 #Preview {
+    let previewAppState = AppState()
     RecordingDialog(isPresented: .constant(true))
         .environmentObject(AudioRecordingManager())
-        .environmentObject(AppState())
+        .environmentObject(previewAppState)
         .environmentObject(SettingsManager())
+        .environmentObject(RecordingLiveMetrics())
+        .environmentObject(previewAppState.liveStreamingText)
 }
