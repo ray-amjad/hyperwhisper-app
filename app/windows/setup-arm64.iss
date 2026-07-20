@@ -113,6 +113,14 @@ end;
 // UNINSTALL CLEANUP - PROMPT USER TO REMOVE DATA (KEEP RECORDINGS)
 // =============================================================================
 
+procedure KillProcess(const ExeName: String);
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM ' + ExeName, '', SW_HIDE,
+    ewWaitUntilTerminated, ResultCode);
+end;
+
 procedure DeleteFolder(const FolderPath: String);
 var
   FindRec: TFindRec;
@@ -140,7 +148,20 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   AppDataPath: String;
 begin
+  if CurUninstallStep = usUninstall then begin
+    // The app lives in the tray, so it is usually still running when the user
+    // uninstalls. A locked HyperWhisper.exe survives file removal and gets
+    // relaunched by the startup Run key on next login.
+    KillProcess('{#MyAppExeName}');
+    KillProcess('parakeet-engine.exe');
+  end;
+
   if CurUninstallStep = usPostUninstall then begin
+    // The app registers launch-at-startup itself at first run (HKCU Run key),
+    // so Inno doesn't know about it and won't undo it — remove it explicitly.
+    RegDeleteValue(HKEY_CURRENT_USER,
+      'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', '{#MyAppName}');
+
     AppDataPath := ExpandConstant('{localappdata}\HyperWhisper');
 
     // Check if app data folder exists
