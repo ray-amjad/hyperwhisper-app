@@ -28,6 +28,7 @@ describe('estimateCreditsForProviderFallbacks', () => {
 // A valid, well-funded licensed user so auth + credit checks pass entirely
 // in-memory (no network) and the route reaches the provider fallback loop.
 mock.module('../lib/redis', () => ({
+  redis: {}, // satisfies static `import { redis }` in google-auth (via google-chirp)
   isIPBlocked: async () => false,
   getCachedLicense: async () => ({ isValid: true, credits: 1000, cachedAt: 'cached' }),
   cacheLicense: async () => {},

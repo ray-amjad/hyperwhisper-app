@@ -6,6 +6,7 @@ const originalFetch = globalThis.fetch;
 const cacheWrites: Array<{ licenseKey: string; license: { isValid: boolean; credits: number; cachedAt: string } }> = [];
 
 mock.module('../lib/redis', () => ({
+  redis: {}, // satisfies static `import { redis }` in google-auth (via google-chirp)
   getCachedLicense: async () => ({ isValid: true, credits: 12, cachedAt: 'cached' }),
   cacheLicense: async (licenseKey: string, license: { isValid: boolean; credits: number; cachedAt: string }) => {
     cacheWrites.push({ licenseKey, license });
