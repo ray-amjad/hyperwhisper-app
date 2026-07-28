@@ -407,7 +407,10 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// <returns>Transcribed text.</returns>
     public string TranscribeFile(string audioPath, string? language = null)
     {
-        return TranscribeFileInternalAsync(audioPath, language, CancellationToken.None)
+        // Go through TranscribeFileAsync so the body runs on a thread-pool thread with
+        // no SynchronizationContext — blocking on it from the UI thread would otherwise
+        // risk deadlocking on the processor's `await using` DisposeAsync continuation.
+        return TranscribeFileAsync(audioPath, language)
             .GetAwaiter()
             .GetResult();
     }
@@ -650,7 +653,19 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                     LoggingService.Debug("  Language: auto-detect");
                 }
 
-                using var processor = builder.Build();
+                // MUST be `await using` (IAsyncDisposable), not `using`.
+                // Whisper.net's WhisperProcessor.Dispose() throws
+                //   "Cannot dispose while processing, please use DisposeAsync instead."
+                // whenever its processing semaphore is still held — which is exactly
+                // the case when the caller cancels mid-transcription: ProcessAsync
+                // throws TaskCanceledException as soon as the token trips, while the
+                // native whisper_full call is still unwinding on its own thread.
+                // The synchronous Dispose then threw from the `using` unwind, replacing
+                // the cancellation with a raw Exception (surfaced to users as
+                // "Transcription failed: Cannot dispose while processing...") and
+                // leaking the processor's pinned GCHandles / unmanaged strings.
+                // DisposeAsync waits for the (already aborting) native task first.
+                await using var processor = builder.Build();
                 stepStopwatch.Stop();
                 LoggingService.Debug($"Step 2: Complete ({stepStopwatch.ElapsedMilliseconds}ms)");
 
@@ -706,6 +721,15 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 // Dispose ARM64 per-transcription factory
                 arm64Factory?.Dispose();
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // User pressed Escape / hit Cancel. Not a failure — let it propagate as a
+            // cancellation so the callers' OperationCanceledException handlers run and
+            // the user sees "Recording cancelled" instead of an error toast.
+            totalStopwatch.Stop();
+            LoggingService.Info($"TranscriptionService: File transcription cancelled after {totalStopwatch.ElapsedMilliseconds}ms");
+            throw;
         }
         catch (Exception ex)
         {
