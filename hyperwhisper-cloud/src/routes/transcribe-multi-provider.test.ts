@@ -183,6 +183,148 @@ describe('AssemblyAI bills the model that actually ran (speech_models fallback)'
   }, 10_000);
 });
 
+describe('AssemblyAI sync fast path (clips under the byte-size duration estimate)', () => {
+  beforeEach(() => { process.env.ASSEMBLYAI_API_KEY = 'test-asm-key'; });
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  function requestWithAudio(byteLength: number, headers: Record<string, string>, query = ''): Request {
+    const audio = new Uint8Array(byteLength);
+    return new Request(`http://localhost/transcribe?license_key=test-license${query}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(audio.byteLength),
+        ...headers,
+      },
+      body: audio,
+    });
+  }
+
+  const syncOk = (text = 'hello sync world') => Response.json({
+    text, confidence: 0.98, audio_duration_ms: 1500, session_id: 'sess-1',
+  });
+
+  test('a short clip hits sync.assemblyai.com and never touches the async v2 endpoints', async () => {
+    let sawAsyncCall = false;
+    let sawSyncModelHeader: unknown;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === 'https://sync.assemblyai.com/v1/transcribe') {
+        sawSyncModelHeader = (init?.headers as Record<string, string>)['X-AAI-Model'];
+        return syncOk();
+      }
+      if (url.includes('api.assemblyai.com')) {
+        sawAsyncCall = true;
+        throw new Error('async v2 endpoint should not be called for a short clip');
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    // 2048 bytes ≈ 0.26s estimated — well under the sync cap.
+    const response = await buildApp().fetch(requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }));
+    const body = await response.json() as { text: string; cost: { usd: number } };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('hello sync world');
+    expect(sawAsyncCall).toBe(false);
+    expect(sawSyncModelHeader).toBe('universal-3-5-pro');
+    expect(response.headers.get('X-STT-Model')).toBe('universal-3-5-pro');
+    // 1500ms @ $0.45/hr.
+    expect(body.cost.usd).toBeCloseTo((1.5 / 60) * (0.45 / 60), 6);
+  });
+
+  test('a clip estimated over the sync threshold skips straight to the async flow', async () => {
+    let sawSyncCall = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method || 'GET').toUpperCase();
+      if (url === 'https://sync.assemblyai.com/v1/transcribe') {
+        sawSyncCall = true;
+        throw new Error('sync endpoint should not be called for a long clip');
+      }
+      if (url.includes('api.assemblyai.com')) {
+        if (url.endsWith('/v2/upload')) return Response.json({ upload_url: 'https://cdn.assemblyai.com/u/y' });
+        if (url.endsWith('/v2/transcript') && method === 'POST') return Response.json({ id: 'tid-long' });
+        if (url.endsWith('/v2/transcript/tid-long') && method === 'GET') {
+          return Response.json({ status: 'completed', text: 'async fallback text', audio_duration: 110 });
+        }
+        if (method === 'DELETE') return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    }) as unknown as typeof fetch;
+
+    // 900,000 bytes ≈ 112.5s estimated — over the 100s sync-eligibility cap.
+    const response = await buildApp().fetch(requestWithAudio(900_000, { 'X-STT-Provider': 'assemblyai' }));
+    const body = await response.json() as { text: string };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('async fallback text');
+    expect(sawSyncCall).toBe(false);
+  }, 10_000);
+
+  test('a sync HTTP error falls back to the async flow instead of failing the request', async () => {
+    let syncAttempted = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method || 'GET').toUpperCase();
+      if (url === 'https://sync.assemblyai.com/v1/transcribe') {
+        syncAttempted = true;
+        return new Response('{"status":503,"title":"Capacity Exceeded"}', { status: 503 });
+      }
+      if (url.includes('api.assemblyai.com')) {
+        if (url.endsWith('/v2/upload')) return Response.json({ upload_url: 'https://cdn.assemblyai.com/u/z' });
+        if (url.endsWith('/v2/transcript') && method === 'POST') return Response.json({ id: 'tid-fallback' });
+        if (url.endsWith('/v2/transcript/tid-fallback') && method === 'GET') {
+          return Response.json({ status: 'completed', text: 'recovered via async', audio_duration: 3 });
+        }
+        if (method === 'DELETE') return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }));
+    const body = await response.json() as { text: string };
+
+    expect(response.status).toBe(200);
+    expect(syncAttempted).toBe(true);
+    expect(body.text).toBe('recovered via async');
+  }, 10_000);
+
+  test('medical domain skips sync entirely even for a short clip', async () => {
+    let sawSyncCall = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method || 'GET').toUpperCase();
+      if (url === 'https://sync.assemblyai.com/v1/transcribe') {
+        sawSyncCall = true;
+        throw new Error('sync endpoint should not be called for a medical-domain request');
+      }
+      if (url.includes('api.assemblyai.com')) {
+        if (url.endsWith('/v2/upload')) return Response.json({ upload_url: 'https://cdn.assemblyai.com/u/m' });
+        if (url.endsWith('/v2/transcript') && method === 'POST') return Response.json({ id: 'tid-med' });
+        if (url.endsWith('/v2/transcript/tid-med') && method === 'GET') {
+          return Response.json({ status: 'completed', text: 'medical async text', audio_duration: 2 });
+        }
+        if (method === 'DELETE') return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(
+      requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai', 'X-STT-Domain': 'medical' }),
+    );
+    const body = await response.json() as { text: string };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('medical async text');
+    expect(sawSyncCall).toBe(false);
+  }, 10_000);
+});
+
 describe('ElevenLabs keyterms (scribe_v2 only)', () => {
   beforeEach(() => { process.env.ELEVENLABS_API_KEY = 'test-11l-key'; });
   afterEach(() => { globalThis.fetch = originalFetch; });

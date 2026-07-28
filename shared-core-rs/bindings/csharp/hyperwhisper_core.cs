@@ -1026,6 +1026,12 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1091,6 +1097,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_assemblyai_build_sync_request(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_assemblyai_build_upload_request(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1103,7 +1113,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_assemblyai_parse_sync_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_assemblyai_parse_upload_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern double uniffi_hyperwhisper_core_fn_func_assemblyai_sync_max_duration_secs(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1831,6 +1849,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_build_sync_request(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_build_upload_request(
     );
 
@@ -1843,7 +1865,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_sync_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_upload_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2389,6 +2419,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_build_sync_request();
+            if (checksum != 14007) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_build_sync_request` checksum `14007`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_build_upload_request();
             if (checksum != 12928) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_build_upload_request` checksum `12928`, library returned `{checksum}`");
@@ -2407,9 +2443,21 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_sync_response();
+            if (checksum != 4249) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_sync_response` checksum `4249`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_upload_response();
             if (checksum != 28660) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_upload_response` checksum `28660`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs();
+            if (checksum != 21235) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs` checksum `21235`, library returned `{checksum}`");
             }
         }
         {
@@ -6489,6 +6537,15 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <exception cref="HwTranscriptionException"></exception>
+    public static HttpRequest AssemblyaiBuildSyncRequest(TranscribeParams @params) {
+        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_build_sync_request(FfiConverterTypeTranscribeParams.INSTANCE.Lower(@params), ref _status)
+));
+    }
+
+
+    /// <exception cref="HwTranscriptionException"></exception>
     public static HttpRequest AssemblyaiBuildUploadRequest(TranscribeParams @params) {
         return FfiConverterTypeHttpRequest.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
@@ -6516,10 +6573,34 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <exception cref="HwTranscriptionException"></exception>
+    public static HwTranscript AssemblyaiParseSyncResponse(HttpResponse @resp) {
+        return FfiConverterTypeHwTranscript.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_parse_sync_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <exception cref="HwTranscriptionException"></exception>
     public static string AssemblyaiParseUploadResponse(HttpResponse @resp) {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_parse_upload_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Sync API duration ceiling, in seconds. Platforms should gate on this (real
+    /// duration when known, else a conservative estimate) before calling
+    /// `assemblyaiBuildSyncRequest`, falling back to the async
+    /// upload/create/poll flow when the duration is unknown or `>=` this value.
+    /// Mirrors `hw_net::providers::assemblyai::SYNC_MAX_DURATION_SECS`.
+    /// </summary>
+    public static double AssemblyaiSyncMaxDurationSecs() {
+        return FfiConverterDouble.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_sync_max_duration_secs( ref _status)
 ));
     }
 

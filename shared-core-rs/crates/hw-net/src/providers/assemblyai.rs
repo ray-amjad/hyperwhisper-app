@@ -41,11 +41,11 @@
 //!   [`PollOutcome::Pending`] so the platform keeps polling.
 
 use crate::contract::{
-    Body, Header, HttpMethod, HttpRequest, HttpResponse, TranscribeParams, Transcript,
+    Body, Header, HttpMethod, HttpRequest, HttpResponse, Part, TranscribeParams, Transcript,
     TranscriptionError,
 };
-use crate::helpers::{keyword_boost_terms, resolve_mime};
-use crate::providers::common::classify_http;
+use crate::helpers::{keyword_boost_terms, multipart_field, multipart_file, resolve_mime};
+use crate::providers::common::{classify_http, filename_of};
 
 /// AssemblyAI API base. `params.base_url` overrides it (tests/staging).
 pub const BASE_URL: &str = "https://api.assemblyai.com/v2";
@@ -342,6 +342,249 @@ pub fn audio_mime(params: &TranscribeParams) -> String {
         .audio_mime
         .clone()
         .unwrap_or_else(|| resolve_mime(&params.audio_path))
+}
+
+// ---------------------------------------------------------------------------
+// Sync API — one blocking request, no upload/create/poll (short clips only)
+// ---------------------------------------------------------------------------
+//
+// A separate product from the `v2` async API above: `POST` the audio once and
+// get the finished transcript back in the same HTTP response (~134ms p50) —
+// no `upload_url`, no job id, no polling. Capped at 120s of audio; the
+// platform is responsible for gating on duration (Rust never sees it — it
+// only builds/parses one request/response pair) and falling back to the async
+// flow above on any sync failure, unknown/over-cap duration, or timeout.
+//
+// Contract verified against the AssemblyAI Python SDK source
+// (`assemblyai/sync/v1/api.py`, `_base.py`, `types.py` — not a live call):
+// - `POST https://sync.assemblyai.com/v1/transcribe` (the unprefixed
+//   `/transcribe` predates a `/v1` prefix added later and is still served,
+//   but new code should use the versioned path).
+// - `multipart/form-data`: the audio file is field **`audio`** (NOT `files` —
+//   an earlier assumption before checking the SDK source), plus an optional
+//   `config` field carrying a JSON object (`language_codes`, `keyterms_prompt`,
+//   `prompt`, `sample_rate`/`channels` for raw PCM, `timestamps`). We only
+//   populate the fields this codebase's async create-request already sends
+//   (language, keyterms, prompt) — no PCM/timestamps support needed today.
+// - Headers: bare `Authorization: <key>` (matches the async steps), and
+//   `X-AAI-Model` — the SDK always sends this, defaulting to the sync
+//   product's only model, `universal-3-5-pro` ([`SyncSpeechModel`] has
+//   exactly one member today; unlike async's `speech_models` priority list,
+//   there is no alias table to reuse here).
+// - Success (2xx): `{ "text", "words"?, "confidence", "audio_duration_ms",
+//   "session_id", "request_time_ms"? }`. We only need `text`.
+// - Failure (non-2xx): an RFC 9457 problem-details envelope
+//   (`{"status","title","detail"}`), with older/alternate shapes
+//   (`{"error_code","message"}` / `{"detail"}`) also tolerated by the SDK.
+//   This is a different shape from the async `{"error": "..."}` body, so we
+//   classify it separately in [`classify_sync_http`] rather than reusing
+//   [`classify_http`].
+
+/// Sync API base — a different host from [`BASE_URL`]. `params.base_url`
+/// overrides it (tests/staging), same override field the async steps read;
+/// don't build both a sync and an async request from one `params` value that
+/// also sets `base_url`, since it applies to whichever builder is called.
+pub const SYNC_BASE_URL: &str = "https://sync.assemblyai.com";
+
+/// Canonical sync transcription path.
+pub const SYNC_TRANSCRIBE_PATH: &str = "/v1/transcribe";
+
+/// Sync API duration ceiling, in seconds. Platforms must gate on this (or a
+/// conservative estimate) *before* calling [`build_sync_request`] — Rust has
+/// no audio duration to check. Falls back to the async flow when unknown or
+/// `>=` this value.
+pub const SYNC_MAX_DURATION_SECS: f64 = 120.0;
+
+/// The sync API's only supported model today (`X-AAI-Model`). Verified
+/// against the Python SDK's `SyncSpeechModel` enum, which has exactly this
+/// one member — if AssemblyAI adds more, give this an alias table like
+/// [`resolve_model_alias`] instead of a single constant.
+pub const SYNC_DEFAULT_MODEL: &str = "universal-3-5-pro";
+
+/// Character budget (not term count) for the sync `config.keyterms_prompt`
+/// array — the sync API docs cap it at 2048 total characters, unlike async's
+/// per-model term-count caps ([`MAX_KEYTERMS_PRO`] / [`MAX_KEYTERMS_DEFAULT`]).
+pub const SYNC_MAX_KEYTERMS_PROMPT_CHARS: usize = 2048;
+
+fn sync_base(params: &TranscribeParams) -> String {
+    params
+        .base_url
+        .as_deref()
+        .map(|s| s.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| SYNC_BASE_URL.to_string())
+}
+
+/// Resolve the `X-AAI-Model` header value. Sync has exactly one model, so
+/// this always returns [`SYNC_DEFAULT_MODEL`] regardless of `params.model`
+/// (an async-only id like `universal-2`/`slam-1` would be meaningless to the
+/// sync endpoint). Takes `params` for symmetry with the async resolvers and
+/// so a future multi-model sync API only needs to change this function.
+fn sync_model(_params: &TranscribeParams) -> &'static str {
+    SYNC_DEFAULT_MODEL
+}
+
+/// Take terms in order, in order, up to a total-character budget (not a term
+/// count) — stops before a term would push the running total over `budget`
+/// rather than truncating a term mid-word.
+fn cap_by_total_chars(terms: &[String], budget: usize) -> Vec<String> {
+    let mut total = 0usize;
+    let mut out = Vec::new();
+    for term in terms {
+        let len = term.chars().count();
+        if total + len > budget {
+            break;
+        }
+        total += len;
+        out.push(term.clone());
+    }
+    out
+}
+
+/// Build the optional sync `config` JSON part from `params`. `None` when none
+/// of language/vocabulary/prompt are set — the sync API's default (no
+/// `config` part) is auto language detection with no keyterms, matching the
+/// async create request's default branch.
+fn sync_config_json(params: &TranscribeParams) -> Option<String> {
+    let mut body = serde_json::Map::new();
+
+    // language_codes: explicit code(s) only. The sync config has no
+    // `language_detection` boolean like async's create body — omitting
+    // `language_codes` entirely IS auto-detection, so "auto"/empty/absent
+    // all mean "send nothing" here (unlike async, which sends an explicit
+    // `language_detection: true`).
+    if let Some(lang) = params.language.as_deref().map(str::trim) {
+        if !lang.is_empty() && !lang.eq_ignore_ascii_case("auto") {
+            let code: String = lang.to_lowercase().split(['-', '_']).next().unwrap_or("").into();
+            if !code.is_empty() {
+                body.insert("language_codes".into(), serde_json::json!([code]));
+            }
+        }
+    }
+
+    // keyterms_prompt: shared sanitize/dedup egress helper, capped by TOTAL
+    // CHARACTERS (2048) rather than term count.
+    let terms = keyword_boost_terms(&params.vocabulary, None);
+    let capped = cap_by_total_chars(&terms, SYNC_MAX_KEYTERMS_PROMPT_CHARS);
+    if !capped.is_empty() {
+        body.insert(
+            "keyterms_prompt".into(),
+            serde_json::Value::Array(capped.into_iter().map(serde_json::Value::String).collect()),
+        );
+    }
+
+    // prompt: the caller's custom instructions verbatim. Sync keeps
+    // vocabulary and prompt as separate config fields (unlike the
+    // OpenAI-style providers, which mash a vocabulary CSV into one `prompt`
+    // string), so no CSV composition is needed here.
+    if let Some(p) = params.prompt.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        body.insert("prompt".into(), serde_json::Value::String(p.to_string()));
+    }
+
+    if body.is_empty() {
+        return None;
+    }
+    serde_json::to_string(&serde_json::Value::Object(body)).ok()
+}
+
+/// Build the **sync** transcription request: one multipart POST carrying the
+/// audio file plus an optional `config` JSON part.
+pub fn build_sync_request(params: &TranscribeParams) -> Result<HttpRequest, TranscriptionError> {
+    let mime = params
+        .audio_mime
+        .clone()
+        .unwrap_or_else(|| resolve_mime(&params.audio_path));
+
+    let mut parts: Vec<Part> = vec![multipart_file(
+        "audio",
+        params.audio_path.clone(),
+        mime,
+        filename_of(&params.audio_path),
+    )];
+    if let Some(config_json) = sync_config_json(params) {
+        parts.push(multipart_field("config", config_json));
+    }
+
+    Ok(HttpRequest {
+        method: HttpMethod::Post,
+        url: format!("{}{}", sync_base(params), SYNC_TRANSCRIBE_PATH),
+        headers: vec![
+            auth_header(&params.api_key),
+            Header::new("X-AAI-Model", sync_model(params).to_string()),
+        ],
+        body: Body::Multipart {
+            boundary: crate::helpers::MULTIPART_BOUNDARY.to_string(),
+            parts,
+        },
+    })
+}
+
+/// Map a non-2xx sync response to a [`TranscriptionError`]. The sync API's
+/// error envelope (`detail`/`message`/`title`) differs from the async
+/// `{"error": "..."}` shape [`classify_http`] expects, so this extracts the
+/// message independently before applying the same status-code mapping
+/// (401/403 unauthorized, 402 quota, 413 too large, 429 rate limited, 5xx
+/// unavailable, other 4xx bad request).
+fn classify_sync_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
+    let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
+    let message = json.as_ref().and_then(|j| {
+        j.get("detail")
+            .or_else(|| j.get("message"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+            .or_else(|| j.get("title").and_then(|v| v.as_str()).map(str::to_string))
+    });
+
+    match resp.status {
+        401 | 403 => TranscriptionError::Unauthorized,
+        402 => TranscriptionError::QuotaExceeded,
+        413 => TranscriptionError::FileTooLarge,
+        429 => TranscriptionError::RateLimited {
+            retry_after_secs: resp.header("Retry-After").and_then(|v| v.trim().parse().ok()),
+        },
+        500..=599 => TranscriptionError::ProviderUnavailable { status: resp.status },
+        _ => TranscriptionError::BadRequest {
+            status: resp.status,
+            message: message.unwrap_or_else(|| raw.chars().take(200).collect()),
+        },
+    }
+}
+
+/// Parse a **sync** response.
+///
+/// - Non-2xx → [`classify_sync_http`].
+/// - 2xx with a missing/non-string `text` field → [`TranscriptionError::Parse`]
+///   (defensive: an unexpected response shape is a signal to fall back to
+///   async, not a crash).
+/// - 2xx with empty `text` → [`TranscriptionError::NoSpeech`] (mirrors the
+///   poll response's empty-transcript handling: legitimate silence, not a
+///   reason to fall back and re-run the same clip through async).
+pub fn parse_sync_response(resp: &HttpResponse) -> Result<Transcript, TranscriptionError> {
+    let raw = resp.text();
+
+    if !(200..=299).contains(&resp.status) {
+        return Err(classify_sync_http(resp, &raw));
+    }
+
+    let json: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|e| TranscriptionError::Parse {
+            message: format!("invalid sync JSON: {e}"),
+        })?;
+
+    let text = json
+        .get("text")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| TranscriptionError::Parse {
+            message: "sync response missing text".to_string(),
+        })?;
+
+    if text.is_empty() {
+        return Err(TranscriptionError::NoSpeech);
+    }
+
+    Ok(Transcript {
+        text: text.to_string(),
+        ..Default::default()
+    })
 }
 
 #[cfg(test)]
@@ -670,6 +913,227 @@ mod tests {
         assert_eq!(
             build_poll_request(&p, "tid").unwrap().url,
             "https://staging.assemblyai.test/v2/transcript/tid"
+        );
+    }
+
+    // ---- sync API ------------------------------------------------------------
+
+    fn sync_config(req: &HttpRequest) -> Option<serde_json::Value> {
+        match &req.body {
+            Body::Multipart { parts, .. } => parts.iter().find_map(|p| match p {
+                Part::Field { name, value } if name == "config" => {
+                    Some(serde_json::from_str(value).unwrap())
+                }
+                _ => None,
+            }),
+            other => panic!("expected Multipart body, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn sync_request_basic_shape() {
+        let req = build_sync_request(&params()).unwrap();
+        assert_eq!(req.method, HttpMethod::Post);
+        assert_eq!(req.url, "https://sync.assemblyai.com/v1/transcribe");
+        // bare key, no "Bearer "
+        assert!(req
+            .headers
+            .contains(&Header::new("Authorization", "aai-key")));
+        assert!(req
+            .headers
+            .contains(&Header::new("X-AAI-Model", "universal-3-5-pro")));
+        match &req.body {
+            Body::Multipart { parts, .. } => match &parts[0] {
+                Part::FileRef { field, path, .. } => {
+                    assert_eq!(field, "audio");
+                    assert_eq!(path, "/tmp/rec.m4a");
+                }
+                other => panic!("expected FileRef first, got {other:?}"),
+            },
+            other => panic!("expected Multipart body, got {other:?}"),
+        }
+        // no language/vocabulary/prompt -> no config part at all
+        assert!(matches!(&req.body, Body::Multipart { parts, .. } if parts.len() == 1));
+    }
+
+    #[test]
+    fn sync_request_ignores_async_model_ids() {
+        // The sync endpoint has exactly one model; an async-only id must not
+        // leak into X-AAI-Model (it would be meaningless upstream).
+        for model in ["universal-2", "slam-1", "universal-2-medical", ""] {
+            let mut p = params();
+            p.model = model.to_string();
+            let req = build_sync_request(&p).unwrap();
+            assert!(
+                req.headers
+                    .contains(&Header::new("X-AAI-Model", "universal-3-5-pro")),
+                "model {model:?} should resolve to the sync default"
+            );
+        }
+    }
+
+    #[test]
+    fn sync_request_language_becomes_language_codes() {
+        let mut p = params();
+        p.language = Some("en-US".to_string());
+        let cfg = sync_config(&build_sync_request(&p).unwrap()).unwrap();
+        assert_eq!(cfg["language_codes"], serde_json::json!(["en"]));
+    }
+
+    #[test]
+    fn sync_request_auto_language_omits_config_language() {
+        let mut p = params();
+        p.language = Some("AUTO".to_string());
+        // no vocabulary/prompt either -> no config part built at all
+        assert!(matches!(
+            &build_sync_request(&p).unwrap().body,
+            Body::Multipart { parts, .. } if parts.len() == 1
+        ));
+    }
+
+    #[test]
+    fn sync_request_keyterms_capped_by_total_chars_not_count() {
+        let mut p = params();
+        // Many short terms whose combined length exceeds the 2048-char budget.
+        p.vocabulary = (0..500).map(|i| format!("term-{i}")).collect();
+        let cfg = sync_config(&build_sync_request(&p).unwrap()).unwrap();
+        let terms = cfg["keyterms_prompt"].as_array().unwrap();
+        let total_chars: usize = terms.iter().map(|t| t.as_str().unwrap().len()).sum();
+        assert!(total_chars <= SYNC_MAX_KEYTERMS_PROMPT_CHARS);
+        assert!(!terms.is_empty());
+    }
+
+    #[test]
+    fn sync_request_prompt_and_keyterms_are_separate_fields() {
+        let mut p = params();
+        p.vocabulary = vec!["Rust".to_string()];
+        p.prompt = Some("Be terse.".to_string());
+        let cfg = sync_config(&build_sync_request(&p).unwrap()).unwrap();
+        assert_eq!(cfg["keyterms_prompt"], serde_json::json!(["Rust"]));
+        assert_eq!(cfg["prompt"], "Be terse.");
+    }
+
+    #[test]
+    fn sync_request_base_url_override() {
+        let mut p = params();
+        p.base_url = Some("https://sync.staging.assemblyai.test".to_string());
+        assert_eq!(
+            build_sync_request(&p).unwrap().url,
+            "https://sync.staging.assemblyai.test/v1/transcribe"
+        );
+    }
+
+    #[test]
+    fn parse_sync_response_extracts_text() {
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![],
+            body: br#"{"text":"hello sync world","confidence":0.98,"audio_duration_ms":1200,"session_id":"s1"}"#
+                .to_vec(),
+        };
+        assert_eq!(parse_sync_response(&resp).unwrap().text, "hello sync world");
+    }
+
+    #[test]
+    fn parse_sync_response_empty_text_is_no_speech() {
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![],
+            body: br#"{"text":"","confidence":1.0,"audio_duration_ms":500,"session_id":"s1"}"#
+                .to_vec(),
+        };
+        assert_eq!(
+            parse_sync_response(&resp).unwrap_err(),
+            TranscriptionError::NoSpeech
+        );
+    }
+
+    #[test]
+    fn parse_sync_response_missing_text_is_parse_error_not_panic() {
+        // Defensive: an unexpected/missing response shape must fall back to
+        // async, never panic.
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![],
+            body: br#"{"confidence":1.0}"#.to_vec(),
+        };
+        assert!(matches!(
+            parse_sync_response(&resp).unwrap_err(),
+            TranscriptionError::Parse { .. }
+        ));
+    }
+
+    #[test]
+    fn parse_sync_response_non_json_body_is_parse_error_not_panic() {
+        let resp = HttpResponse {
+            status: 200,
+            headers: vec![],
+            body: b"not json at all".to_vec(),
+        };
+        assert!(matches!(
+            parse_sync_response(&resp).unwrap_err(),
+            TranscriptionError::Parse { .. }
+        ));
+    }
+
+    #[test]
+    fn parse_sync_response_problem_details_error_shape() {
+        // RFC 9457 problem-details envelope, per the AssemblyAI Python SDK's
+        // `_error_from_response` — distinct from the async `{"error": "..."}`
+        // shape.
+        let resp = HttpResponse {
+            status: 422,
+            headers: vec![],
+            body: br#"{"status":422,"title":"Audio Too Large","detail":"clip exceeds 120s"}"#
+                .to_vec(),
+        };
+        match parse_sync_response(&resp).unwrap_err() {
+            TranscriptionError::BadRequest { status, message } => {
+                assert_eq!(status, 422);
+                assert_eq!(message, "clip exceeds 120s");
+            }
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_sync_response_401_unauthorized() {
+        let resp = HttpResponse {
+            status: 401,
+            headers: vec![],
+            body: br#"{"status":401,"title":"Unauthorized","detail":"bad key"}"#.to_vec(),
+        };
+        assert_eq!(
+            parse_sync_response(&resp).unwrap_err(),
+            TranscriptionError::Unauthorized
+        );
+    }
+
+    #[test]
+    fn parse_sync_response_429_rate_limited_with_retry_after() {
+        let resp = HttpResponse {
+            status: 429,
+            headers: vec![Header::new("Retry-After", "7")],
+            body: br#"{"status":429,"title":"Too Many Requests"}"#.to_vec(),
+        };
+        assert_eq!(
+            parse_sync_response(&resp).unwrap_err(),
+            TranscriptionError::RateLimited {
+                retry_after_secs: Some(7)
+            }
+        );
+    }
+
+    #[test]
+    fn parse_sync_response_5xx_provider_unavailable() {
+        let resp = HttpResponse {
+            status: 503,
+            headers: vec![],
+            body: b"upstream busy".to_vec(),
+        };
+        assert_eq!(
+            parse_sync_response(&resp).unwrap_err(),
+            TranscriptionError::ProviderUnavailable { status: 503 }
         );
     }
 }

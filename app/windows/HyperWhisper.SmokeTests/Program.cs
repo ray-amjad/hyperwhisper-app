@@ -344,6 +344,25 @@ internal static class Program
                 Assert(ex.HttpStatusCode == 401, $"status {ex.HttpStatusCode}");
             });
 
+            Run("AssemblyAI IsSyncEligible gates on exact duration vs the core's sync cap", () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                Assert(cap > 0, $"expected a positive sync cap from the core, got {cap}");
+
+                Assert(
+                    AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap),
+                    "a duration just under the cap should be sync-eligible");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap), cap),
+                    "a duration AT the cap should NOT be sync-eligible (falls back to async)");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap + 1), cap),
+                    "a duration over the cap should NOT be sync-eligible");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Failure("duration probe failed"), cap),
+                    "an unknown (failed) duration probe should NOT be sync-eligible — fail closed to async");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

@@ -4,17 +4,82 @@
 // `domain: "medical-v1"` metered add-on, not a separate model. A FAILED
 // transcript comes back as HTTP 200 with status:"error", so the poll loop must
 // branch on the body status, not just the HTTP code.
+//
+// SYNC FAST PATH: clips estimated under ~100s (a safety margin below the sync
+// API's 120s hard cap — see SYNC_ELIGIBLE_ESTIMATED_SECONDS) try
+// `POST sync.assemblyai.com/v1/transcribe` first — one blocking multipart
+// request that returns the finished transcript in the SAME response
+// (~134ms p50), no upload_url/job id/poll. Falls back to the async flow above
+// on ANY sync failure (transport error, non-2xx, malformed/unexpected
+// response shape) — never a hard failure. See `transcribeWithAssemblyAISync`.
+//
+// Duration is NOT known ahead of time here — the route only hands us raw
+// bytes + content-type, no pre-computed duration. Rather than attempt sync
+// and parse its "audio too long" rejection, we gate on `estimateSecondsFromBytes`
+// (the same conservative byte-size heuristic used elsewhere in this file for
+// fail-closed billing) so a clip that's obviously too long never pays for a
+// wasted round-trip. This is deliberately conservative: a borderline estimate
+// skips straight to async instead of risking a rejected sync call.
 
-import { computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
+import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
+const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
 const DEFAULT_MODEL = 'universal-3-pro';
 const MEDICAL_DOMAIN_VALUE = 'medical-v1';
 const MAX_KEYTERMS = 200;
+
+// ── Sync API ──
+// Contract verified against the AssemblyAI Python SDK source
+// (`assemblyai/sync/v1/api.py`, `_base.py`, `types.py`), not a live call:
+// - `POST https://sync.assemblyai.com/v1/transcribe`, multipart field `audio`
+//   (NOT `files`), optional `config` JSON part, `X-AAI-Model` header.
+// - Sync currently supports exactly one model — no alias/priority-list logic
+//   to reuse from the async path.
+// - Success: `{ text, words?, confidence, audio_duration_ms, session_id }`.
+// - Failure: an RFC 9457 problem-details envelope (`{status,title,detail}`),
+//   a different shape from the async `{"error": "..."}` body — but since ANY
+//   sync failure falls back to async here, we don't need to classify it
+//   precisely, just log a best-effort reason.
+const SYNC_TRANSCRIBE_URL = `${ASSEMBLYAI_SYNC_BASE}/v1/transcribe`;
+const SYNC_DEFAULT_MODEL = 'universal-3-5-pro';
+const SYNC_MAX_DURATION_SECONDS = 120;
+// Safety margin below the hard cap: `estimateSecondsFromBytes` is a rough
+// 64kbps-encoded guess, not a real duration. An estimate landing in the last
+// 20s before the cap is treated as "too close to call" and skips sync
+// entirely rather than risk a wasted round-trip AssemblyAI rejects as too long.
+const SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS = 20;
+const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
+const SYNC_MAX_KEYTERMS_PROMPT_CHARS = 2048;
+// AssemblyAI's own Python SDK keeps its sync client timeout at 60s, "above the
+// server's 30s deadline so the client doesn't race it". We use a
+// tighter-but-still-safe margin above that same 30s server deadline so a
+// stalled sync call still falls back to async promptly.
+const SYNC_TIMEOUT_MS = 40_000;
+
+interface SyncTranscriptResponse {
+  text?: unknown;
+  audio_duration_ms?: unknown;
+}
+
+/** Cap `terms` by TOTAL character count (not term count) — the sync API's
+ * `keyterms_prompt` limit is a 2048-character budget, unlike async's
+ * per-model term-count caps. Stops before a term would push the running
+ * total over budget, matching the Rust core's `cap_by_total_chars`. */
+function capKeytermsByTotalChars(terms: string[], budget: number): string[] {
+  let total = 0;
+  const out: string[] = [];
+  for (const term of terms) {
+    if (total + term.length > budget) break;
+    total += term.length;
+    out.push(term);
+  }
+  return out;
+}
 // The billable model is whatever AssemblyAI actually RAN (reported in the
 // completed transcript), which may differ from the requested model because
 // `speech_models` is a priority list that falls back universal-3-pro →
@@ -55,6 +120,121 @@ function throwForStatus(status: number, bodyPreview: string): never {
     throw new ProviderUnavailableError('AssemblyAI', `upstream 5xx: ${status}`);
   }
   throw new ProviderInputError('AssemblyAI', status, bodyPreview || `HTTP ${status}`);
+}
+
+/**
+ * Try AssemblyAI's sync transcription API for a clip already estimated to be
+ * comfortably under its 120s cap. Returns the finished result on success, or
+ * `null` to signal the caller should fall back to the async
+ * upload/create/poll flow (transport error, non-2xx, or an
+ * unexpected/malformed response shape — defensive: a shape we don't
+ * recognize is a fallback signal, never a crash). Never throws for an
+ * AssemblyAI-side failure; every such failure is swallowed into `null` and
+ * logged via `sync_fallback`.
+ */
+async function transcribeWithAssemblyAISync(
+  audio: ArrayBuffer,
+  contentType: string,
+  language: string | undefined,
+  initialPrompt: string | undefined,
+  apiKey: string,
+  context: ProviderRequestContext,
+): Promise<TranscriptionResult | null> {
+  const provider = 'assemblyai';
+  const startedAt = performance.now();
+
+  const config: Record<string, unknown> = {};
+  const explicitLanguage = language && language.toLowerCase() !== 'auto' ? language : undefined;
+  if (explicitLanguage) {
+    // Sync's `config.language_codes` has no `language_detection` sibling flag
+    // like async's create body — omitting it entirely IS auto-detection, so
+    // there's no explicit "auto" branch to send here (unlike async).
+    const code = explicitLanguage.toLowerCase().split(/[-_]/)[0];
+    if (code) {
+      config.language_codes = [code];
+    }
+  }
+  const keyterms = initialPrompt
+    ? capKeytermsByTotalChars(toKeyterms(initialPrompt), SYNC_MAX_KEYTERMS_PROMPT_CHARS)
+    : [];
+  if (keyterms.length) {
+    config.keyterms_prompt = keyterms;
+  }
+
+  const form = new FormData();
+  form.append('audio', new Blob([audio], { type: contentType || 'application/octet-stream' }), 'audio');
+  if (Object.keys(config).length > 0) {
+    form.append('config', new Blob([JSON.stringify(config)], { type: 'application/json' }));
+  }
+
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(provider, SYNC_TRANSCRIBE_URL, {
+      method: 'POST',
+      headers: { ...authHeaders(apiKey), 'X-AAI-Model': SYNC_DEFAULT_MODEL },
+      body: form,
+    }, context, SYNC_TIMEOUT_MS);
+  } catch (error) {
+    // fetchWithTimeout already logs transport_error/timeout internally.
+    logProviderEvent(provider, 'sync_fallback', {
+      reason: 'transport', message: error instanceof Error ? error.message : String(error),
+    }, context);
+    return null;
+  }
+
+  if (!response.ok) {
+    const bodyPreview = await readErrorBodyPreview(response);
+    logProviderEvent(provider, 'sync_fallback', { reason: 'http_error', status: response.status, bodyPreview }, context);
+    return null;
+  }
+
+  let job: SyncTranscriptResponse;
+  try {
+    job = await response.json();
+  } catch {
+    logProviderEvent(provider, 'sync_fallback', { reason: 'malformed_response' }, context);
+    return null;
+  }
+
+  // Defensive: an unexpected/missing response shape falls back to async
+  // rather than crashing — `text` is the only field we require.
+  if (typeof job.text !== 'string') {
+    logProviderEvent(provider, 'sync_fallback', { reason: 'missing_text_field' }, context);
+    return null;
+  }
+
+  if (job.text.trim().length === 0) {
+    logProviderEvent(provider, 'no_speech', { model: SYNC_DEFAULT_MODEL, path: 'sync' }, context);
+    return { text: '', language: explicitLanguage, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
+  }
+
+  const rawDurationMs = typeof job.audio_duration_ms === 'number' ? job.audio_duration_ms : 0;
+  // Fail-closed, same as the async path: a successful transcript with a
+  // missing/non-positive duration falls back to a byte-size estimate so we
+  // never bill $0.
+  const durationSeconds = rawDurationMs > 0
+    ? rawDurationMs / 1000
+    : estimateSecondsFromBytes(audio.byteLength);
+
+  logProviderEvent(provider, 'success', {
+    model: SYNC_DEFAULT_MODEL, path: 'sync',
+    elapsedMs: Math.round(performance.now() - startedAt),
+    transcriptChars: job.text.length,
+    durationSeconds,
+    language: explicitLanguage,
+  }, context);
+
+  return {
+    text: job.text,
+    language: explicitLanguage,
+    durationSeconds,
+    costUsd: computeAssemblyAISyncTranscriptionCost(durationSeconds),
+    source: 'assemblyai',
+    // Sync always runs universal-3-5-pro — distinct from both async tiers —
+    // so X-STT-Model / deduction metadata must report it, not the requested
+    // async model id.
+    model: SYNC_DEFAULT_MODEL,
+  };
 }
 
 /**
@@ -101,6 +281,29 @@ export async function transcribeWithAssemblyAI(
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
   if (!apiKey) {
     throw new Error('ASSEMBLYAI_API_KEY not configured');
+  }
+
+  // ── Sync fast path ──
+  // Medical mode isn't a documented sync capability (it's an async
+  // universal-2/universal-3-pro add-on) — skip straight to async rather than
+  // silently drop the domain the caller asked for. Otherwise, gate on the
+  // conservative byte-size duration estimate (see module doc for why: no real
+  // duration is available here).
+  const estimatedSeconds = estimateSecondsFromBytes(audio.byteLength);
+  const syncEligible = !medical && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
+  if (syncEligible) {
+    logProviderEvent(provider, 'sync_attempt', {
+      estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+    }, context);
+    const syncResult = await transcribeWithAssemblyAISync(audio, contentType, language, initialPrompt, apiKey, context);
+    if (syncResult) {
+      return syncResult;
+    }
+    logProviderEvent(provider, 'sync_fallback_to_async', {}, context);
+  } else {
+    logProviderEvent(provider, 'sync_skipped', {
+      medical, estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+    }, context);
   }
 
   // ── 1. Upload raw audio bytes ──

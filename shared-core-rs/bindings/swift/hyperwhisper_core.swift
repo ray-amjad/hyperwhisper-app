@@ -5026,6 +5026,13 @@ public func assemblyaiBuildPollRequest(params: TranscribeParams, id: String)thro
     )
 })
 }
+public func assemblyaiBuildSyncRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_build_sync_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
 public func assemblyaiBuildUploadRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_assemblyai_build_upload_request(
@@ -5047,10 +5054,30 @@ public func assemblyaiParsePollResponse(resp: HttpResponse)throws  -> Assemblyai
     )
 })
 }
+public func assemblyaiParseSyncResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_parse_sync_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
 public func assemblyaiParseUploadResponse(resp: HttpResponse)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_assemblyai_parse_upload_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+/**
+ * Sync API duration ceiling, in seconds. Platforms should gate on this (real
+ * duration when known, else a conservative estimate) before calling
+ * `assemblyaiBuildSyncRequest`, falling back to the async
+ * upload/create/poll flow when the duration is unknown or `>=` this value.
+ * Mirrors `hw_net::providers::assemblyai::SYNC_MAX_DURATION_SECS`.
+ */
+public func assemblyaiSyncMaxDurationSecs() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_sync_max_duration_secs($0
     )
 })
 }
@@ -6167,6 +6194,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_poll_request() != 21341) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_sync_request() != 14007) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_upload_request() != 12928) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6176,7 +6206,13 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_poll_response() != 19680) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_sync_response() != 4249) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_upload_response() != 28660) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs() != 21235) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_azure_mai_build_transcribe_request() != 12803) {

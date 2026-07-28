@@ -752,6 +752,39 @@ pub fn assemblyai_parse_poll_response(
         .map_err(Into::into)
 }
 
+// ---------------------------------------------------------------------------
+// AssemblyAI sync (one blocking request; platform gates on duration < 120s
+// and falls back to the upload -> create -> poll flow above on any error)
+// ---------------------------------------------------------------------------
+
+#[uniffi::export]
+pub fn assemblyai_build_sync_request(
+    params: TranscribeParams,
+) -> Result<HttpRequest, HwTranscriptionError> {
+    hw_net::providers::assemblyai::build_sync_request(&params.into())
+        .map(Into::into)
+        .map_err(Into::into)
+}
+
+#[uniffi::export]
+pub fn assemblyai_parse_sync_response(
+    resp: HttpResponse,
+) -> Result<HwTranscript, HwTranscriptionError> {
+    hw_net::providers::assemblyai::parse_sync_response(&resp.into())
+        .map(Into::into)
+        .map_err(Into::into)
+}
+
+/// Sync API duration ceiling, in seconds. Platforms should gate on this (real
+/// duration when known, else a conservative estimate) before calling
+/// `assemblyaiBuildSyncRequest`, falling back to the async
+/// upload/create/poll flow when the duration is unknown or `>=` this value.
+/// Mirrors `hw_net::providers::assemblyai::SYNC_MAX_DURATION_SECS`.
+#[uniffi::export]
+pub fn assemblyai_sync_max_duration_secs() -> f64 {
+    hw_net::providers::assemblyai::SYNC_MAX_DURATION_SECS
+}
+
 // ===========================================================================
 // Gemini (multi-step: upload-start -> upload-bytes -> poll -> generate -> delete)
 // ===========================================================================
