@@ -83,15 +83,26 @@ jobs:
           xcodebuild -version
 
       # ----------------------------------------------------------------
-      # 3. Build (debug, unsigned)
+      # 3. Rebuild the Rust core (macOS universal static lib)
       # ----------------------------------------------------------------
-      # The Rust core is consumed as a committed prebuilt static lib
-      # (app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a) — the
-      # Xcode project links it directly and has no build phase that
-      # rebuilds it from shared-core-rs/. Rust itself is tested separately
-      # by shared-core-tests.yml, so this job just trusts the committed
-      # lib and builds/tests the Swift app on top of it.
-      #
+      # The Xcode project links a static lib
+      # (app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a) that is
+      # also committed to git for fast local Xcode builds. Rebuilding it
+      # fresh here — rather than trusting the committed copy — keeps it
+      # from silently drifting out of sync with the UniFFI bindings
+      # generated from the same shared-core-rs source, which otherwise
+      # only surfaces as an "Undefined symbols" link failure. Rust
+      # correctness itself (cargo test/clippy) is covered separately by
+      # shared-core-tests.yml; this step only needs the lib to link.
+      - name: Rebuild shared Rust core
+        working-directory: shared-core-rs
+        run: |
+          rustup show
+          ./build-apple.sh
+
+      # ----------------------------------------------------------------
+      # 4. Build (debug, unsigned)
+      # ----------------------------------------------------------------
       # NOTE: this compiles BOTH hyperwhisperTests and hyperwhisperUITests.
       # -only-testing/-skip-testing are test-execution filters — per
       # xcodebuild's documented behavior they constrain what runs during a
@@ -122,7 +133,7 @@ jobs:
             CODE_SIGN_ENTITLEMENTS=""
 
       # ----------------------------------------------------------------
-      # 4. Run unit tests
+      # 5. Run unit tests
       # ----------------------------------------------------------------
       # Scoped to hyperwhisperTests only via -only-testing. hyperwhisperUITests
       # launches the full app UI and needs Accessibility/Input-Monitoring
