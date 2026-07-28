@@ -32,15 +32,7 @@ export function jsonResponse<T>(data: T, headers?: Record<string, string>): Resp
   });
 }
 
-export function corsPreflightResponse(): Response {
-  return new Response(null, { status: 204, headers: CORS_HEADERS });
-}
-
 // Common error responses
-export function ipBlockedResponse(): Response {
-  return errorResponse(403, 'Access denied', 'Your IP has been temporarily blocked due to abuse');
-}
-
 export function licenseRequiredResponse(): Response {
   return errorResponse(401, 'License required', 'HyperWhisper Cloud requires a license key. Add credits to get a key, or use your own API key for free.');
 }
