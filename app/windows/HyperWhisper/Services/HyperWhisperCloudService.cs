@@ -808,19 +808,6 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             "HyperWhisper Cloud");
     }
 
-    /// <summary>
-    /// Masks the URL to hide sensitive query params.
-    /// </summary>
-    private static string MaskUrl(string url)
-    {
-        // Replace device_id and license_key values with ***
-        var masked = System.Text.RegularExpressions.Regex.Replace(
-            url,
-            @"(device_id|license_key)=[^&]+",
-            "$1=***");
-        return masked;
-    }
-
     // =========================================================================
     // DISPOSAL
     // =========================================================================

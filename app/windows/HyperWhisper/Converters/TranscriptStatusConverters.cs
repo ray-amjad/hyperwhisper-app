@@ -75,35 +75,6 @@ public class TranscriptStatusToBrushConverter : IValueConverter
 }
 
 /// <summary>
-/// TRANSCRIPT STATUS TO TEXT CONVERTER
-///
-/// Converts transcript status to display text.
-/// </summary>
-public class TranscriptStatusToTextConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        if (value is not TranscriptStatus status)
-        {
-            return Loc.S("status.unknown");
-        }
-
-        return status switch
-        {
-            TranscriptStatus.Processing => Loc.S("history.status.processing"),
-            TranscriptStatus.Completed => Loc.S("history.status.completed"),
-            TranscriptStatus.Failed => Loc.S("history.status.failed"),
-            _ => Loc.S("status.unknown")
-        };
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        return WpfBinding.DoNothing;
-    }
-}
-
-/// <summary>
 /// NULL TO VISIBILITY CONVERTER
 ///
 /// Shows element when value is not null, hides when null.
@@ -122,33 +93,6 @@ public class NullToVisibilityConverter : IValueConverter
         }
 
         return isNotNull ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        return WpfBinding.DoNothing;
-    }
-}
-
-/// <summary>
-/// COUNT TO VISIBILITY CONVERTER
-///
-/// Shows element when count > 0, hides when count is 0.
-/// Use ConverterParameter="Inverse" to invert the logic.
-/// </summary>
-public class CountToVisibilityConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        bool hasItems = value is int count && count > 0;
-
-        // Check for inverse parameter
-        if (parameter is string param && param.Equals("Inverse", StringComparison.OrdinalIgnoreCase))
-        {
-            hasItems = !hasItems;
-        }
-
-        return hasItems ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
