@@ -660,14 +660,17 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 // Whisper.net's WhisperProcessor.Dispose() throws
                 //   "Cannot dispose while processing, please use DisposeAsync instead."
                 // whenever its processing semaphore is still held — which is exactly
-                // the case when the caller cancels mid-transcription: ProcessAsync
-                // throws TaskCanceledException as soon as the token trips, while the
-                // native whisper_full call is still unwinding on its own thread.
-                // The synchronous Dispose then threw from the `using` unwind, replacing
-                // the cancellation with a raw Exception (surfaced to users as
-                // "Transcription failed: Cannot dispose while processing...") and
-                // leaking the processor's pinned GCHandles / unmanaged strings.
-                // DisposeAsync waits for the (already aborting) native task first.
+                // the case when the caller cancels mid-transcription: ProcessAsync stops
+                // enumerating as soon as it observes the cancellation, while the native
+                // whisper_full call is still unwinding on its own thread and holding the
+                // semaphore. The synchronous Dispose then threw from the `using` unwind,
+                // replacing the real outcome with a raw Exception (surfaced to users as
+                // "Transcription failed: Cannot dispose while processing...") and leaking
+                // the processor's pinned GCHandles / unmanaged strings, which Dispose
+                // never reached. DisposeAsync waits for the (already aborting) native
+                // task first. See the cancellation catch below for how ProcessAsync
+                // actually surfaces that cancellation — it races between two exception
+                // types, which is why that filter is broad.
                 await using var processor = builder.Build();
                 stepStopwatch.Stop();
                 LoggingService.Debug($"Step 2: Complete ({stepStopwatch.ElapsedMilliseconds}ms)");
