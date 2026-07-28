@@ -1032,6 +1032,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1122,6 +1124,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern double uniffi_hyperwhisper_core_fn_func_assemblyai_sync_max_duration_secs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ulong uniffi_hyperwhisper_core_fn_func_assemblyai_sync_timeout_ms(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1877,6 +1883,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_azure_mai_build_transcribe_request(
     );
 
@@ -2458,6 +2468,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs();
             if (checksum != 21235) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs` checksum `21235`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms();
+            if (checksum != 59578) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms` checksum `59578`, library returned `{checksum}`");
             }
         }
         {
@@ -6601,6 +6617,21 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterDouble.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_sync_max_duration_secs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Sync API HTTP call timeout, in milliseconds. Platforms should use this
+    /// (via a linked/derived cancellation deadline — `CancellationTokenSource` on
+    /// Windows, `URLSessionConfiguration.timeoutIntervalForRequest` on macOS) for
+    /// the sync HTTP call itself, instead of each hardcoding its own copy-pasted
+    /// literal. Mirrors `hw_net::providers::assemblyai::SYNC_TIMEOUT_MS`.
+    /// </summary>
+    public static ulong AssemblyaiSyncTimeoutMs() {
+        return FfiConverterUInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_sync_timeout_ms( ref _status)
 ));
     }
 

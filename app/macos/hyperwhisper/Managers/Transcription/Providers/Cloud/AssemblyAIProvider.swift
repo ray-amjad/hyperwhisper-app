@@ -23,9 +23,10 @@
 //  120s) try AssemblyAI's sync API (`POST sync.assemblyai.com/v1/transcribe`)
 //  first — one blocking request returns the finished transcript in the same
 //  response (~134ms p50), no upload/create/poll. Falls back to the pipeline
-//  above when the exact AVFoundation duration is unavailable, >= the cap, or
-//  the sync call itself errors/times out. A `.NoSpeech` result is NOT a
-//  fallback trigger — see `tryTranscribeSync`.
+//  above when the requested model is a medical variant (sync has no
+//  medical/domain concept), the exact AVFoundation duration is unavailable,
+//  >= the cap, or the sync call itself errors/times out. A `.NoSpeech` result
+//  is NOT a fallback trigger — see `tryTranscribeSync`.
 //
 
 import AVFoundation
@@ -49,11 +50,15 @@ class AssemblyAIProvider: TranscriptionProvider {
         return URLSession(configuration: config)
     }()
 
-    /// The AssemblyAI Python SDK keeps its own sync client timeout at 60s,
-    /// "above the server's 30s deadline so the client doesn't race it" — we use
-    /// a tighter-but-still-safe margin above that same 30s server deadline so a
-    /// stalled sync call still falls back to async promptly.
-    private static let syncTimeoutSeconds: TimeInterval = 40
+    /// Sync fast path HTTP call timeout — sourced from the Rust core's shared
+    /// `assemblyaiSyncTimeoutMs()` FFI constant (see hw-net's
+    /// `assemblyai/sync_flow.rs`) instead of a hardcoded literal, so Swift/C#
+    /// can't drift from each other. Tightened from an earlier 40s to a much
+    /// smaller value (AssemblyAI's sync p50 is ~134ms) so a stalled sync call
+    /// blocks the async fallback for far less time — a sequential
+    /// sync-then-async redesign into a concurrent race is out of scope; this
+    /// just caps the worst case.
+    private static let syncTimeoutSeconds: TimeInterval = TimeInterval(assemblyaiSyncTimeoutMs()) / 1000.0
 
     var isAvailable: Bool { !apiKey.isEmpty }
     var name: String { "AssemblyAI" }
@@ -101,6 +106,16 @@ class AssemblyAIProvider: TranscriptionProvider {
             ? (mode?.cloudTranscriptionModel ?? "")
             : ""
         let contentType = AudioMimeTypeResolver.infer(for: audioURL)
+        // NOTE: this ONE `params` value is passed to BOTH the sync builder
+        // (`assemblyaiBuildSyncRequest`, below) AND — on fallback — the async
+        // builders (`assemblyaiBuild{Upload,Create,Poll}Request`). The Rust
+        // core's doc comment on `SYNC_BASE_URL` warns against exactly this
+        // when `params.base_url` is set: sync and async point at DIFFERENT
+        // hosts (`sync.assemblyai.com` vs `api.assemblyai.com`), so one
+        // override can't correctly redirect both. Currently latent — `baseURL`
+        // is never passed here — but if a future staging/test override is
+        // added to this call site, it must NOT reuse this same `params` value
+        // for both builders; build sync and async params separately instead.
         let params = RustCoreMapping.transcribeParams(
             audioPath: audioURL.path,
             audioMime: contentType,
@@ -113,9 +128,14 @@ class AssemblyAIProvider: TranscriptionProvider {
         // Sync fast path: try AssemblyAI's one-request sync API for clips under
         // its duration cap before falling back to the async upload/create/poll
         // pipeline below. Uses the EXACT AVFoundation duration (not a byte-size
-        // estimate) since the file is already on disk.
+        // estimate) since the file is already on disk. Medical models are
+        // excluded: the sync API has no medical/domain concept and always runs
+        // plain universal-3-5-pro, so routing a medical request through sync
+        // would silently drop the paid Medical Mode add-on instead of erroring
+        // or falling back — matches the cloud TS path's existing exclusion.
+        let isMedicalModel = CloudTranscriptionModels.assemblyAIRequestParams(for: modelToSend).medical
         let syncMaxDuration = assemblyaiSyncMaxDurationSecs()
-        if let duration = await syncEligibleDuration(for: audioURL), duration < syncMaxDuration {
+        if !isMedicalModel, let duration = await syncEligibleDuration(for: audioURL), duration < syncMaxDuration {
             AppLogger.network.debug("AssemblyAI duration \(duration, privacy: .public)s < \(syncMaxDuration, privacy: .public)s sync cap — trying sync fast path")
             if let syncText = try await tryTranscribeSync(params: params, durationSeconds: duration) {
                 AppLogger.network.info("AssemblyAI sync transcription complete · chars=\(syncText.count, privacy: .public)")
@@ -123,7 +143,7 @@ class AssemblyAIProvider: TranscriptionProvider {
             }
             AppLogger.network.info("AssemblyAI sync fast path unavailable — falling back to async upload/create/poll")
         } else {
-            AppLogger.network.debug("AssemblyAI skipping sync fast path (duration unknown or >= \(syncMaxDuration, privacy: .public)s cap)")
+            AppLogger.network.debug("AssemblyAI skipping sync fast path (medical=\(isMedicalModel, privacy: .public), duration unknown or >= \(syncMaxDuration, privacy: .public)s cap)")
         }
 
         // 1) Upload the audio to AssemblyAI to get a temporary URL.

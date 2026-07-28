@@ -174,6 +174,12 @@ public class TranscriptionOrchestrator : IDisposable
     /// <param name="localTranscriptionProvider">Local transcription provider for local modes (must be available).</param>
     /// <param name="applicationContext">Optional application context for prompt enrichment.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="knownDurationSeconds">
+    /// Audio duration the caller already computed (e.g. the file-import flow's
+    /// NAudio probe), if any. Passed through to cloud providers that can reuse
+    /// it instead of re-probing the same file (currently AssemblyAI's
+    /// sync-eligibility gate). Null means "unknown" — the provider probes itself.
+    /// </param>
     /// <returns>TranscriptionResult with raw text, final text, and provider info.</returns>
     /// <exception cref="TranscriptionException">On transcription failure.</exception>
     /// <exception cref="InvalidOperationException">If local mode but service not initialized.</exception>
@@ -185,7 +191,8 @@ public class TranscriptionOrchestrator : IDisposable
         ApplicationContext? applicationContext = null,
         CancellationToken cancellationToken = default,
         TranscriptionCallSite callSite = TranscriptionCallSite.Gui,
-        bool applyPostProcessing = true)
+        bool applyPostProcessing = true,
+        double? knownDurationSeconds = null)
     {
         // Guard clauses
         if (string.IsNullOrEmpty(audioPath))
@@ -209,7 +216,7 @@ public class TranscriptionOrchestrator : IDisposable
 
         if (mode.ProviderType == "cloud")
         {
-            (rawText, transcriptionProvider, diagnostics) = await TranscribeCloudAsync(audioPath, mode, language, vocabulary, cancellationToken);
+            (rawText, transcriptionProvider, diagnostics) = await TranscribeCloudAsync(audioPath, mode, language, vocabulary, cancellationToken, knownDurationSeconds);
         }
         else
         {
@@ -298,7 +305,8 @@ public class TranscriptionOrchestrator : IDisposable
         Mode mode,
         string? language,
         IReadOnlyList<string>? vocabulary,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        double? knownDurationSeconds = null)
     {
         var providerType = CloudTranscriptionProviderExtensions.FromIdentifier(mode.CloudProvider);
 
@@ -311,6 +319,17 @@ public class TranscriptionOrchestrator : IDisposable
         if (providerType == CloudTranscriptionProvider.Gemini && provider is GeminiTranscriptionService geminiService)
         {
             geminiService.SetCustomPrompt(mode.GeminiCustomPrompt);
+        }
+
+        // Pass through an already-known duration (e.g. the file-import flow's
+        // NAudio probe) so AssemblyAI's sync-eligibility gate doesn't re-probe
+        // the same file a second time. Called unconditionally (possibly with
+        // null) on every AssemblyAI cloud call, mirroring SetCustomPrompt above,
+        // so a stale value from a previous request never leaks into this
+        // reused-singleton provider's next call.
+        if (providerType == CloudTranscriptionProvider.AssemblyAI && provider is AssemblyAIService assemblyAIService)
+        {
+            assemblyAIService.SetKnownDuration(knownDurationSeconds);
         }
 
         // Perform transcription

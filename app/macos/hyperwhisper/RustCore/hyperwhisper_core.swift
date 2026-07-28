@@ -5081,6 +5081,19 @@ public func assemblyaiSyncMaxDurationSecs() -> Double {
     )
 })
 }
+/**
+ * Sync API HTTP call timeout, in milliseconds. Platforms should use this
+ * (via a linked/derived cancellation deadline — `CancellationTokenSource` on
+ * Windows, `URLSessionConfiguration.timeoutIntervalForRequest` on macOS) for
+ * the sync HTTP call itself, instead of each hardcoding its own copy-pasted
+ * literal. Mirrors `hw_net::providers::assemblyai::SYNC_TIMEOUT_MS`.
+ */
+public func assemblyaiSyncTimeoutMs() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_sync_timeout_ms($0
+    )
+})
+}
 public func azureMaiBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_azure_mai_build_transcribe_request(
@@ -6213,6 +6226,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs() != 21235) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms() != 59578) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_azure_mai_build_transcribe_request() != 12803) {

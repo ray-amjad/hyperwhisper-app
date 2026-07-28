@@ -2733,7 +2733,12 @@ public partial class MainViewModel : ViewModelBase
             var result = await _transcriptionOrchestrator.TranscribeAsync(
                 permanentPath, mode, vocabulary,
                 localTranscriptionProvider: GetLocalProvider(mode),
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already probed above (STEP 5) via NAudio for the same audio
+                // content (permanentPath is a byte-identical copy of
+                // pathForTranscription) — avoids AssemblyAIService re-reading
+                // the file a second time just for its sync-eligibility gate.
+                knownDurationSeconds: duration);
             transcriptionCts.Token.ThrowIfCancellationRequested();
 
             // STEP 9: Finishing stage (85-100%) - Update transcript with results

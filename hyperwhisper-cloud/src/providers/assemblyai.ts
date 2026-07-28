@@ -6,12 +6,13 @@
 // branch on the body status, not just the HTTP code.
 //
 // SYNC FAST PATH: clips estimated under ~100s (a safety margin below the sync
-// API's 120s hard cap — see SYNC_ELIGIBLE_ESTIMATED_SECONDS) try
-// `POST sync.assemblyai.com/v1/transcribe` first — one blocking multipart
-// request that returns the finished transcript in the SAME response
-// (~134ms p50), no upload_url/job id/poll. Falls back to the async flow above
-// on ANY sync failure (transport error, non-2xx, malformed/unexpected
-// response shape) — never a hard failure. See `transcribeWithAssemblyAISync`.
+// API's 120s hard cap — see SYNC_ELIGIBLE_ESTIMATED_SECONDS) with an EXPLICIT
+// (non-auto) language try `POST sync.assemblyai.com/v1/transcribe` first —
+// one blocking multipart request that returns the finished transcript in the
+// SAME response (~134ms p50), no upload_url/job id/poll. Falls back to the
+// async flow above on ANY sync failure (transport error, non-2xx,
+// malformed/unexpected response shape) — never a hard failure. See
+// `transcribeWithAssemblyAISync`.
 //
 // Duration is NOT known ahead of time here — the route only hands us raw
 // bytes + content-type, no pre-computed duration. Rather than attempt sync
@@ -20,6 +21,16 @@
 // fail-closed billing) so a clip that's obviously too long never pays for a
 // wasted round-trip. This is deliberately conservative: a borderline estimate
 // skips straight to async instead of risking a rejected sync call.
+//
+// Language: unlike async's explicit `language_detection: true`, the sync
+// API's config has no such flag — an OMITTED `language_codes` defaults to
+// ENGLISH server-side, not auto-detection. Sending nothing for a non-English
+// clip could silently return an English-biased (or empty) transcript instead
+// of the accurate result async would produce. Rather than guess at
+// undocumented sync auto-detect behavior, an absent/"auto" language is
+// excluded from sync eligibility entirely — see `hasExplicitLanguage` below.
+// Mirrors the shared Rust core's `assemblyai::sync_flow::build_sync_request`,
+// which refuses to build a sync request for the same reason.
 
 import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
@@ -53,13 +64,21 @@ const SYNC_MAX_DURATION_SECONDS = 120;
 // 20s before the cap is treated as "too close to call" and skips sync
 // entirely rather than risk a wasted round-trip AssemblyAI rejects as too long.
 const SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS = 20;
-const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
+// Exported so the preflight credit reservation (estimateCreditsForProviderFallbacks
+// in routes/transcribe.ts) can gate on the SAME eligibility threshold this file
+// uses, instead of drifting out of sync with a duplicated magic number.
+export const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
 const SYNC_MAX_KEYTERMS_PROMPT_CHARS = 2048;
-// AssemblyAI's own Python SDK keeps its sync client timeout at 60s, "above the
-// server's 30s deadline so the client doesn't race it". We use a
-// tighter-but-still-safe margin above that same 30s server deadline so a
-// stalled sync call still falls back to async promptly.
-const SYNC_TIMEOUT_MS = 40_000;
+// AssemblyAI's sync p50 latency is ~134ms, so even a much tighter budget than
+// an earlier 40s leaves enormous headroom for a genuinely-slow-but-successful
+// response. A stalled/slow sync call fully blocks the async fallback for up
+// to this long (sequential sync-then-async, not a concurrent race — that
+// redesign is out of scope here), so keeping this small caps the worst-case
+// latency regression vs. pre-sync straight-to-async behavior. Mirrors the
+// shared Rust core's `assemblyai::sync_flow::SYNC_TIMEOUT_MS` (Swift/C# read
+// that FFI-exported constant directly; this backend has no FFI access to
+// Rust, so it keeps its own copy of the same value — keep them in sync).
+const SYNC_TIMEOUT_MS = 15_000;
 
 interface SyncTranscriptResponse {
   text?: unknown;
@@ -69,16 +88,32 @@ interface SyncTranscriptResponse {
 /** Cap `terms` by TOTAL character count (not term count) — the sync API's
  * `keyterms_prompt` limit is a 2048-character budget, unlike async's
  * per-model term-count caps. Stops before a term would push the running
- * total over budget, matching the Rust core's `cap_by_total_chars`. */
+ * total over budget, matching the Rust core's `cap_by_total_chars`.
+ *
+ * Counts Unicode SCALAR VALUES via `Array.from` (one array element per code
+ * point), NOT JS string `.length` (UTF-16 code units) — a surrogate-pair
+ * character (emoji, astral-plane script) counts as 2 in `.length` but 1 code
+ * point, so `.length` would cap earlier than the Rust mirror's
+ * `chars().count()` for vocab containing such characters near the 2048-char
+ * boundary. This keeps the two capped-at-the-same-point, as the module docs
+ * elsewhere claim 1:1 parity with the Rust implementation. */
 function capKeytermsByTotalChars(terms: string[], budget: number): string[] {
   let total = 0;
   const out: string[] = [];
   for (const term of terms) {
-    if (total + term.length > budget) break;
-    total += term.length;
+    const len = Array.from(term).length;
+    if (total + len > budget) break;
+    total += len;
     out.push(term);
   }
   return out;
+}
+
+/** `true` when `language` is an explicit, non-"auto" language — the only case
+ * sync is eligible for. See the module doc's "Language" note above. */
+function hasExplicitLanguage(language: string | undefined): boolean {
+  const trimmed = language?.trim();
+  return Boolean(trimmed) && trimmed!.toLowerCase() !== 'auto';
 }
 // The billable model is whatever AssemblyAI actually RAN (reported in the
 // completed transcript), which may differ from the requested model because
@@ -286,11 +321,14 @@ export async function transcribeWithAssemblyAI(
   // ── Sync fast path ──
   // Medical mode isn't a documented sync capability (it's an async
   // universal-2/universal-3-pro add-on) — skip straight to async rather than
-  // silently drop the domain the caller asked for. Otherwise, gate on the
+  // silently drop the domain the caller asked for. An absent/"auto" language
+  // is excluded too (see module doc: sync has no auto-detect, an omitted
+  // language defaults to English server-side). Otherwise, gate on the
   // conservative byte-size duration estimate (see module doc for why: no real
   // duration is available here).
   const estimatedSeconds = estimateSecondsFromBytes(audio.byteLength);
-  const syncEligible = !medical && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
+  const explicitLanguage = hasExplicitLanguage(language);
+  const syncEligible = !medical && explicitLanguage && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
   if (syncEligible) {
     logProviderEvent(provider, 'sync_attempt', {
       estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
@@ -302,7 +340,7 @@ export async function transcribeWithAssemblyAI(
     logProviderEvent(provider, 'sync_fallback_to_async', {}, context);
   } else {
     logProviderEvent(provider, 'sync_skipped', {
-      medical, estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+      medical, explicitLanguage, estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
     }, context);
   }
 

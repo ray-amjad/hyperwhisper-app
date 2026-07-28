@@ -221,8 +221,11 @@ describe('AssemblyAI sync fast path (clips under the byte-size duration estimate
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
 
-    // 2048 bytes ≈ 0.26s estimated — well under the sync cap.
-    const response = await buildApp().fetch(requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }));
+    // 2048 bytes ≈ 0.26s estimated — well under the sync cap. Explicit
+    // language required for sync eligibility (see the auto-language test below).
+    const response = await buildApp().fetch(
+      requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }, '&language=en'),
+    );
     const body = await response.json() as { text: string; cost: { usd: number } };
 
     expect(response.status).toBe(200);
@@ -285,12 +288,75 @@ describe('AssemblyAI sync fast path (clips under the byte-size duration estimate
       throw new Error(`Unexpected fetch: ${method} ${url}`);
     }) as unknown as typeof fetch;
 
-    const response = await buildApp().fetch(requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }));
+    const response = await buildApp().fetch(
+      requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }, '&language=en'),
+    );
     const body = await response.json() as { text: string };
 
     expect(response.status).toBe(200);
     expect(syncAttempted).toBe(true);
     expect(body.text).toBe('recovered via async');
+  }, 10_000);
+
+  test('an absent language skips sync entirely (an omitted language_codes defaults to English server-side, not auto-detect)', async () => {
+    let sawSyncCall = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method || 'GET').toUpperCase();
+      if (url === 'https://sync.assemblyai.com/v1/transcribe') {
+        sawSyncCall = true;
+        throw new Error('sync endpoint should not be called without an explicit language');
+      }
+      if (url.includes('api.assemblyai.com')) {
+        if (url.endsWith('/v2/upload')) return Response.json({ upload_url: 'https://cdn.assemblyai.com/u/auto' });
+        if (url.endsWith('/v2/transcript') && method === 'POST') return Response.json({ id: 'tid-auto' });
+        if (url.endsWith('/v2/transcript/tid-auto') && method === 'GET') {
+          return Response.json({ status: 'completed', text: 'auto-detected async text', audio_duration: 2 });
+        }
+        if (method === 'DELETE') return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    }) as unknown as typeof fetch;
+
+    // No &language= query param at all — same as an explicit "auto".
+    const response = await buildApp().fetch(requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }));
+    const body = await response.json() as { text: string };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('auto-detected async text');
+    expect(sawSyncCall).toBe(false);
+  }, 10_000);
+
+  test('an explicit "auto" language skips sync entirely, same as an absent language', async () => {
+    let sawSyncCall = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method || 'GET').toUpperCase();
+      if (url === 'https://sync.assemblyai.com/v1/transcribe') {
+        sawSyncCall = true;
+        throw new Error('sync endpoint should not be called for language=auto');
+      }
+      if (url.includes('api.assemblyai.com')) {
+        if (url.endsWith('/v2/upload')) return Response.json({ upload_url: 'https://cdn.assemblyai.com/u/auto2' });
+        if (url.endsWith('/v2/transcript') && method === 'POST') return Response.json({ id: 'tid-auto2' });
+        if (url.endsWith('/v2/transcript/tid-auto2') && method === 'GET') {
+          return Response.json({ status: 'completed', text: 'auto async text', audio_duration: 2 });
+        }
+        if (method === 'DELETE') return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${method} ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(
+      requestWithAudio(2048, { 'X-STT-Provider': 'assemblyai' }, '&language=auto'),
+    );
+    const body = await response.json() as { text: string };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('auto async text');
+    expect(sawSyncCall).toBe(false);
   }, 10_000);
 
   test('medical domain skips sync entirely even for a short clip', async () => {
@@ -638,7 +704,12 @@ describe('OpenAI pre-buffer size gate (413 before any upstream call)', () => {
 });
 
 describe('AssemblyAI keyterms preflight credit reservation', () => {
-  const sizeBytes = 2048;
+  // A big-enough clip that it's NOT sync-eligible (estimated well over the
+  // ~100s sync threshold), so these tests isolate the async keyterms-add-on
+  // signal — a small clip would have its reservation dominated by the (higher)
+  // sync rate regardless of the keyterms flag; see the dedicated sync-rate
+  // reservation tests below for that case.
+  const sizeBytes = 5_000_000;
 
   test('default model (universal-3-pro) with keyterms reserves more than without', () => {
     // Omitting the model resolves to the provider default (universal-3-pro), which
@@ -652,6 +723,34 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     const base = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', 'universal-2', false, undefined);
     const withKeyterms = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', 'universal-2', false, 'Foo,Bar');
     expect(withKeyterms).toBe(base);
+  });
+
+  test('a short non-medical clip reserves at least the sync rate, not just the (lower) async catalog rate', () => {
+    // Sync always runs universal-3-5-pro at $0.0075/min — higher than either
+    // async tier (universal-2 $0.0025/min, universal-3-pro $0.0035/min). A
+    // short clip is exactly sync's target case, so the reservation must cover
+    // the sync rate or a low-balance account could be deducted more than was
+    // reserved when the request actually routes through sync.
+    const shortClipBytes = 2048; // well under the ~100s sync-eligibility threshold
+    const universal2 = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined);
+    const universal3Pro = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-3-pro', false, undefined);
+    // 10s (the MIN_ESTIMATED_SECONDS floor) at $0.0075/min = 0.00125 USD =
+    // 1.25 credits, rounded up to the nearest tenth.
+    const minimumSyncRateCredits = 1.3;
+    expect(universal2).toBeGreaterThanOrEqual(minimumSyncRateCredits);
+    expect(universal3Pro).toBeGreaterThanOrEqual(minimumSyncRateCredits);
+  });
+
+  test('a short medical clip reserves only the async rate — medical is excluded from sync eligibility', () => {
+    // Medical requests never route through sync (sync has no medical/domain
+    // concept), so a short medical clip's reservation must NOT be inflated to
+    // the sync rate the way the non-medical test above is. universal-2 base
+    // ($0.0025/min) + the medical add-on ($0.0025/min) over the 10s floor is
+    // well under the 1.3-credit sync-rate floor asserted above.
+    const shortClipBytes = 2048;
+    const medicalShort = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', true, undefined);
+    const minimumSyncRateCredits = 1.3;
+    expect(medicalShort).toBeLessThan(minimumSyncRateCredits);
   });
 
   test('Deepgram primary with an initial_prompt reserves the ElevenLabs fallback surcharge', () => {

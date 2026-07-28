@@ -785,6 +785,16 @@ pub fn assemblyai_sync_max_duration_secs() -> f64 {
     hw_net::providers::assemblyai::SYNC_MAX_DURATION_SECS
 }
 
+/// Sync API HTTP call timeout, in milliseconds. Platforms should use this
+/// (via a linked/derived cancellation deadline — `CancellationTokenSource` on
+/// Windows, `URLSessionConfiguration.timeoutIntervalForRequest` on macOS) for
+/// the sync HTTP call itself, instead of each hardcoding its own copy-pasted
+/// literal. Mirrors `hw_net::providers::assemblyai::SYNC_TIMEOUT_MS`.
+#[uniffi::export]
+pub fn assemblyai_sync_timeout_ms() -> u64 {
+    hw_net::providers::assemblyai::SYNC_TIMEOUT_MS
+}
+
 // ===========================================================================
 // Gemini (multi-step: upload-start -> upload-bytes -> poll -> generate -> delete)
 // ===========================================================================

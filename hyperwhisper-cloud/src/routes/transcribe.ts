@@ -11,7 +11,7 @@ import { transcribeWithAzureMai } from '../providers/azure-mai';
 import { transcribeWithGoogleChirp } from '../providers/google-chirp';
 import { transcribeWithOpenAI } from '../providers/openai';
 import { transcribeWithGemini } from '../providers/gemini';
-import { transcribeWithAssemblyAI } from '../providers/assemblyai';
+import { transcribeWithAssemblyAI, SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS } from '../providers/assemblyai';
 import { transcribeWithMistral } from '../providers/mistral';
 import { transcribeWithSoniox } from '../providers/soniox';
 import type { ProviderRequestContext, TranscriptionResult } from '../providers/types';
@@ -23,6 +23,7 @@ import {
   isValidProviderId,
   resolveModel,
   MEDICAL_DOMAIN,
+  ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
   type SttProviderId,
 } from '../lib/stt-models';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
@@ -132,21 +133,30 @@ export function estimateCreditsForProviderFallbacks(
   const chain = FALLBACK_CHAINS[provider];
   const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
   const hasInitialPrompt = Boolean(initialPrompt);
-  const usdPerMinute = Math.max(
-    ...chain.map((p) => estimatedUsdPerMinute(
-      p,
-      p === provider ? model : undefined,
-      p === provider ? medical : false,
-      // The keyterm surcharge is billed by ANY chain member that supports it
-      // (ElevenLabs scribe_v2 / AssemblyAI universal-3-pro) whenever an
-      // initial_prompt is present — not just the primary provider. A
-      // Deepgram→ElevenLabs fallback still forwards initial_prompt and bills the
-      // +20% surcharge, so reserve for it on every eligible sibling. Other
-      // providers ignore the flag (estimatedUsdPerMinute scopes the add-on), so
-      // this never over-reserves for, say, a Deepgram-only success path.
-      hasInitialPrompt && (p === 'elevenlabs' || p === 'assemblyai'),
-    )),
-  );
+  const rates = chain.map((p) => estimatedUsdPerMinute(
+    p,
+    p === provider ? model : undefined,
+    p === provider ? medical : false,
+    // The keyterm surcharge is billed by ANY chain member that supports it
+    // (ElevenLabs scribe_v2 / AssemblyAI universal-3-pro) whenever an
+    // initial_prompt is present — not just the primary provider. A
+    // Deepgram→ElevenLabs fallback still forwards initial_prompt and bills the
+    // +20% surcharge, so reserve for it on every eligible sibling. Other
+    // providers ignore the flag (estimatedUsdPerMinute scopes the add-on), so
+    // this never over-reserves for, say, a Deepgram-only success path.
+    hasInitialPrompt && (p === 'elevenlabs' || p === 'assemblyai'),
+  ));
+  // AssemblyAI's sync fast path (<120s, non-medical clips) always runs
+  // universal-3-5-pro at its OWN higher published rate — not the async
+  // catalog rate for the requested model (universal-2 / universal-3-pro),
+  // which `estimatedUsdPerMinute` above reserves against. A short clip is
+  // exactly sync's target case, so without this a short, non-medical
+  // AssemblyAI request could be deducted for more than was reserved. Mirrors
+  // the same eligibility gate `transcribeWithAssemblyAI` itself uses.
+  if (provider === 'assemblyai' && !medical && estimatedSeconds < ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS) {
+    rates.push(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+  }
+  const usdPerMinute = Math.max(...rates);
   // Token-billed providers (Gemini, OpenAI gpt-4o*) charge the prompt text as
   // input tokens on top of the audio. Reserve that flat cost for the primary
   // provider (these are self-only chains) so a large vocabulary prompt on a

@@ -198,6 +198,26 @@ pub fn parse_text_response(resp: &HttpResponse) -> Result<Transcript, Transcript
 /// - 5xx → `ProviderUnavailable`
 /// - other 4xx → `BadRequest { message }` from `error.message` / `error` / body.
 pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
+    classify_http_with_message(resp, raw, error_message)
+}
+
+/// The shared status-code skeleton behind [`classify_http`]: 401/403 →
+/// `Unauthorized`, 402 → `QuotaExceeded`, 408 → `ProviderUnavailable`, 413 →
+/// `FileTooLarge`, 429 → quota-vs-rate-limited (via [`is_quota_error`]), 5xx →
+/// `ProviderUnavailable`, other 4xx → `BadRequest` with a message from
+/// `extract_message`.
+///
+/// Parameterized over the body-message extractor so a provider whose error
+/// envelope doesn't match the OpenAI-style `{"error": {"message": ...}}` /
+/// `{"message": ...}` / `{"error": "..."}` shapes [`error_message`] expects
+/// (e.g. AssemblyAI sync's RFC 9457 problem-details `{"detail"/"title"}`
+/// envelope) can reuse this same skeleton instead of re-implementing the
+/// match arms. See `assemblyai::sync_flow::classify_sync_http`.
+pub fn classify_http_with_message(
+    resp: &HttpResponse,
+    raw: &str,
+    extract_message: impl FnOnce(Option<&serde_json::Value>, &str) -> String,
+) -> TranscriptionError {
     let status = resp.status;
     let json: Option<serde_json::Value> = serde_json::from_str(raw).ok();
 
@@ -218,7 +238,7 @@ pub fn classify_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
         500..=599 => TranscriptionError::ProviderUnavailable { status },
         _ => TranscriptionError::BadRequest {
             status,
-            message: error_message(json.as_ref(), raw),
+            message: extract_message(json.as_ref(), raw),
         },
     }
 }
