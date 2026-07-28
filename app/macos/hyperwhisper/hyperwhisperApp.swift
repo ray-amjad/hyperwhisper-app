@@ -748,10 +748,6 @@ struct MenuBarIconView: View {
         }
     }
 
-    // DEPRECATED: Old initializer that performed redundant rescans and preloading.
-    // Left temporarily for reference; no longer invoked.
-    // private func initializeSelectedMode() { ... }
-
     /// Perform one-time model bootstrap work on startup.
     /// Moves heavy installation/extraction off the main thread and avoids redundant rescans.
     @MainActor
