@@ -7,7 +7,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 
 ## Prerequisites
 
-1. HyperWhisper is installed and you have opened it at least once.
+1. HyperWhisper for macOS or Windows is installed and you have opened it at least once. Both apps write the discovery file the bridge reads.
 2. **Settings → Local API** is turned **on**. This is what writes the discovery file the bridge reads.
 3. Node.js 18 or newer is on your `PATH`. `node --version` should print a version number — if it does not, install Node.js from [nodejs.org](https://nodejs.org). The `npx` command ships with Node.
 
@@ -20,7 +20,7 @@ You do not need to install the bridge globally. `npx -y @hyperwhisper/mcp` fetch
 | `health` | Confirms HyperWhisper is running. No auth required. |
 | `list_models` | Catalog of voice and post-processing models. |
 | `list_modes` | Saved transcription Modes. |
-| `transcribe` | Transcribes an absolute path to an audio file. |
+| `transcribe` | Transcribes an absolute path to an audio file. Optionally writes the transcript straight to a file (`output_path`) and returns only a confirmation — keeps long transcripts out of the agent's context. |
 | `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`, `prompt`) or a free-form prompt. |
 | `search_recordings` | Substring search across past transcripts. |
 | `get_recording` | Single transcript row by ID. |
@@ -78,6 +78,16 @@ Use hyperwhisper to transcribe /Users/me/Desktop/test.wav
 ```
 
 The agent should call the `transcribe` tool and return the text inline. If you do not have a sample, `Ask hyperwhisper to run a health check` is enough — the agent should call `health` and report the app version.
+
+## Write transcripts to a file
+
+For long recordings, ask the agent to save the transcript instead of returning it:
+
+```text
+Transcribe ~/notes/memo.wav and save the cleaned-up text to ~/notes/memo.md
+```
+
+The agent sets `output_path` (and optionally `post_process_preset` or `post_process_prompt` to clean the text up first), the bridge writes the file, and only a short confirmation — path, character count, a 200-character preview — comes back. The full transcript never enters the agent's context. If the file already exists the tool fails by default; the agent can pass `if_exists: "overwrite"` or `if_exists: "append"` (handy for a running notes file).
 
 ## Troubleshooting
 
