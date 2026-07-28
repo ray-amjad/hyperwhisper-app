@@ -34,8 +34,6 @@
 //!   Wave 2 platforms keep owning the picker fold. (Divergence: macOS exposes
 //!   no such helper either, so raw codes is the common denominator.)
 
-use std::collections::BTreeMap;
-
 use serde::Deserialize;
 
 /// Tri-state custom-vocabulary support, mirroring macOS `CustomVocabulary.Support`.
@@ -477,18 +475,6 @@ impl CloudSttCatalog {
 pub struct NormalizedCloudProvider {
     pub provider: Option<String>,
     pub accuracy_tier: Option<String>,
-}
-
-/// Index of provider ids → catalog position. Exposed for callers that need a
-/// stable ordering map; not used internally (lookups scan the small list).
-#[allow(dead_code)]
-pub(crate) fn id_index(catalog: &CloudSttCatalog) -> BTreeMap<String, usize> {
-    catalog
-        .providers
-        .iter()
-        .enumerate()
-        .map(|(i, e)| (e.id.clone(), i))
-        .collect()
 }
 
 #[cfg(test)]
