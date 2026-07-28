@@ -109,15 +109,6 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     private string _modelId = "universal-2";
     private bool _disposed;
 
-    /// <summary>
-    /// Duration the caller already computed for the current request (e.g. NAudio
-    /// in <c>MainViewModel</c>'s file-import flow), if any. Set via
-    /// <see cref="SetKnownDuration"/>; consumed once by <see cref="TranscribeAsync"/>
-    /// to skip a redundant second <see cref="FileTranscriptionService.GetAudioDuration"/>
-    /// probe of the same file for the sync-eligibility gate.
-    /// </summary>
-    private double? _knownDurationSeconds;
-
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
@@ -168,35 +159,51 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"AssemblyAIService: Configured with model {_modelId}");
     }
 
-    /// <summary>
-    /// Pre-supply the audio duration the caller already computed for the audio
-    /// at the path <see cref="TranscribeAsync"/> will next be called with (e.g.
-    /// <c>MainViewModel</c>'s file-import flow already probes it via NAudio a
-    /// few steps earlier), so the sync-eligibility gate can skip a second,
-    /// redundant <see cref="FileTranscriptionService.GetAudioDuration"/> file
-    /// read. Pass <c>null</c> when no duration is already known (the default) —
-    /// callers (<c>TranscriptionOrchestrator</c>) call this on EVERY cloud
-    /// transcription, mirroring <c>GeminiTranscriptionService.SetCustomPrompt</c>,
-    /// so a stale value from a previous request never leaks into this
-    /// reused-singleton service's next call.
-    /// </summary>
-    public void SetKnownDuration(double? durationSeconds)
-    {
-        _knownDurationSeconds = durationSeconds;
-    }
-
     // =========================================================================
     // TRANSCRIPTION
     // =========================================================================
 
     /// <summary>
-    /// Transcribes audio using AssemblyAI's async API.
+    /// Transcribes audio using AssemblyAI's async API (ITranscriptionProvider
+    /// entry point — no pre-computed duration available to the caller).
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
         CancellationToken cancellationToken = default)
+        => TranscribeAsync(audioPath, language, vocabulary, knownDurationSeconds: null, cancellationToken);
+
+    /// <summary>
+    /// Transcribes audio using AssemblyAI's async API.
+    /// </summary>
+    /// <param name="knownDurationSeconds">
+    /// The audio duration the caller already computed for THIS SPECIFIC CALL
+    /// (e.g. <c>TranscriptionOrchestrator</c> forwards the file-import flow's
+    /// NAudio probe, or the live-recording flow's already-tracked
+    /// <c>RecordingDuration</c>), so the sync-eligibility gate below can skip
+    /// a redundant second <see cref="FileTranscriptionService.GetAudioDuration"/>
+    /// probe of the same file. Pass <c>null</c> when no duration is already
+    /// known — a fresh probe is then performed.
+    ///
+    /// Deliberately a per-call PARAMETER, not an instance field: this service
+    /// is a reused singleton reachable concurrently from live-recording,
+    /// file-import, History retry, and the Local API server's `/transcribe`
+    /// endpoint. An earlier revision stored the known duration on a
+    /// `_knownDurationSeconds` instance field set via a separate
+    /// `SetKnownDuration` call before this method — two concurrent requests
+    /// could race (thread B overwriting/clearing the field between thread A's
+    /// set and its own read inside this method), corrupting thread A's
+    /// sync-vs-async eligibility decision with the wrong clip's duration.
+    /// Scoping the value to this call's parameter list removes that race
+    /// entirely.
+    /// </param>
+    internal async Task<string> TranscribeAsync(
+        string audioPath,
+        string? language,
+        IReadOnlyList<string>? vocabulary,
+        double? knownDurationSeconds,
+        CancellationToken cancellationToken)
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== ASSEMBLYAI CLOUD TRANSCRIPTION ==========");
@@ -258,15 +265,14 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         // silently drop the paid Medical Mode add-on) skip straight to the
         // async workflow — matches the cloud TS path's existing exclusion.
         //
-        // Reuse the caller's already-computed duration (SetKnownDuration) when
-        // available instead of re-probing the same file a second time — the
-        // file-import flow (MainViewModel.TranscribeFileAsync) already reads it
-        // via NAudio moments earlier for the same audio content. Consumed once
-        // per call; SetKnownDuration is called (possibly with null) on every
-        // cloud transcription, so a stale value never leaks into an unrelated
-        // later request on this reused-singleton service.
-        var durationResult = _knownDurationSeconds.HasValue
-            ? Result<double>.Success(_knownDurationSeconds.Value)
+        // Reuse the caller's already-computed duration (knownDurationSeconds)
+        // when available instead of re-probing the same file a second time —
+        // e.g. the file-import flow (MainViewModel.TranscribeFileAsync)
+        // already reads it via NAudio moments earlier for the same audio
+        // content. Scoped to this call's parameter — see the parameter doc
+        // comment above for why this isn't a shared instance field.
+        var durationResult = knownDurationSeconds.HasValue
+            ? Result<double>.Success(knownDurationSeconds.Value)
             : FileTranscriptionService.GetAudioDuration(audioPath);
         var syncMaxDurationSeconds = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
         var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(_modelId).Medical;

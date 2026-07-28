@@ -10,8 +10,8 @@ use crate::helpers::keyword_boost_terms;
 use crate::providers::common::classify_http;
 
 use super::{
-    auth_header, request_params, DEFAULT_MODEL, MAX_KEYTERMS_DEFAULT, MAX_KEYTERMS_PRO,
-    MAX_KEYTERM_WORDS,
+    auth_header, filter_keyterm_words, request_params, DEFAULT_MODEL, MAX_KEYTERMS_DEFAULT,
+    MAX_KEYTERMS_PRO,
 };
 
 fn base(params: &TranscribeParams) -> String {
@@ -126,12 +126,12 @@ pub fn build_create_request(
     } else {
         MAX_KEYTERMS_DEFAULT
     };
-    let keyterms: Vec<serde_json::Value> = keyword_boost_terms(&params.vocabulary, None)
-        .into_iter()
-        .filter(|w| w.split_whitespace().count() <= MAX_KEYTERM_WORDS)
-        .take(max_terms)
-        .map(serde_json::Value::String)
-        .collect();
+    let keyterms: Vec<serde_json::Value> =
+        filter_keyterm_words(keyword_boost_terms(&params.vocabulary, None))
+            .into_iter()
+            .take(max_terms)
+            .map(serde_json::Value::String)
+            .collect();
     if !keyterms.is_empty() {
         body.insert("keyterms_prompt".into(), serde_json::Value::Array(keyterms));
     }

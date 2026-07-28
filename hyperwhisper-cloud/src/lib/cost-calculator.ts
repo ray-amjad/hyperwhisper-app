@@ -88,7 +88,11 @@ const ASSEMBLYAI_KEYTERMS_ADDON_COST_PER_AUDIO_MINUTE = 0.05 / 60;   // +~$0.05/
 // always runs universal-3-5-pro, a model the async tiers above don't cover —
 // billed at its own published rate, "the same rate as Universal-3.5 Pro
 // Realtime". No medical/keyterms add-ons: the sync API doesn't support them.
-const ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE = 0.45 / 60;             // $0.0075/min
+// Exported as the single source of truth for this rate: stt-models.ts's
+// preflight reservation figure (`ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE`)
+// imports it rather than hardcoding a second copy of the same literal, so the
+// amount actually reserved can never silently drift from what's actually billed.
+export const ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE = 0.45 / 60;             // $0.0075/min
 
 // Mistral Voxtral — per-audio-minute billing.
 const MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE = 0.003;

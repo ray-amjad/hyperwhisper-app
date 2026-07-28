@@ -321,17 +321,6 @@ public class TranscriptionOrchestrator : IDisposable
             geminiService.SetCustomPrompt(mode.GeminiCustomPrompt);
         }
 
-        // Pass through an already-known duration (e.g. the file-import flow's
-        // NAudio probe) so AssemblyAI's sync-eligibility gate doesn't re-probe
-        // the same file a second time. Called unconditionally (possibly with
-        // null) on every AssemblyAI cloud call, mirroring SetCustomPrompt above,
-        // so a stale value from a previous request never leaks into this
-        // reused-singleton provider's next call.
-        if (providerType == CloudTranscriptionProvider.AssemblyAI && provider is AssemblyAIService assemblyAIService)
-        {
-            assemblyAIService.SetKnownDuration(knownDurationSeconds);
-        }
-
         // Perform transcription
         // Note: Mistral doesn't support vocabulary, handled in the service
         var effectiveVocabulary = providerType.SupportsVocabulary() ? vocabulary : null;
@@ -342,6 +331,17 @@ public class TranscriptionOrchestrator : IDisposable
             // HyperWhisper Cloud supports accuracy tier + per-provider model + domain selection
             result = await hwCloud.TranscribeAsync(audioPath, language, effectiveVocabulary,
                 mode.CloudAccuracyTier, mode.CloudTranscriptionModel, mode.CloudTranscriptionDomain, cancellationToken);
+        }
+        else if (providerType == CloudTranscriptionProvider.AssemblyAI && provider is AssemblyAIService assemblyAIService)
+        {
+            // Pass an already-known duration (e.g. the file-import flow's
+            // NAudio probe, or the live-recording flow's RecordingDuration) as
+            // a PER-CALL parameter, not a shared setter, so AssemblyAI's
+            // sync-eligibility gate can skip re-probing the same file without
+            // risking a concurrent request overwriting a shared instance
+            // field — see AssemblyAIService's internal TranscribeAsync
+            // overload doc comment for why.
+            result = await assemblyAIService.TranscribeAsync(audioPath, language, effectiveVocabulary, knownDurationSeconds, cancellationToken);
         }
         else
         {

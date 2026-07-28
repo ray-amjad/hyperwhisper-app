@@ -725,15 +725,16 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     expect(withKeyterms).toBe(base);
   });
 
-  test('a short non-medical clip reserves at least the sync rate, not just the (lower) async catalog rate', () => {
+  test('a short non-medical clip with an explicit language reserves at least the sync rate, not just the (lower) async catalog rate', () => {
     // Sync always runs universal-3-5-pro at $0.0075/min — higher than either
     // async tier (universal-2 $0.0025/min, universal-3-pro $0.0035/min). A
-    // short clip is exactly sync's target case, so the reservation must cover
-    // the sync rate or a low-balance account could be deducted more than was
-    // reserved when the request actually routes through sync.
+    // short clip with an explicit language is exactly sync's target case, so
+    // the reservation must cover the sync rate or a low-balance account could
+    // be deducted more than was reserved when the request actually routes
+    // through sync.
     const shortClipBytes = 2048; // well under the ~100s sync-eligibility threshold
-    const universal2 = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined);
-    const universal3Pro = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-3-pro', false, undefined);
+    const universal2 = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, 'en');
+    const universal3Pro = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-3-pro', false, undefined, 'en');
     // 10s (the MIN_ESTIMATED_SECONDS floor) at $0.0075/min = 0.00125 USD =
     // 1.25 credits, rounded up to the nearest tenth.
     const minimumSyncRateCredits = 1.3;
@@ -748,9 +749,27 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
     // ($0.0025/min) + the medical add-on ($0.0025/min) over the 10s floor is
     // well under the 1.3-credit sync-rate floor asserted above.
     const shortClipBytes = 2048;
-    const medicalShort = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', true, undefined);
+    const medicalShort = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', true, undefined, 'en');
     const minimumSyncRateCredits = 1.3;
     expect(medicalShort).toBeLessThan(minimumSyncRateCredits);
+  });
+
+  test('a short clip with no/auto language reserves only the async rate — sync is never eligible without an explicit language', () => {
+    // The REAL sync-eligibility gate in providers/assemblyai.ts also requires
+    // an explicit, non-"auto" language before it will even attempt sync. A
+    // short, non-medical, auto-language request always goes straight to
+    // async, so reserving at the (higher) sync rate here would over-reserve
+    // and could wrongly reject a low-balance user who could actually afford
+    // the cheaper async request. This must mirror the medical-exclusion test
+    // above but via the language condition instead.
+    const shortClipBytes = 2048;
+    const minimumSyncRateCredits = 1.3;
+    const noLanguage = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, undefined);
+    const autoLanguage = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, 'auto');
+    const blankLanguage = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, '   ');
+    expect(noLanguage).toBeLessThan(minimumSyncRateCredits);
+    expect(autoLanguage).toBeLessThan(minimumSyncRateCredits);
+    expect(blankLanguage).toBeLessThan(minimumSyncRateCredits);
   });
 
   test('Deepgram primary with an initial_prompt reserves the ElevenLabs fallback surcharge', () => {

@@ -84,6 +84,19 @@ fn auth_header(api_key: &str) -> Header {
     Header::new("Authorization", api_key.to_string())
 }
 
+/// Drop keyterm phrases over [`MAX_KEYTERM_WORDS`] words. Shared by both the
+/// async create-request term cap ([`async_flow::build_create_request`]) and
+/// the sync fast path's char-budget cap ([`sync_flow::build_sync_request`]) —
+/// previously each duplicated the same `.filter(|w| w.split_whitespace()...)`
+/// closure verbatim; factored out here so there's one place to change the
+/// rule.
+fn filter_keyterm_words(terms: Vec<String>) -> Vec<String> {
+    terms
+        .into_iter()
+        .filter(|w| w.split_whitespace().count() <= MAX_KEYTERM_WORDS)
+        .collect()
+}
+
 /// Resolve a legacy AssemblyAI model alias to its current ID.
 /// PARITY: macOS `legacyAssemblyAIAliases` / Windows `LegacyAssemblyAIAliases`.
 pub fn resolve_model_alias(id: &str) -> &str {

@@ -31,6 +31,14 @@
 // excluded from sync eligibility entirely — see `hasExplicitLanguage` below.
 // Mirrors the shared Rust core's `assemblyai::sync_flow::build_sync_request`,
 // which refuses to build a sync request for the same reason.
+//
+// Container: the sync endpoint only accepts WAV or raw S16LE PCM, unlike
+// async's upload endpoint which accepts any container. Forwarding a
+// compressed container (MP3, M4A — the common case for macOS recordings and
+// compressed imports) gets rejected before falling back to async, wasting a
+// round-trip up to the sync timeout on the most common input format. Rather
+// than transcode, sync eligibility is gated on a WAV `contentType` — see
+// `isWavContentType` below. Mirrors the Rust core's `build_sync_request`.
 
 import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
@@ -43,6 +51,13 @@ const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
 const DEFAULT_MODEL = 'universal-3-pro';
 const MEDICAL_DOMAIN_VALUE = 'medical-v1';
 const MAX_KEYTERMS = 200;
+// Max words per `keyterms_prompt` phrase (AssemblyAI spec). Applied by BOTH
+// the async create-request term cap below AND the sync fast path's
+// char-budget cap — mirrors the shared Rust core's `MAX_KEYTERM_WORDS`
+// (`assemblyai/mod.rs`), which both `async_flow.rs` and `sync_flow.rs` apply.
+// Sync must drop the same over-long phrases async silently drops, not just
+// cap by total characters.
+const MAX_KEYTERM_WORDS = 6;
 
 // ── Sync API ──
 // Contract verified against the AssemblyAI Python SDK source
@@ -109,11 +124,38 @@ function capKeytermsByTotalChars(terms: string[], budget: number): string[] {
   return out;
 }
 
+/** Returns the TRIMMED, explicit (non-"auto") language, or `undefined` when
+ * absent/blank/"auto". Single source of truth for both the sync-eligibility
+ * gate (`hasExplicitLanguage`) and the sync request builder's
+ * `language_codes` derivation — using two independently-trimmed copies let a
+ * language value with stray whitespace (e.g. `" en-US "`) pass the gate but
+ * then produce a malformed `language_codes` entry (e.g. `[" en"]`) in the
+ * actual request. */
+function trimExplicitLanguage(language: string | undefined): string | undefined {
+  const trimmed = language?.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'auto') {
+    return undefined;
+  }
+  return trimmed;
+}
+
 /** `true` when `language` is an explicit, non-"auto" language — the only case
  * sync is eligible for. See the module doc's "Language" note above. */
-function hasExplicitLanguage(language: string | undefined): boolean {
-  const trimmed = language?.trim();
-  return Boolean(trimmed) && trimmed!.toLowerCase() !== 'auto';
+export function hasExplicitLanguage(language: string | undefined): boolean {
+  return trimExplicitLanguage(language) !== undefined;
+}
+
+/** `true` when `contentType` is a WAV container — the only container
+ * AssemblyAI's sync endpoint is documented to accept (WAV or raw S16LE PCM;
+ * PCM isn't produced by any client here, so WAV is the only container we can
+ * cheaply confirm sync accepts). Non-WAV inputs (MP3, M4A, etc. — the common
+ * case for macOS recordings and compressed imports) are rejected by the sync
+ * endpoint before falling back to async, wasting a round-trip up to the sync
+ * timeout on the most common input format — so sync eligibility gates on this
+ * instead of attempting and eating the rejection. Mirrors the Rust core's
+ * `assemblyai::sync_flow::build_sync_request`, which applies the same gate. */
+function isWavContentType(contentType: string): boolean {
+  return contentType.toLowerCase().includes('wav');
 }
 // The billable model is whatever AssemblyAI actually RAN (reported in the
 // completed transcript), which may differ from the requested model because
@@ -135,6 +177,15 @@ function toKeyterms(initialPrompt: string): string[] {
     .map((t) => t.trim().replace(/^[-*]\s*/, ''))
     .filter((t) => t.length >= 1 && t.length <= 50)
     .slice(0, MAX_KEYTERMS);
+}
+
+/** Drop keyterm phrases over `MAX_KEYTERM_WORDS` words — mirrors the Rust
+ * core's sync/async filter (`w.split_whitespace().count() <= MAX_KEYTERM_WORDS`)
+ * so the sync fast path's `keyterms_prompt` drops the same over-long phrases
+ * the Rust-routed (native) sync path drops, instead of only capping by total
+ * characters. */
+function filterKeytermsByWordCount(terms: string[]): string[] {
+  return terms.filter((t) => t.split(/\s+/).filter(Boolean).length <= MAX_KEYTERM_WORDS);
 }
 
 /** Map an upstream HTTP failure to the right chain-control error. */
@@ -179,7 +230,7 @@ async function transcribeWithAssemblyAISync(
   const startedAt = performance.now();
 
   const config: Record<string, unknown> = {};
-  const explicitLanguage = language && language.toLowerCase() !== 'auto' ? language : undefined;
+  const explicitLanguage = trimExplicitLanguage(language);
   if (explicitLanguage) {
     // Sync's `config.language_codes` has no `language_detection` sibling flag
     // like async's create body — omitting it entirely IS auto-detection, so
@@ -190,7 +241,7 @@ async function transcribeWithAssemblyAISync(
     }
   }
   const keyterms = initialPrompt
-    ? capKeytermsByTotalChars(toKeyterms(initialPrompt), SYNC_MAX_KEYTERMS_PROMPT_CHARS)
+    ? capKeytermsByTotalChars(filterKeytermsByWordCount(toKeyterms(initialPrompt)), SYNC_MAX_KEYTERMS_PROMPT_CHARS)
     : [];
   if (keyterms.length) {
     config.keyterms_prompt = keyterms;
@@ -199,7 +250,15 @@ async function transcribeWithAssemblyAISync(
   const form = new FormData();
   form.append('audio', new Blob([audio], { type: contentType || 'application/octet-stream' }), 'audio');
   if (Object.keys(config).length > 0) {
-    form.append('config', new Blob([JSON.stringify(config)], { type: 'application/json' }));
+    // Append as a plain string, NOT a Blob. Per the FormData/multipart spec, a
+    // Blob part without an explicit filename serializes as `filename="blob"`,
+    // which AssemblyAI's multipart parser treats as an uploaded FILE rather
+    // than the filename-less JSON form field the sync API expects — this
+    // rejects the request (likely 422) for any call that sets `config`,
+    // i.e. every sync call with an explicit language. A plain string part has
+    // no filename, matching the Rust core's `multipart_field` (`sync_flow.rs`
+    // `build_sync_request`), which this must mirror.
+    form.append('config', JSON.stringify(config));
   }
 
   let response: Response;
@@ -328,7 +387,8 @@ export async function transcribeWithAssemblyAI(
   // duration is available here).
   const estimatedSeconds = estimateSecondsFromBytes(audio.byteLength);
   const explicitLanguage = hasExplicitLanguage(language);
-  const syncEligible = !medical && explicitLanguage && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
+  const wavContainer = isWavContentType(contentType);
+  const syncEligible = !medical && explicitLanguage && wavContainer && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
   if (syncEligible) {
     logProviderEvent(provider, 'sync_attempt', {
       estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
@@ -340,7 +400,7 @@ export async function transcribeWithAssemblyAI(
     logProviderEvent(provider, 'sync_fallback_to_async', {}, context);
   } else {
     logProviderEvent(provider, 'sync_skipped', {
-      medical, explicitLanguage, estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+      medical, explicitLanguage, wavContainer, contentType, estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
     }, context);
   }
 

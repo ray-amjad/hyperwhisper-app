@@ -2090,7 +2090,14 @@ public partial class MainViewModel : ViewModelBase
                 vocabulary,
                 localTranscriptionProvider: GetLocalProvider(recordingMode),
                 applicationContext: _capturedApplicationContext,
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already tracked above (logged a few lines earlier) for the
+                // same audio content — avoids AssemblyAIService re-reading the
+                // file a second time just for its sync-eligibility gate. This
+                // is the PRIMARY target of the sub-120s sync fast path (the
+                // most latency-sensitive flow), so it must forward the known
+                // duration the same way the file-import call site does.
+                knownDurationSeconds: RecordingDuration.TotalSeconds);
             transcriptionCts.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {

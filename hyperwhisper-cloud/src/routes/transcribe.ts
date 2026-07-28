@@ -11,7 +11,11 @@ import { transcribeWithAzureMai } from '../providers/azure-mai';
 import { transcribeWithGoogleChirp } from '../providers/google-chirp';
 import { transcribeWithOpenAI } from '../providers/openai';
 import { transcribeWithGemini } from '../providers/gemini';
-import { transcribeWithAssemblyAI, SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS } from '../providers/assemblyai';
+import {
+  transcribeWithAssemblyAI,
+  hasExplicitLanguage as hasExplicitAssemblyAILanguage,
+  SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+} from '../providers/assemblyai';
 import { transcribeWithMistral } from '../providers/mistral';
 import { transcribeWithSoniox } from '../providers/soniox';
 import type { ProviderRequestContext, TranscriptionResult } from '../providers/types';
@@ -129,6 +133,7 @@ export function estimateCreditsForProviderFallbacks(
   model?: string,
   medical: boolean = false,
   initialPrompt?: string,
+  language?: string,
 ): number {
   const chain = FALLBACK_CHAINS[provider];
   const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
@@ -146,14 +151,24 @@ export function estimateCreditsForProviderFallbacks(
     // this never over-reserves for, say, a Deepgram-only success path.
     hasInitialPrompt && (p === 'elevenlabs' || p === 'assemblyai'),
   ));
-  // AssemblyAI's sync fast path (<120s, non-medical clips) always runs
-  // universal-3-5-pro at its OWN higher published rate — not the async
-  // catalog rate for the requested model (universal-2 / universal-3-pro),
+  // AssemblyAI's sync fast path (<120s, non-medical, EXPLICIT-language clips)
+  // always runs universal-3-5-pro at its OWN higher published rate — not the
+  // async catalog rate for the requested model (universal-2 / universal-3-pro),
   // which `estimatedUsdPerMinute` above reserves against. A short clip is
   // exactly sync's target case, so without this a short, non-medical
-  // AssemblyAI request could be deducted for more than was reserved. Mirrors
-  // the same eligibility gate `transcribeWithAssemblyAI` itself uses.
-  if (provider === 'assemblyai' && !medical && estimatedSeconds < ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS) {
+  // AssemblyAI request could be deducted for more than was reserved. This
+  // condition must exactly mirror `transcribeWithAssemblyAI`'s real
+  // eligibility gate (medical + duration + explicit language) — reusing
+  // `hasExplicitLanguage` rather than reimplementing it here, since an
+  // auto-language request never actually routes through sync (sync has no
+  // auto-detect) and over-reserving for it could wrongly reject a low-balance
+  // user at preflight for a request that will only ever go through the
+  // cheaper async path.
+  if (
+    provider === 'assemblyai' && !medical
+    && estimatedSeconds < ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS
+    && hasExplicitAssemblyAILanguage(language)
+  ) {
     rates.push(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
   }
   const usdPerMinute = Math.max(...rates);
@@ -399,7 +414,7 @@ export async function transcribeRoute(c: Context) {
   // Deepgram/Groq/Grok fallback, which still forwards the prompt and bills the surcharge.
   // estimatedUsdPerMinute scopes the add-on to universal-3-pro / scribe_v2, so passing it
   // for every request is safe and never under-reserves.
-  const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt);
+  const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt, language);
   const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
   if (!creditCheck.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {

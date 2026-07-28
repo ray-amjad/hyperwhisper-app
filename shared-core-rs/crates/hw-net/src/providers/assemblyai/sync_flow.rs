@@ -54,7 +54,7 @@ use crate::contract::{
 use crate::helpers::{keyword_boost_terms, multipart_field, multipart_file, resolve_mime};
 use crate::providers::common::{classify_http_with_message, filename_of};
 
-use super::{auth_header, MAX_KEYTERM_WORDS};
+use super::{auth_header, filter_keyterm_words, request_params};
 
 /// Sync API base — a different host from [`super::BASE_URL`]. `params.base_url`
 /// overrides it (tests/staging), same override field the async steps read;
@@ -165,10 +165,7 @@ fn sync_config_json(params: &TranscribeParams) -> Option<String> {
     // MAX_KEYTERM_WORDS words — a vocab term async would silently drop must
     // not slip through unfiltered here just because sync caps by characters
     // instead of term count), THEN capped by TOTAL CHARACTERS (2048).
-    let terms: Vec<String> = keyword_boost_terms(&params.vocabulary, None)
-        .into_iter()
-        .filter(|w| w.split_whitespace().count() <= MAX_KEYTERM_WORDS)
-        .collect();
+    let terms: Vec<String> = filter_keyterm_words(keyword_boost_terms(&params.vocabulary, None));
     let capped = cap_by_total_chars(&terms, SYNC_MAX_KEYTERMS_PROMPT_CHARS);
     if !capped.is_empty() {
         body.insert(
@@ -191,14 +188,38 @@ fn sync_config_json(params: &TranscribeParams) -> Option<String> {
     serde_json::to_string(&serde_json::Value::Object(body)).ok()
 }
 
+/// `true` when `mime` denotes a WAV container — the only container
+/// AssemblyAI's sync endpoint is documented to accept (WAV or raw S16LE PCM;
+/// no platform caller here produces raw PCM, so WAV is the only container
+/// this can cheaply confirm sync accepts). A substring match, not an exact
+/// `"audio/wav"` comparison, mirrors the cloud TS mirror's
+/// `isWavContentType` so `audio/wave` / `audio/x-wav` variants are still
+/// recognized as WAV.
+fn is_wav_mime(mime: &str) -> bool {
+    mime.to_lowercase().contains("wav")
+}
+
 /// Build the **sync** transcription request: one multipart POST carrying the
 /// audio file plus an optional `config` JSON part.
 ///
-/// Returns [`TranscriptionError::Parse`] WITHOUT building anything when
-/// `params.language` is absent/`"auto"` — see the module doc's "Language"
-/// section. Every platform call site already treats any error from this
-/// function as a signal to fall back to the async flow, so this is the single
-/// place that gate needs to live for all three platforms to pick it up.
+/// Returns [`TranscriptionError::Parse`] WITHOUT building anything when:
+/// - `params.language` is absent/`"auto"` — see the module doc's "Language"
+///   section.
+/// - `params.model` is a medical variant (`-medical` suffix) — Medical Mode
+///   is an async-only `domain: "medical-v1"` add-on with no sync equivalent.
+///   This is a defense-in-depth check: every platform call site is already
+///   supposed to gate medical models out of the sync path itself, but this
+///   builder enforces it independently so a caller that forgets its own gate
+///   still can't silently build a medical-losing sync request.
+/// - the resolved audio MIME isn't WAV — the sync endpoint only accepts WAV
+///   or raw S16LE PCM, unlike async's upload endpoint which accepts any
+///   container. Forwarding a compressed container (MP3, M4A) would get
+///   rejected by the sync endpoint before falling back to async, wasting a
+///   round-trip on what's likely the most common input format.
+///
+/// Every platform call site already treats any error from this function as a
+/// signal to fall back to the async flow, so this is the single place each of
+/// these gates needs to live for all three platforms to pick it up.
 pub fn build_sync_request(params: &TranscribeParams) -> Result<HttpRequest, TranscriptionError> {
     if !has_explicit_language(params) {
         return Err(TranscriptionError::Parse {
@@ -209,10 +230,27 @@ pub fn build_sync_request(params: &TranscribeParams) -> Result<HttpRequest, Tran
         });
     }
 
+    let (_, medical) = request_params(&params.model);
+    if medical {
+        return Err(TranscriptionError::Parse {
+            message: "sync API has no medical/domain support (Medical Mode is an async-only \
+                      add-on) — falling back to async"
+                .to_string(),
+        });
+    }
+
     let mime = params
         .audio_mime
         .clone()
         .unwrap_or_else(|| resolve_mime(&params.audio_path));
+
+    if !is_wav_mime(&mime) {
+        return Err(TranscriptionError::Parse {
+            message: format!(
+                "sync API only accepts WAV audio (resolved MIME {mime:?}) — falling back to async"
+            ),
+        });
+    }
 
     let mut parts: Vec<Part> = vec![multipart_file(
         "audio",
@@ -307,12 +345,14 @@ mod tests {
     use super::*;
     use crate::providers::assemblyai::test_support::params;
 
-    /// Sync requests need an explicit language (see the module doc), so most
-    /// shape/vocab/prompt tests below use this fixture instead of the bare
-    /// `params()` default (which has no language set).
+    /// Sync requests need an explicit language AND a WAV container (see the
+    /// module doc), so most shape/vocab/prompt tests below use this fixture
+    /// instead of the bare `params()` default (which has neither — its
+    /// `audio_path` is `.m4a`).
     fn sync_params() -> TranscribeParams {
         let mut p = params();
         p.language = Some("en".to_string());
+        p.audio_mime = Some("audio/wav".to_string());
         p
     }
 
@@ -365,9 +405,11 @@ mod tests {
 
     #[test]
     fn sync_request_ignores_async_model_ids() {
-        // The sync endpoint has exactly one model; an async-only id must not
-        // leak into X-AAI-Model (it would be meaningless upstream).
-        for model in ["universal-2", "slam-1", "universal-2-medical", ""] {
+        // The sync endpoint has exactly one model; an async-only (non-medical)
+        // id must not leak into X-AAI-Model (it would be meaningless
+        // upstream). Medical ids are covered separately below — they must be
+        // REJECTED, not resolved to the sync default.
+        for model in ["universal-2", "slam-1", ""] {
             let mut p = sync_params();
             p.model = model.to_string();
             let req = build_sync_request(&p).unwrap();
@@ -377,6 +419,64 @@ mod tests {
                 "model {model:?} should resolve to the sync default"
             );
         }
+    }
+
+    #[test]
+    fn sync_request_rejects_medical_models() {
+        // Defense-in-depth: medical exclusion is also enforced independently
+        // by each platform's own gate before ever calling this builder, but
+        // the builder must refuse on its own too — so a caller that forgets
+        // its platform-side gate still can't silently build a sync request
+        // that drops Medical Mode. Sync has no `domain`/medical equivalent.
+        for model in [
+            "universal-2-medical",
+            "universal-3-pro-medical",
+            "slam-1-medical",
+        ] {
+            let mut p = sync_params();
+            p.model = model.to_string();
+            assert!(
+                build_sync_request(&p).is_err(),
+                "medical model {model:?} must be rejected by build_sync_request directly"
+            );
+        }
+    }
+
+    #[test]
+    fn sync_request_rejects_non_wav_containers() {
+        // The sync endpoint only accepts WAV or raw S16LE PCM, unlike async's
+        // upload endpoint which accepts any container — forwarding a
+        // compressed container would waste a round-trip on a guaranteed
+        // rejection instead of skipping straight to async.
+        for mime in [
+            "audio/mp4",
+            "audio/mpeg",
+            "audio/webm",
+            "audio/ogg",
+            "audio/flac",
+        ] {
+            let mut p = sync_params();
+            p.audio_mime = Some(mime.to_string());
+            assert!(
+                build_sync_request(&p).is_err(),
+                "non-WAV mime {mime:?} must be rejected by build_sync_request"
+            );
+        }
+    }
+
+    #[test]
+    fn sync_request_accepts_wav_container_resolved_from_path_when_mime_unset() {
+        // When `audio_mime` is unset, the WAV gate must check the MIME
+        // resolved from the file extension, not silently accept everything.
+        let mut p = sync_params();
+        p.audio_mime = None;
+        p.audio_path = "/tmp/rec.wav".to_string();
+        assert!(build_sync_request(&p).is_ok());
+
+        let mut p2 = sync_params();
+        p2.audio_mime = None;
+        p2.audio_path = "/tmp/rec.m4a".to_string();
+        assert!(build_sync_request(&p2).is_err());
     }
 
     #[test]

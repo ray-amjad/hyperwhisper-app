@@ -297,6 +297,21 @@ class AssemblyAIProvider: TranscriptionProvider {
     /// duration so the caller falls back to the async pipeline exactly like an
     /// unknown duration would — this must never fail the whole transcription.
     /// Mirrors `FileTranscriptionFlow.getAudioDuration`'s NaN/indefinite guards.
+    ///
+    /// FOLLOW-UP (not done here): `FileTranscriptionFlow` and the recording
+    /// lifecycle already compute this duration earlier in the same pipeline,
+    /// so re-loading it here via AVFoundation is redundant work — but
+    /// `AssemblyAIProvider` is a single app-lifetime instance (constructed
+    /// once in `TranscriptionProviderRouter`) reachable CONCURRENTLY from the
+    /// main dictation/import flow AND the Local API server's `/transcribe`
+    /// endpoint (which calls `provider.transcribe(...)` directly, bypassing
+    /// `TranscriptionPipeline`'s task-serialization guard). An instance
+    /// property set just before `transcribe(...)` would race exactly like the
+    /// Windows `_knownDurationSeconds` bug this PR fixes elsewhere (two
+    /// concurrent calls could interleave their sets/reads). The
+    /// `TranscriptionProvider` protocol has no per-call context object to
+    /// thread a duration through without an API change, so this is left as a
+    /// known optimization opportunity rather than risking that same race.
     private func syncEligibleDuration(for url: URL) async -> Double? {
         let asset = AVURLAsset(url: url)
         guard let duration = try? await asset.load(.duration),
