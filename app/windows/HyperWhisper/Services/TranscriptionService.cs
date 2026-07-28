@@ -407,9 +407,12 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
     /// <returns>Transcribed text.</returns>
     public string TranscribeFile(string audioPath, string? language = null)
     {
-        // Go through TranscribeFileAsync so the body runs on a thread-pool thread with
-        // no SynchronizationContext — blocking on it from the UI thread would otherwise
-        // risk deadlocking on the processor's `await using` DisposeAsync continuation.
+        // Go through TranscribeFileAsync so the body runs on a thread-pool thread with no
+        // SynchronizationContext. Not fixing a live deadlock — today's first suspension
+        // point already uses ConfigureAwait(false), so nothing captures the UI context.
+        // It's belt-and-braces: neither `await using` nor Whisper.net's DisposeAsync uses
+        // ConfigureAwait(false), so a future edit that reaches the dispose with a captured
+        // context would deadlock any UI-thread caller blocking on this wrapper.
         return TranscribeFileAsync(audioPath, language)
             .GetAwaiter()
             .GetResult();
@@ -722,14 +725,29 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                 arm64Factory?.Dispose();
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (cancellationToken.IsCancellationRequested)
         {
-            // User pressed Escape / hit Cancel. Not a failure — let it propagate as a
+            // User pressed Escape / hit Cancel. Not a failure — surface it as a
             // cancellation so the callers' OperationCanceledException handlers run and
             // the user sees "Recording cancelled" instead of an error toast.
+            //
+            // The filter is deliberately broad. Whisper.net 1.9.0 races here: its abort
+            // callback is wired to our token, so whisper_full returns non-zero and the
+            // background task faults with WhisperProcessingException. If that fault lands
+            // before ProcessAsync's iterator observes the token, the iterator's
+            // `ThrowIfCancellationRequested()` guard is skipped (processingTask.IsCompleted
+            // is already true and the segment buffer is empty) and `await processingTask`
+            // rethrows WhisperProcessingException instead of TaskCanceledException.
+            // Cancelling during the encode pass hits that path; cancelling at a segment
+            // boundary hits the OperationCanceledException path. Both mean "user cancelled".
             totalStopwatch.Stop();
-            LoggingService.Info($"TranscriptionService: File transcription cancelled after {totalStopwatch.ElapsedMilliseconds}ms");
-            throw;
+            LoggingService.Info($"TranscriptionService: File transcription cancelled after {totalStopwatch.ElapsedMilliseconds}ms ({ex.GetType().Name})");
+            if (ex is OperationCanceledException)
+            {
+                throw;
+            }
+
+            throw new OperationCanceledException(ex.Message, ex, cancellationToken);
         }
         catch (Exception ex)
         {
