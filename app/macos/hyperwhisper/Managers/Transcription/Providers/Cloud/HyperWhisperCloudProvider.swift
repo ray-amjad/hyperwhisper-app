@@ -380,11 +380,21 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // =====================================================================
         // STEP 3: Perform request via the shared executor + core retry loop.
         // =====================================================================
-        var response = try await sendTranscribeRequest(identifier: identifier, isLicensed: isLicensed)
+        let response = try await Self.performTranscribeRequestWithLicenseRecovery(
+            identifier: identifier,
+            isLicensed: isLicensed,
+            send: sendTranscribeRequest,
+            revalidate: { licenseKey in
+                await licenseManager.validateLicense(licenseKey)
+            },
+            currentIdentifier: {
+                await licenseManager.getTranscriptionIdentifier()
+            }
+        )
         try throwIfCancelled()
 
         // Parse the success response via the core.
-        var transcript: HwTranscript
+        let transcript: HwTranscript
         do {
             transcript = try hyperwhisperCloudParseTranscribeResponse(resp: response)
         } catch let err as HwTranscriptionError {
@@ -394,39 +404,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             // mirroring the success path below (which is otherwise skipped by this
             // re-throw). `defer` can't be used here because invalidateCache() awaits.
             await creditManager.invalidateCache()
-            let mapped = RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
-
-            // HYPERWHISPER-T2: `identifier` above is a snapshot of the cached
-            // `licenseStatus`, which is only revalidated at launch or once per
-            // 24h (`LicenseNetworkService.shouldRevalidateLicense`), plus a 7-day
-            // offline grace period. A license that lapses/rotates server-side
-            // mid-session keeps being sent as if still valid until that cache
-            // expires, and the core intentionally never retries a 401/403 blind
-            // (`hw-net` `is_retryable`) to avoid retry-storming a genuinely bad
-            // credential. So on `.unauthorized`, force one live revalidation and
-            // retry exactly once with the confirmed-fresh identifier — this fixes
-            // the "cache is just stale" case while still failing fast for an
-            // actually-revoked license.
-            guard case .unauthorized = mapped, isLicensed else {
-                throw mapped
-            }
-
-            AppLogger.network.warning("HyperWhisper Cloud transcribe unauthorized · forcing license revalidation and retrying once")
-            _ = await licenseManager.validateLicense(identifier)
-            let (retryIdentifier, retryIsLicensed) = await licenseManager.getTranscriptionIdentifier()
-
-            let retryResponse = try await sendTranscribeRequest(identifier: retryIdentifier, isLicensed: retryIsLicensed)
-            try throwIfCancelled()
-
-            do {
-                transcript = try hyperwhisperCloudParseTranscribeResponse(resp: retryResponse)
-                // Downstream code (detected-language/credit parsing below) reads
-                // from `response` — repoint it at the successful retry response.
-                response = retryResponse
-            } catch let retryErr as HwTranscriptionError {
-                await creditManager.invalidateCache()
-                throw RustCoreMapping.mapTranscriptionError(retryErr, providerName: "HyperWhisper Cloud")
-            }
+            throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
         }
 
         // Capture the server-detected language so the pipeline can gate
@@ -533,6 +511,44 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         AppLogger.network.info("HyperWhisper Cloud transcription completed · chars=\(cleanedText.count, privacy: .public) · hasServerCorrection=\(hasCorrection, privacy: .public)")
 
         return cleanedText
+    }
+
+    /// Sends a licensed transcription request, repairing a stale cached license
+    /// exactly once when the HTTP retry layer surfaces a 401/403 as
+    /// `TranscriptionError.unauthorized`.
+    ///
+    /// The retry is deliberately gated on both the live validation verdict and
+    /// the freshly resolved identifier still being licensed. A revoked/expired
+    /// license must keep the original unauthorized failure instead of silently
+    /// re-sending the audio against the guest/device wallet.
+    static func performTranscribeRequestWithLicenseRecovery(
+        identifier: String,
+        isLicensed: Bool,
+        send: (String, Bool) async throws -> HttpResponse,
+        revalidate: (String) async -> LicenseValidationResult,
+        currentIdentifier: () async -> (identifier: String, isLicensed: Bool)
+    ) async throws -> HttpResponse {
+        do {
+            return try await send(identifier, isLicensed)
+        } catch let error as TranscriptionError {
+            guard case .unauthorized = error, isLicensed else {
+                throw error
+            }
+
+            AppLogger.network.warning("HyperWhisper Cloud transcribe unauthorized · forcing license revalidation and retrying once")
+            let revalidation = await revalidate(identifier)
+            try Task.checkCancellation()
+            guard revalidation.isValid else {
+                throw error
+            }
+
+            let refreshed = await currentIdentifier()
+            guard refreshed.isLicensed else {
+                throw error
+            }
+
+            return try await send(refreshed.identifier, refreshed.isLicensed)
+        }
     }
 
     // MARK: - Rust Core Helpers (mode query, credit context, detected language)
