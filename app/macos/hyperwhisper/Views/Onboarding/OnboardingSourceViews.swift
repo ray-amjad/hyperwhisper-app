@@ -516,8 +516,7 @@ struct OnboardingConfigureView: View {
         }
     }
 
-    /// Validate (does NOT activate — activation stays on step 4) and show the
-    /// result inline. Reuses `LicenseManager.validateLicense`.
+    /// Validate without changing account state; activation stays on step 4.
     private func testAccessKey() {
         let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
@@ -525,7 +524,7 @@ struct OnboardingConfigureView: View {
             isTestingKey = true
             licenseTestValid = nil
             licenseTestError = nil
-            let result = await licenseManager.validateLicense(key)
+            let result = await licenseManager.probeLicense(key)
             licenseTestValid = result.isValid
             licenseTestError = result.isValid ? nil : (result.errorMessage ?? "app.unknown.error".localized)
             keyValidated = result.isValid

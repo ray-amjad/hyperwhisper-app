@@ -54,19 +54,31 @@ class LicenseManager: ObservableObject {
     /// subsystem shares a single instance — and a single one-shot Core Data →
     /// UserDefaults usage seed (run in `RustLicenseStore.init`, before any usage
     /// call). This is load-bearing for backward compatibility.
-    private let store = RustLicenseStore()
+    private let store: RustLicenseStore?
 
     /// Network service for license API calls
-    private let networkService: LicenseNetworkService
+    private let networkService: any LicenseNetworkServing
 
     // MARK: - Initialization
 
-    init() {
-        networkService = LicenseNetworkService(store: store)
+    init(
+        networkService: (any LicenseNetworkServing)? = nil,
+        loadStoredLicenseOnInit: Bool = true
+    ) {
+        if let networkService {
+            self.store = nil
+            self.networkService = networkService
+        } else {
+            let store = RustLicenseStore()
+            self.store = store
+            self.networkService = LicenseNetworkService(store: store)
+        }
 
         // Load stored license on initialization.
-        Task {
-            await loadStoredLicense()
+        if loadStoredLicenseOnInit {
+            Task {
+                await loadStoredLicense()
+            }
         }
     }
 
@@ -108,6 +120,13 @@ class LicenseManager: ObservableObject {
         await processValidationResult(result)
 
         return result
+    }
+
+    /// Tests a key without changing the active account, persisted key, customer
+    /// metadata, or validation cache. Used when UI presents testing separately
+    /// from explicit activation.
+    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        await networkService.probeLicense(licenseKey)
     }
 
     /// Loads stored license from UserDefaults, revalidates if cache expired (24h).
