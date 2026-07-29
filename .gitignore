@@ -13,6 +13,14 @@ obj/
 # Rust build output
 shared-core-rs/target/
 target/
+
+# Built Rust core for macOS. Deliberately NOT committed: it is a 65 MB
+# universal static lib, and the 11 versions that were tracked accounted for
+# 52% of the whole repository. Xcode's "Ensure Rust Core" build phase builds
+# it on demand; CI rebuilds it from source on every run. Mirrors the Windows
+# side, which tracks only .gitkeep under Resources/rust-core/.
+# The generated hyperwhisper_coreFFI.h alongside it IS committed.
+app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a
 .vs/
 *.DotSettings.user
 

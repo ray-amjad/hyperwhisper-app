@@ -22,6 +22,14 @@ HyperWhisper macOS — Swift 5 + SwiftUI app, MVVM, macOS 14+ deployment target.
 
 Dependencies resolve via Swift Package Manager (no manual install step).
 
+`hyperwhisper/Libraries/libhyperwhisper_core.a` is **not** committed — build it
+once with `cd shared-core-rs && ./build-apple.sh`. On a fresh clone the first
+Xcode build intentionally fails after building it, asking for one more build:
+Xcode resolves `LIBRARY_SEARCH_PATHS` at plan time, so a lib created mid-build
+never reaches the link line. If you ever see a wall of `Undefined symbols` for
+`_uniffi_hyperwhisper_core_*`, the lib is missing or stale — rebuild it rather
+than chasing the Swift side. Details: `hyperwhisper/Libraries/README.md`.
+
 Do not run the full `xcodebuild ... test` action or broad UI/screenshot/launch-performance tests for narrow macOS code changes unless the user explicitly asks for that level of verification or the change directly touches UI-test-covered behavior. For PR merge lanes and small Swift changes, prefer the strongest targeted build/typecheck that matches the touched code, plus specific unit tests only when they are clearly relevant. The macOS UI test suite is permission- and environment-sensitive and can produce noisy accessibility/appearance-mode failures unrelated to the change.
 </important>
 
