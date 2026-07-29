@@ -18,6 +18,7 @@
 //  - Handles language-aware model selection (English-optimized vs multilingual)
 //
 
+import Combine
 import Foundation
 import SwiftUI
 
@@ -62,6 +63,22 @@ class TranscriptionModelManager: ObservableObject {
 
     /// State update callback (updates TranscriptionPipeline.state)
     var onStateChange: ((TranscriptionState) -> Void)?
+
+    /// One-shot recovery context for a selected Parakeet model whose weights
+    /// are not installed yet. Cleared before recovery starts so repeated
+    /// availability publications cannot trigger duplicate prewarms.
+    private struct PendingParakeetPreparation {
+        let modeId: String?
+        let modelId: String
+        let language: String?
+        let displayName: String
+        let generation: UInt
+    }
+
+    private var pendingParakeetPreparation: PendingParakeetPreparation?
+    private var recoveringParakeetPreparation: (modelId: String, generation: UInt)?
+    private var parakeetAvailabilityCancellable: AnyCancellable?
+    private var preparationGeneration: UInt = 0
 
     // MARK: - Model Ready State
 
@@ -108,6 +125,7 @@ class TranscriptionModelManager: ObservableObject {
         speechAnalyzerProvider: (any TranscriptionProvider)?,
         appState: AppState?
     ) {
+        let parakeetManagerChanged = self.parakeetModelManager !== parakeetModelManager
         self.localProvider = localProvider
         self.parakeetModelManager = parakeetModelManager
         self.parakeetProvider = parakeetProvider
@@ -117,6 +135,93 @@ class TranscriptionModelManager: ObservableObject {
         self.nemotronProvider = nemotronProvider
         self.speechAnalyzerProvider = speechAnalyzerProvider
         self.appState = appState
+
+        if parakeetManagerChanged {
+            observeParakeetAvailability(parakeetModelManager)
+        }
+    }
+
+    /// Observe model-library refreshes only to recover a currently unavailable
+    /// Parakeet selection. The pending request is consumed before preparation,
+    /// so unrelated refreshes and duplicate publications remain no-ops.
+    private func observeParakeetAvailability(_ modelManager: ParakeetModelManager?) {
+        parakeetAvailabilityCancellable = nil
+        guard let modelManager else { return }
+
+        parakeetAvailabilityCancellable = modelManager.$availableModels
+            .sink { [weak self] models in
+                Task { @MainActor [weak self] in
+                    await self?.recoverParakeetReadinessIfNeeded(from: models)
+                }
+            }
+    }
+
+    /// Prepare exactly once when the unavailable Parakeet version becomes
+    /// installed. A generation check prevents a late load from overwriting a
+    /// newer mode's readiness state.
+    private func recoverParakeetReadinessIfNeeded(from models: [ParakeetModel]) async {
+        guard let pending = pendingParakeetPreparation,
+              pending.generation == preparationGeneration,
+              case .unavailable = modelReadyState else {
+            return
+        }
+        if let pendingModeId = pending.modeId,
+           let selectedModeId = appState?.selectedModeId,
+           !selectedModeId.isEmpty,
+           pendingModeId != selectedModeId {
+            pendingParakeetPreparation = nil
+            return
+        }
+
+        let installedModelId = pending.modelId.lowercased().contains("v2")
+            ? ParakeetModelManager.Constants.v2ModelId
+            : ParakeetModelManager.Constants.v3ModelId
+        guard models.first(where: { $0.id == installedModelId })?.isDownloaded == true,
+              let parakeetProvider else {
+            return
+        }
+
+        pendingParakeetPreparation = nil
+        recoveringParakeetPreparation = (
+            modelId: pending.modelId,
+            generation: pending.generation
+        )
+        modelReadyState = .loading(name: pending.displayName)
+        defer {
+            if recoveringParakeetPreparation?.generation == pending.generation {
+                recoveringParakeetPreparation = nil
+            }
+        }
+
+        do {
+            try await parakeetProvider.prepareIfNeeded(
+                language: pending.language,
+                modelId: pending.modelId
+            )
+            guard pending.generation == preparationGeneration else { return }
+            modelReadyState = .ready(name: pending.displayName)
+            AppLogger.models.info("Parakeet \(pending.modelId, privacy: .public) became available and is ready")
+        } catch is CancellationError {
+            AppLogger.models.info("Parakeet readiness recovery cancelled")
+        } catch TranscriptionError.modelNotDownloaded {
+            guard pending.generation == preparationGeneration else { return }
+            pendingParakeetPreparation = pending
+            modelReadyState = .unavailable(name: pending.displayName)
+            AppLogger.models.warning("Parakeet \(pending.modelId, privacy: .public) disappeared during readiness recovery")
+        } catch {
+            guard pending.generation == preparationGeneration else { return }
+            modelReadyState = .none
+            onStateChange?(.error(message: "Failed to prepare \(pending.displayName)."))
+            AppLogger.models.error("Failed to recover Parakeet readiness: \(error.localizedDescription, privacy: .public)")
+            if AppLogger.isErrorLoggingEnabled {
+                SentryService.capture(
+                    error: error,
+                    message: "Parakeet readiness recovery failed",
+                    extras: ["modelId": pending.modelId],
+                    tags: ["component": "models"]
+                )
+            }
+        }
     }
 
     // MARK: - Model Preparation
@@ -134,6 +239,15 @@ class TranscriptionModelManager: ObservableObject {
     /// - Parameter mode: The transcription mode containing model information
     func prepareModel(for mode: Mode?, currentState: TranscriptionState, cancelTranscription: @escaping () -> Void) async {
         let modelId = (mode?.model ?? "").lowercased()
+        if let recovery = recoveringParakeetPreparation,
+           recovery.modelId == modelId,
+           recovery.generation == preparationGeneration {
+            return
+        }
+
+        preparationGeneration &+= 1
+        pendingParakeetPreparation = nil
+        let generation = preparationGeneration
 
         // GUARD: Don't interrupt a transcription
         if case .transcribing = currentState {
@@ -194,15 +308,22 @@ class TranscriptionModelManager: ObservableObject {
             // keeps local modes from silently becoming cloud transcriptions.
             guard parakeetProvider.isAvailable(for: modelId) else {
                 AppLogger.models.warning("Parakeet \(modelId, privacy: .public) is not downloaded")
+                pendingParakeetPreparation = PendingParakeetPreparation(
+                    modeId: mode?.id?.uuidString,
+                    modelId: modelId,
+                    language: extractLanguage(from: mode),
+                    displayName: parakeetDisplayName,
+                    generation: generation
+                )
                 modelReadyState = .unavailable(name: parakeetDisplayName)
                 return
             }
 
             modelReadyState = .loading(name: parakeetDisplayName)
+            let language = extractLanguage(from: mode)
             do {
-                let lang = extractLanguage(from: mode)
                 // Pass specific modelId to prepare the correct version (V2 or V3)
-                try await parakeetProvider.prepareIfNeeded(language: lang, modelId: modelId)
+                try await parakeetProvider.prepareIfNeeded(language: language, modelId: modelId)
                 modelReadyState = .ready(name: parakeetDisplayName)
             } catch is CancellationError {
                 AppLogger.models.info("Parakeet preparation cancelled")
@@ -214,6 +335,13 @@ class TranscriptionModelManager: ObservableObject {
                 // action visible, while an actual transcription attempt
                 // throws the localized `.modelNotDownloaded` error.
                 AppLogger.models.warning("Parakeet \(modelId, privacy: .public) is not downloaded")
+                pendingParakeetPreparation = PendingParakeetPreparation(
+                    modeId: mode?.id?.uuidString,
+                    modelId: modelId,
+                    language: language,
+                    displayName: parakeetDisplayName,
+                    generation: generation
+                )
                 modelReadyState = .unavailable(name: parakeetDisplayName)
             } catch {
                 AppLogger.models.error("Failed to prepare Parakeet provider: \(error.localizedDescription, privacy: .public)")
