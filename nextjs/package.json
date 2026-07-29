@@ -11,6 +11,7 @@
     "validate-appcast": "node scripts/validate-appcast.js",
     "validate-windows-appcast": "node scripts/validate-windows-appcast.js",
     "validate-appcasts": "npm run validate-appcast && npm run validate-windows-appcast",
+    "check-appcast-live": "node scripts/check-appcast-live.js",
     "prebuild": "npm run validate-appcasts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts"

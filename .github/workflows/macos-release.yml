@@ -663,7 +663,19 @@ jobs:
           echo "Release created: $TAG"
 
       # ----------------------------------------------------------------
-      # 19. Cleanup keychain
+      # 19. Verify the release actually reached users
+      # ----------------------------------------------------------------
+      # Publishing is not delivering. The appcast is a static file in
+      # nextjs/public/, so it only reaches users once the site is deployed —
+      # something this workflow neither triggers nor owns. Fail the run if the
+      # version never goes live.
+      - name: Verify update feed is live
+        if: ${{ inputs.skip_upload != true }}
+        working-directory: nextjs
+        run: node scripts/check-appcast-live.js --platform macos --version "${{ inputs.version }}"
+
+      # ----------------------------------------------------------------
+      # 20. Cleanup keychain
       # ----------------------------------------------------------------
       - name: Cleanup keychain
         if: always()
@@ -673,7 +685,7 @@ jobs:
           fi
 
       # ----------------------------------------------------------------
-      # 20. Job summary
+      # 21. Job summary
       # ----------------------------------------------------------------
       - name: Write job summary
         if: always()

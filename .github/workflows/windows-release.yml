@@ -763,7 +763,19 @@ jobs:
           Write-Host "Release created: $tag"
 
       # ----------------------------------------------------------------
-      # 15. Summary
+      # 15. Verify the release actually reached users
+      # ----------------------------------------------------------------
+      # Publishing is not delivering. The appcast is a static file in
+      # nextjs/public/, so it only reaches users once the site is deployed —
+      # something this workflow neither triggers nor owns. Fail the run if the
+      # version never goes live.
+      - name: Verify update feed is live
+        if: ${{ inputs.skip_upload != true }}
+        working-directory: nextjs
+        run: node scripts/check-appcast-live.js --platform windows --version "${{ inputs.version }}"
+
+      # ----------------------------------------------------------------
+      # 16. Summary
       # ----------------------------------------------------------------
       - name: Write job summary
         run: |
