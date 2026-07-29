@@ -736,7 +736,7 @@ enum TranscribeEndpoint {
         case "whisperlocal", "whisper", "libwhisper":
             mode.model = model ?? "base"
         case "parakeet":
-            mode.model = model ?? "parakeet-tdt-v3-multilingual"
+            mode.model = model ?? ParakeetModelManager.Constants.v3ModelId
         case "qwen3asr", "qwen3", "qwen3-asr":
             mode.model = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":

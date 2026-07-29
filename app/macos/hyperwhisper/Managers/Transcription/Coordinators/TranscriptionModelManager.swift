@@ -69,6 +69,7 @@ class TranscriptionModelManager: ObservableObject {
         case none
         case loading(name: String)
         case ready(name: String)
+        case unavailable(name: String)
     }
 
     // MARK: - Published Properties
@@ -184,24 +185,20 @@ class TranscriptionModelManager: ObservableObject {
            let parakeetModelManager {
             let parakeetDisplayName = modelId.lowercased().contains("v2") ? "Parakeet V2" : "Parakeet V3"
 
-            // HYPERWHISPER-TD: the model can be selected without ever being
-            // downloaded (or evicted after the fact). This used to call
-            // `prepareIfNeeded` unconditionally, which throws `.modelNotDownloaded`
-            // into a hard user-facing error dialog plus an unconditional Sentry
-            // capture on every affected launch. A real transcription attempt now
-            // falls back to HyperWhisper Cloud (`TranscriptionProviderRouter.
-            // selectLocalProvider`), and preloading isn't required for that
-            // fallback to work — so treat "not downloaded" like the cloud/no-mode
-            // case above instead of erroring.
+            AppLogger.models.info("Preparing Parakeet model for mode selection: \(modelId)")
+            parakeetModelManager.refreshState()
+
+            // A restored mode can reference weights that are not installed.
+            // Check the provider's version-aware disk state before showing a
+            // loading state; this avoids flashing a ready-to-load model and
+            // keeps local modes from silently becoming cloud transcriptions.
             guard parakeetProvider.isAvailable(for: modelId) else {
-                AppLogger.models.warning("Parakeet model not downloaded, will use HyperWhisper Cloud fallback at transcribe time: \(modelId, privacy: .public)")
-                modelReadyState = .ready(name: "Cloud")
+                AppLogger.models.warning("Parakeet \(modelId, privacy: .public) is not downloaded")
+                modelReadyState = .unavailable(name: parakeetDisplayName)
                 return
             }
 
-            AppLogger.models.info("Preparing Parakeet model for mode selection: \(modelId)")
             modelReadyState = .loading(name: parakeetDisplayName)
-            parakeetModelManager.refreshState()
             do {
                 let lang = extractLanguage(from: mode)
                 // Pass specific modelId to prepare the correct version (V2 or V3)
@@ -209,6 +206,15 @@ class TranscriptionModelManager: ObservableObject {
                 modelReadyState = .ready(name: parakeetDisplayName)
             } catch is CancellationError {
                 AppLogger.models.info("Parakeet preparation cancelled")
+            } catch TranscriptionError.modelNotDownloaded {
+                // Missing weights are expected for a restored mode or an
+                // externally-evicted cache. Keep the local-only contract:
+                // preparation must neither upload audio nor start a large
+                // download without consent. The status bar makes the required
+                // action visible, while an actual transcription attempt
+                // throws the localized `.modelNotDownloaded` error.
+                AppLogger.models.warning("Parakeet \(modelId, privacy: .public) is not downloaded")
+                modelReadyState = .unavailable(name: parakeetDisplayName)
             } catch {
                 AppLogger.models.error("Failed to prepare Parakeet provider: \(error.localizedDescription, privacy: .public)")
                 modelReadyState = .none

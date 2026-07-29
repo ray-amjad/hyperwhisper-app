@@ -112,6 +112,17 @@ struct ModelStatusBar: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
+
+            case .unavailable(let name):
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 6, height: 6)
+                Text(name)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Text("(Download Required)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
             }
         }
     }

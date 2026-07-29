@@ -447,7 +447,7 @@ class TranscriptionProviderRouter {
             }
             modelString = m
         case "parakeet":
-            modelString = model?.isEmpty == false ? model! : "parakeet-tdt-v3-multilingual"
+            modelString = model?.isEmpty == false ? model! : ParakeetModelManager.Constants.v3ModelId
         case "qwen3asr", "qwen3", "qwen3-asr":
             modelString = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
@@ -719,22 +719,11 @@ class TranscriptionProviderRouter {
                 }
             }
 
-            // HYPERWHISPER-SV: a Parakeet mode can be selected while the model
-            // was never downloaded (or was evicted after the fact) — `prepareIfNeeded`
-            // used to throw `.modelNotDownloaded` straight into the caller here,
-            // even though nothing ever implemented the "cloud fallback" this app
-            // logs elsewhere. Check availability up front and actually route to
-            // HyperWhisper Cloud instead of hard-failing the transcription.
-            guard parakeetProvider.isAvailable(for: modelId) else {
-                AppLogger.transcription.warning("⚠️ Parakeet model not downloaded, falling back to HyperWhisper Cloud: \(modelId, privacy: .public)")
-                ensureHyperWhisperCloudProvider()
-                guard let hwProvider = hyperwhisperCloudProvider else {
-                    throw TranscriptionError.modelNotDownloaded
-                }
-                return hwProvider
-            }
-
-            // Pass specific modelId to prepare the correct version (V2 or V3)
+            // Keep explicit local selection local. `prepareIfNeeded` resolves
+            // legacy Parakeet aliases by version and throws
+            // `.modelNotDownloaded` if the corresponding weights are absent.
+            // That avoids silently uploading audio or starting a download
+            // without user consent.
             try await parakeetProvider.prepareIfNeeded(language: language, modelId: modelId)
             AppLogger.transcription.info("✅ Parakeet provider selected for model: \(modelId)")
             return parakeetProvider
