@@ -13,7 +13,7 @@ struct HyperWhisperCloudLicenseRecoveryTests {
         let recorder = LicenseRecoveryCallRecorder()
         let success = HttpResponse(status: 200, headers: [], body: Data())
 
-        let response = try await HyperWhisperCloudProvider.performTranscribeRequestWithLicenseRecovery(
+        let result = try await HyperWhisperCloudProvider.performTranscribeRequestWithLicenseRecovery(
             identifier: "stale-license",
             isLicensed: true,
             send: { identifier, isLicensed in
@@ -30,16 +30,22 @@ struct HyperWhisperCloudLicenseRecoveryTests {
             currentIdentifier: {
                 await recorder.recordIdentityResolution()
                 return ("refreshed-license", true)
+            },
+            refreshServerAuthCache: { identifier in
+                await recorder.recordServerCacheRefresh(identifier)
             }
         )
 
-        #expect(response == success)
+        #expect(result.response == success)
+        #expect(result.identifier == "refreshed-license")
+        #expect(result.isLicensed)
         #expect(await recorder.sends == [
             .init(identifier: "stale-license", isLicensed: true),
             .init(identifier: "refreshed-license", isLicensed: true)
         ])
         #expect(await recorder.revalidations == ["stale-license"])
         #expect(await recorder.identityResolutions == 1)
+        #expect(await recorder.serverCacheRefreshes == ["refreshed-license"])
     }
 
     @Test func revokedLicenseDoesNotRetryAsGuest() async {
@@ -60,6 +66,9 @@ struct HyperWhisperCloudLicenseRecoveryTests {
                 currentIdentifier: {
                     await recorder.recordIdentityResolution()
                     return ("guest-device", false)
+                },
+                refreshServerAuthCache: { identifier in
+                    await recorder.recordServerCacheRefresh(identifier)
                 }
             )
             Issue.record("Expected the original unauthorized error")
@@ -77,6 +86,7 @@ struct HyperWhisperCloudLicenseRecoveryTests {
         ])
         #expect(await recorder.revalidations == ["revoked-license"])
         #expect(await recorder.identityResolutions == 0)
+        #expect(await recorder.serverCacheRefreshes.isEmpty)
     }
 
     @Test func unauthorizedGuestRequestDoesNotTriggerLicenseRecovery() async {
@@ -97,6 +107,9 @@ struct HyperWhisperCloudLicenseRecoveryTests {
                 currentIdentifier: {
                     await recorder.recordIdentityResolution()
                     return ("unexpected-license", true)
+                },
+                refreshServerAuthCache: { identifier in
+                    await recorder.recordServerCacheRefresh(identifier)
                 }
             )
             Issue.record("Expected unauthorized")
@@ -114,6 +127,49 @@ struct HyperWhisperCloudLicenseRecoveryTests {
         ])
         #expect(await recorder.revalidations.isEmpty)
         #expect(await recorder.identityResolutions == 0)
+        #expect(await recorder.serverCacheRefreshes.isEmpty)
+    }
+
+    @Test func serverCacheRefreshFailurePreservesUnauthorizedWithoutRetry() async {
+        let recorder = LicenseRecoveryCallRecorder()
+
+        do {
+            _ = try await HyperWhisperCloudProvider.performTranscribeRequestWithLicenseRecovery(
+                identifier: "stale-license",
+                isLicensed: true,
+                send: { identifier, isLicensed in
+                    _ = await recorder.recordSend(identifier: identifier, isLicensed: isLicensed)
+                    throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+                },
+                revalidate: { identifier in
+                    await recorder.recordRevalidation(identifier)
+                    return Self.validationResult(isValid: true, status: .active)
+                },
+                currentIdentifier: {
+                    await recorder.recordIdentityResolution()
+                    return ("refreshed-license", true)
+                },
+                refreshServerAuthCache: { identifier in
+                    await recorder.recordServerCacheRefresh(identifier)
+                    throw ServerCacheRefreshError.unavailable
+                }
+            )
+            Issue.record("Expected the original unauthorized error")
+        } catch let error as TranscriptionError {
+            guard case .unauthorized = error else {
+                Issue.record("Expected unauthorized, got \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Expected TranscriptionError.unauthorized, got \(error)")
+        }
+
+        #expect(await recorder.sends == [
+            .init(identifier: "stale-license", isLicensed: true)
+        ])
+        #expect(await recorder.revalidations == ["stale-license"])
+        #expect(await recorder.identityResolutions == 1)
+        #expect(await recorder.serverCacheRefreshes == ["refreshed-license"])
     }
 
     private static func validationResult(isValid: Bool, status: LicenseStatus) -> LicenseValidationResult {
@@ -128,6 +184,10 @@ struct HyperWhisperCloudLicenseRecoveryTests {
     }
 }
 
+private enum ServerCacheRefreshError: Error {
+    case unavailable
+}
+
 private actor LicenseRecoveryCallRecorder {
     struct Send: Equatable {
         let identifier: String
@@ -137,6 +197,7 @@ private actor LicenseRecoveryCallRecorder {
     private(set) var sends: [Send] = []
     private(set) var revalidations: [String] = []
     private(set) var identityResolutions = 0
+    private(set) var serverCacheRefreshes: [String] = []
 
     func recordSend(identifier: String, isLicensed: Bool) -> Int {
         sends.append(.init(identifier: identifier, isLicensed: isLicensed))
@@ -149,5 +210,9 @@ private actor LicenseRecoveryCallRecorder {
 
     func recordIdentityResolution() {
         identityResolutions += 1
+    }
+
+    func recordServerCacheRefresh(_ identifier: String) {
+        serverCacheRefreshes.append(identifier)
     }
 }

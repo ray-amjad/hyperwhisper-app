@@ -380,7 +380,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // =====================================================================
         // STEP 3: Perform request via the shared executor + core retry loop.
         // =====================================================================
-        let response = try await Self.performTranscribeRequestWithLicenseRecovery(
+        let requestResult = try await Self.performTranscribeRequestWithLicenseRecovery(
             identifier: identifier,
             isLicensed: isLicensed,
             send: sendTranscribeRequest,
@@ -389,8 +389,14 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             },
             currentIdentifier: {
                 await licenseManager.getTranscriptionIdentifier()
+            },
+            refreshServerAuthCache: { refreshedIdentifier in
+                try await creditManager.refreshServerLicenseCache(for: refreshedIdentifier)
             }
         )
+        let response = requestResult.response
+        let successfulIdentifier = requestResult.identifier
+        let successfulIsLicensed = requestResult.isLicensed
         try throwIfCancelled()
 
         // Parse the success response via the core.
@@ -453,8 +459,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                             session: session,
                             text: segment,
                             prompt: prompt,
-                            identifier: identifier,
-                            isLicensed: isLicensed,
+                            identifier: successfulIdentifier,
+                            isLicensed: successfulIsLicensed,
                             mode: mode
                         )
                         processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -465,8 +471,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                         session: session,
                         text: transcript.text,
                         prompt: prompt,
-                        identifier: identifier,
-                        isLicensed: isLicensed,
+                        identifier: successfulIdentifier,
+                        isLicensed: successfulIsLicensed,
                         mode: mode
                     )
                 }
@@ -521,15 +527,27 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     /// the freshly resolved identifier still being licensed. A revoked/expired
     /// license must keep the original unauthorized failure instead of silently
     /// re-sending the audio against the guest/device wallet.
+    struct TranscribeRequestResult {
+        let response: HttpResponse
+        let identifier: String
+        let isLicensed: Bool
+    }
+
     static func performTranscribeRequestWithLicenseRecovery(
         identifier: String,
         isLicensed: Bool,
         send: (String, Bool) async throws -> HttpResponse,
         revalidate: (String) async -> LicenseValidationResult,
-        currentIdentifier: () async -> (identifier: String, isLicensed: Bool)
-    ) async throws -> HttpResponse {
+        currentIdentifier: () async -> (identifier: String, isLicensed: Bool),
+        refreshServerAuthCache: (String) async throws -> Void
+    ) async throws -> TranscribeRequestResult {
         do {
-            return try await send(identifier, isLicensed)
+            let response = try await send(identifier, isLicensed)
+            return TranscribeRequestResult(
+                response: response,
+                identifier: identifier,
+                isLicensed: isLicensed
+            )
         } catch let error as TranscriptionError {
             guard case .unauthorized = error, isLicensed else {
                 throw error
@@ -547,7 +565,21 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 throw error
             }
 
-            return try await send(refreshed.identifier, refreshed.isLicensed)
+            do {
+                try await refreshServerAuthCache(refreshed.identifier)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                AppLogger.network.warning("HyperWhisper Cloud server license-cache refresh failed · preserving unauthorized response")
+                throw error
+            }
+
+            let response = try await send(refreshed.identifier, refreshed.isLicensed)
+            return TranscribeRequestResult(
+                response: response,
+                identifier: refreshed.identifier,
+                isLicensed: refreshed.isLicensed
+            )
         }
     }
 
