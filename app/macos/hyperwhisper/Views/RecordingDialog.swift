@@ -1345,4 +1345,5 @@ struct VisualEffectBackground: NSViewRepresentable {
         .environmentObject(SettingsManager())
         .environmentObject(RecordingLiveMetrics())
         .environmentObject(previewAppState.liveStreamingText)
+        .environmentObject(TranscriptionPipeline())
 }
