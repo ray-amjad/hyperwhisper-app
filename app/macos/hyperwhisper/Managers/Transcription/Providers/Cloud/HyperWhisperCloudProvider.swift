@@ -548,21 +548,21 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 identifier: identifier,
                 isLicensed: isLicensed
             )
-        } catch let error as TranscriptionError {
-            guard case .unauthorized = error, isLicensed else {
-                throw error
+        } catch let requestError as TranscriptionError {
+            guard case .unauthorized = requestError, isLicensed else {
+                throw requestError
             }
 
             AppLogger.network.warning("HyperWhisper Cloud transcribe unauthorized · forcing license revalidation and retrying once")
             let revalidation = await revalidate(identifier)
             try Task.checkCancellation()
             guard revalidation.isValid else {
-                throw error
+                throw requestError
             }
 
             let refreshed = await currentIdentifier()
             guard refreshed.isLicensed else {
-                throw error
+                throw requestError
             }
 
             do {
@@ -571,7 +571,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 throw CancellationError()
             } catch {
                 AppLogger.network.warning("HyperWhisper Cloud server license-cache refresh failed · preserving unauthorized response")
-                throw error
+                throw requestError
             }
 
             let response = try await send(refreshed.identifier, refreshed.isLicensed)
