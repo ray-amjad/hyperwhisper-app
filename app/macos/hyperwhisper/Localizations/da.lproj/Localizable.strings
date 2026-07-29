@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Nøjagtighed";
 "onboarding.model.metric.size" = "Størrelse";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Anbefalet";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Eller vælg en anden stemmemodel";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (Engelsk)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Videovejledninger";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Afslut onboarding";
+
+"onboarding.setupLater.button" = "Indstil senere";
 "onboarding.error.model.notFound" = "Model ikke fundet i kataloget.";
 "onboarding.error.microphone.denied" = "Mikrofontilladelse afvist. Giv venligst tilladelse i Systemindstillinger.";
 

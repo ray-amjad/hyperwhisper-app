@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Presnosť";
 "onboarding.model.metric.size" = "Veľkosť";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Odporúčané";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Alebo si zvoľte iný hlasový model";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (Angličtina)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Video návody";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Ukončiť onboarding";
+
+"onboarding.setupLater.button" = "Nastaviť neskôr";
 "onboarding.error.model.notFound" = "Model v katalógu nenájdený.";
 "onboarding.error.microphone.denied" = "Povolenie mikrofónu odmietnuté. Prosím, udeľte povolenie v Nastaveniach systému.";
 

@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Pontosság";
 "onboarding.model.metric.size" = "Méret";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "Ajánlott";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Vagy válassz másik hangmodellt";
 "onboarding.model.picker.title" = "Modell";
 "onboarding.model.option.proEnglish" = "Pro (Angol)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Videós útmutatók";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Bevezetés befejezése";
+
+"onboarding.setupLater.button" = "Beállítás később";
 "onboarding.error.model.notFound" = "Modell nem található a katalógusban.";
 "onboarding.error.microphone.denied" = "Mikrofon engedély megtagadva. Kérlek add meg az engedélyt a Rendszerbeállításokban.";
 

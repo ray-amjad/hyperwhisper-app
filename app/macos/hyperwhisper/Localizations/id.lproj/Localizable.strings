@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Akurasi";
 "onboarding.model.metric.size" = "Ukuran";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Direkomendasikan";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Atau, pilih model suara yang berbeda";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (Bahasa Inggris)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Tutorial Video";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Selesai Onboarding";
+
+"onboarding.setupLater.button" = "Siapkan nanti";
 "onboarding.error.model.notFound" = "Model tidak ditemukan dalam katalog.";
 "onboarding.error.microphone.denied" = "Izin mikrofon ditolak. Silakan berikan izin di Pengaturan Sistem.";
 

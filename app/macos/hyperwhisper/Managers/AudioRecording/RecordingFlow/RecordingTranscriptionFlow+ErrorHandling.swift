@@ -34,7 +34,7 @@ extension RecordingTranscriptionFlow {
             await MainActor.run {
                 appState.pendingRetryAudioPath = nil
                 appState.recordingState = .idle
-                appState.lastTranscription = "Error: Audio file missing for retry"
+                appState.lastTranscription = "Error: \("recording.retry.failed.missing".localized)"
                 appState.showRecordingDialog = true
             }
             return

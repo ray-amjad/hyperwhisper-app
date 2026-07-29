@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Ακρίβεια";
 "onboarding.model.metric.size" = "Μέγεθος";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "Προτεινόμενο";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Ή, επιλέξτε ένα διαφορετικό μοντέλο φωνής";
 "onboarding.model.picker.title" = "Μοντέλο";
 "onboarding.model.option.proEnglish" = "Pro (Αγγλικά)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Σεμινάρια Βίντεο";
 "onboarding.completion.resources.blog" = "Ιστολόγιο";
 "onboarding.done.button" = "Ολοκληρώθηκε το Onboarding";
+
+"onboarding.setupLater.button" = "Ρύθμιση αργότερα";
 "onboarding.error.model.notFound" = "Μοντέλο δεν βρέθηκε στον κατάλογο.";
 "onboarding.error.microphone.denied" = "Άδεια μικροφώνου αρνήθηκε. Παρακαλώ δώστε άδεια στις Ρυθμίσεις Συστήματος.";
 

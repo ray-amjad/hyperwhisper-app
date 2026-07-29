@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Precisão";
 "onboarding.model.metric.size" = "Tamanho";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Recomendado";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Ou escolha um modelo de voz diferente";
 "onboarding.model.picker.title" = "Modelo";
 "onboarding.model.option.proEnglish" = "Pro (English)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Tutoriais em Vídeo";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Concluir Onboarding";
+
+"onboarding.setupLater.button" = "Configurar mais tarde";
 "onboarding.error.model.notFound" = "Modelo não encontrado no catálogo.";
 "onboarding.error.microphone.denied" = "Permissão de microfone negada. Conceda permissão em Configurações do Sistema.";
 

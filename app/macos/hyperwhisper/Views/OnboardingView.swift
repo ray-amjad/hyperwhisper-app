@@ -130,11 +130,12 @@ struct OnboardingView: View {
         .onAppear {
             setupInitialState()
         }
-        // Re-check microphone permission when the user returns from System Settings
-        // (e.g. after enabling it there) so the mandatory permissions gate unblocks
-        // without them having to re-click. Mirrors HomeView's accessibility re-check.
+        // Re-check both permissions when the user returns from System Settings so
+        // the rows and the audio manager's preview guard cannot retain stale state.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             hasMicrophonePermission = AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
+            hasAccessibilityPermission = AccessibilityHelper.shared.hasAccessibilityPermission()
+            audioManager.checkMicrophonePermission()
         }
         .alert("common.error".localized, isPresented: $showErrorAlert) {
             Button {
@@ -369,26 +370,30 @@ struct OnboardingView: View {
                     .foregroundColor(.red)
             }
 
-            // Inline transcript panel — shown only here, not pasted.
+            // Inline result panel — shown only here, not pasted. Recording failures
+            // also arrive through `lastTranscription` with an "Error:" sentinel, so
+            // render those as errors rather than a successful "You said" transcript.
             if !appState.lastTranscription.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(localized: "onboarding.try.transcript.heading")
+                    Text(onboardingResultIsError ? "common.error".localized : "onboarding.try.transcript.heading".localized)
                         .font(.system(size: 10.5, weight: .semibold))
                         .tracking(0.5)
                         .textCase(.uppercase)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(onboardingResultIsError ? .red : .secondary)
 
-                    Text(appState.lastTranscription)
+                    Text(onboardingResultText)
                         .font(.system(size: 15))
                         .fixedSize(horizontal: false, vertical: true)
 
-                    HStack(spacing: 5) {
-                        Image(systemName: "checkmark.shield.fill")
-                            .font(.caption)
-                        Text(localized: "onboarding.try.transcript.noPaste")
-                            .font(.caption)
+                    if !onboardingResultIsError {
+                        HStack(spacing: 5) {
+                            Image(systemName: "checkmark.shield.fill")
+                                .font(.caption)
+                            Text(localized: "onboarding.try.transcript.noPaste")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.green)
                     }
-                    .foregroundColor(.green)
                 }
                 .padding(16)
                 .frame(maxWidth: 460, alignment: .leading)
@@ -440,6 +445,16 @@ struct OnboardingView: View {
                 }
                 .controlSize(.large)
             }
+
+            // First-run setup can require a download or network validation. Keep
+            // the app usable offline or when the user is not ready to grant a
+            // permission; setup remains available later from the normal settings.
+            Button(action: skipOnboarding) {
+                Text(localized: "onboarding.setupLater.button")
+            }
+            .controlSize(.large)
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
 
             Spacer()
 
@@ -559,7 +574,16 @@ struct OnboardingView: View {
     /// here as a final guarantee in case that transition was ever bypassed.
     private func completeOnboarding() {
         applySelectedSourceToDefaultMode()
+        finishOnboarding()
+    }
 
+    /// Dismiss first-run setup without applying a partially configured source.
+    /// The seeded default remains intact and the user can configure it later.
+    private func skipOnboarding() {
+        finishOnboarding()
+    }
+
+    private func finishOnboarding() {
         // Defensive: release the microphone metering preview in case onboarding is
         // completed without passing back through the Microphone step's onDisappear.
         audioManager.stopInputLevelPreview()
@@ -676,13 +700,12 @@ struct OnboardingView: View {
 
     /// Request microphone permission
     private func requestMicrophonePermission() {
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            DispatchQueue.main.async {
-                self.hasMicrophonePermission = granted
-                if !granted {
-                    self.errorMessage = "onboarding.error.microphone.denied".localized
-                    self.showErrorAlert = true
-                }
+        Task {
+            let granted = await audioManager.requestMicrophonePermission()
+            hasMicrophonePermission = granted
+            if !granted {
+                errorMessage = "onboarding.error.microphone.denied".localized
+                showErrorAlert = true
             }
         }
     }
@@ -708,6 +731,16 @@ struct OnboardingView: View {
     /// Get formatted recording shortcut
     private func getRecordingShortcut() -> String {
         return KeyboardShortcuts.getShortcut(for: .toggleRecordingWithTranscription)?.description ?? "keyboard.option.space".localized
+    }
+
+    private var onboardingResultIsError: Bool {
+        appState.lastTranscription.hasPrefix("Error:")
+    }
+
+    private var onboardingResultText: String {
+        guard onboardingResultIsError else { return appState.lastTranscription }
+        return String(appState.lastTranscription.dropFirst("Error:".count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

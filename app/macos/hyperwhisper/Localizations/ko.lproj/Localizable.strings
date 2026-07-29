@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "정확도";
 "onboarding.model.metric.size" = "크기";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "추천";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "또는 다른 음성 모델 선택";
 "onboarding.model.picker.title" = "모델";
 "onboarding.model.option.proEnglish" = "Pro (영어)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "비디오 튜토리얼";
 "onboarding.completion.resources.blog" = "블로그";
 "onboarding.done.button" = "온보딩 완료";
+
+"onboarding.setupLater.button" = "나중에 설정";
 "onboarding.error.model.notFound" = "카탈로그에서 모델을 찾을 수 없습니다.";
 "onboarding.error.microphone.denied" = "마이크 권한이 거부되었습니다. 시스템 설정에서 권한을 부여하세요.";
 

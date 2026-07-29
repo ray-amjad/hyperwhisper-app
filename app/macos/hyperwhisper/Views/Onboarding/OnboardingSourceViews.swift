@@ -613,20 +613,33 @@ struct OnboardingConfigureView: View {
         }
     }
 
-    /// Persist the key (health checks read it from Keychain) then run the shared
-    /// provider health probe — the same path `ProviderKeySheet.testConnection`
-    /// uses. Saving here is harmless: step 4 will simply show "saved".
+    /// Temporarily stage the trimmed key because health checks read from Keychain.
+    /// Keep it only after a successful probe; otherwise restore the prior value so
+    /// a typo cannot replace a working credential or leave a dead key configured.
     private func testAPIKey() {
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
-        settingsManager.apiKeys.setAPIKey(apiKeyInput, for: selectedProvider)
-        cloudHealth.registerAPIKeyChange(for: selectedProvider, newValue: key)
+        let provider = selectedProvider
+        let previousKey = settingsManager.apiKeys.apiKey(for: provider)
+        settingsManager.apiKeys.setAPIKey(key, for: provider)
+        cloudHealth.registerAPIKeyChange(for: provider, newValue: key)
         Task {
             isTestingKey = true
             providerTestHealth = nil
-            let health = await cloudHealth.ensureHealthy(selectedProvider)
-            providerTestHealth = health
-            keyValidated = (health == .healthy)
+            // `ensureHealthy` may reuse a prior healthy status. Force a fresh
+            // probe so replacing a working key with a typo cannot pass on cache.
+            cloudHealth.refresh(provider, force: true)
+            let health = await cloudHealth.ensureHealthy(provider)
+            if health != .healthy,
+               settingsManager.apiKeys.apiKey(for: provider) == key {
+                settingsManager.apiKeys.setAPIKey(previousKey, for: provider)
+                cloudHealth.registerAPIKeyChange(for: provider, newValue: previousKey)
+            }
+            if selectedProvider == provider,
+               apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key {
+                providerTestHealth = health
+                keyValidated = (health == .healthy)
+            }
             isTestingKey = false
         }
     }
@@ -834,7 +847,10 @@ struct OnboardingSetupView: View {
                             color: .green)
             } else {
                 Button {
-                    settingsManager.apiKeys.setAPIKey(apiKeyInput, for: selectedProvider)
+                    settingsManager.apiKeys.setAPIKey(
+                        apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                        for: selectedProvider
+                    )
                 } label: {
                     Label("onboarding.setup.provider.save".localized, systemImage: "lock.fill")
                         .frame(width: 240)
@@ -984,6 +1000,7 @@ struct OnboardingMicrophoneView: View {
         .padding(40)
         .onAppear {
             audioManager.updateAvailableDevices()
+            audioManager.checkMicrophonePermission()
             audioManager.startInputLevelPreview()
         }
         .onDisappear {

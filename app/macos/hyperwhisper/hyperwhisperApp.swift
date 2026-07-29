@@ -566,31 +566,10 @@ struct MenuBarIconView: View {
         // These work even when the app isn't focused
         setupGlobalHotkeys()
 
-        // LAUNCH MINIMIZED: Hide main window if preference is set
-        // This allows the app to run in menu bar only mode by default
-        // Users can still access the window via Menu Bar > Settings
-        if launchMinimized && hasCompletedOnboarding {
-            // Delay to ensure window is fully created and event monitors initialize before hiding
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let mainWindow = NSApplication.shared.windows.first {
-                    mainWindow.orderOut(nil)
-                    AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
-                    // Return focus to previous app after hiding our window
-                    NSApp.deactivate()
-                }
-            }
-        }
-
-        // Show onboarding only on a genuine fresh install. `hasCompletedOnboarding`
-        // was never persisted for users who first launched while onboarding was
-        // disabled, so gating on the flag alone would wrongly re-onboard them when
-        // its default flips. `didSeedDefaultModesOnLaunch` is true only when THIS
-        // launch created the default modes (no modes existed) — a reliable
-        // first-install signal. But it resets each launch, so we capture it into
-        // the durable `onboardingPending` flag: an interrupted first run then
-        // re-shows onboarding on the next launch instead of looking like an
-        // existing user, while genuine existing users (never seeded here) are
-        // marked complete exactly once.
+        // Resolve onboarding before launch-minimized behavior. Existing users may
+        // not have a persisted completion key because older builds defaulted it to
+        // true; marking them complete here ensures their first upgraded launch
+        // still honors the menu-bar-only preference.
         if !hasCompletedOnboarding {
             if PersistenceController.shared.didSeedDefaultModesOnLaunch {
                 onboardingPending = true
@@ -603,6 +582,21 @@ struct MenuBarIconView: View {
             } else {
                 // Existing user (modes already present): treat onboarding as done.
                 hasCompletedOnboarding = true
+            }
+        }
+
+        // LAUNCH MINIMIZED: Hide main window if preference is set
+        // This allows the app to run in menu bar only mode by default
+        // Users can still access the window via Menu Bar > Settings
+        if launchMinimized && hasCompletedOnboarding {
+            // Delay to ensure window is fully created and event monitors initialize before hiding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if let mainWindow = NSApplication.shared.windows.first {
+                    mainWindow.orderOut(nil)
+                    AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
+                    // Return focus to previous app after hiding our window
+                    NSApp.deactivate()
+                }
             }
         }
 

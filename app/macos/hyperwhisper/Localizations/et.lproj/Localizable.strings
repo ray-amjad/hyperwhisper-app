@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Täpsus";
 "onboarding.model.metric.size" = "Suurus";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Soovitatav";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Või vali teine häälmudel";
 "onboarding.model.picker.title" = "Mudel";
 "onboarding.model.option.proEnglish" = "Pro (inglise keel)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Video õpetused";
 "onboarding.completion.resources.blog" = "Blogi";
 "onboarding.done.button" = "Lõpeta sisseelamine";
+
+"onboarding.setupLater.button" = "Seadista hiljem";
 "onboarding.error.model.notFound" = "Mudelit ei leitud kataloogist.";
 "onboarding.error.microphone.denied" = "Mikrofoni luba keelduti. Palun andke luba süsteemiseadetes.";
 

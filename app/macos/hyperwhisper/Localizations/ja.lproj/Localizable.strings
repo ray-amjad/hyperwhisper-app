@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "精度";
 "onboarding.model.metric.size" = "サイズ";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "おすすめ";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "別の音声モデルを選択することもできます";
 "onboarding.model.picker.title" = "モデル";
 "onboarding.model.option.proEnglish" = "Pro（英語）";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "動画チュートリアル";
 "onboarding.completion.resources.blog" = "ブログ";
 "onboarding.done.button" = "オンボーディングを完了";
+
+"onboarding.setupLater.button" = "あとで設定";
 "onboarding.error.model.notFound" = "カタログにモデルが見つかりません。";
 "onboarding.error.microphone.denied" = "マイクの許可が拒否されました。システム設定で許可してください。";
 

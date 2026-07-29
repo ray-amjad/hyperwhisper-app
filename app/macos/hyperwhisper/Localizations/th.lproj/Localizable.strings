@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "ความแม่นยำ";
 "onboarding.model.metric.size" = "ขนาด";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "แนะนำ";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "หรือเลือกโมเดลเสียงที่แตกต่างกัน";
 "onboarding.model.picker.title" = "โมเดล";
 "onboarding.model.option.proEnglish" = "Pro (อังกฤษ)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "บทช่วยสอนวิดีโอ";
 "onboarding.completion.resources.blog" = "บล็อก";
 "onboarding.done.button" = "เสร็จสิ้นการเข้าสู่ระบบ";
+
+"onboarding.setupLater.button" = "ตั้งค่าภายหลัง";
 "onboarding.error.model.notFound" = "ไม่พบโมเดลในแคตตาล็อก";
 "onboarding.error.microphone.denied" = "ปฏิเสธการอนุญาตไมโครโฟน โปรดให้สิทธิ์ในการตั้งค่าระบบ";
 

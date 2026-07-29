@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "सटीकता";
 "onboarding.model.metric.size" = "आकार";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "अनुशंसित";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "या, एक अलग वॉयस मॉडल चुनें";
 "onboarding.model.picker.title" = "मॉडल";
 "onboarding.model.option.proEnglish" = "Pro (अंग्रेजी)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "वीडियो ट्यूटोरियल";
 "onboarding.completion.resources.blog" = "ब्लॉग";
 "onboarding.done.button" = "ऑनबोर्डिंग पूर्ण करें";
+
+"onboarding.setupLater.button" = "बाद में सेट अप करें";
 "onboarding.error.model.notFound" = "मॉडल कैटलॉग में नहीं मिला।";
 "onboarding.error.microphone.denied" = "माइक्रोफ़ोन अनुमति अस्वीकृत। कृपया सिस्टम सेटिंग्स में अनुमति दें।";
 

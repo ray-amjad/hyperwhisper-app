@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Noggrannhet";
 "onboarding.model.metric.size" = "Storlek";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Rekommenderat";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Eller välj en annan röstmodell";
 "onboarding.model.picker.title" = "Modell";
 "onboarding.model.option.proEnglish" = "Pro (engelska)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Videohandledningar";
 "onboarding.completion.resources.blog" = "Blogg";
 "onboarding.done.button" = "Slutför introduktion";
+
+"onboarding.setupLater.button" = "Ställ in senare";
 "onboarding.error.model.notFound" = "Modellen hittades inte i katalogen.";
 "onboarding.error.microphone.denied" = "Mikrofonåtkomst nekad. Bevilja tillåtelse i Systeminställningar.";
 

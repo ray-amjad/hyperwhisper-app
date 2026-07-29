@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Precizie";
 "onboarding.model.metric.size" = "Mărime";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "Recomandat";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Sau, alegeți un alt model de voce";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (Engleză)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Tutoriale video";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Onboarding complet";
+
+"onboarding.setupLater.button" = "Configurează mai târziu";
 "onboarding.error.model.notFound" = "Model nu a fost găsit în catalog.";
 "onboarding.error.microphone.denied" = "Permisiunea de microfon refuzată. Vă rugăm acordați permisiunea în Setări de sistem.";
 

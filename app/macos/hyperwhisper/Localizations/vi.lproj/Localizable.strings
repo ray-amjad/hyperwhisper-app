@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Độ chính xác";
 "onboarding.model.metric.size" = "Kích thước";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "Được đề xuất";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Hoặc chọn một mô hình thoại khác";
 "onboarding.model.picker.title" = "Mô hình";
 "onboarding.model.option.proEnglish" = "Pro (Tiếng Anh)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Hướng dẫn Video";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Hoàn tất Onboarding";
+
+"onboarding.setupLater.button" = "Thiết lập sau";
 "onboarding.error.model.notFound" = "Không tìm thấy mô hình trong danh mục.";
 "onboarding.error.microphone.denied" = "Quyền micrô bị từ chối. Vui lòng cấp quyền trong Cài đặt Hệ thống.";
 

@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Точност";
 "onboarding.model.metric.size" = "Размер";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Препоръчано";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Или изберете друг гласов модел";
 "onboarding.model.picker.title" = "Модел";
 "onboarding.model.option.proEnglish" = "Pro (Английски)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Видео ръководства";
 "onboarding.completion.resources.blog" = "Блог";
 "onboarding.done.button" = "Въвеждането завършено";
+
+"onboarding.setupLater.button" = "Настрой по-късно";
 "onboarding.error.model.notFound" = "Моделът не е намерен в каталога.";
 "onboarding.error.microphone.denied" = "Разрешението за микрофон е отказано. Моля, предоставете разрешение в Системни настройки.";
 

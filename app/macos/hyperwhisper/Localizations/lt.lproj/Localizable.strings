@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Tikslumas";
 "onboarding.model.metric.size" = "Dydis";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Rekomenduojama";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Arba pasirinkite skirtingą balso modelį";
 "onboarding.model.picker.title" = "Modelis";
 "onboarding.model.option.proEnglish" = "Pro (Anglų)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Video pamokos";
 "onboarding.completion.resources.blog" = "Blogas";
 "onboarding.done.button" = "Atlikti registraciją";
+
+"onboarding.setupLater.button" = "Nustatyti vėliau";
 "onboarding.error.model.notFound" = "Modelis nerastas kataloge.";
 "onboarding.error.microphone.denied" = "Mikrofo leidimas atmestas. Suteikite leidimą Sistemos nustatymuose.";
 

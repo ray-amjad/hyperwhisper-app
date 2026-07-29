@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Precisió";
 "onboarding.model.metric.size" = "Mida";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Recomanat";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "O trieu un model de veu diferent";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (anglès)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Tutorials en vídeo";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Incorporació completada";
+
+"onboarding.setupLater.button" = "Configura-ho més tard";
 "onboarding.error.model.notFound" = "Model no trobat al catàleg.";
 "onboarding.error.microphone.denied" = "Permís de micròfon denegat. Concediu el permís a la Configuració del sistema.";
 

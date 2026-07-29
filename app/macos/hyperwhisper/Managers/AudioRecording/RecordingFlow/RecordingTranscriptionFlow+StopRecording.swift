@@ -274,7 +274,7 @@ extension RecordingTranscriptionFlow {
                 }
                 await MainActor.run {
                     appState?.recordingState = .idle
-                    appState?.lastTranscription = "Error: Audio file could not be read"
+                    appState?.lastTranscription = "Error: \("audio.error.readFile".localized)"
                     appState?.pendingRetryAudioPath = audioURL.path
                     appState?.showRecordingDialog = true
                 }
@@ -508,7 +508,14 @@ extension RecordingTranscriptionFlow {
                     && (isQuickCaptureRouting
                         || (settingsManager?.pasteResultText ?? false))
 
-                if shouldDeliverText, let settings = settingsManager {
+                if suppressForOnboarding {
+                    // The onboarding view owns this result. Do not misclassify
+                    // intentional suppression as a paste failure or leave the
+                    // floating recording dialog open behind the onboarding sheet.
+                    appState?.transcriptionPasteFailed = false
+                    appState?.showRecordingDialog = false
+                    appState?.isStreamingShortcutTriggered = false
+                } else if shouldDeliverText, let settings = settingsManager {
                     var processedText = transcriptionResult.text
 
                     // REMOVE TRAILING PERIOD:

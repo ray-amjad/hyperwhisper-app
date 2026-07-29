@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Natančnost";
 "onboarding.model.metric.size" = "Velikost";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Priporočeno";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Ali pa izberi drugačen model glasu";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (Angleščina)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Videovodniki";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Zaključi vpeljevanje";
+
+"onboarding.setupLater.button" = "Nastavi pozneje";
 "onboarding.error.model.notFound" = "Model ni najden v katalogu.";
 "onboarding.error.microphone.denied" = "Dostop do mikrofonskega vhoda je zavrnjen. Odobri dostop v Sistemskih nastavitvah.";
 

@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "الدقة";
 "onboarding.model.metric.size" = "الحجم";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "موصى به";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "أو، اختر نموذج صوتي مختلف";
 "onboarding.model.picker.title" = "النموذج";
 "onboarding.model.option.proEnglish" = "Pro (الإنجليزية)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "البرامج التعليمية بالفيديو";
 "onboarding.completion.resources.blog" = "المدونة";
 "onboarding.done.button" = "اكتمال الإعداد الأولي";
+
+"onboarding.setupLater.button" = "الإعداد لاحقًا";
 "onboarding.error.model.notFound" = "لم يتم العثور على النموذج في الكتالوج.";
 "onboarding.error.microphone.denied" = "تم رفض إذن الميكروفون. يرجى منح الإذن في إعدادات النظام.";
 

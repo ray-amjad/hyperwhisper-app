@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "准确度";
 "onboarding.model.metric.size" = "大小";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "推荐";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "或选择其他语音模型";
 "onboarding.model.picker.title" = "模型";
 "onboarding.model.option.proEnglish" = "Pro（英语）";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "视频教程";
 "onboarding.completion.resources.blog" = "博客";
 "onboarding.done.button" = "完成引导";
+
+"onboarding.setupLater.button" = "稍后设置";
 "onboarding.error.model.notFound" = "未在目录中找到模型。";
 "onboarding.error.microphone.denied" = "麦克风权限被拒绝。请在系统设置中授予权限。";
 

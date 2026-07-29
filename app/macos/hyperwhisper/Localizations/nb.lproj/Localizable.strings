@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Nøyaktighet";
 "onboarding.model.metric.size" = "Størrelse";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Anbefalt";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Eller velg en annen talemodell";
 "onboarding.model.picker.title" = "Modell";
 "onboarding.model.option.proEnglish" = "Pro (engelsk)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Videoveiledninger";
 "onboarding.completion.resources.blog" = "Blogg";
 "onboarding.done.button" = "Fullfør introduksjon";
+
+"onboarding.setupLater.button" = "Konfigurer senere";
 "onboarding.error.model.notFound" = "Modell ikke funnet i katalog.";
 "onboarding.error.microphone.denied" = "Mikrofontillatelse nektet. Vennligst gi tillatelse i Systeminnstillinger.";
 

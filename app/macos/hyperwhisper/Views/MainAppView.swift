@@ -1198,6 +1198,10 @@ struct MenuBarItems: View {
         .environmentObject(AudioRecordingManager())
         .environmentObject(TranscriptionPipeline())
         .environmentObject(SettingsManager())
+        .environmentObject(LicenseManager())
+        .environmentObject(WhisperModelManager())
+        .environmentObject(ParakeetModelManager())
+        .environmentObject(CloudProviderHealthManager())
         .frame(width: 1000, height: 700)
 }
 

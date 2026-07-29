@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Tarkkuus";
 "onboarding.model.metric.size" = "Koko";
 "onboarding.model.metric.size.value" = "1,5 Gt";
+
+"onboarding.model.pill.recommended" = "Suositeltu";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Tai valitse toinen äänimalli";
 "onboarding.model.picker.title" = "Malli";
 "onboarding.model.option.proEnglish" = "Pro (englanti)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Video-oppaat";
 "onboarding.completion.resources.blog" = "Blogi";
 "onboarding.done.button" = "Käyttöönotto valmis";
+
+"onboarding.setupLater.button" = "Määritä myöhemmin";
 "onboarding.error.model.notFound" = "Mallia ei löydy luettelosta.";
 "onboarding.error.microphone.denied" = "Mikrofonilupa evätty. Myönnä lupa järjestelmäasetuksissa.";
 

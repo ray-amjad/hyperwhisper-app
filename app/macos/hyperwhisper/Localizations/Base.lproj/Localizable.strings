@@ -402,6 +402,8 @@
 "onboarding.completion.resources.videos" = "Video Tutorials";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Done Onboarding";
+
+"onboarding.setupLater.button" = "Set Up Later";
 "onboarding.error.model.notFound" = "Model not found in catalog.";
 "onboarding.error.microphone.denied" = "Microphone permission denied. Please grant permission in System Settings.";
 

@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Precizitāte";
 "onboarding.model.metric.size" = "Izmērs";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Ieteicams";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Vai izvēlieties citu balss modeli";
 "onboarding.model.picker.title" = "Modelis";
 "onboarding.model.option.proEnglish" = "Pro (English)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Video pamācības";
 "onboarding.completion.resources.blog" = "Blogs";
 "onboarding.done.button" = "Sākotnējā iestatīšana pabeigta";
+
+"onboarding.setupLater.button" = "Iestatīt vēlāk";
 "onboarding.error.model.notFound" = "Modelis netika atrasts katalogā.";
 "onboarding.error.microphone.denied" = "Mikrofona atļauja noraidīta. Lūdzu piešķiriet atļauju sistēmas iestatījumos.";
 

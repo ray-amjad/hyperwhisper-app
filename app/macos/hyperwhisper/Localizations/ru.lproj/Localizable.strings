@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Точность";
 "onboarding.model.metric.size" = "Размер";
 "onboarding.model.metric.size.value" = "1,5 ГБ";
+
+"onboarding.model.pill.recommended" = "Рекомендуется";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Или выберите другую голосовую модель";
 "onboarding.model.picker.title" = "Модель";
 "onboarding.model.option.proEnglish" = "Pro (английский)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Видеоуроки";
 "onboarding.completion.resources.blog" = "Блог";
 "onboarding.done.button" = "Завершить введение";
+
+"onboarding.setupLater.button" = "Настроить позже";
 "onboarding.error.model.notFound" = "Модель не найдена в каталоге.";
 "onboarding.error.microphone.denied" = "Доступ к микрофону отклонен. Пожалуйста, предоставьте разрешение в Параметры системы.";
 

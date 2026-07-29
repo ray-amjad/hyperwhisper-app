@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Doğruluk";
 "onboarding.model.metric.size" = "Boyut";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Önerilen";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Veya farklı bir ses modeli seç";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (İngilizce)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Video Öğreticileri";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Onboarding'i Tamamla";
+
+"onboarding.setupLater.button" = "Daha Sonra Ayarla";
 "onboarding.error.model.notFound" = "Katalogda model bulunamadı.";
 "onboarding.error.microphone.denied" = "Mikrofon izni reddedildi. Lütfen Sistem Ayarları'nda izin verin.";
 

@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Nákvæmni";
 "onboarding.model.metric.size" = "Stærð";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Mælt með";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Eða, veldu annað raddlíkan";
 "onboarding.model.picker.title" = "Líkan";
 "onboarding.model.option.proEnglish" = "Pro (enska)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Myndbandskennsla";
 "onboarding.completion.resources.blog" = "Blogg";
 "onboarding.done.button" = "Ljúka byrjunarferli";
+
+"onboarding.setupLater.button" = "Setja upp síðar";
 "onboarding.error.model.notFound" = "Líkan fannst ekki í skrá.";
 "onboarding.error.microphone.denied" = "Hljóðnemaleyfi hafnað. Vinsamlegast veittu leyfi í kerfisstillingum.";
 

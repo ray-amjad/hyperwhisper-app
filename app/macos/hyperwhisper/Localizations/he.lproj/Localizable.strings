@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "דיוק";
 "onboarding.model.metric.size" = "גודל";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "מומלץ";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "או, בחר מודל קול אחר";
 "onboarding.model.picker.title" = "מודל";
 "onboarding.model.option.proEnglish" = "Pro (אנגלית)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "מדריכי וידאו";
 "onboarding.completion.resources.blog" = "בלוג";
 "onboarding.done.button" = "סיים הכנה ראשונית";
+
+"onboarding.setupLater.button" = "הגדרה מאוחר יותר";
 "onboarding.error.model.notFound" = "המודל לא נמצא בקטלוג.";
 "onboarding.error.microphone.denied" = "הרשאת מיקרופון נדחתה. אנא תן הרשאה בהגדרות המערכת.";
 

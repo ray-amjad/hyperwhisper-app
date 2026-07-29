@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Précision";
 "onboarding.model.metric.size" = "Taille";
 "onboarding.model.metric.size.value" = "1.5 GB";
+
+"onboarding.model.pill.recommended" = "Recommandé";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Ou choisissez un autre modèle vocal";
 "onboarding.model.picker.title" = "Modèle";
 "onboarding.model.option.proEnglish" = "Pro (English)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Tutoriels vidéo";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Terminer l’onboarding";
+
+"onboarding.setupLater.button" = "Configurer plus tard";
 "onboarding.error.model.notFound" = "Modèle introuvable dans le catalogue.";
 "onboarding.error.microphone.denied" = "Autorisation du microphone refusée. Veuillez l’accorder dans Réglages Système.";
 

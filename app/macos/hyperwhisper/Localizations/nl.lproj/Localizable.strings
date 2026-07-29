@@ -318,6 +318,10 @@
 "onboarding.model.metric.accuracy" = "Nauwkeurigheid";
 "onboarding.model.metric.size" = "Grootte";
 "onboarding.model.metric.size.value" = "1,5 GB";
+
+"onboarding.model.pill.recommended" = "Aanbevolen";
+"onboarding.model.pill.whisper" = "Whisper";
+"onboarding.model.pill.parakeet" = "Parakeet";
 "onboarding.model.alternatives" = "Of kies een ander spraakmodel";
 "onboarding.model.picker.title" = "Model";
 "onboarding.model.option.proEnglish" = "Pro (Engels)";
@@ -365,6 +369,8 @@
 "onboarding.completion.resources.videos" = "Videotutorials";
 "onboarding.completion.resources.blog" = "Blog";
 "onboarding.done.button" = "Onboarding voltooid";
+
+"onboarding.setupLater.button" = "Later instellen";
 "onboarding.error.model.notFound" = "Model niet gevonden in catalogus.";
 "onboarding.error.microphone.denied" = "Microfoontoestemming geweigerd. Verleen toestemming in Systeeminstellingen.";
 
