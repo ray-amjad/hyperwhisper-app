@@ -391,7 +391,7 @@ extension RecordingTranscriptionFlow {
             // Audio actually sent to the provider: VAD-trimmed length when VAD ran,
             // else the raw recording. Reused below for the UI-side slow threshold so
             // both P3 (pipeline) and P4 (this flow) scale off the same duration.
-            let effectiveAudioDurationSeconds = trimResult?.trimmedDuration ?? recordingDuration
+            let effectiveAudioDurationSeconds = (vadResult.wasProcessed ? trimResult?.trimmedDuration : nil) ?? recordingDuration
             let transcribeStart = Date()
             let transcriptionResult = try await transcriptionMgr.transcribeWithDetails(
                 audioURL: finalAudioURL,
