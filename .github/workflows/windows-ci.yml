@@ -1,0 +1,127 @@
+# Lightweight PR gate for the Windows app: compile + smoke test, no signing.
+#
+# The counterpart to macos-ci.yml. Deliberately NOT a trimmed-down
+# windows-release.yml — it skips Inno Setup, installer packaging, Authenticode
+# and Ed25519 signing, R2 upload, appcast mutation, and release creation
+# entirely. Its only job is to prove `main` and open PRs still compile against
+# a real .NET 10 / Windows toolchain and survive the smoke suite.
+#
+# Before this existed, Windows-only changes (including regenerated UniFFI
+# bindings under app/windows/HyperWhisper/Generated/RustCore/) merged with zero
+# verification: windows-release.yml is workflow_dispatch-only, so binding↔DLL
+# drift surfaced for the first time at release time.
+name: Windows CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths: &ci-paths
+      - "app/windows/**"
+      - "shared-core-rs/**"
+      # Embedded into the app assembly as resources (see the EmbeddedResource
+      # blocks in HyperWhisper.csproj) and read at runtime, so a catalog- or
+      # prompt-only change must still trigger this gate.
+      - "shared-app-classification/**"
+      - "shared-models/**"
+      - "shared-prompts/**"
+      - ".github/workflows/windows-ci.yml"
+  push:
+    branches: [main]
+    # Same path filter as pull_request above, via YAML anchor (&ci-paths /
+    # *ci-paths) — plain YAML alias resolution, not a GitHub Actions feature,
+    # so this is safe: the parser expands it before Actions ever sees the
+    # workflow.
+    paths: *ci-paths
+
+concurrency:
+  # PR runs: a newer push to the same PR branch supersedes the older run, so
+  # cancelling the in-progress one is correct and desired.
+  #
+  # push-to-main runs: github.ref is the same literal string (refs/heads/main)
+  # for every push, so keying on it alone would mean a second commit landing on
+  # main while the first's CI is still running cancels that first run outright —
+  # losing its pass/fail record. Keying push events on github.sha instead gives
+  # every push its own group, and cancel-in-progress is scoped to pull_request
+  # only so push runs never cancel each other. (Mirrors macos-ci.yml.)
+  group: windows-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-test:
+    name: Build & Smoke Test (Windows, unsigned)
+    runs-on: windows-latest
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Checkout
+      # ----------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------------
+      # 2. Setup .NET 10 SDK
+      # ----------------------------------------------------------------
+      # Same version/quality as windows-release.yml — a PR must compile
+      # against the toolchain that ships the release.
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      # ----------------------------------------------------------------
+      # 3. Cache the Rust build
+      # ----------------------------------------------------------------
+      # The release-profile core build below dominates this job's wall clock
+      # (the workspace pins lto=true / codegen-units=1). Keyed on the pinned
+      # toolchain + lockfile so a dependency bump busts it; the restore-keys
+      # fallback still reuses the registry when only first-party crates change.
+      - name: Cache cargo registry and target dir
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            shared-core-rs/target
+          key: windows-ci-cargo-${{ hashFiles('shared-core-rs/rust-toolchain.toml', 'shared-core-rs/Cargo.lock') }}
+          restore-keys: |
+            windows-ci-cargo-
+
+      # ----------------------------------------------------------------
+      # 4. Build the Rust shared core (x64 only)
+      # ----------------------------------------------------------------
+      # Unlike macOS — which commits a static lib for fast local Xcode builds —
+      # Windows commits only .gitkeep placeholders under Resources/rust-core/,
+      # and the csproj's EnsureRustCoreDll target hard-errors when the DLL is
+      # absent. So this is not an optional freshness step; nothing compiles
+      # without it.
+      #
+      # x64 only: the ARM64 cross-build would roughly double this job for no
+      # extra compile coverage (same sources, same bindings). windows-release.yml
+      # still builds both, and ARM64 is exercised manually before tagging — the
+      # same coverage limitation the smoke tests already document.
+      #
+      # --release matches the release path exactly, so a link or LTO failure
+      # can't hide behind a dev-profile build here.
+      - name: Build Rust shared core (x64)
+        working-directory: shared-core-rs
+        run: |
+          rustup show
+          rustup target add x86_64-pc-windows-msvc
+          cargo build --release --target x86_64-pc-windows-msvc
+
+          $dest = "..\app\windows\HyperWhisper\Resources\rust-core\x64"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item "target\x86_64-pc-windows-msvc\release\hyperwhisper_core.dll" "$dest\hyperwhisper_core.dll" -Force
+          Write-Host "x64 DLL: $((Get-Item "$dest\hyperwhisper_core.dll").Length) bytes"
+
+      # ----------------------------------------------------------------
+      # 5. Build + run the smoke tests
+      # ----------------------------------------------------------------
+      # HyperWhisper.SmokeTests ProjectReferences the main app, so this single
+      # command compiles the whole WPF app (the compile gate) and then runs the
+      # suite: the first FFI call trips the UniFFI contract-version + API
+      # checksum handshake, catching generated-binding ↔ DLL drift, followed by
+      # unit checks over the retry/timeout/vocabulary machinery and a WPF init
+      # smoke. No secrets, no network, no signing — safe on fork PRs.
+      - name: Run smoke tests (build + FFI + unit checks)
+        run: dotnet run --project app/windows/HyperWhisper.SmokeTests -c Release
