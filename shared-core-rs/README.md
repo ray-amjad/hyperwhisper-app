@@ -76,6 +76,12 @@ lipo -create \
 
 Helper: `./build-apple.sh` does the two builds + `lipo` and copies the result.
 
+The resulting `.a` is **not** committed. Run this once after cloning; CI and the
+release workflow rebuild it from source on every run. If you skip it, Xcode's
+`RustCore` target builds it for you and then asks for one more build (Xcode
+resolves `LIBRARY_SEARCH_PATHS` at plan time, so a lib created mid-build isn't
+linked). See `app/macos/hyperwhisper/Libraries/README.md`.
+
 ### Windows DLL (both architectures)
 
 Cross-compiling the MSVC DLL from macOS is not supported; build on Windows or in
@@ -188,7 +194,18 @@ that principle. Left as a known limitation.
 
 ## Distribution
 
-- **Milestones 0–4 (now):** build locally, commit the prebuilt binaries + pilot
-  bindings (the same hybrid pattern `rphonetic-ffi` used).
-- **Milestone 5+:** a GitHub Actions matrix cross-compiles every target; binaries
-  leave git history and are pulled at app-build time.
+Generated bindings (`bindings/`) and the UniFFI headers are committed — they're
+text, they diff, and reviewing them is how binding drift gets caught.
+
+Compiled binaries are **not**:
+
+| Target | Artifact | How it's obtained |
+|---|---|---|
+| macOS | `libhyperwhisper_core.a` | Xcode "Ensure Rust Core" phase, or `./build-apple.sh`; rebuilt from source in `macos-ci.yml` + `macos-release.yml` |
+| Windows | `hyperwhisper_core.dll` | built in `windows-ci.yml` / `windows-release.yml`; only `.gitkeep` is tracked |
+
+The macOS lib was committed through milestone 4 (the hybrid pattern
+`rphonetic-ffi` used) and left git history in 2026-07 — 11 versions of a 65 MB
+binary had reached 52% of the repository, and linking the committed copy at
+release time let stale Rust ship silently whenever the FFI checksums happened
+to still match. Both platforms now build from source on every run.
