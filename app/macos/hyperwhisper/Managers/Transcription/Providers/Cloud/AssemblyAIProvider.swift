@@ -19,7 +19,17 @@
 //  `keyterms_prompt` build (shared sanitize/dedup, ≤6-word/cap-by-model), and the
 //  poll-completion `{text}` parse + NoSpeech-on-empty.
 //
+//  SYNC FAST PATH: clips under `assemblyaiSyncMaxDurationSecs()` (currently
+//  120s) try AssemblyAI's sync API (`POST sync.assemblyai.com/v1/transcribe`)
+//  first — one blocking request returns the finished transcript in the same
+//  response (~134ms p50), no upload/create/poll. Falls back to the pipeline
+//  above when the requested model is a medical variant (sync has no
+//  medical/domain concept), the exact AVFoundation duration is unavailable,
+//  >= the cap, or the sync call itself errors/times out. A `.NoSpeech` result
+//  is NOT a fallback trigger — see `tryTranscribeSync`.
+//
 
+import AVFoundation
 import Foundation
 import OSLog
 
@@ -29,6 +39,26 @@ class AssemblyAIProvider: TranscriptionProvider {
 
     /// Shared URLSession for connection reuse across upload and polling steps.
     private lazy var session: URLSession = URLSession(configuration: .default)
+
+    /// Short-timeout session dedicated to the sync fast path — a single
+    /// blocking call that must fail fast enough to still fall back to async,
+    /// not `session`'s larger multi-step retry budget.
+    private lazy var syncSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = Self.syncTimeoutSeconds
+        config.timeoutIntervalForResource = Self.syncTimeoutSeconds
+        return URLSession(configuration: config)
+    }()
+
+    /// Sync fast path HTTP call timeout — sourced from the Rust core's shared
+    /// `assemblyaiSyncTimeoutMs()` FFI constant (see hw-net's
+    /// `assemblyai/sync_flow.rs`) instead of a hardcoded literal, so Swift/C#
+    /// can't drift from each other. Tightened from an earlier 40s to a much
+    /// smaller value (AssemblyAI's sync p50 is ~134ms) so a stalled sync call
+    /// blocks the async fallback for far less time — a sequential
+    /// sync-then-async redesign into a concurrent race is out of scope; this
+    /// just caps the worst case.
+    private static let syncTimeoutSeconds: TimeInterval = TimeInterval(assemblyaiSyncTimeoutMs()) / 1000.0
 
     var isAvailable: Bool { !apiKey.isEmpty }
     var name: String { "AssemblyAI" }
@@ -76,6 +106,16 @@ class AssemblyAIProvider: TranscriptionProvider {
             ? (mode?.cloudTranscriptionModel ?? "")
             : ""
         let contentType = AudioMimeTypeResolver.infer(for: audioURL)
+        // NOTE: this ONE `params` value is passed to BOTH the sync builder
+        // (`assemblyaiBuildSyncRequest`, below) AND — on fallback — the async
+        // builders (`assemblyaiBuild{Upload,Create,Poll}Request`). The Rust
+        // core's doc comment on `SYNC_BASE_URL` warns against exactly this
+        // when `params.base_url` is set: sync and async point at DIFFERENT
+        // hosts (`sync.assemblyai.com` vs `api.assemblyai.com`), so one
+        // override can't correctly redirect both. Currently latent — `baseURL`
+        // is never passed here — but if a future staging/test override is
+        // added to this call site, it must NOT reuse this same `params` value
+        // for both builders; build sync and async params separately instead.
         let params = RustCoreMapping.transcribeParams(
             audioPath: audioURL.path,
             audioMime: contentType,
@@ -84,6 +124,27 @@ class AssemblyAIProvider: TranscriptionProvider {
             apiKey: apiKey,
             model: modelToSend
         )
+
+        // Sync fast path: try AssemblyAI's one-request sync API for clips under
+        // its duration cap before falling back to the async upload/create/poll
+        // pipeline below. Uses the EXACT AVFoundation duration (not a byte-size
+        // estimate) since the file is already on disk. Medical models are
+        // excluded: the sync API has no medical/domain concept and always runs
+        // plain universal-3-5-pro, so routing a medical request through sync
+        // would silently drop the paid Medical Mode add-on instead of erroring
+        // or falling back — matches the cloud TS path's existing exclusion.
+        let isMedicalModel = CloudTranscriptionModels.assemblyAIRequestParams(for: modelToSend).medical
+        let syncMaxDuration = assemblyaiSyncMaxDurationSecs()
+        if !isMedicalModel, let duration = await syncEligibleDuration(for: audioURL), duration < syncMaxDuration {
+            AppLogger.network.debug("AssemblyAI duration \(duration, privacy: .public)s < \(syncMaxDuration, privacy: .public)s sync cap — trying sync fast path")
+            if let syncText = try await tryTranscribeSync(params: params, durationSeconds: duration) {
+                AppLogger.network.info("AssemblyAI sync transcription complete · chars=\(syncText.count, privacy: .public)")
+                return syncText
+            }
+            AppLogger.network.info("AssemblyAI sync fast path unavailable — falling back to async upload/create/poll")
+        } else {
+            AppLogger.network.debug("AssemblyAI skipping sync fast path (medical=\(isMedicalModel, privacy: .public), duration unknown or >= \(syncMaxDuration, privacy: .public)s cap)")
+        }
 
         // 1) Upload the audio to AssemblyAI to get a temporary URL.
         let uploadURL = try await uploadFile(params: params)
@@ -227,6 +288,91 @@ class AssemblyAIProvider: TranscriptionProvider {
         }
         AppLogger.network.error("AssemblyAI polling timed out · id=\(id, privacy: .private)")
         throw TranscriptionError.transientNetwork(details: nil)
+    }
+
+    // MARK: - Private (sync fast path)
+
+    /// Exact audio duration via AVFoundation, for the sync-vs-async gate.
+    /// Returns `nil` (never throws) on any failure or invalid/indefinite
+    /// duration so the caller falls back to the async pipeline exactly like an
+    /// unknown duration would — this must never fail the whole transcription.
+    /// Mirrors `FileTranscriptionFlow.getAudioDuration`'s NaN/indefinite guards.
+    ///
+    /// FOLLOW-UP (not done here): `FileTranscriptionFlow` and the recording
+    /// lifecycle already compute this duration earlier in the same pipeline,
+    /// so re-loading it here via AVFoundation is redundant work — but
+    /// `AssemblyAIProvider` is a single app-lifetime instance (constructed
+    /// once in `TranscriptionProviderRouter`) reachable CONCURRENTLY from the
+    /// main dictation/import flow AND the Local API server's `/transcribe`
+    /// endpoint (which calls `provider.transcribe(...)` directly, bypassing
+    /// `TranscriptionPipeline`'s task-serialization guard). An instance
+    /// property set just before `transcribe(...)` would race exactly like the
+    /// Windows `_knownDurationSeconds` bug this PR fixes elsewhere (two
+    /// concurrent calls could interleave their sets/reads). The
+    /// `TranscriptionProvider` protocol has no per-call context object to
+    /// thread a duration through without an API change, so this is left as a
+    /// known optimization opportunity rather than risking that same race.
+    private func syncEligibleDuration(for url: URL) async -> Double? {
+        let asset = AVURLAsset(url: url)
+        guard let duration = try? await asset.load(.duration),
+              duration.isValid, !duration.flags.contains(.indefinite) else {
+            return nil
+        }
+        let seconds = CMTimeGetSeconds(duration)
+        guard seconds.isFinite, seconds >= 0 else { return nil }
+        return seconds
+    }
+
+    /// Attempt AssemblyAI's sync transcription API (one blocking request — no
+    /// upload/create/poll) for a clip already confirmed to be under the sync
+    /// duration cap. Returns the transcript text on success, or `nil` to
+    /// signal the caller should fall back to the async pipeline (HTTP/transport
+    /// error, non-2xx, malformed response, or a sync-specific timeout). Does
+    /// NOT go through `RustRetry` — sync is meant to be a single fast call;
+    /// retrying a deterministic rejection (e.g. "too long") would just delay
+    /// the async fallback.
+    ///
+    /// Genuine cancellation propagates un-swallowed. A `.NoSpeech` parse
+    /// result is a legitimate terminal outcome — mirrors the poll loop by
+    /// throwing the mapped `TranscriptionError` instead of falling back.
+    private func tryTranscribeSync(params: TranscribeParams, durationSeconds: Double) async throws -> String? {
+        let request: HttpRequest
+        do {
+            request = try assemblyaiBuildSyncRequest(params: params)
+        } catch {
+            logger.warning("AssemblyAI sync request build failed (non-fatal): \(error.localizedDescription, privacy: .public) — falling back to async")
+            return nil
+        }
+
+        let response: HttpResponse
+        do {
+            response = try await RustHTTPExecutor.execute(request, session: syncSession)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            let nsError = error as NSError
+            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                throw CancellationError()
+            }
+            // Covers the sync-specific timeout (NSURLErrorTimedOut from
+            // `syncSession`'s shorter budget) along with any other transport
+            // failure — all non-fatal here, the async pipeline is the recovery.
+            logger.warning("AssemblyAI sync transport error (non-fatal, \(durationSeconds, privacy: .public)s clip): \(error.localizedDescription, privacy: .public) — falling back to async")
+            return nil
+        }
+
+        if Task.isCancelled { throw CancellationError() }
+
+        do {
+            let transcript = try assemblyaiParseSyncResponse(resp: response)
+            return transcript.text
+        } catch let err as HwTranscriptionError {
+            if case .NoSpeech = err {
+                throw RustCoreMapping.mapTranscriptionError(err, providerName: name)
+            }
+            logger.warning("AssemblyAI sync parse failed (non-fatal): \(String(describing: err), privacy: .public) — falling back to async")
+            return nil
+        }
     }
 
     /// Parse the integer `Retry-After` header from a core `HttpResponse`

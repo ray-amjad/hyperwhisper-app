@@ -344,6 +344,28 @@ internal static class Program
                 Assert(ex.HttpStatusCode == 401, $"status {ex.HttpStatusCode}");
             });
 
+            Run("AssemblyAI IsSyncEligible gates on exact duration vs the core's sync cap, and excludes medical models", () =>
+            {
+                var cap = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+                Assert(cap > 0, $"expected a positive sync cap from the core, got {cap}");
+
+                Assert(
+                    AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: false),
+                    "a duration just under the cap should be sync-eligible");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap), cap, isMedicalModel: false),
+                    "a duration AT the cap should NOT be sync-eligible (falls back to async)");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap + 1), cap, isMedicalModel: false),
+                    "a duration over the cap should NOT be sync-eligible");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Failure("duration probe failed"), cap, isMedicalModel: false),
+                    "an unknown (failed) duration probe should NOT be sync-eligible — fail closed to async");
+                Assert(
+                    !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: true),
+                    "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

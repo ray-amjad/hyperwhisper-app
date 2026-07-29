@@ -2090,7 +2090,14 @@ public partial class MainViewModel : ViewModelBase
                 vocabulary,
                 localTranscriptionProvider: GetLocalProvider(recordingMode),
                 applicationContext: _capturedApplicationContext,
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already tracked above (logged a few lines earlier) for the
+                // same audio content — avoids AssemblyAIService re-reading the
+                // file a second time just for its sync-eligibility gate. This
+                // is the PRIMARY target of the sub-120s sync fast path (the
+                // most latency-sensitive flow), so it must forward the known
+                // duration the same way the file-import call site does.
+                knownDurationSeconds: RecordingDuration.TotalSeconds);
             transcriptionCts.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
@@ -2733,7 +2740,12 @@ public partial class MainViewModel : ViewModelBase
             var result = await _transcriptionOrchestrator.TranscribeAsync(
                 permanentPath, mode, vocabulary,
                 localTranscriptionProvider: GetLocalProvider(mode),
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already probed above (STEP 5) via NAudio for the same audio
+                // content (permanentPath is a byte-identical copy of
+                // pathForTranscription) — avoids AssemblyAIService re-reading
+                // the file a second time just for its sync-eligibility gate.
+                knownDurationSeconds: duration);
             transcriptionCts.Token.ThrowIfCancellationRequested();
 
             // STEP 9: Finishing stage (85-100%) - Update transcript with results

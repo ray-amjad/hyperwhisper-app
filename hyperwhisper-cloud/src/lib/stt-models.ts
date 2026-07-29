@@ -10,6 +10,8 @@
 // is the backend's narrower, security-critical view: what is actually routable
 // and how to meter it.
 
+import { ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE } from './cost-calculator';
+
 export type SttProviderId =
   | 'deepgram'
   | 'groq'
@@ -60,6 +62,21 @@ export const MEDICAL_DOMAIN = 'medical';
 const ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE = 0.15 / 60;
 // Keyterms add-on ($0.05/hr) applies only to universal-3-pro; universal-2 is free/beta.
 const ASSEMBLYAI_KEYTERMS_ADDON_USD_PER_MINUTE = 0.05 / 60;
+// AssemblyAI's separate sync product (<=120s clips, single blocking request)
+// always runs universal-3-5-pro at its own published rate ("the same rate as
+// Universal-3.5 Pro Realtime") — HIGHER than either async tier below and not
+// modeled by a `models[]` entry (sync isn't a selectable model; it's a
+// routing decision the sync-eligibility gate makes for a request that could
+// have asked for either async model). Exported so the preflight reservation
+// (estimateCreditsForProviderFallbacks in routes/transcribe.ts) can reserve
+// against it for a request that could route through sync, instead of only
+// ever reserving the lower async catalog rate for the requested model — a
+// short clip (sync's target case) must not be able to deduct more than was
+// reserved. Re-exports cost-calculator.ts's `ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE`
+// (the single source of truth for this rate, used for ACTUAL billing) instead
+// of a second hardcoded copy of the same literal, so the reserved amount can
+// never silently drift from what's actually billed.
+export const ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE = ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE;
 // ElevenLabs keyterm prompting carries a +20% surcharge on base (scribe_v2 only).
 const ELEVENLABS_KEYTERMS_SURCHARGE = 0.20;
 
