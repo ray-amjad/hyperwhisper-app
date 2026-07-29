@@ -59,6 +59,7 @@ extension RecordingTranscriptionFlow {
         streamingPreviewTextSnapshot = ""
         streamingDeliveryMode = .directInsert
         streamingTargetBundleId = nil
+        sessionStartedWithTextDeliverySuppressed = false
         recordingLifecycle.audioLevel = 0
 
         if cancelService {
@@ -115,6 +116,9 @@ extension RecordingTranscriptionFlow {
         fastFormatting: Bool = true
     ) async {
         let normalizedLanguage = normalizedStreamingLanguage(streamingLanguageParam, provider: provider, model: model)
+        // Capture once for this concrete service callback. Reading the reusable
+        // flow property inside a late callback could observe a newer session.
+        let suppressTextDeliveryForSession = sessionStartedWithTextDeliverySuppressed
 
         AppLogger.audio.info("📡 Starting streaming transcription with language: \(normalizedLanguage, privacy: .public), provider: \(provider, privacy: .public)")
         SentryService.addBreadcrumb(
@@ -471,11 +475,16 @@ extension RecordingTranscriptionFlow {
                     AppLogger.audio.info(
                         "⌨️ Streaming final delta after processing: chars=\(textToType.count, privacy: .public) spaces=\(Self.whitespaceCount(textToType), privacy: .public) text=\(Self.diagnosticExcerpt(textToType), privacy: .public)"
                     )
+                    let suppressTextDelivery = RecordingTextDeliveryPolicy.shouldSuppress(
+                        sessionStartedSuppressed: suppressTextDeliveryForSession,
+                        currentlySuppressed: TextDeliveryGate.isSuppressed,
+                        trigger: self.currentRecordingTriggerSource
+                    )
                     Task {
-                        // Delivery suppression while onboarding is open is enforced
-                        // inside the TextInputService primitives (TextDeliveryGate).
-                        // The delta is still accumulated (above) and surfaced inline
-                        // via `lastTranscription` when the session stops.
+                        guard !suppressTextDelivery else {
+                            AppLogger.audio.info("🚫 Streaming segment delivery suppressed for this recording session")
+                            return
+                        }
                         let success = await TextInputService.shared.typeSegment(textToType, language: streamingLanguage)
                         if success {
                             AppLogger.audio.debug("⌨️ Typed streaming segment: \(textToType.count, privacy: .public) chars")
@@ -722,11 +731,12 @@ extension RecordingTranscriptionFlow {
         // transcript into the target in a single shot.
         let deliveryMode = streamingDeliveryMode
         let sessionTarget = streamingTargetBundleId
-        // Delivery suppression while onboarding is open is enforced inside
-        // `pasteTextForStreaming` (TextDeliveryGate) — a streaming shortcut fired
-        // mid-onboarding stays inline only. The transcript is still saved and
-        // surfaced via `lastTranscription` below.
-        if deliveryMode == .previewOnly, !commitText.isEmpty {
+        let suppressTextDelivery = RecordingTextDeliveryPolicy.shouldSuppress(
+            sessionStartedSuppressed: sessionStartedWithTextDeliverySuppressed,
+            currentlySuppressed: TextDeliveryGate.isSuppressed,
+            trigger: currentRecordingTriggerSource
+        )
+        if deliveryMode == .previewOnly, !commitText.isEmpty, !suppressTextDelivery {
             let pasteSucceeded = await TextInputService.shared.pasteTextForStreaming(
                 commitText,
                 targetPID: previousFrontmostPID
@@ -745,6 +755,8 @@ extension RecordingTranscriptionFlow {
                     ]
                 )
             }
+        } else if deliveryMode == .previewOnly, !commitText.isEmpty {
+            AppLogger.audio.info("🚫 Streaming preview commit suppressed for this recording session")
         }
 
         // Save accumulated transcript to history
@@ -786,6 +798,7 @@ extension RecordingTranscriptionFlow {
         streamingPreviewTextSnapshot = ""
         streamingDeliveryMode = .directInsert
         streamingTargetBundleId = nil
+        sessionStartedWithTextDeliverySuppressed = false
         recordingLifecycle.audioLevel = 0
 
         // Update UI state

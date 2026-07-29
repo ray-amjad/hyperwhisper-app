@@ -405,9 +405,13 @@ struct OnboardingView: View {
         }
         .padding(40)
         // Clear any prior transcript so the panel only reflects a recording made
-        // on this screen; clear again on leave so it never lingers.
+        // on this screen. Stop any active test recording before leaving so the
+        // microphone cannot keep capturing after Continue or Set Up Later.
         .onAppear { appState.lastTranscription = "" }
-        .onDisappear { appState.lastTranscription = "" }
+        .onDisappear {
+            cancelRecordingForOnboardingExit()
+            appState.lastTranscription = ""
+        }
     }
 
     // MARK: - Step 7: Done
@@ -584,6 +588,12 @@ struct OnboardingView: View {
     }
 
     private func finishOnboarding() {
+        // The test step cancels in onDisappear. All other dismissal paths still
+        // need a privacy backstop for recordings started by a global shortcut.
+        if currentStep != 6 {
+            cancelRecordingForOnboardingExit()
+        }
+
         // Defensive: release the microphone metering preview in case onboarding is
         // completed without passing back through the Microphone step's onDisappear.
         audioManager.stopInputLevelPreview()
@@ -598,6 +608,15 @@ struct OnboardingView: View {
 
         // Navigate to home
         appState.selectedNavigationItem = .home
+    }
+
+    private func cancelRecordingForOnboardingExit() {
+        // Do not gate this on AudioRecordingManager.isRecording: streaming capture
+        // has separate state. stopOnly is intentionally a no-op when both are idle.
+        audioManager.toggleRecordingWithTranscription(
+            stopOnly: true,
+            trigger: .onboarding
+        )
     }
 
     /// Reconfigure the EXISTING default Mode (well-known UUID …0001, created by

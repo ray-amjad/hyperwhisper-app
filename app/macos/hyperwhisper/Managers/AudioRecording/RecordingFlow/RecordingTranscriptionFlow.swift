@@ -23,6 +23,16 @@ enum RecordingTriggerSource: String {
     case unknown = "unknown"
 }
 
+enum RecordingTextDeliveryPolicy {
+    static func shouldSuppress(
+        sessionStartedSuppressed: Bool,
+        currentlySuppressed: Bool,
+        trigger: RecordingTriggerSource
+    ) -> Bool {
+        sessionStartedSuppressed || currentlySuppressed || trigger == .onboarding
+    }
+}
+
 // MARK: - Quick Capture Context
 
 /// Per-session context for a Quick Capture recording.
@@ -185,6 +195,11 @@ class RecordingTranscriptionFlow {
 
     /// Source that initiated the current recording attempt.
     var currentRecordingTriggerSource: RecordingTriggerSource = .unknown
+
+    /// Captures delivery suppression at recording start. This remains fixed for
+    /// the session so dismissing onboarding before transcription completes
+    /// cannot release queued batch or streaming text into another app.
+    var sessionStartedWithTextDeliverySuppressed = false
 
     /// PID of app that was frontmost before recording (for auto-paste)
     var previousFrontmostPID: pid_t?

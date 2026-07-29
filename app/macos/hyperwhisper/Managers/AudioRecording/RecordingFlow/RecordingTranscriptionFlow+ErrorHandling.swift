@@ -102,6 +102,7 @@ extension RecordingTranscriptionFlow {
         appState?.showError(message)
         currentRecordingAttemptId = nil
         currentRecordingTriggerSource = .unknown
+        sessionStartedWithTextDeliverySuppressed = false
         quickCaptureContext = nil
     }
 

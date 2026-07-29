@@ -59,6 +59,7 @@ extension RecordingTranscriptionFlow {
         defer {
             currentRecordingAttemptId = nil
             currentRecordingTriggerSource = .unknown
+            sessionStartedWithTextDeliverySuppressed = false
             // Quick Capture context lives for one session — clear it now so the
             // next non-QC recording doesn't accidentally re-route to Notes.
             quickCaptureContext = nil
@@ -502,8 +503,11 @@ extension RecordingTranscriptionFlow {
                 // trigger term is belt-and-suspenders. `lastTranscription` was already
                 // set above (line ~467), which the onboarding view observes to render
                 // "You said …".
-                let suppressForOnboarding = TextDeliveryGate.isSuppressed
-                    || (trigger == RecordingTriggerSource.onboarding.rawValue)
+                let suppressForOnboarding = RecordingTextDeliveryPolicy.shouldSuppress(
+                    sessionStartedSuppressed: sessionStartedWithTextDeliverySuppressed,
+                    currentlySuppressed: TextDeliveryGate.isSuppressed,
+                    trigger: RecordingTriggerSource(rawValue: trigger) ?? .unknown
+                )
                 let shouldDeliverText = !suppressForOnboarding
                     && (isQuickCaptureRouting
                         || (settingsManager?.pasteResultText ?? false))
