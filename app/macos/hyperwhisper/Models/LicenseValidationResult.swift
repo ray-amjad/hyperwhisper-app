@@ -77,5 +77,23 @@ struct LicenseValidationResult {
     ///
     /// Defaults to `false`; only `LicenseNetworkService.validateLicense`'s
     /// offline-fallback catch branch sets it `true`.
-    let networkFailureFallback: Bool = false
+    let networkFailureFallback: Bool
+
+    init(
+        isValid: Bool,
+        status: LicenseStatus,
+        customerId: String?,
+        customerEmail: String?,
+        customerName: String?,
+        errorMessage: String?,
+        networkFailureFallback: Bool = false
+    ) {
+        self.isValid = isValid
+        self.status = status
+        self.customerId = customerId
+        self.customerEmail = customerEmail
+        self.customerName = customerName
+        self.errorMessage = errorMessage
+        self.networkFailureFallback = networkFailureFallback
+    }
 }

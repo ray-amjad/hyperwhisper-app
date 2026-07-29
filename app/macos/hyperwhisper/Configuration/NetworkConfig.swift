@@ -98,15 +98,11 @@ struct NetworkConfig {
     /// Per-request timeout for the silent, launch-time license revalidation
     /// (`LicenseNetworkService.validateLicense(_:isLaunchValidation: true)`).
     ///
-    /// Deliberately much shorter than `licenseValidationTimeout`: this call races
-    /// a network that may not be up yet (wake-from-sleep, captive portal, DNS not
-    /// resolved yet), so a request that's still hanging several seconds in is
-    /// almost certainly stuck on a dead network, not about to succeed — there's
-    /// no benefit to holding the full 10s per attempt. Paired with the short
-    /// `.licenseLaunchValidation` backoff, this keeps the worst case (all 3
-    /// attempts time out) to single-digit seconds instead of the ~30s that
-    /// `licenseValidationTimeout` × 3 attempts would otherwise cost — the whole
-    /// point of the tighter launch-time budget. HYPERWHISPER-F4.
+    /// Deliberately much shorter than `licenseValidationTimeout`. This is used
+    /// only when launch-time revalidation has a cached server verdict within the
+    /// offline grace period. If no usable cache exists, launch validation keeps
+    /// the normal timeout so a slow-but-live network is not mistaken for an
+    /// invalid license.
     static let licenseLaunchValidationTimeout: TimeInterval = 2.5
 
     /// Delay before `LicenseManager` retries launch-time license validation

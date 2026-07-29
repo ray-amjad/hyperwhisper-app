@@ -7,6 +7,7 @@
 //  side breaks compilation here — that's the point. Do not add a `default:`.
 //
 
+import Foundation
 import Testing
 @testable import HyperWhisper
 

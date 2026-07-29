@@ -101,14 +101,12 @@ class LicenseNetworkService {
     ///
     /// - Parameter isLaunchValidation: `true` for the silent, background
     ///   revalidation `LicenseManager.loadStoredLicense()` fires on every app
-    ///   launch when the cache is stale — uses the tighter `.licenseLaunchValidation`
-    ///   retry budget AND the shorter `licenseLaunchValidationTimeout` per-request
-    ///   timeout instead of `.cloud` / `licenseValidationTimeout`, so a flaky
-    ///   network at launch (wake from sleep, captive portal, DNS not up yet)
-    ///   self-heals in a few seconds rather than leaving a paying user looking
-    ///   unlicensed for ~30s. Explicit, user-triggered activation (the default,
-    ///   `false`) keeps the `.cloud` budget and full request timeout, matching
-    ///   the wait a user already expects after tapping "Activate". HYPERWHISPER-F4.
+    ///   launch when the cache is stale. When a cached verdict is still within
+    ///   its offline grace period, the call uses the tighter
+    ///   `.licenseLaunchValidation` retry budget and shorter per-request timeout.
+    ///   With no safe cached fallback, it retains the normal `.cloud` budget so
+    ///   a slow-but-live network is not prematurely presented as an invalid
+    ///   license. Explicit activation also keeps the normal budget.
     func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
         let trimmedKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
@@ -133,18 +131,18 @@ class LicenseNetworkService {
         // core-built body. `createRequest` defaults to POST + JSON content type,
         // matching the core's request.
         //
-        // Both the per-request timeout AND the retry preset are selected off the
-        // same `isLaunchValidation` bool via `Self.requestPolicy(isLaunchValidation:)`
-        // — a single lookup instead of two independent ternaries, so the two
-        // values (which must stay paired: a short timeout with a short retry
-        // budget, a long timeout with the long one) can't drift out of sync in a
-        // future edit. Launch-time validation uses the much shorter
-        // `licenseLaunchValidationTimeout` so a hung request doesn't eat the
-        // whole per-attempt budget — otherwise 3 attempts at the full 10s
-        // `licenseValidationTimeout` would still cost ~30s worst case, defeating
-        // the point of the tighter `.licenseLaunchValidation` retry preset.
-        // HYPERWHISPER-F4.
-        let policy = Self.requestPolicy(isLaunchValidation: isLaunchValidation)
+        // A tight launch budget is safe only when a cached server verdict is
+        // available for this same key within the offline grace period. Without
+        // that safety net, keep the normal request/retry budget so a slow VPN or
+        // weak network still gets the same chance to validate as an explicit
+        // activation instead of being surfaced as an invalid license.
+        let nowUnixSecs = RustLicenseTime.nowUTC()
+        let hasCachedVerdict = licenseStoredLicenseKey(store: store) == trimmedKey
+            && licenseCachedStatusWithinGrace(store: store, nowUnixSecs: nowUnixSecs) != nil
+        let policy = Self.requestPolicy(
+            isLaunchValidation: isLaunchValidation,
+            hasCachedVerdict: hasCachedVerdict
+        )
         guard var request = NetworkConfig.createRequest(
             for: NetworkConfig.licenseValidateEndpoint,
             timeout: policy.requestTimeout
@@ -389,26 +387,22 @@ class LicenseNetworkService {
     // MARK: - Per-call-site request policy
 
     /// The per-request timeout and retry budget to use for a `validateLicense`
-    /// call — paired together so callers only make ONE `isLaunchValidation`
-    /// decision instead of two independent ternaries (one for the timeout, one
-    /// for the retry preset) that have to be kept in sync by hand. HYPERWHISPER-F4
-    /// (review round 2).
+    /// call. The tight launch policy is selected only when there is a usable
+    /// cached verdict to serve if the live refresh exhausts that short budget.
     struct RequestPolicy {
         let requestTimeout: TimeInterval
         let retryConfig: RetryConfiguration
     }
 
-    /// Single source of truth for `isLaunchValidation`'s two derived settings.
-    /// Launch-time (silent, background) revalidation gets both the shorter
-    /// `licenseLaunchValidationTimeout` AND the tighter `.licenseLaunchValidation`
-    /// retry budget; explicit, user-triggered activation gets the normal
-    /// `licenseValidationTimeout` AND `.cloud` budget. These two values are
-    /// deliberately paired (a short per-request timeout is only useful alongside
-    /// a short retry budget, and vice versa) — computing them together here
-    /// means a future change to one can't accidentally leave the other on the
-    /// wrong preset.
-    static func requestPolicy(isLaunchValidation: Bool) -> RequestPolicy {
-        isLaunchValidation
+    /// Single source of truth for the paired timeout and retry settings.
+    /// Launch-time revalidation with a usable cached verdict gets the short
+    /// policy. Explicit activation and launch validation without a safe cached
+    /// fallback retain the normal policy.
+    static func requestPolicy(
+        isLaunchValidation: Bool,
+        hasCachedVerdict: Bool
+    ) -> RequestPolicy {
+        isLaunchValidation && hasCachedVerdict
             ? RequestPolicy(
                 requestTimeout: NetworkConfig.licenseLaunchValidationTimeout,
                 retryConfig: .licenseLaunchValidation

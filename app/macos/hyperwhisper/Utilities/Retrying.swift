@@ -63,11 +63,11 @@ struct RetryConfiguration {
     /// a flaky network. A short, bounded retry (≈1.5–1.8s of total backoff sleep
     /// across the 2 sleeps between 3 attempts — no sleep follows the final
     /// attempt) lets a transient blip self-heal quickly; `LicenseNetworkService`
-    /// also uses a much shorter per-request timeout for this call
-    /// (`licenseLaunchValidationTimeout`, 2.5s vs the normal 10s) so a hung
-    /// request can't itself eat the whole budget. Once attempts are exhausted,
-    /// it falls back to the last cached verdict rather than continuing to
-    /// hammer the network. See HYPERWHISPER-F4.
+    /// also uses a much shorter per-request timeout for this call when a cached
+    /// verdict exists (`licenseLaunchValidationTimeout`, 2.5s vs the normal
+    /// 10s), so a hung request can't itself eat the whole budget. A launch
+    /// validation without a usable cache keeps the normal `.cloud` policy so a
+    /// slow network is not surfaced as an invalid license. See HYPERWHISPER-F4.
     static let licenseLaunchValidation = RetryConfiguration(
         maxAttempts: 3,
         initialDelay: 0.5,
@@ -126,4 +126,3 @@ func performWithRetry<T>(
     // All retries exhausted
     throw lastError
 }
-

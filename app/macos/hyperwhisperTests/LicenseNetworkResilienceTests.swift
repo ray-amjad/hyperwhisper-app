@@ -74,10 +74,12 @@ struct LicenseNetworkResilienceTests {
         }
         #expect(totalBackoff < 5.0)
 
-        // Every single delay (even accounting for jitter) stays well under the
-        // `.cloud` budget's own per-attempt ceiling.
+        // Pin the launch preset's absolute per-delay ceiling. Comparing a
+        // generated delay to config.maxDelay is vacuous because delay(for:)
+        // clamps to maxDelay by construction.
+        #expect(config.maxDelay <= 2.0)
         for attempt in 1..<config.maxAttempts {
-            #expect(config.delay(for: attempt) <= config.maxDelay)
+            #expect(config.delay(for: attempt) <= 2.0)
         }
     }
 
@@ -203,7 +205,10 @@ struct LicenseNetworkResilienceTests {
         // and retry preset used to be selected via two independent ternaries on
         // the same `isLaunchValidation` bool ~18 lines apart. Now both come from
         // one lookup — assert they stay paired correctly for the launch case.
-        let policy = LicenseNetworkService.requestPolicy(isLaunchValidation: true)
+        let policy = LicenseNetworkService.requestPolicy(
+            isLaunchValidation: true,
+            hasCachedVerdict: true
+        )
         #expect(policy.requestTimeout == NetworkConfig.licenseLaunchValidationTimeout)
         #expect(policy.retryConfig.maxAttempts == RetryConfiguration.licenseLaunchValidation.maxAttempts)
         #expect(policy.retryConfig.initialDelay == RetryConfiguration.licenseLaunchValidation.initialDelay)
@@ -211,7 +216,21 @@ struct LicenseNetworkResilienceTests {
     }
 
     @Test func requestPolicyPairsNormalSettingsForExplicitActivation() {
-        let policy = LicenseNetworkService.requestPolicy(isLaunchValidation: false)
+        let policy = LicenseNetworkService.requestPolicy(
+            isLaunchValidation: false,
+            hasCachedVerdict: true
+        )
+        #expect(policy.requestTimeout == NetworkConfig.licenseValidationTimeout)
+        #expect(policy.retryConfig.maxAttempts == RetryConfiguration.cloud.maxAttempts)
+        #expect(policy.retryConfig.initialDelay == RetryConfiguration.cloud.initialDelay)
+        #expect(policy.retryConfig.maxDelay == RetryConfiguration.cloud.maxDelay)
+    }
+
+    @Test func launchValidationWithoutCachedFallbackKeepsNormalSettings() {
+        let policy = LicenseNetworkService.requestPolicy(
+            isLaunchValidation: true,
+            hasCachedVerdict: false
+        )
         #expect(policy.requestTimeout == NetworkConfig.licenseValidationTimeout)
         #expect(policy.retryConfig.maxAttempts == RetryConfiguration.cloud.maxAttempts)
         #expect(policy.retryConfig.initialDelay == RetryConfiguration.cloud.initialDelay)
