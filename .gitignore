@@ -100,3 +100,4 @@ app/ios/
 **/.DS_Store
 *.env.local
 .env.local
+.vercel
