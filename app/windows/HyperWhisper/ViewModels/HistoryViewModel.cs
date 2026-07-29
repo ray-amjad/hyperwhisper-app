@@ -831,16 +831,6 @@ public partial class HistoryViewModel : ViewModelBase
     }
 
     // =========================================================================
-    // COMMANDS - DATE FILTER
-    // =========================================================================
-
-    [RelayCommand]
-    private void SetDateFilter(DateFilter filter)
-    {
-        DateFilter = filter;
-    }
-
-    // =========================================================================
     // EVENT HANDLERS - HISTORY SERVICE
     // =========================================================================
 

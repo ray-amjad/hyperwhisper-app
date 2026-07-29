@@ -25,11 +25,6 @@ extension AccessibilityHelper {
     /// - Returns: true if permission is granted, false otherwise
     func hasAccessibilityPermission() -> Bool {
         let trusted = AXIsProcessTrusted()
-        // print("🔐 AccessibilityHelper.hasAccessibilityPermission() = \(trusted)")
-        // print("   Bundle ID: \(Bundle.main.bundleIdentifier ?? "unknown")")
-        // print("   Bundle Path: \(Bundle.main.bundlePath)")
-        // print("   Executable: \(Bundle.main.executablePath ?? "unknown")")
-        // print("   Process: \(ProcessInfo.processInfo.processName)")
 
         // Additional diagnostic info (print once to reduce noise)
         if !trusted && !hasLoggedPermissionGuidance {

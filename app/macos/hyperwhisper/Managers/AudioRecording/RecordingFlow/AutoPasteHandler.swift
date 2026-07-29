@@ -221,19 +221,4 @@ class AutoPasteHandler {
         }
     }
 
-    /// Shows an alert when automatic paste fails
-    ///
-    /// **What This Does:**
-    /// Displays a system alert informing the user that auto-paste failed
-    /// and the text was copied to clipboard instead.
-    ///
-    /// **Parameters:**
-    /// - `text`: The text that failed to paste (unused in current implementation)
-    private func showPasteFailedAlert(_ text: String) {
-        let alert = NSAlert()
-        alert.messageText = "audio.alert.pasteFailed.title".localized
-        alert.informativeText = "audio.alert.pasteFailed.message".localized
-        alert.addButton(withTitle: "common.ok".localized)
-        alert.runModal()
-    }
 }

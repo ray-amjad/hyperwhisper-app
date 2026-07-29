@@ -62,18 +62,6 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
                name.Contains("ARC");
     }
 
-    /// <summary>
-    /// Detects if an NVIDIA GPU is present in the system (for CUDA-specific logic).
-    /// </summary>
-    private static bool HasNvidiaGpu()
-    {
-        var gpu = GpuInfoService.GetBestGpu();
-        if (gpu == null) return false;
-        var name = gpu.Name.ToUpperInvariant();
-        return name.Contains("NVIDIA") || name.Contains("GEFORCE") ||
-               name.Contains("RTX") || name.Contains("GTX");
-    }
-
     // =========================================================================
     // STATIC INITIALIZATION
     // =========================================================================

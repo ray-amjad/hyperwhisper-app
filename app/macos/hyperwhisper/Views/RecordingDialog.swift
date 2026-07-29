@@ -833,22 +833,6 @@ struct RecordingDialog: View {
         audioManager.retryTranscriptionFromPendingFile()
     }
 
-    private func copyTranscription() {
-        // Copy transcribed text to clipboard using centralized helper
-        // This respects the clipboard restoration setting if enabled
-        AccessibilityHelper.shared.copyToClipboard(transcribedText, respectSettings: settingsManager)
-        recordingDialogLogger.info("📋 Copied transcription to clipboard")
-        
-        // Show feedback
-        showCopiedFeedback = true
-
-        // Close window after 1 second delay
-        // This gives enough time to see the "Copied!" feedback
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            closeDialog()
-        }
-    }
-    
     private func closeDialog() {
         recordingDialogLogger.debug("🔍 closeDialog() called - setting isPresented = false")
         // CRITICAL: End the recording session for clipboard management
@@ -973,17 +957,7 @@ extension RecordingDialog {
         PersistenceController.shared.findMostRecentFailedTranscript() ??
         PersistenceController.shared.findMostRecentProcessingTranscript()
     }
-    
-    private func retryButtonTitle(for transcript: Transcript, handler: TranscriptActionHandler) -> String {
-        if isRetrying || handler.isRetrying(transcript) {
-            return "recording.retry.inProgress".localized
-        }
-        let retryCount = transcript.value(forKey: "retryCount") as? Int16 ?? 0
-        return retryCount > 0
-            ? String(format: "recording.retry.count".localized, retryCount)
-            : "recording.retry".localized
-    }
-    
+
     private var isCloudModeSelected: Bool {
         appState.modeSnapshotForCurrentSession()?.model.lowercased() == "cloud"
     }
@@ -1221,78 +1195,6 @@ extension RecordingDialog {
             }
         }
         return "recording.provider.unknown".localized
-    }
-}
-
-// MARK: - Rainbow Shimmer Overlay
-
-struct RainbowShimmer: View {
-    var intensity: CGFloat
-    @State private var phase: CGFloat = 0
-    
-    var body: some View {
-        GeometryReader { geometry in
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    .red, .orange, .yellow, .green, .blue, .purple, .red
-                ]),
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(width: geometry.size.width * 2, height: geometry.size.height)
-            .offset(x: -phase * geometry.size.width)
-            .opacity(Double(0.20 + 0.40 * min(CGFloat(1.0), max(CGFloat(0.0), intensity))))
-            .blendMode(.screen)
-            .onAppear {
-                phase = 0
-                withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
-                    phase = 1.0
-                }
-            }
-        }
-        .allowsHitTesting(false)
-    }
-}
-
-// MARK: - Mode Selector
-
-struct ModeSelector: View {
-    @Binding var selectedMode: String
-    let modes: [String]
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            ForEach(modes, id: \.self) { mode in
-                Button {
-                    selectedMode = mode
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(mode)
-                            .font(.system(size: 13))
-                        Spacer()
-                        if selectedMode == mode {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11))
-                                .foregroundColor(.accentColor)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .background(selectedMode == mode ? Color.accentColor.opacity(0.1) : Color.clear)
-                
-                if mode != modes.last {
-                    Divider()
-                }
-            }
-        }
-        .frame(width: 150)
-        .background(VisualEffectBackground(style: .recordingDialog))
-        .cornerRadius(8)
     }
 }
 

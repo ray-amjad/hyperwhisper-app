@@ -107,25 +107,3 @@ export function isValidKeyFormat(key: string): boolean {
   return pattern.test(key.toUpperCase());
 }
 
-/**
- * Normalizes a license key for comparison/storage.
- * - Converts to uppercase
- * - Trims whitespace
- * - Ensures consistent format
- *
- * @param key - The license key to normalize
- * @returns Normalized key or null if invalid format
- */
-export function normalizeLicenseKey(key: string): string | null {
-  if (!key || typeof key !== "string") {
-    return null;
-  }
-
-  const normalized = key.toUpperCase().trim();
-
-  if (!isValidKeyFormat(normalized)) {
-    return null;
-  }
-
-  return normalized;
-}
