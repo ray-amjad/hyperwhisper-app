@@ -206,7 +206,11 @@ class LicenseManager: ObservableObject {
             guard self.networkService.getStoredLicenseKey() == licenseKey else { return }
 
             AppLogger.network.info("License validation · retrying soon after launch-time network-failure fallback")
-            let result = await self.networkService.validateLicense(licenseKey, isLaunchValidation: true)
+            let result = await self.networkService.validateLicense(
+                licenseKey,
+                isLaunchValidation: true,
+                expectedStoredLicenseKey: licenseKey
+            )
 
             // Activation, deactivation, backup restore, or another validation
             // may have changed the key while the request was in flight. Never

@@ -276,6 +276,102 @@ struct LicenseNetworkResilienceTests {
         #expect(!normal.networkFailureFallback)
     }
 
+    // MARK: - Retry persistence: stale in-flight responses cannot restore old keys
+
+    @MainActor
+    @Test func staleRetryVerdictDoesNotRestoreAReplacedLicense() {
+        let store = FakeKeyValueStore()
+        let t0 = RustLicenseTime.nowUTC()
+
+        licensePersistValidationVerdict(
+            store: store,
+            status: .active,
+            attemptedKey: "KEY-OLD",
+            nowUnixSecs: t0
+        )
+        licensePersistValidationVerdict(
+            store: store,
+            status: .active,
+            attemptedKey: "KEY-NEW",
+            nowUnixSecs: t0 + 1
+        )
+        licensePersistValidationVerdict(
+            store: store,
+            status: .expired,
+            attemptedKey: "KEY-NEW",
+            nowUnixSecs: t0 + 2
+        )
+
+        // The delayed retry for KEY-OLD receives a late Active response after
+        // KEY-NEW became current. Its expected-key contract must reject the
+        // persistence before Rust can restore KEY-OLD or overwrite KEY-NEW's
+        // cached verdict.
+        let didPersist = LicenseNetworkService.persistValidationVerdictIfCurrent(
+            store: store,
+            status: .active,
+            attemptedKey: "KEY-OLD",
+            expectedStoredLicenseKey: "KEY-OLD",
+            nowUnixSecs: t0 + 3,
+            isCancelled: false
+        )
+
+        #expect(!didPersist)
+        #expect(licenseStoredLicenseKey(store: store) == "KEY-NEW")
+        #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: t0 + 3) == .expired)
+    }
+
+    @MainActor
+    @Test func cancelledRetryVerdictDoesNotPersistWhenKeyStillMatches() {
+        let store = FakeKeyValueStore()
+        let t0 = RustLicenseTime.nowUTC()
+
+        licensePersistValidationVerdict(
+            store: store,
+            status: .active,
+            attemptedKey: "KEY-1",
+            nowUnixSecs: t0
+        )
+
+        let didPersist = LicenseNetworkService.persistValidationVerdictIfCurrent(
+            store: store,
+            status: .expired,
+            attemptedKey: "KEY-1",
+            expectedStoredLicenseKey: "KEY-1",
+            nowUnixSecs: t0 + 1,
+            isCancelled: true
+        )
+
+        #expect(!didPersist)
+        #expect(licenseStoredLicenseKey(store: store) == "KEY-1")
+        #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: t0 + 1) == .active)
+    }
+
+    @MainActor
+    @Test func explicitActivationCanStillPersistAReplacementKey() {
+        let store = FakeKeyValueStore()
+        let t0 = RustLicenseTime.nowUTC()
+
+        licensePersistValidationVerdict(
+            store: store,
+            status: .active,
+            attemptedKey: "KEY-OLD",
+            nowUnixSecs: t0
+        )
+
+        let didPersist = LicenseNetworkService.persistValidationVerdictIfCurrent(
+            store: store,
+            status: .active,
+            attemptedKey: "KEY-NEW",
+            expectedStoredLicenseKey: nil,
+            nowUnixSecs: t0 + 1,
+            isCancelled: false
+        )
+
+        #expect(didPersist)
+        #expect(licenseStoredLicenseKey(store: store) == "KEY-NEW")
+        #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: t0 + 1) == .active)
+    }
+
     // MARK: - Retry-soon delay: prompt, and nowhere close to the cache cycle it shortcuts
 
     @Test func retrySoonDelayIsPromptAndFarShorterThanTheCacheCycle() {

@@ -107,7 +107,16 @@ class LicenseNetworkService {
     ///   With no safe cached fallback, it retains the normal `.cloud` budget so
     ///   a slow-but-live network is not prematurely presented as an invalid
     ///   license. Explicit activation also keeps the normal budget.
-    func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
+    /// - Parameter expectedStoredLicenseKey: When non-nil, the parsed server
+    ///   verdict is persisted only if this is still the stored key. The delayed
+    ///   launch retry supplies its scheduled key so an activation, deactivation,
+    ///   or restore that lands while the request is in flight wins the race and
+    ///   cannot be undone by the stale response.
+    func validateLicense(
+        _ licenseKey: String,
+        isLaunchValidation: Bool = false,
+        expectedStoredLicenseKey: String? = nil
+    ) async -> LicenseValidationResult {
         let trimmedKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
             AppLogger.network.warning("License validation rejected: empty license key")
@@ -198,17 +207,27 @@ class LicenseNetworkService {
                 let outcome = licenseParseValidateResponse(body: data)
 
                 // Persist the key + cache the result through the core's store.
-                // The core stores the key only on a valid verdict and updates the
-                // (global, key-less) validation cache only when the attempted key
-                // is the stored key — a rejected replacement key must not
-                // overwrite the stored key's cached status with Invalid, which
-                // would lock out a valid user for up to 24h.
-                licensePersistValidationVerdict(
-                    store: store,
-                    status: outcome.status,
-                    attemptedKey: trimmedKey,
-                    nowUnixSecs: RustLicenseTime.nowUTC()
-                )
+                // The delayed launch retry additionally supplies the key that
+                // was current when it was scheduled. Check that precondition
+                // immediately before the side-effecting FFI call, on MainActor,
+                // so it is serialized with LicenseManager activation/deactivation:
+                // if one of those operations wins while this request is in
+                // flight, a stale Active response cannot restore the old key.
+                //
+                // The core still owns entitlement semantics: an Active verdict
+                // stores the key, while a rejected replacement cannot overwrite
+                // the current key's global cache.
+                let didPersist = await MainActor.run {
+                    Self.persistValidationVerdictIfCurrent(
+                        store: store,
+                        status: outcome.status,
+                        attemptedKey: trimmedKey,
+                        expectedStoredLicenseKey: expectedStoredLicenseKey,
+                        nowUnixSecs: RustLicenseTime.nowUTC(),
+                        isCancelled: withUnsafeCurrentTask { $0?.isCancelled ?? false }
+                    )
+                }
+                guard didPersist else { throw CancellationError() }
                 AppLogger.network.info("License validation · status=\(Self.adapt(outcome.status).rawValue)")
 
                 return Self.adapt(outcome)
@@ -411,6 +430,45 @@ class LicenseNetworkService {
                 requestTimeout: NetworkConfig.licenseValidationTimeout,
                 retryConfig: .cloud
             )
+    }
+
+    // MARK: - Validation persistence
+
+    /// Persists a server verdict only while the caller's validation is still
+    /// current. Main-actor isolation makes the expected-key check and the
+    /// side-effecting Rust FFI call one serialized unit relative to
+    /// LicenseManager activation/deactivation.
+    ///
+    /// A nil `expectedStoredLicenseKey` is the explicit-activation contract:
+    /// an Active verdict may replace the currently stored key. The delayed
+    /// launch retry passes a non-nil expected key and therefore cannot restore
+    /// a key that was cleared or replaced while its request was in flight.
+    @MainActor
+    @discardableResult
+    static func persistValidationVerdictIfCurrent(
+        store: KeyValueStore,
+        status: HwLicenseStatus,
+        attemptedKey: String,
+        expectedStoredLicenseKey: String?,
+        nowUnixSecs: Int64,
+        isCancelled: Bool
+    ) -> Bool {
+        guard !isCancelled else { return false }
+
+        if let expectedStoredLicenseKey,
+           licenseStoredLicenseKey(store: store) != expectedStoredLicenseKey.trimmingCharacters(
+               in: .whitespacesAndNewlines
+           ) {
+            return false
+        }
+
+        licensePersistValidationVerdict(
+            store: store,
+            status: status,
+            attemptedKey: attemptedKey,
+            nowUnixSecs: nowUnixSecs
+        )
+        return true
     }
 
     // MARK: - Error classification
