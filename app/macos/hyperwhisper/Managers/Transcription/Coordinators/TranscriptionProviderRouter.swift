@@ -447,7 +447,14 @@ class TranscriptionProviderRouter {
             }
             modelString = m
         case "parakeet":
-            modelString = model?.isEmpty == false ? model! : "parakeet-tdt-v3-multilingual"
+            let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) else {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Parakeet",
+                    reason: "Unknown Parakeet model '\(requestedModelId)'"
+                )
+            }
+            modelString = canonicalModelId
         case "qwen3asr", "qwen3", "qwen3-asr":
             modelString = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
@@ -645,38 +652,6 @@ class TranscriptionProviderRouter {
         modelId == "apple-speech-analyzer"
     }
 
-    /// Safety-net fallback used when a local model is selected for this
-    /// transcription but isn't actually downloaded (e.g. a mode still points
-    /// at a Parakeet model that was evicted from disk). Always resolves to
-    /// the built-in HyperWhisper Cloud provider — the same "no local model,
-    /// cloud fallback" promise the Models scan log makes — rather than
-    /// whatever BYOK cloud provider the mode's `cloudProvider` field might
-    /// name, since that field only applies when `mode.model == "cloud"`.
-    private func selectCloudFallbackProvider() async throws -> TranscriptionProvider {
-        ensureHyperWhisperCloudProvider()
-        guard let hwProvider = hyperwhisperCloudProvider else {
-            throw TranscriptionError.providerNotAvailable(provider: "HyperWhisper Cloud", reason: "Failed to initialize provider")
-        }
-
-        if let healthManager = providerHealthManager {
-            let status = await healthManager.ensureHealthy(CloudProvider.hyperwhisper)
-            if !status.isHealthy {
-                AppLogger.network.error("Cloud fallback provider not healthy · status=\(status.statusText, privacy: .public)")
-                throw errorForHealthStatus(status, providerDisplayName: CloudProvider.hyperwhisper.displayName)
-            }
-        }
-
-        guard hwProvider.isAvailable else {
-            throw TranscriptionError.providerNotAvailable(provider: hwProvider.name, reason: "Provider is not configured or ready")
-        }
-
-        guard NetworkStatus.shared.isOnline else {
-            throw TranscriptionError.transientNetwork(details: "No internet connection")
-        }
-
-        return hwProvider
-    }
-
     /// Select local provider based on model ID
     /// DECISION TREE:
     /// - If model ID maps to WhisperModel enum → Use LibWhisperProvider
@@ -751,38 +726,14 @@ class TranscriptionProviderRouter {
                 }
             }
 
-            // MODEL AVAILABILITY GATE (HYPERWHISPER-SV / HYPERWHISPER-TD):
-            // A mode can point at a Parakeet model that isn't downloaded yet
-            // (fresh install) or was evicted from disk after being downloaded.
-            // Previously this fell straight into `prepareIfNeeded`, which
-            // throws `.modelNotDownloaded` and fails the whole transcription
-            // instead of honouring the "no local model, will use cloud
-            // fallback" contract. Kick off the download (same `startDownload`
-            // the Models UI uses) and route *this* transcription to
-            // HyperWhisper Cloud so the user still gets a result.
-            if let parakeetModelManager, !parakeetModelManager.isModelInstalled(modelId) {
-                AppLogger.transcription.warning("⚠️ Parakeet model not downloaded (\(modelId, privacy: .public)) — starting download and falling back to cloud for this transcription")
-                await MainActor.run {
-                    parakeetModelManager.startDownload(modelId)
-                }
-                return try await selectCloudFallbackProvider()
-            }
-
-            do {
-                // Pass specific modelId to prepare the correct version (V2 or V3)
-                try await parakeetProvider.prepareIfNeeded(language: language, modelId: modelId)
-                AppLogger.transcription.info("✅ Parakeet provider selected for model: \(modelId)")
-                return parakeetProvider
-            } catch TranscriptionError.modelNotDownloaded {
-                // Defensive: model could be evicted between the check above and prepare.
-                AppLogger.transcription.warning("⚠️ Parakeet model disappeared during prepare — falling back to cloud")
-                if let parakeetModelManager {
-                    await MainActor.run {
-                        parakeetModelManager.startDownload(modelId)
-                    }
-                }
-                return try await selectCloudFallbackProvider()
-            }
+            // Keep explicit local selection local. `prepareIfNeeded` resolves
+            // legacy Parakeet aliases by version and throws
+            // `.modelNotDownloaded` if the corresponding weights are absent.
+            // That avoids silently uploading audio or starting a download
+            // without user consent.
+            try await parakeetProvider.prepareIfNeeded(language: language, modelId: modelId)
+            AppLogger.transcription.info("✅ Parakeet provider selected for model: \(modelId)")
+            return parakeetProvider
         }
 
         AppLogger.transcription.warning("⚠️ Unknown local model: \(modelId, privacy: .public)")
