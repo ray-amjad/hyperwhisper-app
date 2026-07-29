@@ -217,10 +217,18 @@ class HyperWhisperCloudManager: ObservableObject {
 
             return fetchedCredits
 
-        } catch let error as HyperWhisperCloudError {
-            lastError = error.localizedDescription
-            throw error
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
+            if Self.isCancellationError(error) {
+                throw CancellationError()
+            }
+
+            if let cloudError = error as? HyperWhisperCloudError {
+                lastError = cloudError.localizedDescription
+                throw cloudError
+            }
+
             let errorMessage = "Failed to fetch credits: \(error.localizedDescription)"
             lastError = errorMessage
             AppLogger.network.error("HyperWhisper Cloud credit fetch failed · error=\(error.localizedDescription, privacy: .public)")
@@ -232,6 +240,16 @@ class HyperWhisperCloudManager: ObservableObject {
             }
             throw HyperWhisperCloudError.transientNetwork(error.localizedDescription)
         }
+    }
+
+    nonisolated static func isCancellationError(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        let nsError = error as NSError
+        return (nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled)
+            || Task.isCancelled
     }
 
     /// Refreshes credit balance (bypasses cache)

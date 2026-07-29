@@ -172,6 +172,50 @@ struct HyperWhisperCloudLicenseRecoveryTests {
         #expect(await recorder.serverCacheRefreshes == ["refreshed-license"])
     }
 
+    @Test func serverCacheRefreshCancellationPropagatesWithoutRetry() async {
+        let recorder = LicenseRecoveryCallRecorder()
+
+        do {
+            _ = try await HyperWhisperCloudProvider.performTranscribeRequestWithLicenseRecovery(
+                identifier: "stale-license",
+                isLicensed: true,
+                send: { identifier, isLicensed in
+                    _ = await recorder.recordSend(identifier: identifier, isLicensed: isLicensed)
+                    throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+                },
+                revalidate: { identifier in
+                    await recorder.recordRevalidation(identifier)
+                    return Self.validationResult(isValid: true, status: .active)
+                },
+                currentIdentifier: {
+                    await recorder.recordIdentityResolution()
+                    return ("refreshed-license", true)
+                },
+                refreshServerAuthCache: { identifier in
+                    await recorder.recordServerCacheRefresh(identifier)
+                    throw URLError(.cancelled)
+                }
+            )
+            Issue.record("Expected cancellation")
+        } catch is CancellationError {
+            // Expected: explicit user cancellation must not become unauthorized.
+        } catch {
+            Issue.record("Expected CancellationError, got \(error)")
+        }
+
+        #expect(await recorder.sends == [
+            .init(identifier: "stale-license", isLicensed: true)
+        ])
+        #expect(await recorder.revalidations == ["stale-license"])
+        #expect(await recorder.identityResolutions == 1)
+        #expect(await recorder.serverCacheRefreshes == ["refreshed-license"])
+    }
+
+    @Test func creditRefreshRecognizesURLSessionCancellation() {
+        #expect(HyperWhisperCloudManager.isCancellationError(URLError(.cancelled)))
+        #expect(!HyperWhisperCloudManager.isCancellationError(URLError(.timedOut)))
+    }
+
     private static func validationResult(isValid: Bool, status: LicenseStatus) -> LicenseValidationResult {
         LicenseValidationResult(
             isValid: isValid,

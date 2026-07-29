@@ -570,6 +570,9 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
+                if HyperWhisperCloudManager.isCancellationError(error) {
+                    throw CancellationError()
+                }
                 AppLogger.network.warning("HyperWhisper Cloud server license-cache refresh failed · preserving unauthorized response")
                 throw requestError
             }
