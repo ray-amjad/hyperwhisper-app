@@ -76,4 +76,4 @@ This can happen if the same word was added on two devices while offline. On macO
 
 **iCloud Sync is enabled but the app is using local storage.**
 
-If CloudKit fails to initialize (for example, because iCloud is unavailable or the account is not configured), HyperWhisper falls back to a local-only store automatically rather than blocking you from using vocabulary. Check that iCloud is signed in and has available storage, then relaunch the app.
+If your iCloud account is signed out or not configured, HyperWhisper typically loads your vocabulary locally without syncing rather than erroring — nothing breaks, it just won't sync until iCloud is set up. A genuine CloudKit initialization failure (for example, a corrupted local store) is treated as a fatal error rather than an automatic fallback to local-only storage, so if HyperWhisper fails to launch after enabling iCloud Sync, check that iCloud is signed in and has available storage, then relaunch the app.

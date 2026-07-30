@@ -19,11 +19,12 @@ HyperWhisper runs natively on macOS and Windows. Pick your platform below for mi
     | --- | --- | --- |
     | App | Native | Native (universal binary) |
     | Local Whisper / Parakeet | GPU + Neural Engine accelerated | CPU only |
+    | Local Gemma post-processing | Yes | **Not supported** (cloud post-processing only) |
     | HyperWhisper Cloud | Same | Same |
 
     On **Apple Silicon**, local models run noticeably faster — the small Whisper model is comfortably realtime even on an M1 Air.
 
-    On **Intel Macs**, local models still work but use CPU only. For best results on Intel, pick a smaller local model (Whisper Tiny or Base) or use HyperWhisper Cloud.
+    On **Intel Macs**, local transcription models still work but use CPU only. For best results on Intel, pick a smaller local model (Whisper Tiny or Base) or use HyperWhisper Cloud. Local Gemma post-processing is gated to Apple Silicon — Intel Macs must use a cloud post-processing provider.
 
     ## Network
 
@@ -49,15 +50,15 @@ HyperWhisper runs natively on macOS and Windows. Pick your platform below for mi
     | Feature | x64 | ARM64 |
     | --- | --- | --- |
     | App | Native | Native |
-    | Whisper local models | Yes (DirectCompute GPU) | **Not supported yet** |
-    | Parakeet local models | Yes (DirectML GPU) | Yes |
+    | Whisper local models | Yes (Vulkan GPU) | Yes on **Windows 11+** (not supported on Windows 10 ARM64) |
+    | Parakeet local models | Yes (DirectML GPU) | Yes (CPU only — DirectML is x64-only) |
     | Local Gemma post-processing | Yes (CUDA on NVIDIA, CPU fallback otherwise) | **Not supported yet** |
     | HyperWhisper Cloud | Yes | Yes |
 
-    If you're on a **Snapdragon X / ARM64 Windows device** and want local transcription, use **Parakeet v2** (English) or **Parakeet v3** (multilingual). Whisper is x64-only at the moment.
+    If you're on a **Snapdragon X / ARM64 Windows device** and want local transcription, **Parakeet v2** (English) and **Parakeet v3** (multilingual) run on CPU, and Whisper runs with GPU acceleration on Windows 11+ (Windows 10 ARM64 is not supported for Whisper).
 
     ## GPU acceleration
 
-    Local transcription engines use your GPU automatically when available and **fall back to CPU** if you don't have a dedicated GPU or there's not enough VRAM. Local Gemma post-processing currently uses CUDA on NVIDIA GPUs only; AMD and Intel systems use CPU fallback for post-processing. See [Models](/models) for per-model VRAM recommendations.
+    Local transcription engines use your GPU automatically when available and **fall back to CPU** if you don't have a dedicated GPU or there's not enough VRAM. Whisper uses Vulkan, a vendor-agnostic GPU backend that works across NVIDIA, AMD, and Intel GPUs. Local Gemma post-processing currently uses CUDA on NVIDIA GPUs only; AMD and Intel systems use CPU fallback for post-processing. See [Models](/models) for per-model VRAM recommendations.
   </Tab>
 </Tabs>

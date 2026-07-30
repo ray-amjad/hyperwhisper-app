@@ -37,11 +37,16 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
     | LibWhisper / Parakeet (local) | No limit |
     | HyperWhisper Cloud | 2 GB |
     | Deepgram | 2 GB |
-    | AssemblyAI | 2.2 GB |
+    | AssemblyAI | 5 GB |
     | ElevenLabs | 3 GB |
+    | Google Gemini | 2 GB |
     | Mistral | 100 MB |
     | OpenAI | 25 MB |
     | Groq | 25 MB |
+    | Soniox | 1 GB |
+    | Grok | 500 MB |
+    | Microsoft Azure Speech | 300 MB |
+    | Google Cloud Speech | ~9.5 MB |
 
     If the file is too large for the selected mode's provider, you get a friendly error showing the file size, the provider's limit, and the provider name — switch the mode to a different provider (for example, HyperWhisper Cloud or a local model) to transcribe larger files.
 
@@ -71,7 +76,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
   <Tab title="Windows">
     ## Open the file picker
 
-    Right-click the HyperWhisper tray icon and choose **Transcribe Audio File**. A standard Windows file dialog opens. Unlike macOS, Windows uses your **currently selected mode** — change the mode from the tray menu first if you want to transcribe with something other than the default.
+    Right-click the HyperWhisper tray icon, hover **Transcribe File**, and choose the mode you want to use from the submenu — the same mechanic as macOS. A standard Windows file dialog opens immediately. Picking a mode from the submenu transcribes with that mode directly; it does not change your currently selected mode.
 
     ## Supported formats
 
@@ -94,11 +99,16 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
     | WhisperNet (local) | No limit |
     | HyperWhisper Cloud | 2 GB |
     | Deepgram | 2 GB |
-    | AssemblyAI | 2.2 GB |
+    | AssemblyAI | 5 GB |
     | ElevenLabs | 3 GB |
+    | Google Gemini | 2 GB |
     | Mistral | 100 MB |
     | OpenAI | 25 MB |
     | Groq | 25 MB |
+    | Soniox | 1 GB |
+    | Grok | 500 MB |
+    | Microsoft Azure Speech | 300 MB |
+    | Google Cloud Speech | ~9.5 MB |
 
     If the file exceeds the limit, you get a toast notification with the maximum size for that provider before any upload happens.
 
@@ -114,7 +124,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
         The audio is sent to WhisperNet (with DirectCompute GPU acceleration if available) or to the cloud provider configured by your mode.
       </Step>
       <Step title="Finishing (85–100%)">
-        Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result. The transcribed text is also smart-pasted or copied to your clipboard depending on your settings.
+        Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result.
       </Step>
     </Steps>
 

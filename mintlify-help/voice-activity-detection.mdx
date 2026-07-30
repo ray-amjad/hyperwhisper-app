@@ -59,7 +59,7 @@ The original audio is always kept on disk. The trimmed version is stored alongsi
     The toggle takes effect immediately — your next recording will use VAD trimming if it meets the minimum duration.
   </Tab>
   <Tab title="Windows">
-    A user-facing VAD toggle is not yet available on Windows. Audio silence trimming is not currently performed on Windows.
+    There is no user-facing VAD toggle on Windows, and this page's trimmed-file workflow (a separate trimmed audio file, an Original/Trimmed toggle) does not apply. When you use a local model such as Parakeet, HyperWhisper's Windows transcription daemon bundles and runs Silero VAD internally to segment speech chunk-by-chunk during transcription — it isn't a pre-processing step you can enable or disable, and it doesn't produce a separate stored audio file.
   </Tab>
   <Tab title="iOS">
     There is no VAD toggle on iOS. A lightweight amplitude-based silence trimmer runs automatically on every recording — it removes leading and trailing silence before upload when at least 0.5 seconds of silence is detected.
@@ -77,7 +77,7 @@ The original audio is always kept on disk. The trimmed version is stored alongsi
     See [Viewing Transcription History](/history) for more about the audio player.
   </Tab>
   <Tab title="Windows">
-    Audio silence trimming is not performed on Windows, so no trimmed audio path is stored and no Original / Trimmed toggle is available.
+    Windows doesn't produce a separate trimmed audio file, so no Original / Trimmed toggle is available — internal VAD segmentation during local transcription happens per-chunk and isn't stored as a standalone artifact.
   </Tab>
 </Tabs>
 
@@ -100,5 +100,5 @@ After trimming, HyperWhisper validates the result before using it. If any check 
 | Platform | Status |
 |---|---|
 | macOS | Fully supported — enable in **Settings → Sound → Remove silence before transcription** |
-| Windows | No silence trimming; no user-facing toggle |
+| Windows | No separate trimmed file or toggle — internal per-chunk VAD segmentation runs automatically during local model transcription |
 | iOS | Amplitude-based leading/trailing silence trimming runs automatically on every recording |

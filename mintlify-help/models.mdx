@@ -44,15 +44,15 @@ These run locally with no network calls. Once downloaded (where applicable) they
 | --- | --- | --- | --- |
 | **Apple Speech** | macOS (built-in) | Auto-detect | Zero download, instant, private. The fastest way to start dictating on a Mac with nothing to install. |
 | **NVIDIA Parakeet** | macOS · Windows | English (V2) · 25 European (V3) | Fastest accurate on-device transcription for English and European languages. |
-| **NVIDIA Nemotron 3.5** | macOS | 6 Latin · ~40 incl. Chinese, Japanese, Korean, Arabic | Best on-device accuracy and the **broadest offline language coverage** — the only local option that reaches beyond European languages. |
+| **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~40 incl. Chinese, Japanese, Korean, Arabic (macOS); smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS — the only local option that reaches beyond European languages. |
 | **Whisper** | macOS · Windows | 100 languages | OpenAI's general-purpose model in many sizes (Tiny → Large). The universal fallback: runs on almost any hardware, including CPU-only and older machines. |
-| **Qwen3 ASR** | macOS | Multilingual | An additional multilingual on-device option for users who want to try Alibaba's ASR model. |
+| **Qwen3 ASR** | macOS · Windows | Multilingual | An additional multilingual on-device option for users who want to try Alibaba's ASR model. Windows ships a smaller 0.6B variant via the sherpa-onnx daemon. |
 
 ### Whisper models
 
 OpenAI's general-purpose multilingual models. The **VRAM** values are the recommended GPU memory for full acceleration — with less, the model still runs on CPU (or partial GPU), just slower.
 
-| Model | Size | Recommended VRAM | Languages | Best for |
+| Model | Size (Windows) | Recommended VRAM | Languages | Best for |
 | --- | --- | --- | --- | --- |
 | Tiny | ~69 MB (macOS) / ~78 MB (Windows) | ~1 GB | Multilingual | Lowest-end machines, quick drafts |
 | Tiny (English) | ~69 MB (macOS) / ~78 MB (Windows) | ~1 GB | English only | Same as Tiny, slightly better English |
@@ -62,13 +62,17 @@ OpenAI's general-purpose multilingual models. The **VRAM** values are the recomm
 | Small (English) | 488 MB | ~2 GB | English only | Same as Small, slightly better English |
 | Medium | 1.5 GB | ~5 GB | Multilingual | Higher accuracy, mid-range GPUs |
 | Medium (English) | 1.5 GB | ~5 GB | English only | Same as Medium, slightly better English |
-| Large v3 Turbo | 1.5 GB | ~6 GB | Multilingual | Near-Large accuracy, much faster |
+| Large v3 Turbo | 1.5 GB (Windows) / ~809 MB (macOS) | ~6 GB | Multilingual | Near-Large accuracy, much faster |
 | Large v2 | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (older) |
 | Large v3 | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (latest) |
 
 <Tip>
   English-only variants (`.en`) use the same architecture trained only on English data. If you only ever dictate in English, they're slightly more accurate at the same size — but you lose multilingual support entirely.
 </Tip>
+
+<Note>
+  Except where noted above, the sizes in this table are Windows values. macOS builds of the same models are meaningfully smaller (for example, Large v3 Turbo is ~809 MB on macOS vs. 1.5 GB on Windows) — check the exact download size for your platform in **Model Library** before downloading.
+</Note>
 
 ### NVIDIA Parakeet models
 
@@ -87,21 +91,22 @@ Parakeet V3 covers: English, German, Spanish, French, Italian, Portuguese, Dutch
 
 ### NVIDIA Nemotron 3.5 models
 
-NVIDIA's Nemotron 3.5 ASR is the newest on-device option (macOS). It edges out the other local models on accuracy and reaches well beyond European languages — the multilingual variant is the only local model that handles Chinese, Japanese, Korean, and Arabic.
+NVIDIA's Nemotron 3.5 ASR is the newest on-device option, available on macOS with a broader variant and on Windows with a smaller streaming variant. On macOS it edges out the other local models on accuracy and reaches well beyond European languages — the macOS multilingual variant is the only local model that handles Chinese, Japanese, Korean, and Arabic.
 
-| Model | Size | Languages | Best for |
-| --- | --- | --- | --- |
-| Nemotron 3.5 (Latin) | ~350 MB | English, Spanish, French, Italian, Portuguese, German | Smaller, faster Latin-script transcription |
-| Nemotron 3.5 (Multilingual) | ~1.3 GB | ~40 languages incl. Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
+| Model | Platform | Size | Languages | Best for |
+| --- | --- | --- | --- | --- |
+| Nemotron 3.5 (Latin) | macOS | ~350 MB | English, Spanish, French, Italian, Portuguese, German | Smaller, faster Latin-script transcription |
+| Nemotron 3.5 (Multilingual) | macOS | ~1.3 GB | ~40 languages incl. Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
+| Nemotron 3.5 Streaming (Multilingual) | Windows | Smaller than the macOS variant | English, Japanese | On-device streaming via the sherpa-onnx daemon |
 
 <Tip>
-  Want non-European languages **offline**? **Nemotron 3.5 (Multilingual)** is the pick. Choose the **Latin** variant if you only speak English/Spanish/French/Italian/Portuguese/German and want it smaller and faster.
+  Want non-European languages **offline** on macOS? **Nemotron 3.5 (Multilingual)** is the pick. Choose the **Latin** variant if you only speak English/Spanish/French/Italian/Portuguese/German and want it smaller and faster. The Windows Nemotron variant is a different, smaller streaming model with English and Japanese only — it isn't a substitute for the macOS multilingual model.
 </Tip>
 
 ### Apple Speech & Qwen3 ASR
 
 - **Apple Speech** is built into macOS — no download, available the moment you launch the app. It's the quickest private option for everyday Mac dictation. (Requires a recent macOS version.)
-- **Qwen3 ASR** is an additional multilingual on-device model (macOS) for users who want to try Alibaba's ASR.
+- **Qwen3 ASR** is an additional multilingual on-device model (macOS · Windows, via the sherpa-onnx daemon on Windows) for users who want to try Alibaba's ASR.
 
 ## Offline language coverage at a glance
 
@@ -117,21 +122,21 @@ Not sure which local model handles your language? This table maps the common use
 | macOS, fastest start, no download | Apple Speech | — |
 
 <Note>
-  Nemotron is macOS-only. Parakeet and Whisper run on both macOS and Windows. See individual sections above for details.
+  Parakeet and Whisper run on both macOS and Windows with the same language coverage. Nemotron and Qwen3 ASR are also available on both platforms, but the Windows variants are different (smaller, fewer languages) from the macOS versions — see individual sections above for details.
 </Note>
 
 ## HyperWhisper Cloud
 
-HyperWhisper Cloud is built-in — no API key, no separate account. It routes to best-in-class providers behind four accuracy tiers, and **you only pay for actual speech** (silence and empty recordings cost 0 credits). Use it when you want the highest accuracy without any setup.
+HyperWhisper Cloud is built-in — no API key, no separate account. It routes to best-in-class providers behind four featured accuracy tiers with automatic failover, and **you only pay for actual speech** (silence and empty recordings cost 0 credits). Use it when you want the highest accuracy without any setup.
 
 | Tier | Powered by | Best for |
 | --- | --- | --- |
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
 | **High** | Grok STT (xAI) | Solid multilingual accuracy at low cost |
 | **Medium** | Deepgram Nova-3 | Strong English accuracy, low latency |
-| **Fast** | Groq Whisper Large v3 | Sub-second latency for English & major European languages |
+| **Fast** | Groq Whisper Large v3 Turbo | Sub-second latency for English & major European languages |
 
-See [Providers](/choosing-a-provider) for pricing, cost examples, and per-language guidance.
+These four are the featured picks with automatic failover to a backup provider. HyperWhisper Cloud actually offers all 11 supported providers (also including Soniox, Azure MAI-Transcribe, Google Chirp 3, OpenAI, AssemblyAI, Mistral Voxtral, and Gemini) selectable with no key required — providers outside the featured four don't get automatic failover. See [Providers](/choosing-a-provider) for pricing, cost examples, and per-language guidance.
 
 ## Bring your own key
 
@@ -139,7 +144,7 @@ If you already hold API credits, want a provider's free tier (Deepgram \$200, As
 
 Supported providers for bring-your-own-key transcription:
 
-**OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini**
+**OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini · xAI (Grok)**
 
 <Note>
   When you bring your own key, opting your audio out of model training is your responsibility — each provider has its own setting. See [Data Privacy](/data-privacy) for a copy-pasteable prompt that finds the current opt-out for any provider.
@@ -242,6 +247,8 @@ Local engines use your GPU when available and **fall back to CPU automatically**
 | Parakeet (Windows) | sherpa-onnx / DirectML | NVIDIA, AMD, Intel | Yes |
 | Parakeet (macOS) | sherpa-onnx / CoreML | Apple Silicon | Yes |
 | Nemotron (macOS) | FluidAudio / CoreML | Apple Silicon | Yes |
+| Nemotron (Windows) | sherpa-onnx daemon | Same as Parakeet (Windows) | Yes |
+| Qwen3 ASR (Windows) | sherpa-onnx daemon | Same as Parakeet (Windows) | Yes |
 | Local Gemma post-processing (macOS) | llama.cpp / Metal | Apple Silicon (M1+) | No (Intel Macs not supported) |
 | Local Gemma post-processing (Windows) | LLamaSharp / GGUF | NVIDIA CUDA (x64 only) | Yes (CPU — x64 and ARM64) |
 
