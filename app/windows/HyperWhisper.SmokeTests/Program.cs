@@ -25,6 +25,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.Services.Transcription;
+using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
 
@@ -364,6 +365,62 @@ internal static class Program
                 Assert(
                     !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: true),
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
+            });
+
+            Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
+            {
+                // Reproduces the History clobber: MainViewModel creates a Processing
+                // transcript, HistoryViewModel wraps that exact instance, then
+                // MainViewModel completes the SAME instance and hands it back through
+                // HistoryService.TranscriptUpdated. Absorbing the update must not
+                // revert the entity to the snapshot taken at construction — the
+                // transcription flow's finally-block safety net reads that status and
+                // would overwrite a completed transcript with a failure.
+                var transcript = new Transcript
+                {
+                    Id = Guid.NewGuid(),
+                    Status = TranscriptStatus.Processing,
+                    Text = "Processing audio..."
+                };
+
+                var vm = new TranscriptViewModel(transcript);
+
+                transcript.Text = "the real transcription";
+                transcript.TranscribedText = "the real transcription";
+                transcript.Status = TranscriptStatus.Completed;
+                transcript.TranscriptionProvider = "Whisper large-v3-turbo";
+
+                vm.ApplyUpdate(transcript);
+
+                Assert(transcript.Status == TranscriptStatus.Completed,
+                    $"entity status was reverted to {transcript.Status}");
+                Assert(transcript.Text == "the real transcription",
+                    $"entity text was reverted to '{transcript.Text}'");
+                Assert(transcript.TranscribedText == "the real transcription",
+                    "entity raw text was discarded");
+                Assert(transcript.TranscriptionProvider == "Whisper large-v3-turbo",
+                    "entity provider was discarded");
+
+                Assert(vm.Status == TranscriptStatus.Completed,
+                    $"view model still shows {vm.Status}");
+                Assert(vm.Text == "the real transcription",
+                    $"view model still shows '{vm.Text}'");
+
+                // A distinct instance (e.g. re-read from the DB) must still land.
+                var reread = new Transcript
+                {
+                    Id = transcript.Id,
+                    Status = TranscriptStatus.Failed,
+                    Text = "No speech detected",
+                    FailedReason = "No speech detected",
+                    RetryCount = 2
+                };
+
+                vm.ApplyUpdate(reread);
+
+                Assert(vm.Status == TranscriptStatus.Failed, $"view model shows {vm.Status}");
+                Assert(vm.Text == "No speech detected", $"view model shows '{vm.Text}'");
+                Assert(vm.RetryCount == 2, $"view model shows retry count {vm.RetryCount}");
             });
 
             Run("BackupExportSettingsPage initializes under WPF", () =>
