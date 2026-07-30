@@ -206,14 +206,30 @@ class APIKeySettingsManager: ObservableObject {
         }
     }
 
-    /// Set API key for a specific cloud transcription provider
+    /// Persist and then set an API key for a specific cloud transcription provider.
+    ///
+    /// Keychain is the source of truth. The published in-memory value is updated only
+    /// after the secure write succeeds so callers cannot mistake a transient value for
+    /// a credential that will survive relaunch.
     /// - Parameters:
     ///   - key: The API key to set
     ///   - provider: The cloud provider
-    func setAPIKey(_ key: String, for provider: CloudProvider) {
+    /// - Returns: Whether the key was persisted successfully.
+    @discardableResult
+    func setAPIKey(_ key: String, for provider: CloudProvider) -> Bool {
+        guard let keychainType = keychainType(for: provider) else {
+            return true
+        }
+        guard saveAPIKeyToKeychain(key, for: keychainType) else {
+            return false
+        }
+
+        isLoadingFromKeychain = true
+        defer { isLoadingFromKeychain = false }
+
         switch provider {
         case .hyperwhisper:
-            break  // HyperWhisper Cloud doesn't require an API key
+            break
         case .openai:
             openAIAPIKey = key
         case .groq:
@@ -233,8 +249,9 @@ class APIKeySettingsManager: ObservableObject {
         case .grok:
             grokAPIKey = key
         case .microsoftAzureSpeech, .googleSpeech:
-            break  // HyperWhisper Cloud only — no BYOK in v1
+            break
         }
+        return true
     }
 
     /// Check if a cloud provider has an API key configured
@@ -450,7 +467,8 @@ class APIKeySettingsManager: ObservableObject {
     /// - Parameters:
     ///   - key: The API key to save (empty string deletes the key)
     ///   - type: The type of API key
-    private func saveAPIKeyToKeychain(_ key: String, for type: KeychainManager.APIKeyType) {
+    @discardableResult
+    private func saveAPIKeyToKeychain(_ key: String, for type: KeychainManager.APIKeyType) -> Bool {
         do {
             if key.isEmpty {
                 // Delete the key if empty string is provided
@@ -459,10 +477,38 @@ class APIKeySettingsManager: ObservableObject {
                 // Save the new key
                 try KeychainManager.shared.saveAPIKey(key, for: type)
             }
+            validationError = nil
+            return true
         } catch {
             // Log error but don't crash - API key functionality should degrade gracefully
             logger.error("❌ Failed to update \(type.displayName, privacy: .public) API key: \(error.localizedDescription, privacy: .public)")
             validationError = "Failed to save API key: \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    private func keychainType(for provider: CloudProvider) -> KeychainManager.APIKeyType? {
+        switch provider {
+        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+            return nil
+        case .openai:
+            return .openAI
+        case .groq:
+            return .groq
+        case .deepgram:
+            return .deepgram
+        case .assemblyAI:
+            return .assemblyAI
+        case .elevenLabs:
+            return .elevenLabs
+        case .mistral:
+            return .mistral
+        case .soniox:
+            return .soniox
+        case .gemini:
+            return .gemini
+        case .grok:
+            return .grok
         }
     }
 }

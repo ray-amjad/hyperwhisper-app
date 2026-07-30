@@ -321,6 +321,7 @@ struct OnboardingConfigureView: View {
     @State private var licenseTestValid: Bool?
     @State private var licenseTestError: String?
     @State private var providerTestHealth: ProviderHealth?
+    @State private var providerTestError: String?
 
     var body: some View {
         switch source {
@@ -338,6 +339,7 @@ struct OnboardingConfigureView: View {
         licenseTestValid = nil
         licenseTestError = nil
         providerTestHealth = nil
+        providerTestError = nil
         keyValidated = false
     }
 
@@ -560,6 +562,7 @@ struct OnboardingConfigureView: View {
                 .onChange(of: selectedProvider) { _, _ in
                     apiKeyInput = ""
                     providerTestHealth = nil
+                    providerTestError = nil
                     keyValidated = false
                 }
 
@@ -568,6 +571,7 @@ struct OnboardingConfigureView: View {
                     .font(.system(.body, design: .monospaced))
                     .onChange(of: apiKeyInput) { _, _ in
                         providerTestHealth = nil
+                        providerTestError = nil
                         keyValidated = false
                     }
 
@@ -596,6 +600,11 @@ struct OnboardingConfigureView: View {
     private var providerTestResult: some View {
         if isTestingKey {
             testLabel("onboarding.configure.test.testing", systemImage: nil, color: .secondary, spinning: true)
+        } else if let error = providerTestError {
+            Text(error)
+                .font(.system(size: 12))
+                .foregroundColor(.red)
+                .lineLimit(2)
         } else if let health = providerTestHealth {
             switch health {
             case .healthy:
@@ -612,32 +621,31 @@ struct OnboardingConfigureView: View {
         }
     }
 
-    /// Temporarily stage the trimmed key because health checks read from Keychain.
-    /// Keep it only after a successful probe; otherwise restore the prior value so
-    /// a typo cannot replace a working credential or leave a dead key configured.
+    /// Probe the candidate without staging it, then accept it only after Keychain
+    /// confirms the secure write. A passing network request alone is not enough.
     private func testAPIKey() {
         let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { return }
         let provider = selectedProvider
-        let previousKey = settingsManager.apiKeys.apiKey(for: provider)
-        settingsManager.apiKeys.setAPIKey(key, for: provider)
-        cloudHealth.registerAPIKeyChange(for: provider, newValue: key)
         Task {
             isTestingKey = true
             providerTestHealth = nil
-            // `ensureHealthy` may reuse a prior healthy status. Force a fresh
-            // probe so replacing a working key with a typo cannot pass on cache.
-            cloudHealth.refresh(provider, force: true)
-            let health = await cloudHealth.ensureHealthy(provider)
-            if health != .healthy,
-               settingsManager.apiKeys.apiKey(for: provider) == key {
-                settingsManager.apiKeys.setAPIKey(previousKey, for: provider)
-                cloudHealth.registerAPIKeyChange(for: provider, newValue: previousKey)
+            providerTestError = nil
+            let health = await cloudHealth.probe(provider, apiKey: key)
+            var persisted = false
+            if health == .healthy {
+                persisted = settingsManager.apiKeys.setAPIKey(key, for: provider)
+                if persisted {
+                    cloudHealth.registerAPIKeyChange(for: provider, newValue: key)
+                }
             }
             if selectedProvider == provider,
                apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key {
-                providerTestHealth = health
-                keyValidated = (health == .healthy)
+                providerTestHealth = persisted || health != .healthy ? health : nil
+                providerTestError = persisted || health != .healthy
+                    ? nil
+                    : settingsManager.apiKeys.validationError
+                keyValidated = (health == .healthy && persisted)
             }
             isTestingKey = false
         }
