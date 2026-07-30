@@ -83,15 +83,26 @@ extension TranscriptionPipeline {
     @MainActor
     func refreshPendingParakeetReadinessIfReady() async {
         guard state_isReadyForTranscription(),
-              let modeId = pendingParakeetReadinessModeId,
-              let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId) else {
+              let modeId = pendingParakeetReadinessModeId else {
+            return
+        }
+        guard appState?.selectedModeId == modeId else {
+            pendingParakeetReadinessModeId = nil
+            return
+        }
+        guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId) else {
             return
         }
 
         // The background fetch yields. Recheck both state and request identity
         // before invoking prepareModel, which intentionally cancels stale work.
         guard state_isReadyForTranscription(),
-              pendingParakeetReadinessModeId == modeId else {
+              pendingParakeetReadinessModeId == modeId,
+              appState?.selectedModeId == modeId else {
+            if pendingParakeetReadinessModeId == modeId,
+               appState?.selectedModeId != modeId {
+                pendingParakeetReadinessModeId = nil
+            }
             return
         }
         pendingParakeetReadinessModeId = nil
