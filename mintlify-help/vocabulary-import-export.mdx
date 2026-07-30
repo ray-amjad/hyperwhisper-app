@@ -70,7 +70,7 @@ Import uses merge semantics: entries whose word already exists in your vocabular
 
 ## `.hwbackup.json` format (macOS and Windows)
 
-macOS and Windows share a universal backup format (`schemaVersion: 2`). The vocabulary section of a `.hwbackup.json` file looks like this:
+macOS and Windows share a universal `.hwbackup.json` format (`schemaVersion: 2`) for **vocabulary-only** exports. On macOS, a full export that also includes Settings, Modes, or API keys currently uses the legacy `HyperWhisper-Backup-{date}.json` (schemaVersion 1) format instead — universal v2 export for full backups exists in the app but is gated behind an internal flag with no UI toggle. In practice, only a **vocabulary-only** macOS export is guaranteed to be cross-platform compatible with Windows today. The vocabulary section of a `.hwbackup.json` file looks like this:
 
 ```json
 {
@@ -107,7 +107,7 @@ macOS and Windows share a universal backup format (`schemaVersion: 2`). The voca
 | `source` | string or null | Optional origin label. |
 
 <Note>
-The `.hwbackup.json` file can also contain settings, modes, and API keys—not just vocabulary. The vocabulary-only export on macOS produces a file with five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) but no settings, modes, or API keys sections. When you import this file on either platform, only the vocabulary section is applied.
+On Windows, a `.hwbackup.json` export can include settings, modes, and API keys alongside vocabulary. On macOS today, only a **vocabulary-only** export uses this `.hwbackup.json` schemaVersion 2 format — it produces a file with five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) and no settings, modes, or API keys sections. A macOS export that also includes Settings, Modes, or API keys currently uses the older schemaVersion 1 format described above instead. When you import a `.hwbackup.json` file on either platform, only the vocabulary section is applied.
 </Note>
 
 ### Export vocabulary (macOS)
@@ -151,7 +151,7 @@ The `.hwbackup.json` file can also contain settings, modes, and API keys—not j
     Open HyperWhisper and go to **Settings → Backup**.
   </Step>
   <Step title="Select sections and export">
-    Tick **Vocabulary** (and any other sections you want to include), then click **Export**. Choose a save location. The file is saved as `.hwbackup.json`.
+    Tick **Vocabulary** (and any other sections you want to include), then click **Export Backup...**. Choose a save location. The file is saved as `.hwbackup.json`.
   </Step>
 </Steps>
 
@@ -162,16 +162,16 @@ The `.hwbackup.json` file can also contain settings, modes, and API keys—not j
     Open HyperWhisper and go to **Settings → Backup**.
   </Step>
   <Step title="Choose a file">
-    Click **Choose file** and pick your `.hwbackup.json`. The app inspects the file and shows which sections it contains, along with the vocabulary entry count.
+    Click **Choose File...** and pick your `.hwbackup.json`. The app inspects the file and shows which sections it contains, along with the vocabulary entry count.
   </Step>
   <Step title="Select Vocabulary and choose a conflict policy">
     Tick **Vocabulary** and pick how to handle words that already exist:
 
-    - **Skip** (default) — leaves the existing entry untouched.
-    - **Replace** — updates the replacement text, sort order, and source of the matching entry (the entry's ID and creation date are preserved).
+    - **Keep my existing word** (default) — leaves the existing entry untouched.
+    - **Replace with the imported word** — updates the replacement text, sort order, and source of the matching entry (the entry's ID and creation date are preserved).
   </Step>
   <Step title="Apply the import">
-    Click **Apply**. A confirmation dialog shows how many entries will be added versus how many conflicts exist. Confirm to proceed. The app reports the final import summary.
+    Click **Import Selected**. A confirmation dialog shows how many entries will be added versus how many conflicts exist. Confirm to proceed. The app reports the final import summary.
   </Step>
 </Steps>
 

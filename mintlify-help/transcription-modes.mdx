@@ -46,7 +46,7 @@ Each mode has a transcription source: **On Device**, **HyperWhisper Cloud**, or 
 
 ### On Device (local)
 
-Download Whisper or Parakeet models for fully offline transcription. Larger models are more accurate but require more disk space. Some Whisper models with an `.en` suffix are English-only; Parakeet v2 is also English-only (v3 is multilingual). Browse and download models in **Model Library**.
+Download Whisper, Parakeet, Nemotron, Qwen3 ASR, or (on macOS 26+) Apple Speech Analyzer models for fully offline transcription. Larger models are more accurate but require more disk space. Some Whisper models with an `.en` suffix are English-only; Parakeet v2 is also English-only (v3 is multilingual). Browse and download models in **Model Library**. See [Models](/models) for the full list of on-device options and platform availability.
 
 ### HyperWhisper Cloud — STT Engine
 
@@ -72,7 +72,7 @@ The engine picker shows an approximate credit cost per minute next to each optio
 
 ### Your Provider (BYOK)
 
-Choose a cloud provider and enter your own API key in **Settings → API Keys**. The model list updates based on the selected provider.
+Choose a cloud provider and enter your own API key in **Settings → API Keys** (or **Model Library → API Keys** on macOS). The model list updates based on the selected provider.
 
 ## Language
 
@@ -96,7 +96,7 @@ Set **AI Post-Processing** to **Off** to get the raw transcript from the STT eng
 
 When post-processing is set to **Cloud** and you're using HyperWhisper Cloud, you can choose which LLM engine and model handle the cleanup pass. This is separate from the transcription engine.
 
-The engine and model are selected per mode. Available engines include Cerebras, Groq, Anthropic (Claude), Grok (xAI), OpenAI, Google Gemini, and Mistral. Each engine offers one or more models in a nested picker.
+The engine and model are selected per mode. Available engines include Cerebras, Groq, Anthropic (Claude), Grok (xAI), OpenAI, Google Gemini, and Mistral. Each engine offers one or more models in a nested picker. On macOS, you can also point post-processing at a self-hosted or OpenAI-compatible custom endpoint instead of one of the built-in engines—see [Custom Endpoints](/custom-endpoints).
 
 ### Additional Formatting Options
 
@@ -131,9 +131,11 @@ Streaming transcription displays words as you speak rather than waiting until yo
   <Tab title="Windows">
     Default shortcut: `Ctrl+Shift+Space`. Configurable in **Settings → Shortcuts**.
 
-    Streaming is configured at the app level in **Settings → Streaming** (not per mode on Windows).
+    Streaming is configured at the app level in **Settings → Streaming**.
   </Tab>
 </Tabs>
+
+Streaming settings are global and shared across every streaming session on both platforms — they are not configured per mode. See [Streaming Transcription](/streaming-settings) for the full provider, language, and shortcut options.
 
 ## Screen OCR
 
@@ -145,7 +147,7 @@ Screen OCR is a per-mode toggle, so you can enable it only for modes where conte
 
 ## User-Supplied System Prompt
 
-Every mode has an optional **System Prompt** field (up to 2,000 characters) that is appended to the post-processing instructions after the preset template. Use it to add context the preset doesn't cover—your industry, preferred terminology, standing output rules, or anything you'd tell an assistant at the start of a session.
+Every mode has an optional **System Prompt** field (up to 2,000 characters) that is inserted into the post-processing instructions before the preset template. Use it to add context the preset doesn't cover—your industry, preferred terminology, standing output rules, or anything you'd tell an assistant at the start of a session.
 
 Examples:
 - *"Use metric units. Spell out numbers below 10."*

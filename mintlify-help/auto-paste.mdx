@@ -5,6 +5,10 @@ description: How HyperWhisper copies, restores, and optionally pastes your trans
 
 HyperWhisper can automatically paste the result into the frontmost app after each recording. This page explains how it works, how to configure it, and what to do if pasting doesn't happen.
 
+<Note>
+  This page describes Auto Paste on **macOS**, which relies on the Accessibility permission covered below. Windows has a fully equivalent Auto Paste feature that works differently — it uses UI Automation and does **not** require the Accessibility permission described on this page. See the Windows tab under [Text Output & Formatting → Auto Paste](/output-settings#auto-paste) for the Windows-specific details.
+</Note>
+
 ![Auto Paste](/images/text-output.jpg)
 
 ## How Auto Paste Works
@@ -28,7 +32,7 @@ HyperWhisper can automatically paste the result into the frontmost app after eac
 Grant Accessibility so Auto Paste can operate reliably:
 
 1. Go to `System Settings → Privacy & Security → Accessibility`.
-2. Unlock and enable HyperWhisper (release builds) and/or `hyperwhisper` (development builds).
+2. Unlock and enable HyperWhisper. If you are running a development build from Xcode, the entry will show the Xcode DerivedData path rather than `/Applications/HyperWhisper.app` — release and development builds share the same bundle ID, so the install path (not a different name) is what distinguishes them in this list. You may need to enable both entries if you switch between them.
 3. Restart the app if you changed the setting while it was running.
 
 If permission is missing, the app shows a banner on the Home screen and an Accessibility Helper provides a direct link to System Settings.

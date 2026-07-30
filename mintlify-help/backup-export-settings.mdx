@@ -55,7 +55,7 @@ HyperWhisper can export your configuration to a file and import it back later �
 
 ## Importing a backup
 
-Import is always **merge-only**: existing data is never wiped. Modes and vocabulary from the file are added to what you already have. Only sections present in the chosen file can be restored, and you can deselect any of them before committing.
+Vocabulary import is **merge-only**: existing words are never wiped, only added to or updated (see [Vocabulary merge behavior](#vocabulary-merge-behavior) below). Mode import works differently: if an incoming mode has the same name as one you already have, the existing mode is deleted and replaced by the version from the file; modes with new names are simply added alongside your existing ones. Only sections present in the chosen file can be restored, and you can deselect any of them before committing.
 
 <Tabs>
   <Tab title="macOS">
@@ -137,9 +137,9 @@ Vocabulary import never deletes words already in your list.
 
 ## Cross-platform compatibility
 
-A backup exported on macOS can be imported on Windows, and vice versa. Both platforms use the same universal `.hwbackup.json` format (`schemaVersion: 2`).
+In practice, only a **vocabulary-only** export from macOS is guaranteed to be cross-platform compatible today. By default, a full macOS backup (any export that includes Settings and/or Modes) is saved in the legacy `.json` format described above, which Windows cannot import — universal `.hwbackup.json` export for full backups exists in the macOS app but isn't exposed anywhere in the UI. Windows, on the other hand, always exports and imports `.hwbackup.json` (`schemaVersion: 2`) files.
 
-When importing a backup from the other platform:
+When a `schemaVersion: 2` file is imported from the other platform:
 
 - Shared settings (paste behavior, filler words, recording options, etc.) are applied directly.
 - Platform-specific settings that have no equivalent on the receiving platform are ignored and preserved for round-trip fidelity — if you later re-export from the original platform, those settings come back.
@@ -147,7 +147,11 @@ When importing a backup from the other platform:
 - Vocabulary is merged by word text (case-insensitive). Cross-platform UUIDs from the originating device do not create duplicates.
 
 <Note>
-  A vocabulary-only `.hwbackup.json` file (containing only the `vocabulary` key) is the smallest portable format — useful for sharing a word list without bundling settings or modes. A standard legacy macOS full-backup (`.json`) cannot be imported on Windows because the Windows app requires `schemaVersion: 2`.
+  A vocabulary-only `.hwbackup.json` file (containing only the `vocabulary` key) is the smallest portable format — useful for sharing a word list without bundling settings or modes, and it's the reliable way to move data between macOS and Windows today. A standard legacy macOS full-backup (`.json`) cannot be imported on Windows because the Windows app requires `schemaVersion: 2`.
+</Note>
+
+<Note>
+  **Known limitation:** when macOS imports a `schemaVersion: 2` file that was exported from Windows, it currently only recognizes the Vocabulary section — Settings, Modes, and API Keys appear dimmed and unavailable in the import sheet even when the file actually contains them. To bring Settings or Modes over from a Windows backup today, treat the file as vocabulary-only.
 </Note>
 
 ## What is not included

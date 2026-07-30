@@ -19,14 +19,18 @@ HyperWhisper checks for updates automatically and installs them with a single cl
 
     ## Disabling auto-checks
 
-    If you'd rather control update timing yourself, untick **Automatically check for updates** in the Sparkle dialog. You can still trigger a manual check at any time via **Check for Updates...**.
+    If you'd rather control update timing yourself, go to **Settings → General** and turn off **Auto update**. This isn't a native Sparkle preference — it's HyperWhisper's own setting, which the app syncs into Sparkle's automatic-check behavior programmatically. You can still trigger a manual check at any time via **Check for Updates...**.
+
+    <Note>
+      If you installed HyperWhisper via Homebrew (`brew install --cask hyperwhisper`), automatic update checks are force-disabled regardless of this setting — Homebrew manages upgrades itself via `brew upgrade`.
+    </Note>
   </Tab>
   <Tab title="Windows">
     HyperWhisper uses [NetSparkle](https://github.com/NetSparkleUpdater/NetSparkle), the Windows equivalent of Sparkle.
 
     ## Automatic updates
 
-    On launch, the app checks the appcast for a newer version. When one is available, you'll see a notification with the release notes and an **Install** button. The new version downloads, the app closes, and the installer runs automatically.
+    On launch, the app checks the appcast at `https://www.hyperwhisper.com/appcast-windows.xml` (a separate feed from the macOS appcast) for a newer version. When one is available, you'll see a notification with the release notes and an **Install** button. The new version downloads, the app closes, and the installer runs automatically.
 
     ## Checking manually
 
