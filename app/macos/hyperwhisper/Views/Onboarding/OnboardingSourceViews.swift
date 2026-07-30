@@ -527,6 +527,10 @@ struct OnboardingConfigureView: View {
             licenseTestValid = nil
             licenseTestError = nil
             let result = await licenseManager.probeLicense(key)
+            guard licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key else {
+                isTestingKey = false
+                return
+            }
             licenseTestValid = result.isValid
             licenseTestError = result.isValid ? nil : (result.errorMessage ?? "app.unknown.error".localized)
             keyValidated = result.isValid
