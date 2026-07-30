@@ -502,15 +502,6 @@ export function creditsForCost(costUsd: number): number {
   return Math.max(0.1, roundUpToTenth(rawCredits));
 }
 
-export function estimateCreditsForCost(costUsd: number): number {
-  if (!Number.isFinite(costUsd) || costUsd <= 0) {
-    return 0;
-  }
-
-  const rawCredits = usdToCredits(costUsd);
-  return Math.max(0.1, roundUpToTenth(rawCredits));
-}
-
 export function roundUsd(value: number): number {
   return Math.round((value + Number.EPSILON) * 1_000_000) / 1_000_000;
 }

@@ -2,7 +2,6 @@
 
 import { Link as HeroUILink } from "@heroui/link";
 import { Divider } from "@heroui/divider";
-import { env } from "@env/client.mjs";
 import { Github, Linkedin, Twitter } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
