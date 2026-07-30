@@ -68,6 +68,18 @@ extension TranscriptionPipeline {
         await modelCoordinator.refreshLocalRuntime(forModeId: modeId)
     }
 
+    /// Re-evaluate the selected Parakeet mode after its installed-model state changes.
+    @MainActor
+    func refreshParakeetReadiness(forModeId modeId: String?) async {
+        guard let modeId, UUID(uuidString: modeId) != nil,
+              let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId),
+              ParakeetModelManager.Constants.canonicalModelId(for: mode.model ?? "") != nil else {
+            return
+        }
+
+        await prepareModel(for: mode)
+    }
+
     /// Delete a downloaded model to free up space.
     func deleteModel(_ model: WhisperModel) throws {
         try modelCoordinator.deleteModel(model)
