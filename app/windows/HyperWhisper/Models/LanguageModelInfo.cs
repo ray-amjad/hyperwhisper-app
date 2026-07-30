@@ -79,7 +79,6 @@ public class LanguageModelInfo
         // Ultra-fast inference via specialized hardware
         new("openai/gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Groq, "Fast, high quality"),
         new("openai/gpt-oss-20b", "GPT OSS 20B", PostProcessingProvider.Groq, "Fast, lightweight"),
-        new("meta-llama/llama-4-maverick-17b-128e-instruct", "Llama 4 Maverick 17B", PostProcessingProvider.Groq, "Latest Llama 4, high quality"),
         new("moonshotai/kimi-k2-instruct", "Kimi K2", PostProcessingProvider.Groq, "Strong agentic reasoning"),
 
         // xAI Grok Models
@@ -133,6 +132,10 @@ public class LanguageModelInfo
         "claude-sonnet-4-5-latest" => "claude-sonnet-4-5",
         "claude-sonnet-4-6-latest" => "claude-sonnet-4-6",
         // Groq model removals
+        // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (GroqCloud deprecation notice).
+        // Missed when the 2026-07-17 removals were mapped below, so it stayed in the
+        // picker and every selection 404'd at post-processing time.
+        "meta-llama/llama-4-maverick-17b-128e-instruct" => "openai/gpt-oss-120b",
         // Decommissioned by Groq 2026-07-17 → openai/gpt-oss-120b (GroqCloud deprecation notice)
         "mixtral-8x7b-32768" => "openai/gpt-oss-120b",
         "llama-3.3-70b-versatile" => "openai/gpt-oss-120b",
