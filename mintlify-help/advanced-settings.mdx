@@ -6,7 +6,7 @@ description: Reference for HyperWhisper's advanced recording and storage setting
 Advanced settings control low-level recording behavior and data-retention limits. They are stored in HyperWhisper's preferences and are included in backup files so they travel with the rest of your configuration.
 
 <Note>
-  These settings are not exposed in a dedicated Advanced panel in the current Settings UI. You can view and change them through the backup import/export workflow described below, or by editing a `.hwbackup.json` file before importing it.
+  Most of these settings are not exposed in a dedicated Advanced panel in the current Settings UI. You can view and change them through the backup import/export workflow described below, or by editing a `.hwbackup.json` file before importing it. Max recording duration is the exception — it has its own picker in **Settings → Storage** (see below).
 </Note>
 
 ---
@@ -15,14 +15,15 @@ Advanced settings control low-level recording behavior and data-retention limits
 
 ### Max recording duration
 
-Controls the maximum length of a single recording session.
+Controls the maximum length of a single recording session, after which it stops automatically and processing begins on the audio captured so far. This prevents runaway recordings from accumulating large audio files unexpectedly.
 
 | Detail | Value |
 |---|---|
-| Default | 300 seconds (5 minutes) |
+| Default | 3,600 seconds (1 hour) |
+| Options | 20 minutes, 1 hour, 2 hours, or Off (no limit) |
 | Platform | macOS |
 
-When a recording reaches this limit, it stops automatically and processing begins on the audio captured so far. This prevents runaway recordings from accumulating large audio files unexpectedly.
+Unlike the other settings on this page, this one has a dedicated picker in **Settings → Storage**, right below **Store as M4A**. Pick a preset from the dropdown — no backup editing required.
 
 ---
 
@@ -87,7 +88,7 @@ Experimental models may produce better results on specific content types but can
 
 ## Changing advanced settings via backup
 
-Because these settings do not appear in a dedicated Settings panel, the most reliable way to change them is through the backup workflow.
+Because most of these settings do not appear in a dedicated Settings panel, the most reliable way to change them is through the backup workflow. (Max recording duration can also be changed directly in **Settings → Storage**, as noted above.)
 
 <Steps>
   <Step title="Export your current settings">
@@ -98,7 +99,7 @@ Because these settings do not appear in a dedicated Settings panel, the most rel
 
     ```json
     "advanced": {
-      "maxRecordingDuration": 300,
+      "maxRecordingDuration": 3600,
       "audioSampleRate": 16000,
       "keepAudioFiles": false,
       "historyRetentionDays": 30
