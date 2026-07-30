@@ -5,6 +5,8 @@
 //  Core transcription flow, state handling, and instrumentation.
 //
 
+import AVFoundation
+import CoreMedia
 import Foundation
 
 extension TranscriptionPipeline {
@@ -33,7 +35,8 @@ extension TranscriptionPipeline {
         audioURL: URL,
         mode: Mode?,
         recordingSession: RecordingSession? = nil,
-        applicationContext: ApplicationContext? = nil
+        applicationContext: ApplicationContext? = nil,
+        audioDurationSeconds: TimeInterval? = nil
     ) async throws -> TranscriptionResult {
         // If a transcription is already running, cancel it so the latest request wins.
         // This guards against rapid hotkey presses and intentional re-records.
@@ -64,14 +67,35 @@ extension TranscriptionPipeline {
         var capturedPostProcessingProvider: String = "unknown"
         var capturedShouldRunPostProcessing: Bool = false
         var capturedIsHyperwhisperTranscription: Bool = false
+        // Base thresholds cover fixed overhead (network round-trip, model warmup,
+        // queueing). HYPERWHISPER-P3: these used to be flat cutoffs, so a routine
+        // multi-minute dictation (which legitimately takes longer to transcribe
+        // than a 10s clip) tripped the same 8s bar as a 10s clip and flooded
+        // Sentry with "slow" events that were really just long recordings.
+        // `slowTranscriptionPerAudioSecondMs` adds an allowance proportional to
+        // the audio actually sent to the provider, so the bar scales with input
+        // size instead of penalizing longer (but proportionally fast) calls.
         let slowTranscriptionThresholdMs = 8_000
         let slowTranscriptionWithPostProcessingThresholdMs = 15_000
         let slowTranscriptionWithLocalLLMThresholdMs = 45_000
+        let slowTranscriptionPerAudioSecondMs = 150.0
 
         let transcriptionStart = Date()
         var stage = "start"
         var stageStart = transcriptionStart
         var stageTimeline: [String] = []
+
+        // Resolve audio duration concurrently with the transcription itself so it
+        // doesn't add latency to the hot path. Prefers the caller-supplied duration
+        // (e.g. the VAD-trimmed length the audio pipeline already computed) and
+        // falls back to reading the file directly for callers that don't have it.
+        let audioDurationTask = Task<Double, Never> {
+            if let audioDurationSeconds, audioDurationSeconds > 0 { return audioDurationSeconds }
+            let asset = AVURLAsset(url: audioURL)
+            guard let durationCM = try? await asset.load(.duration) else { return 0 }
+            let seconds = CMTimeGetSeconds(durationCM)
+            return seconds.isFinite && seconds > 0 ? seconds : 0
+        }
 
         // Track stage timings for diagnostics and Sentry breadcrumbs.
         func markStage(_ newStage: String) {
@@ -331,14 +355,17 @@ extension TranscriptionPipeline {
 
             let wasPostProcessed = result.wasPostProcessed
             let isLocalLLM = result.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
-            let effectiveThreshold: Int
+            let audioDurationSecondsResolved = await audioDurationTask.value
+            let durationAllowanceMs = Int(audioDurationSecondsResolved * slowTranscriptionPerAudioSecondMs)
+            let baseThreshold: Int
             if isLocalLLM {
-                effectiveThreshold = slowTranscriptionWithLocalLLMThresholdMs
+                baseThreshold = slowTranscriptionWithLocalLLMThresholdMs
             } else if wasPostProcessed {
-                effectiveThreshold = slowTranscriptionWithPostProcessingThresholdMs
+                baseThreshold = slowTranscriptionWithPostProcessingThresholdMs
             } else {
-                effectiveThreshold = slowTranscriptionThresholdMs
+                baseThreshold = slowTranscriptionThresholdMs
             }
+            let effectiveThreshold = baseThreshold + durationAllowanceMs
             if totalElapsedMs >= effectiveThreshold {
                 AppLogger.transcription.warning("\(logMessage, privacy: .public)")
                 if AppLogger.isErrorLoggingEnabled {
@@ -360,6 +387,9 @@ extension TranscriptionPipeline {
                             "isHyperwhisperTranscription": capturedIsHyperwhisperTranscription,
                             "totalElapsedMs": totalElapsedMs,
                             "effectiveThresholdMs": effectiveThreshold,
+                            "baseThresholdMs": baseThreshold,
+                            "audioDurationSeconds": audioDurationSecondsResolved,
+                            "durationAllowanceMs": durationAllowanceMs,
                             "finalStage": stage,
                             "stageTimeline": stageTimelineSnapshot,
                             "recordingSessionID": recordingSession?.id?.uuidString ?? "nil"
