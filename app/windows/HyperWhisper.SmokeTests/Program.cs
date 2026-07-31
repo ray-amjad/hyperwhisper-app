@@ -105,13 +105,26 @@ internal static class Program
             Run("OpenAI post-processing omits an output-token cap", () =>
             {
                 var requestJson = PostProcessingService.BuildOpenAIRequestJson(
-                    "gpt-4.1-nano", "system", "user");
+                    OpenAICompatibleProvider.OpenAI, "gpt-4.1-nano", "system", "user");
                 using var request = JsonDocument.Parse(requestJson);
 
                 Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
                     "OpenAI request should not contain max_tokens");
                 Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "OpenAI request should not contain max_completion_tokens");
+            });
+
+            Run("Groq post-processing sends an explicit output-token cap", () =>
+            {
+                var requestJson = PostProcessingService.BuildOpenAIRequestJson(
+                    OpenAICompatibleProvider.Groq, "openai/gpt-oss-20b", "system", "user");
+                using var request = JsonDocument.Parse(requestJson);
+
+                Assert(request.RootElement.GetProperty("max_completion_tokens").GetInt32()
+                        == PostProcessingService.GroqMaxCompletionTokens,
+                    "Groq request should cap completions at GroqMaxCompletionTokens");
+                Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
+                    "Groq request should use max_completion_tokens, not max_tokens");
             });
 
             // These checks call straight into the generated FFI surface
