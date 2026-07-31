@@ -137,8 +137,46 @@ public partial class TranscriptViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Gets the underlying Transcript entity.
-    /// Used when saving updates back to HistoryService.
+    /// Absorbs a freshly-persisted entity for this transcript and refreshes.
+    ///
+    /// Callers handling <c>HistoryService.TranscriptUpdated</c> MUST
+    /// use this instead of <see cref="ToEntity"/>. That event frequently carries the
+    /// very instance <see cref="_source"/> already points at — <c>MainViewModel</c>
+    /// passes its live transcript straight to <c>HistoryService.UpdateTranscript</c>,
+    /// which forwards it to subscribers — and <see cref="ToEntity"/> is a save-back:
+    /// it writes this view model's (stale) snapshot INTO the entity. On the aliased
+    /// path that reverts the entity to whatever it looked like when this view model
+    /// was constructed, i.e. Processing with no text.
+    /// </summary>
+    public void ApplyUpdate(Transcript updated)
+    {
+        ArgumentNullException.ThrowIfNull(updated);
+
+        // Self-assignment when aliased; a genuine copy otherwise (e.g. an entity
+        // re-read from the DB). Either way the source ends up holding the fresh
+        // values, never this view model's stale ones.
+        if (!ReferenceEquals(_source, updated))
+        {
+            _source.Text = updated.Text;
+            _source.TranscribedText = updated.TranscribedText;
+            _source.PostProcessedText = updated.PostProcessedText;
+            _source.Status = updated.Status;
+            _source.FailedReason = updated.FailedReason;
+            _source.TranscriptionProvider = updated.TranscriptionProvider;
+            _source.PostProcessingProvider = updated.PostProcessingProvider;
+            _source.RetryCount = updated.RetryCount;
+            _source.LastRetryDate = updated.LastRetryDate;
+        }
+
+        Refresh();
+    }
+
+    /// <summary>
+    /// Flushes this view model's state INTO the underlying entity and returns it.
+    /// Used when saving user edits back to HistoryService.
+    ///
+    /// WARNING: this is a write, not a getter. Never call it to obtain the entity
+    /// for a refresh — see <see cref="ApplyUpdate"/>.
     /// </summary>
     public Transcript ToEntity()
     {
