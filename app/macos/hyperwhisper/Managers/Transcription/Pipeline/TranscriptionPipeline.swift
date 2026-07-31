@@ -59,7 +59,17 @@ class TranscriptionPipeline: ObservableObject {
     @Published var selectedProvider: TranscriptionProviderType = .local
 
     /// Current manager state (idle, transcribing, error, etc).
-    @Published var state: TranscriptionState = .idle
+    @Published var state: TranscriptionState = .idle {
+        didSet {
+            guard pendingParakeetReadinessModeId != nil,
+                  state_isReadyForTranscription() else {
+                return
+            }
+            Task { @MainActor [weak self] in
+                await self?.refreshPendingParakeetReadinessIfReady()
+            }
+        }
+    }
 
     /// Available Whisper models for local transcription.
     @Published var availableModels: [WhisperModel] = []
@@ -121,6 +131,9 @@ class TranscriptionPipeline: ObservableObject {
 
     /// Current transcription task (for cancellation).
     var currentTask: Task<TranscriptionResult, Error>?
+
+    /// Selected mode awaiting a safe Parakeet readiness refresh.
+    var pendingParakeetReadinessModeId: String?
 
     // MARK: - Persisted Settings
 

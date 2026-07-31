@@ -447,7 +447,14 @@ class TranscriptionProviderRouter {
             }
             modelString = m
         case "parakeet":
-            modelString = model?.isEmpty == false ? model! : "parakeet-tdt-v3-multilingual"
+            let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) else {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Parakeet",
+                    reason: "Unknown Parakeet model '\(requestedModelId)'"
+                )
+            }
+            modelString = canonicalModelId
         case "qwen3asr", "qwen3", "qwen3-asr":
             modelString = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
@@ -718,7 +725,12 @@ class TranscriptionProviderRouter {
                     parakeetModelManager.refreshState()
                 }
             }
-            // Pass specific modelId to prepare the correct version (V2 or V3)
+
+            // Keep explicit local selection local. `prepareIfNeeded` resolves
+            // legacy Parakeet aliases by version and throws
+            // `.modelNotDownloaded` if the corresponding weights are absent.
+            // That avoids silently uploading audio or starting a download
+            // without user consent.
             try await parakeetProvider.prepareIfNeeded(language: language, modelId: modelId)
             AppLogger.transcription.info("✅ Parakeet provider selected for model: \(modelId)")
             return parakeetProvider

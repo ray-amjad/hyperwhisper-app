@@ -69,6 +69,7 @@ class TranscriptionModelManager: ObservableObject {
         case none
         case loading(name: String)
         case ready(name: String)
+        case unavailable(name: String)
     }
 
     // MARK: - Published Properties
@@ -193,6 +194,15 @@ class TranscriptionModelManager: ObservableObject {
                 modelReadyState = .ready(name: parakeetDisplayName)
             } catch is CancellationError {
                 AppLogger.models.info("Parakeet preparation cancelled")
+            } catch TranscriptionError.modelNotDownloaded {
+                // Missing weights are expected for a restored mode or an
+                // externally-evicted cache. Keep the local-only contract:
+                // preparation must neither upload audio nor start a large
+                // download without consent. The status bar makes the required
+                // action visible, while an actual transcription attempt
+                // throws the localized `.modelNotDownloaded` error.
+                AppLogger.models.warning("Parakeet \(modelId, privacy: .public) is not downloaded")
+                modelReadyState = .unavailable(name: parakeetDisplayName)
             } catch {
                 AppLogger.models.error("Failed to prepare Parakeet provider: \(error.localizedDescription, privacy: .public)")
                 modelReadyState = .none

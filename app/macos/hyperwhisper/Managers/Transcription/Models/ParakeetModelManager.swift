@@ -66,6 +66,31 @@ final class ParakeetModelManager: ObservableObject {
 
         // Backward compatibility: default to V3
         static let modelId = v3ModelId
+
+        /// Resolve supported persisted aliases to the exact identifiers used
+        /// by the model library. Keep this list explicit: coercing an unknown
+        /// identifier to V3 would make a typo select a real model.
+        static func canonicalModelId(for modelId: String) -> String? {
+            switch modelId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case v2ModelId:
+                return v2ModelId
+            case v3ModelId, "parakeet-tdt-v3-multilingual":
+                return v3ModelId
+            default:
+                return nil
+            }
+        }
+
+        /// Local API requests historically default an omitted Parakeet model
+        /// to V3. Preserve unknown explicit values so the provider router can
+        /// reject them instead of silently changing the requested model.
+        static func modelIdForSelection(_ modelId: String?) -> String {
+            guard let trimmed = modelId?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else {
+                return v3ModelId
+            }
+            return canonicalModelId(for: trimmed) ?? trimmed
+        }
     }
 
     @Published private(set) var availableModels: [ParakeetModel] = []
@@ -117,7 +142,10 @@ final class ParakeetModelManager: ObservableObject {
     // PER-MODEL DOWNLOAD CHECK:
     // Returns true if the specific model is currently downloading
     func isDownloading(_ modelId: String) -> Bool {
-        downloads.isDownloading(modelId)
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else {
+            return false
+        }
+        return downloads.isDownloading(canonicalModelId)
     }
 
     // ANY MODEL INSTALLED:
@@ -129,13 +157,19 @@ final class ParakeetModelManager: ObservableObject {
     // SPECIFIC MODEL INSTALLED:
     // Returns true if the specified model ID is downloaded
     func isModelInstalled(_ modelId: String) -> Bool {
-        availableModels.first { $0.id == modelId }?.isDownloaded ?? false
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else {
+            return false
+        }
+        return availableModels.first { $0.id == canonicalModelId }?.isDownloaded ?? false
     }
 
     // VERSION DETECTION HELPER:
     // Determines AsrModelVersion based on model name string
-    private func version(for modelName: String) -> AsrModelVersion {
-        modelName.lowercased().contains("v2") ? .v2 : .v3
+    private func version(for modelName: String) -> AsrModelVersion? {
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelName) else {
+            return nil
+        }
+        return canonicalModelId == Constants.v2ModelId ? .v2 : .v3
     }
 
     // CACHE DIRECTORY HELPER:
@@ -191,8 +225,13 @@ final class ParakeetModelManager: ObservableObject {
     // Each version downloads independently, keyed by modelId.
     @MainActor
     func startDownload(_ modelId: String) {
-        downloads.start(modelId) { [weak self] controller in
-            await self?.runDownload(modelId, controller)
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else {
+            logger.error("Refusing to download unknown Parakeet model \(modelId, privacy: .public)")
+            errorMessage = "Unknown Parakeet model: \(modelId)"
+            return
+        }
+        downloads.start(canonicalModelId) { [weak self] controller in
+            await self?.runDownload(canonicalModelId, controller)
         }
     }
 
@@ -201,8 +240,12 @@ final class ParakeetModelManager: ObservableObject {
     /// `runDownload(_:_:)` then unwinds silently.
     @MainActor
     func cancelDownload(_ modelId: String) {
-        logger.info("Cancelling Parakeet download \(modelId, privacy: .public)")
-        downloads.cancel(modelId)
+        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else {
+            logger.warning("Ignoring cancellation for unknown Parakeet model \(modelId, privacy: .public)")
+            return
+        }
+        logger.info("Cancelling Parakeet download \(canonicalModelId, privacy: .public)")
+        downloads.cancel(canonicalModelId)
     }
 
     // DOWNLOAD SPECIFIC MODEL:
@@ -216,7 +259,11 @@ final class ParakeetModelManager: ObservableObject {
     @MainActor
     private func runDownload(_ modelId: String, _ controller: DownloadController<String>) async {
         errorMessage = nil
-        let modelVersion = version(for: modelId)
+        guard let modelVersion = version(for: modelId) else {
+            logger.error("Refusing to run download for unknown Parakeet model \(modelId, privacy: .public)")
+            errorMessage = "Unknown Parakeet model: \(modelId)"
+            return
+        }
         logger.info("Starting download for Parakeet \(String(describing: modelVersion))")
 
         // `AsrModels.download` sweeps each component's raw fraction 0→1 in turn,
@@ -259,7 +306,11 @@ final class ParakeetModelManager: ObservableObject {
     // Does not affect other versions
     @MainActor
     func deleteModel(_ modelId: String) {
-        let modelVersion = version(for: modelId)
+        guard let modelVersion = version(for: modelId) else {
+            logger.error("Refusing to delete unknown Parakeet model \(modelId, privacy: .public)")
+            errorMessage = "Unknown Parakeet model: \(modelId)"
+            return
+        }
         let directory = cacheDirectory(for: modelVersion)
 
         do {
