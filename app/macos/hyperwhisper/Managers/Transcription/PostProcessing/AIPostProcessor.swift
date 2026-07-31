@@ -82,6 +82,11 @@ class AIPostProcessor: ObservableObject {
     /// Max output tokens requested from any LLM (local or cloud) during post-processing.
     private let maxOutputTokens = 8_192
 
+    /// Output-token cap for Groq requests — see the comment at the Groq branch
+    /// in performAIPostProcessing's request assembly for why this is lower
+    /// than maxOutputTokens.
+    private let groqMaxCompletionTokens = 4_096
+
     /// Resolver for on-device local models
     weak var localModelManager: LocalModelManager?
 
@@ -364,6 +369,15 @@ class AIPostProcessor: ObservableObject {
         if provider == .localLLM {
             localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
             requestBody["max_tokens"] = maxOutputTokens
+        }
+
+        // Groq defaults to 2,048 completion tokens when the request omits a cap,
+        // and gpt-oss reasoning tokens spend from that same budget, so long
+        // dictations truncate (finish_reason=length). Kept at 4,096 — not
+        // maxOutputTokens (8,192) — because Groq's free-tier TPM admission check
+        // (8,000) counts prompt + requested cap, not actual usage.
+        if provider == .groq {
+            requestBody["max_completion_tokens"] = groqMaxCompletionTokens
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
