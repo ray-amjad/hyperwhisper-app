@@ -301,6 +301,16 @@ private final class HistoryViewModel: ObservableObject {
         }
     }
     @Published private(set) var sections: [HistorySectionSnapshot] = []
+    /// Identity key of the query whose results are currently in `sections`,
+    /// updated atomically with them. The List's `.id` must key off this — not
+    /// the live `searchText`, which changes on every keystroke, ~180ms before
+    /// the debounced results land. Keying off the live text rebuilds the list
+    /// too early (while it still shows the old result set) and then lets
+    /// SwiftUI diff two unrelated result sets inside one NSTableView when the
+    /// results do arrive — which mis-reuses cells: stale row content under new
+    /// section headers and selection tags (the row/detail mismatch bug).
+    /// Excludes fetchLimit so pagination doesn't rebuild the list.
+    @Published private(set) var appliedQueryKey: String = ""
     @Published private(set) var loadedObjectIDs: Set<NSManagedObjectID> = []
     @Published private(set) var hasMoreResults: Bool = false
     @Published private(set) var availableModes: [Mode] = []
@@ -412,6 +422,7 @@ private final class HistoryViewModel: ObservableObject {
         // so the result always belongs to the newest applied query — no
         // staleness guard needed.
         sections = result.sections
+        appliedQueryKey = "\(query.searchText)|\(query.dateFilter)"
         loadedObjectIDs = result.objectIDs
         hasMoreResults = result.hasMoreResults
         isLoading = false
@@ -577,7 +588,11 @@ private struct HistoryScreen: View, Equatable {
             .listStyle(.sidebar)
             // Cheap insurance: rebuild the NSTableView-backed List when the query
             // changes rather than diffing rows across unrelated result sets.
-            .id("\(viewModel.searchText)|\(viewModel.dateFilter)")
+            // Keyed off the query that PRODUCED the current sections (set
+            // atomically with them), not the live searchText — see
+            // appliedQueryKey for why keystroke-time rebuilds don't protect
+            // the dangerous transition.
+            .id(viewModel.appliedQueryKey)
             .background(
                 Group {
                     Button("") {

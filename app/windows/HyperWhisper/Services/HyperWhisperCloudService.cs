@@ -491,11 +491,21 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         catch (HwTranscriptionException ex)
         {
             // 200-but-no-speech surfaces here as a NoSpeech error.
-            LastDiagnostics = new TranscriptionProviderDiagnostics(
+            var diagnostics = new TranscriptionProviderDiagnostics(
                 Name, requestId, sttProvider,
                 BackendNoSpeechDetected: ex is HwTranscriptionException.NoSpeech,
                 (int)response.@status, totalSw.ElapsedMilliseconds, false);
-            throw RustCoreMapping.MapTranscriptionError(ex, "HyperWhisper Cloud");
+            LastDiagnostics = diagnostics;
+            // Attach the diagnostics we just captured (real HTTP status + latency)
+            // to the thrown exception itself, not just the LastDiagnostics property -
+            // callers that catch this exception directly (e.g. TranscriptionOrchestrator
+            // step 1, which never reaches its own diagnostics read at the bottom of
+            // TranscribeCloudAsync because this throw unwinds past it) would otherwise
+            // see ProviderDiagnostics as null and every Sentry no-speech event would
+            // report backend_http_status=0 / backend_response_latency_ms=0 regardless
+            // of what actually happened on the wire.
+            throw RustCoreMapping.MapTranscriptionError(
+                ex, "HyperWhisper Cloud", (int)response.@status, providerDiagnostics: diagnostics);
         }
 
         LastDiagnostics = new TranscriptionProviderDiagnostics(
@@ -796,19 +806,6 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             TranscriptionErrorCode.Unknown,
             "Post-processing failed after max retries",
             "HyperWhisper Cloud");
-    }
-
-    /// <summary>
-    /// Masks the URL to hide sensitive query params.
-    /// </summary>
-    private static string MaskUrl(string url)
-    {
-        // Replace device_id and license_key values with ***
-        var masked = System.Text.RegularExpressions.Regex.Replace(
-            url,
-            @"(device_id|license_key)=[^&]+",
-            "$1=***");
-        return masked;
     }
 
     // =========================================================================

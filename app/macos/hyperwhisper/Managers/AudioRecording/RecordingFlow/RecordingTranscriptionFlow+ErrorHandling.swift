@@ -308,6 +308,25 @@ extension RecordingTranscriptionFlow {
     /// the view context AFTER awaiting the writer (auto-merge has applied the
     /// failed status by then).
     func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, duration: TimeInterval, audioURL: URL) {
+        // HYPERWHISPER-EX: `TranscriptionPipeline` deliberately excludes
+        // `.noSpeechDetected` from Sentry capture as "user-recoverable" — which
+        // also hides the case where the mic auto-boost silently failed (fire-and-
+        // forget task, see `RecordingLifecycle.lastMicBoostFailed`) and the
+        // resulting quiet-but-not-silent recording got misclassified as no-speech.
+        // That's a capture-quality defect, not the user simply staying silent, so
+        // report it distinctly here (this call site isn't covered by the
+        // pipeline's blanket exclusion — no duplicate event for the common case).
+        if AppLogger.isErrorLoggingEnabled,
+           let te = error as? TranscriptionError, case .noSpeechDetected = te,
+           recordingLifecycle.lastMicBoostFailed {
+            SentryService.capture(
+                error: te,
+                message: "No speech detected after mic auto-boost failure",
+                extras: ["mode": mode, "durationSeconds": duration],
+                tags: ["category": "audio", "kind": "no_speech_after_boost_failure"]
+            )
+        }
+
         let isNetworkOutage: Bool
         if let transcriptionError = error as? TranscriptionError, case .transientNetwork = transcriptionError {
             isNetworkOutage = true

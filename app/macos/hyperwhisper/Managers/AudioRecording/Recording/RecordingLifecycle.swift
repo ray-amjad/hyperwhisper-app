@@ -113,6 +113,15 @@ class RecordingLifecycle {
     /// the saved volume to the wrong device (issue #235).
     private var originalMicVolumeDeviceID: AudioDeviceID?
 
+    /// HYPERWHISPER-EX: set when the fire-and-forget mic auto-boost task
+    /// (STEP 4.5 in `startRecording`) fails via `setInputVolumeScalar`. The
+    /// recording proceeds at unboosted (possibly too-quiet) gain in that case,
+    /// which downstream can get misclassified as `TranscriptionError.noSpeechDetected`
+    /// instead of a capture-quality issue. Callers check this right after a
+    /// no-speech result to distinguish "user didn't speak" from "we couldn't
+    /// boost the mic". Reset at the start of every recording.
+    private(set) var lastMicBoostFailed = false
+
     /// Recordings directory URL
     private var recordingsDirectory: URL {
         if let path = settingsManager?.recordingsFolder, !path.isEmpty {
@@ -232,6 +241,7 @@ class RecordingLifecycle {
         // has fresh, unique file URLs based on current timestamp
         self.finalURL = nil
         self.rawURL = nil
+        self.lastMicBoostFailed = false
 
         // STEP 3: Stop any existing recording
         if isRecording {
@@ -392,6 +402,14 @@ class RecordingLifecycle {
                     }
                 } else {
                     AppLogger.audio.warning("🎚️ [ASYNC] FAILED - CoreAudio setInputVolumeScalar returned false (device may not support software volume control)")
+                    SentryService.addBreadcrumb(
+                        message: "Mic auto-boost failed (setInputVolumeScalar)",
+                        category: "audio.recording",
+                        data: ["deviceName": deviceName, "deviceType": deviceType]
+                    )
+                    await MainActor.run { [weak self] in
+                        self?.lastMicBoostFailed = true
+                    }
                 }
 
                 AppLogger.audio.info("🎚️ [ASYNC] Auto-increase mic volume task COMPLETED")

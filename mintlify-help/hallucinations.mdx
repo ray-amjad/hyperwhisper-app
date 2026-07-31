@@ -41,7 +41,7 @@ VAD is the most direct fix for silence-induced hallucinations. It analyzes your 
     **"No speech detected":** If VAD determines the entire recording is noise, it returns the original file for transcription, which will likely produce an empty or garbled result. This means the audio was all noise — record in a quieter environment or raise your microphone input level.
   </Tab>
   <Tab title="Windows">
-    When you use the local Parakeet model on Windows, voice activity detection is applied automatically. There is no separate toggle in Sound settings.
+    When you use local models (Parakeet, Nemotron, Qwen3 ASR) on Windows, Silero VAD runs internally as part of ASR segmentation — it skips silence chunk-by-chunk during transcription rather than trimming the file beforehand. There is no separate toggle in Sound settings, and no separate trimmed audio file is produced or stored.
   </Tab>
 </Tabs>
 
@@ -61,11 +61,11 @@ How entries are applied depends on the provider:
 
 - **Deepgram** — sent as keyword boosting parameters (up to 100 terms; a warning appears if you exceed this limit).
 - **ElevenLabs Scribe v2** — sent as keyterms (up to 100 terms; terms longer than 50 characters are dropped).
-- **OpenAI Whisper, HyperWhisper Cloud** — sent as prompt vocabulary.
+- **OpenAI Whisper, HyperWhisper Cloud, Gemini** — sent as prompt vocabulary (HyperWhisper Cloud silently caps at 100 terms with no warning shown; Gemini receives it as free text embedded in a natural-language prompt instruction, the same mechanism as OpenAI and HyperWhisper Cloud).
 - **Soniox** — sent as context vocabulary (terms joined into a single comma-separated string).
-- **AssemblyAI, Gemini** — sent as key-term context.
-- **Local models on macOS (Parakeet, Nemotron) and local Parakeet on Windows** — matched phonetically using the Beider-Morse algorithm. Terms of two characters or fewer are excluded to avoid false positives.
-- **All providers** — all vocabulary entries are injected into the AI post-processing system prompt, which helps clean up errors the raw transcript missed.
+- **AssemblyAI** — sent as key-term context.
+- **Local models on both platforms (Parakeet on macOS and Windows, Nemotron on macOS and Windows)** — matched phonetically using the Beider-Morse algorithm. Terms of two characters or fewer are excluded to avoid false positives.
+- **All providers** — entries without a replacement are injected into the per-request user-message context sent to AI post-processing, which helps clean up errors the raw transcript missed.
 
 Good entries to add:
 
@@ -101,7 +101,7 @@ Practical improvements:
 Some models handle noise and accents better than others:
 
 - **Cloud models (ElevenLabs Scribe v2, Deepgram Nova-3, Grok STT)** — generally more robust to background noise and accents than local models.
-- **Local models (Parakeet, Nemotron, Whisper)** — faster and private, but more sensitive to noise. Nemotron supports 40+ languages offline and tends to outperform the Whisper family for multilingual use.
+- **Local models (Parakeet, Nemotron, Whisper)** — faster and private, but more sensitive to noise. Nemotron supports ~40 languages offline and tends to outperform the Whisper family for multilingual use.
 - **Larger models** — within any family, larger models produce fewer errors but require more processing time and memory.
 
 If you're in a noisy environment and accuracy matters more than speed, switch to a cloud model for that session.
@@ -120,10 +120,23 @@ Even small environment changes help:
 
 <Tabs>
   <Tab title="macOS">
-    **Settings → Sound → Media control while recording** can pause or mute system audio automatically when you start recording, which prevents music or video from bleeding into your dictation.
+    **Settings → Sound → Media control while recording** can mute system audio automatically when you start recording (choose **Off** or **Mute Audio**), which prevents music or video from bleeding into your dictation.
   </Tab>
   <Tab title="Windows">
     Manually pause any media playback before recording to avoid audio bleed-through.
+  </Tab>
+</Tabs>
+
+### 7. Built-in cleanup for local Whisper
+
+Both platforms include automatic cleanup passes specifically for local Whisper output, since Whisper is the model family most prone to hallucinated filler at the end of a clip:
+
+<Tabs>
+  <Tab title="macOS">
+    HyperWhisper strips common Whisper hallucination artifacts from local transcripts automatically — phrases like "Thank you for watching!", "[Music]", and subtitle-credit boilerplate are pattern-matched and removed after transcription, before the text reaches you.
+  </Tab>
+  <Tab title="Windows">
+    HyperWhisper detects and collapses repetition loops in local Whisper output — a known failure mode where the model gets stuck repeating the same word or phrase — so you don't see long runs of the same token when this happens.
   </Tab>
 </Tabs>
 

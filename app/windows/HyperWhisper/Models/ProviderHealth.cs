@@ -42,34 +42,3 @@ public enum ProviderHealth
     /// </summary>
     Unreachable
 }
-
-/// <summary>
-/// Extension methods for ProviderHealth enum.
-/// </summary>
-public static class ProviderHealthExtensions
-{
-    /// <summary>
-    /// Gets a user-friendly status message for the health state.
-    /// </summary>
-    public static string GetStatusMessage(this ProviderHealth health) => health switch
-    {
-        ProviderHealth.Unknown => "Not checked",
-        ProviderHealth.Checking => "Checking...",
-        ProviderHealth.Healthy => "Connected",
-        ProviderHealth.Unauthorized => "Invalid API key",
-        ProviderHealth.Unreachable => "Service unreachable",
-        _ => "Unknown"
-    };
-
-    /// <summary>
-    /// Determines if the health status indicates a working configuration.
-    /// </summary>
-    public static bool IsOperational(this ProviderHealth health) =>
-        health == ProviderHealth.Healthy;
-
-    /// <summary>
-    /// Determines if the health status indicates an error that requires user action.
-    /// </summary>
-    public static bool RequiresUserAction(this ProviderHealth health) =>
-        health == ProviderHealth.Unauthorized;
-}

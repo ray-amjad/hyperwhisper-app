@@ -2090,7 +2090,14 @@ public partial class MainViewModel : ViewModelBase
                 vocabulary,
                 localTranscriptionProvider: GetLocalProvider(recordingMode),
                 applicationContext: _capturedApplicationContext,
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already tracked above (logged a few lines earlier) for the
+                // same audio content — avoids AssemblyAIService re-reading the
+                // file a second time just for its sync-eligibility gate. This
+                // is the PRIMARY target of the sub-120s sync fast path (the
+                // most latency-sensitive flow), so it must forward the known
+                // duration the same way the file-import call site does.
+                knownDurationSeconds: RecordingDuration.TotalSeconds);
             transcriptionCts.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
@@ -2234,7 +2241,8 @@ public partial class MainViewModel : ViewModelBase
                             inputDeviceName: SelectedAudioDevice?.Name,
                             transcriptionProviderDisplayName: txEx.ProviderName,
                             providerDiagnostics: txEx.ProviderDiagnostics,
-                            exception: txEx);
+                            exception: txEx,
+                            captureDeviceCount: AudioDevices.Count);
                     }
 
                     ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
@@ -2732,7 +2740,12 @@ public partial class MainViewModel : ViewModelBase
             var result = await _transcriptionOrchestrator.TranscribeAsync(
                 permanentPath, mode, vocabulary,
                 localTranscriptionProvider: GetLocalProvider(mode),
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already probed above (STEP 5) via NAudio for the same audio
+                // content (permanentPath is a byte-identical copy of
+                // pathForTranscription) — avoids AssemblyAIService re-reading
+                // the file a second time just for its sync-eligibility gate.
+                knownDurationSeconds: duration);
             transcriptionCts.Token.ThrowIfCancellationRequested();
 
             // STEP 9: Finishing stage (85-100%) - Update transcript with results
@@ -3113,6 +3126,17 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
+
+            // A persisted terminal status means some path already wrote a result,
+            // so there is nothing to repair — never downgrade it. The in-memory
+            // copy is not trustworthy on its own: it is shared with the History
+            // page's view model, which can revert it to Processing while the row
+            // in the database is already Completed.
+            if (persisted != null && persisted.Status != TranscriptStatus.Processing)
+            {
+                return;
+            }
+
             if (persisted?.Status == TranscriptStatus.Processing &&
                 transcript.Status != TranscriptStatus.Processing)
             {

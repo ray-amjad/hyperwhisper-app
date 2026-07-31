@@ -47,11 +47,6 @@ export interface AccountKeyRow {
   createdAt: Date;
 }
 
-export interface CreditBalanceRow {
-  userId: string;
-  balance: number;
-}
-
 export type CreditGrantSourceType =
   | "license_bundle"
   | "polar_bundle"
@@ -555,17 +550,6 @@ export async function refundCreditGrant(
       refundedAmount: clawback,
     };
   });
-}
-
-export async function hasProcessedStripeObject(
-  stripeObjectId: string
-): Promise<boolean> {
-  const row = await db.query.stripeProcessedEvents.findFirst({
-    where: eq(stripeProcessedEvents.stripeObjectId, stripeObjectId),
-    columns: { eventId: true },
-  });
-
-  return Boolean(row);
 }
 
 export async function spendCreditGrantsByProvenance(

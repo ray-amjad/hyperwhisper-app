@@ -22,6 +22,10 @@ public partial class BackupExportSettingsPage : Page
         ExportVocabularyCheckbox.Content =
             Loc.S("settings.backup.export.section.vocabulary", vocabCount);
 
+        // Attach selection handlers only after InitializeComponent has created the
+        // complete control tree. XAML-level Checked handlers can run while BAML is
+        // still constructing later siblings, which makes field access order-dependent.
+        AttachExportSectionHandlers();
         UpdateExportButtonState();
     }
 
@@ -34,15 +38,20 @@ public partial class BackupExportSettingsPage : Page
         UpdateExportButtonState();
     }
 
+    private void AttachExportSectionHandlers()
+    {
+        ExportSettingsCheckbox.Checked += ExportSection_Changed;
+        ExportSettingsCheckbox.Unchecked += ExportSection_Changed;
+        ExportModesCheckbox.Checked += ExportSection_Changed;
+        ExportModesCheckbox.Unchecked += ExportSection_Changed;
+        ExportVocabularyCheckbox.Checked += ExportSection_Changed;
+        ExportVocabularyCheckbox.Unchecked += ExportSection_Changed;
+        IncludeApiKeysCheckbox.Checked += ExportSection_Changed;
+        IncludeApiKeysCheckbox.Unchecked += ExportSection_Changed;
+    }
+
     private void UpdateExportButtonState()
     {
-        // Setting a checkbox's IsChecked in XAML fires Checked/ExportSection_Changed
-        // *during* InitializeComponent, before the sibling checkboxes below it have
-        // been created. Bail out until the whole control tree is built so
-        // BuildExportSelection never dereferences a not-yet-created checkbox.
-        if (!IsInitialized)
-            return;
-
         ExportButton.IsEnabled = BuildExportSelection().HasAnySection;
     }
 
