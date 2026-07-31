@@ -24,6 +24,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
@@ -112,6 +113,13 @@ internal static class Program
                     "OpenAI request should not contain max_tokens");
                 Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "OpenAI request should not contain max_completion_tokens");
+            });
+
+            Run("Deepgram streaming starts its session on WebSocket open", () =>
+            {
+                Assert(new DeepgramStreamingStrategy().SessionStartsOnWebSocketOpen,
+                    "Deepgram sends nothing until it receives audio, so startup must not "
+                        + "block waiting for a provider message");
             });
 
             // These checks call straight into the generated FFI surface

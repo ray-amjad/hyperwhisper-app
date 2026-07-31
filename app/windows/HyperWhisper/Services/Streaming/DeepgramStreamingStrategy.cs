@@ -18,7 +18,11 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
 
     public string TranscriptionProviderLabel => "Deepgram (Streaming)";
     public bool SupportsVocabulary => true;
-    public bool SessionStartsOnWebSocketOpen => false;
+
+    // Deepgram direct streaming is ready as soon as the WebSocket handshake
+    // completes. Metadata may arrive later, so startup should not block on it.
+    public bool SessionStartsOnWebSocketOpen => true;
+
     public int AudioSampleRate => 16000;
     public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) => [];
 
