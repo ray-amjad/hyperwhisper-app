@@ -25,19 +25,22 @@ extension TranscriptionPipeline {
             return classify(cloudError)
         }
         if let urlError = error as? URLError {
-            let retryableCodes: Set<URLError.Code> = [
-                .timedOut,
-                .cannotFindHost,
-                .cannotConnectToHost,
-                .networkConnectionLost,
-                .dnsLookupFailed,
-                .notConnectedToInternet
-            ]
+            // Reuses the same canonical `transientURLErrorCodes` set as
+            // `shouldCaptureTranscriptionErrorInSentry` below (and
+            // `LicenseNetworkService.isNetworkFailure`) instead of maintaining a
+            // second, narrower connectivity-code list here — both call sites are
+            // answering the same underlying question ("is this a transient
+            // connectivity problem, not a code defect"), just for different
+            // consumers (retry-hint vs Sentry-capture vs offline-diagnostic).
+            // Previously this list only had 6 of the canonical set's 8 codes
+            // (missing `.dataNotAllowed` / `.internationalRoamingOff`), which was
+            // an unintentional divergence, not a deliberate policy difference —
+            // unified here. HYPERWHISPER-F4 (review round 2).
             let kind = "url_\(String(describing: urlError.code))"
             return TranscriptionErrorClassification(
                 category: "network",
                 kind: kind,
-                retryable: retryableCodes.contains(urlError.code),
+                retryable: Self.transientURLErrorCodes.contains(urlError.code),
                 httpStatus: nil
             )
         }
@@ -124,7 +127,19 @@ extension TranscriptionPipeline {
         }
     }
 
-    private static let transientURLErrorCodes: Set<URLError.Code> = [
+    /// Connectivity-error codes treated as transient (not code defects). This IS
+    /// the canonical set for that question across the codebase — every other
+    /// call site reuses it instead of keeping an independent copy:
+    /// - `classifyTranscriptionError` above (bare `URLError` branch — the
+    ///   "retryable" hint), and `shouldCaptureTranscriptionErrorInSentry` below
+    ///   (the Sentry-capture suppression), both in this file.
+    /// - `LicenseNetworkService.isNetworkFailure` (the offline-fallback
+    ///   diagnostic signal) — see that call site.
+    /// Not `private` so those call sites can reference it. HYPERWHISPER-F4
+    /// (review round 2: `classifyTranscriptionError` previously kept its own
+    /// narrower, unintentionally-diverged 6-code list here instead of reusing
+    /// this set — unified).
+    static let transientURLErrorCodes: Set<URLError.Code> = [
         .notConnectedToInternet, .networkConnectionLost, .timedOut,
         .dnsLookupFailed, .cannotFindHost, .cannotConnectToHost,
         .dataNotAllowed, .internationalRoamingOff
