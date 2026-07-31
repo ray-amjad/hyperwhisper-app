@@ -430,9 +430,24 @@ internal static class Program
                 var application = new Application();
                 LoadApplicationResources(application);
 
+                // Constructing the page exercises the exact construction-order NRE this
+                // regression test covers. Export selection handlers must not run until
+                // InitializeComponent has created the complete checkbox tree.
                 var page = new BackupExportSettingsPage();
                 if (!page.IsInitialized)
                     throw new InvalidOperationException("BackupExportSettingsPage did not finish WPF initialization.");
+
+                // Post-construction changes prove handlers are attached and state is
+                // recomputed; the button's default enabled value alone proves nothing.
+                page.ExportSettingsCheckbox.IsChecked = false;
+                page.ExportModesCheckbox.IsChecked = false;
+                page.ExportVocabularyCheckbox.IsChecked = false;
+                Assert(!page.ExportButton.IsEnabled,
+                    "expected ExportButton to be disabled once all export sections are unchecked");
+
+                page.ExportModesCheckbox.IsChecked = true;
+                Assert(page.ExportButton.IsEnabled,
+                    "expected ExportButton to be re-enabled after re-checking a section");
 
                 application.Shutdown();
             });
