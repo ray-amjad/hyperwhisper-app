@@ -49,6 +49,8 @@ struct RecordingDialog: View {
     /// High-frequency metrics (audioLevel, recordingDuration) isolated for performance.
     /// This prevents MainAppView from re-evaluating at 30 FPS during recording.
     @EnvironmentObject var liveMetrics: RecordingLiveMetrics
+    /// High-frequency streaming preview text, isolated for the same reason (HYPERWHISPER-F7).
+    @EnvironmentObject var liveStreamingText: StreamingLiveText
     @ObservedObject private var network = NetworkStatus.shared
     
     @Binding var isPresented: Bool
@@ -107,7 +109,7 @@ struct RecordingDialog: View {
             case .ready:
                 return "streaming.status.ready".localized
             case .streaming:
-                if !appState.streamingText.isEmpty {
+                if !liveStreamingText.text.isEmpty {
                     return "streaming.status.streaming".localized
                 } else {
                     return "streaming.status.listening".localized
@@ -319,7 +321,7 @@ struct RecordingDialog: View {
             // When user starts a new recording, these must be cleared or the dialog
             // will show the previous transcription instead of the waveform
             appState.lastTranscription = ""
-            appState.streamingText = ""
+            liveStreamingText.text = ""
             appState.isStreaming = false
             appState.transcriptionPasteFailed = false
 
@@ -348,7 +350,7 @@ struct RecordingDialog: View {
                 
                 // Clear any lingering transcription data
                 appState.lastTranscription = ""
-                appState.streamingText = ""
+                liveStreamingText.text = ""
                 appState.isStreaming = false
                 appState.transcriptionPasteFailed = false
                 break
@@ -430,7 +432,7 @@ struct RecordingDialog: View {
             // When streaming ends, there is a brief moment before final text is set.
             // Defer classification slightly to avoid flashing error state on success.
             if !isNowStreaming {
-                let partial = appState.streamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let partial = liveStreamingText.text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !partial.isEmpty else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     // Only treat as error if we still have no final text and streaming hasn't resumed
@@ -1238,8 +1240,12 @@ struct VisualEffectBackground: NSViewRepresentable {
 // MARK: - Preview
 
 #Preview {
+    let previewAppState = AppState()
     RecordingDialog(isPresented: .constant(true))
         .environmentObject(AudioRecordingManager())
-        .environmentObject(AppState())
+        .environmentObject(previewAppState)
         .environmentObject(SettingsManager())
+        .environmentObject(RecordingLiveMetrics())
+        .environmentObject(previewAppState.liveStreamingText)
+        .environmentObject(TranscriptionPipeline())
 }

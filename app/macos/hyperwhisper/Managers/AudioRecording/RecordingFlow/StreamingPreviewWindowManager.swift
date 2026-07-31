@@ -33,6 +33,9 @@ final class StreamingPreviewWindowManager {
 
         let view = StreamingPreviewBubble()
             .environmentObject(appState)
+            // High-frequency streaming preview text isolated for performance
+            // (prevents main window invalidation on every streaming delta — HYPERWHISPER-F7)
+            .environmentObject(appState.liveStreamingText)
 
         let hostingController = NSHostingController(rootView: view)
         hostingController.view.wantsLayer = true
