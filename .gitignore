@@ -89,6 +89,8 @@ plans/
 notes/
 tasks/
 app/ios/
+bug-hunt/
+.playwright-mcp/
 # Local agent tooling & internal-only skills/worktrees — never part of the public repo
 # ...except .claude/skills/, which holds repo-shareable skills that ship with the project.
 .claude/*
