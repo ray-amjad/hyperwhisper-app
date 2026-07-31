@@ -74,6 +74,10 @@ struct StorageSettingsSection: View {
             )
             .frame(maxWidth: SettingsLayout.cardWidth)
 
+            // MAX RECORDING DURATION:
+            // Safety cap that auto-stops runaway recordings (Off = no limit)
+            maxRecordingDurationRow
+
             // AUTO-DELETE SECTION:
             // Allows users to configure automatic deletion of old recordings
             autoDeleteSection
@@ -81,6 +85,64 @@ struct StorageSettingsSection: View {
         .onAppear {
             autoDeleteValueText = String(settingsManager.autoDelete.autoDeleteValue)
         }
+    }
+
+    // MARK: - Max Recording Duration
+
+    /// Preset choices for the recording cap, in seconds. 0 = off.
+    private static let maxDurationPresets: [Int] = [20 * 60, 60 * 60, 120 * 60, 0]
+
+    /// Picker row for the auto-stop recording cap.
+    private var maxRecordingDurationRow: some View {
+        SettingsCard(horizontalPadding: 8, maxWidth: SettingsLayout.cardWidth) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(localized: "settings.storage.maxRecordingDuration.title")
+                        .font(.headline)
+                    Text(localized: "settings.storage.maxRecordingDuration.subtitle")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Picker("", selection: $settingsManager.maxRecordingDurationSeconds) {
+                    ForEach(maxDurationOptions, id: \.self) { seconds in
+                        Text(Self.maxDurationLabel(seconds)).tag(seconds)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 120)
+                .labelsHidden()
+            }
+            .padding(10)
+        }
+    }
+
+    /// The presets plus, when the stored value isn't one of them (e.g. imported
+    /// from another platform's backup), the current value itself so the picker
+    /// still displays it instead of showing an empty selection.
+    private var maxDurationOptions: [Int] {
+        var options = Self.maxDurationPresets
+        let current = settingsManager.maxRecordingDurationSeconds
+        if !options.contains(current) {
+            options.insert(current, at: 0)
+        }
+        return options
+    }
+
+    private static func maxDurationLabel(_ seconds: Int) -> String {
+        if seconds == 0 {
+            return "settings.storage.maxRecordingDuration.off".localized
+        }
+        if seconds % 3600 == 0 {
+            let hours = seconds / 3600
+            if hours == 1 {
+                return "settings.storage.maxRecordingDuration.hour".localized
+            }
+            return String(format: "settings.storage.maxRecordingDuration.hours".localized, hours)
+        }
+        return String(format: "settings.storage.maxRecordingDuration.minutes".localized, max(1, seconds / 60))
     }
 
     // MARK: - Auto-Delete Section

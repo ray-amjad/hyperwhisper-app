@@ -20,6 +20,7 @@
     "githubAria": "Vaata HyperWhisperit GitHubis"
   },
   "hero": {
+    "openSourceBadge": "Avatud lähtekood · Apache-2.0",
     "logoAlt": "HyperWhisperi logo",
     "headline": "Kirjuta, loo ja kujunda",
     "headlineAccent": "5x kiiremini AI-ga",

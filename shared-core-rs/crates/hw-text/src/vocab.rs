@@ -10,8 +10,11 @@
 //! Unification note: the replacement is applied **literally** — `$1`, `$&`, etc.
 //! in the replacement are NOT expanded as capture-group references. macOS already
 //! did this (`NSRegularExpression.escapedTemplate`); the Windows port passed the
-//! raw replacement to `Regex.Replace`, so "$5" misbehaved. We adopt the macOS
-//! (literal) behavior via `regex::NoExpand`, fixing the Windows bug.
+//! raw replacement to `Regex.Replace`, where .NET expands the substitution
+//! tokens `$0`, `$$`, `$&`, `$'`, `` $` ``, `$+`, `$_` and `${name}` (a bare
+//! `$5` is only expanded when a group 5 exists — these `\b<literal>\b` patterns
+//! have none, so it passed through). We adopt the macOS (literal) behavior via
+//! `regex::NoExpand`, fixing the Windows divergence for those tokens.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};

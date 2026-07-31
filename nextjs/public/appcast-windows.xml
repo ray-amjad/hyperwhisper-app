@@ -25,6 +25,206 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.8.3 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.3 - ARM64 -->
+<item>
+<title>1.8.3 (ARM64)</title>
+<pubDate>Fri, 31 Jul 2026 03:15:33 +0000</pubDate>
+<sparkle:version>1.8.3</sparkle:version>
+<sparkle:shortVersionString>1.8.3</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.3-arm64-Setup.exe"
+length="143933440"
+type="application/octet-stream"
+sparkle:edSignature="fsBl7iefstGs3SPwGLRYeWKCwv6qWkBgsxOQmGcqQmhqRGPlzs9vuqVpOJvv47NvTTv7ISDw/3GUfVvx/ch7BQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.3</h2>
+<ul>
+<li>Short recordings transcribe faster with AssemblyAI — clips under two minutes now finish in a single request instead of upload-then-wait.</li><li>Your vocabulary replacements now apply on modes that have AI post-processing turned off. They were being silently discarded.</li><li>Removed Groq's Llama 4 Maverick, which Groq has shut down. Picking it made AI post-processing quietly do nothing; modes still set to it now move to GPT-OSS 120B automatically.</li><li>Fixed a bug where a finished transcription could be overwritten in History with "Transcription did not finish", losing its text. The text was pasted correctly at the time — only the saved copy was destroyed.</li><li>The mouse wheel now scrolls the Modes and Model Library pages, instead of only the scrollbar working.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.3 - x64 -->
+<item>
+<title>1.8.3 (x64)</title>
+<pubDate>Fri, 31 Jul 2026 03:15:33 +0000</pubDate>
+<sparkle:version>1.8.3</sparkle:version>
+<sparkle:shortVersionString>1.8.3</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.3-x64-Setup.exe"
+length="181434696"
+type="application/octet-stream"
+sparkle:edSignature="UyoglP2UPidSmWHGkxups9bCiBL8QkCL5eMf+NI30VTq46btqe2c2UXBiW8s9nvuDH2NKkAOq5J0W3f6pBs8BQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.3</h2>
+<ul>
+<li>Short recordings transcribe faster with AssemblyAI — clips under two minutes now finish in a single request instead of upload-then-wait.</li><li>Your vocabulary replacements now apply on modes that have AI post-processing turned off. They were being silently discarded.</li><li>Removed Groq's Llama 4 Maverick, which Groq has shut down. Picking it made AI post-processing quietly do nothing; modes still set to it now move to GPT-OSS 120B automatically.</li><li>Fixed a bug where a finished transcription could be overwritten in History with "Transcription did not finish", losing its text. The text was pasted correctly at the time — only the saved copy was destroyed.</li><li>The mouse wheel now scrolls the Modes and Model Library pages, instead of only the scrollbar working.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
+<!-- VERSION 1.8.2 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.2 - ARM64 -->
+<item>
+<title>1.8.2 (ARM64)</title>
+<pubDate>Wed, 29 Jul 2026 01:36:12 +0000</pubDate>
+<sparkle:version>1.8.2</sparkle:version>
+<sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.2-arm64-Setup.exe"
+length="143922008"
+type="application/octet-stream"
+sparkle:edSignature="kr+BUdSZj5uZzC7F+nckHOkIyNFb2bMw6tR2Ovk15E+SKBFYZd7hX5wbKjk1nyoc/BzPxKklrigC0QDC461JCQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.2</h2>
+<ul>
+<li>Fixed cancelling a transcription showing an error — pressing Escape while transcribing, or Cancel during a file transcription, now stops cleanly instead of reporting a failed transcription and marking the recording as Failed in History.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.2 - x64 -->
+<item>
+<title>1.8.2 (x64)</title>
+<pubDate>Wed, 29 Jul 2026 01:36:12 +0000</pubDate>
+<sparkle:version>1.8.2</sparkle:version>
+<sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.2-x64-Setup.exe"
+length="181432944"
+type="application/octet-stream"
+sparkle:edSignature="aXfj/sa/ST9SmDprBzKO8G5jHNdKi+4pY+flOAe9jjBZ2RRt+HdiSfCEmcfEHGPFx1/fmFTw5qR21Mko6tqADg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.2</h2>
+<ul>
+<li>Fixed cancelling a transcription showing an error — pressing Escape while transcribing, or Cancel during a file transcription, now stops cleanly instead of reporting a failed transcription and marking the recording as Failed in History.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
+<!-- VERSION 1.8.1 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.1 - ARM64 -->
+<item>
+<title>1.8.1 (ARM64)</title>
+<pubDate>Mon, 20 Jul 2026 23:42:31 +0000</pubDate>
+<sparkle:version>1.8.1</sparkle:version>
+<sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.1-arm64-Setup.exe"
+length="143933288"
+type="application/octet-stream"
+sparkle:edSignature="XWnTS0+u4tKvESHPjaTHe59oxpVggX74WFy24xQUZxyyxsmh3kv3KbgwYN6If8GWpUOux382ptagwA4nbNMZBg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.1</h2>
+<ul>
+<li>More reliable AI post-processing: if the AI returns an incomplete result, your original transcript is kept instead of being replaced</li>
+<li>Fixed an issue where entering an invalid replacement license key could deactivate your existing valid license</li>
+<li>Fixed mouse-wheel scrolling in the vocabulary list</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.1 - x64 -->
+<item>
+<title>1.8.1 (x64)</title>
+<pubDate>Mon, 20 Jul 2026 23:42:31 +0000</pubDate>
+<sparkle:version>1.8.1</sparkle:version>
+<sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.1-x64-Setup.exe"
+length="181454320"
+type="application/octet-stream"
+sparkle:edSignature="RWVnEU18Kzc1OFUNJ6PK7Z7ZYPtBhuR6vtf6TMeVPIuKATiI/ZoMVx/ey4KbPY9ICVLyI/ZsDEyF0XVcxKURBA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.1</h2>
+<ul>
+<li>More reliable AI post-processing: if the AI returns an incomplete result, your original transcript is kept instead of being replaced</li>
+<li>Fixed an issue where entering an invalid replacement license key could deactivate your existing valid license</li>
+<li>Fixed mouse-wheel scrolling in the vocabulary list</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
+<!-- VERSION 1.8.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.0 - ARM64 -->
+<item>
+<title>1.8.0 (ARM64)</title>
+<pubDate>Sun, 05 Jul 2026 14:32:43 +0000</pubDate>
+<sparkle:version>1.8.0</sparkle:version>
+<sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.0-arm64-Setup.exe"
+length="143909672"
+type="application/octet-stream"
+sparkle:edSignature="83Qpabq67xHLeGtW3CX7fxujkh8tBPf8bwgaapwsJFIxTfvPETEb4STz1qof32qYsZAlbrgiMWD34eaEZn+iDA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.0</h2>
+<ul>
+<li>Local transcription is now completely free and unlimited</li>
+<li>Fixed large cloud uploads being cut off on slow connections</li>
+<li>License and credits now live in one HyperWhisper Cloud panel</li>
+<li>More reliable transcription on Windows on ARM PCs</li>
+<li>Bug fixes and stability improvements</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.0 - x64 -->
+<item>
+<title>1.8.0 (x64)</title>
+<pubDate>Sun, 05 Jul 2026 14:32:43 +0000</pubDate>
+<sparkle:version>1.8.0</sparkle:version>
+<sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.0-x64-Setup.exe"
+length="181439400"
+type="application/octet-stream"
+sparkle:edSignature="cpB4QJS4y5iifOPkehbW3LxXt7IqqwOYQtWOVmSXKsTQZxHWrbFkuWOs35dRAoFNQH5cKzZ9WOpccTgll7XRBg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.0</h2>
+<ul>
+<li>Local transcription is now completely free and unlimited</li>
+<li>Fixed large cloud uploads being cut off on slow connections</li>
+<li>License and credits now live in one HyperWhisper Cloud panel</li>
+<li>More reliable transcription on Windows on ARM PCs</li>
+<li>Bug fixes and stability improvements</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.7.0 -->
 <!-- ================================================================== -->
 

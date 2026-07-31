@@ -22,7 +22,6 @@
 //    ├── SimpleRecorder                 - AVAudioRecorder-based capture (16kHz mono)
 //    ├── MicrophoneKeepWarmManager      - Idle mic keep-warm session for low-latency start
 //    ├── AudioFileConverter             - WAV to M4A conversion
-//    ├── FileWatcher                    - File readiness monitoring
 //    └── PowerActivityManager           - App Nap prevention
 //  ```
 //
@@ -194,9 +193,6 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Handles WAV to M4A conversion
     private let audioFileConverter = AudioFileConverter()
 
-    /// Monitors files for write completion
-    private let fileWatcher = FileWatcher()
-
     /// Prevents App Nap during recording/transcription
     private let powerManager = PowerActivityManager()
 
@@ -261,7 +257,6 @@ class AudioRecordingManager: NSObject, ObservableObject {
             recordingLifecycle: lifecycleManager,
             autoPasteHandler: autoPasteHandler,
             powerActivityManager: powerManager,
-            fileWatcher: fileWatcher,
             permissionManager: permissionManager
         )
 

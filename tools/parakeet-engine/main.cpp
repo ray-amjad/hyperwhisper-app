@@ -281,6 +281,8 @@ static std::string qwen3_language_name(const std::string& code) {
 
 // Languages whose segments should be concatenated with no ASCII space between
 // VAD chunks (CJK has no inter-word spaces).
+// KEEP IN SYNC with ParakeetTranscriptionService.IsNoSpaceLanguage (Windows) —
+// its reload-skip logic assumes this exact language set.
 static bool is_no_space_language(const std::string& code) {
     return code == "ja" || code == "zh" || code == "ko" || code == "yue";
 }

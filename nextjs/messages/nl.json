@@ -20,6 +20,7 @@
     "githubAria": "Bekijk HyperWhisper op GitHub"
   },
   "hero": {
+    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper-logo",
     "headline": "Schrijf, composeer en creëer",
     "headlineAccent": "5x sneller met AI",

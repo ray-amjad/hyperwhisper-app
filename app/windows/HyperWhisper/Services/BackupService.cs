@@ -168,17 +168,9 @@ public class BackupService
         try
         {
             var json = File.ReadAllText(filePath);
-            var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
-
+            var (backup, loadError) = LoadValidatedBackup(json);
             if (backup == null)
-                return Result<BackupContents>.Failure("Invalid backup file: could not parse JSON");
-
-            // TODO-verify (Windows/CI): Rust shared-core swap — structural validation
-            // (replaces the hand-rolled `SchemaVersion != 2` check; core also enforces
-            // required top-level fields + platform enum + modes/vocab array shape).
-            var structureError = ValidateBackupStructure(backup);
-            if (structureError != null)
-                return Result<BackupContents>.Failure(structureError);
+                return Result<BackupContents>.Failure(loadError!);
 
             var contents = new BackupContents
             {
@@ -226,16 +218,9 @@ public class BackupService
         try
         {
             var json = File.ReadAllText(filePath);
-            var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
-
+            var (backup, loadError) = LoadValidatedBackup(json);
             if (backup == null)
-                return Result<string>.Failure("Invalid backup file: could not parse JSON");
-
-            // TODO-verify (Windows/CI): Rust shared-core swap — reject structurally
-            // invalid backups BEFORE mutating any state (replaces `SchemaVersion != 2`).
-            var structureError = ValidateBackupStructure(backup);
-            if (structureError != null)
-                return Result<string>.Failure(structureError);
+                return Result<string>.Failure(loadError!);
 
             bool settingsImported = false;
             int modesImported = 0;
@@ -350,16 +335,9 @@ public class BackupService
         try
         {
             var json = File.ReadAllText(filePath);
-            var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
-
+            var (backup, loadError) = LoadValidatedBackup(json);
             if (backup == null)
-                return Result<ImportSummary>.Failure("Invalid backup file: could not parse JSON");
-
-            // TODO-verify (Windows/CI): Rust shared-core swap — structural validation
-            // before applying any selected section (replaces `SchemaVersion != 2`).
-            var structureError = ValidateBackupStructure(backup);
-            if (structureError != null)
-                return Result<ImportSummary>.Failure(structureError);
+                return Result<ImportSummary>.Failure(loadError!);
 
             var summary = new ImportSummary();
 
@@ -457,17 +435,11 @@ public class BackupService
         try
         {
             var json = File.ReadAllText(filePath);
-            var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
-
+            // Same gate as Inspect/ImportSelective so the preview never reports
+            // counts for a file the actual import would reject.
+            var (backup, loadError) = LoadValidatedBackup(json);
             if (backup == null)
-                return Result<VocabularyMergePreview>.Failure("Invalid backup file: could not parse JSON");
-
-            // Match the structural gate used by Inspect/ImportSelective so the preview never
-            // reports counts for a file the actual import would reject.
-            // TODO-verify (Windows/CI): Rust shared-core swap (replaces `SchemaVersion != 2`).
-            var structureError = ValidateBackupStructure(backup);
-            if (structureError != null)
-                return Result<VocabularyMergePreview>.Failure(structureError);
+                return Result<VocabularyMergePreview>.Failure(loadError!);
 
             var incoming = backup.Vocabulary ?? new List<UniversalVocabularyItem>();
 
@@ -627,6 +599,25 @@ public class BackupService
     // that string to ValidateBackupJson, and translate any HwValidationError list
     // into a single user-facing failure message. Native JsonSerializer (de)serde,
     // file I/O, and the Windows platformExtensions mapper are untouched.
+    /// <summary>
+    /// Parse + structurally validate a backup JSON document. Returns the parsed
+    /// backup, or a user-facing error message when the JSON does not parse or
+    /// fails the shared core's structural validation. Single implementation for
+    /// the Inspect / Import / ImportSelective / PreviewVocabularyMerge sites.
+    /// </summary>
+    private static (UniversalBackup? Backup, string? Error) LoadValidatedBackup(string json)
+    {
+        var backup = JsonSerializer.Deserialize<UniversalBackup>(json, UniversalJsonOptions);
+        if (backup == null)
+            return (null, "Invalid backup file: could not parse JSON");
+
+        // TODO-verify (Windows/CI): Rust shared-core swap — structural validation
+        // BEFORE any caller mutates state (replaces the hand-rolled
+        // `SchemaVersion != 2` check).
+        var structureError = ValidateBackupStructure(backup);
+        return structureError != null ? (null, structureError) : (backup, null);
+    }
+
     private static string? ValidateBackupStructure(UniversalBackup backup)
     {
         // Re-serialize the typed model so the core validates the exact shape we parsed.

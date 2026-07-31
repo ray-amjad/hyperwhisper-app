@@ -11,6 +11,7 @@
 
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using HyperWhisper.Configuration;
@@ -71,7 +72,8 @@ internal static class HyperWhisperRoutedTranscriptionClient
         IReadOnlyList<string>? vocabulary,
         CancellationToken cancellationToken,
         string? model = null,
-        string? domain = null)
+        string? domain = null,
+        string? tierStorageId = null)
     {
         // WAVE 3 / Win-2: URL / header / vocabulary construction and request/
         // response handling now run through the Rust shared core's routed
@@ -85,6 +87,17 @@ internal static class HyperWhisperRoutedTranscriptionClient
         var totalSw = Stopwatch.StartNew();
 
         var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
+
+        // Fail fast: the guest/device-credit path is dead server-side
+        // (entitlement is enforced there), so an unlicensed request is doomed —
+        // surface guidance instead of burning a network round-trip on a 401.
+        if (!isLicensed)
+        {
+            throw new TranscriptionException(
+                TranscriptionErrorCode.CloudAccountRequired,
+                "HyperWhisper Cloud requires an account key",
+                providerDisplayName);
+        }
 
         LoggingService.Info($"========== HW-ROUTED TRANSCRIPTION ({sttProviderHeader}) ==========");
         LoggingService.Info($"  Auth: {(isLicensed ? "License Key" : "Device Credits")}");
@@ -102,19 +115,44 @@ internal static class HyperWhisperRoutedTranscriptionClient
         var extension = Path.GetExtension(audioPath);
         var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
 
-        // Pass the RAW term list — the core builds the CSV (trim + drop-empty, no
-        // lowercase/dedup) AND owns the per-provider customVocabulary gating
-        // (Chirp 3 drops initial_prompt server-side), so we no longer gate here.
+        // Gate `initial_prompt` on the catalog's customVocabulary flag — the core
+        // only builds the CSV (trim + drop-empty), it does NOT gate on support.
+        // Callers may pass the catalog tier storage id; otherwise reverse-map the
+        // pinned X-STT-Provider back to its tier entry. An unresolvable tier
+        // (unknown provider) passes the terms through un-gated.
+        var catalog = AppClassification.CloudSttCatalog.Shared;
+        var resolvedTierId = string.IsNullOrEmpty(tierStorageId)
+            ? catalog.Providers.FirstOrDefault(p =>
+                string.Equals(p.SttProvider, sttProviderHeader, StringComparison.OrdinalIgnoreCase))?.Id
+            : tierStorageId;
+
+        var effectiveVocabulary = vocabulary;
+        if (vocabulary != null && vocabulary.Count > 0 && !string.IsNullOrEmpty(resolvedTierId))
+        {
+            var modelKnown = !string.IsNullOrEmpty(model) && catalog.GetModel(resolvedTierId, model) != null;
+            var vocabSupported = modelKnown
+                ? catalog.ModelSupportsCustomVocabulary(resolvedTierId, model)
+                : catalog.SupportsCustomVocabulary(resolvedTierId);
+            if (!vocabSupported)
+            {
+                LoggingService.Info($"HW-routed dropping initial_prompt · tier={resolvedTierId} model={model ?? "(default)"} reason=catalog_unsupported");
+                effectiveVocabulary = null;
+            }
+        }
+
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
+            vocabulary: effectiveVocabulary ?? Array.Empty<string>(),
             // Core appends the `/transcribe` path itself — pass the BASE, not the
             // full endpoint, or the path would double up.
             baseUrl: NetworkConfig.HyperWhisperCloudBaseUrl,
-            licenseKey: isLicensed ? identifier : null,
-            deviceId: isLicensed ? null : identifier,
+            licenseKey: identifier,
+            // Guest/device-credit auth is dead server-side and unreachable past
+            // the pre-check above. The core's deviceId param stays (macOS still
+            // populates it); this call site just never uses it.
+            deviceId: null,
             routedProvider: sttProviderHeader,
             routedModel: string.IsNullOrEmpty(model) ? null : model,
             routedDomain: string.IsNullOrEmpty(domain) ? null : domain);

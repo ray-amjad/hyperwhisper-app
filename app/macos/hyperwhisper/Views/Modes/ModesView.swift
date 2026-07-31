@@ -81,38 +81,6 @@ struct ModesView: View {
         return ids
     }
 
-    private func localModelDisplayName(for id: String) -> String {
-        if id == "apple-speech-analyzer" { return "Apple Speech" }
-        if id == Qwen3AsrModelManager.Constants.modelId { return Qwen3AsrModelManager.Constants.displayName }
-        if let whisper = whisperModelManager.availableModels.first(where: { $0.name == id }) {
-            return whisper.displayName
-        }
-        if let parakeet = parakeetModelManager.availableModels.first(where: { $0.name == id }) {
-            return parakeet.displayName
-        }
-        if #available(macOS 14.0, *),
-           let nemotron = nemotronModelManager.availableModels.first(where: { $0.name == id }) {
-            return nemotron.displayName
-        }
-        return id
-    }
-
-    private func isLocalModelDownloaded(_ id: String) -> Bool {
-        if id == "apple-speech-analyzer" { return true }
-        if id == Qwen3AsrModelManager.Constants.modelId { return qwen3AsrModelManager.isDownloaded }
-        if whisperModelManager.downloadedModels.contains(where: { $0.name == id }) {
-            return true
-        }
-        if let parakeet = parakeetModelManager.availableModels.first(where: { $0.name == id }) {
-            return parakeet.isDownloaded
-        }
-        if #available(macOS 14.0, *),
-           let nemotron = nemotronModelManager.availableModels.first(where: { $0.name == id }) {
-            return nemotron.isDownloaded
-        }
-        return false
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header section

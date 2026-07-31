@@ -296,83 +296,107 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             ? RustCoreMapping.boostVocabularyTerms(from: vocabulary)
             : []
         let trimmedModelId = selectedModelId.isEmpty ? nil : selectedModelId
-
-        let params = RustCoreMapping.transcribeParams(
-            audioPath: audioURL.path,
-            audioMime: contentType,
-            language: language,
-            vocabulary: vocabTermsForCore,
-            baseURL: NetworkConfig.hyperwhisperCloudURL,
-            licenseKey: isLicensed ? identifier : nil,
-            deviceID: isLicensed ? nil : identifier,
-            routedProvider: accuracyTier.sttProvider,
-            routedModel: trimmedModelId,
-            routedDomain: transcriptionDomain
-        )
-
-        let baseRequest: HttpRequest
-        do {
-            baseRequest = try hyperwhisperCloudBuildTranscribeRequest(params: params)
-        } catch let err as HwTranscriptionError {
-            throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
-        }
-
-        // The core does not add the platform `mode` query param or `User-Agent`
-        // header (both are HW-Cloud-specific, not part of the shared contract).
-        // Inject them natively while preserving everything the core built.
-        var request = baseRequest
-        if let mode, let modeId = mode.id {
-            request.url = Self.appendingModeQuery(to: request.url, modeId: modeId.uuidString)
-        }
         let userAgent = "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
-        request.headers.append(Header(name: "User-Agent", value: userAgent))
 
-        AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(contentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
+        // Builds the request for a given identifier and sends it through the
+        // shared executor + core retry loop. Factored out so HYPERWHISPER-T2's
+        // retry-after-revalidation (below) can reuse it instead of duplicating
+        // the request-building/parseError/onTransportError wiring.
+        func sendTranscribeRequest(identifier: String, isLicensed: Bool) async throws -> HttpResponse {
+            let params = RustCoreMapping.transcribeParams(
+                audioPath: audioURL.path,
+                audioMime: contentType,
+                language: language,
+                vocabulary: vocabTermsForCore,
+                baseURL: NetworkConfig.hyperwhisperCloudURL,
+                licenseKey: isLicensed ? identifier : nil,
+                deviceID: isLicensed ? nil : identifier,
+                routedProvider: accuracyTier.sttProvider,
+                routedModel: trimmedModelId,
+                routedDomain: transcriptionDomain
+            )
+
+            let baseRequest: HttpRequest
+            do {
+                baseRequest = try hyperwhisperCloudBuildTranscribeRequest(params: params)
+            } catch let err as HwTranscriptionError {
+                throw RustCoreMapping.mapTranscriptionError(err, providerName: "HyperWhisper Cloud")
+            }
+
+            // The core does not add the platform `mode` query param or `User-Agent`
+            // header (both are HW-Cloud-specific, not part of the shared contract).
+            // Inject them natively while preserving everything the core built.
+            var request = baseRequest
+            if let mode, let modeId = mode.id {
+                request.url = Self.appendingModeQuery(to: request.url, modeId: modeId.uuidString)
+            }
+            request.headers.append(Header(name: "User-Agent", value: userAgent))
+
+            AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(contentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
+
+            // Cancellation, file streaming, and DNS recovery stay native (in the
+            // executor / session). The core decides retries via nextRetry(...).
+            return try await RustRetry.perform(
+                session: session,
+                buildRequest: { request },
+                parseError: { resp in
+                    // Map the core's classified error, enriching the HW-Cloud 402
+                    // credit context from the response body (remaining/required).
+                    do {
+                        _ = try hyperwhisperCloudParseTranscribeResponse(resp: resp)
+                        // 2xx never reaches parseError; a non-error parse is unexpected.
+                        return TranscriptionError.invalidResponse(details: "unexpected non-error response")
+                    } catch let err as HwTranscriptionError {
+                        let creditDenial = Self.creditDenialContext(from: resp)
+                        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
+                            return TranscriptionError.invalidResponse(details: invalidMessage)
+                        }
+                        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
+                        return RustCoreMapping.mapTranscriptionError(
+                            err,
+                            providerName: "HyperWhisper Cloud",
+                            insufficientCredits: (resp.status == 402),
+                            creditsRemaining: creditDenial.remaining,
+                            creditsRequired: creditDenial.required,
+                            fileTooLargeBytes: tooBigBytes,
+                            fileTooLargeLimit: tooBigLimit
+                        )
+                    } catch {
+                        return TranscriptionError.invalidResponse(details: error.localizedDescription)
+                    }
+                },
+                onTransportError: { [weak self] urlError in
+                    // One-shot DNS-cache flush on a network flip — restores the
+                    // recovery the deleted native `performRequestWithRetry` did. The
+                    // existing `performDnsRecoveryReset` is @MainActor and applies its
+                    // own coarse cross-call gate on top of RustRetry's one-shot gate.
+                    if Self.isDnsError(urlError as NSError) {
+                        await self?.performDnsRecoveryReset()
+                    }
+                }
+            )
+        }
 
         // =====================================================================
         // STEP 3: Perform request via the shared executor + core retry loop.
         // =====================================================================
-        // Cancellation, file streaming, and DNS recovery stay native (in the
-        // executor / session). The core decides retries via nextRetry(...).
-        let response = try await RustRetry.perform(
-            session: session,
-            buildRequest: { request },
-            parseError: { resp in
-                // Map the core's classified error, enriching the HW-Cloud 402
-                // credit context from the response body (remaining/required).
-                do {
-                    _ = try hyperwhisperCloudParseTranscribeResponse(resp: resp)
-                    // 2xx never reaches parseError; a non-error parse is unexpected.
-                    return TranscriptionError.invalidResponse(details: "unexpected non-error response")
-                } catch let err as HwTranscriptionError {
-                    let creditDenial = Self.creditDenialContext(from: resp)
-                    if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
-                        return TranscriptionError.invalidResponse(details: invalidMessage)
-                    }
-                    let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
-                    return RustCoreMapping.mapTranscriptionError(
-                        err,
-                        providerName: "HyperWhisper Cloud",
-                        insufficientCredits: (resp.status == 402),
-                        creditsRemaining: creditDenial.remaining,
-                        creditsRequired: creditDenial.required,
-                        fileTooLargeBytes: tooBigBytes,
-                        fileTooLargeLimit: tooBigLimit
-                    )
-                } catch {
-                    return TranscriptionError.invalidResponse(details: error.localizedDescription)
-                }
+        let requestResult = try await Self.performTranscribeRequestWithLicenseRecovery(
+            identifier: identifier,
+            isLicensed: isLicensed,
+            send: sendTranscribeRequest,
+            revalidate: { licenseKey in
+                await licenseManager.validateLicense(licenseKey)
             },
-            onTransportError: { [weak self] urlError in
-                // One-shot DNS-cache flush on a network flip — restores the
-                // recovery the deleted native `performRequestWithRetry` did. The
-                // existing `performDnsRecoveryReset` is @MainActor and applies its
-                // own coarse cross-call gate on top of RustRetry's one-shot gate.
-                if Self.isDnsError(urlError as NSError) {
-                    await self?.performDnsRecoveryReset()
-                }
+            currentIdentifier: {
+                await licenseManager.getTranscriptionIdentifier()
+            },
+            refreshServerAuthCache: { refreshedIdentifier in
+                try await creditManager.refreshServerLicenseCache(for: refreshedIdentifier)
             }
         )
+        let response = requestResult.response
+        let successfulIdentifier = requestResult.identifier
+        let successfulIsLicensed = requestResult.isLicensed
         try throwIfCancelled()
 
         // Parse the success response via the core.
@@ -418,32 +442,51 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             do {
                 try throwIfCancelled()
 
-                let corrected = try await performPostProcess(
-                    session: session,
-                    text: transcript.text,
-                    prompt: prompt,
-                    identifier: identifier,
-                    isLicensed: isLicensed,
-                    mode: mode
-                )
+                // Dictated break commands must never reach the LLM — it merges
+                // mid-body breaks whatever the prompt says (issue #1). Mirror
+                // AIPostProcessor.performAIPostProcessingPreservingBreaks: split
+                // on the dictated commands, post-process each segment separately,
+                // and restore the breaks afterwards. A transcript with no dictated
+                // break is a single segment and takes the old single-call path.
+                let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(transcript.text)
+                let corrected: String
+                if segments.count > 1 {
+                    AppLogger.network.info("HyperWhisper Cloud post-processing \(segments.count, privacy: .public) dictated segments separately")
+                    var processed: [String] = []
+                    for segment in segments {
+                        try throwIfCancelled()
+                        let output = try await performPostProcess(
+                            session: session,
+                            text: segment,
+                            prompt: prompt,
+                            identifier: successfulIdentifier,
+                            isLicensed: successfulIsLicensed,
+                            mode: mode
+                        )
+                        processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
+                    corrected = processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
+                } else {
+                    corrected = try await performPostProcess(
+                        session: session,
+                        text: transcript.text,
+                        prompt: prompt,
+                        identifier: successfulIdentifier,
+                        isLicensed: successfulIsLicensed,
+                        mode: mode
+                    )
+                }
 
                 try throwIfCancelled()
 
                 if !corrected.isEmpty {
-                    // Post-processed output should be <<CLEANED>>-wrapped. Prefer
-                    // strict extraction; when the model didn't wrap, fall back to
-                    // the lenient strip (which itself guards against a prompt/OCR
-                    // leak) before skipping — mirrors the AIPostProcessor pattern so
-                    // a valid-but-unwrapped correction isn't silently dropped after
-                    // the credit was already charged.
+                    // The backend already enforces the completion policy server-side
+                    // (rejects incomplete/truncated output there) — use the returned
+                    // text as-is rather than re-extracting wrapper markers here.
                     let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
-                    var cleanedCorrected = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedCorrected)
-                    if cleanedCorrected.isEmpty {
-                        cleanedCorrected = TranscriptionTextProcessing.stripWrapperMarkers(trimmedCorrected)
-                    }
-                    if !cleanedCorrected.isEmpty {
-                        aiEnhancedText = cleanedCorrected
-                        AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(cleanedCorrected.count, privacy: .public)")
+                    if !trimmedCorrected.isEmpty {
+                        aiEnhancedText = trimmedCorrected
+                        AppLogger.network.debug("HyperWhisper Cloud stored corrected text · chars=\(trimmedCorrected.count, privacy: .public)")
                     }
                 }
             } catch is CancellationError {
@@ -474,6 +517,73 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         AppLogger.network.info("HyperWhisper Cloud transcription completed · chars=\(cleanedText.count, privacy: .public) · hasServerCorrection=\(hasCorrection, privacy: .public)")
 
         return cleanedText
+    }
+
+    /// Sends a licensed transcription request, repairing a stale cached license
+    /// exactly once when the HTTP retry layer surfaces a 401/403 as
+    /// `TranscriptionError.unauthorized`.
+    ///
+    /// The retry is deliberately gated on both the live validation verdict and
+    /// the freshly resolved identifier still being licensed. A revoked/expired
+    /// license must keep the original unauthorized failure instead of silently
+    /// re-sending the audio against the guest/device wallet.
+    struct TranscribeRequestResult {
+        let response: HttpResponse
+        let identifier: String
+        let isLicensed: Bool
+    }
+
+    static func performTranscribeRequestWithLicenseRecovery(
+        identifier: String,
+        isLicensed: Bool,
+        send: (String, Bool) async throws -> HttpResponse,
+        revalidate: (String) async -> LicenseValidationResult,
+        currentIdentifier: () async -> (identifier: String, isLicensed: Bool),
+        refreshServerAuthCache: (String) async throws -> Void
+    ) async throws -> TranscribeRequestResult {
+        do {
+            let response = try await send(identifier, isLicensed)
+            return TranscribeRequestResult(
+                response: response,
+                identifier: identifier,
+                isLicensed: isLicensed
+            )
+        } catch let requestError as TranscriptionError {
+            guard case .unauthorized = requestError, isLicensed else {
+                throw requestError
+            }
+
+            AppLogger.network.warning("HyperWhisper Cloud transcribe unauthorized · forcing license revalidation and retrying once")
+            let revalidation = await revalidate(identifier)
+            try Task.checkCancellation()
+            guard revalidation.isValid else {
+                throw requestError
+            }
+
+            let refreshed = await currentIdentifier()
+            guard refreshed.isLicensed else {
+                throw requestError
+            }
+
+            do {
+                try await refreshServerAuthCache(refreshed.identifier)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                if HyperWhisperCloudManager.isCancellationError(error) {
+                    throw CancellationError()
+                }
+                AppLogger.network.warning("HyperWhisper Cloud server license-cache refresh failed · preserving unauthorized response")
+                throw requestError
+            }
+
+            let response = try await send(refreshed.identifier, refreshed.isLicensed)
+            return TranscribeRequestResult(
+                response: response,
+                identifier: refreshed.identifier,
+                isLicensed: refreshed.isLicensed
+            )
+        }
     }
 
     // MARK: - Rust Core Helpers (mode query, credit context, detected language)

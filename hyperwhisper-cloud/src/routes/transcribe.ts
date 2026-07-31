@@ -11,7 +11,11 @@ import { transcribeWithAzureMai } from '../providers/azure-mai';
 import { transcribeWithGoogleChirp } from '../providers/google-chirp';
 import { transcribeWithOpenAI } from '../providers/openai';
 import { transcribeWithGemini } from '../providers/gemini';
-import { transcribeWithAssemblyAI } from '../providers/assemblyai';
+import {
+  transcribeWithAssemblyAI,
+  hasExplicitLanguage as hasExplicitAssemblyAILanguage,
+  SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS,
+} from '../providers/assemblyai';
 import { transcribeWithMistral } from '../providers/mistral';
 import { transcribeWithSoniox } from '../providers/soniox';
 import type { ProviderRequestContext, TranscriptionResult } from '../providers/types';
@@ -23,9 +27,11 @@ import {
   isValidProviderId,
   resolveModel,
   MEDICAL_DOMAIN,
+  ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
   type SttProviderId,
 } from '../lib/stt-models';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
+import { rawQuery } from '../lib/query';
 import {
   FLY_REPLAY_MAX_BODY_BYTES,
   GEMINI_INLINE_MAX_BYTES,
@@ -127,25 +133,45 @@ export function estimateCreditsForProviderFallbacks(
   model?: string,
   medical: boolean = false,
   initialPrompt?: string,
+  language?: string,
 ): number {
   const chain = FALLBACK_CHAINS[provider];
   const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
   const hasInitialPrompt = Boolean(initialPrompt);
-  const usdPerMinute = Math.max(
-    ...chain.map((p) => estimatedUsdPerMinute(
-      p,
-      p === provider ? model : undefined,
-      p === provider ? medical : false,
-      // The keyterm surcharge is billed by ANY chain member that supports it
-      // (ElevenLabs scribe_v2 / AssemblyAI universal-3-pro) whenever an
-      // initial_prompt is present — not just the primary provider. A
-      // Deepgram→ElevenLabs fallback still forwards initial_prompt and bills the
-      // +20% surcharge, so reserve for it on every eligible sibling. Other
-      // providers ignore the flag (estimatedUsdPerMinute scopes the add-on), so
-      // this never over-reserves for, say, a Deepgram-only success path.
-      hasInitialPrompt && (p === 'elevenlabs' || p === 'assemblyai'),
-    )),
-  );
+  const rates = chain.map((p) => estimatedUsdPerMinute(
+    p,
+    p === provider ? model : undefined,
+    p === provider ? medical : false,
+    // The keyterm surcharge is billed by ANY chain member that supports it
+    // (ElevenLabs scribe_v2 / AssemblyAI universal-3-pro) whenever an
+    // initial_prompt is present — not just the primary provider. A
+    // Deepgram→ElevenLabs fallback still forwards initial_prompt and bills the
+    // +20% surcharge, so reserve for it on every eligible sibling. Other
+    // providers ignore the flag (estimatedUsdPerMinute scopes the add-on), so
+    // this never over-reserves for, say, a Deepgram-only success path.
+    hasInitialPrompt && (p === 'elevenlabs' || p === 'assemblyai'),
+  ));
+  // AssemblyAI's sync fast path (<120s, non-medical, EXPLICIT-language clips)
+  // always runs universal-3-5-pro at its OWN higher published rate — not the
+  // async catalog rate for the requested model (universal-2 / universal-3-pro),
+  // which `estimatedUsdPerMinute` above reserves against. A short clip is
+  // exactly sync's target case, so without this a short, non-medical
+  // AssemblyAI request could be deducted for more than was reserved. This
+  // condition must exactly mirror `transcribeWithAssemblyAI`'s real
+  // eligibility gate (medical + duration + explicit language) — reusing
+  // `hasExplicitLanguage` rather than reimplementing it here, since an
+  // auto-language request never actually routes through sync (sync has no
+  // auto-detect) and over-reserving for it could wrongly reject a low-balance
+  // user at preflight for a request that will only ever go through the
+  // cheaper async path.
+  if (
+    provider === 'assemblyai' && !medical
+    && estimatedSeconds < ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS
+    && hasExplicitAssemblyAILanguage(language)
+  ) {
+    rates.push(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+  }
+  const usdPerMinute = Math.max(...rates);
   // Token-billed providers (Gemini, OpenAI gpt-4o*) charge the prompt text as
   // input tokens on top of the audio. Reserve that flat cost for the primary
   // provider (these are self-only chains) so a large vocabulary prompt on a
@@ -174,7 +200,7 @@ function extractProvider(c: Context): ProviderSelection {
 }
 
 function extractModel(c: Context): string | undefined {
-  return c.req.header('X-STT-Model')?.trim() || c.req.query('model')?.trim() || undefined;
+  return c.req.header('X-STT-Model')?.trim() || rawQuery(c.req.url, 'model')?.trim() || undefined;
 }
 
 function extractDomain(c: Context): string | undefined {
@@ -307,9 +333,11 @@ export async function transcribeRoute(c: Context) {
   }
 
   const { contentType, contentLength } = headerValidation;
-  const language = c.req.query('language') || undefined;
-  const initialPrompt = c.req.query('initial_prompt') || undefined;
-  const mode = c.req.query('mode') || undefined;
+  // rawQuery, not c.req.query(): Hono's decoder adds an HTML-form `+` → space
+  // step, corrupting values like a `C++` vocabulary term. See lib/query.ts.
+  const language = rawQuery(c.req.url, 'language');
+  const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
+  const mode = rawQuery(c.req.url, 'mode');
 
   // ElevenLabs blocks API access from certain countries — the block surfaces
   // as a 200 OK with a text/html FAQ page ("Do you restrict access ... for any
@@ -367,7 +395,7 @@ export async function transcribeRoute(c: Context) {
   // that installed native apps still send, so we accept either.
   const authResult = await validateAuth({
     licenseKey:
-      c.req.query('account_key') || c.req.query('license_key') || undefined,
+      rawQuery(c.req.url, 'account_key') ?? rawQuery(c.req.url, 'license_key'),
   });
   if (!authResult.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {
@@ -386,7 +414,7 @@ export async function transcribeRoute(c: Context) {
   // Deepgram/Groq/Grok fallback, which still forwards the prompt and bills the surcharge.
   // estimatedUsdPerMinute scopes the add-on to universal-3-pro / scribe_v2, so passing it
   // for every request is safe and never under-reserves.
-  const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt);
+  const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt, language);
   const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
   if (!creditCheck.ok) {
     logEvent(requestId, startTime, 'transcribe.request_rejected', {

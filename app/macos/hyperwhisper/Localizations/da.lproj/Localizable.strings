@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Hjem";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Tilstande";
 "sidebar.vocabulary" = "Ordforråd";
 "sidebar.streaming" = "Streaming";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Version %@";
 "home.recent.updates.new.badge" = "NYT";
 "home.recent.updates.no.notes" = "Ingen udgivelsesnoter tilgængelige";
+"home.stats.words.week" = "Ord i denne uge";
+"home.stats.words.month" = "Ord i denne måned";
+"home.stats.speed" = "Gennemsnitshastighed";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kom i gang med HyperWhisper";
-"sidebar.statistics.help" = "Se brugsstatistik og analyser";
 "sidebar.modes.help" = "Administrer transskriptionstilstande til forskellige sammenhænge";
 "sidebar.vocabulary.help" = "Tilføj brugerdefinerede ord og udtryk for bedre genkendelse";
 "sidebar.streaming.help" = "Indstillinger for realtids-streamingtransskription (kræver internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud Credits";
 "settings.credits.refresh" = "Opdater";
-"settings.credits.subtitle" = "Overvåg dine transskriptionscredits og forbrug";
-"settings.credits.manage" = "Administrer credits";
 "settings.credits.timeRemaining" = "Resterende transskriptionstid";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minutter";
 "settings.credits.creditsRemaining" = "%@ credits tilbage";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Gratis daglig grænse (100 credits)";
-"settings.credits.resets" = "Nulstilles %@";
 "settings.credits.warning.low" = "Credits er ved at løbe tør. Overvej at købe en licens for yderligere credits.";
-"settings.credits.warning.exhausted.daily" = "Daglig grænse opbrugt. Køb en licens for ubegrænset brug, eller vent på nulstilling.";
 "settings.credits.warning.exhausted" = "Credits opbrugt. Køb flere credits for at fortsætte med at bruge HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Kontooplysninger";
-"settings.credits.stat.creditsRemaining" = "Resterende credits";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Resterende minutter";
-"settings.credits.stat.accountType" = "Kontotype";
-"settings.credits.accountType.licensed" = "Licenseret";
-"settings.credits.accountType.anonymous" = "Anonym";
-"settings.credits.accountType.trial" = "Prøveversion";
-"settings.credits.stat.customerId" = "Kunde-ID";
-"settings.credits.stat.dailyLimit" = "Daglig grænse";
-"settings.credits.dailyLimit.value" = "100 credits";
 "settings.credits.loading" = "Indlæser creditsaldo...";
 "settings.credits.error.title" = "Kunne ikke indlæse creditsaldo";
 "settings.credits.error.retry" = "Prøv igen";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Netværksfejl: %@";
 "settings.credits.error.invalidResponse" = "Ugyldigt svar fra serveren. Prøv venligst igen.";
 "settings.credits.error.server" = "Serverfejl: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontonøgle";
+"settings.cloud.purchaseMore" = "Køb credits";
+"settings.cloud.key.reveal" = "Vis kontonøgle";
+"settings.cloud.key.hide" = "Skjul kontonøgle";
+"settings.cloud.key.copy" = "Kopiér kontonøgle";
+"settings.cloud.activate.title" = "Aktivér HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Din kontonøgle er din tegnebog — den rummer dine Cloud-credits. Indtast din nøgle for at komme i gang, eller køb credits for at få en.";
+"settings.cloud.getCredits.title" = "Har du ikke en nøgle endnu?";
+"settings.cloud.getCredits.subtitle" = "Køb credits, så sender vi dig en kontonøgle på e-mail.";
+"settings.cloud.getCredits.button" = "Køb credits";
 "settings.models.alert.cannotDelete.title" = "Kan ikke slette model";
 "settings.models.parakeet.title" = "Parakeet-modeller";
 "settings.models.parakeet.subtitle" = "Anbefalet til de fleste brugere. Flersproget model understøtter 25 sprog.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Anbefales til Mac med 24 GB unified memory eller mere. Hastigheden afhænger af din chip — hurtigere på M3/M4 Pro og derover.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Ord i år";
+"home.stats.typing.speed.help" = "Justér den antagne skrivehastighed (WPM), der bruges til at estimere den sparede tid.";
+"home.stats.saved.week" = "Sparet i denne uge";
+"home.stats.minutes.value" = "%d minutter";
 "vocabulary.input.placeholder" = "Tilføj et ord eller opret et uddrag";
 "vocabulary.action.addWord" = "Tilføj ord";
 "vocabulary.action.replaceWith" = "Erstat med…";
@@ -641,22 +641,6 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "models.error.checksumFailed" = "Verifikation af modelkontrolsum mislykkedes. Downloaden kan være beskadiget.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Din brugsstatistik";
-"statistics.header.subtitle" = "Følg din transskriptionsaktivitet og ydeevne";
-"statistics.card.recordings" = "Samlede optagelser";
-"statistics.card.recordings.subtitle" = "Fuldførte transskriptioner";
-"statistics.card.duration" = "Samlet tid";
-"statistics.card.duration.subtitle" = "Tid brugt på optagelse";
-"statistics.card.words" = "Samlede ord";
-"statistics.card.words.subtitle" = "Transskriberede ord";
-"statistics.card.average" = "Gennemsnitlig varighed";
-"statistics.card.average.subtitle" = "Pr. optagelse";
-"statistics.graph.title" = "Aktivitet over tid";
-"statistics.daily.empty" = "Ingen optagelser endnu";
-"statistics.filter.week" = "Denne uge";
-"statistics.filter.month" = "Denne måned";
-"statistics.filter.alltime" = "Alt tid";
 
 // MARK: - History View
 "history.title" = "Historik";
@@ -777,8 +761,13 @@ Rediger disse tilstande for at vælge en anden model, inden du fjerner den.";
 "modes.cloudAccuracy.groqWhisper.description" = "Hurtig og overkommelig. Bedst til hurtige transskriptioner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanceret hastighed og nøjagtighed. Anbefalet til de fleste brugere.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Højest (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Højeste nøjagtighed med langsommere behandling. Bedst til vigtige transskriptioner.";
+"modes.cloudAccuracy.googleChirp3.label" = "Høj (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 med Chirp 3. Flersproget med frasetilpasning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høj (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 sprog med kontekstuel tilpasning.";
 
 "modes.create.title" = "Opret ny tilstand";
 "modes.create.subtitle" = "Konfigurer en brugerdefineret transskriptionsprofil";
@@ -915,9 +904,6 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 // MARK: - Audio Manager
 "audio.device.default" = "Standardmikrofon";
 "audio.error.permissionDenied" = "Mikrofonadgang afvist. Aktiver venligst i Systemindstillinger.";
-"audio.error.fileWatcher.open" = "Kunne ikke åbne en filbeskrivelse til at overvåge lydfilen.";
-"audio.error.fileWatcher.timeout" = "Handlingen udløb, mens den ventede på, at lydfilen blev skrevet.";
-"audio.error.fileWatcher.creation" = "Lydfilen blev ikke oprettet i tide.";
 "audio.error.microphonePermission" = "Mikrofontilladelse ikke givet";
 "audio.error.microphoneInUse" = "HyperWhisper kan ikke få adgang til mikrofonen, fordi en anden app bruger den i øjeblikket. Pause den anden app, eller skift input, og prøv igen.";
 "audio.error.createEngine" = "Kunne ikke oprette lydmotor";
@@ -992,6 +978,15 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.guidance.timeout" = "Anmodningen tog for lang tid. Kontroller din internethastighed, og prøv igen.";
 "transcription.error.noSpeechDetected" = "Ingen tale registreret i optagelsen.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Tal tydeligt i mikrofonen\n• Hold tasten nede længere, før du taler\n• Kontroller, at din mikrofon virker\n• Sørg for, at den korrekte inputenhed er valgt";
+"transcription.guidance.needsNativeRelaunch" = "Afslut og åbn HyperWhisper igen som native app for at bruge lokal efterbehandling.";
+"transcription.guidance.localRuntimeUnavailable" = "Prøv igen, eller vælg en mindre lokal model i dine tilstandsindstillinger.";
+"transcription.error.localRuntimeUnavailable" = "Lokal AI kunne ikke gøre det færdigt — din rå transskription blev bevaret.";
+"settings.backup.localDownload.title" = "Download lokale modeller?";
+"settings.backup.localDownload.message" = "%d af dine gendannede tilstande bruger AI-modeller på enheden, som endnu ikke er downloadet.";
+"settings.backup.localDownload.downloadAll" = "Download alle";
+"settings.backup.localDownload.dismiss" = "Afvis";
+"modelLibrary.local.requiresAppleSilicon" = "Kræver Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Genstart som native app";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrækkelige credits. Tilføj flere credits i Indstillinger.";
@@ -1125,3 +1120,12 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "history.autoDelete.status.enabled" = "Slet optagelser ældre end %d %@";
 "history.autoDelete.cleanup.noItems" = "Ingen optagelser at slette";
 "history.autoDelete.cleanup.summary" = "Slettede %d optagelse(r) og frigjorde %@";
+"history.status.interrupted" = "Transskriptionen blev afbrudt — appen lukkede, før den var færdig";
+"recording.maxDuration.reachedToast" = "Optagelse stoppet — %d-minutters grænse nået";
+"streaming.maxDuration.reachedToast" = "Streaming stoppet — %d-minutters grænse nået";
+"settings.storage.maxRecordingDuration.title" = "Maksimal optagelsesvarighed";
+"settings.storage.maxRecordingDuration.subtitle" = "Stop og transskriber automatisk optagelser, der varer længere end dette.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minutter";
+"settings.storage.maxRecordingDuration.hour" = "1 time";
+"settings.storage.maxRecordingDuration.hours" = "%d timer";
+"settings.storage.maxRecordingDuration.off" = "Fra";

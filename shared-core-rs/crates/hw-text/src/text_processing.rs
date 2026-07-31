@@ -6,19 +6,21 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-const START_VARIANTS: &[&str] = &[
+// Shared with `crate::completion` (`pub(crate)`) so the completion policy's
+// text handling and this module can never drift apart.
+pub(crate) const START_VARIANTS: &[&str] = &[
     "<<CLEANED>>",
     "<<CLEANED>",
     "<CLEANED>>",
     "<CLEANED>",
     "<</CLEANED>>",
 ];
-const END_VARIANTS: &[&str] =
+pub(crate) const END_VARIANTS: &[&str] =
     &["<<END>>", "<<END>", "<END>>", "<END>", "<</END>>"];
 
 /// Earliest (lowest) byte index at which any of `needles` occurs, plus the
 /// matched needle's length.
-fn earliest(haystack: &str, needles: &[&str], from: usize) -> Option<(usize, usize)> {
+pub(crate) fn earliest(haystack: &str, needles: &[&str], from: usize) -> Option<(usize, usize)> {
     let mut best: Option<(usize, usize)> = None;
     for n in needles {
         if let Some(rel) = haystack[from..].find(n) {
@@ -31,7 +33,7 @@ fn earliest(haystack: &str, needles: &[&str], from: usize) -> Option<(usize, usi
     best
 }
 
-fn strip_all(mut s: String, needles: &[&str]) -> String {
+pub(crate) fn strip_all(mut s: String, needles: &[&str]) -> String {
     for n in needles {
         s = s.replace(n, "");
     }
@@ -117,7 +119,7 @@ const PROMPT_MARKERS: &[&str] = &[
 
 /// Whether `s` contains any known prompt section tag — the signal that an
 /// unwrapped response leaked the prompt rather than a cleaned transcript.
-fn contains_prompt_markers(s: &str) -> bool {
+pub(crate) fn contains_prompt_markers(s: &str) -> bool {
     PROMPT_MARKERS.iter().any(|m| s.contains(m))
 }
 
@@ -208,22 +210,22 @@ pub fn remove_filler_words(text: &str, language: Option<&str>) -> String {
     current
 }
 
-fn new_line_command_re() -> &'static Regex {
+fn break_command_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     // The trailing `\b` sits BEFORE the optional punctuation so "new line." still
-    // matches (boundary between "line" and ".") but "newlines"/"new lines" do NOT
-    // (no boundary between "line" and the following "s") — otherwise the command
-    // would fire mid-word and leave an orphan "s".
-    RE.get_or_init(|| Regex::new(r"(?i)\bnew\s*line\b[.,!?]?").unwrap())
+    // matches (boundary between "line" and ".") but "newlines"/"new lines" and
+    // "new paragraphs" do NOT (no boundary before the following "s") — otherwise
+    // the command would fire mid-word and leave an orphan "s".
+    RE.get_or_init(|| Regex::new(r"(?i)\bnew\s*(?:line|paragraph)\b[.,!?]?").unwrap())
 }
 
-/// Replace the spoken command "new line" / "newline" (+ optional trailing
-/// punctuation) with a paragraph break.
+/// Replace the spoken commands "new line" / "newline" / "new paragraph"
+/// (+ optional trailing punctuation) with a paragraph break.
 pub fn process_voice_commands(text: &str) -> String {
     if text.is_empty() {
         return text.to_string();
     }
-    new_line_command_re().replace_all(text, "\n\n").into_owned()
+    break_command_re().replace_all(text, "\n\n").into_owned()
 }
 
 fn three_plus_newlines_re() -> &'static Regex {

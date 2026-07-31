@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Startpagina";
-"sidebar.statistics" = "Statistieken";
 "sidebar.modes" = "Modi";
 "sidebar.vocabulary" = "Woordenlijst";
 "sidebar.streaming" = "Streaming";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versie %@";
 "home.recent.updates.new.badge" = "NIEUW";
 "home.recent.updates.no.notes" = "Geen opmerkingen uitgebracht beschikbaar";
+"home.stats.words.week" = "Woorden deze week";
+"home.stats.words.month" = "Woorden deze maand";
+"home.stats.speed" = "Gemiddelde snelheid";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Aan de slag met HyperWhisper";
-"sidebar.statistics.help" = "Bekijk gebruiksstatistieken en analyses";
 "sidebar.modes.help" = "Beheer transcriptiemodi voor verschillende contexten";
 "sidebar.vocabulary.help" = "Voeg aangepaste woorden en zinnen toe voor betere herkenning";
 "sidebar.streaming.help" = "Instellingen voor real-time streamingtranscriptie (vereist internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud-tegoed";
 "settings.credits.refresh" = "Vernieuwen";
-"settings.credits.subtitle" = "Bewaak je transcriptietegoed en gebruik";
-"settings.credits.manage" = "Beheer tegoed";
 "settings.credits.timeRemaining" = "Resterende transcriptietijd";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minuten";
 "settings.credits.creditsRemaining" = "%@ tegoed resterend";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Gratis dagelijkse limiet (100 tegoed)";
-"settings.credits.resets" = "Ingesteld op %@";
 "settings.credits.warning.low" = "Tegoed is bijna op. Overweeg een licentie aan te schaffen voor extra tegoed.";
-"settings.credits.warning.exhausted.daily" = "Dagelijkse limiet bereikt. Koop een licentie voor onbeperkt gebruik of wacht tot reset.";
 "settings.credits.warning.exhausted" = "Tegoed uitgeput. Koop meer tegoed om HyperWhisper Cloud te blijven gebruiken.";
 "settings.credits.accountInfo" = "Accountgegevens";
-"settings.credits.stat.creditsRemaining" = "Tegoed resterend";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minuten resterend";
-"settings.credits.stat.accountType" = "Accounttype";
-"settings.credits.accountType.licensed" = "Gelicentieerd";
-"settings.credits.accountType.anonymous" = "Anoniem";
-"settings.credits.accountType.trial" = "Proefversie";
-"settings.credits.stat.customerId" = "Klant-ID";
-"settings.credits.stat.dailyLimit" = "Dagelijkse limiet";
-"settings.credits.dailyLimit.value" = "100 tegoed";
 "settings.credits.loading" = "Tegodsaldo laden...";
 "settings.credits.error.title" = "Kan tegodsaldo niet laden";
 "settings.credits.error.retry" = "Opnieuw proberen";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Netwerkfout: %@";
 "settings.credits.error.invalidResponse" = "Ongeldige respons van server. Probeer het opnieuw.";
 "settings.credits.error.server" = "Serverfout: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Accountsleutel";
+"settings.cloud.purchaseMore" = "Tegoed kopen";
+"settings.cloud.key.reveal" = "Accountsleutel tonen";
+"settings.cloud.key.hide" = "Accountsleutel verbergen";
+"settings.cloud.key.copy" = "Accountsleutel kopiëren";
+"settings.cloud.activate.title" = "HyperWhisper Cloud activeren";
+"settings.cloud.activate.subtitle" = "Je accountsleutel is je portemonnee — hij bevat je Cloud-tegoed. Voer je sleutel in om te beginnen, of koop tegoed om er een te krijgen.";
+"settings.cloud.getCredits.title" = "Nog geen sleutel?";
+"settings.cloud.getCredits.subtitle" = "Koop tegoed en we e-mailen je een accountsleutel.";
+"settings.cloud.getCredits.button" = "Tegoed kopen";
 "settings.models.alert.cannotDelete.title" = "Kan model niet verwijderen";
 "settings.models.parakeet.title" = "Parakeetmodellen";
 "settings.models.parakeet.subtitle" = "Aanbevolen voor de meeste gebruikers. Meertalig model ondersteunt 25 talen.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Aanbevolen voor Mac met 24 GB unified memory of meer. De snelheid hangt af van de chip — sneller op M3/M4 Pro en hoger.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Woorden dit jaar";
+"home.stats.typing.speed.help" = "Pas de aangenomen typesnelheid (WPM) aan die wordt gebruikt om de bespaarde tijd te schatten.";
+"home.stats.saved.week" = "Bespaard deze week";
+"home.stats.minutes.value" = "%d minuten";
 "vocabulary.input.placeholder" = "Voeg een woord toe of maak een fragment";
 "vocabulary.action.addWord" = "Woord toevoegen";
 "vocabulary.action.replaceWith" = "Vervangen door…";
@@ -641,22 +641,6 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "models.error.checksumFailed" = "Verificatie van modelcontrolesom mislukt. De download is mogelijk beschadigd.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistieken";
-"statistics.header.title" = "Je gebruiksstatistieken";
-"statistics.header.subtitle" = "Volg je transcriptieactiviteit en prestaties";
-"statistics.card.recordings" = "Totale opnamen";
-"statistics.card.recordings.subtitle" = "Voltooide transcripties";
-"statistics.card.duration" = "Totale tijd";
-"statistics.card.duration.subtitle" = "Tijd besteed aan opnamen";
-"statistics.card.words" = "Totale woorden";
-"statistics.card.words.subtitle" = "Getranscribeerde woorden";
-"statistics.card.average" = "Gemiddelde duur";
-"statistics.card.average.subtitle" = "Per opname";
-"statistics.graph.title" = "Activiteit in de loop van de tijd";
-"statistics.daily.empty" = "Nog geen opnamen";
-"statistics.filter.week" = "Deze week";
-"statistics.filter.month" = "Deze maand";
-"statistics.filter.alltime" = "Altijd";
 
 // MARK: - History View
 "history.title" = "Geschiedenis";
@@ -777,8 +761,13 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.cloudAccuracy.groqWhisper.description" = "Snel en betaalbaar. Het beste voor snelle transcripties.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Evenwichtige snelheid en nauwkeurigheid. Aanbevolen voor de meeste gebruikers.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
+"modes.cloudAccuracy.googleChirp3.label" = "Hoog (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 met Chirp 3. Meertalig met woordgroepaanpassing.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 talen met contextuele afstemming.";
 
 "modes.create.title" = "Nieuwe modus maken";
 "modes.create.subtitle" = "Configureer een aangepast transcriptieprofiel";
@@ -915,9 +904,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 // MARK: - Audio Manager
 "audio.device.default" = "Standaardmicrofoon";
 "audio.error.permissionDenied" = "Microfoontoegand geweigerd. Schakel in in Systeeminstellingen.";
-"audio.error.fileWatcher.open" = "Kon geen bestanddescriptor openen om het audiobestand te bewaken.";
-"audio.error.fileWatcher.timeout" = "De bewerking time-out terwijl op het schrijven van het audiobestand werd gewacht.";
-"audio.error.fileWatcher.creation" = "Het audiobestand werd niet op tijd gemaakt.";
 "audio.error.microphonePermission" = "Microfoontoestemming niet verleend";
 "audio.error.microphoneInUse" = "HyperWhisper kan geen toegang krijgen tot de microfoon omdat een andere app deze momenteel gebruikt. Onderbreek de andere app of schakel invoer in en probeer het opnieuw.";
 "audio.error.createEngine" = "Kan audiomotor niet maken";
@@ -992,6 +978,15 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.guidance.timeout" = "Het verzoek duurde te lang. Controleer je internetsnelheid en probeer het opnieuw.";
 "transcription.error.noSpeechDetected" = "Geen spraak gedetecteerd in de opname.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Spreek duidelijk in de microfoon\n• Houd de toets langer vast voordat je spreekt\n• Controleer of je microfoon werkt\n• Zorg ervoor dat het juiste invoerapparaat is geselecteerd";
+"transcription.guidance.needsNativeRelaunch" = "Stop HyperWhisper en open het native opnieuw om lokale nabewerking te gebruiken.";
+"transcription.guidance.localRuntimeUnavailable" = "Probeer het opnieuw of kies een kleiner lokaal model in je modusinstellingen.";
+"transcription.error.localRuntimeUnavailable" = "Lokale AI kon niet worden voltooid — je onbewerkte transcriptie is behouden.";
+"settings.backup.localDownload.title" = "Lokale modellen downloaden?";
+"settings.backup.localDownload.message" = "%d van je herstelde modi gebruiken lokale AI-modellen die nog niet zijn gedownload.";
+"settings.backup.localDownload.downloadAll" = "Download alles";
+"settings.backup.localDownload.dismiss" = "Negeer";
+"modelLibrary.local.requiresAppleSilicon" = "Vereist Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Native opnieuw starten";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Onvoldoende tegoed. Voeg meer tegoed toe in Instellingen.";
@@ -1125,3 +1120,12 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "history.autoDelete.status.enabled" = "Verwijder opnamen ouder dan %d %@";
 "history.autoDelete.cleanup.noItems" = "Geen opnamen om te verwijderen";
 "history.autoDelete.cleanup.summary" = "Verwijderd %d opname(n) en %@ vrijgemaakt";
+"history.status.interrupted" = "Transcriptie onderbroken — de app werd afgesloten voordat deze klaar was";
+"recording.maxDuration.reachedToast" = "Opname gestopt — limiet van %d minuten bereikt";
+"streaming.maxDuration.reachedToast" = "Streaming gestopt — limiet van %d minuten bereikt";
+"settings.storage.maxRecordingDuration.title" = "Maximale opnameduur";
+"settings.storage.maxRecordingDuration.subtitle" = "Stop automatisch met opnemen en transcribeer opnames die langer duren dan dit.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minuten";
+"settings.storage.maxRecordingDuration.hour" = "1 uur";
+"settings.storage.maxRecordingDuration.hours" = "%d uur";
+"settings.storage.maxRecordingDuration.off" = "Uit";

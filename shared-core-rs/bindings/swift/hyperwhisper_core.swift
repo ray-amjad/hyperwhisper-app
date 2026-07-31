@@ -926,6 +926,85 @@ public func FfiConverterTypeAppClassification_lower(_ value: AppClassification) 
 
 
 /**
+ * Policy verdict: `text` is the cleaned content when `accepted`, the untouched
+ * original transcript otherwise. Mirrors
+ * `hw_text::completion::CompletionEvaluation`.
+ */
+public struct CompletionEvaluation {
+    public var accepted: Bool
+    public var text: String
+    public var failure: CompletionFailure
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(accepted: Bool, text: String, failure: CompletionFailure) {
+        self.accepted = accepted
+        self.text = text
+        self.failure = failure
+    }
+}
+
+
+
+extension CompletionEvaluation: Equatable, Hashable {
+    public static func ==(lhs: CompletionEvaluation, rhs: CompletionEvaluation) -> Bool {
+        if lhs.accepted != rhs.accepted {
+            return false
+        }
+        if lhs.text != rhs.text {
+            return false
+        }
+        if lhs.failure != rhs.failure {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(accepted)
+        hasher.combine(text)
+        hasher.combine(failure)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCompletionEvaluation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CompletionEvaluation {
+        return
+            try CompletionEvaluation(
+                accepted: FfiConverterBool.read(from: &buf), 
+                text: FfiConverterString.read(from: &buf), 
+                failure: FfiConverterTypeCompletionFailure.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CompletionEvaluation, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.accepted, into: &buf)
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterTypeCompletionFailure.write(value.failure, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCompletionEvaluation_lift(_ buf: RustBuffer) throws -> CompletionEvaluation {
+    return try FfiConverterTypeCompletionEvaluation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCompletionEvaluation_lower(_ value: CompletionEvaluation) -> RustBuffer {
+    return FfiConverterTypeCompletionEvaluation.lower(value)
+}
+
+
+/**
  * A Gemini file resource. Mirrors `gemini::GeminiFile`.
  */
 public struct GeminiFile {
@@ -3065,6 +3144,190 @@ extension ClassifiedAppType: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * Rejection reason for logs/telemetry. Mirrors
+ * `hw_text::completion::CompletionFailure`.
+ */
+
+public enum CompletionFailure {
+    
+    case none
+    case outputLimit
+    case incompleteResponse
+    case malformedResponse
+    case promptLeakage
+    case emptyCleanedText
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCompletionFailure: FfiConverterRustBuffer {
+    typealias SwiftType = CompletionFailure
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CompletionFailure {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .none
+        
+        case 2: return .outputLimit
+        
+        case 3: return .incompleteResponse
+        
+        case 4: return .malformedResponse
+        
+        case 5: return .promptLeakage
+        
+        case 6: return .emptyCleanedText
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CompletionFailure, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .none:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .outputLimit:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .incompleteResponse:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .malformedResponse:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .promptLeakage:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .emptyCleanedText:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCompletionFailure_lift(_ buf: RustBuffer) throws -> CompletionFailure {
+    return try FfiConverterTypeCompletionFailure.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCompletionFailure_lower(_ value: CompletionFailure) -> RustBuffer {
+    return FfiConverterTypeCompletionFailure.lower(value)
+}
+
+
+
+extension CompletionFailure: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Normalized termination state. Mirrors `hw_text::completion::CompletionState`.
+ */
+
+public enum CompletionState {
+    
+    case complete
+    case outputLimit
+    case incomplete
+    case unspecified
+    case malformed
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCompletionState: FfiConverterRustBuffer {
+    typealias SwiftType = CompletionState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CompletionState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .complete
+        
+        case 2: return .outputLimit
+        
+        case 3: return .incomplete
+        
+        case 4: return .unspecified
+        
+        case 5: return .malformed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CompletionState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .complete:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .outputLimit:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .incomplete:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .unspecified:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .malformed:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCompletionState_lift(_ buf: RustBuffer) throws -> CompletionState {
+    return try FfiConverterTypeCompletionState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCompletionState_lower(_ value: CompletionState) -> RustBuffer {
+    return FfiConverterTypeCompletionState.lower(value)
+}
+
+
+
+extension CompletionState: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Where the caret sits relative to sentence boundaries (from the platform's
  * native cursor probe). Mirrors `hw_text::CursorContext`.
  */
@@ -4211,6 +4474,81 @@ extension SonioxPollStatus: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Wire protocol a response's termination metadata is expressed in. Mirrors
+ * `hw_text::completion::WireProtocol`.
+ */
+
+public enum WireProtocol {
+    
+    case openAiChat
+    case anthropicMessages
+    case unspecified
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWireProtocol: FfiConverterRustBuffer {
+    typealias SwiftType = WireProtocol
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WireProtocol {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .openAiChat
+        
+        case 2: return .anthropicMessages
+        
+        case 3: return .unspecified
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: WireProtocol, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .openAiChat:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .anthropicMessages:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unspecified:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWireProtocol_lift(_ buf: RustBuffer) throws -> WireProtocol {
+    return try FfiConverterTypeWireProtocol.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWireProtocol_lower(_ value: WireProtocol) -> RustBuffer {
+    return FfiConverterTypeWireProtocol.lower(value)
+}
+
+
+
+extension WireProtocol: Equatable, Hashable {}
+
+
+
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
@@ -4688,6 +5026,13 @@ public func assemblyaiBuildPollRequest(params: TranscribeParams, id: String)thro
     )
 })
 }
+public func assemblyaiBuildSyncRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_build_sync_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
 public func assemblyaiBuildUploadRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_assemblyai_build_upload_request(
@@ -4709,10 +5054,43 @@ public func assemblyaiParsePollResponse(resp: HttpResponse)throws  -> Assemblyai
     )
 })
 }
+public func assemblyaiParseSyncResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_parse_sync_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
 public func assemblyaiParseUploadResponse(resp: HttpResponse)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_assemblyai_parse_upload_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+/**
+ * Sync API duration ceiling, in seconds. Platforms should gate on this (real
+ * duration when known, else a conservative estimate) before calling
+ * `assemblyaiBuildSyncRequest`, falling back to the async
+ * upload/create/poll flow when the duration is unknown or `>=` this value.
+ * Mirrors `hw_net::providers::assemblyai::SYNC_MAX_DURATION_SECS`.
+ */
+public func assemblyaiSyncMaxDurationSecs() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_sync_max_duration_secs($0
+    )
+})
+}
+/**
+ * Sync API HTTP call timeout, in milliseconds. Platforms should use this
+ * (via a linked/derived cancellation deadline — `CancellationTokenSource` on
+ * Windows, `URLSessionConfiguration.timeoutIntervalForRequest` on macOS) for
+ * the sync HTTP call itself, instead of each hardcoding its own copy-pasted
+ * literal. Mirrors `hw_net::providers::assemblyai::SYNC_TIMEOUT_MS`.
+ */
+public func assemblyaiSyncTimeoutMs() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_assemblyai_sync_timeout_ms($0
     )
 })
 }
@@ -4982,6 +5360,33 @@ public func englishSpellingFromRaw(raw: String) -> HwEnglishSpelling {
     return try!  FfiConverterTypeHwEnglishSpelling.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_english_spelling_from_raw(
         FfiConverterString.lower(raw),$0
+    )
+})
+}
+/**
+ * Decide whether `content` may replace `original` given the normalized state.
+ */
+public func evaluateCompletion(original: String, content: String, state: CompletionState) -> CompletionEvaluation {
+    return try!  FfiConverterTypeCompletionEvaluation.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_evaluate_completion(
+        FfiConverterString.lower(original),
+        FfiConverterString.lower(content),
+        FfiConverterTypeCompletionState.lower(state),$0
+    )
+})
+}
+/**
+ * One-call convenience over a raw response body: extract the message content
+ * and finish/stop reason for `wire_protocol`, normalize, and evaluate.
+ * A body that doesn't parse to the expected shape evaluates as `Malformed`
+ * (rejected, `original` returned).
+ */
+public func evaluateLlmResponseJson(wireProtocol: WireProtocol, responseJson: String, original: String) -> CompletionEvaluation {
+    return try!  FfiConverterTypeCompletionEvaluation.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_evaluate_llm_response_json(
+        FfiConverterTypeWireProtocol.lower(wireProtocol),
+        FfiConverterString.lower(responseJson),
+        FfiConverterString.lower(original),$0
     )
 })
 }
@@ -5309,6 +5714,23 @@ public func licenseParseValidateResponse(body: Data) -> ValidationOutcome {
     )
 })
 }
+/**
+ * Persist a server validation verdict for the attempted key: stores the key on
+ * a valid (`Active`) verdict, and updates the validation cache only when the
+ * verdict is valid or the attempted key matches the stored key. Prefer this
+ * over the raw `license_update_validation_cache` after a validate response —
+ * it prevents a rejected *replacement* key from clobbering the stored key's
+ * cached status (a 24h lockout for a valid user).
+ */
+public func licensePersistValidationVerdict(store: KeyValueStore, status: HwLicenseStatus, attemptedKey: String, nowUnixSecs: Int64) {try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_license_persist_validation_verdict(
+        FfiConverterTypeKeyValueStore.lower(store),
+        FfiConverterTypeHwLicenseStatus.lower(status),
+        FfiConverterString.lower(attemptedKey),
+        FfiConverterInt64.lower(nowUnixSecs),$0
+    )
+}
+}
 public func licenseRecordModelDownload(store: KeyValueStore) {try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_record_model_download(
         FfiConverterTypeKeyValueStore.lower(store),$0
@@ -5503,6 +5925,19 @@ public func normalizeBackupJson(json: String)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
     uniffi_hyperwhisper_core_fn_func_normalize_backup_json(
         FfiConverterString.lower(json),$0
+    )
+})
+}
+/**
+ * Map a wire-level finish/stop reason to a [`CompletionState`]. Missing (or
+ * empty) reason → `Unspecified` (proceed); `WireProtocol::Unspecified` always
+ * → `Unspecified`.
+ */
+public func normalizeTermination(wireProtocol: WireProtocol, reason: String?) -> CompletionState {
+    return try!  FfiConverterTypeCompletionState.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_normalize_termination(
+        FfiConverterTypeWireProtocol.lower(wireProtocol),
+        FfiConverterOptionString.lower(reason),$0
     )
 })
 }
@@ -5772,6 +6207,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_poll_request() != 21341) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_sync_request() != 14007) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_upload_request() != 12928) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -5781,7 +6219,16 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_poll_response() != 19680) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_sync_response() != 4249) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_parse_upload_response() != 28660) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_max_duration_secs() != 21235) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms() != 59578) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_azure_mai_build_transcribe_request() != 12803) {
@@ -5866,6 +6313,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_english_spelling_from_raw() != 13747) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_evaluate_completion() != 41679) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_evaluate_llm_response_json() != 62965) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_extract_cleaned_from_wrapped() != 20216) {
@@ -5985,6 +6438,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_parse_validate_response() != 51801) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_license_persist_validation_verdict() != 58908) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_license_record_model_download() != 39727) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6046,6 +6502,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_normalize_backup_json() != 37661) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_normalize_termination() != 6367) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_openai_build_transcribe_request() != 36424) {

@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Koti";
-"sidebar.statistics" = "Tilastot";
 "sidebar.modes" = "Tilat";
 "sidebar.vocabulary" = "Sanasto";
 "sidebar.streaming" = "Suoratoisto";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versio %@";
 "home.recent.updates.new.badge" = "UUTTA";
 "home.recent.updates.no.notes" = "Ei julkaisumuistiinpanoja saatavilla";
+"home.stats.words.week" = "Sanoja tällä viikolla";
+"home.stats.words.month" = "Sanoja tässä kuussa";
+"home.stats.speed" = "Keskinopeus";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Aloita HyperWhisperin käyttö";
-"sidebar.statistics.help" = "Näytä käyttötilastot ja analytiikka";
 "sidebar.modes.help" = "Hallinnoi transkriptiotiloja eri konteksteissa";
 "sidebar.vocabulary.help" = "Lisää mukautettuja sanoja ja lauseita paremman tunnistuksen saavuttamiseksi";
 "sidebar.streaming.help" = "Reaaliaikaisen suoratranskription asetukset (vaatii internetin)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud -krediitit";
 "settings.credits.refresh" = "Päivitä";
-"settings.credits.subtitle" = "Seuraa transkriptiokrediittejäsi ja käyttöäsi";
-"settings.credits.manage" = "Hallitse krediittejä";
 "settings.credits.timeRemaining" = "Transkriptioaikaa jäljellä";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minuuttia";
 "settings.credits.creditsRemaining" = "%@ krediittiä jäljellä";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Ilmainen päiväraja (100 krediittiä)";
-"settings.credits.resets" = "Nollautuu %@";
 "settings.credits.warning.low" = "Krediitit vähissä. Harkitse lisenssin ostamista saadaksesi lisää krediittejä.";
-"settings.credits.warning.exhausted.daily" = "Päiväraja käytetty. Osta lisenssi rajoittamatonta käyttöä varten tai odota nollausta.";
 "settings.credits.warning.exhausted" = "Krediitit loppuivat. Osta lisää krediittejä jatkaaksesi HyperWhisper Cloudin käyttöä.";
 "settings.credits.accountInfo" = "Tilin tiedot";
-"settings.credits.stat.creditsRemaining" = "Krediittejä jäljellä";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minuutteja jäljellä";
-"settings.credits.stat.accountType" = "Tilityyppi";
-"settings.credits.accountType.licensed" = "Lisensoitu";
-"settings.credits.accountType.anonymous" = "Anonyymi";
-"settings.credits.accountType.trial" = "Kokeilu";
-"settings.credits.stat.customerId" = "Asiakastunnus";
-"settings.credits.stat.dailyLimit" = "Päiväraja";
-"settings.credits.dailyLimit.value" = "100 krediittiä";
 "settings.credits.loading" = "Ladataan krediittisaldoa...";
 "settings.credits.error.title" = "Krediittisaldon lataus epäonnistui";
 "settings.credits.error.retry" = "Yritä uudelleen";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Verkkovirhe: %@";
 "settings.credits.error.invalidResponse" = "Virheellinen vastaus palvelimelta. Yritä uudelleen.";
 "settings.credits.error.server" = "Palvelinvirhe: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Tiliavain";
+"settings.cloud.purchaseMore" = "Osta krediittejä";
+"settings.cloud.key.reveal" = "Näytä tiliavain";
+"settings.cloud.key.hide" = "Piilota tiliavain";
+"settings.cloud.key.copy" = "Kopioi tiliavain";
+"settings.cloud.activate.title" = "Aktivoi HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Tiliavaimesi on lompakkosi — se sisältää Cloud-krediittisi. Anna avaimesi aloittaaksesi, tai osta krediittejä saadaksesi sellaisen.";
+"settings.cloud.getCredits.title" = "Eikö sinulla ole vielä avainta?";
+"settings.cloud.getCredits.subtitle" = "Osta krediittejä, niin lähetämme sinulle tiliavaimen sähköpostitse.";
+"settings.cloud.getCredits.button" = "Osta krediittejä";
 "settings.models.alert.cannotDelete.title" = "Mallia ei voi poistaa";
 "settings.models.parakeet.title" = "Parakeet-mallit";
 "settings.models.parakeet.subtitle" = "Suositeltu useimmille käyttäjille. Monikielinen malli tukee 25 kieltä.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Suositellaan Mac-tietokoneille, joissa on 24 GB yhtenäistä muistia tai enemmän. Nopeus riippuu sirusta — nopeampi M3/M4 Pro -piirillä ja sitä uudemmilla.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Sanoja tänä vuonna";
+"home.stats.typing.speed.help" = "Säädä oletettua kirjoitusnopeutta (WPM), jonka perusteella säästetty aika arvioidaan.";
+"home.stats.saved.week" = "Säästetty tällä viikolla";
+"home.stats.minutes.value" = "%d minuuttia";
 "vocabulary.input.placeholder" = "Lisää sana tai luo katkelma";
 "vocabulary.action.addWord" = "Lisää sana";
 "vocabulary.action.replaceWith" = "Korvaa seuraavalla…";
@@ -641,22 +641,6 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "models.error.checksumFailed" = "Mallin tarkistussumman vahvistus epäonnistui. Lataus saattaa olla vaurioitunut.";
 
 // MARK: - Statistics View
-"statistics.title" = "Tilastot";
-"statistics.header.title" = "Käyttötilastosi";
-"statistics.header.subtitle" = "Seuraa transkriptiotoimintaasi ja suorituskykyäsi";
-"statistics.card.recordings" = "Nauhoitukset yhteensä";
-"statistics.card.recordings.subtitle" = "Valmiit transkriptiot";
-"statistics.card.duration" = "Aika yhteensä";
-"statistics.card.duration.subtitle" = "Nauhoitukseen käytetty aika";
-"statistics.card.words" = "Sanat yhteensä";
-"statistics.card.words.subtitle" = "Transkriptoituja sanoja";
-"statistics.card.average" = "Keskimääräinen kesto";
-"statistics.card.average.subtitle" = "Per nauhoitus";
-"statistics.graph.title" = "Toiminta ajan mittaan";
-"statistics.daily.empty" = "Ei vielä nauhoituksia";
-"statistics.filter.week" = "Tällä viikolla";
-"statistics.filter.month" = "Tässä kuussa";
-"statistics.filter.alltime" = "Kaikkina aikoina";
 
 // MARK: - History View
 "history.title" = "Historia";
@@ -777,8 +761,13 @@ Muokkaa näitä tiloja valitaksesi eri mallin ennen sen poistamista.";
 "modes.cloudAccuracy.groqWhisper.description" = "Nopea ja edullinen. Paras nopeisiin transkriptioihin.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Tasapainoinen nopeus ja tarkkuus. Suositeltu useimmille käyttäjille.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ krediittiä/min";
 "modes.cloudAccuracy.grokStt.label" = "Korkein (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Korkein tarkkuus hitaamman käsittelyn kustannuksella. Paras tärkeisiin transkriptioihin.";
+"modes.cloudAccuracy.googleChirp3.label" = "Korkea (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 ja Chirp 3. Monikielinen, tukee lausemukautusta.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Korkea (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech -palvelun kautta. 43 kieltä ja kontekstipohjainen painotus.";
 
 "modes.create.title" = "Luo uusi tila";
 "modes.create.subtitle" = "Määritä mukautettu transkriptioprofiili";
@@ -915,9 +904,6 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 // MARK: - Audio Manager
 "audio.device.default" = "Oletusmikrofoni";
 "audio.error.permissionDenied" = "Mikrofonin käyttöoikeus evätty. Ota käyttöön järjestelmäasetuksissa.";
-"audio.error.fileWatcher.open" = "Tiedostokuvaajan avaaminen äänitiedoston valvontaan epäonnistui.";
-"audio.error.fileWatcher.timeout" = "Toiminto aikakatkaistiin odotettu äänitiedoston kirjoitusta.";
-"audio.error.fileWatcher.creation" = "Äänitiedostoa ei luotu ajoissa.";
 "audio.error.microphonePermission" = "Mikrofonilupaa ei myönnetty";
 "audio.error.microphoneInUse" = "HyperWhisper ei voi käyttää mikrofonia, koska toinen sovellus käyttää sitä tällä hetkellä. Keskeytä toinen sovellus tai vaihda tuloa ja yritä uudelleen.";
 "audio.error.createEngine" = "Äänimoottorin luominen epäonnistui";
@@ -992,6 +978,15 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcription.guidance.timeout" = "Pyyntö kesti liian kauan. Tarkista internet-nopeutesi ja yritä uudelleen.";
 "transcription.error.noSpeechDetected" = "Nauhoituksessa ei havaittu puhetta.";
 "transcription.guidance.noSpeechDetected" = "Vinkkejä:\n• Puhu selvästi mikrofoniin\n• Pidä näppäintä pidempään ennen puhumista\n• Tarkista, että mikrofonisi toimii\n• Varmista, että oikea tulolaite on valittu";
+"transcription.guidance.needsNativeRelaunch" = "Lopeta HyperWhisper ja avaa se uudelleen natiivina, jotta voit käyttää paikallista jälkikäsittelyä.";
+"transcription.guidance.localRuntimeUnavailable" = "Yritä uudelleen tai valitse pienempi paikallinen malli tilan asetuksista.";
+"transcription.error.localRuntimeUnavailable" = "Paikallinen tekoäly ei saanut käsittelyä valmiiksi — käsittelemätön litterointi säilytettiin.";
+"settings.backup.localDownload.title" = "Ladataanko paikalliset mallit?";
+"settings.backup.localDownload.message" = "%d palautetuista tiloistasi käyttää laitteessa toimivia tekoälymalleja, joita ei ole vielä ladattu.";
+"settings.backup.localDownload.downloadAll" = "Lataa kaikki";
+"settings.backup.localDownload.dismiss" = "Sulje";
+"modelLibrary.local.requiresAppleSilicon" = "Vaatii Apple Silicon -suorittimen";
+"modelLibrary.local.needsNativeRelaunch" = "Käynnistä uudelleen natiivina";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Krediitit eivät riitä. Lisää krediittejä asetuksissa.";
@@ -1125,3 +1120,12 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "history.autoDelete.status.enabled" = "Poista nauhoitukset, jotka ovat vanhempia kuin %d %@";
 "history.autoDelete.cleanup.noItems" = "Ei poistettavia nauhoituksia";
 "history.autoDelete.cleanup.summary" = "Poistettiin %d nauhoitus(ta) ja vapautettiin %@";
+"history.status.interrupted" = "Litterointi keskeytyi — sovellus sulkeutui ennen kuin se valmistui";
+"recording.maxDuration.reachedToast" = "Nauhoitus pysäytetty — %d minuutin raja saavutettu";
+"streaming.maxDuration.reachedToast" = "Suoratoisto pysäytetty — %d minuutin raja saavutettu";
+"settings.storage.maxRecordingDuration.title" = "Enimmäistallennuskesto";
+"settings.storage.maxRecordingDuration.subtitle" = "Pysäytä ja litteroi automaattisesti tätä pidemmät tallenteet.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minuuttia";
+"settings.storage.maxRecordingDuration.hour" = "1 tunti";
+"settings.storage.maxRecordingDuration.hours" = "%d tuntia";
+"settings.storage.maxRecordingDuration.off" = "Pois päältä";

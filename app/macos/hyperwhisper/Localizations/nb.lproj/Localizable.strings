@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Hjem";
-"sidebar.statistics" = "Statistikk";
 "sidebar.modes" = "Moduser";
 "sidebar.vocabulary" = "Ordforråd";
 "sidebar.streaming" = "Strømming";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versjon %@";
 "home.recent.updates.new.badge" = "NYTT";
 "home.recent.updates.no.notes" = "Ingen utgivelsesnotater tilgjengelig";
+"home.stats.words.week" = "Ord denne uken";
+"home.stats.words.month" = "Ord denne måneden";
+"home.stats.speed" = "Gjennomsnittlig hastighet";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kom i gang med HyperWhisper";
-"sidebar.statistics.help" = "Vis bruksstatistikk og analyser";
 "sidebar.modes.help" = "Administrer transkripsjonsmodi for ulike kontekster";
 "sidebar.vocabulary.help" = "Legg til tilpassede ord og fraser for bedre gjenkjenning";
 "sidebar.streaming.help" = "Sanntids strømmetranskripsjon innstillinger (krever internett)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud-kreditter";
 "settings.credits.refresh" = "Oppdater";
-"settings.credits.subtitle" = "Overvåk dine transkripsjonskreditter og bruk";
-"settings.credits.manage" = "Administrer kreditter";
 "settings.credits.timeRemaining" = "Gjenværende transkripsjonsstid";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minutter";
 "settings.credits.creditsRemaining" = "%@ kreditter gjenstår";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Gratis daglig grense (100 kreditter)";
-"settings.credits.resets" = "Tilbakestilles %@";
 "settings.credits.warning.low" = "Kreditter på lave nivåer. Vurder å kjøpe en lisens for flere kreditter.";
-"settings.credits.warning.exhausted.daily" = "Daglig grense oppbrukt. Kjøp en lisens for ubegrenset bruk eller vent på tilbakestilling.";
 "settings.credits.warning.exhausted" = "Kreditter oppbrukt. Kjøp flere kreditter for å fortsette å bruke HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Kontoinformasjon";
-"settings.credits.stat.creditsRemaining" = "Kreditter gjenstår";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minutter gjenstår";
-"settings.credits.stat.accountType" = "Kontotype";
-"settings.credits.accountType.licensed" = "Lisensiert";
-"settings.credits.accountType.anonymous" = "Anonym";
-"settings.credits.accountType.trial" = "Prøveversjon";
-"settings.credits.stat.customerId" = "Kunde-ID";
-"settings.credits.stat.dailyLimit" = "Daglig grense";
-"settings.credits.dailyLimit.value" = "100 kreditter";
 "settings.credits.loading" = "Laster kredittsaldo...";
 "settings.credits.error.title" = "Kunne ikke laste kredittsaldo";
 "settings.credits.error.retry" = "Prøv igjen";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Nettverksfeil: %@";
 "settings.credits.error.invalidResponse" = "Ugyldig respons fra server. Vennligst prøv igjen.";
 "settings.credits.error.server" = "Serverfeil: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontonøkkel";
+"settings.cloud.purchaseMore" = "Kjøp kreditter";
+"settings.cloud.key.reveal" = "Vis kontonøkkel";
+"settings.cloud.key.hide" = "Skjul kontonøkkel";
+"settings.cloud.key.copy" = "Kopier kontonøkkel";
+"settings.cloud.activate.title" = "Aktiver HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Kontonøkkelen din er lommeboken din — den inneholder Cloud-kredittene dine. Skriv inn nøkkelen din for å komme i gang, eller kjøp kreditter for å få en.";
+"settings.cloud.getCredits.title" = "Har du ikke en nøkkel ennå?";
+"settings.cloud.getCredits.subtitle" = "Kjøp kreditter, så sender vi deg en kontonøkkel på e-post.";
+"settings.cloud.getCredits.button" = "Kjøp kreditter";
 "settings.models.alert.cannotDelete.title" = "Kan ikke slette modell";
 "settings.models.parakeet.title" = "Parakeet-modeller";
 "settings.models.parakeet.subtitle" = "Anbefalt for de fleste brukere. Flerspråklig modell støtter 25 språk.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Anbefalt for Mac med 24 GB unified memory eller mer. Hastigheten avhenger av brikken — raskere på M3/M4 Pro og høyere.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Ord i år";
+"home.stats.typing.speed.help" = "Juster antatt skrivehastighet (WPM) som brukes til å beregne spart tid.";
+"home.stats.saved.week" = "Spart denne uken";
+"home.stats.minutes.value" = "%d minutter";
 "vocabulary.input.placeholder" = "Legg til et ord eller opprett et utdrag";
 "vocabulary.action.addWord" = "Legg til ord";
 "vocabulary.action.replaceWith" = "Erstatt med…";
@@ -641,22 +641,6 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "models.error.checksumFailed" = "Modellsjekksumverifisering mislyktes. Nedlastingen kan være korrupt.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistikk";
-"statistics.header.title" = "Din bruksstatistikk";
-"statistics.header.subtitle" = "Spor transkripsjonaktivitet og ytelse";
-"statistics.card.recordings" = "Totalt antall opptak";
-"statistics.card.recordings.subtitle" = "Fullførte transkripsjoner";
-"statistics.card.duration" = "Totaltid";
-"statistics.card.duration.subtitle" = "Tid brukt på opptak";
-"statistics.card.words" = "Totalt antall ord";
-"statistics.card.words.subtitle" = "Ord transkribert";
-"statistics.card.average" = "Gjennomsnittlig varighet";
-"statistics.card.average.subtitle" = "Per opptak";
-"statistics.graph.title" = "Aktivitet over tid";
-"statistics.daily.empty" = "Ingen opptak ennå";
-"statistics.filter.week" = "Denne uken";
-"statistics.filter.month" = "Denne måneden";
-"statistics.filter.alltime" = "All tid";
 
 // MARK: - History View
 "history.title" = "Historikk";
@@ -777,8 +761,13 @@ Rediger disse modusene for å velge en annen modell før du fjerner den.";
 "modes.cloudAccuracy.groqWhisper.description" = "Rask og rimelig. Best for raske transkripsjoner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balansert hastighet og nøyaktighet. Anbefalt for de fleste brukere.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditter/min";
 "modes.cloudAccuracy.grokStt.label" = "Høyest (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Høyeste nøyaktighet med langsommere behandling. Best for viktige transkripsjoner.";
+"modes.cloudAccuracy.googleChirp3.label" = "Høy (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 med Chirp 3. Flerspråklig med frasetilpasning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Høy (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 språk med kontekstuell tilpasning.";
 
 "modes.create.title" = "Opprett ny modus";
 "modes.create.subtitle" = "Konfigurer en tilpasset transkirpsjonsprofil";
@@ -915,9 +904,6 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 // MARK: - Audio Manager
 "audio.device.default" = "Standardmikrofon";
 "audio.error.permissionDenied" = "Mikrofontilgang nektet. Vennligst aktiver i Systeminnstillinger.";
-"audio.error.fileWatcher.open" = "Kunne ikke åpne en fildeskriptor for å overvåke lydfilen.";
-"audio.error.fileWatcher.timeout" = "Operasjonen tidsavbrutt mens den ventet på at lydfilen skulle skrives.";
-"audio.error.fileWatcher.creation" = "Lydfilen ble ikke opprettet i tide.";
 "audio.error.microphonePermission" = "Mikrofontillatelse ikke gitt";
 "audio.error.microphoneInUse" = "HyperWhisper får ikke tilgang til mikrofonen fordi en annen app for øyeblikket bruker den. Pause den andre appen eller bytt inngangskilder, og prøv deretter igjen.";
 "audio.error.createEngine" = "Kunne ikke opprette lydmotor";
@@ -992,6 +978,15 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.guidance.timeout" = "Forespørselen tok for lang tid. Sjekk internettshastigheten din og prøv igjen.";
 "transcription.error.noSpeechDetected" = "Ingen tale oppdaget i opptaket.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Snakk tydelig inn i mikrofonen\n• Hold tasten lengre før du snakker\n• Sjekk at mikrofonen din fungerer\n• Sørg for at riktig inngangsenhet er valgt";
+"transcription.guidance.needsNativeRelaunch" = "Avslutt og åpne HyperWhisper nativt på nytt for å bruke lokal etterbehandling.";
+"transcription.guidance.localRuntimeUnavailable" = "Prøv igjen, eller velg en mindre lokal modell i modusinnstillingene.";
+"transcription.error.localRuntimeUnavailable" = "Lokal AI ble ikke ferdig — den rå transkripsjonen ble beholdt.";
+"settings.backup.localDownload.title" = "Vil du laste ned lokale modeller?";
+"settings.backup.localDownload.message" = "%d av modusene du gjenopprettet, bruker lokale AI-modeller som ikke er lastet ned ennå.";
+"settings.backup.localDownload.downloadAll" = "Last ned alle";
+"settings.backup.localDownload.dismiss" = "Avvis";
+"modelLibrary.local.requiresAppleSilicon" = "Krever Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Start på nytt nativt";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Utilstrekkelige kreditter. Legg til flere kreditter i Innstillinger.";
@@ -1125,3 +1120,12 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "history.autoDelete.status.enabled" = "Slett opptak eldre enn %d %@";
 "history.autoDelete.cleanup.noItems" = "Ingen opptak å slette";
 "history.autoDelete.cleanup.summary" = "Slettet %d opptak og frigjorde %@";
+"history.status.interrupted" = "Transkripsjonen ble avbrutt — appen avsluttet før den var ferdig";
+"recording.maxDuration.reachedToast" = "Opptak stoppet — %d-minutters grense nådd";
+"streaming.maxDuration.reachedToast" = "Strømming stoppet — %d-minutters grense nådd";
+"settings.storage.maxRecordingDuration.title" = "Maksimal opptaksvarighet";
+"settings.storage.maxRecordingDuration.subtitle" = "Stopp og transkriber automatisk opptak som varer lenger enn dette.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minutter";
+"settings.storage.maxRecordingDuration.hour" = "1 time";
+"settings.storage.maxRecordingDuration.hours" = "%d timer";
+"settings.storage.maxRecordingDuration.off" = "Av";

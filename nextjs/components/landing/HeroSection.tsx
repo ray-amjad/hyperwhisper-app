@@ -13,7 +13,7 @@ export default function HeroSection() {
   const t = useTranslations("hero");
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 pb-20 overflow-hidden">
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 pt-12 pb-20 overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-700 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />

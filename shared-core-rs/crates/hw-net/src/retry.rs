@@ -57,8 +57,22 @@
 //!   (Soniox/AssemblyAI). We adopt honoring-with-clamp as a deliberate unification:
 //!   when `retry_after` is present it overrides the exponential delay, clamped to
 //!   10s (10_000 ms).
+//! - **Transport errors are capped platform-side, not here.** The core only sees
+//!   HTTP statuses; platforms feed transport failures (no response at all) into
+//!   [`next_retry`] as a synthetic 503 to reuse this backoff schedule. Windows
+//!   additionally caps those attempts client-side (4 for connection-level errors,
+//!   2 for per-attempt timeouts — see `RustRetry.cs`) because grinding through
+//!   all 8 attempts against a dead network stretches a doomed request to ~27 min.
+//!   The core stays transport-agnostic; `MAX_ATTEMPTS` remains the global bound.
 
 use crate::contract::{RetryDecision, TranscriptionError};
+// Shared with the result-parse path (`providers::common::classify_http`) so the
+// two in-crate classifiers agree on every status: `is_quota_error` inspects ONLY
+// the nested OpenAI-style `error` object (no top-level `message` fallback — that
+// would make this path classify a `{"message":"...billing..."}` 429 as terminal
+// QuotaExceeded while classify_http + macOS treat it as retryable RateLimited).
+// The agreement tests below stay as regression guards.
+use crate::providers::common::{error_message, is_quota_error};
 
 /// Total transcription attempts before giving up (unified across platforms).
 /// Attempts 1..=7 may retry; the 8th (and beyond) is terminal.
@@ -88,6 +102,8 @@ pub const MAX_RETRY_AFTER_SECS: u64 = 10;
 ///   (`error.code`/`error.type` == `insufficient_quota`, or a message mentioning
 ///   `quota` / `billing` / `insufficient_quota`), else
 ///   `RateLimited { retry_after_secs }` parsed from the body when present.
+/// - 408 → `ProviderUnavailable { status }` (request timeout is transient, same
+///   as 5xx; agrees with `classify_http` — see module doc)
 /// - 5xx → `ProviderUnavailable { status }`
 /// - any other status (other 4xx, and any non-2xx not above) → `BadRequest`
 ///
@@ -101,6 +117,7 @@ pub fn classify_error(status: u16, body: &str) -> TranscriptionError {
     match status {
         401 | 403 => TranscriptionError::Unauthorized,
         402 => TranscriptionError::QuotaExceeded,
+        408 => TranscriptionError::ProviderUnavailable { status },
         413 => TranscriptionError::FileTooLarge,
         429 => {
             if is_quota_error(json.as_ref()) {
@@ -227,37 +244,6 @@ fn backoff_ms(attempt: u32, retry_after: Option<u64>) -> u64 {
     (1u64 << (attempt - 1)) * 1_000
 }
 
-/// True when a 429 body indicates permanent quota exhaustion (vs. transient rate
-/// limiting). Mirrors `is_quota_error` in `providers::common` and the macOS
-/// `isQuotaError` check EXACTLY: only the nested `error.code` / `error.type` ==
-/// `insufficient_quota`, or `error.message` mentioning `quota` / `billing`. No
-/// top-level `message` fallback (that would diverge from the result-parse path
-/// and macOS — see body comment).
-fn is_quota_error(json: Option<&serde_json::Value>) -> bool {
-    // Inspect ONLY the nested OpenAI-style `error` object — byte-for-byte
-    // identical to `providers::common::is_quota_error` and macOS
-    // `CloudWhisperProvider.swift` (which checks `errorData["error"]["code"/
-    // "type"/"message"]`). Deliberately NO top-level `message` fallback: adding
-    // one here would make the retry path classify a `{"message":"...billing..."}`
-    // 429 as terminal QuotaExceeded while the result-parse path + macOS treat it
-    // as retryable RateLimited — an internal inconsistency. The two in-crate
-    // classifiers must agree on every status (see module doc).
-    let Some(error) = json.and_then(|j| j.get("error")) else {
-        return false;
-    };
-    let code = error.get("code").and_then(|v| v.as_str()).unwrap_or("");
-    let kind = error.get("type").and_then(|v| v.as_str()).unwrap_or("");
-    let msg = error
-        .get("message")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_lowercase();
-    code == "insufficient_quota"
-        || kind == "insufficient_quota"
-        || msg.contains("quota")
-        || msg.contains("billing")
-}
-
 /// Parse a `Retry-After`-equivalent value from a JSON body, if present. Accepts a
 /// top-level `retry_after` or `retryAfter` field, as a number or numeric string.
 /// (The header-based path lives in `providers::common::classify_http`.)
@@ -276,28 +262,6 @@ fn retry_after_from_body(json: Option<&serde_json::Value>) -> Option<u64> {
         }
     }
     None
-}
-
-/// Best-effort error message: `error.message`, then top-level `message` / `error`
-/// (string), then the first 200 chars of the raw body. Matches
-/// `providers::common::error_message`.
-fn error_message(json: Option<&serde_json::Value>, raw: &str) -> String {
-    if let Some(j) = json {
-        if let Some(m) = j
-            .get("error")
-            .and_then(|e| e.get("message"))
-            .and_then(|v| v.as_str())
-        {
-            return m.to_string();
-        }
-        if let Some(m) = j.get("message").and_then(|v| v.as_str()) {
-            return m.to_string();
-        }
-        if let Some(m) = j.get("error").and_then(|v| v.as_str()) {
-            return m.to_string();
-        }
-    }
-    raw.chars().take(200).collect()
 }
 
 #[cfg(test)]
@@ -377,6 +341,20 @@ mod tests {
             TranscriptionError::RateLimited {
                 retry_after_secs: Some(8)
             }
+        );
+    }
+
+    #[test]
+    fn classify_408_provider_unavailable() {
+        // Request timeout is transient — retryable ProviderUnavailable, not the
+        // terminal BadRequest fallthrough.
+        assert_eq!(
+            classify_error(408, ""),
+            TranscriptionError::ProviderUnavailable { status: 408 }
+        );
+        assert_eq!(
+            classify_error(408, r#"{"message":"Request Timeout"}"#),
+            TranscriptionError::ProviderUnavailable { status: 408 }
         );
     }
 
@@ -477,6 +455,20 @@ mod tests {
             RetryDecision::Retry { delay_ms: 8_000 }
         );
         assert_eq!(next_retry(8, 503, "", None), RetryDecision::GiveUp);
+    }
+
+    #[test]
+    fn retry_408_is_retryable_until_exhausted() {
+        // 408 request timeout retries like a 5xx.
+        assert_eq!(
+            next_retry(1, 408, "", None),
+            RetryDecision::Retry { delay_ms: 1_000 }
+        );
+        assert_eq!(
+            next_retry(3, 408, "", None),
+            RetryDecision::Retry { delay_ms: 4_000 }
+        );
+        assert_eq!(next_retry(8, 408, "", None), RetryDecision::GiveUp);
     }
 
     #[test]

@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 //! `hw-catalog` — cross-platform catalog core (sans-I/O).
 //!
 //! Embeds the shared catalog JSON files and (in Wave 1) exposes typed lookups

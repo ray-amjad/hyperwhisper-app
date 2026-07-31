@@ -6,6 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		71F2A2EB2E5E4B1F0048B2D7 /* RustCore */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 71F2A2EE2E5E4B220048B2DA /* Build configuration list for PBXAggregateTarget "RustCore" */;
+			buildPhases = (
+				71F2A2EA2E5E4B1E0048B2D6 /* Ensure Rust Core */,
+			);
+			dependencies = (
+			);
+			name = RustCore;
+			productName = RustCore;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		716D3E1C2E52BB340018DCF5 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 716D3DE12E52B8910018DCF5 /* KeyboardShortcuts */; };
 		71805AD02EDDE90D00E7A29A /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 71805ACF2EDDE90D00E7A29A /* LaunchAtLogin */; };
@@ -26,6 +40,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		71F2A2EC2E5E4B200048B2D8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7142EF072E50808900DA9A2D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 71F2A2EB2E5E4B1F0048B2D7;
+			remoteInfo = RustCore;
+		};
 		7142EF1E2E50808B00DA9A2D /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 7142EF072E50808900DA9A2D /* Project object */;
@@ -182,6 +203,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				71F2A2ED2E5E4B210048B2D9 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				7142EF112E50808900DA9A2D /* hyperwhisper */,
@@ -330,6 +352,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				71F2A2EB2E5E4B1F0048B2D7 /* RustCore */,
 				7142EF0E2E50808900DA9A2D /* hyperwhisper */,
 				7142EF1C2E50808B00DA9A2D /* hyperwhisperTests */,
 				7142EF262E50808B00DA9A2D /* hyperwhisperUITests */,
@@ -424,6 +447,26 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\n# Code sign all Runtime binaries (llama-server and dylibs) with Hardened Runtime\nRUNTIME_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/Runtime\"\nRESOURCES_DIR=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n\nif [ -d \"$RUNTIME_DIR\" ]; then\n  echo \"Code signing Runtime binaries in $RUNTIME_DIR\"\n  \n  # Sign all dylibs\n  find \"$RUNTIME_DIR\" -name \"*.dylib\" -type f | while read binary; do\n    echo \"Code signing $binary with Hardened Runtime\"\n    /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp \"$binary\" || true\n  done\n  \n  # Sign llama-server in Runtime/\n  find \"$RUNTIME_DIR\" -name \"llama-server\" -type f | while read binary; do\n    echo \"Code signing $binary with Hardened Runtime\"\n    /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp \"$binary\" || true\n  done\n  \n  echo \"Runtime binaries code signing complete\"\nfi\n\n# Also sign top-level llama-server if Xcode copied it to Resources/\nif [ -f \"$RESOURCES_DIR/llama-server\" ]; then\n  echo \"Code signing top-level llama-server in Resources\"\n  /usr/bin/codesign --force --sign \"$EXPANDED_CODE_SIGN_IDENTITY\" --options runtime --timestamp \"$RESOURCES_DIR/llama-server\" || true\nfi\n";
 		};
+		71F2A2EA2E5E4B1E0048B2D6 /* Ensure Rust Core */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Ensure Rust Core";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/hyperwhisper/Libraries/libhyperwhisper_core.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nLIB=\"$SRCROOT/hyperwhisper/Libraries/libhyperwhisper_core.a\"\nCORE=\"$SRCROOT/../../shared-core-rs\"\n\n# libhyperwhisper_core.a is built from source, not committed: 11 versions of a\n# 65 MB binary had reached 52% of the repository. See Libraries/README.md.\n#\n# This lives in its own aggregate target that the app target depends on, so it\n# is guaranteed to finish before the app links. It deliberately does NOT build\n# the lib and carry on: Xcode resolves LIBRARY_SEARCH_PATHS when it *plans* the\n# build, so a lib that appears mid-build never makes it onto the link line and\n# the app fails with a wall of confusing \\\"Undefined symbols\\\" errors instead.\n# Building it and asking for one more build is the honest version of that.\nif [ ! -f \"$LIB\" ]; then\n  if ! command -v cargo > /dev/null 2>&1; then\n    echo \"error: libhyperwhisper_core.a is missing and cargo was not found. The Rust core is built from source and is not committed to git. Install Rust from https://rustup.rs, then build again. See app/macos/hyperwhisper/Libraries/README.md.\"\n    exit 1\n  fi\n  echo \"note: libhyperwhisper_core.a not present - building it now, this takes a few minutes\"\n  \"$CORE/build-apple.sh\"\n  echo \"error: Built the Rust core at $LIB. Xcode had already planned this build without it, so please build again - it will link this time.\"\n  exit 1\nfi\n\n# Warn rather than rebuild: a stale lib whose FFI surface moved fails loudly at\n# link time anyway, but one where only a function body changed links clean and\n# silently runs old Rust. A warning catches that without hijacking every\n# incremental build with a multi-minute compile.\nSTALE=$(find \"$CORE/crates\" -name '*.rs' -newer \"$LIB\" -print -quit 2>/dev/null || true)\nif [ -n \"$STALE\" ]; then\n  echo \"warning: libhyperwhisper_core.a is older than the Rust sources in shared-core-rs/crates - run shared-core-rs/build-apple.sh to rebuild, otherwise you are linking stale Rust.\"\nfi\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -451,6 +494,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		71F2A2ED2E5E4B210048B2D9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 71F2A2EB2E5E4B1F0048B2D7 /* RustCore */;
+			targetProxy = 71F2A2EC2E5E4B200048B2D8 /* PBXContainerItemProxy */;
+		};
 		7142EF1F2E50808B00DA9A2D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 7142EF0E2E50808900DA9A2D /* hyperwhisper */;
@@ -464,6 +512,22 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		71F2A2EF2E5E4B230048B2DB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		71F2A2F02E5E4B240048B2DC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		7142EF2F2E50808B00DA9A2D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -592,7 +656,7 @@
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 109;
+				CURRENT_PROJECT_VERSION = 110;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -618,7 +682,7 @@
 					"$(PROJECT_DIR)/hyperwhisper/Libraries",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 2.40.0;
+				MARKETING_VERSION = 2.41.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisper;
 				PRODUCT_NAME = HyperWhisper;
 				PROVISIONING_PROFILE_SPECIFIER = "HyperWhisper Developer ID";
@@ -640,7 +704,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 109;
+				CURRENT_PROJECT_VERSION = 110;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -666,7 +730,7 @@
 					"$(PROJECT_DIR)/hyperwhisper/Libraries",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
-				MARKETING_VERSION = 2.40.0;
+				MARKETING_VERSION = 2.41.0;
 				OTHER_CODE_SIGN_FLAGS = "--deep --timestamp";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hyperwhisper.hyperwhisper;
 				PRODUCT_NAME = HyperWhisper;
@@ -745,6 +809,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		71F2A2EE2E5E4B220048B2DA /* Build configuration list for PBXAggregateTarget "RustCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71F2A2EF2E5E4B230048B2DB /* Debug */,
+				71F2A2F02E5E4B240048B2DC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7142EF0A2E50808900DA9A2D /* Build configuration list for PBXProject "hyperwhisper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

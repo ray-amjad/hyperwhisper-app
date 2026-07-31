@@ -99,9 +99,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Cleanly shut down the Local API server so the port file is removed
-    /// and FlyingFox releases the bound port.
+    /// and FlyingFox releases the bound port, and flush any Core Data writes
+    /// still queued on the serial background writer (e.g. a completion write
+    /// racing a quick Cmd-Q right after paste).
     func applicationWillTerminate(_ notification: Notification) {
         LocalAPIServer.shared.stop()
+        PersistenceController.shared.drainWriterOnTerminate()
     }
 
     /// Stops the Local API server while the system is going to sleep.

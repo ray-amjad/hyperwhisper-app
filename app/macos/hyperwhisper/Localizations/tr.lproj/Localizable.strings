@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Ana Sayfa";
-"sidebar.statistics" = "İstatistikler";
 "sidebar.modes" = "Modlar";
 "sidebar.vocabulary" = "Kelime Hazinesi";
 "sidebar.streaming" = "Akış";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Sürüm %@";
 "home.recent.updates.new.badge" = "YENİ";
 "home.recent.updates.no.notes" = "Sürüm notları yok";
+"home.stats.words.week" = "Bu haftaki kelimeler";
+"home.stats.words.month" = "Bu ayki kelimeler";
+"home.stats.speed" = "Ortalama hız";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisper'ı kullanmaya başlayın";
-"sidebar.statistics.help" = "Kullanım istatistiklerini ve analizlerini görüntüleyin";
 "sidebar.modes.help" = "Farklı bağlamlar için transkripsiyon modlarını yönet";
 "sidebar.vocabulary.help" = "Daha iyi tanıma için özel kelimeler ve ifadeler ekleyin";
 "sidebar.streaming.help" = "Gerçek zamanlı akış transkripsiyon ayarları (İnternet gerekir)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud Kredileri";
 "settings.credits.refresh" = "Yenile";
-"settings.credits.subtitle" = "Transkripsiyon kredilerinizi ve kullanımınızı izleyin";
-"settings.credits.manage" = "Kredileri Yönet";
 "settings.credits.timeRemaining" = "Kalan Transkripsiyon Süresi";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "dakika";
 "settings.credits.creditsRemaining" = "%@ kredi kaldı";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Ücretsiz Günlük Sınır (100 kredi)";
-"settings.credits.resets" = "%@ tarihinde sıfırlanır";
 "settings.credits.warning.low" = "Krediler az kalıyor. Ek krediler için bir lisans satın almayı düşünün.";
-"settings.credits.warning.exhausted.daily" = "Günlük sınır tükenmiştir. Sınırsız kullanım için lisans satın alın veya sıfırlanmayı bekleyin.";
 "settings.credits.warning.exhausted" = "Krediler tükenmiştir. HyperWhisper Cloud'u kullanmaya devam etmek için daha fazla kredi satın alın.";
 "settings.credits.accountInfo" = "Hesap Bilgileri";
-"settings.credits.stat.creditsRemaining" = "Kalan Krediler";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Kalan Dakikalar";
-"settings.credits.stat.accountType" = "Hesap Türü";
-"settings.credits.accountType.licensed" = "Lisanslı";
-"settings.credits.accountType.anonymous" = "Anonim";
-"settings.credits.accountType.trial" = "Deneme";
-"settings.credits.stat.customerId" = "Müşteri Kimliği";
-"settings.credits.stat.dailyLimit" = "Günlük Sınır";
-"settings.credits.dailyLimit.value" = "100 kredi";
 "settings.credits.loading" = "Kredi bakiyesi yükleniyor...";
 "settings.credits.error.title" = "Kredi bakiyesi yüklenemiyor";
 "settings.credits.error.retry" = "Yeniden Dene";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Ağ hatası: %@";
 "settings.credits.error.invalidResponse" = "Sunucudan geçersiz yanıt. Lütfen tekrar deneyin.";
 "settings.credits.error.server" = "Sunucu hatası: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Hesap Anahtarı";
+"settings.cloud.purchaseMore" = "Kredi Satın Al";
+"settings.cloud.key.reveal" = "Hesap anahtarını göster";
+"settings.cloud.key.hide" = "Hesap anahtarını gizle";
+"settings.cloud.key.copy" = "Hesap anahtarını kopyala";
+"settings.cloud.activate.title" = "HyperWhisper Cloud'u Etkinleştir";
+"settings.cloud.activate.subtitle" = "Hesap anahtarınız cüzdanınızdır — Cloud kredilerinizi barındırır. Başlamak için anahtarınızı girin veya bir tane edinmek için kredi satın alın.";
+"settings.cloud.getCredits.title" = "Henüz bir anahtarınız yok mu?";
+"settings.cloud.getCredits.subtitle" = "Kredi satın alın, size e-postayla bir hesap anahtarı gönderelim.";
+"settings.cloud.getCredits.button" = "Kredi Satın Al";
 "settings.models.alert.cannotDelete.title" = "Model Silinemez";
 "settings.models.parakeet.title" = "Parakeet Modelleri";
 "settings.models.parakeet.subtitle" = "Çoğu kullanıcı için önerilir. Çok dillli model 25 dili destekler.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB birleşik belleğe veya daha fazlasına sahip Mac için önerilir. Hız çipe bağlıdır — M3/M4 Pro ve üstünde daha hızlı.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Bu yılki kelimeler";
+"home.stats.typing.speed.help" = "Kazanılan süreyi hesaplamak için kullanılan varsayılan yazma hızını (WPM) ayarlayın.";
+"home.stats.saved.week" = "Bu hafta kazanılan süre";
+"home.stats.minutes.value" = "%d dakika";
 "vocabulary.input.placeholder" = "Bir kelime ekleyin veya kod parçası oluşturun";
 "vocabulary.action.addWord" = "Kelime ekle";
 "vocabulary.action.replaceWith" = "Şununla değiştir…";
@@ -641,22 +641,6 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "models.error.checksumFailed" = "Model sağlama toplamı doğrulaması başarısız oldu. İndirme bozulmuş olabilir.";
 
 // MARK: - Statistics View
-"statistics.title" = "İstatistikler";
-"statistics.header.title" = "Kullanım İstatistikleriniz";
-"statistics.header.subtitle" = "Transkripsiyon aktivitenizi ve performansını izleyin";
-"statistics.card.recordings" = "Toplam Kayıtlar";
-"statistics.card.recordings.subtitle" = "Tamamlanan transkripsiyon";
-"statistics.card.duration" = "Toplam Zaman";
-"statistics.card.duration.subtitle" = "Kaydı yapılan zaman";
-"statistics.card.words" = "Toplam Kelimeler";
-"statistics.card.words.subtitle" = "Transkribe edilen kelimeler";
-"statistics.card.average" = "Ortalama Süre";
-"statistics.card.average.subtitle" = "Kayıt başına";
-"statistics.graph.title" = "Zaman İçinde Aktivite";
-"statistics.daily.empty" = "Henüz kayıt yok";
-"statistics.filter.week" = "Bu Hafta";
-"statistics.filter.month" = "Bu Ay";
-"statistics.filter.alltime" = "Tüm Zaman";
 
 // MARK: - History View
 "history.title" = "Geçmiş";
@@ -777,8 +761,13 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.cloudAccuracy.groqWhisper.description" = "Hızlı ve uygun fiyatlı. Hızlı transkripsiyon için en iyisi.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Dengeli hız ve doğruluk. Çoğu kullanıcı için önerilir.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredi/dk";
 "modes.cloudAccuracy.grokStt.label" = "En Yüksek (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
+"modes.cloudAccuracy.googleChirp3.label" = "Yüksek (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 ile Google Cloud Speech-to-Text V2. İfade uyarlamalı, çok dilli.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe 1.5. Bağlamsal yönlendirme ile 43 dil.";
 
 "modes.create.title" = "Yeni Mod Oluştur";
 "modes.create.subtitle" = "Özel transkripsiyon profilini yapılandır";
@@ -915,9 +904,6 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 // MARK: - Audio Manager
 "audio.device.default" = "Varsayılan Mikrofon";
 "audio.error.permissionDenied" = "Mikrofon erişimi reddedildi. Lütfen Sistem Ayarları'nda etkinleştirin.";
-"audio.error.fileWatcher.open" = "Ses dosyasını izlemek için bir dosya tanımlayıcısı açılamadı.";
-"audio.error.fileWatcher.timeout" = "Ses dosyasının yazılmayı beklerken işlem zaman aşımına uğradı.";
-"audio.error.fileWatcher.creation" = "Ses dosyası zamanında oluşturulmadı.";
 "audio.error.microphonePermission" = "Mikrofon izni verilmedi";
 "audio.error.microphoneInUse" = "HyperWhisper, başka bir uygulama şu anda kullanıyor olduğu için mikrofonuna erişemez. Diğer uygulamayı duraklatın veya giriş değiştirin, ardından tekrar deneyin.";
 "audio.error.createEngine" = "Ses motoru oluşturulamadı";
@@ -992,6 +978,15 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.guidance.timeout" = "İstek çok uzun sürdü. İnternet hızınızı kontrol edin ve tekrar deneyin.";
 "transcription.error.noSpeechDetected" = "Kayıtta konuşma algılanmadı.";
 "transcription.guidance.noSpeechDetected" = "İpuçları:\n• Mikrofonun içine açıkça konuş\n• Konuşmadan önce tuşu daha uzun basın\n• Mikrofonunuzun çalıştığını kontrol edin\n• Doğru giriş cihazının seçildiğinden emin olun";
+"transcription.guidance.needsNativeRelaunch" = "Yerel son işlemeyi kullanmak için HyperWhisper'dan çıkıp uygulamayı yerel mimaride yeniden açın.";
+"transcription.guidance.localRuntimeUnavailable" = "Tekrar deneyin veya Mod ayarlarınızda daha küçük bir yerel model seçin.";
+"transcription.error.localRuntimeUnavailable" = "Yerel yapay zeka işlemi tamamlayamadı — ham metniniz korundu.";
+"settings.backup.localDownload.title" = "Yerel modeller indirilsin mi?";
+"settings.backup.localDownload.message" = "Geri yüklenen modlarınızdan %d tanesi henüz indirilmemiş, cihaz üzerinde çalışan yapay zeka modellerini kullanıyor.";
+"settings.backup.localDownload.downloadAll" = "Tümünü İndir";
+"settings.backup.localDownload.dismiss" = "Kapat";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon gerektirir";
+"modelLibrary.local.needsNativeRelaunch" = "Yerel mimaride yeniden başlat";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Yetersiz krediler. Ayarlar'dan daha fazla kredi ekleyin.";
@@ -1125,3 +1120,12 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "history.autoDelete.status.enabled" = "%d %@'dan daha eski kayıtları sil";
 "history.autoDelete.cleanup.noItems" = "Silinecek kayıt yok";
 "history.autoDelete.cleanup.summary" = "%d kayıt silindi ve %@ boşa çıkarıldı";
+"history.status.interrupted" = "Transkripsiyon kesildi — uygulama tamamlanmadan önce kapandı";
+"recording.maxDuration.reachedToast" = "Kayıt durduruldu — %d dakikalık sınıra ulaşıldı";
+"streaming.maxDuration.reachedToast" = "Yayın durduruldu — %d dakikalık sınıra ulaşıldı";
+"settings.storage.maxRecordingDuration.title" = "Maksimum kayıt süresi";
+"settings.storage.maxRecordingDuration.subtitle" = "Bu süreden uzun kayıtları otomatik olarak durdurup transkript oluştur.";
+"settings.storage.maxRecordingDuration.minutes" = "%d dakika";
+"settings.storage.maxRecordingDuration.hour" = "1 saat";
+"settings.storage.maxRecordingDuration.hours" = "%d saat";
+"settings.storage.maxRecordingDuration.off" = "Kapalı";

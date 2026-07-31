@@ -126,11 +126,29 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     private readonly bool _isShared;
 
+    /// <summary>
+    /// Cached phonetic matcher (vocabulary is pre-encoded via FFI at build time,
+    /// so rebuilding per transcription would pay one PhoneticEncode call per
+    /// entry every time). Rebuilt lazily when <see cref="_phoneticMatcherDirty"/>
+    /// is set by <see cref="VocabularyService.VocabularyChanged"/> (which also
+    /// fires on backup import). macOS builds a fresh matcher per transcription;
+    /// caching here is output-identical.
+    /// </summary>
+    private PhoneticVocabularyMatcher? _phoneticMatcher;
+    private volatile bool _phoneticMatcherDirty = true;
+    private readonly object _phoneticMatcherLock = new();
+
     public ParakeetTranscriptionService() : this(isShared: false) { }
 
     internal ParakeetTranscriptionService(bool isShared)
     {
         _isShared = isShared;
+        VocabularyService.Instance.VocabularyChanged += OnVocabularyChanged;
+    }
+
+    private void OnVocabularyChanged(object? sender, EventArgs e)
+    {
+        _phoneticMatcherDirty = true;
     }
 
     // =========================================================================
@@ -163,7 +181,11 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
     /// <summary>
     /// The selected language affecting daemon behavior for the loaded model.
-    /// Null if no model is loaded.
+    /// Null if no model is loaded. ACCEPTED STALENESS: after a TDT mode switch
+    /// that <see cref="NeedsReload"/> skipped (same no-space join class, e.g.
+    /// en→fr), this still reports the last SPAWN's language, not the mode's —
+    /// the daemon genuinely runs with that spawn hint. Consumers (auto-restart,
+    /// Qwen3 empty-result heuristic) only need the spawn value.
     /// </summary>
     public string? LoadedLanguage => _lastLanguage;
 
@@ -171,6 +193,66 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// Whether the daemon is initialized and ready. Alias for compatibility with existing patterns.
     /// </summary>
     public bool IsInitialized => _isReady;
+
+    /// <summary>
+    /// Whether the daemon joins transcription segments for <paramref name="code"/>
+    /// without spaces. KEEP IN SYNC with tools/parakeet-engine/main.cpp
+    /// <c>is_no_space_language</c>.
+    /// </summary>
+    internal static bool IsNoSpaceLanguage(string code) =>
+        code is "ja" or "zh" or "ko" or "yue";
+
+    /// <summary>
+    /// Canonicalizes a mode/request language for reload comparison:
+    /// null / whitespace / "auto" → "auto"; everything else trimmed + lowercased.
+    /// </summary>
+    internal static string NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+        {
+            return "auto";
+        }
+
+        var normalized = language.Trim().ToLowerInvariant();
+        return normalized.Length == 0 ? "auto" : normalized;
+    }
+
+    /// <summary>
+    /// Whether switching to <paramref name="modelId"/> + <paramref name="requestedLanguage"/>
+    /// (raw mode value; null/"auto" mean auto-detect) requires respawning the daemon.
+    /// Single source of truth for the previously copy-pasted call-site checks.
+    ///
+    /// - Not ready, or a different model → reload.
+    /// - Language-hint engines (Nemotron online, Qwen3) take the language at
+    ///   spawn → reload on any normalized-language change.
+    /// - Parakeet TDT auto-detects language; its spawn hint only picks the
+    ///   no-space segment join → reload only when the join class changes
+    ///   (en→fr skips; en→ja reloads).
+    /// </summary>
+    public bool NeedsReload(string modelId, string? requestedLanguage)
+    {
+        // Lock-free reads of _isReady/_loadedModelId/_lastLanguage — same
+        // consistency model as the call sites this consolidates.
+        if (!_isReady)
+        {
+            return true;
+        }
+
+        if (!string.Equals(_loadedModelId, modelId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var requested = NormalizeLanguage(requestedLanguage);
+        var loaded = NormalizeLanguage(_lastLanguage);
+
+        if (_isOnline || _isQwen3)
+        {
+            return !string.Equals(requested, loaded, StringComparison.Ordinal);
+        }
+
+        return IsNoSpaceLanguage(requested) != IsNoSpaceLanguage(loaded);
+    }
 
     // =========================================================================
     // DAEMON PATHS
@@ -487,7 +569,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
         try
         {
-            return await TranscribeInternalAsync(audioPath, cancellationToken);
+            return ApplyPhoneticVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
         }
         catch (TranscriptionException ex) when (ex.Code == TranscriptionErrorCode.DaemonCrashed)
         {
@@ -504,7 +586,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             {
                 await InitializeAsync(_lastModelDirectory, _lastLanguage);
                 LoggingService.Info("ParakeetTranscriptionService: Auto-restart successful, retrying transcription...");
-                return await TranscribeInternalAsync(audioPath, cancellationToken);
+                return ApplyPhoneticVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
             }
             catch (OperationCanceledException)
             {
@@ -520,6 +602,52 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                     "Parakeet",
                     restartEx);
             }
+        }
+    }
+
+    /// <summary>
+    /// Phonetic vocabulary pass over the raw engine result (Beider-Morse, via the
+    /// shared Rust core). Runs FIRST on the raw text; exact replacements run
+    /// second in the orchestrator — mirrors macOS ParakeetProvider.swift /
+    /// NemotronProvider.swift. Applies to TDT + Nemotron only; Qwen3 gets no
+    /// phonetic pass on macOS (Qwen3Provider), so it is gated here too.
+    /// Vocabulary is GLOBAL (all items, no settings gate) — macOS parity.
+    /// </summary>
+    private string ApplyPhoneticVocabulary(string text)
+    {
+        if (_isQwen3)
+        {
+            return text;
+        }
+
+        // The phonetic encode crosses the FFI on the transcription hot path;
+        // macOS links the core statically and has no equivalent failure mode, so
+        // degrade gracefully here rather than failing the transcription.
+        try
+        {
+            var vocabulary = VocabularyService.Instance.GetAll();
+            if (vocabulary.Count == 0)
+            {
+                return text;
+            }
+
+            PhoneticVocabularyMatcher matcher;
+            lock (_phoneticMatcherLock)
+            {
+                if (_phoneticMatcher == null || _phoneticMatcherDirty)
+                {
+                    _phoneticMatcherDirty = false;
+                    _phoneticMatcher = new PhoneticVocabularyMatcher(vocabulary);
+                }
+                matcher = _phoneticMatcher;
+            }
+
+            return matcher.Apply(text);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"ParakeetTranscriptionService: Phonetic vocabulary pass failed, returning unmatched text: {ex.Message}");
+            return text;
         }
     }
 
@@ -1047,6 +1175,10 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             return;
         }
         LoggingService.Info("ParakeetTranscriptionService: Disposing...");
+
+        try { VocabularyService.Instance.VocabularyChanged -= OnVocabularyChanged; }
+        catch (Exception ex) { LoggingService.Warn($"ParakeetTranscriptionService: Failed to unsubscribe vocabulary listener: {ex.Message}"); }
+
         DisposeModel();
 
         try { _transcriptionLock.Dispose(); }

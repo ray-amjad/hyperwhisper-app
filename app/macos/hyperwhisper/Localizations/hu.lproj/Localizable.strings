@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Kezdőlap";
-"sidebar.statistics" = "Statisztikák";
 "sidebar.modes" = "Módok";
 "sidebar.vocabulary" = "Szókincs";
 "sidebar.streaming" = "Streamelés";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Verzió %@";
 "home.recent.updates.new.badge" = "ÚJ";
 "home.recent.updates.no.notes" = "Nincsenek kiadási megjegyzések";
+"home.stats.words.week" = "Szavak ezen a héten";
+"home.stats.words.month" = "Szavak ebben a hónapban";
+"home.stats.speed" = "Átlagos sebesség";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kezdj el a HyperWhisperrel";
-"sidebar.statistics.help" = "Használati statisztikák és elemzések megtekintése";
 "sidebar.modes.help" = "Átírási módok kezelése különböző kontextusokhoz";
 "sidebar.vocabulary.help" = "Egyéni szavak és kifejezések hozzáadása jobb felismerésért";
 "sidebar.streaming.help" = "Valós idejű streamelési átírás beállítások (Internet szükséges)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud kreditek";
 "settings.credits.refresh" = "Frissítés";
-"settings.credits.subtitle" = "Átírási kreditek és használat figyelése";
-"settings.credits.manage" = "Kreditek kezelése";
 "settings.credits.timeRemaining" = "Hátralevő átírási idő";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "perc";
 "settings.credits.creditsRemaining" = "%@ kredit van hátra";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Ingyenes napi limit (100 kredit)";
-"settings.credits.resets" = "Visszaáll %@";
 "settings.credits.warning.low" = "Kevés kredit van hátra. Fontold meg licenc vásárlását további kreditekért.";
-"settings.credits.warning.exhausted.daily" = "Napi limit elfogyott. Vásárolj licencet korlátlan használatért vagy várj a visszaállításra.";
 "settings.credits.warning.exhausted" = "Kreditek elfogytak. Vásárolj több kreditet a HyperWhisper Cloud használatának folytatásához.";
 "settings.credits.accountInfo" = "Fiók információ";
-"settings.credits.stat.creditsRemaining" = "Hátralevő kreditek";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Hátralevő percek";
-"settings.credits.stat.accountType" = "Fiók típus";
-"settings.credits.accountType.licensed" = "Licencelt";
-"settings.credits.accountType.anonymous" = "Névtelen";
-"settings.credits.accountType.trial" = "Próba";
-"settings.credits.stat.customerId" = "Ügyfél azonosító";
-"settings.credits.stat.dailyLimit" = "Napi limit";
-"settings.credits.dailyLimit.value" = "100 kredit";
 "settings.credits.loading" = "Kredit egyenleg betöltése...";
 "settings.credits.error.title" = "Nem sikerült a kredit egyenleg betöltése";
 "settings.credits.error.retry" = "Újra";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Hálózati hiba: %@";
 "settings.credits.error.invalidResponse" = "Érvénytelen válasz a szervertől. Kérlek próbáld újra.";
 "settings.credits.error.server" = "Szerver hiba: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Fiókkulcs";
+"settings.cloud.purchaseMore" = "Kreditek vásárlása";
+"settings.cloud.key.reveal" = "Fiókkulcs megjelenítése";
+"settings.cloud.key.hide" = "Fiókkulcs elrejtése";
+"settings.cloud.key.copy" = "Fiókkulcs másolása";
+"settings.cloud.activate.title" = "HyperWhisper Cloud aktiválása";
+"settings.cloud.activate.subtitle" = "A fiókkulcsod a pénztárcád — ez tartalmazza a Cloud kreditjeidet. Add meg a kulcsodat a kezdéshez, vagy vásárolj kreditet, hogy kapj egyet.";
+"settings.cloud.getCredits.title" = "Még nincs kulcsod?";
+"settings.cloud.getCredits.subtitle" = "Vásárolj kreditet, és e-mailben elküldjük a fiókkulcsot.";
+"settings.cloud.getCredits.button" = "Kreditek vásárlása";
 "settings.models.alert.cannotDelete.title" = "Nem lehet törölni a modellt";
 "settings.models.parakeet.title" = "Parakeet modellek";
 "settings.models.parakeet.subtitle" = "Ajánlott a legtöbb felhasználónak. A többnyelvű modell 25 nyelvet támogat.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB egységesített memóriával vagy többel rendelkező Mac számítógépekhez ajánlott. A sebesség a chiptől függ — gyorsabb M3/M4 Pro és újabb chipeken.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Szavak ebben az évben";
+"home.stats.typing.speed.help" = "Az időmegtakarítás becsléséhez használt feltételezett gépelési sebesség (WPM) módosítása.";
+"home.stats.saved.week" = "Megtakarítva ezen a héten";
+"home.stats.minutes.value" = "%d perc";
 "vocabulary.input.placeholder" = "Adjon hozzá egy szót vagy hozzon létre részletet";
 "vocabulary.action.addWord" = "Szó hozzáadása";
 "vocabulary.action.replaceWith" = "Csere erre…";
@@ -641,22 +641,6 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "models.error.checksumFailed" = "Modell ellenőrző összeg ellenőrzés sikertelen. A letöltés sérült lehet.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statisztikák";
-"statistics.header.title" = "Használati statisztikáid";
-"statistics.header.subtitle" = "Átírási aktivitás és teljesítmény követése";
-"statistics.card.recordings" = "Összes felvétel";
-"statistics.card.recordings.subtitle" = "Befejezett átírások";
-"statistics.card.duration" = "Összes idő";
-"statistics.card.duration.subtitle" = "Felvételre fordított idő";
-"statistics.card.words" = "Összes szó";
-"statistics.card.words.subtitle" = "Átírt szavak";
-"statistics.card.average" = "Átlagos időtartam";
-"statistics.card.average.subtitle" = "Felvételenként";
-"statistics.graph.title" = "Aktivitás idővel";
-"statistics.daily.empty" = "Még nincsenek felvételek";
-"statistics.filter.week" = "Ez a hét";
-"statistics.filter.month" = "Ez a hónap";
-"statistics.filter.alltime" = "Minden idők";
 
 // MARK: - History View
 "history.title" = "Előzmények";
@@ -777,8 +761,13 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.cloudAccuracy.groqWhisper.description" = "Gyors és megfizethető. Legjobb gyors átírásokhoz.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kiegyensúlyozott sebesség és pontosság. Ajánlott a legtöbb felhasználónak.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/perc";
 "modes.cloudAccuracy.grokStt.label" = "Legmagasabb (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
+"modes.cloudAccuracy.googleChirp3.label" = "Magas (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 a Google Chirp 3 modellel. Többnyelvű, kifejezésadaptációval.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Magas (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 az Azure Speech szolgáltatáson keresztül. 43 nyelv, kontextusalapú súlyozással.";
 
 "modes.create.title" = "Új mód létrehozása";
 "modes.create.subtitle" = "Egyéni átírási profil konfigurálása";
@@ -915,9 +904,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 // MARK: - Audio Manager
 "audio.device.default" = "Alapértelmezett mikrofon";
 "audio.error.permissionDenied" = "Mikrofon hozzáférés megtagadva. Kérlek engedélyezd a Rendszerbeállításokban.";
-"audio.error.fileWatcher.open" = "Nem sikerült fájl leírót megnyitni az audio fájl figyeléséhez.";
-"audio.error.fileWatcher.timeout" = "A művelet időtúllépés miatt megszakadt az audio fájl írására várva.";
-"audio.error.fileWatcher.creation" = "Az audio fájl nem jött létre időben.";
 "audio.error.microphonePermission" = "Mikrofon engedély nincs megadva";
 "audio.error.microphoneInUse" = "A HyperWhisper nem fér hozzá a mikrofonhoz, mert egy másik alkalmazás használja. Szüneteltess a másik alkalmazást vagy válts bemenetet, majd próbáld újra.";
 "audio.error.createEngine" = "Nem sikerült az audio motor létrehozása";
@@ -992,6 +978,15 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.guidance.timeout" = "A kérés túl sokáig tartott. Ellenőrizd az internet sebességet és próbáld újra.";
 "transcription.error.noSpeechDetected" = "Nem észlelhető beszéd a felvételben.";
 "transcription.guidance.noSpeechDetected" = "Tippek:\n• Beszélj tisztán a mikrofonba\n• Tartsd lenyomva a billentyűt hosszabb ideig beszélés előtt\n• Ellenőrizd, hogy a mikrofonod működik-e\n• Győződj meg róla, hogy a helyes bemeneti eszköz van kiválasztva";
+"transcription.guidance.needsNativeRelaunch" = "A helyi utófeldolgozáshoz lépjen ki, és indítsa újra a HyperWhispert natív módban.";
+"transcription.guidance.localRuntimeUnavailable" = "Próbálja újra, vagy válasszon kisebb helyi modellt a Mód beállításaiban.";
+"transcription.error.localRuntimeUnavailable" = "A helyi MI nem tudta befejezni — a nyers átirat megmaradt.";
+"settings.backup.localDownload.title" = "Letölti a helyi modelleket?";
+"settings.backup.localDownload.message" = "A visszaállított módok közül %d olyan helyi MI-modellt használ, amely még nincs letöltve.";
+"settings.backup.localDownload.downloadAll" = "Az összes letöltése";
+"settings.backup.localDownload.dismiss" = "Elvetés";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon szükséges";
+"modelLibrary.local.needsNativeRelaunch" = "Újraindítás natív módban";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
@@ -1125,3 +1120,12 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "history.autoDelete.status.enabled" = "Felvételek törlése %d %@ után";
 "history.autoDelete.cleanup.noItems" = "Nincs törlendő felvétel";
 "history.autoDelete.cleanup.summary" = "%d felvétel törölve és %@ felszabadítva";
+"history.status.interrupted" = "Az átirat megszakadt — az alkalmazás kilépett, mielőtt befejezte volna";
+"recording.maxDuration.reachedToast" = "A felvétel leállt — elérte a %d perces korlátot";
+"streaming.maxDuration.reachedToast" = "A streamelés leállt — elérte a %d perces korlátot";
+"settings.storage.maxRecordingDuration.title" = "Maximális felvételi időtartam";
+"settings.storage.maxRecordingDuration.subtitle" = "Az ennél hosszabb felvételek automatikus leállítása és átírása.";
+"settings.storage.maxRecordingDuration.minutes" = "%d perc";
+"settings.storage.maxRecordingDuration.hour" = "1 óra";
+"settings.storage.maxRecordingDuration.hours" = "%d óra";
+"settings.storage.maxRecordingDuration.off" = "Kikapcsolva";

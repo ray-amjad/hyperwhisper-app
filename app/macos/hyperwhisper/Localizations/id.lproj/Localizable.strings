@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Beranda";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Mode";
 "sidebar.vocabulary" = "Kosakata";
 "sidebar.streaming" = "Streaming";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versi %@";
 "home.recent.updates.new.badge" = "BARU";
 "home.recent.updates.no.notes" = "Tidak ada catatan rilis";
+"home.stats.words.week" = "Kata minggu ini";
+"home.stats.words.month" = "Kata bulan ini";
+"home.stats.speed" = "Kecepatan rata-rata";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Mulai dengan HyperWhisper";
-"sidebar.statistics.help" = "Lihat statistik penggunaan dan analitik";
 "sidebar.modes.help" = "Kelola mode transkripsi untuk konteks berbeda";
 "sidebar.vocabulary.help" = "Tambahkan kata dan frasa khusus untuk pengenalan lebih baik";
 "sidebar.streaming.help" = "Pengaturan transkripsi streaming waktu nyata (memerlukan Internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Kredit HyperWhisper Cloud";
 "settings.credits.refresh" = "Segarkan";
-"settings.credits.subtitle" = "Pantau kredit transkripsi dan penggunaan Anda";
-"settings.credits.manage" = "Kelola Kredit";
 "settings.credits.timeRemaining" = "Waktu Transkripsi Tersisa";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "menit";
 "settings.credits.creditsRemaining" = "%@ kredit tersisa";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Batas Harian Gratis (100 kredit)";
-"settings.credits.resets" = "Disetel ulang %@";
 "settings.credits.warning.low" = "Kredit hampir habis. Pertimbangkan untuk membeli lisensi untuk kredit tambahan.";
-"settings.credits.warning.exhausted.daily" = "Batas harian habis. Beli lisensi untuk penggunaan tak terbatas atau tunggu pengaturan ulang.";
 "settings.credits.warning.exhausted" = "Kredit habis. Beli lebih banyak kredit untuk terus menggunakan HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Informasi Akun";
-"settings.credits.stat.creditsRemaining" = "Kredit Tersisa";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Menit Tersisa";
-"settings.credits.stat.accountType" = "Tipe Akun";
-"settings.credits.accountType.licensed" = "Berlisensi";
-"settings.credits.accountType.anonymous" = "Anonim";
-"settings.credits.accountType.trial" = "Uji Coba";
-"settings.credits.stat.customerId" = "ID Pelanggan";
-"settings.credits.stat.dailyLimit" = "Batas Harian";
-"settings.credits.dailyLimit.value" = "100 kredit";
 "settings.credits.loading" = "Memuat saldo kredit...";
 "settings.credits.error.title" = "Tidak dapat memuat saldo kredit";
 "settings.credits.error.retry" = "Coba Lagi";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Kesalahan jaringan: %@";
 "settings.credits.error.invalidResponse" = "Respons tidak valid dari server. Silakan coba lagi.";
 "settings.credits.error.server" = "Kesalahan server: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kunci Akun";
+"settings.cloud.purchaseMore" = "Beli Kredit";
+"settings.cloud.key.reveal" = "Tampilkan kunci akun";
+"settings.cloud.key.hide" = "Sembunyikan kunci akun";
+"settings.cloud.key.copy" = "Salin kunci akun";
+"settings.cloud.activate.title" = "Aktifkan HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Kunci akun Anda adalah dompet Anda — kunci ini menyimpan kredit Cloud Anda. Masukkan kunci Anda untuk memulai, atau beli kredit untuk mendapatkannya.";
+"settings.cloud.getCredits.title" = "Belum punya kunci?";
+"settings.cloud.getCredits.subtitle" = "Beli kredit dan kami akan mengirimkan kunci akun melalui email.";
+"settings.cloud.getCredits.button" = "Beli Kredit";
 "settings.models.alert.cannotDelete.title" = "Tidak Dapat Menghapus Model";
 "settings.models.parakeet.title" = "Model Parakeet";
 "settings.models.parakeet.subtitle" = "Direkomendasikan untuk sebagian besar pengguna. Model multibahasa mendukung 25 bahasa.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Direkomendasikan untuk Mac dengan 24 GB unified memory atau lebih. Kecepatan tergantung pada chip — lebih cepat di M3/M4 Pro dan yang lebih tinggi.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Kata tahun ini";
+"home.stats.typing.speed.help" = "Sesuaikan asumsi kecepatan mengetik (WPM) yang dipakai untuk memperkirakan waktu yang dihemat.";
+"home.stats.saved.week" = "Dihemat minggu ini";
+"home.stats.minutes.value" = "%d menit";
 "vocabulary.input.placeholder" = "Tambahkan kata atau buat cuplikan";
 "vocabulary.action.addWord" = "Tambah kata";
 "vocabulary.action.replaceWith" = "Ganti dengan…";
@@ -641,22 +641,6 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "models.error.checksumFailed" = "Verifikasi checksum model gagal. Unduhan mungkin rusak.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Statistik Penggunaan Anda";
-"statistics.header.subtitle" = "Lacak aktivitas dan kinerja transkripsi Anda";
-"statistics.card.recordings" = "Total Rekaman";
-"statistics.card.recordings.subtitle" = "Transkripsi selesai";
-"statistics.card.duration" = "Total Waktu";
-"statistics.card.duration.subtitle" = "Waktu yang dihabiskan untuk merekam";
-"statistics.card.words" = "Total Kata";
-"statistics.card.words.subtitle" = "Kata-kata yang ditranskripsi";
-"statistics.card.average" = "Durasi Rata-rata";
-"statistics.card.average.subtitle" = "Per rekaman";
-"statistics.graph.title" = "Aktivitas Seiring Waktu";
-"statistics.daily.empty" = "Belum ada rekaman";
-"statistics.filter.week" = "Minggu Ini";
-"statistics.filter.month" = "Bulan Ini";
-"statistics.filter.alltime" = "Sepanjang Waktu";
 
 // MARK: - History View
 "history.title" = "Riwayat";
@@ -777,8 +761,13 @@ Edit mode tersebut untuk memilih model yang berbeda sebelum menghapusnya.";
 "modes.cloudAccuracy.groqWhisper.description" = "Cepat dan terjangkau. Terbaik untuk transkripsi cepat.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Kecepatan dan akurasi seimbang. Direkomendasikan untuk sebagian besar pengguna.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/mnt";
 "modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Akurasi tertinggi dengan pemrosesan lebih lambat. Terbaik untuk transkripsi penting.";
+"modes.cloudAccuracy.googleChirp3.label" = "Tinggi (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 dengan Chirp 3. Multibahasa dengan adaptasi frasa.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 melalui Azure Speech. 43 bahasa dengan bias kontekstual.";
 
 "modes.create.title" = "Buat Mode Baru";
 "modes.create.subtitle" = "Konfigurasi profil transkripsi khusus";
@@ -915,9 +904,6 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 // MARK: - Audio Manager
 "audio.device.default" = "Mikrofon Default";
 "audio.error.permissionDenied" = "Akses mikrofon ditolak. Silakan aktifkan di Pengaturan Sistem.";
-"audio.error.fileWatcher.open" = "Tidak dapat membuka file descriptor untuk memantau file audio.";
-"audio.error.fileWatcher.timeout" = "Operasi habis waktu saat menunggu file audio ditulis.";
-"audio.error.fileWatcher.creation" = "File audio tidak dibuat tepat waktu.";
 "audio.error.microphonePermission" = "Izin mikrofon tidak diberikan";
 "audio.error.microphoneInUse" = "HyperWhisper tidak dapat mengakses mikrofon karena aplikasi lain sedang menggunakannya. Jeda aplikasi lain atau ganti input, lalu coba lagi.";
 "audio.error.createEngine" = "Gagal membuat mesin audio";
@@ -992,6 +978,15 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.guidance.timeout" = "Permintaan memakan waktu terlalu lama. Periksa kecepatan internet Anda dan coba lagi.";
 "transcription.error.noSpeechDetected" = "Tidak ada ucapan terdeteksi dalam rekaman.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Berbicara dengan jelas ke mikrofon\n• Tahan tombol lebih lama sebelum berbicara\n• Periksa apakah mikrofon Anda berfungsi\n• Pastikan perangkat input yang benar dipilih";
+"transcription.guidance.needsNativeRelaunch" = "Keluar lalu buka kembali HyperWhisper secara native untuk memakai pasca-pemrosesan lokal.";
+"transcription.guidance.localRuntimeUnavailable" = "Coba lagi, atau pilih model lokal yang lebih kecil di pengaturan Mode Anda.";
+"transcription.error.localRuntimeUnavailable" = "AI lokal tidak dapat menyelesaikan prosesnya — transkrip mentah Anda tetap disimpan.";
+"settings.backup.localDownload.title" = "Unduh model lokal?";
+"settings.backup.localDownload.message" = "%d mode yang Anda pulihkan menggunakan model AI di perangkat yang belum diunduh.";
+"settings.backup.localDownload.downloadAll" = "Unduh Semua";
+"settings.backup.localDownload.dismiss" = "Abaikan";
+"modelLibrary.local.requiresAppleSilicon" = "Memerlukan Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Jalankan ulang secara native";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Kredit tidak mencukupi. Tambahkan lebih banyak kredit di Pengaturan.";
@@ -1125,3 +1120,12 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "history.autoDelete.status.enabled" = "Hapus rekaman yang lebih lama dari %d %@";
 "history.autoDelete.cleanup.noItems" = "Tidak ada rekaman untuk dihapus";
 "history.autoDelete.cleanup.summary" = "Dihapus %d rekaman dan dibebaskan %@";
+"history.status.interrupted" = "Transkripsi terputus — aplikasi keluar sebelum selesai";
+"recording.maxDuration.reachedToast" = "Perekaman dihentikan — batas %d menit tercapai";
+"streaming.maxDuration.reachedToast" = "Streaming dihentikan — batas %d menit tercapai";
+"settings.storage.maxRecordingDuration.title" = "Durasi perekaman maksimum";
+"settings.storage.maxRecordingDuration.subtitle" = "Hentikan dan transkripsikan otomatis rekaman yang lebih lama dari durasi ini.";
+"settings.storage.maxRecordingDuration.minutes" = "%d menit";
+"settings.storage.maxRecordingDuration.hour" = "1 jam";
+"settings.storage.maxRecordingDuration.hours" = "%d jam";
+"settings.storage.maxRecordingDuration.off" = "Nonaktif";

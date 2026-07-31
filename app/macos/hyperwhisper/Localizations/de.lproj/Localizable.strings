@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Heim";
-"sidebar.statistics" = "Statistiken";
 "sidebar.modes" = "Modi";
 "sidebar.vocabulary" = "Vokabular";
 "sidebar.streaming" = "Live-Übertragung";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Version %@";
 "home.recent.updates.new.badge" = "NEU";
 "home.recent.updates.no.notes" = "Keine Versionshinweise verfügbar";
+"home.stats.words.week" = "Wörter diese Woche";
+"home.stats.words.month" = "Wörter diesen Monat";
+"home.stats.speed" = "Durchschnittliche Geschwindigkeit";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Beginnen Sie mit HyperWhisper";
-"sidebar.statistics.help" = "Sehen Sie sich Nutzungsstatistiken und Analysen an";
 "sidebar.modes.help" = "Verwalten Sie Transkriptionsmodi für verschiedene Kontexte";
 "sidebar.vocabulary.help" = "Fügen Sie zur besseren Erkennung benutzerdefinierte Wörter und Phrasen hinzu";
 "sidebar.streaming.help" = "Einstellungen für Echtzeit-Streaming-Transkription (Internet erforderlich)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud-Credits";
 "settings.credits.refresh" = "Aktualisieren";
-"settings.credits.subtitle" = "Überwachen Sie Ihr Transkriptionsguthaben und Ihre Nutzung";
-"settings.credits.manage" = "Credits verwalten";
 "settings.credits.timeRemaining" = "Verbleibende Transkriptionszeit";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "Minuten";
 "settings.credits.creditsRemaining" = "%@ Credits verbleiben";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Kostenloses Tageslimit (100 Credits)";
-"settings.credits.resets" = "Setzt %@ zurück";
 "settings.credits.warning.low" = "Die Credits gehen zur Neige. Erwägen Sie den Kauf einer Lizenz für zusätzliche Credits.";
-"settings.credits.warning.exhausted.daily" = "Tageslimit ausgeschöpft. Kaufen Sie eine Lizenz für unbegrenzte Nutzung oder warten Sie auf das Zurücksetzen.";
 "settings.credits.warning.exhausted" = "Credits erschöpft. Erwerben Sie weitere Credits, um HyperWhisper Cloud weiterhin nutzen zu können.";
 "settings.credits.accountInfo" = "Kontoinformationen";
-"settings.credits.stat.creditsRemaining" = "Verbleibende Credits";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Verbleibende Minuten";
-"settings.credits.stat.accountType" = "Kontotyp";
-"settings.credits.accountType.licensed" = "Lizenziert";
-"settings.credits.accountType.anonymous" = "Anonym";
-"settings.credits.accountType.trial" = "Versuch";
-"settings.credits.stat.customerId" = "Kunden-ID";
-"settings.credits.stat.dailyLimit" = "Tageslimit";
-"settings.credits.dailyLimit.value" = "100 Credits";
 "settings.credits.loading" = "Guthaben wird geladen...";
 "settings.credits.error.title" = "Guthaben kann nicht geladen werden";
 "settings.credits.error.retry" = "Wiederholen";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Netzwerkfehler: %@";
 "settings.credits.error.invalidResponse" = "Ungültige Antwort vom Server. Bitte versuchen Sie es erneut.";
 "settings.credits.error.server" = "Serverfehler: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontoschlüssel";
+"settings.cloud.purchaseMore" = "Credits kaufen";
+"settings.cloud.key.reveal" = "Kontoschlüssel anzeigen";
+"settings.cloud.key.hide" = "Kontoschlüssel ausblenden";
+"settings.cloud.key.copy" = "Kontoschlüssel kopieren";
+"settings.cloud.activate.title" = "HyperWhisper Cloud aktivieren";
+"settings.cloud.activate.subtitle" = "Ihr Kontoschlüssel ist Ihre Wallet – er enthält Ihre Cloud-Credits. Geben Sie Ihren Schlüssel ein, um loszulegen, oder kaufen Sie Credits, um einen zu erhalten.";
+"settings.cloud.getCredits.title" = "Noch keinen Schlüssel?";
+"settings.cloud.getCredits.subtitle" = "Kaufen Sie Credits und wir senden Ihnen einen Kontoschlüssel per E-Mail.";
+"settings.cloud.getCredits.button" = "Credits kaufen";
 "settings.models.alert.cannotDelete.title" = "Modell kann nicht gelöscht werden";
 "settings.models.parakeet.title" = "Sittichmodelle";
 "settings.models.parakeet.subtitle" = "Für die meisten Benutzer empfohlen. Das mehrsprachige Modell unterstützt 25 Sprachen.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Empfohlen für Mac mit 24 GB Unified Memory oder mehr. Die Geschwindigkeit hängt vom Chip ab — schneller auf M3/M4 Pro und höher.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Wörter dieses Jahr";
+"home.stats.typing.speed.help" = "Passen Sie die angenommene Tippgeschwindigkeit (WPM) an, mit der die gesparte Zeit geschätzt wird.";
+"home.stats.saved.week" = "Diese Woche gespart";
+"home.stats.minutes.value" = "%d Minuten";
 "vocabulary.input.placeholder" = "Ein Wort hinzufügen oder einen Ausschnitt erstellen";
 "vocabulary.action.addWord" = "Wort hinzufügen";
 "vocabulary.action.replaceWith" = "Ersetzen durch…";
@@ -641,22 +641,6 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "models.error.checksumFailed" = "Die Überprüfung der Modellprüfsumme ist fehlgeschlagen. Der Download ist möglicherweise beschädigt.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistiken";
-"statistics.header.title" = "Ihre Nutzungsstatistik";
-"statistics.header.subtitle" = "Verfolgen Sie Ihre Transkriptionsaktivität und -leistung";
-"statistics.card.recordings" = "Gesamtaufnahmen";
-"statistics.card.recordings.subtitle" = "Abgeschlossene Transkriptionen";
-"statistics.card.duration" = "Gesamtzeit";
-"statistics.card.duration.subtitle" = "Zeitaufwand für die Aufnahme";
-"statistics.card.words" = "Gesamtzahl der Wörter";
-"statistics.card.words.subtitle" = "Wörter transkribiert";
-"statistics.card.average" = "Durchschnittliche Dauer";
-"statistics.card.average.subtitle" = "Pro Aufnahme";
-"statistics.graph.title" = "Aktivität im Zeitverlauf";
-"statistics.daily.empty" = "Noch keine Aufnahmen";
-"statistics.filter.week" = "Diese Woche";
-"statistics.filter.month" = "Diesen Monat";
-"statistics.filter.alltime" = "Alle Zeit";
 
 // MARK: - History View
 "history.title" = "Geschichte";
@@ -777,8 +761,13 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "modes.cloudAccuracy.groqWhisper.description" = "Schnell und erschwinglich. Am besten für schnelle Transkriptionen geeignet.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Ausgewogene Geschwindigkeit und Genauigkeit. Für die meisten Benutzer empfohlen.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Höchste Genauigkeit bei langsamerer Verarbeitung. Am besten für wichtige Transkriptionen geeignet.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ Credits/Min.";
 "modes.cloudAccuracy.grokStt.label" = "Höchste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Höchste Genauigkeit bei langsamerer Verarbeitung. Am besten für wichtige Transkriptionen geeignet.";
+"modes.cloudAccuracy.googleChirp3.label" = "Hoch (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 mit Chirp 3. Mehrsprachig mit Phrasenanpassung.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoch (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 über Azure Speech. 43 Sprachen mit kontextbezogener Gewichtung.";
 
 "modes.create.title" = "Neuen Modus erstellen";
 "modes.create.subtitle" = "Konfigurieren Sie ein benutzerdefiniertes Transkriptionsprofil";
@@ -915,9 +904,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 // MARK: - Audio Manager
 "audio.device.default" = "Standardmikrofon";
 "audio.error.permissionDenied" = "Mikrofonzugriff verweigert. Bitte in den Systemeinstellungen aktivieren.";
-"audio.error.fileWatcher.open" = "Es konnte kein Dateideskriptor zum Überwachen der Audiodatei geöffnet werden.";
-"audio.error.fileWatcher.timeout" = "Der Vorgang ist beim Warten auf die Audiodatei abgelaufen geschrieben.";
-"audio.error.fileWatcher.creation" = "Die Audiodatei wurde nicht rechtzeitig erstellt.";
 "audio.error.microphonePermission" = "Mikrofonberechtigung nicht erteilt";
 "audio.error.microphoneInUse" = "HyperWhisper kann nicht auf das Mikrofon zugreifen, da es derzeit von einer anderen App verwendet wird. Halten Sie die andere App an oder wechseln Sie die Eingaben und versuchen Sie es dann erneut.";
 "audio.error.createEngine" = "Audio-Engine konnte nicht erstellt werden";
@@ -992,6 +978,15 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.guidance.timeout" = "Die Anfrage hat zu lange gedauert. Überprüfen Sie Ihre Internetgeschwindigkeit und versuchen Sie es erneut.";
 "transcription.error.noSpeechDetected" = "Keine Sprache in der Aufnahme erkannt.";
 "transcription.guidance.noSpeechDetected" = "Tipps:\n• Sprechen Sie deutlich in das Mikrofon\n• Halten Sie die Taste länger gedrückt, bevor Sie sprechen\n• Überprüfen Sie, ob Ihr Mikrofon funktioniert\n• Stellen Sie sicher, dass das richtige Eingabegerät ausgewählt ist";
+"transcription.guidance.needsNativeRelaunch" = "Beenden Sie HyperWhisper und öffnen Sie es nativ erneut, um die lokale Nachbearbeitung zu verwenden.";
+"transcription.guidance.localRuntimeUnavailable" = "Versuchen Sie es erneut, oder wählen Sie in Ihren Modus-Einstellungen ein kleineres lokales Modell.";
+"transcription.error.localRuntimeUnavailable" = "Die lokale KI konnte nicht abgeschlossen werden — Ihr Rohtranskript wurde beibehalten.";
+"settings.backup.localDownload.title" = "Lokale Modelle herunterladen?";
+"settings.backup.localDownload.message" = "%d Ihrer wiederhergestellten Modi verwenden lokale KI-Modelle, die noch nicht heruntergeladen sind.";
+"settings.backup.localDownload.downloadAll" = "Alle herunterladen";
+"settings.backup.localDownload.dismiss" = "Schließen";
+"modelLibrary.local.requiresAppleSilicon" = "Erfordert Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Nativ neu starten";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nicht genügend Credits. Fügen Sie in den Einstellungen weitere Credits hinzu.";
@@ -1125,3 +1120,12 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "history.autoDelete.status.enabled" = "Aufnahmen löschen, die älter als %d %@ sind";
 "history.autoDelete.cleanup.noItems" = "Keine Aufnahmen zum Löschen vorhanden";
 "history.autoDelete.cleanup.summary" = "%d Aufnahme(n) gelöscht und %@ freigegeben";
+"history.status.interrupted" = "Transkription unterbrochen — die App wurde beendet, bevor sie fertig war";
+"recording.maxDuration.reachedToast" = "Aufnahme gestoppt — %d-Minuten-Limit erreicht";
+"streaming.maxDuration.reachedToast" = "Streaming gestoppt — %d-Minuten-Limit erreicht";
+"settings.storage.maxRecordingDuration.title" = "Maximale Aufnahmedauer";
+"settings.storage.maxRecordingDuration.subtitle" = "Aufnahmen, die länger als diese Zeit dauern, automatisch stoppen und transkribieren.";
+"settings.storage.maxRecordingDuration.minutes" = "%d Minuten";
+"settings.storage.maxRecordingDuration.hour" = "1 Stunde";
+"settings.storage.maxRecordingDuration.hours" = "%d Stunden";
+"settings.storage.maxRecordingDuration.off" = "Aus";

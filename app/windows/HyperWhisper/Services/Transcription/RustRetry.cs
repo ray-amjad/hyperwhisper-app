@@ -16,6 +16,20 @@
 // thundering herd. Poll loops in the multi-step providers do NOT go through this
 // wrapper.
 //
+// 429/5xx vs transport split: the core's 8-attempt schedule is the GLOBAL bound
+// and fully governs HTTP-status retries (429/5xx — the server is up, backing off
+// is productive). Transport failures (no HTTP response at all) are additionally
+// capped platform-side because grinding through all 8 attempts against a dead
+// network stretches a doomed request to ~27 min:
+//   - HttpRequestException (connection refused/reset, DNS): max 4 attempts —
+//     restores the 1.7.0 ~14s failure envelope.
+//   - Per-attempt timeout (OperationCanceledException with the CALLER token not
+//     cancelled): max 2 attempts — the one useful retry is the one after
+//     onTransportError rebuilds the pool; a second identical timeout means the
+//     wait was already spent, fail fast.
+// Under-cap transport failures still ask the core NextRetry(attempt, 503, ...)
+// for the backoff delay, so the schedule stays core-owned.
+//
 // TODO-verify (Windows/CI): Rust shared-core swap — compile-only; verify in CI.
 
 using System.Net.Http;
@@ -26,6 +40,32 @@ namespace HyperWhisper.Services.Transcription;
 
 internal static class RustRetry
 {
+    /// <summary>Max attempts that may end in a connection-level transport error
+    /// (HttpRequestException) before failing terminally. See header comment.</summary>
+    internal const int MaxTransportAttempts = 4;
+
+    /// <summary>Max attempts that may end in a per-attempt timeout before failing
+    /// terminally (i.e. one retry, giving the post-onTransportError fresh pool a
+    /// single chance). See header comment.</summary>
+    internal const int MaxTimeoutAttempts = 2;
+
+    /// <summary>
+    /// Source-compatible overload for providers with a fixed <see cref="HttpClient"/>
+    /// for the life of the service. Services that can swap their client mid-sequence
+    /// (DNS-recovery rebuild) must use the <c>Func&lt;HttpClient&gt;</c> shape so each
+    /// attempt resolves the CURRENT client instead of pinning the pre-rebuild one.
+    /// </summary>
+    internal static Task<HttpResponse> PerformAsync(
+        HttpClient client,
+        Func<HttpRequest> buildRequest,
+        Func<HttpResponse, TranscriptionException> parseError,
+        CancellationToken cancellationToken,
+        Func<Exception, Task>? onTransportError = null,
+        TimeSpan? perAttemptTimeout = null)
+    {
+        return PerformAsync(() => client, buildRequest, parseError, cancellationToken, onTransportError, perAttemptTimeout);
+    }
+
     /// <summary>
     /// Drive <paramref name="buildRequest"/>'s output through the executor + core
     /// retry loop.
@@ -49,18 +89,32 @@ internal static class RustRetry
     /// <paramref name="onTransportError"/> is an OPTIONAL one-shot recovery hook
     /// invoked in the transport-error path BEFORE the next retry sleeps. Fired at
     /// most once per call (mirroring macOS' <c>didResetThisSequence</c> gate) so a
-    /// flapping network can't thrash the pool. Default null = no-op.
+    /// flapping network can't thrash the pool.
+    ///
+    /// <paramref name="clientProvider"/> is resolved fresh on EVERY attempt so a
+    /// service that swaps its <see cref="HttpClient"/> mid-sequence (e.g. the DNS
+    /// rebuild in <c>onTransportError</c>) actually sends the next attempt on the
+    /// new pool instead of the stale pre-rebuild one.
+    ///
+    /// <paramref name="perAttemptTimeout"/>, when set, bounds each individual
+    /// attempt (each attempt gets the full budget); expiry counts against
+    /// <see cref="MaxTimeoutAttempts"/>.
     /// </summary>
     internal static async Task<HttpResponse> PerformAsync(
-        HttpClient client,
+        Func<HttpClient> clientProvider,
         Func<HttpRequest> buildRequest,
         Func<HttpResponse, TranscriptionException> parseError,
         CancellationToken cancellationToken,
-        Func<Exception, Task>? onTransportError = null)
+        Func<Exception, Task>? onTransportError = null,
+        TimeSpan? perAttemptTimeout = null)
     {
         uint attempt = 0;
         // One-shot-per-sequence gate for the recovery hook.
         var didRecoverThisSequence = false;
+        // Platform-side transport caps (see header comment). The core's
+        // MAX_ATTEMPTS=8 remains the global bound across ALL failure kinds.
+        var transportFailures = 0;
+        var timeoutFailures = 0;
 
         while (true)
         {
@@ -69,22 +123,50 @@ internal static class RustRetry
 
             var request = buildRequest();
 
+            // Per-attempt timeout: linked CTS created INSIDE the loop so each
+            // attempt gets the full budget (backoff sleeps run on the caller
+            // token and must not consume the next attempt's budget).
+            using var attemptCts = perAttemptTimeout.HasValue
+                ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
+                : null;
+            attemptCts?.CancelAfter(perAttemptTimeout!.Value);
+            var attemptToken = attemptCts?.Token ?? cancellationToken;
+
             HttpResponse response;
             try
             {
                 response = await RustHttpExecutor
-                    .ExecuteAsync(request, client, cancellationToken)
+                    .ExecuteAsync(request, clientProvider(), attemptToken)
                     .ConfigureAwait(false);
             }
+            // Ordering is load-bearing: genuine caller cancellation must be
+            // tested against the CALLER token (the linked attempt token is also
+            // cancelled when the per-attempt timeout fires) and never retried.
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Genuine cancellation — never retry.
                 throw;
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
             {
-                // No HTTP response (network error, or a timeout surfacing as
-                // TaskCanceledException with the token NOT cancelled) — treat as a
+                // No HTTP response. Classify by exception type — the caller token
+                // is NOT cancelled here (filtered above), so any cancellation
+                // exception is the per-attempt timeout firing.
+                var isTimeout = ex is OperationCanceledException;
+                var failures = isTimeout ? ++timeoutFailures : ++transportFailures;
+                var cap = isTimeout ? MaxTimeoutAttempts : MaxTransportAttempts;
+
+                if (failures >= cap)
+                {
+                    LoggingService.Warn(
+                        $"RustRetry: {(isTimeout ? "timeout" : "transport")} failure {failures}/{cap} on attempt {attempt} — giving up: {ex.Message}");
+                    throw new TranscriptionException(
+                        TranscriptionErrorCode.NetworkError,
+                        isTimeout ? $"Request timed out after {failures} attempts: {ex.Message}" : ex.Message,
+                        providerName: null,
+                        innerException: ex);
+                }
+
+                // Under cap — the core still owns the backoff schedule; treat as a
                 // retryable 503-equivalent.
                 var decision = HyperwhisperCoreMethods.NextRetry(
                     @attempt: attempt,
@@ -95,6 +177,8 @@ internal static class RustRetry
                 switch (decision)
                 {
                     case RetryDecision.Retry retry:
+                        LoggingService.Warn(
+                            $"RustRetry: {(isTimeout ? "timeout" : "transport")} failure {failures}/{cap} on attempt {attempt} — retrying in {retry.@delayMs}ms: {ex.Message}");
                         if (!didRecoverThisSequence && onTransportError != null)
                         {
                             didRecoverThisSequence = true;

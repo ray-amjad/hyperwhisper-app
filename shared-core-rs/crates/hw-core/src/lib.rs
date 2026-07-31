@@ -18,6 +18,7 @@ uniffi::setup_scaffolding!("hyperwhisper_core");
 // the single integration crate (`setup_scaffolding!` lives here in lib.rs).
 mod ffi_backup;
 mod ffi_catalog;
+mod ffi_completion;
 mod ffi_license;
 mod ffi_net;
 mod ffi_prompt;

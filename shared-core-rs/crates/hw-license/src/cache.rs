@@ -96,6 +96,11 @@ pub fn stored_license_key(store: &dyn KeyValueStore) -> Option<String> {
 /// Update the validation cache after a validation attempt: records `now` as the
 /// last-validation time and the resolved status. Mirrors macOS
 /// `updateValidationCache`.
+///
+/// The cache is global (not keyed to a license key), so callers persisting a
+/// server verdict should prefer [`persist_validation_verdict`], which refuses to
+/// overwrite the stored key's cached status with the verdict for a *different*
+/// (rejected) key.
 pub fn update_validation_cache(
     store: &dyn KeyValueStore,
     status: LicenseStatus,
@@ -103,6 +108,42 @@ pub fn update_validation_cache(
 ) {
     store.set(K_LAST_VALIDATION.to_string(), now_unix_secs.to_string());
     store.set(K_CACHED_STATUS.to_string(), status_to_str(status).to_string());
+}
+
+/// Persist a server validation verdict for the key the user just attempted.
+///
+/// - A valid verdict (`Active`) stores `attempted_key` as the license key and
+///   updates the validation cache.
+/// - A non-valid verdict updates the cache **only when the attempted key is the
+///   stored key** (re-validating the key on file, e.g. it was revoked/expired
+///   server-side).
+///
+/// The guard exists because the cache is a single global `{status, timestamp}`
+/// pair: without it, a user with a stored valid key A who tries a mistyped
+/// replacement key B (server answers 200/`valid:false`) would get the cache
+/// overwritten with `Invalid` — and [`should_revalidate`] would then treat that
+/// fresh-but-wrong verdict as authoritative for up to 24h, locking out a valid
+/// user. Key B is never persisted in that flow, so its verdict must not be
+/// cached either.
+///
+/// `attempted_key` is trimmed before comparison, matching the trim the
+/// platforms apply before building the validate request.
+pub fn persist_validation_verdict(
+    store: &dyn KeyValueStore,
+    status: LicenseStatus,
+    attempted_key: &str,
+    now_unix_secs: i64,
+) {
+    let key = attempted_key.trim();
+    // Parity invariant: a verdict is "valid" iff the server marked the license
+    // Active (see `validate::parse_validate_response`).
+    let is_valid = status == LicenseStatus::Active;
+    if is_valid {
+        store_license_key(store, key);
+    }
+    if is_valid || stored_license_key(store).as_deref() == Some(key) {
+        update_validation_cache(store, status, now_unix_secs);
+    }
 }
 
 /// Whether the license should be revalidated against the server.
@@ -456,6 +497,78 @@ mod tests {
         assert_eq!(remote_override_if_fresh(&s, t0 - 1), None);
         // Sanity: a forward delta inside the default TTL is still fresh.
         assert!(remote_override_if_fresh(&s, t0 + 60).is_some());
+    }
+
+    #[test]
+    fn rejected_replacement_key_does_not_clobber_stored_cache() {
+        // The lockout bug: stored valid key A, user mistypes a replacement key B,
+        // server answers 200/valid:false. B's Invalid verdict must not overwrite
+        // A's cached Active status (which `should_revalidate` would then trust
+        // for up to 24h).
+        let s = store();
+        let t0 = 1_000_000i64;
+        persist_validation_verdict(&s, LicenseStatus::Active, "KEY-A", t0);
+        assert_eq!(stored_license_key(&s).as_deref(), Some("KEY-A"));
+
+        let t1 = t0 + 3_600;
+        persist_validation_verdict(&s, LicenseStatus::Invalid, "KEY-B", t1);
+        // Key A and its cached Active verdict are untouched.
+        assert_eq!(stored_license_key(&s).as_deref(), Some("KEY-A"));
+        assert_eq!(
+            cached_status_within_grace(&s, t1),
+            Some(LicenseStatus::Active)
+        );
+        // The cache timestamp was not refreshed by B's rejection: 24h after t0
+        // (not t1) the cache is due for revalidation.
+        assert!(should_revalidate(&s, t0 + VALIDATION_CACHE_SECS + 1));
+    }
+
+    #[test]
+    fn valid_verdict_stores_key_and_updates_cache() {
+        let s = store();
+        let t0 = 1_000_000i64;
+        persist_validation_verdict(&s, LicenseStatus::Active, "  KEY-B  ", t0);
+        // Key is trimmed before storage; cache reflects the Active verdict.
+        assert_eq!(stored_license_key(&s).as_deref(), Some("KEY-B"));
+        assert_eq!(
+            cached_status_within_grace(&s, t0),
+            Some(LicenseStatus::Active)
+        );
+        assert!(!should_revalidate(&s, t0 + 60));
+    }
+
+    #[test]
+    fn non_valid_verdict_for_stored_key_updates_cache() {
+        // Re-validating the key on file and getting Expired/Invalid IS
+        // authoritative for that key — the cache must record it.
+        let s = store();
+        let t0 = 1_000_000i64;
+        persist_validation_verdict(&s, LicenseStatus::Active, "KEY-A", t0);
+        let t1 = t0 + 3_600;
+        persist_validation_verdict(&s, LicenseStatus::Expired, "KEY-A", t1);
+        assert_eq!(stored_license_key(&s).as_deref(), Some("KEY-A"));
+        assert_eq!(
+            cached_status_within_grace(&s, t1),
+            Some(LicenseStatus::Expired)
+        );
+        // A whitespace-padded attempt still matches the trimmed stored key.
+        let t2 = t1 + 3_600;
+        persist_validation_verdict(&s, LicenseStatus::Invalid, " KEY-A ", t2);
+        assert_eq!(
+            cached_status_within_grace(&s, t2),
+            Some(LicenseStatus::Invalid)
+        );
+    }
+
+    #[test]
+    fn non_valid_verdict_with_no_stored_key_writes_nothing() {
+        // First-time activation attempt with a bad key on a trial install:
+        // nothing to invalidate, nothing cached.
+        let s = store();
+        persist_validation_verdict(&s, LicenseStatus::Invalid, "KEY-B", 1_000_000);
+        assert_eq!(stored_license_key(&s), None);
+        assert_eq!(cached_status_within_grace(&s, 1_000_000), None);
+        assert!(should_revalidate(&s, 1_000_000));
     }
 
     #[test]

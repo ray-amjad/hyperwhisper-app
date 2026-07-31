@@ -1,22 +1,24 @@
 using System.Linq;
-using System.Text.RegularExpressions;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
 
 /// <summary>
 /// VOCABULARY PROCESSOR
 /// Applies replacement values from vocabulary after transcription/post-processing.
-/// Mirrors macOS behavior: used after AI post-processing when enabled.
+/// Thin loop over the shared Rust core's <c>ApplyHardenedReplacement</c> (hw-text)
+/// so macOS and Windows apply vocabulary identically: the core owns the trimming,
+/// empty-guards, \b-anchored case-insensitive matching, LITERAL replacement
+/// ($-tokens are never expanded as regex templates), and its own process-wide
+/// compiled-regex cache. Mirrors macOS VocabularyProcessor.swift.
 /// </summary>
 public class VocabularyProcessor
 {
-    private Dictionary<string, Regex>? _regexCache;
-    private string _lastVocabFingerprint = "";
-
     /// <summary>
     /// Applies replacements to the provided text using global vocabulary entries.
-    /// Only entries with a non-empty replacement are applied.
-    /// Compiled Regex patterns are cached and rebuilt when vocabulary changes.
+    /// Only entries with a non-empty replacement are applied. One FFI call per
+    /// replacement-bearing entry per transcription — the macOS shipped shape; no
+    /// batching (that would diverge from macOS and need new UniFFI surface).
     /// </summary>
     public string ApplyReplacements(string text)
     {
@@ -29,44 +31,30 @@ public class VocabularyProcessor
             return text;
         }
 
-        // Rebuild cache if vocabulary changed (fingerprint includes all words+replacements)
-        var vocabFingerprint = string.Join("|", vocab.Select(v => $"{v.Word}={v.Replacement}"));
-        if (_regexCache == null || _lastVocabFingerprint != vocabFingerprint)
-        {
-            _regexCache = new Dictionary<string, Regex>();
-            foreach (var entry in vocab)
-            {
-                var word = entry.Word.Trim();
-                if (word.Length > 0 && !_regexCache.ContainsKey(word))
-                {
-                    var pattern = $@"\b{Regex.Escape(word)}\b";
-                    _regexCache[word] = new Regex(pattern,
-                        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
-                }
-            }
-            _lastVocabFingerprint = vocabFingerprint;
-        }
-
-        var processed = text;
+        // NFC-normalize the transcript once and each search word (mirrors macOS
+        // precomposedStringWithCanonicalMapping): regex matching is code-unit
+        // based and does not treat canonically equivalent accented text as
+        // equal. The replacement is passed through unnormalized — it is inserted
+        // literally, never matched.
+        var processed = text.Normalize(System.Text.NormalizationForm.FormC);
 
         foreach (var entry in vocab)
         {
-            var word = entry.Word.Trim();
-            var replacement = entry.Replacement!.Trim();
+            // No pre-trim: the core owns trimming + the empty-word/-replacement
+            // guards, keeping the two platforms byte-identical.
+            var updated = HyperwhisperCoreMethods.ApplyHardenedReplacement(
+                processed,
+                entry.Word!.Normalize(System.Text.NormalizationForm.FormC),
+                entry.Replacement!);
 
-            if (word.Length == 0 || replacement.Length == 0) continue;
-
-            if (_regexCache.TryGetValue(word, out var regex))
+            // Ordinal compare, not ReferenceEquals — the FFI always returns a
+            // fresh string, so a reference check would log every entry.
+            if (!string.Equals(updated, processed, StringComparison.Ordinal))
             {
-                var updated = regex.Replace(processed, replacement);
-
-                if (!ReferenceEquals(updated, processed))
-                {
-                    LoggingService.Debug($"VocabularyProcessor: Replaced '{word}' -> '{replacement}'");
-                }
-
-                processed = updated;
+                LoggingService.Debug($"VocabularyProcessor: Replaced '{entry.Word}' -> '{entry.Replacement}'");
             }
+
+            processed = updated;
         }
 
         return processed.Trim();

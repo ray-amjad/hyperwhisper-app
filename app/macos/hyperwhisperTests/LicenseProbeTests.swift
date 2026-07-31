@@ -74,7 +74,11 @@ private final class LicenseNetworkSpy: LicenseNetworkServing {
         (true, nil)
     }
 
-    func validateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+    func validateLicense(
+        _ licenseKey: String,
+        isLaunchValidation: Bool,
+        expectedStoredLicenseKey: String?
+    ) async -> LicenseValidationResult {
         probeResult
     }
 

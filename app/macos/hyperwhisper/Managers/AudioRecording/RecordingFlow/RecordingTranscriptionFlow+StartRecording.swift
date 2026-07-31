@@ -135,6 +135,7 @@ extension RecordingTranscriptionFlow {
             appState?.pendingRetryAudioPath = nil
             appState?.transcriptionPasteFailed = false
             appState?.lastDeliveryWasQuickCapture = false
+            appState?.showCancelConfirmation = false
         }
 
         // 1. CAPTURE FRONTMOST APP CONTEXT (instant, ~1ms)
@@ -340,6 +341,25 @@ extension RecordingTranscriptionFlow {
                 return
             }
 
+            // RECORD-START PREWARM (WS2):
+            // Close the residual cold-load window by preparing the EXACT resolved
+            // model as recording starts — covers post-eviction cold state and Quick
+            // Capture's pinned mode (selectedModeId already accounts for it). This is
+            // fire-and-forget: it is never awaited by the start path and must not delay
+            // recording. Cloud modes no-op in prepareModel, so skip them here.
+            let prewarmModelId = modeSnapshot.model.lowercased()
+            if !prewarmModelId.isEmpty, prewarmModelId != "cloud" {
+                Task { [weak self] in
+                    guard let self else { return }
+                    // Guard against a stale prewarm from a cancelled/superseded start.
+                    guard self.currentRecordingAttemptId == attemptId else { return }
+                    guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: selectedModeId) else { return }
+                    guard self.currentRecordingAttemptId == attemptId else { return }
+                    await self.transcriptionPipeline?.prepareModel(for: mode)
+                    await self.transcriptionPipeline?.prepareLocalRuntime(for: mode)
+                }
+            }
+
             // Run critical checks in parallel for faster validation
             // NOTE: Provider health check removed - errors will surface during transcription instead.
             // This prevents network timeouts from blocking recording start.
@@ -525,7 +545,16 @@ extension RecordingTranscriptionFlow {
 
     private func armRecordingMaxDurationTimer(mode: String, attemptId: String) {
         recordingMaxDurationTimer?.invalidate()
-        recordingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxRecordingDuration, repeats: false) { [weak self] _ in
+        recordingMaxDurationTimer = nil
+
+        // User setting: 0 = no limit, so no timer is armed.
+        guard let maxDuration = settingsManager?.maxRecordingDurationInterval else {
+            AppLogger.audio.info("⏱️ Recording max duration timer off (no limit set)")
+            return
+        }
+        let limitMinutes = Int(maxDuration) / 60
+
+        recordingMaxDurationTimer = Timer.scheduledTimer(withTimeInterval: maxDuration, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self,
                       self.recordingLifecycle.isRecording,
@@ -534,21 +563,21 @@ extension RecordingTranscriptionFlow {
                       self.currentRecordingAttemptId == attemptId
                 else { return }
 
-                AppLogger.audio.warning("⏱️ Recording max duration (20 minutes) reached — auto-stopping")
+                AppLogger.audio.warning("⏱️ Recording max duration (\(limitMinutes) minutes) reached — auto-stopping")
                 SentryService.addBreadcrumb(
                     message: "Recording max duration reached",
                     category: "audio.recording",
                     level: .warning,
                     data: [
                         "attemptId": attemptId,
-                        "maxDurationSeconds": Int(Self.maxRecordingDuration)
+                        "maxDurationSeconds": Int(maxDuration)
                     ]
                 )
-                self.appState?.showWarning("Recording stopped — 20-minute safety limit reached")
+                self.appState?.showWarning(String(format: "recording.maxDuration.reachedToast".localized, limitMinutes))
                 self.currentRecordingTriggerSource = .autoStop
                 await self.handleStopRecordingWithTranscription(mode: mode, cancelled: false)
             }
         }
-        AppLogger.audio.info("⏱️ Recording max duration timer set (20 minutes)")
+        AppLogger.audio.info("⏱️ Recording max duration timer set (\(limitMinutes) minutes)")
     }
 }

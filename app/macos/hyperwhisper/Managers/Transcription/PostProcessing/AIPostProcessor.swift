@@ -79,6 +79,9 @@ class AIPostProcessor: ObservableObject {
         "min_p": 0.0
     ]
 
+    /// Max output tokens requested from any LLM (local or cloud) during post-processing.
+    private let maxOutputTokens = 8_192
+
     /// Resolver for on-device local models
     weak var localModelManager: LocalModelManager?
 
@@ -335,7 +338,7 @@ class AIPostProcessor: ObservableObject {
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
             requestBody = [
                 "model": languageModel,
-                "max_tokens": 4096,
+                "max_tokens": maxOutputTokens,
                 "system": [
                     [
                         "type": "text",
@@ -360,9 +363,7 @@ class AIPostProcessor: ObservableObject {
 
         if provider == .localLLM {
             localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
-            // Match Anthropic path: cap output so verbose presets can't stretch a
-            // post-process run to multiple minutes. 4096 is generous for normal output.
-            requestBody["max_tokens"] = 4096
+            requestBody["max_tokens"] = maxOutputTokens
         }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
@@ -387,56 +388,38 @@ class AIPostProcessor: ObservableObject {
                 AppLogger.logTranscription(.apiCall(endpoint: endpoint, status: httpResponse.statusCode))
                 
                 if httpResponse.statusCode == 200 {
-                    // Parse successful response — format differs by provider
-                    let responseContent: String?
-                    if provider == .anthropic {
-                        // Anthropic native: { "content": [{ "type": "text", "text": "..." }] }
-                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                           let contentBlocks = json["content"] as? [[String: Any]],
-                           let firstBlock = contentBlocks.first,
-                           let text = firstBlock["text"] as? String {
-                            responseContent = text
-                        } else {
-                            responseContent = nil
-                        }
-                    } else {
-                        // OpenAI-compatible: { "choices": [{ "message": { "content": "..." } }] }
-                        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                           let choices = json["choices"] as? [[String: Any]],
-                           let firstChoice = choices.first,
-                           let message = firstChoice["message"] as? [String: Any],
-                           let text = message["content"] as? String {
-                            responseContent = text
-                        } else {
-                            responseContent = nil
-                        }
+                    // Gate on the shared completion policy: termination state, not the
+                    // wrapper. Enforced for every provider (incl. BYO Anthropic/OpenAI-
+                    // compatible), not just the local runtime.
+                    guard let responseJson = String(data: data, encoding: .utf8) else {
+                        AppLogger.network.warning("Post-processing response was not valid UTF-8")
+                        throw TranscriptionError.invalidResponse(details: nil)
                     }
-
-                    if let responseContent = responseContent {
-                        let trimmedResponse = responseContent.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let result = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedResponse)
-                        if result.isEmpty {
-                            // The model didn't emit the strict <<CLEANED>> wrapper.
-                            // Don't silently discard its output — fall back to the
-                            // lenient strip (stray markers removed); only revert to
-                            // the original transcript if even that is empty.
-                            let lenient = TranscriptionTextProcessing.stripWrapperMarkers(trimmedResponse)
-                            if lenient.isEmpty {
-                                AppLogger.transcription.warning("Empty content returned from API; falling back to original")
-                                return trimmed
-                            }
-                            AppLogger.transcription.info("AI post-processing completed via lenient fallback (no <<CLEANED>> wrapper)")
-                            self.didMutateLastRun = true; signal.didMutate = true
-                            return lenient
-                        }
-                        AppLogger.transcription.info("AI post-processing completed successfully")
-                        AppLogger.network.info("Response from \(provider.displayName, privacy: .public): \(result.count, privacy: .public) characters")
-                        self.didMutateLastRun = true; signal.didMutate = true
-                        return result
+                    let evaluation = TranscriptionTextProcessing.evaluateLlmResponseJson(
+                        wireProtocol: provider == .anthropic ? .anthropicMessages : .openAiChat,
+                        responseJson: responseJson,
+                        original: trimmed
+                    )
+                    if evaluation.failure == .malformedResponse {
+                        AppLogger.network.warning("Unexpected API response format")
+                        throw TranscriptionError.invalidResponse(details: nil)
                     }
-
-                    AppLogger.network.warning("Unexpected API response format")
-                    throw TranscriptionError.invalidResponse(details: nil)
+                    if !evaluation.accepted {
+                        if provider == .localLLM {
+                            let reason = evaluation.failure == .outputLimit
+                                ? "Local AI reached its output limit"
+                                : "Local AI returned an incomplete response"
+                            AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript")
+                            self.onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
+                        } else {
+                            AppLogger.transcription.warning("Post-processing response rejected by completion policy — delivering raw transcript")
+                        }
+                        return evaluation.text
+                    }
+                    AppLogger.transcription.info("AI post-processing completed successfully")
+                    AppLogger.network.info("Response from \(provider.displayName, privacy: .public): \(evaluation.text.count, privacy: .public) characters")
+                    self.didMutateLastRun = true; signal.didMutate = true
+                    return evaluation.text
                 } else {
                     // Log error response and map to appropriate error type
                     let _ = String(data: data, encoding: .utf8) ?? "No response"
@@ -476,6 +459,63 @@ class AIPostProcessor: ObservableObject {
 
             return trimmed
         }
+    }
+
+    /// Post-process while honouring the paragraph breaks the user dictated.
+    ///
+    /// The LLM will not keep a mid-body break, whatever the prompt says: measured
+    /// against the cloud model, it merged a dictated "new paragraph" back into one
+    /// paragraph on 5 of 5 runs — even with the break already inserted in its input
+    /// and an explicit do-not-merge-paragraphs instruction (issue #1). So the break is never shown
+    /// to the LLM. The transcript is split on the dictated commands, each segment is
+    /// post-processed independently, and the breaks are restored afterwards.
+    ///
+    /// A transcript with no dictated break is a single segment and takes exactly the
+    /// old path — one LLM call, no added latency for the common case.
+    func performAIPostProcessingPreservingBreaks(
+        text: String,
+        mode: Mode?,
+        applicationContext: ApplicationContext? = nil
+    ) async throws -> String {
+        let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(text)
+        guard segments.count > 1 else {
+            return try await performAIPostProcessingStreaming(
+                text: text,
+                mode: mode,
+                applicationContext: applicationContext
+            )
+        }
+
+        AppLogger.transcription.info("Dictated break(s) found — post-processing \(segments.count) segments separately")
+
+        // Each per-segment call restarts its own streaming buffer from "", so the
+        // live preview would show only the segment in flight and drop the ones
+        // already done. Re-emit the completed text ahead of each chunk.
+        let originalUpdate = onStreamingTextUpdate
+        defer { onStreamingTextUpdate = originalUpdate }
+
+        var processed: [String] = []
+        var anyMutated = false
+        for segment in segments {
+            let completed = processed.joined(separator: "\n\n")
+            onStreamingTextUpdate = { chunk in
+                let prefix = completed.isEmpty ? "" : completed + "\n\n"
+                originalUpdate?(prefix + chunk)
+            }
+            let output = try await performAIPostProcessingStreaming(
+                text: segment,
+                mode: mode,
+                applicationContext: applicationContext
+            )
+            anyMutated = anyMutated || didMutateLastRun
+            processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+
+        // `performAIPostProcessingStreaming` resets this per call, so the loop would
+        // leave only the last segment's verdict. The pipeline's "was it actually
+        // post-processed?" signal must reflect the whole run.
+        didMutateLastRun = anyMutated
+        return processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
 
     /// Streaming variant of AI post-processing using OpenAI Chat Completions SSE
@@ -656,9 +696,7 @@ class AIPostProcessor: ObservableObject {
         ]
 
         localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
-        // Cap output so verbose presets can't stretch a post-process run to
-        // multiple minutes. 4096 is generous for normal output.
-        requestBody["max_tokens"] = 4096
+        requestBody["max_tokens"] = maxOutputTokens
 
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
 
@@ -669,6 +707,7 @@ class AIPostProcessor: ObservableObject {
         var buffer = ""
         var receivedAnyChunk = false
         var localLLMContentDone = false
+        var localLLMFinishReason: String?
         // Tracks whether the stream ended on a real terminator (`[DONE]` or the
         // OpenAI-compatible `finish_reason`). If llama-server closes the socket
         // mid-response without a terminator, `bytes.lines` ends without throwing —
@@ -726,6 +765,7 @@ class AIPostProcessor: ObservableObject {
                     onStreamingTextUpdate?(display)
                 }
                 if let finishReason = first["finish_reason"] as? String, !finishReason.isEmpty {
+                    localLLMFinishReason = finishReason
                     sawTerminator = true
                     // Don't break mid-stream — cancelling the URLSessionDataTask
                     // before llama-server's trailing `data: [DONE]` write makes the
@@ -758,39 +798,37 @@ class AIPostProcessor: ObservableObject {
                 onPostProcessingError?(.localRuntimeUnavailable(reason: "Local AI stopped before finishing"))
                 return trimmed
             }
+            // Gate on the shared completion policy: normalize llama-server's
+            // finish_reason, then evaluate (lenient marker extraction + prompt
+            // leakage / empty-content rejection all live in the core now).
             let trimmedBuffer = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
-            let result = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedBuffer)
-            if result.isEmpty {
-                // The model didn't emit the strict <<CLEANED>> wrapper. Before
-                // treating this as "no content", try a lenient strip of the raw
-                // buffer — a model that omitted the marker still produced
-                // post-processed text we should not silently discard.
-                let lenient = TranscriptionTextProcessing.stripWrapperMarkers(trimmedBuffer)
-                if !lenient.isEmpty {
-                    AppLogger.transcription.info("Streaming AI post-processing completed via lenient fallback (no <<CLEANED>> wrapper) · provider=\(provider.displayName, privacy: .public)")
-                    didMutateLastRun = true; signal.didMutate = true
-                    return lenient
-                }
-                // Stream finished cleanly but produced no usable cleaned content. Two ways
-                // we land here: (a) server never sent a delta.content chunk, or (b) it sent
-                // tokens that were all wrapper / thinking / whitespace and extractCleaned
-                // returned empty. Previously we silently returned the raw transcript and the
-                // pipeline reported postProcessingSkipped=true with no user feedback —
-                // surface it instead so the user knows post-processing didn't run.
-                let reason = receivedAnyChunk
-                    ? "Model returned no usable content (empty after cleanup)"
-                    : "Model returned no content"
+            let state = TranscriptionTextProcessing.normalizeTermination(wireProtocol: .openAiChat, reason: localLLMFinishReason)
+            let evaluation = TranscriptionTextProcessing.evaluateCompletion(original: trimmed, content: trimmedBuffer, state: state)
+            if !evaluation.accepted {
+                let reason: String
                 let bufferPreview = String(buffer.prefix(200))
-                AppLogger.transcription.warning("Streaming post-processing returned empty result · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count) · bufferPreview=\(bufferPreview, privacy: .public)")
-                if provider == .localLLM {
-                    onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
+                switch evaluation.failure {
+                case .outputLimit:
+                    reason = "Local AI reached its output limit"
+                case .emptyCleanedText:
+                    // Two ways we land here: (a) server never sent a delta.content
+                    // chunk, or (b) it sent tokens that were all wrapper / thinking /
+                    // whitespace and the cleaned result was empty.
+                    reason = receivedAnyChunk
+                        ? "Model returned no usable content (empty after cleanup)"
+                        : "Model returned no content"
+                default:
+                    reason = "Local AI returned an incomplete response"
                 }
+                AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count) · bufferPreview=\(bufferPreview, privacy: .public)")
+                onStreamingTextUpdate?("")
+                onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
                 return trimmed
             }
             AppLogger.transcription.info("Streaming AI post-processing completed successfully")
-            AppLogger.network.info("Streamed response from \(provider.displayName, privacy: .public): \(result.count, privacy: .public) characters")
+            AppLogger.network.info("Streamed response from \(provider.displayName, privacy: .public): \(evaluation.text.count, privacy: .public) characters")
             didMutateLastRun = true; signal.didMutate = true
-            return result
+            return evaluation.text
         } catch let cancel as CancellationError {
             // Cooperative cancellation; ensure we drop streaming flag and propagate
             onStreamingStateChange?(false)
@@ -966,25 +1004,19 @@ class AIPostProcessor: ObservableObject {
                         AppLogger.network.info("HyperWhisper Cloud post-processing · credits=\(credits, privacy: .public)")
                     }
 
+                    // The backend already enforces the completion policy server-side
+                    // (rejects incomplete/truncated output there) — use the returned
+                    // text as-is rather than re-extracting wrapper markers here.
                     let trimmedCorrected = corrected.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let result = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedCorrected)
-                    if result.isEmpty {
-                        // No strict <<CLEANED>> wrapper — fall back to the lenient
-                        // strip before reverting to the original transcript.
-                        let lenient = TranscriptionTextProcessing.stripWrapperMarkers(trimmedCorrected)
-                        if lenient.isEmpty {
-                            AppLogger.transcription.warning("Empty content returned from HyperWhisper Cloud; falling back to original")
-                            return text
-                        }
-                        AppLogger.transcription.info("HyperWhisper Cloud post-processing completed via lenient fallback (no <<CLEANED>> wrapper)")
-                        self.didMutateLastRun = true; signal.didMutate = true
-                        return lenient
+                    guard !trimmedCorrected.isEmpty else {
+                        AppLogger.transcription.warning("Empty content returned from HyperWhisper Cloud; falling back to original")
+                        return text
                     }
 
                     AppLogger.transcription.info("HyperWhisper Cloud post-processing completed successfully")
-                    AppLogger.network.info("Response: \(result.count, privacy: .public) characters")
+                    AppLogger.network.info("Response: \(trimmedCorrected.count, privacy: .public) characters")
                     self.didMutateLastRun = true; signal.didMutate = true
-                    return result
+                    return trimmedCorrected
                 }
 
                 // Handle error responses
@@ -1180,35 +1212,31 @@ class AIPostProcessor: ObservableObject {
 
                 // Handle successful response
                 if httpResponse.statusCode == 200 {
-                    // Parse OpenAI-compatible response: { "choices": [{ "message": { "content": "..." } }] }
-                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let choices = json["choices"] as? [[String: Any]],
-                          let firstChoice = choices.first,
-                          let message = firstChoice["message"] as? [String: Any],
-                          let content = message["content"] as? String else {
+                    // Gate on the shared completion policy. Custom endpoints are
+                    // OpenAI-compatible; a missing finish_reason (common on smaller
+                    // self-hosted servers) normalizes to Unspecified and proceeds.
+                    guard let responseJson = String(data: data, encoding: .utf8) else {
+                        AppLogger.network.warning("Custom endpoint response was not valid UTF-8")
+                        throw TranscriptionError.invalidResponse(details: "Invalid response format")
+                    }
+                    let evaluation = TranscriptionTextProcessing.evaluateLlmResponseJson(
+                        wireProtocol: .openAiChat,
+                        responseJson: responseJson,
+                        original: text
+                    )
+                    if evaluation.failure == .malformedResponse {
                         AppLogger.network.warning("Custom endpoint returned unexpected response format")
                         throw TranscriptionError.invalidResponse(details: "Invalid response format")
                     }
-
-                    let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let result = TranscriptionTextProcessing.extractCleanedFromWrapped(trimmedContent)
-                    if result.isEmpty {
-                        // No strict <<CLEANED>> wrapper — fall back to the lenient
-                        // strip before reverting to the original transcript.
-                        let lenient = TranscriptionTextProcessing.stripWrapperMarkers(trimmedContent)
-                        if lenient.isEmpty {
-                            AppLogger.transcription.warning("Empty content returned from custom endpoint; falling back to original")
-                            return text
-                        }
-                        AppLogger.transcription.info("Custom endpoint post-processing completed via lenient fallback (no <<CLEANED>> wrapper)")
-                        self.didMutateLastRun = true; signal.didMutate = true
-                        return lenient
+                    if !evaluation.accepted {
+                        AppLogger.transcription.warning("Custom endpoint response rejected by completion policy — delivering raw transcript")
+                        return evaluation.text
                     }
 
                     AppLogger.transcription.info("Custom endpoint post-processing completed successfully")
-                    AppLogger.network.info("Response from \(endpoint.name, privacy: .public): \(result.count, privacy: .public) characters")
+                    AppLogger.network.info("Response from \(endpoint.name, privacy: .public): \(evaluation.text.count, privacy: .public) characters")
                     self.didMutateLastRun = true; signal.didMutate = true
-                    return result
+                    return evaluation.text
                 }
 
                 // Handle error responses

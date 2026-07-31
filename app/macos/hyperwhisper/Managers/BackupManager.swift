@@ -46,9 +46,34 @@ class BackupManager: ObservableObject {
     /// Last error message (for display in UI)
     @Published var lastError: String?
 
+    // MARK: - Dependencies
+
+    /// License manager, injected from the app root (it is a `@StateObject`
+    /// there, not a singleton). Used to force a real validation after an
+    /// import writes a license key.
+    weak var licenseManager: LicenseManager?
+
     // MARK: - Private Init
 
     private init() {}
+
+    // MARK: - License Revalidation
+
+    /// After a backup import writes a license key, force a real validation so
+    /// the imported key isn't paired with the PREVIOUS key's cached status and
+    /// expiry (the stored cache is keyed to whatever key was active before the
+    /// import). Uses the same `validateLicense` call normal Settings activation
+    /// goes through; if offline at import time, validation fails and the status
+    /// falls back honestly instead of inheriting the old key's Active.
+    private func revalidateImportedLicenseKey(_ licenseKey: String) {
+        guard let licenseManager else {
+            AppLogger.settings.warning("Imported a license key but no LicenseManager is wired — revalidation deferred to next launch")
+            return
+        }
+        Task {
+            _ = await licenseManager.validateLicense(licenseKey)
+        }
+    }
 
     // MARK: - Export Methods
 
@@ -155,7 +180,9 @@ class BackupManager: ObservableObject {
                 defaultModelByMode: settingsManager.defaultModelByMode
             ),
             advanced: BackupAdvancedSettings(
-                maxRecordingDuration: settingsManager.maxRecordingDuration,
+                // The backup field keeps its cross-platform name; macOS now
+                // stores the value under maxRecordingDurationSeconds.
+                maxRecordingDuration: settingsManager.maxRecordingDurationSeconds,
                 audioSampleRate: settingsManager.audioSampleRate,
                 keepAudioFiles: settingsManager.keepAudioFiles,
                 historyRetentionDays: settingsManager.historyRetentionDays
@@ -534,10 +561,15 @@ class BackupManager: ObservableObject {
             apiKeysImported = apiKeys.hasAnyKey
         }
 
-        // Import license key if present and requested
+        // Import license key if present and requested. Trim first (an untrimmed
+        // key would break the offline-guard key comparison), then revalidate so
+        // the new key doesn't inherit the previous key's cached status.
         var licenseKeyImported = false
-        if options.importLicenseKey, let licenseKey = backupData.licenseKey, !licenseKey.isEmpty {
+        if options.importLicenseKey,
+           let licenseKey = backupData.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !licenseKey.isEmpty {
             UserDefaults.standard.set(licenseKey, forKey: LicenseNetworkService.DefaultsKey.licenseKey)
+            revalidateImportedLicenseKey(licenseKey)
             licenseKeyImported = true
         }
 
@@ -772,9 +804,13 @@ class BackupManager: ObservableObject {
             apiKeysImported = true
         }
 
+        // Trim + revalidate — see the v1 license-key import above.
         var licenseKeyImported = false
-        if options.importLicenseKey, let licenseKey = dto.licenseKey, !licenseKey.isEmpty {
+        if options.importLicenseKey,
+           let licenseKey = dto.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !licenseKey.isEmpty {
             UserDefaults.standard.set(licenseKey, forKey: LicenseNetworkService.DefaultsKey.licenseKey)
+            revalidateImportedLicenseKey(licenseKey)
             licenseKeyImported = true
         }
 
@@ -1105,7 +1141,12 @@ class BackupManager: ObservableObject {
         settingsManager.defaultLanguage = settings.aiModel.defaultLanguage
 
         // Advanced settings
-        settingsManager.maxRecordingDuration = settings.advanced.maxRecordingDuration
+        // Legacy backups carry 300 in advanced.maxRecordingDuration — the old
+        // never-exposed default, not a user choice. Treat it as unset so the
+        // import doesn't silently cap recordings at 5 minutes.
+        if settings.advanced.maxRecordingDuration != 300 {
+            settingsManager.maxRecordingDurationSeconds = settings.advanced.maxRecordingDuration
+        }
         settingsManager.audioSampleRate = settings.advanced.audioSampleRate
         settingsManager.keepAudioFiles = settings.advanced.keepAudioFiles
         settingsManager.historyRetentionDays = settings.advanced.historyRetentionDays

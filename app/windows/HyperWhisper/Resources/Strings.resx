@@ -415,6 +415,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
   </data>
@@ -579,32 +582,8 @@ Do you want to restart now?</value>
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Clear</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>Trial</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>Activate</value>
@@ -620,26 +599,11 @@ Do you want to restart now?</value>
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper Cloud Credits</value>
-  </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
     <value>Track your HyperWhisper Cloud balance and usage</value>
   </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>Refresh</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>Manage Credits</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -673,6 +637,41 @@ Do you want to restart now?</value>
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Failed to load credits</value>
+  </data>
+
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Account Key</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Reveal account key</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Hide account key</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Copy account key</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Purchase Credits</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Activate HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Your account key is your wallet — it holds your Cloud credits. Enter your key to get started, or buy credits to get one.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Don't have a key yet?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Buy credits and we'll email you an account key.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Get Credits</value>
   </data>
 
   <!-- Settings - API Keys -->
@@ -1224,6 +1223,12 @@ Do you want to restart now?</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>Recording stopped — 20-minute safety limit reached.</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>Streaming reached the 20-minute safety limit.</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1627,7 +1632,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>Are you sure you want to deactivate this device? Cloud transcription will stop working until you enter an account key again. Your credits remain on your key.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1726,7 +1731,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>Uses your HyperWhisper Cloud credits. No separate API key is required.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>
@@ -1891,20 +1896,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>Licensed - Full access</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>License Expired</value>
+    <value>Your license has expired. Renew or add credits to keep using HyperWhisper Cloud.</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>Invalid License</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Your license key is no longer valid. Enter a new key below, or get credits to create one.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>

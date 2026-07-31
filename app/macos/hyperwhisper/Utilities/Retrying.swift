@@ -2,7 +2,20 @@
 //  Retrying.swift
 //  hyperwhisper
 //
-//  Shared retry logic used across transcription flows.
+//  Native retry helper for NON-transcription HTTP.
+//
+//  Retry-policy boundary (intentional, do not unify):
+//  - Cloud STT transcription retry is owned by the Rust shared core — providers
+//    go through `RustRetry.perform`, which drives the core's `nextRetry`
+//    decision loop (8 attempts, exponential backoff up to 64s). That is the
+//    single source of truth for transcription retry classification.
+//  - `performWithRetry` below intentionally remains for user-blocking,
+//    non-transcription HTTP (AI post-processing, license validation) whose
+//    budgets MUST stay tight: post-processing runs inside the stop→paste hot
+//    path, so its `.postProcessing` preset (3 attempts, ≤10s delay) is a
+//    deliberate policy difference, not drift. Do not route these callers
+//    through `RustRetry` — it is coupled to the FFI `HttpRequest`/`HttpResponse`
+//    types and the core's much larger transcription budget.
 
 import Foundation
 
@@ -37,6 +50,32 @@ struct RetryConfiguration {
         jitterRange: 0...0.2
     )
 
+    /// Configuration for the background, launch-time license revalidation
+    /// (`LicenseNetworkService.validateLicense(_:isLaunchValidation: true)`).
+    ///
+    /// Deliberately tighter than `.cloud`: this call fires from `LicenseManager
+    /// .loadStoredLicense()` on every app launch whenever the 24h validation cache
+    /// is stale, racing a network that may not be up yet (wake-from-sleep, captive
+    /// portal, DNS not resolved yet). `.cloud`'s ~30s worst-case budget is fine for
+    /// a user-blocking, explicitly-triggered activation, but is far too slow for a
+    /// silent background check — a paying user would sit "unlicensed" (cache not
+    /// yet consulted, cloud identifier not yet resolved) for up to half a minute on
+    /// a flaky network. A short, bounded retry (≈1.5–1.8s of total backoff sleep
+    /// across the 2 sleeps between 3 attempts — no sleep follows the final
+    /// attempt) lets a transient blip self-heal quickly; `LicenseNetworkService`
+    /// also uses a much shorter per-request timeout for this call when a cached
+    /// verdict exists (`licenseLaunchValidationTimeout`, 2.5s vs the normal
+    /// 10s), so a hung request can't itself eat the whole budget. A launch
+    /// validation without a usable cache keeps the normal `.cloud` policy so a
+    /// slow network is not surfaced as an invalid license. See HYPERWHISPER-F4.
+    static let licenseLaunchValidation = RetryConfiguration(
+        maxAttempts: 3,
+        initialDelay: 0.5,
+        maxDelay: 2.0,
+        backoffMultiplier: 2.0,
+        jitterRange: 0...0.2
+    )
+
     /// Upper bound, in seconds, that a single honored `Retry-After` may sleep
     /// inside a status-poll loop. A hostile or misconfigured server can return a
     /// very large `Retry-After` (e.g. 300s); clamping each honored sleep to this
@@ -50,14 +89,6 @@ struct RetryConfiguration {
         let jitter = Double.random(in: jitterRange) * baseDelay
         return min(baseDelay + jitter, maxDelay)
     }
-}
-
-/// Parse the integer Retry-After header from an HTTP response.
-/// Reusable across all cloud providers.
-func parseRetryAfter(from response: HTTPURLResponse) -> Int? {
-    guard let value = response.value(forHTTPHeaderField: "Retry-After"),
-          let seconds = Int(value) else { return nil }
-    return seconds
 }
 
 /// Generic retry helper with exponential backoff
@@ -95,4 +126,3 @@ func performWithRetry<T>(
     // All retries exhausted
     throw lastError
 }
-

@@ -265,6 +265,7 @@ public sealed class DeviceIdService
             {
                 Directory.CreateDirectory(directory);
             }
+            AppPaths.PrepareForOverwrite(FallbackDeviceIdPath, "DeviceIdService");
             File.WriteAllText(FallbackDeviceIdPath, deviceId);
             LoggingService.Info("DeviceIdService: Saved fallback device ID to disk");
         }

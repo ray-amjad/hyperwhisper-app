@@ -286,28 +286,3 @@ struct ModeCard: View {
     }
 
 }
-
-// MARK: - Feature Badge View
-
-struct FeatureBadge: View {
-    let icon: String
-    let text: String
-    let isActive: Bool
-    var color: Color = .accentColor
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 9))
-            Text(text)
-                .font(.system(size: 10, weight: .medium))
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isActive ? color.opacity(0.15) : Color.gray.opacity(0.1))
-        )
-        .foregroundColor(isActive ? color : .secondary)
-    }
-}

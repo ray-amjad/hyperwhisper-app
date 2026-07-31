@@ -174,8 +174,8 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Processing fee (6%)",
-              description: "Non-refundable payment processing fee",
+              name: "Cloud processing fee (6%)",
+              description: "Non-refundable HyperWhisper Cloud processing fees",
               // Same Managed Payments requirement: the fee line needs a tax_code.
               tax_code: "txcd_10000000",
             },

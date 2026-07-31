@@ -4,7 +4,7 @@
 import type { Context } from 'hono';
 import { defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
 import { generateRequestId, getClientIP } from '../lib/request-id';
-import { buildTranscriptUserContent, containsPromptLeakage, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
+import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
 import { buildCorrectionRequest } from '../providers/groq-llm';
 import { creditsForCost, formatUsd } from '../lib/cost-calculator';
 import { isIPBlocked } from '../lib/redis';
@@ -12,6 +12,7 @@ import { errorResponse, invalidContentTypeResponse } from '../lib/responses';
 import { validateAuth } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { logEvent } from '../lib/logging';
+import { evaluateCompletionResponse } from '../lib/llm-completion';
 
 const MAX_TEXT_LENGTH = 100000;
 const ESTIMATED_POST_PROCESS_CREDITS = 1.0;
@@ -181,7 +182,74 @@ export async function postProcessRoute(c: Context) {
   let costUsd = llmResponse.costUsd;
 
   try {
-    correctedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
+    const evaluation = evaluateCompletionResponse(llmResponse.raw, text);
+
+    if (evaluation.accepted) {
+      correctedText = evaluation.text;
+    } else if (evaluation.failure === 'prompt_leakage') {
+      // Recomputed only for the outputChars metric below — evaluateCompletionResponse
+      // already extracted this successfully, so this call cannot throw.
+      const leakedText = stripCleanMarkers(extractCorrectedText(llmResponse.raw));
+      logEvent(requestId, startTime, 'post_process.prompt_leakage_detected', {
+        provider: providerUsed,
+        inputChars: text.length,
+        outputChars: leakedText.length,
+      });
+
+      const alternateProvider: LLMProvider = fallbackProviderFor(providerUsed);
+      const alternateRetries = retriesFor(alternateProvider);
+
+      logEvent(requestId, startTime, 'post_process.llm_leakage_retry_start', { requestedProvider: providerUsed, provider: alternateProvider });
+
+      try {
+        const alternateModel = defaultModelFor(alternateProvider);
+        const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateRetries, alternateModel);
+
+        // Bill the retry the moment it succeeds, before any evaluation step
+        // below can throw — otherwise a successful (and billed-by-the-provider)
+        // retry's cost would be silently dropped if extraction failed.
+        providerUsed = alternateProvider;
+        modelUsed = alternateModel;
+        costUsd += retryResponse.costUsd;
+
+        const retryEvaluation = evaluateCompletionResponse(retryResponse.raw, text);
+
+        if (retryEvaluation.accepted) {
+          correctedText = retryEvaluation.text;
+        } else if (retryEvaluation.failure === 'prompt_leakage') {
+          logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
+            provider: alternateProvider,
+            fallbackToRaw: true,
+          });
+          correctedText = text;
+        } else {
+          logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+            provider: alternateProvider,
+            state: retryEvaluation.state,
+            reason: retryEvaluation.failure === 'empty_cleaned_text' ? 'empty_cleaned_text' : retryEvaluation.reason,
+            fallbackToRaw: true,
+          });
+          correctedText = text;
+        }
+      } catch (retryError) {
+        logEvent(requestId, startTime, 'post_process.llm_leakage_retry_fail', {
+          provider: alternateProvider,
+          error: retryError instanceof Error ? retryError.message : String(retryError),
+          fallbackToRaw: true,
+        });
+        correctedText = text;
+      }
+    } else {
+      // output_limit, incomplete_response, or empty_cleaned_text: keep the
+      // raw transcript without spending on an alternate-provider retry.
+      logEvent(requestId, startTime, 'post_process.llm_incomplete', {
+        provider: providerUsed,
+        state: evaluation.state,
+        reason: evaluation.failure === 'empty_cleaned_text' ? 'empty_cleaned_text' : evaluation.reason,
+        fallbackToRaw: true,
+      });
+      correctedText = text;
+    }
   } catch (extractError) {
     // The LLM call already succeeded (and cost us money) — bill the user
     // even though we can't return usable text.
@@ -205,48 +273,6 @@ export async function postProcessRoute(c: Context) {
       error: extractError instanceof Error ? extractError.message : String(extractError),
     });
     return errorResponse(500, 'Post-processing failed', extractError instanceof Error ? extractError.message : String(extractError), { requestId });
-  }
-
-  if (containsPromptLeakage(correctedText)) {
-    logEvent(requestId, startTime, 'post_process.prompt_leakage_detected', {
-      provider: providerUsed,
-      inputChars: text.length,
-      outputChars: correctedText.length,
-    });
-
-    const alternateProvider: LLMProvider = fallbackProviderFor(providerUsed);
-    const alternateRetries = retriesFor(alternateProvider);
-
-    logEvent(requestId, startTime, 'post_process.llm_leakage_retry_start', { requestedProvider: providerUsed, provider: alternateProvider });
-
-    try {
-      const alternateModel = defaultModelFor(alternateProvider);
-      const retryResponse = await callWithRetry(alternateProvider, payload, requestId, alternateRetries, alternateModel);
-      const retryText = stripCleanMarkers(extractCorrectedText(retryResponse.raw));
-
-      if (containsPromptLeakage(retryText)) {
-        logEvent(requestId, startTime, 'post_process.prompt_leakage_persisted', {
-          provider: alternateProvider,
-          fallbackToRaw: true,
-        });
-        correctedText = text;
-        providerUsed = alternateProvider;
-        modelUsed = alternateModel;
-        costUsd += retryResponse.costUsd;
-      } else {
-        correctedText = retryText;
-        providerUsed = alternateProvider;
-        modelUsed = alternateModel;
-        costUsd += retryResponse.costUsd;
-      }
-    } catch (retryError) {
-      logEvent(requestId, startTime, 'post_process.llm_leakage_retry_fail', {
-        provider: alternateProvider,
-        error: retryError instanceof Error ? retryError.message : String(retryError),
-        fallbackToRaw: true,
-      });
-      correctedText = text;
-    }
   }
 
   const creditsUsed = creditsForCost(costUsd);

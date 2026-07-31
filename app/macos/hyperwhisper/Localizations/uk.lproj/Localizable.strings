@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Головна";
-"sidebar.statistics" = "Статистика";
 "sidebar.modes" = "Режими";
 "sidebar.vocabulary" = "Словник";
 "sidebar.streaming" = "Потокова передача";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Версія %@";
 "home.recent.updates.new.badge" = "НОВЕ";
 "home.recent.updates.no.notes" = "Нема приміток до випуску";
+"home.stats.words.week" = "Слів цього тижня";
+"home.stats.words.month" = "Слів цього місяця";
+"home.stats.speed" = "Середня швидкість";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Розпочніть роботу з HyperWhisper";
-"sidebar.statistics.help" = "Переглянути статистику використання та аналітику";
 "sidebar.modes.help" = "Керуйте режимами транскрипції для різних контекстів";
 "sidebar.vocabulary.help" = "Додайте спеціальні слова та фрази для кращого розпізнавання";
 "sidebar.streaming.help" = "Параметри потокової транскрипції в реальному часі (потребує інтернету)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Кредити HyperWhisper Cloud";
 "settings.credits.refresh" = "Оновити";
-"settings.credits.subtitle" = "Контролюйте кредити для транскрипції та використання";
-"settings.credits.manage" = "Керувати кредитами";
 "settings.credits.timeRemaining" = "Час транскрипції, що залишився";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "хвилин";
 "settings.credits.creditsRemaining" = "%@ кредитів залишилось";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Безплатний щоденний ліміт (100 кредитів)";
-"settings.credits.resets" = "Скидання %@";
 "settings.credits.warning.low" = "Кредити закінчуються. Розглянете можливість придбання ліцензії для додаткових кредитів.";
-"settings.credits.warning.exhausted.daily" = "Щоденний ліміт вичерпаний. Придбайте ліцензію для необмеженого використання або чекайте скидання.";
 "settings.credits.warning.exhausted" = "Кредити вичерпані. Придбайте більше кредитів для продовження використання HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Інформація про обліковий запис";
-"settings.credits.stat.creditsRemaining" = "Кредити, що залишилась";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Хвилин, що залишилось";
-"settings.credits.stat.accountType" = "Тип облікового запису";
-"settings.credits.accountType.licensed" = "Ліцензовано";
-"settings.credits.accountType.anonymous" = "Анонімно";
-"settings.credits.accountType.trial" = "Пробна версія";
-"settings.credits.stat.customerId" = "Ідентифікатор клієнта";
-"settings.credits.stat.dailyLimit" = "Щоденний ліміт";
-"settings.credits.dailyLimit.value" = "100 кредитів";
 "settings.credits.loading" = "Завантаження залишку кредитів...";
 "settings.credits.error.title" = "Не вдалося завантажити залишок кредитів";
 "settings.credits.error.retry" = "Повторити";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Помилка мережі: %@";
 "settings.credits.error.invalidResponse" = "Недійсна відповідь від сервера. Спробуйте ще раз.";
 "settings.credits.error.server" = "Помилка сервера: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Ключ облікового запису";
+"settings.cloud.purchaseMore" = "Придбати кредити";
+"settings.cloud.key.reveal" = "Показати ключ облікового запису";
+"settings.cloud.key.hide" = "Приховати ключ облікового запису";
+"settings.cloud.key.copy" = "Скопіювати ключ облікового запису";
+"settings.cloud.activate.title" = "Активувати HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Ключ облікового запису — це ваш гаманець: у ньому зберігаються ваші кредити Cloud. Введіть свій ключ, щоб почати, або придбайте кредити, щоб отримати його.";
+"settings.cloud.getCredits.title" = "Ще немає ключа?";
+"settings.cloud.getCredits.subtitle" = "Придбайте кредити, і ми надішлемо вам ключ облікового запису електронною поштою.";
+"settings.cloud.getCredits.button" = "Придбати кредити";
 "settings.models.alert.cannotDelete.title" = "Не вдалося видалити модель";
 "settings.models.parakeet.title" = "Моделі Parakeet";
 "settings.models.parakeet.subtitle" = "Рекомендується для більшості користувачів. Багатомовна модель підтримує 25 мов.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Рекомендовано для Mac з 24 GB об'єднаної пам'яті або більше. Швидкість залежить від чипа — швидше на M3/M4 Pro та новіших.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Слів цього року";
+"home.stats.typing.speed.help" = "Налаштуйте орієнтовну швидкість набору (WPM), яка використовується для оцінки заощадженого часу.";
+"home.stats.saved.week" = "Заощаджено цього тижня";
+"home.stats.minutes.value" = "%d хв";
 "vocabulary.input.placeholder" = "Додайте слово або створіть фрагмент";
 "vocabulary.action.addWord" = "Додати слово";
 "vocabulary.action.replaceWith" = "Замінити на…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "Перевірка контрольної суми моделі не вдалася. Завантаження може бути пошкоджено.";
 
 // MARK: - Statistics View
-"statistics.title" = "Статистика";
-"statistics.header.title" = "Ваша статистика використання";
-"statistics.header.subtitle" = "Стежте за своєю активністю транскрипції та продуктивністю";
-"statistics.card.recordings" = "Усього записів";
-"statistics.card.recordings.subtitle" = "Завершено транскрипцій";
-"statistics.card.duration" = "Загальний час";
-"statistics.card.duration.subtitle" = "Час, проведений на записуванні";
-"statistics.card.words" = "Усього слів";
-"statistics.card.words.subtitle" = "Слів транскрибовано";
-"statistics.card.average" = "Середня тривалість";
-"statistics.card.average.subtitle" = "На запис";
-"statistics.graph.title" = "Активність з часом";
-"statistics.daily.empty" = "Нема записів";
-"statistics.filter.week" = "На цьому тижні";
-"statistics.filter.month" = "У цьому місяці";
-"statistics.filter.alltime" = "За весь час";
 
 // MARK: - History View
 "history.title" = "Історія";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "Швидка та доступна. Найкраще для швидких транскрипцій.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Збалансована швидкість та точність. Рекомендовано для більшості користувачів.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ кредитів/хв";
 "modes.cloudAccuracy.grokStt.label" = "Найвища (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Найвища точність з повільнішою обробкою. Найкраще для важливих транскрипцій.";
+"modes.cloudAccuracy.googleChirp3.label" = "Висока (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 з Chirp 3. Багатомовна модель з адаптацією фраз.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 через Azure Speech. 43 мови з контекстним підлаштуванням.";
 
 "modes.create.title" = "Створити новий режим";
 "modes.create.subtitle" = "Налаштуйте спеціальний профіль транскрипції";
@@ -915,9 +904,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "Мікрофон за замовчуванням";
 "audio.error.permissionDenied" = "Доступ до мікрофона заборонено. Активуйте його в параметрах системи.";
-"audio.error.fileWatcher.open" = "Не вдалося відкрити дескриптор файла для моніторингу аудіо файла.";
-"audio.error.fileWatcher.timeout" = "Операція істекла під час очікування запису аудіо файла.";
-"audio.error.fileWatcher.creation" = "Аудіо файл не був створений вчасно.";
 "audio.error.microphonePermission" = "Дозвіл на мікрофон не надано";
 "audio.error.microphoneInUse" = "HyperWhisper не може отримати доступ до мікрофона, оскільки його використовує інший застосунок. Призупиніть інший застосунок або перемкніть входи, а потім спробуйте ще раз.";
 "audio.error.createEngine" = "Не вдалося створити аудіо рушій";
@@ -992,6 +978,15 @@
 "transcription.guidance.timeout" = "Запит тривав занадто довго. Перевірте швидкість інтернету та спробуйте ще раз.";
 "transcription.error.noSpeechDetected" = "У записі не виявлено мовлення.";
 "transcription.guidance.noSpeechDetected" = "Поради:\n• Говоріть ясно в мікрофон\n• Утримуйте клавішу довше перед тим, як говорити\n• Переконайтеся, що ваш мікрофон працює\n• Переконайтеся, що вибраний правильний пристрій введення";
+"transcription.guidance.needsNativeRelaunch" = "Закрийте та знову відкрийте HyperWhisper у нативному режимі, щоб використовувати локальну постобробку.";
+"transcription.guidance.localRuntimeUnavailable" = "Спробуйте ще раз або виберіть меншу локальну модель у параметрах режиму.";
+"transcription.error.localRuntimeUnavailable" = "Локальний ШІ не зміг завершити обробку — вихідний транскрипт збережено.";
+"settings.backup.localDownload.title" = "Завантажити локальні моделі?";
+"settings.backup.localDownload.message" = "%d з ваших відновлених режимів використовують локальні моделі ШІ, які ще не завантажено.";
+"settings.backup.localDownload.downloadAll" = "Завантажити всі";
+"settings.backup.localDownload.dismiss" = "Закрити";
+"modelLibrary.local.requiresAppleSilicon" = "Потрібен Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Перезапустити нативно";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недостатньо кредитів. Додайте більше кредитів у Налаштуваннях.";
@@ -1125,3 +1120,12 @@
 "history.autoDelete.status.enabled" = "Видалити записи старіші за %d %@";
 "history.autoDelete.cleanup.noItems" = "Нема записів для видалення";
 "history.autoDelete.cleanup.summary" = "Видалено %d запис(ів) та звільнено %@";
+"history.status.interrupted" = "Транскрипцію перервано — застосунок закрився до завершення";
+"recording.maxDuration.reachedToast" = "Запис зупинено — досягнуто ліміту %d хв";
+"streaming.maxDuration.reachedToast" = "Трансляцію зупинено — досягнуто ліміту %d хв";
+"settings.storage.maxRecordingDuration.title" = "Максимальна тривалість запису";
+"settings.storage.maxRecordingDuration.subtitle" = "Автоматично зупиняти та транскрибувати записи, довші за цей час.";
+"settings.storage.maxRecordingDuration.minutes" = "%d хв";
+"settings.storage.maxRecordingDuration.hour" = "1 година";
+"settings.storage.maxRecordingDuration.hours" = "%d годин";
+"settings.storage.maxRecordingDuration.off" = "Вимкнено";

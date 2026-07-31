@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Pradžia";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Režimai";
 "sidebar.vocabulary" = "Žodynas";
 "sidebar.streaming" = "Srautinis";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versija %@";
 "home.recent.updates.new.badge" = "NAUJA";
 "home.recent.updates.no.notes" = "Nėra išleistos informacijos";
+"home.stats.words.week" = "Žodžiai šią savaitę";
+"home.stats.words.month" = "Žodžiai šį mėnesį";
+"home.stats.speed" = "Vidutinis greitis";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Pradėkite su HyperWhisper";
-"sidebar.statistics.help" = "Žiūrėkite naudojimo statistiką ir analitika";
 "sidebar.modes.help" = "Valdyti transkriptsiniu režimai skirtingiems kontekstams";
 "sidebar.vocabulary.help" = "Pridėkite pasirinktinius žodžius ir žodžių junginius geresniam atpažinimui";
 "sidebar.streaming.help" = "Realiojo laiko srautinio transkriptsiniu nustatymai (reikalingas internetas)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud nuopelnai";
 "settings.credits.refresh" = "Atnaujinti";
-"settings.credits.subtitle" = "Stebėti savo transkriptsiniu nuopelnus ir naudojimą";
-"settings.credits.manage" = "Valdyti nuopelnus";
 "settings.credits.timeRemaining" = "Transkriptsiniu laikas liko";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minučių";
 "settings.credits.creditsRemaining" = "%@ nuopelnų likę";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Nemokamas dienos limitas (100 nuopelnų)";
-"settings.credits.resets" = "Iš naujo nustatomas %@";
 "settings.credits.warning.low" = "Nuopelnai mažėja. Apsvarstykite licencijos įsigijimą daugiausia nuopelnų.";
-"settings.credits.warning.exhausted.daily" = "Dienos limitas baigėsi. Įsigykite licenciją neribotam naudojimui arba palaukite atstatymo.";
 "settings.credits.warning.exhausted" = "Nuopelnai baigėsi. Įsigykite daugiau nuopelnų, jei norite tęsti HyperWhisper Cloud naudojimą.";
 "settings.credits.accountInfo" = "Paskyros informacija";
-"settings.credits.stat.creditsRemaining" = "Nuopelnai likę";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minučių likę";
-"settings.credits.stat.accountType" = "Paskyros tipas";
-"settings.credits.accountType.licensed" = "Licencijuota";
-"settings.credits.accountType.anonymous" = "Anonima";
-"settings.credits.accountType.trial" = "Bandomoji";
-"settings.credits.stat.customerId" = "Kliento ID";
-"settings.credits.stat.dailyLimit" = "Dienos limitas";
-"settings.credits.dailyLimit.value" = "100 nuopelnų";
 "settings.credits.loading" = "Kraunu nuopelnų balansą...";
 "settings.credits.error.title" = "Nepavyko įkelti nuopelnų balanso";
 "settings.credits.error.retry" = "Bandyti dar kartą";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Tinklo klaida: %@";
 "settings.credits.error.invalidResponse" = "Neteisingas serverio atsakymas. Bandykite dar kartą.";
 "settings.credits.error.server" = "Serverio klaida: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Paskyros raktas";
+"settings.cloud.purchaseMore" = "Pirkti nuopelnus";
+"settings.cloud.key.reveal" = "Rodyti paskyros raktą";
+"settings.cloud.key.hide" = "Slėpti paskyros raktą";
+"settings.cloud.key.copy" = "Kopijuoti paskyros raktą";
+"settings.cloud.activate.title" = "Aktyvinti HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Jūsų paskyros raktas yra jūsų piniginė — jame saugomi jūsų Cloud nuopelnai. Įveskite raktą, kad pradėtumėte, arba įsigykite nuopelnų, kad jį gautumėte.";
+"settings.cloud.getCredits.title" = "Dar neturite rakto?";
+"settings.cloud.getCredits.subtitle" = "Įsigykite nuopelnų ir mes atsiųsime jums paskyros raktą el. paštu.";
+"settings.cloud.getCredits.button" = "Pirkti nuopelnus";
 "settings.models.alert.cannotDelete.title" = "Negalima ištrinti modelio";
 "settings.models.parakeet.title" = "Parakeet modeliai";
 "settings.models.parakeet.subtitle" = "Rekomenduojama daugumai vartotojų. Daugiakalbis modelis palaiko 25 kalbas.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Rekomenduojama Mac su 24 GB suvienodintos atminties arba daugiau. Greitis priklauso nuo lusto — greitesnis su M3/M4 Pro ir naujesniais.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Žodžiai šiais metais";
+"home.stats.typing.speed.help" = "Pakoreguokite numatomą rašymo greitį (WPM), pagal kurį apskaičiuojamas sutaupytas laikas.";
+"home.stats.saved.week" = "Sutaupyta šią savaitę";
+"home.stats.minutes.value" = "%d min.";
 "vocabulary.input.placeholder" = "Pridėkite žodį arba sukurkite ištrauką";
 "vocabulary.action.addWord" = "Pridėti žodį";
 "vocabulary.action.replaceWith" = "Pakeisti į…";
@@ -641,22 +641,6 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "models.error.checksumFailed" = "Modelio kontrol sumos patikra nepavyko. Atsisiunčiamą failą gali sugadinti.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Jūsų naudojimo statistika";
-"statistics.header.subtitle" = "Sekite savo transkriptsiniu veiklą ir produktyvumą";
-"statistics.card.recordings" = "Iš viso įrašymų";
-"statistics.card.recordings.subtitle" = "Baigta transkripcija";
-"statistics.card.duration" = "Bendras laikas";
-"statistics.card.duration.subtitle" = "Laikas praleistas įrašant";
-"statistics.card.words" = "Bendri žodžiai";
-"statistics.card.words.subtitle" = "Transkripcijos žodžiai";
-"statistics.card.average" = "Vidutinis trukmė";
-"statistics.card.average.subtitle" = "Per įrašymą";
-"statistics.graph.title" = "Veikla bėgant laikui";
-"statistics.daily.empty" = "Dar nėra įrašymų";
-"statistics.filter.week" = "Šią savaitę";
-"statistics.filter.month" = "Šį mėnesį";
-"statistics.filter.alltime" = "Visą laiką";
 
 // MARK: - History View
 "history.title" = "Istorija";
@@ -777,8 +761,13 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.cloudAccuracy.groqWhisper.description" = "Greitas ir paaustas. Geriausias greitams transkriptsiniu.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Subalansuotas greitis ir tikslumas. Rekomenduojamas daugumai vartotojų.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditų/min";
 "modes.cloudAccuracy.grokStt.label" = "Aukščiausias (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
+"modes.cloudAccuracy.googleChirp3.label" = "Aukštas (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 su Chirp 3. Daugiakalbis, su frazių pritaikymu.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 per Azure Speech. 43 kalbos su kontekstiniu pritaikymu.";
 
 "modes.create.title" = "Sukurti naują režimą";
 "modes.create.subtitle" = "Sukonfigūruokite pasirinktą transkriptsiniu profilį";
@@ -915,9 +904,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 // MARK: - Audio Manager
 "audio.device.default" = "Numatytasis mikrofon";
 "audio.error.permissionDenied" = "Mikrofo prieiga atmesta. Suteikite prieigą sistemos nustatymuose.";
-"audio.error.fileWatcher.open" = "Negalėjau atidaryti failo deskriptoriaus audio failui stebėti.";
-"audio.error.fileWatcher.timeout" = "Operacija liko senutėti laukiant audio failo perrašymo.";
-"audio.error.fileWatcher.creation" = "Audio failas negrąžintas laiku.";
 "audio.error.microphonePermission" = "Mikrofo leidimas negrąžintas";
 "audio.error.microphoneInUse" = "HyperWhisper negali pasiekti mikrofo, nes jį naudoja kita programa. Pristabdykite kitą programą arba perjunkitės įėjimai, tada bandykite iš naujo.";
 "audio.error.createEngine" = "Nepavyko sukurti audio variklės";
@@ -992,6 +978,15 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.guidance.timeout" = "Užklausa užtruko per ilgai. Patikrinkite savo interneto greitį ir bandykite iš naujo.";
 "transcription.error.noSpeechDetected" = "Neaptiktas joks balsas įrašyme.";
 "transcription.guidance.noSpeechDetected" = "Patarimai:\n• Kalbėkite aiškiai į mikrofon\n• Laikykite raktą ilgiau prieš pradėdami kalbėti\n• Patikrinkite, ar jūsų mikrofon veikia\n• Įsitikinkite, kad pasirinktas teisingas įvesties įrenginys";
+"transcription.guidance.needsNativeRelaunch" = "Uždarykite ir vėl atidarykite HyperWhisper natyviai, kad galėtumėte naudoti vietinį papildomą apdorojimą.";
+"transcription.guidance.localRuntimeUnavailable" = "Bandykite dar kartą arba režimo nustatymuose pasirinkite mažesnį vietinį modelį.";
+"transcription.error.localRuntimeUnavailable" = "Vietiniam DI nepavyko baigti apdorojimo — jūsų neapdorotas nuorašas išsaugotas.";
+"settings.backup.localDownload.title" = "Atsisiųsti vietinius modelius?";
+"settings.backup.localDownload.message" = "%d iš jūsų atkurtų režimų naudoja įrenginyje veikiančius DI modelius, kurie dar neatsisiųsti.";
+"settings.backup.localDownload.downloadAll" = "Atsisiųsti visus";
+"settings.backup.localDownload.dismiss" = "Atmesti";
+"modelLibrary.local.requiresAppleSilicon" = "Reikia Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Paleisti iš naujo natyviai";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";
@@ -1125,3 +1120,12 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "history.autoDelete.status.enabled" = "Ištrinti įrašus senesnius nei %d %@";
 "history.autoDelete.cleanup.noItems" = "Nėra ištrinti įrašymai";
 "history.autoDelete.cleanup.summary" = "Ištrintas %d įrašymas (-ai) ir atlaisvinta %@";
+"history.status.interrupted" = "Transkripcija nutraukta — programa užsidarė nebaigusi darbo";
+"recording.maxDuration.reachedToast" = "Įrašymas sustabdytas — pasiekta %d min. riba";
+"streaming.maxDuration.reachedToast" = "Srautinis perdavimas sustabdytas — pasiekta %d min. riba";
+"settings.storage.maxRecordingDuration.title" = "Maksimali įrašymo trukmė";
+"settings.storage.maxRecordingDuration.subtitle" = "Automatiškai sustabdyti ir transkribuoti įrašus, trunkančius ilgiau nei šis laikas.";
+"settings.storage.maxRecordingDuration.minutes" = "%d min.";
+"settings.storage.maxRecordingDuration.hour" = "1 valanda";
+"settings.storage.maxRecordingDuration.hours" = "%d val.";
+"settings.storage.maxRecordingDuration.off" = "Išjungta";

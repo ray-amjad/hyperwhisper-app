@@ -20,6 +20,7 @@
     "githubAria": "Skatīt HyperWhisper vietnē GitHub"
   },
   "hero": {
+    "openSourceBadge": "Atvērtais kods · Apache-2.0",
     "logoAlt": "HyperWhisper logotips",
     "headline": "Raksti, veido un radi",
     "headlineAccent": "5x ātrāk ar AI",

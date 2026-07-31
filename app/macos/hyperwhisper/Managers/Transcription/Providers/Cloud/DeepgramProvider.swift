@@ -97,7 +97,9 @@ class DeepgramProvider: TranscriptionProvider {
             throw RustCoreMapping.mapTranscriptionError(err, providerName: "Deepgram")
         }
 
-        AppLogger.network.info("Deepgram transcription request · model=\(model.isEmpty ? "<default>" : model, privacy: .public) · language=\(language ?? "auto", privacy: .public) · url=\(request.url, privacy: .public)")
+        // NOTE: do not log request.url — Deepgram carries the user's vocabulary
+        // terms as `keywords=` query parameters, which would leak into public logs.
+        AppLogger.network.info("Deepgram transcription request · model=\(model.isEmpty ? "<default>" : model, privacy: .public) · language=\(language ?? "auto", privacy: .public)")
 
         // Execute via the shared executor + core retry loop. The core's parse fn
         // classifies non-2xx; surface the real error on give-up.

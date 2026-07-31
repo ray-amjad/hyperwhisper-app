@@ -10,29 +10,25 @@
 // this `KeyValueStore`, and takes `now_unix_secs` at every time-dependent call.
 //
 // BACKWARD-COMPATIBILITY (the #1 migration risk):
-// Existing Windows users must keep their trial seconds, lifetime model-download
-// count, and active license across the upgrade. Today's state lives in:
+// Existing Windows users must keep their active license across the upgrade.
+// Today's state lives in:
 //   - Windows Credential Manager  → raw license key ("LicenseKey" credential).
 //   - %LOCALAPPDATA%\HyperWhisper\license.json → CachedLicenseInfo (status etc).
-//   - %LOCALAPPDATA%\HyperWhisper\usage.json   → daily seconds, lifetime models.
-//   - %LOCALAPPDATA%\HyperWhisper\config.json  → remote trial-limit override.
 //
 // Routing of the core's storage keys:
 //   1. The license-KEY key (com.hyperwhisper.license.key) → Credential Manager,
 //      reusing the EXISTING "LicenseKey" credential (resource =
 //      AppPaths.CredentialResource). 1:1 mapping, so no key migration needed.
 //   2. Everything else (license.customerId / lastValidation / cachedStatus,
-//      config.*, usage.*) → a single flat kvstore.json holding a
+//      config.*) → a single flat kvstore.json holding a
 //      Dictionary<string,string>, loaded once and rewritten on Set/Delete.
 //
 // ONE-TIME MIGRATION (guarded by the "kvstore.migrated" marker key):
-//   - usage.json  → usage.dailySeconds, usage.dayIndex (= floor(LastUsageDate
-//     UTC / 86400)), usage.modelsDownloaded (lifetime — seeded UNCONDITIONALLY,
-//     irreversible if lost).
 //   - license.json → license.customerId / cachedStatus / lastValidation
 //     (status enum → Rust Display strings "Active"/"Trial"/"Expired"/"Invalid").
 //   - The license-key credential needs no migration (already 1:1).
 // Migration runs once in the constructor, BEFORE any License* call.
+// (Trial-era usage.json migration was removed with the trial limits.)
 
 using System;
 using System.Collections.Generic;
@@ -66,15 +62,8 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
     private const string KLastValidation = "com.hyperwhisper.license.lastValidation";
     private const string KCachedStatus = "com.hyperwhisper.license.cachedStatus";
 
-    // Routed to kvstore.json (usage):
-    private const string KUsageDailySeconds = "com.hyperwhisper.usage.dailySeconds";
-    private const string KUsageDayIndex = "com.hyperwhisper.usage.dayIndex";
-    private const string KUsageModelsDownloaded = "com.hyperwhisper.usage.modelsDownloaded";
-
     // Migration marker (kvstore.json only — never read by the core):
     private const string KMigrated = "kvstore.migrated";
-
-    private const int SecsPerDay = 86_400;
 
     // ---- Credential Manager (license key) ----
 
@@ -85,7 +74,6 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
     // ---- Flat JSON store (everything else) ----
 
     private static readonly string KvStorePath = AppPaths.Combine("kvstore.json");
-    private static readonly string LegacyUsagePath = AppPaths.Combine("usage.json");
     private static readonly string LegacyLicensePath = AppPaths.Combine("license.json");
 
     private readonly object _lock = new();
@@ -193,6 +181,8 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
         }
     }
 
+    private static readonly JsonSerializerOptions SaveMapOptions = new() { WriteIndented = true };
+
     // Caller must hold _lock.
     private void SaveMap()
     {
@@ -204,8 +194,15 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
                 Directory.CreateDirectory(directory);
             }
 
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            File.WriteAllText(KvStorePath, JsonSerializer.Serialize(_map, options));
+            // Atomic write (same shape as SettingsService.Save): serialize to a
+            // sibling .tmp, then rename over the real file so a crash or force-kill
+            // mid-write can never leave a truncated kvstore.json. No .bak needed —
+            // LoadMap() already degrades to an empty map on parse failure, and the
+            // atomic rename removes the truncation trigger that made that lossy.
+            var tmpPath = KvStorePath + ".tmp";
+            File.WriteAllText(tmpPath, JsonSerializer.Serialize(_map, SaveMapOptions));
+            AppPaths.PrepareForOverwrite(KvStorePath, "RustCoreKeyValueStore.SaveMap");
+            File.Move(tmpPath, KvStorePath, overwrite: true);
         }
         catch (Exception ex)
         {
@@ -275,7 +272,6 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
 
             try
             {
-                MigrateUsage();
                 MigrateLicenseCache();
             }
             catch (Exception ex)
@@ -287,37 +283,8 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
             // clobber values the core may have already updated this session.
             _map[KMigrated] = "1";
             SaveMap();
-            LoggingService.Info("RustCoreKeyValueStore: Legacy usage/license migration complete");
+            LoggingService.Info("RustCoreKeyValueStore: Legacy license migration complete");
         }
-    }
-
-    // Caller holds _lock.
-    private void MigrateUsage()
-    {
-        if (!File.Exists(LegacyUsagePath))
-        {
-            return;
-        }
-
-        var json = File.ReadAllText(LegacyUsagePath);
-        var legacy = JsonSerializer.Deserialize<LegacyUsageData>(json);
-        if (legacy == null)
-        {
-            return;
-        }
-
-        // Lifetime, irreversible — seed UNCONDITIONALLY.
-        _map[KUsageModelsDownloaded] = legacy.ModelsDownloaded.ToString();
-
-        // Day index = floor(LastUsageDate UTC / 86400). Windows already reset
-        // usage on the UTC calendar day, so a plain UTC day index matches the
-        // core's `now/86400` bucket when the app later passes UTC `now`.
-        var lastUtc = legacy.LastUsageDate.ToUniversalTime();
-        var lastUnix = ((DateTimeOffset)DateTime.SpecifyKind(lastUtc, DateTimeKind.Utc)).ToUnixTimeSeconds();
-        var dayIndex = (long)Math.Floor(lastUnix / (double)SecsPerDay);
-
-        _map[KUsageDailySeconds] = legacy.DailyUsageSeconds.ToString();
-        _map[KUsageDayIndex] = dayIndex.ToString();
     }
 
     // Caller holds _lock.
@@ -375,18 +342,4 @@ internal sealed class RustCoreKeyValueStore : KeyValueStore
         LicenseStatus.Invalid => "Invalid",
         _ => "Invalid"
     };
-
-    // ---- Legacy usage.json shape (mirrors LicenseUsageTracker.UsageData) ----
-
-    private sealed class LegacyUsageData
-    {
-        [System.Text.Json.Serialization.JsonPropertyName("daily_usage_seconds")]
-        public int DailyUsageSeconds { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("models_downloaded")]
-        public int ModelsDownloaded { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("last_usage_date")]
-        public DateTime LastUsageDate { get; set; } = DateTime.UtcNow.Date;
-    }
 }

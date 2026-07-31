@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Audiodatei konnte nicht geladen werden</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -287,6 +290,9 @@
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Ersatz</value>
   </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Quelle</value>
+  </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Noch keine Vokabeln</value>
   </data>
@@ -334,6 +340,9 @@
   </data>
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
+  </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
@@ -462,34 +471,16 @@
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
   </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Neustart erforderlich</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Die Anwendung muss neu gestartet werden, damit die Theme-Änderung wirksam wird.\n\nMöchten Sie jetzt neu starten?</value>
+  </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Klar</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>Versuch</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>Aktivieren</value>
@@ -505,23 +496,8 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper Cloud-Credits</value>
-  </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>Aktualisieren</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>Credits verwalten</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -555,6 +531,40 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Guthaben kann nicht geladen werden</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Kontoschlüssel</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>E-Mail</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Kontoschlüssel anzeigen</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Kontoschlüssel ausblenden</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Kontoschlüssel kopieren</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Credits kaufen</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloud aktivieren</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Ihr Kontoschlüssel ist Ihre Wallet – er enthält Ihre Cloud-Credits. Geben Sie Ihren Schlüssel ein, um loszulegen, oder kaufen Sie Credits, um einen zu erhalten.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Noch keinen Schlüssel?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Kaufen Sie Credits und wir senden Ihnen einen Kontoschlüssel per E-Mail.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Credits kaufen</value>
   </data>
 
   <!-- Settings - API Keys -->
@@ -923,6 +933,12 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>Aufnahme gestoppt — 20-Minuten-Sicherheitslimit erreicht.</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>Streaming hat das 20-Minuten-Sicherheitslimit erreicht.</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1232,7 +1248,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>Sind Sie sicher, dass Sie dieses Gerät deaktivieren möchten? Die Cloud-Transkription funktioniert nicht mehr, bis Sie erneut einen Kontoschlüssel eingeben. Ihr Guthaben bleibt auf Ihrem Schlüssel.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1240,6 +1256,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
+  </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Der Aufnahmeordner konnte nicht geöffnet werden. {0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
@@ -1282,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Bereinigung fehlgeschlagen</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Alte Aufnahmen konnten nicht gelöscht werden. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1342,20 +1367,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>Lizenziert – Vollzugriff</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>Lizenz abgelaufen</value>
+    <value>Ihre Lizenz ist abgelaufen. Verlängern Sie sie oder fügen Sie Guthaben hinzu, um HyperWhisper Cloud weiterhin zu nutzen.</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>Ungültige Lizenz</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Ihr Lizenzschlüssel ist nicht mehr gültig. Geben Sie unten einen neuen Schlüssel ein oder erwerben Sie Guthaben, um einen zu erstellen.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
@@ -1818,6 +1834,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Manuell</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1986,6 +2005,54 @@ You can re-download it later.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 Sprachen, Kontextgewichtung</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 Sprachen, Kontextgewichtung</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - multimodale LLM-Transkription</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - Keyterm-Prompting, Medizin-Modus</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Vorschau)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Vorschau</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Kein benutzerdefiniertes Vokabular)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Kein benutzerdefiniertes Vokabular</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Empfohlen)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Medizinisches Vokabular (Add-on Medizin-Modus)</value>
+  </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
@@ -2029,7 +2096,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>Verwendet Ihr HyperWhisper Cloud-Guthaben. Es ist kein separater API-Schlüssel erforderlich.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>
@@ -2228,6 +2295,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Token ist noch nicht verfügbar.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Token neu generiert.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Speicherort der Discovery-Datei geöffnet.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Speicherort der Discovery-Datei konnte nicht geöffnet werden: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Der Port ist erst verfügbar, wenn der Server läuft.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Dokumentation konnte nicht geöffnet werden: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Die Discovery-Datei ist noch nicht verfügbar. Schalten Sie den Server ein und warten Sie, bis er vollständig gestartet ist.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Kopieren in die Zwischenablage nicht möglich: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>In die Zwischenablage kopiert.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

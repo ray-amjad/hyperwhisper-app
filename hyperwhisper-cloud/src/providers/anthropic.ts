@@ -2,12 +2,14 @@
 // Used by the /assistant endpoint for screen-aware AI responses.
 
 import { computeAnthropicCost, type GroqUsage } from '../lib/cost-calculator';
-import { LLM_MAX_TOKENS } from '../lib/llm-token-limits';
+import { ANTHROPIC_MAX_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './groq-llm';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
 const ANTHROPIC_VERSION = '2023-06-01';
+export const ANTHROPIC_WRAPPER_INSTRUCTION =
+  'IMPORTANT: Output ONLY the corrected text surrounded by <<CLEANED>> and <<END>> exactly. Do not add markdown headers, labels, or text outside those markers.';
 
 export interface AnthropicContentBlock {
   type: 'text' | 'image';
@@ -46,7 +48,7 @@ export async function requestAnthropicChat(
   // Convert OpenAI chat format to Anthropic format:
   // messages[0] = system prompt, messages[1] = user message
   const systemContent = (payload.messages[0]?.content || '')
-    + '\n\nIMPORTANT: Output ONLY the corrected text. Do not add markdown headers, labels, or any wrapper around the text.';
+    + `\n\n${ANTHROPIC_WRAPPER_INSTRUCTION}`;
   const userContent = payload.messages[1]?.content || '';
 
   const response = await fetch(ANTHROPIC_API_URL, {
@@ -58,7 +60,7 @@ export async function requestAnthropicChat(
     },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
-      max_tokens: payload.max_tokens,
+      max_tokens: ANTHROPIC_MAX_TOKENS,
       system: systemContent,
       messages: [{ role: 'user', content: userContent }],
       stream: false,
@@ -74,6 +76,7 @@ export async function requestAnthropicChat(
 
   const data = await response.json() as {
     content: Array<{ type: string; text?: string }>;
+    stop_reason?: string | null;
     usage: {
       input_tokens: number;
       output_tokens: number;
@@ -139,7 +142,7 @@ export function streamAnthropicChat(
           },
           body: JSON.stringify({
             model: ANTHROPIC_MODEL,
-            max_tokens: LLM_MAX_TOKENS,
+            max_tokens: ANTHROPIC_MAX_TOKENS,
             system: systemPrompt,
             messages,
             stream: true,

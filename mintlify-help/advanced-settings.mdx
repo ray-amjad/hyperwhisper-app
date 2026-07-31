@@ -6,7 +6,7 @@ description: Reference for HyperWhisper's advanced recording and storage setting
 Advanced settings control low-level recording behavior and data-retention limits. They are stored in HyperWhisper's preferences and are included in backup files so they travel with the rest of your configuration.
 
 <Note>
-  These settings are not exposed in a dedicated Advanced panel in the current Settings UI. You can view and change them through the backup import/export workflow described below, or by editing a `.hwbackup.json` file before importing it.
+  Most of these settings are not exposed in a dedicated Advanced panel in the current Settings UI. You can view and change them through the backup import/export workflow described below, or by editing a `.hwbackup.json` file before importing it. Max recording duration is the exception — it has its own picker in **Settings → Storage** (see below).
 </Note>
 
 ---
@@ -15,20 +15,21 @@ Advanced settings control low-level recording behavior and data-retention limits
 
 ### Max recording duration
 
-Controls the maximum length of a single recording session.
+Controls the maximum length of a single recording session, after which it stops automatically and processing begins on the audio captured so far. This prevents runaway recordings from accumulating large audio files unexpectedly.
 
 | Detail | Value |
 |---|---|
-| Default | 300 seconds (5 minutes) |
+| Default | 3,600 seconds (1 hour) |
+| Options | 20 minutes, 1 hour, 2 hours, or Off (no limit) |
 | Platform | macOS |
 
-When a recording reaches this limit, it stops automatically and processing begins on the audio captured so far. This prevents runaway recordings from accumulating large audio files unexpectedly.
+Unlike the other settings on this page, this one has a dedicated picker in **Settings → Storage**, right below **Store as M4A**. Pick a preset from the dropdown — no backup editing required.
 
 ---
 
 ### Audio sample rate
 
-The sample rate (in Hz) at which HyperWhisper captures microphone audio for standard (non-streaming) recordings.
+A stored preference for the sample rate (in Hz) HyperWhisper would use to capture microphone audio for standard (non-streaming) recordings.
 
 | Detail | Value |
 |---|---|
@@ -36,7 +37,7 @@ The sample rate (in Hz) at which HyperWhisper captures microphone audio for stan
 | Valid range | 8 000 – 48 000 Hz |
 | Platform | macOS |
 
-If a value outside the valid range is stored (for example, from a corrupted preference), it resets automatically to 16 000 Hz at launch. The default of 16 000 Hz is the standard input rate for Whisper-family models and matches what most cloud STT providers expect.
+This setting is currently inert — microphone capture for standard recordings is hardcoded to 16 000 Hz regardless of the stored value. The setting is kept for backup round-trip compatibility and may become configurable in a future release.
 
 <Note>
   Streaming transcription uses a fixed sample rate set by the streaming provider, not this setting. See [Streaming Settings](/streaming-settings) for details.
@@ -46,48 +47,46 @@ If a value outside the valid range is stored (for example, from a corrupted pref
 
 ### Keep audio files
 
-Controls whether the raw audio recording is kept on disk after a transcription completes.
-
-| Detail | Value |
-|---|---|
-| Default | Off (audio is discarded after transcription) |
-| Platform | macOS |
-
-When off, audio files are deleted once transcription succeeds, which saves disk space. When on, the audio file is retained alongside the transcript in your recordings folder and can be played back from the History view.
-
-Turning this on also enables **Retry** on failed transcriptions, because the audio file needs to be present on disk to retry. See [Managing Your Recording History](/history-management) for playback details.
-
----
-
-### History retention days
-
-The number of days to use as the default threshold for history-based operations.
-
-| Detail | Value |
-|---|---|
-| Default | 30 days |
-| Platform | macOS |
-
-If a negative value is stored, it resets to 30 at launch. This value is separate from the auto-delete feature — it represents a preference value that can be carried across devices via backup. See [Managing Your Recording History](/history-management) for automatic cleanup configuration.
-
----
-
-### Show experimental models
-
-When enabled, experimental and preview model variants appear in the model selector alongside stable models.
+A stored preference for whether the raw audio recording should be kept on disk after a transcription completes.
 
 | Detail | Value |
 |---|---|
 | Default | Off |
 | Platform | macOS |
 
-Experimental models may produce better results on specific content types but can be less stable or subject to removal in future updates.
+This setting is currently inert — nothing in the app deletes audio files based on its value. Audio retention today is controlled separately by the auto-delete cleanup feature. See [Managing Your Recording History](/history) for details on how retention actually works and how transcripts are played back.
+
+---
+
+### History retention days
+
+A stored preference for the number of days to use as a default threshold for history-based operations.
+
+| Detail | Value |
+|---|---|
+| Default | 30 days |
+| Platform | macOS |
+
+This setting is currently inert — it is not read anywhere in the app. It is separate from the auto-delete feature and exists mainly as a value that carries across devices via backup. See [Managing Your Recording History](/history) for the automatic cleanup configuration that is actually active.
+
+---
+
+### Show experimental models
+
+A stored preference for whether experimental and preview model variants should appear in the model selector alongside stable models.
+
+| Detail | Value |
+|---|---|
+| Default | Off |
+| Platform | macOS |
+
+This setting is currently inert — no model-filtering code reads it, so the model selector shows the same models regardless of its value.
 
 ---
 
 ## Changing advanced settings via backup
 
-Because these settings do not appear in a dedicated Settings panel, the most reliable way to change them is through the backup workflow.
+Because most of these settings do not appear in a dedicated Settings panel, the most reliable way to change them is through the backup workflow. (Max recording duration can also be changed directly in **Settings → Storage**, as noted above.)
 
 <Steps>
   <Step title="Export your current settings">
@@ -98,7 +97,7 @@ Because these settings do not appear in a dedicated Settings panel, the most rel
 
     ```json
     "advanced": {
-      "maxRecordingDuration": 300,
+      "maxRecordingDuration": 3600,
       "audioSampleRate": 16000,
       "keepAudioFiles": false,
       "historyRetentionDays": 30

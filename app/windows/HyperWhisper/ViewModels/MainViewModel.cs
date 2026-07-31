@@ -839,14 +839,10 @@ public partial class MainViewModel : ViewModelBase
         if (model == null) return;
 
         string? language = SelectedMode.Language == "auto" ? null : SelectedMode.Language;
-        var effectiveLanguage = language ?? "auto";
 
-        // Check if already loaded. The daemon's startup language/join hint affects
-        // some Parakeet-family engines, so same-model mode switches with a
-        // different language must reinitialize.
-        if (_parakeetTranscriptionService.IsInitialized &&
-            _parakeetTranscriptionService.LoadedModelId == model.Id &&
-            string.Equals(_parakeetTranscriptionService.LoadedLanguage, effectiveLanguage, StringComparison.OrdinalIgnoreCase))
+        // The daemon's startup language/join hint affects some Parakeet-family
+        // engines; NeedsReload owns the per-engine reload rules.
+        if (!_parakeetTranscriptionService.NeedsReload(model.Id, SelectedMode.Language))
         {
             return;
         }
@@ -1637,9 +1633,13 @@ public partial class MainViewModel : ViewModelBase
             }
 
             var isCredentialError = ex is TranscriptionException { Code: TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized };
+            // CloudAccountRequired routes to the HW Cloud settings page (where
+            // the account key is entered), NOT the BYOK API-keys manager.
+            var isCloudAccountError = ex is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired };
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 ex is TranscriptionException txEx ? txEx.GetUserMessage() : Loc.S("errors.transcriptionFailed", ex.Message),
-                showSettingsButton: isCredentialError,
+                showSettingsButton: isCredentialError || isCloudAccountError,
+                settingsSection: isCloudAccountError ? "Cloud" : null,
                 openApiKeysManager: isCredentialError));
 
             StatusText = Loc.S("status.failed", ex.Message);
@@ -1737,6 +1737,24 @@ public partial class MainViewModel : ViewModelBase
         return false;
     }
 
+    /// <summary>
+    /// Run <paramref name="action"/> on the UI dispatcher: posted via BeginInvoke
+    /// from background threads, invoked inline when already on the UI thread (or
+    /// when no dispatcher exists).
+    /// </summary>
+    private static void DispatchToUi(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.CheckAccess())
+        {
+            dispatcher.BeginInvoke(action);
+        }
+        else
+        {
+            action();
+        }
+    }
+
     private void CheckRecordingDurationLimit()
     {
         if (!IsRecording ||
@@ -1751,18 +1769,9 @@ public partial class MainViewModel : ViewModelBase
         LoggingService.Warn("Recording duration limit reached; auto-stopping session");
         SentryService.AddBreadcrumb("recording_duration_limit_reached", "audio.recording");
 
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher != null && !dispatcher.CheckAccess())
-        {
-            dispatcher.BeginInvoke(async () =>
-            {
-                await AutoStopRecordingAfterDurationLimitAsync();
-            });
-        }
-        else
-        {
-            _ = AutoStopRecordingAfterDurationLimitAsync();
-        }
+        // The async helper re-checks recording state once on the UI thread —
+        // the session may have stopped between this tick and the dispatch.
+        DispatchToUi(() => _ = AutoStopRecordingAfterDurationLimitAsync());
     }
 
     private async Task AutoStopRecordingAfterDurationLimitAsync()
@@ -1773,7 +1782,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-            "Recording stopped — 20-minute safety limit reached.",
+            Loc.S("errors.recordingDurationLimit"),
             showSettingsButton: false));
         await StopRecordingAndTranscribeAsync();
     }
@@ -1788,28 +1797,21 @@ public partial class MainViewModel : ViewModelBase
         }
 
         _streamingDurationLimitReached = true;
-        _streamingFailureMessage = "Streaming reached the 20-minute safety limit.";
+        // Set BEFORE the dispatch: the stop path reads this field to explain the
+        // session end, and the dispatched toast must observe it too.
+        _streamingFailureMessage = Loc.S("errors.streamingDurationLimit");
         LoggingService.Warn("Streaming duration limit reached; stopping session");
         SentryService.AddBreadcrumb("streaming_duration_limit_reached", "audio.streaming");
 
-        var dispatcher = System.Windows.Application.Current?.Dispatcher;
-        if (dispatcher != null && !dispatcher.CheckAccess())
+        DispatchToUi(() =>
         {
-            dispatcher.BeginInvoke(() =>
-            {
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    _streamingFailureMessage,
-                    showSettingsButton: false));
-                _ = StopStreamingRecordingAsync();
-            });
-        }
-        else
-        {
+            // Toast first, then stop — the stop path clears session state the
+            // toast message derives from.
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 _streamingFailureMessage,
                 showSettingsButton: false));
             _ = StopStreamingRecordingAsync();
-        }
+        });
     }
 
     private SmartPasteResult PasteStreamingFinalSegment(string segment)
@@ -2088,7 +2090,14 @@ public partial class MainViewModel : ViewModelBase
                 vocabulary,
                 localTranscriptionProvider: GetLocalProvider(recordingMode),
                 applicationContext: _capturedApplicationContext,
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already tracked above (logged a few lines earlier) for the
+                // same audio content — avoids AssemblyAIService re-reading the
+                // file a second time just for its sync-eligibility gate. This
+                // is the PRIMARY target of the sub-120s sync fast path (the
+                // most latency-sensitive flow), so it must forward the known
+                // duration the same way the file-import call site does.
+                knownDurationSeconds: RecordingDuration.TotalSeconds);
             transcriptionCts.Token.ThrowIfCancellationRequested();
             if (ReferenceEquals(_activeTranscriptionCts, transcriptionCts))
             {
@@ -2232,7 +2241,8 @@ public partial class MainViewModel : ViewModelBase
                             inputDeviceName: SelectedAudioDevice?.Name,
                             transcriptionProviderDisplayName: txEx.ProviderName,
                             providerDiagnostics: txEx.ProviderDiagnostics,
-                            exception: txEx);
+                            exception: txEx,
+                            captureDeviceCount: AudioDevices.Count);
                     }
 
                     ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
@@ -2247,9 +2257,13 @@ public partial class MainViewModel : ViewModelBase
                     MarkTranscriptAsGenericFailure(transcript, txEx);
                 }
                 var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
+                // CloudAccountRequired routes to the HW Cloud settings page
+                // (account key entry), NOT the BYOK API-keys manager.
+                var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
                 ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                     txEx.GetUserMessage(),
-                    showSettingsButton: showSettings,
+                    showSettingsButton: showSettings || isCloudAccountError,
+                    settingsSection: isCloudAccountError ? "Cloud" : null,
                     openApiKeysManager: showSettings));
             }
             else
@@ -2726,7 +2740,12 @@ public partial class MainViewModel : ViewModelBase
             var result = await _transcriptionOrchestrator.TranscribeAsync(
                 permanentPath, mode, vocabulary,
                 localTranscriptionProvider: GetLocalProvider(mode),
-                cancellationToken: transcriptionCts.Token);
+                cancellationToken: transcriptionCts.Token,
+                // Already probed above (STEP 5) via NAudio for the same audio
+                // content (permanentPath is a byte-identical copy of
+                // pathForTranscription) — avoids AssemblyAIService re-reading
+                // the file a second time just for its sync-eligibility gate.
+                knownDurationSeconds: duration);
             transcriptionCts.Token.ThrowIfCancellationRequested();
 
             // STEP 9: Finishing stage (85-100%) - Update transcript with results
@@ -2919,14 +2938,10 @@ public partial class MainViewModel : ViewModelBase
             }
 
             string? language = mode.Language == "auto" ? null : mode.Language;
-            var effectiveLanguage = language ?? "auto";
 
-            // The daemon's startup language/join hint affects some Parakeet-family
-            // engines, so a warm daemon matching the model but a different language
-            // must reinitialize before file transcription.
-            if (_parakeetTranscriptionService.IsInitialized &&
-                _parakeetTranscriptionService.LoadedModelId == model.Id &&
-                string.Equals(_parakeetTranscriptionService.LoadedLanguage, effectiveLanguage, StringComparison.OrdinalIgnoreCase))
+            // A warm daemon can be reused for file transcription unless
+            // NeedsReload's per-engine rules say the switch requires a respawn.
+            if (!_parakeetTranscriptionService.NeedsReload(model.Id, mode.Language))
             {
                 return true;
             }
@@ -3111,6 +3126,17 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
+
+            // A persisted terminal status means some path already wrote a result,
+            // so there is nothing to repair — never downgrade it. The in-memory
+            // copy is not trustworthy on its own: it is shared with the History
+            // page's view model, which can revert it to Processing while the row
+            // in the database is already Completed.
+            if (persisted != null && persisted.Status != TranscriptStatus.Processing)
+            {
+                return;
+            }
+
             if (persisted?.Status == TranscriptStatus.Processing &&
                 transcript.Status != TranscriptStatus.Processing)
             {

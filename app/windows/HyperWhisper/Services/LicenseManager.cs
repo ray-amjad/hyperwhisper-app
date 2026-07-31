@@ -42,9 +42,10 @@ public sealed class LicenseManager : INotifyPropertyChanged
     // =========================================================================
 
     /// <summary>
-    /// URL for purchase page.
+    /// URL for purchase page. `/credits` is the universal "go Cloud" path — a guest
+    /// buy mints and emails an account key; the retired `/checkout` product is gone.
     /// </summary>
-    private const string PurchaseUrl = "https://www.hyperwhisper.com/checkout";
+    private const string PurchaseUrl = "https://www.hyperwhisper.com/credits";
 
     /// <summary>
     /// URL for user portal (manage billing, credits).
@@ -336,6 +337,19 @@ public sealed class LicenseManager : INotifyPropertyChanged
         }
 
         return (DeviceIdService.Instance.GetDeviceId(), false);
+    }
+
+    /// <summary>
+    /// Builds the identifier-aware credits purchase URL — the same `/credits`
+    /// destination as <see cref="OpenPurchasePage()"/>, tagged with the caller's
+    /// license key (licensed) or device ID (guest) so the buy is attributed to the
+    /// right wallet. Single source of truth for the credits URL.
+    /// </summary>
+    public string GetCreditsPurchaseUrl()
+    {
+        var (identifier, isLicensed) = GetTranscriptionIdentifier();
+        var paramName = isLicensed ? "license_key" : "device_id";
+        return $"{PurchaseUrl}?{paramName}={Uri.EscapeDataString(identifier)}";
     }
 
     // =========================================================================

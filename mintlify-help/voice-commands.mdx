@@ -3,17 +3,32 @@ title: Voice Commands
 description: Examples of phrasing that HyperWhisper's prompt builder understands while it cleans up your dictation.
 ---
 
-HyperWhisper's post-processing for the Hyper present can help you steer your output without you touching the keyboard.
+HyperWhisper's post-processing for the Hyper preset can help you steer your output without you touching the keyboard.
 
 ## Quick Formatting Cues
 
 | Say this | Result |
 | --- | --- |
-| "New paragraph…" | Splits the text onto a fresh paragraph break. |
+| "New line…" / "New paragraph…" | Splits the text onto a fresh paragraph break. |
 | "Exclamation mark" / "question mark" | Replaces the spoken punctuation with `!` or `?`. |
 | "…at example dot com" | Converts spelled-out email/URL into the proper format. |
 | "…in capitals" | Switches the requested phrase to uppercase text. |
-| "Actually I mean…" | Applies your self-correction and keeps only the final version. |
+| "Actually I mean…" / "Sorry I mean…" / "Sorry, no…" | Applies your self-correction and keeps only the final version. |
+| "First… second… third…" (or "one… two… three…") | Dictated sequence markers are formatted as a numbered list. |
+
+<Note>
+  Unlike the other cues on this page, "new line" / "new paragraph" aren't LLM judgment calls — they're matched deterministically and turned into a paragraph break. That means they work everywhere, on both macOS and Windows, even with **AI Post-Processing** set to **Off**.
+</Note>
+
+## Code Dictation Vocabulary
+
+When you dictate into a code-focused mode, HyperWhisper's prompt builder also understands a larger vocabulary of spoken symbols and formatting commands:
+
+- **Brackets & operators** — "open paren"/"close paren", "open bracket"/"close bracket", "open brace"/"close brace", "equals equals", "not equals", "arrow" (`->`), "fat arrow" (`=>`), "double ampersand", "double pipe", and similar spoken names convert to their symbol.
+- **Case formatting** — "camel case", "pascal case", "snake case", "screaming snake" (or "constant case"), and "kebab case" apply the requested casing to the words that follow.
+- **Structure commands** — "indent" / "dedent" (or "outdent") adjust indentation level, and "new line" inserts an actual line break.
+
+See [Voice Coding](/voice-coding) for the full picture of how HyperWhisper handles dictated code.
 
 ## Everyday Dictation Examples
 

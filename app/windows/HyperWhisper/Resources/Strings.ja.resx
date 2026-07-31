@@ -389,6 +389,9 @@
   <data name="settings.nav.credits" xml:space="preserve">
     <value>クレジット</value>
   </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
+  </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>ストレージ</value>
   </data>
@@ -539,32 +542,8 @@
   </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>ライセンス状態</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>ライセンスを有効化</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>ライセンスキーを入力して無制限の利用を解除</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>ライセンスをお持ちでないですか? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>こちらから購入</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>トライアル利用</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>1日の利用制限は深夜にリセットされます</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>クリア</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>トライアル</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>有効化</value>
@@ -580,26 +559,11 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper Cloudクレジット</value>
-  </data>
   <data name="settings.credits.subtitle" xml:space="preserve">
     <value>クラウド文字起こしクレジットの残高と使用状況を確認します。</value>
   </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>残高</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>HyperWhisper Cloud文字起こしクレジット</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>更新</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>クレジットを管理</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>クレジットの追加やアカウント管理</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>分残り</value>
@@ -633,6 +597,40 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>クレジットの読み込みに失敗しました</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>アカウントキー</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>メール</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>アカウントキーを表示</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>アカウントキーを非表示</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>アカウントキーをコピー</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>クレジットを購入</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>HyperWhisper Cloudを有効化</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>アカウントキーはあなたのウォレットです。Cloudクレジットが保管されます。キーを入力して始めるか、クレジットを購入してキーを取得してください。</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>まだキーをお持ちでないですか?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>クレジットを購入すると、アカウントキーをメールでお送りします。</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>クレジットを購入</value>
   </data>
 
   <!-- Settings - API Keys -->
@@ -1047,6 +1045,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>再試行に失敗しました: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>録音が停止しました — 20分の安全制限に達しました。</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>ストリーミングが20分の安全制限に達しました。</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1359,7 +1363,7 @@
     <value>ライセンスを無効化</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>ライセンスを無効化してもよろしいですか?機能が制限されたトライアルモードに戻ります。</value>
+    <value>このデバイスを無効化してよろしいですか？再びアカウントキーを入力するまで、クラウド文字起こしは機能しなくなります。クレジットはキーに残ります。</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1469,20 +1473,11 @@
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>ライセンス済み - フルアクセス</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>ライセンス期限切れ</value>
+    <value>ライセンスの有効期限が切れています。HyperWhisper Cloud の使用を継続するには、更新するかクレジットを追加してください。</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>無効なライセンス</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>不明</value>
+    <value>ライセンスキーは無効です。下に新しいキーを入力するか、クレジットを取得して作成してください。</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>ライセンスキーを入力してください。</value>
@@ -1977,7 +1972,7 @@
     <value>ElevenLabsストリーミングには、モデルのAPIキーマネージャーでElevenLabs APIキーが必要です。</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>HyperWhisperライセンスまたは試用クレジットを使用します。別のAPIキーは不要です。</value>
+    <value>HyperWhisper Cloud のクレジットを使用します。別の API キーは不要です。</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.configured" xml:space="preserve">
     <value>xAI APIキーが設定されています。</value>
@@ -2103,6 +2098,54 @@
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 言語対応、文脈バイアス</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 言語対応、文脈バイアス</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - マルチモーダル LLM による文字起こし</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - キーワードプロンプト、医療モード</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0}（プレビュー）</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0}（カスタム語彙なし）</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>カスタム語彙なし</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0}（推奨）</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>医療用語（医療モードアドオン）</value>
   </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
@@ -2234,31 +2277,31 @@
     <value>Pre-filled with your port and token.</value>
   </data>
   <data name="settings.localApi.action.copied" xml:space="preserve">
-    <value>Copied to clipboard.</value>
+    <value>クリップボードにコピーしました。</value>
   </data>
   <data name="settings.localApi.action.copyFailed" xml:space="preserve">
-    <value>Could not copy to clipboard: {0}</value>
+    <value>クリップボードにコピーできませんでした: {0}</value>
   </data>
   <data name="settings.localApi.action.openFailed" xml:space="preserve">
-    <value>Could not open docs: {0}</value>
+    <value>ドキュメントを開けませんでした: {0}</value>
   </data>
   <data name="settings.localApi.action.fileMissing" xml:space="preserve">
-    <value>Discovery file is not available yet. Turn on the server and wait for it to finish starting.</value>
+    <value>ディスカバリファイルはまだ利用できません。サーバーをオンにして、起動が完了するまでお待ちください。</value>
   </data>
   <data name="settings.localApi.action.revealed" xml:space="preserve">
-    <value>Opened the discovery file location.</value>
+    <value>ディスカバリファイルの場所を開きました。</value>
   </data>
   <data name="settings.localApi.action.revealFailed" xml:space="preserve">
-    <value>Could not open the discovery file location: {0}</value>
+    <value>ディスカバリファイルの場所を開けませんでした: {0}</value>
   </data>
   <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
-    <value>Port is not available until the server is running.</value>
+    <value>ポートはサーバーの実行中のみ利用できます。</value>
   </data>
   <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
-    <value>Token is not available yet.</value>
+    <value>トークンはまだ利用できません。</value>
   </data>
   <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
-    <value>Token regenerated.</value>
+    <value>トークンを再生成しました。</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>
@@ -2270,30 +2313,28 @@
     <value>127.0.0.1:{0} · token ••••{1}</value>
   </data>
   <data name="history.audio.loadFailed" xml:space="preserve">
-    <value>Audio file could not be loaded</value>
+    <value>オーディオファイルを読み込めませんでした</value>
   </data>
   <data name="settings.appearance.theme.restart.title" xml:space="preserve">
-    <value>Restart Required</value>
+    <value>再起動が必要です</value>
   </data>
   <data name="settings.appearance.theme.restart.message" xml:space="preserve">
-    <value>The application needs to restart for the theme change to take effect.
-
-Do you want to restart now?</value>
+    <value>テーマの変更を適用するには、アプリケーションを再起動する必要があります。\n\n今すぐ再起動しますか？</value>
   </data>
   <data name="settings.storage.error.openFolder" xml:space="preserve">
-    <value>Unable to open the recordings folder. {0}</value>
+    <value>録音フォルダを開けません。{0}</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
-    <value>Cleanup Failed</value>
+    <value>クリーンアップに失敗しました</value>
   </data>
   <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
-    <value>Unable to delete old recordings. {0}</value>
+    <value>古い録音を削除できません。{0}</value>
   </data>
   <data name="vocabulary.source.column" xml:space="preserve">
-    <value>Source</value>
+    <value>ソース</value>
   </data>
   <data name="vocabulary.manual.badge" xml:space="preserve">
-    <value>Manual</value>
+    <value>手動</value>
   </data>
   <data name="settings.backup.export.section.modes" xml:space="preserve">
     <value>モード</value>

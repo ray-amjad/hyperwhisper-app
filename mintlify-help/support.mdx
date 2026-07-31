@@ -10,7 +10,7 @@ The fastest way to reach us is email: **[support@hyperwhisper.com](mailto:suppor
 We typically reply within one business day. To help us respond faster, please include:
 
 - Your operating system and version (macOS 14.5, Windows 11 23H2, etc.)
-- HyperWhisper version (visible in **Settings → About** or the menu bar)
+- HyperWhisper version (visible in **Settings → General** on macOS, or **Settings → About** on Windows)
 - Whether you're using a local model, HyperWhisper Cloud, or BYOK
 - A clear description of what happened and what you expected
 
@@ -20,17 +20,15 @@ If you've hit a bug, attaching the in-app log makes diagnosis dramatically faste
 
 <Tabs>
   <Tab title="macOS">
-    1. Open **Settings → Developer Mode** (or **About**).
-    2. Click **Reveal Logs in Finder**.
-    3. Attach the most recent `.log` file to your email.
+    1. Use the **Debug** menu in the app's menu bar.
+    2. Select **Export Update Logs…** (or **Export Diagnostics…** for a fuller bundle).
+    3. Attach the exported file to your email.
   </Tab>
   <Tab title="Windows">
     1. Press `Win + R`, paste `%LOCALAPPDATA%\HyperWhisper\Logs`, and press Enter.
     2. Attach the most recent `hyperwhisper-YYYY-MM-DD.log` file.
   </Tab>
 </Tabs>
-
-See [Developer Mode](/developer-mode) for additional diagnostic options.
 
 ## Refunds
 
@@ -40,7 +38,7 @@ If HyperWhisper isn't working out for you, we'll refund your purchase — no qui
 - Your order number (from the receipt) **or** your license key
 - A short note on what didn't work for you (helps us improve — but it's not a requirement)
 
-Refunds are processed through our payment processor (Polar) and typically appear on your statement within 5–10 business days.
+Refunds are processed through our payment processor (Stripe) and typically appear on your statement within 5–10 business days.
 
 ## Feature requests
 

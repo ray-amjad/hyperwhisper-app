@@ -20,6 +20,7 @@
     "githubAria": "Skoða HyperWhisper á GitHub"
   },
   "hero": {
+    "openSourceBadge": "Opinn hugbúnaður · Apache-2.0",
     "logoAlt": "HyperWhisper merki",
     "headline": "Skrifaðu, semdu og skapaðu",
     "headlineAccent": "5x hraðar með AI",

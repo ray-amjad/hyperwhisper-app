@@ -2,7 +2,6 @@
 
 import { Link as HeroUILink } from "@heroui/link";
 import { Divider } from "@heroui/divider";
-import { env } from "@env/client.mjs";
 import { Github, Linkedin, Twitter } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -29,6 +28,7 @@ export default function FooterSection() {
       },
       { label: t("links.olderVersions"), href: "/older-versions" },
       { label: t("links.blog"), href: "/blog" },
+      { label: "Open Source", href: "/open-source" },
     ],
     [t("company")]: [
       { label: t("links.about"), href: "/" },

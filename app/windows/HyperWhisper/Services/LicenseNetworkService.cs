@@ -13,7 +13,9 @@
 // - ValidateLicenseAsync() -> LicenseBuildValidateRequest -> POST -> either
 //   LicenseParseValidateResponse / LicenseHttpErrorOutcome on a verdict, or
 //   LicenseOfflineFallbackOutcome on transient/network failure; then
-//   LicenseUpdateValidationCache + LicenseStoreLicenseKey on a real verdict.
+//   LicensePersistValidationVerdict on a real verdict (stores the key only when
+//   valid; caches only for the stored key, so a rejected replacement key can't
+//   clobber a valid user's cached status).
 //
 // CACHING (in the core, keyed off plain UTC `now`):
 // - 24-hour validation cache; 7-day offline grace period.
@@ -149,12 +151,16 @@ public sealed class LicenseNetworkService : IDisposable
                 }
 
                 // Hard non-200 = a real verdict -> core maps it to Invalid/Expired.
+                // The core persists the verdict guardedly: the key is stored only
+                // when valid, and the (global) validation cache is written only
+                // when the attempted key is the stored key — a rejected
+                // replacement key must not clobber the stored key or its cached
+                // status (a 24h lockout for a valid user).
                 // TODO-verify (Windows/CI): Rust shared-core swap.
                 var httpOutcome = HyperwhisperCoreMethods.LicenseHttpErrorOutcome(
                     (ushort)code, responseBytes);
-                HyperwhisperCoreMethods.LicenseUpdateValidationCache(
-                    store, httpOutcome.status, RustLicenseCore.Now());
-                HyperwhisperCoreMethods.LicenseStoreLicenseKey(store, trimmedKey);
+                HyperwhisperCoreMethods.LicensePersistValidationVerdict(
+                    store, httpOutcome.status, trimmedKey, RustLicenseCore.Now());
                 return RustLicenseCore.ToResult(httpOutcome);
             }
 
@@ -162,10 +168,10 @@ public sealed class LicenseNetworkService : IDisposable
             // TODO-verify (Windows/CI): Rust shared-core swap.
             var outcome = HyperwhisperCoreMethods.LicenseParseValidateResponse(responseBytes);
 
-            // Persist verdict + key, then update the validation cache.
-            HyperwhisperCoreMethods.LicenseStoreLicenseKey(store, trimmedKey);
-            HyperwhisperCoreMethods.LicenseUpdateValidationCache(
-                store, outcome.status, RustLicenseCore.Now());
+            // Persist the verdict guardedly (see the non-200 branch above): key
+            // stored only on a valid verdict, cache written only for the stored key.
+            HyperwhisperCoreMethods.LicensePersistValidationVerdict(
+                store, outcome.status, trimmedKey, RustLicenseCore.Now());
 
             LoggingService.Info($"LicenseNetworkService: Validation complete (valid={outcome.isValid})");
             return RustLicenseCore.ToResult(outcome);

@@ -20,6 +20,7 @@
     "githubAria": "Lihat HyperWhisper di GitHub"
   },
   "hero": {
+    "openSourceBadge": "Sumber terbuka · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Tulis, gubah dan cipta",
     "headlineAccent": "5x lebih pantas dengan AI",

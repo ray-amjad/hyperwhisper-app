@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Αρχική";
-"sidebar.statistics" = "Στατιστικά";
 "sidebar.modes" = "Λειτουργίες";
 "sidebar.vocabulary" = "Λεξιλόγιο";
 "sidebar.streaming" = "Ροή";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Έκδοση %@";
 "home.recent.updates.new.badge" = "ΝΕΟ";
 "home.recent.updates.no.notes" = "Καμία σημείωση κυκλοφορίας διαθέσιμη";
+"home.stats.words.week" = "Λέξεις αυτή την εβδομάδα";
+"home.stats.words.month" = "Λέξεις αυτόν τον μήνα";
+"home.stats.speed" = "Μέση ταχύτητα";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Ξεκινήστε με το HyperWhisper";
-"sidebar.statistics.help" = "Δείτε τα στατιστικά χρήσης και ανάλυση";
 "sidebar.modes.help" = "Διαχειρίστε τις λειτουργίες μεταγραφής για διαφορετικά πλαίσια";
 "sidebar.vocabulary.help" = "Προσθέστε προσαρμοσμένες λέξεις και φράσεις για καλύτερη αναγνώριση";
 "sidebar.streaming.help" = "Ρυθμίσεις ροής ρεμάτων σε πραγματικό χρόνο (απαιτείται Διαδίκτυο)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Πιστώσεις HyperWhisper Cloud";
 "settings.credits.refresh" = "Ανανέωση";
-"settings.credits.subtitle" = "Παρακολουθήστε τις πιστώσεις και τη χρήση της μεταγραφής";
-"settings.credits.manage" = "Διαχείριση Πιστώσεων";
 "settings.credits.timeRemaining" = "Χρόνος Μεταγραφής Απομένει";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "λεπτά";
 "settings.credits.creditsRemaining" = "%@ πιστώσεις απομένουν";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Δωρεάν Καθημερινό Όριο (100 πιστώσεις)";
-"settings.credits.resets" = "Εκκινήσεις %@";
 "settings.credits.warning.low" = "Πιστώσεις που τρέχουν χαμηλά. Σκεφτείτε να αγοράσετε μια άδεια για πρόσθετες πιστώσεις.";
-"settings.credits.warning.exhausted.daily" = "Καθημερινό όριο εξαντλημένο. Αγοράστε μια άδεια για απεριόριστη χρήση ή περιμένετε για επαναφορά.";
 "settings.credits.warning.exhausted" = "Πιστώσεις εξαντλημένες. Αγοράστε περισσότερες πιστώσεις για να συνεχίσετε τη χρήση του HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Πληροφορίες Λογαριασμού";
-"settings.credits.stat.creditsRemaining" = "Πιστώσεις Απομένουν";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Λεπτά Απομένουν";
-"settings.credits.stat.accountType" = "Τύπος Λογαριασμού";
-"settings.credits.accountType.licensed" = "Αδειοδοτημένο";
-"settings.credits.accountType.anonymous" = "Ανώνυμο";
-"settings.credits.accountType.trial" = "Δοκιμή";
-"settings.credits.stat.customerId" = "Αναγνωριστικό Πελάτη";
-"settings.credits.stat.dailyLimit" = "Καθημερινό Όριο";
-"settings.credits.dailyLimit.value" = "100 πιστώσεις";
 "settings.credits.loading" = "Φόρτωση υπολοίπου πιστώσεων...";
 "settings.credits.error.title" = "Δεν είναι δυνατή η φόρτωση του υπολοίπου πιστώσεων";
 "settings.credits.error.retry" = "Επανάληψη";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Σφάλμα δικτύου: %@";
 "settings.credits.error.invalidResponse" = "Μη έγκυρη απάντηση από το διακομιστή. Παρακαλώ δοκιμάστε ξανά.";
 "settings.credits.error.server" = "Σφάλμα διακομιστή: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Κλειδί Λογαριασμού";
+"settings.cloud.purchaseMore" = "Αγορά πιστώσεων";
+"settings.cloud.key.reveal" = "Εμφάνιση κλειδιού λογαριασμού";
+"settings.cloud.key.hide" = "Απόκρυψη κλειδιού λογαριασμού";
+"settings.cloud.key.copy" = "Αντιγραφή κλειδιού λογαριασμού";
+"settings.cloud.activate.title" = "Ενεργοποίηση HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Το κλειδί λογαριασμού σας είναι το πορτοφόλι σας — περιέχει τις πιστώσεις σας στο Cloud. Εισαγάγετε το κλειδί σας για να ξεκινήσετε, ή αγοράστε πιστώσεις για να αποκτήσετε ένα.";
+"settings.cloud.getCredits.title" = "Δεν έχετε ακόμα κλειδί;";
+"settings.cloud.getCredits.subtitle" = "Αγοράστε πιστώσεις και θα σας στείλουμε ένα κλειδί λογαριασμού μέσω email.";
+"settings.cloud.getCredits.button" = "Αγορά πιστώσεων";
 "settings.models.alert.cannotDelete.title" = "Δεν Είναι Δυνατή η Διαγραφή Μοντέλου";
 "settings.models.parakeet.title" = "Μοντέλα Parakeet";
 "settings.models.parakeet.subtitle" = "Συνιστάται για τους περισσότερους χρήστες. Το πολυγλωσσικό μοντέλο υποστηρίζει 25 γλώσσες.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Συνιστάται για Mac με 24 GB ενοποιημένης μνήμης ή περισσότερο. Η ταχύτητα εξαρτάται από το chip — ταχύτερο σε M3/M4 Pro και άνω.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Λέξεις φέτος";
+"home.stats.typing.speed.help" = "Προσαρμόστε την εκτιμώμενη ταχύτητα πληκτρολόγησης (WPM) που χρησιμοποιείται για τον υπολογισμό του χρόνου που εξοικονομείται.";
+"home.stats.saved.week" = "Εξοικονομήθηκαν αυτή την εβδομάδα";
+"home.stats.minutes.value" = "%d λεπτά";
 "vocabulary.input.placeholder" = "Προσθέστε λέξη ή δημιουργήστε απόσπασμα";
 "vocabulary.action.addWord" = "Προσθήκη λέξης";
 "vocabulary.action.replaceWith" = "Αντικατάσταση με…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "Η επαλήθευση ελέγχου μοντέλου απέτυχε. Η λήψη μπορεί να είναι κατεστραμμένη.";
 
 // MARK: - Statistics View
-"statistics.title" = "Στατιστικά";
-"statistics.header.title" = "Τα Στατιστικά Χρήσης σας";
-"statistics.header.subtitle" = "Παρακολουθήστε τη δραστηριότητα μεταγραφής και την απόδοση";
-"statistics.card.recordings" = "Σύνολο Εγγραφών";
-"statistics.card.recordings.subtitle" = "Ολοκληρωμένες μεταγραφές";
-"statistics.card.duration" = "Συνολικός Χρόνος";
-"statistics.card.duration.subtitle" = "Χρόνος ξοδεμένος στην εγγραφή";
-"statistics.card.words" = "Σύνολο Λέξεων";
-"statistics.card.words.subtitle" = "Λέξεις μεταγραφείες";
-"statistics.card.average" = "Μέση Διάρκεια";
-"statistics.card.average.subtitle" = "Ανά εγγραφή";
-"statistics.graph.title" = "Δραστηριότητα Κατά τη Διάρκεια του Χρόνου";
-"statistics.daily.empty" = "Καμία εγγραφή ακόμα";
-"statistics.filter.week" = "Αυτή τη Εβδομάδα";
-"statistics.filter.month" = "Αυτό το Μήνα";
-"statistics.filter.alltime" = "Όλες τις Ώρες";
 
 // MARK: - History View
 "history.title" = "Ιστορικό";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "Γρήγορο και οικονομικό. Καλύτερο για γρήγορες μεταγραφές.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Ισορροπημένη ταχύτητα και ακρίβεια. Συνιστάται για τους περισσότερους χρήστες.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ πιστώσεις/λεπτό";
 "modes.cloudAccuracy.grokStt.label" = "Υψηλότερο (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
+"modes.cloudAccuracy.googleChirp3.label" = "Υψηλή (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 με Chirp 3. Πολύγλωσσο, με προσαρμογή φράσεων.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 μέσω Azure Speech. 43 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
 
 "modes.create.title" = "Δημιουργία Νέας Λειτουργίας";
 "modes.create.subtitle" = "Διαμόρφωση ενός προσαρμοσμένου προφίλ μεταγραφής";
@@ -915,9 +904,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "Προεπιλεγμένο Μικροφώνο";
 "audio.error.permissionDenied" = "Πρόσβαση μικροφώνου αρνήθηκε. Παρακαλώ ενεργοποιήστε στις Ρυθμίσεις Συστήματος.";
-"audio.error.fileWatcher.open" = "Δεν ήταν δυνατό το άνοιγμα ενός περιγραφέα αρχείου για παρακολούθηση του αρχείου ήχου.";
-"audio.error.fileWatcher.timeout" = "Η ενέργεια έληξε κατά την αναμονή για το αρχείο ήχου να γραφτεί.";
-"audio.error.fileWatcher.creation" = "Το αρχείο ήχου δεν δημιουργήθηκε εγκαίρως.";
 "audio.error.microphonePermission" = "Άδεια μικροφώνου δεν δoθείσα";
 "audio.error.microphoneInUse" = "Το HyperWhisper δεν μπορεί να αποκτήσει πρόσβαση στο μικροφώνο επειδή μια άλλη εφαρμογή το χρησιμοποιεί. Παύστε την άλλη εφαρμογή ή αλλάξτε τις εισόδους, στη συνέχεια δοκιμάστε ξανά.";
 "audio.error.createEngine" = "Αποτυχία δημιουργίας κινητήρα ήχου";
@@ -992,6 +978,15 @@
 "transcription.guidance.timeout" = "Το αίτημα χρειάστηκε πολύ χρόνο. Ελέγξτε την ταχύτητα του διαδικτύου σας και δοκιμάστε ξανά.";
 "transcription.error.noSpeechDetected" = "Δεν ανιχνεύθηκε ομιλία στην εγγραφή.";
 "transcription.guidance.noSpeechDetected" = "Συμβουλές:\n• Μιλήστε καθαρά στο μικροφώνο\n• Κρατήστε το πλήκτρο περισσότερο πριν μιλήσετε\n• Ελέγξτε ότι το μικροφώνο σας λειτουργεί\n• Βεβαιωθείτε ότι είναι επιλεγμένη η σωστή συσκευή εισόδου";
+"transcription.guidance.needsNativeRelaunch" = "Κλείστε και ανοίξτε ξανά το HyperWhisper σε εγγενή λειτουργία για να χρησιμοποιήσετε την τοπική μετεπεξεργασία.";
+"transcription.guidance.localRuntimeUnavailable" = "Δοκιμάστε ξανά ή επιλέξτε μικρότερο τοπικό μοντέλο στις ρυθμίσεις της Λειτουργίας.";
+"transcription.error.localRuntimeUnavailable" = "Το τοπικό AI δεν μπόρεσε να ολοκληρώσει — η αρχική απομαγνητοφώνηση διατηρήθηκε.";
+"settings.backup.localDownload.title" = "Λήψη τοπικών μοντέλων;";
+"settings.backup.localDownload.message" = "%d από τις λειτουργίες που επαναφέρατε χρησιμοποιούν μοντέλα AI στη συσκευή τα οποία δεν έχουν ληφθεί ακόμη.";
+"settings.backup.localDownload.downloadAll" = "Λήψη όλων";
+"settings.backup.localDownload.dismiss" = "Παράβλεψη";
+"modelLibrary.local.requiresAppleSilicon" = "Απαιτεί Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Επανεκκίνηση σε εγγενή λειτουργία";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";
@@ -1125,3 +1120,12 @@
 "history.autoDelete.status.enabled" = "Διαγραφή εγγραφών παλιότερων από %d %@";
 "history.autoDelete.cleanup.noItems" = "Δεν υπάρχουν εγγραφές για διαγραφή";
 "history.autoDelete.cleanup.summary" = "Διαγράφηκε %d εγγραφή(έ) και ελευθερώθησε %@";
+"history.status.interrupted" = "Η μεταγραφή διακόπηκε — η εφαρμογή τερματίστηκε πριν ολοκληρωθεί";
+"recording.maxDuration.reachedToast" = "Η εγγραφή σταμάτησε — συμπληρώθηκε το όριο των %d λεπτών";
+"streaming.maxDuration.reachedToast" = "Η ροή σταμάτησε — συμπληρώθηκε το όριο των %d λεπτών";
+"settings.storage.maxRecordingDuration.title" = "Μέγιστη διάρκεια εγγραφής";
+"settings.storage.maxRecordingDuration.subtitle" = "Αυτόματη διακοπή και μεταγραφή εγγραφών που διαρκούν περισσότερο από αυτό το χρονικό διάστημα.";
+"settings.storage.maxRecordingDuration.minutes" = "%d λεπτά";
+"settings.storage.maxRecordingDuration.hour" = "1 ώρα";
+"settings.storage.maxRecordingDuration.hours" = "%d ώρες";
+"settings.storage.maxRecordingDuration.off" = "Απενεργοποιημένο";

@@ -171,8 +171,11 @@ final class ParakeetProvider: TranscriptionProvider {
     // VERSION DETECTION HELPER:
     // Determines AsrModelVersion from model ID string
     // Matches the pattern used in ParakeetModelManager
-    private func version(for modelId: String) -> AsrModelVersion {
-        modelId.lowercased().contains("v2") ? .v2 : .v3
+    private func version(for modelId: String) -> AsrModelVersion? {
+        guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: modelId) else {
+            return nil
+        }
+        return canonicalModelId == ParakeetModelManager.Constants.v2ModelId ? .v2 : .v3
     }
 
     // ANY VERSION AVAILABLE:
@@ -186,7 +189,9 @@ final class ParakeetProvider: TranscriptionProvider {
     // SPECIFIC VERSION AVAILABLE:
     // Returns true if the specified model is downloaded
     func isAvailable(for modelId: String) -> Bool {
-        let targetVersion = version(for: modelId)
+        guard let targetVersion = version(for: modelId) else {
+            return false
+        }
         return AsrModels.modelsExist(at: AsrModels.defaultCacheDirectory(for: targetVersion))
     }
 
@@ -203,7 +208,13 @@ final class ParakeetProvider: TranscriptionProvider {
     func prepareIfNeeded(language: String?, modelId: String? = nil) async throws {
         let targetVersion: AsrModelVersion
         if let modelId {
-            targetVersion = version(for: modelId)
+            guard let version = version(for: modelId) else {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Parakeet",
+                    reason: "Unknown Parakeet model '\(modelId)'"
+                )
+            }
+            targetVersion = version
         } else {
             // Default to V3 for backward compatibility
             targetVersion = .v3
@@ -233,7 +244,12 @@ final class ParakeetProvider: TranscriptionProvider {
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
         // STEP 1: Determine which version to use from mode
         let modelId = mode?.model ?? ParakeetModelManager.Constants.v3ModelId
-        let targetVersion = version(for: modelId)
+        guard let targetVersion = version(for: modelId) else {
+            throw TranscriptionError.providerNotAvailable(
+                provider: "Parakeet",
+                reason: "Unknown Parakeet model '\(modelId)'"
+            )
+        }
 
         // STEP 2: Verify model is downloaded
         let directory = AsrModels.defaultCacheDirectory(for: targetVersion)

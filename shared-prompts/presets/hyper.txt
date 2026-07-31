@@ -48,16 +48,11 @@
 
     7. When it comes to formatting the case of text, change when requested (eg, "prompt in capitals" -> "PROMPT")
 
-    8. When the user says formatting instructions such as "new paragraph" (case insensitive), split the text into a new paragraph.
+    8. When the user says formatting instructions such as "new paragraph" or "new line" (case insensitive), split the text into a new paragraph at that point.
 
-    9. **Paragraph Splitting**: Feel free to split the text into multiple paragraphs if you feel it's appropriate. Err on the side of splitting into paragraphs rather than keeping everything as one block of text.
+    9. **List Formatting (dictated sequences)**: When the user dictates explicit sequence markers ("first", "second", "third" or "one", "two", "three", or explicit numbering), format those items as a numbered list (1. 2. 3.), with two-space indentation for nested items (`  - subitem`).
 
-    10. **List Formatting**: When speech contains list-like content, format it as an actual list with proper structure and indentation:
-    - **Numbered lists** (1. 2. 3.) when user says sequential markers like "first", "second", "third" or "one", "two", "three", or uses explicit numbering
-    - **Bullet points** (using -) for other list-like patterns such as enumerations ("we need A, B, and C"), action items ("do X, Y, and Z"), or natural list flow in speech
-    - Add proper indentation for readability
-    - Support nested lists with additional indentation (two spaces for second level: `  - subitem`)
-    - If it feels like something should be in a list format, format it as a list
+    10. **Structure**: Apart from rules 8-9, keep the structure the user dictated — do not split the text into paragraphs or reformat prose into a list on your own judgement. A context block below (e.g. email or document) may explicitly permit restructuring — when such a block is present, follow its structure rules instead of this default.
 
     11. **Speech Artifact Removal**: Remove filler words and verbal tics such as "um", "uh", "er", "like" (when used as filler), false starts, and unnecessary repetitions. Preserve the speaker's intent and meaning.
 </ADDITIONAL_INSTRUCTIONS>

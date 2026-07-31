@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Avaleht";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Režiimid";
 "sidebar.vocabulary" = "Sõnavara";
 "sidebar.streaming" = "Voogedastus";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versioon %@";
 "home.recent.updates.new.badge" = "UUS";
 "home.recent.updates.no.notes" = "Väljalaskemärkmed puuduvad";
+"home.stats.words.week" = "Sõnu sel nädalal";
+"home.stats.words.month" = "Sõnu sel kuul";
+"home.stats.speed" = "Keskmine kiirus";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Alusta HyperWhisperiga";
-"sidebar.statistics.help" = "Vaata kasutusstatistikat ja analüüse";
 "sidebar.modes.help" = "Halda transkriptsiooni režiime erinevate kontekstide jaoks";
 "sidebar.vocabulary.help" = "Lisa kohandatud sõnu ja fraase parema äratundmise jaoks";
 "sidebar.streaming.help" = "Reaalajas voogedastuse transkriptsiooni seaded (nõuab internetti)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud krediidid";
 "settings.credits.refresh" = "Värskenda";
-"settings.credits.subtitle" = "Jälgi oma transkriptsiooni krediite ja kasutust";
-"settings.credits.manage" = "Halda krediite";
 "settings.credits.timeRemaining" = "Transkriptsiooni aeg jäänud";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minutit";
 "settings.credits.creditsRemaining" = "%@ krediiti jäänud";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Tasuta igapäevane limiit (100 krediiti)";
-"settings.credits.resets" = "Lähtestub %@";
 "settings.credits.warning.low" = "Krediidid vähenevad. Kaaluge litsentsi ostmist täiendavate krediitide jaoks.";
-"settings.credits.warning.exhausted.daily" = "Igapäevane limiit ammendunud. Ostke litsents piiramatu kasutuse jaoks või oodake lähtestamist.";
 "settings.credits.warning.exhausted" = "Krediidid ammendunud. Ostke rohkem krediite, et jätkata HyperWhisper Cloudi kasutamist.";
 "settings.credits.accountInfo" = "Konto informatsioon";
-"settings.credits.stat.creditsRemaining" = "Krediidid jäänud";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minuteid jäänud";
-"settings.credits.stat.accountType" = "Konto tüüp";
-"settings.credits.accountType.licensed" = "Litsentsitud";
-"settings.credits.accountType.anonymous" = "Anonüümne";
-"settings.credits.accountType.trial" = "Proov";
-"settings.credits.stat.customerId" = "Kliendi ID";
-"settings.credits.stat.dailyLimit" = "Igapäevane limiit";
-"settings.credits.dailyLimit.value" = "100 krediiti";
 "settings.credits.loading" = "Laadimine krediidi saldo...";
 "settings.credits.error.title" = "Krediidi saldo laadimine ebaõnnestus";
 "settings.credits.error.retry" = "Proovi uuesti";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Võrgu viga: %@";
 "settings.credits.error.invalidResponse" = "Vale vastus serverist. Palun proovige uuesti.";
 "settings.credits.error.server" = "Serveri viga: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontovõti";
+"settings.cloud.purchaseMore" = "Osta krediite";
+"settings.cloud.key.reveal" = "Kuva kontovõti";
+"settings.cloud.key.hide" = "Peida kontovõti";
+"settings.cloud.key.copy" = "Kopeeri kontovõti";
+"settings.cloud.activate.title" = "Aktiveeri HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Sinu kontovõti on sinu rahakott — see hoiab sinu Cloud'i krediite. Sisesta oma võti alustamiseks või osta krediite, et üks saada.";
+"settings.cloud.getCredits.title" = "Ei ole veel võtit?";
+"settings.cloud.getCredits.subtitle" = "Osta krediite ja saadame sulle kontovõtme e-postiga.";
+"settings.cloud.getCredits.button" = "Osta krediite";
 "settings.models.alert.cannotDelete.title" = "Mudelit ei saa kustutada";
 "settings.models.parakeet.title" = "Parakeet mudelid";
 "settings.models.parakeet.subtitle" = "Soovitatav enamikule kasutajatele. Mitmekeelne mudel toetab 25 keelt.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Soovitatav Mac-idele, millel on 24 GB ühendatud mälu või rohkem. Kiirus sõltub kiibist — kiirem M3/M4 Pro ja uuematel.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Sõnad sel aastal";
+"home.stats.typing.speed.help" = "Muuda eeldatavat kirjutamiskiirust (WPM), mille alusel säästetud aega hinnatakse.";
+"home.stats.saved.week" = "Sel nädalal säästetud";
+"home.stats.minutes.value" = "%d minutit";
 "vocabulary.input.placeholder" = "Lisa sõna või loo katkend";
 "vocabulary.action.addWord" = "Lisa sõna";
 "vocabulary.action.replaceWith" = "Asenda järgmisega…";
@@ -641,22 +641,6 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "models.error.checksumFailed" = "Mudeli kontrollsumma kontrollimine ebaõnnestus. Allalaadimine võib olla rikutud.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Teie kasutusstatistika";
-"statistics.header.subtitle" = "Jälgi oma transkriptsiooni tegevust ja jõudlust";
-"statistics.card.recordings" = "Kokku salvestusi";
-"statistics.card.recordings.subtitle" = "Lõpetatud transkriptsioonid";
-"statistics.card.duration" = "Kogu aeg";
-"statistics.card.duration.subtitle" = "Aeg salvestamiseks kulunud";
-"statistics.card.words" = "Kokku sõnu";
-"statistics.card.words.subtitle" = "Transkribeeritud sõnad";
-"statistics.card.average" = "Keskmine kestus";
-"statistics.card.average.subtitle" = "Salvestuse kohta";
-"statistics.graph.title" = "Tegevus aja jooksul";
-"statistics.daily.empty" = "Salvestusi pole veel";
-"statistics.filter.week" = "See nädal";
-"statistics.filter.month" = "See kuu";
-"statistics.filter.alltime" = "Kogu aeg";
 
 // MARK: - History View
 "history.title" = "Ajalugu";
@@ -777,8 +761,13 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.cloudAccuracy.groqWhisper.description" = "Kiire ja taskukohane. Parim kiire transkriptsioonide jaoks.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Tasakaalustatud kiirus ja täpsus. Soovitatav enamikule kasutajatele.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ krediiti/min";
 "modes.cloudAccuracy.grokStt.label" = "Kõrgeim (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
+"modes.cloudAccuracy.googleChirp3.label" = "Kõrge (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 mudeliga Chirp 3. Mitmekeelne, fraasikohandusega.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech kaudu. 43 keelt koos kontekstipõhise kohandusega.";
 
 "modes.create.title" = "Loo uus režiim";
 "modes.create.subtitle" = "Konfigureeri kohandatud transkriptsiooni profiil";
@@ -915,9 +904,6 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 // MARK: - Audio Manager
 "audio.device.default" = "Vaikimisi mikrofon";
 "audio.error.permissionDenied" = "Mikrofoni juurdepääs keelduti. Palun lubage süsteemiseadetes.";
-"audio.error.fileWatcher.open" = "Ei saanud avada faili deskriptorit helifaili jälgimiseks.";
-"audio.error.fileWatcher.timeout" = "Toiming aegus, oodates helifaili kirjutamist.";
-"audio.error.fileWatcher.creation" = "Helifaili ei loodud õigeaegselt.";
 "audio.error.microphonePermission" = "Mikrofoni luba pole antud";
 "audio.error.microphoneInUse" = "HyperWhisper ei pääse mikrofonile juurde, kuna teine rakendus kasutab seda praegu. Peatage teine rakendus või vahetage sisendeid, seejärel proovige uuesti.";
 "audio.error.createEngine" = "Helimootorit loomine ebaõnnestus";
@@ -992,6 +978,15 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.guidance.timeout" = "Päring võttis liiga kaua aega. Kontrollige oma interneti kiirust ja proovige uuesti.";
 "transcription.error.noSpeechDetected" = "Salvestuses ei tuvastatud kõnet.";
 "transcription.guidance.noSpeechDetected" = "Näpunäited:\n• Rääkige selgelt mikrofonisse\n• Hoidke klahvi kauem enne rääkimist\n• Kontrollige, et teie mikrofon töötab\n• Veenduge, et õige sisendseade on valitud";
+"transcription.guidance.needsNativeRelaunch" = "Kohaliku järeltöötluse kasutamiseks sulge HyperWhisper ja ava see uuesti natiivselt.";
+"transcription.guidance.localRuntimeUnavailable" = "Proovi uuesti või vali režiimi seadetes väiksem kohalik mudel.";
+"transcription.error.localRuntimeUnavailable" = "Kohalik tehisintellekt ei saanud tööd lõpetada — töötlemata transkriptsioon säilitati.";
+"settings.backup.localDownload.title" = "Kas laadida kohalikud mudelid alla?";
+"settings.backup.localDownload.message" = "%d taastatud režiimi kasutavad seadmesisese tehisintellekti mudeleid, mida pole veel alla laaditud.";
+"settings.backup.localDownload.downloadAll" = "Laadi kõik alla";
+"settings.backup.localDownload.dismiss" = "Sulge";
+"modelLibrary.local.requiresAppleSilicon" = "Vajalik on Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Taaskäivita natiivselt";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ebapiisavad krediidid. Lisage rohkem krediite seadetes.";
@@ -1125,3 +1120,12 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "history.autoDelete.status.enabled" = "Kustuta salvestused vanemad kui %d %@";
 "history.autoDelete.cleanup.noItems" = "Kustutamiseks salvestusi pole";
 "history.autoDelete.cleanup.summary" = "Kustutatud %d salvestus(t) ja vabastatud %@";
+"history.status.interrupted" = "Transkriptsioon katkestati — rakendus suleti enne lõpetamist";
+"recording.maxDuration.reachedToast" = "Salvestamine peatati — %d-minutiline piirang saavutatud";
+"streaming.maxDuration.reachedToast" = "Voogesitus peatati — %d-minutiline piirang saavutatud";
+"settings.storage.maxRecordingDuration.title" = "Salvestuse maksimaalne kestus";
+"settings.storage.maxRecordingDuration.subtitle" = "Peata ja transkribeeri automaatselt salvestused, mis kestavad sellest kauem.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minutit";
+"settings.storage.maxRecordingDuration.hour" = "1 tund";
+"settings.storage.maxRecordingDuration.hours" = "%d tundi";
+"settings.storage.maxRecordingDuration.off" = "Väljas";

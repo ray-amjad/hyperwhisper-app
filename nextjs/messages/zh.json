@@ -20,6 +20,7 @@
     "githubAria": "在 GitHub 上查看 HyperWhisper"
   },
   "hero": {
+    "openSourceBadge": "开源 · Apache-2.0",
     "logoAlt": "HyperWhisper 标志",
     "headline": "写作、构思、创作",
     "headlineAccent": "AI 加持快 5 倍",

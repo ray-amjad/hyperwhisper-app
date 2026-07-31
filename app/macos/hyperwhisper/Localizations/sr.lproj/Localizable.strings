@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Почетна";
-"sidebar.statistics" = "Статистика";
 "sidebar.modes" = "Режими";
 "sidebar.vocabulary" = "Речник";
 "sidebar.streaming" = "Стриминг";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Верзија %@";
 "home.recent.updates.new.badge" = "НОВО";
 "home.recent.updates.no.notes" = "Нема доступних напомена при издању";
+"home.stats.words.week" = "Reči ove nedelje";
+"home.stats.words.month" = "Reči ovog meseca";
+"home.stats.speed" = "Prosečna brzina";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Почни са HyperWhisper";
-"sidebar.statistics.help" = "Преглед статистике употребе и аналитике";
 "sidebar.modes.help" = "Управљај режимима транскрипције за различите контексте";
 "sidebar.vocabulary.help" = "Додај прилагођене речи и фразе за бољу препознаву";
 "sidebar.streaming.help" = "Поставке стриминга транскрипције у стварном времену (захтева интернет)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud Кредити";
 "settings.credits.refresh" = "Освежи";
-"settings.credits.subtitle" = "Надгледај своје кредите за транскрипцију и употребу";
-"settings.credits.manage" = "Управљај Кредитима";
 "settings.credits.timeRemaining" = "Време Остатка Транскрипције";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "минута";
 "settings.credits.creditsRemaining" = "%@ кредита остаје";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Бесплатна Дневна Граница (100 кредита)";
-"settings.credits.resets" = "Враћа се %@";
 "settings.credits.warning.low" = "Кредити су ниски. Размотри куповање лиценце за додатне кредите.";
-"settings.credits.warning.exhausted.daily" = "Дневна граница исцрпљена. Купи лиценцу за неограничену употребу или чекај да се врати.";
 "settings.credits.warning.exhausted" = "Кредити су исцрпљени. Купи више кредита да наставиш са коришћењем HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Подаци о Налогу";
-"settings.credits.stat.creditsRemaining" = "Кредити Остатка";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Минута Остатка";
-"settings.credits.stat.accountType" = "Врста Налога";
-"settings.credits.accountType.licensed" = "Лиценцирано";
-"settings.credits.accountType.anonymous" = "Анонимно";
-"settings.credits.accountType.trial" = "Пробни Период";
-"settings.credits.stat.customerId" = "ID Клијента";
-"settings.credits.stat.dailyLimit" = "Дневна Граница";
-"settings.credits.dailyLimit.value" = "100 кредита";
 "settings.credits.loading" = "Учитавање баланса кредита...";
 "settings.credits.error.title" = "Не могу да учитам баланс кредита";
 "settings.credits.error.retry" = "Покушај поново";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Грешка мреже: %@";
 "settings.credits.error.invalidResponse" = "Неважећи одговор са сервера. Молимо покушај поново.";
 "settings.credits.error.server" = "Грешка сервера: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Кључ Налога";
+"settings.cloud.purchaseMore" = "Купи Кредите";
+"settings.cloud.key.reveal" = "Прикажи кључ налога";
+"settings.cloud.key.hide" = "Сакриј кључ налога";
+"settings.cloud.key.copy" = "Копирај кључ налога";
+"settings.cloud.activate.title" = "Активирај HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Кључ налога је твој новчаник — у њему се чувају твоји Cloud кредити. Унеси свој кључ да почнеш, или купи кредите да га добијеш.";
+"settings.cloud.getCredits.title" = "Још немаш кључ?";
+"settings.cloud.getCredits.subtitle" = "Купи кредите и послаћемо ти кључ налога имејлом.";
+"settings.cloud.getCredits.button" = "Купи Кредите";
 "settings.models.alert.cannotDelete.title" = "Не Могу Обрисати Модел";
 "settings.models.parakeet.title" = "Parakeet Модели";
 "settings.models.parakeet.subtitle" = "Препоручено за већину корисника. Вишејезични модел подржава 25 језика.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Препоручено за Mac са 24 GB обједињене меморије или више. Брзина зависи од чипа — брже на M3/M4 Pro и новијим.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Речи ове године";
+"home.stats.typing.speed.help" = "Podesite pretpostavljenu brzinu kucanja (WPM) koja se koristi za procenu uštede vremena.";
+"home.stats.saved.week" = "Ušteđeno ove nedelje";
+"home.stats.minutes.value" = "%d minuta";
 "vocabulary.input.placeholder" = "Додај реч или направи исечак";
 "vocabulary.action.addWord" = "Додај реч";
 "vocabulary.action.replaceWith" = "Замени са…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "Провера суме модела неуспешна. Преузимање може бити корупирано.";
 
 // MARK: - Statistics View
-"statistics.title" = "Статистика";
-"statistics.header.title" = "Твоја Статистика Употребе";
-"statistics.header.subtitle" = "Праћење твоје активности транскрипције и перформанси";
-"statistics.card.recordings" = "Укупна Снимања";
-"statistics.card.recordings.subtitle" = "Завршене транскрипције";
-"statistics.card.duration" = "Укупно Време";
-"statistics.card.duration.subtitle" = "Време проведено снимањем";
-"statistics.card.words" = "Укупне Речи";
-"statistics.card.words.subtitle" = "Речи транскрибоване";
-"statistics.card.average" = "Просечно Трајање";
-"statistics.card.average.subtitle" = "По снимању";
-"statistics.graph.title" = "Активност Кроз Време";
-"statistics.daily.empty" = "Нема снимања";
-"statistics.filter.week" = "Ове Недеље";
-"statistics.filter.month" = "Овог Месеца";
-"statistics.filter.alltime" = "Од Почетка";
 
 // MARK: - History View
 "history.title" = "Историја";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "Брза и приступачна. Најбоља за брзе транскрипције.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Уравнотежена брзина и тачност. Препоручена за већину корисника.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Највећа тачност са споријом обработком. Најбоља за важне транскрипције.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredita/min";
 "modes.cloudAccuracy.grokStt.label" = "Највиша (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Највећа тачност са споријом обработком. Најбоља за важне транскрипције.";
+"modes.cloudAccuracy.googleChirp3.label" = "Visoka (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 sa Chirp 3. Višejezično uz prilagođavanje fraza.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 preko Azure Speech. 43 jezika uz kontekstualno prilagođavanje.";
 
 "modes.create.title" = "Направи Нови Режим";
 "modes.create.subtitle" = "Конфигуриши прилагођени профил транскрипције";
@@ -915,9 +904,6 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 // MARK: - Audio Manager
 "audio.device.default" = "Подразумевани Микрофон";
 "audio.error.permissionDenied" = "Приступ микрофону одбијен. Молимо омогући у Системским Поставкама.";
-"audio.error.fileWatcher.open" = "Не могу отворити дескриптор датотеке за надгледање звучне датотеке.";
-"audio.error.fileWatcher.timeout" = "Операција је искочила док се чека писање звучне датотеке.";
-"audio.error.fileWatcher.creation" = "Звучна датотека није направљена на време.";
 "audio.error.microphonePermission" = "Дозвола за микрофон није дата";
 "audio.error.microphoneInUse" = "HyperWhisper не може приступити микрофону јер га тренутно користи друга апликација. Паузирај другу апликацију или пребаци улазе, затим покушај поново.";
 "audio.error.createEngine" = "Неуспешно прављење аудио мотора";
@@ -992,6 +978,15 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "transcription.guidance.timeout" = "Захтев је трајао превише дуго. Провери брзину своје интернетске повезе и покушај поново.";
 "transcription.error.noSpeechDetected" = "Нема детектованог говора у снимању.";
 "transcription.guidance.noSpeechDetected" = "Савети:\n• Јасно говори у микрофон\n• Держи тастер дуже пре него што почнеш говорити\n• Провери да твој микрофон ради\n• Обезбеди да је изабран исправан уређај за унос";
+"transcription.guidance.needsNativeRelaunch" = "Zatvorite i ponovo otvorite HyperWhisper izvorno da biste koristili lokalnu naknadnu obradu.";
+"transcription.guidance.localRuntimeUnavailable" = "Pokušajte ponovo ili izaberite manji lokalni model u podešavanjima režima.";
+"transcription.error.localRuntimeUnavailable" = "Lokalni AI nije uspeo da završi — sačuvan je vaš neobrađeni transkript.";
+"settings.backup.localDownload.title" = "Preuzeti lokalne modele?";
+"settings.backup.localDownload.message" = "%d vaših vraćenih režima koristi AI modele na uređaju koji još nisu preuzeti.";
+"settings.backup.localDownload.downloadAll" = "Preuzmi sve";
+"settings.backup.localDownload.dismiss" = "Odbaci";
+"modelLibrary.local.requiresAppleSilicon" = "Zahteva Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Ponovo pokreni izvorno";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Недовољно кредита. Додај више кредита у Поставкама.";
@@ -1125,3 +1120,12 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "history.autoDelete.status.enabled" = "Обриши снимања старија од %d %@";
 "history.autoDelete.cleanup.noItems" = "Нема снимања за брисање";
 "history.autoDelete.cleanup.summary" = "Обрисано %d снимања и ослобођено %@";
+"history.status.interrupted" = "Транскрипција је прекинута — апликација се затворила пре него што је завршила";
+"recording.maxDuration.reachedToast" = "Снимање заустављено — достигнуто ограничење од %d минута";
+"streaming.maxDuration.reachedToast" = "Стримовање заустављено — достигнуто ограничење од %d минута";
+"settings.storage.maxRecordingDuration.title" = "Максимално трајање снимања";
+"settings.storage.maxRecordingDuration.subtitle" = "Аутоматски заустави и транскрибуј снимке који трају дуже од овог времена.";
+"settings.storage.maxRecordingDuration.minutes" = "%d минута";
+"settings.storage.maxRecordingDuration.hour" = "1 сат";
+"settings.storage.maxRecordingDuration.hours" = "%d сати";
+"settings.storage.maxRecordingDuration.off" = "Искључено";

@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η φόρτωση του αρχείου ήχου</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -287,6 +290,9 @@
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Αντικατάσταση</value>
   </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Προέλευση</value>
+  </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Καμία λέξη λεξιλογίου ακόμα</value>
   </data>
@@ -334,6 +340,9 @@
   </data>
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
+  </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
@@ -462,34 +471,16 @@
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
   </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Απαιτείται επανεκκίνηση</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Η εφαρμογή πρέπει να επανεκκινήσει για να εφαρμοστεί η αλλαγή θέματος.\n\nΘέλετε να γίνει επανεκκίνηση τώρα;</value>
+  </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Σαφή</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>Δοκιμή</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>Ενεργοποίηση</value>
@@ -505,23 +496,8 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>Πιστώσεις HyperWhisper Cloud</value>
-  </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>Ανανέωση</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>Διαχείριση Πιστώσεων</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -555,6 +531,40 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Δεν είναι δυνατή η φόρτωση του υπολοίπου πιστώσεων</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Κλειδί Λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Εμφάνιση κλειδιού λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Απόκρυψη κλειδιού λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Αντιγραφή κλειδιού λογαριασμού</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Αγορά πιστώσεων</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Ενεργοποίηση HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Το κλειδί λογαριασμού σας είναι το πορτοφόλι σας — περιέχει τις πιστώσεις σας στο Cloud. Εισαγάγετε το κλειδί σας για να ξεκινήσετε, ή αγοράστε πιστώσεις για να αποκτήσετε ένα.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Δεν έχετε ακόμα κλειδί;</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Αγοράστε πιστώσεις και θα σας στείλουμε ένα κλειδί λογαριασμού μέσω email.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Αγορά πιστώσεων</value>
   </data>
 
   <!-- Settings - API Keys -->
@@ -923,6 +933,12 @@
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>Η εγγραφή σταμάτησε — συμπληρώθηκε το όριο ασφαλείας 20 λεπτών.</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>Η ροή έφτασε στο όριο ασφαλείας 20 λεπτών.</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1232,7 +1248,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>Είστε σίγουροι ότι θέλετε να απενεργοποιήσετε αυτή τη συσκευή; Η μεταγραφή στο cloud θα σταματήσει να λειτουργεί έως ότου εισαγάγετε ξανά ένα κλειδί λογαριασμού. Οι πιστώσεις σας παραμένουν στο κλειδί σας.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1240,6 +1256,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
+  </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Δεν είναι δυνατό το άνοιγμα του φακέλου εγγραφών. {0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
@@ -1282,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Η εκκαθάριση απέτυχε</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Δεν είναι δυνατή η διαγραφή των παλιών εγγραφών. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1342,20 +1367,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>Αδειοδοτημένο – Πλήρης Πρόσβαση</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>Άδεια Λήξη</value>
+    <value>Η άδειά σας έχει λήξει. Ανανεώστε ή προσθέστε πιστώσεις για να συνεχίσετε να χρησιμοποιείτε το HyperWhisper Cloud.</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>Μη Έγκυρη Άδεια</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Το κλειδί άδειας δεν είναι πλέον έγκυρο. Εισαγάγετε ένα νέο κλειδί παρακάτω ή αποκτήστε πιστώσεις για να δημιουργήσετε ένα.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
@@ -1818,6 +1834,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Χειροκίνητη</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1986,6 +2005,54 @@ You can re-download it later.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 γλώσσες, προσαρμογή βάσει συμφραζομένων</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 γλώσσες, προσαρμογή βάσει συμφραζομένων</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - πολυτροπική απομαγνητοφώνηση με LLM</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - προτροπή με όρους-κλειδιά, ιατρική λειτουργία</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Προεπισκόπηση)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Προεπισκόπηση</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Χωρίς προσαρμοσμένο λεξιλόγιο)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Χωρίς προσαρμοσμένο λεξιλόγιο</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Συνιστάται)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Ιατρικό λεξιλόγιο (πρόσθετο Ιατρικής Λειτουργίας)</value>
+  </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
@@ -2029,7 +2096,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>Χρησιμοποιεί τις πιστώσεις σας στο HyperWhisper Cloud. Δεν απαιτείται ξεχωριστό κλειδί API.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>
@@ -2228,6 +2295,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Το διακριτικό δεν είναι ακόμη διαθέσιμο.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Το διακριτικό δημιουργήθηκε ξανά.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Άνοιξε η τοποθεσία του αρχείου εντοπισμού.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατό το άνοιγμα της τοποθεσίας του αρχείου εντοπισμού: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Η θύρα δεν είναι διαθέσιμη μέχρι να ξεκινήσει ο διακομιστής.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατό το άνοιγμα της τεκμηρίωσης: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Το αρχείο εντοπισμού δεν είναι ακόμη διαθέσιμο. Ενεργοποιήστε τον διακομιστή και περιμένετε να ολοκληρωθεί η εκκίνησή του.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η αντιγραφή στο πρόχειρο: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Αντιγράφηκε στο πρόχειρο.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

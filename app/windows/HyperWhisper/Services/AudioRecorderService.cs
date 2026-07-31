@@ -241,15 +241,34 @@ public class AudioRecorderService : IDisposable
 
     /// <summary>
     /// Resolves the Core Audio (MMDevice) capture endpoint that corresponds to a
-    /// NAudio WaveIn index, so volume boost/restore acts on the device actually
-    /// being recorded rather than the system default comms mic.
+    /// NAudio WaveIn index, so volume boost/restore (and mic volume reads) act on
+    /// the device actually being recorded rather than a different mic entirely.
     ///
-    /// NAudio's <c>WaveIn.GetCapabilities(n).ProductName</c> is truncated to 31
-    /// characters (the MME WAVEINCAPS limit), so we match it as a prefix of the
-    /// full Core Audio <c>FriendlyName</c> instead of by equality. A
-    /// <paramref name="deviceNumber"/> of -1 is NAudio's "default device"
-    /// sentinel; when out of range, unmatched, or ambiguous we fall back to the
-    /// default comms endpoint so the feature degrades gracefully instead of throwing.
+    /// PRIMARY STRATEGY - ordinal position:
+    /// Legacy WinMM (<c>waveInGetNumDevs</c>/<c>waveInGetDevCaps</c>, which NAudio's
+    /// <c>WaveIn</c> wraps) enumerates active capture devices in the same relative
+    /// order as the modern Core Audio active-endpoint list on Windows Vista+, since
+    /// both ultimately come from the same device topology. So the Nth WaveIn device
+    /// is normally the Nth entry of <c>EnumerateAudioEndPoints(Capture, Active)</c>.
+    /// This avoids the previous name-matching bug: NAudio's
+    /// <c>WaveIn.GetCapabilities(n).ProductName</c> is truncated to 31 characters
+    /// (the MME WAVEINCAPS limit) and isn't guaranteed to share a common prefix
+    /// with the Core Audio <c>FriendlyName</c> at all (driver-dependent formatting,
+    /// e.g. "Microphone (Realtek(R) Audio)" vs "Realtek(R) Audio") - when it didn't
+    /// match, this method silently fell back to the *default communications
+    /// device*, which may be a completely different physical mic than the one the
+    /// user selected and is actually recording. That meant volume boost could be
+    /// applied to the wrong device while the real (quiet/muted) capture device was
+    /// left untouched, producing near-silent recordings that surface as no-speech.
+    ///
+    /// FALLBACK - truncated-name prefix match:
+    /// Used only if the ordinal position is out of range for the Core Audio list
+    /// (e.g. list sizes momentarily diverge across the two APIs). Kept as a
+    /// best-effort secondary signal rather than removed outright.
+    ///
+    /// A <paramref name="deviceNumber"/> of -1 is NAudio's "default device"
+    /// sentinel; when both strategies fail we fall back to the default comms
+    /// endpoint so the feature degrades gracefully instead of throwing.
     /// </summary>
     private static MMDevice ResolveCaptureDevice(MMDeviceEnumerator enumerator, int deviceNumber)
     {
@@ -267,53 +286,93 @@ public class AudioRecorderService : IDisposable
             return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
         }
 
-        MMDevice? matchedDevice = null;
-
+        List<MMDevice> activeEndpoints;
         try
         {
-            foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
-            {
-                var keepDevice = false;
-                try
-                {
-                    if (string.IsNullOrEmpty(targetName) ||
-                        !device.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    if (matchedDevice != null)
-                    {
-                        LoggingService.Debug($"AudioRecorderService: Multiple capture endpoints match truncated device name '{targetName}', using default endpoint");
-                        DisposeCaptureDevice(matchedDevice, "previous matched capture endpoint");
-                        matchedDevice = null;
-                        return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
-                    }
-
-                    matchedDevice = device;
-                    keepDevice = true;
-                }
-                catch (Exception ex)
-                {
-                    LoggingService.Debug($"AudioRecorderService: Skipping capture endpoint while resolving device #{deviceNumber} - {ex.Message}");
-                }
-                finally
-                {
-                    if (!keepDevice)
-                        DisposeCaptureDevice(device, "capture endpoint");
-                }
-            }
+            activeEndpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active).ToList();
         }
         catch (Exception ex)
         {
-            DisposeCaptureDevice(matchedDevice, "matched capture endpoint");
             LoggingService.Debug($"AudioRecorderService: Failed to enumerate capture endpoints for device #{deviceNumber}, using default endpoint - {ex.Message}");
             return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
         }
 
-        if (matchedDevice != null)
-            return matchedDevice;
+        var disposed = new bool[activeEndpoints.Count];
+        void DisposeUnused(MMDevice? keep)
+        {
+            for (var i = 0; i < activeEndpoints.Count; i++)
+            {
+                if (disposed[i] || ReferenceEquals(activeEndpoints[i], keep))
+                    continue;
+                DisposeCaptureDevice(activeEndpoints[i], "capture endpoint");
+                disposed[i] = true;
+            }
+        }
 
-        // No reliable name match (e.g. two mics share a truncated name); fall back
+        try
+        {
+            if (deviceNumber < activeEndpoints.Count)
+            {
+                var ordinalMatch = activeEndpoints[deviceNumber];
+
+                if (!string.IsNullOrEmpty(targetName) &&
+                    !ordinalMatch.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Names don't line up - still trust the ordinal position (it's the
+                    // more reliable signal) but log it so name-format drift is visible.
+                    LoggingService.Debug(
+                        $"AudioRecorderService: Ordinal-resolved capture endpoint '{ordinalMatch.FriendlyName}' " +
+                        $"doesn't prefix-match WaveIn device #{deviceNumber} name '{targetName}'; using it anyway");
+                }
+
+                DisposeUnused(ordinalMatch);
+                return ordinalMatch;
+            }
+
+            LoggingService.Debug(
+                $"AudioRecorderService: WaveIn device #{deviceNumber} has no matching ordinal Core Audio " +
+                $"endpoint ({activeEndpoints.Count} active); falling back to truncated-name matching");
+
+            MMDevice? nameMatch = null;
+            var ambiguous = false;
+            foreach (var device in activeEndpoints)
+            {
+                if (string.IsNullOrEmpty(targetName) ||
+                    !device.FriendlyName.StartsWith(targetName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (nameMatch != null)
+                {
+                    LoggingService.Debug($"AudioRecorderService: Multiple capture endpoints match truncated device name '{targetName}', using default endpoint");
+                    ambiguous = true;
+                    nameMatch = null;
+                    break;
+                }
+
+                nameMatch = device;
+            }
+
+            if (ambiguous)
+            {
+                DisposeUnused(null);
+                return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
+            }
+
+            if (nameMatch != null)
+            {
+                DisposeUnused(nameMatch);
+                return nameMatch;
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"AudioRecorderService: Failed to resolve capture endpoint for device #{deviceNumber}, using default endpoint - {ex.Message}");
+        }
+
+        // No reliable match (e.g. two mics share a truncated name) or an
+        // exception during resolution; release everything and fall back
         // to the default comms endpoint rather than guessing.
+        DisposeUnused(null);
         return enumerator.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Communications);
     }
 

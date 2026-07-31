@@ -51,8 +51,20 @@
                      Background="Transparent"
                      BorderThickness="0"
                      Margin="-4,0,-4,0"
-                     SelectionChanged="ModeListBox_SelectionChanged"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                     SelectionChanged="ModeListBox_SelectionChanged">
+                <!-- Template without a ScrollViewer: the page ScrollViewer (Grid.Row="2") owns
+                     scrolling. A default ListBox brings its own ScrollViewer, and since the
+                     surrounding StackPanel measures it with infinite height it never has
+                     anything to scroll — yet it still marks the mouse wheel handled, leaving
+                     the page scroller wheel-dead. Model Library (#78) and Vocabulary (ca720fc)
+                     dropped the inner ScrollViewer by switching to ItemsControl; here selection
+                     is load-bearing (it sets the active mode and paints the accent border), so
+                     keep the ListBox and drop only the ScrollViewer. -->
+                <ListBox.Template>
+                    <ControlTemplate TargetType="ListBox">
+                        <ItemsPresenter/>
+                    </ControlTemplate>
+                </ListBox.Template>
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <UniformGrid Columns="2" IsItemsHost="True"/>

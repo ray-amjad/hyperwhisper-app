@@ -156,9 +156,39 @@ public sealed class LocalApiServer : INotifyPropertyChanged
 
             _runTask = Task.Run(async () =>
             {
+                // Bind failures get the ephemeral-port fallback below, so ONLY
+                // StartAsync sits in this first try — a failure in port
+                // persistence, discovery-file write, or WaitForShutdownAsync must
+                // not be misread as "port unavailable" and trigger a pointless
+                // rebind loop.
                 try
                 {
                     await _app.StartAsync();
+                }
+                catch (Exception bindEx) when (LocalApiBindFallback.ShouldRetryWithEphemeral(bindEx, preferredPort))
+                {
+                    // The preferred port is advisory only — clients rediscover the
+                    // live port via local-api.json, so any failure to bind it (port
+                    // taken, reserved by a Hyper-V/WSL excluded range → WSAEACCES,
+                    // address not available, …) is recoverable: wipe the preference
+                    // and retry on an ephemeral port, which effectively never fails.
+                    // The preferredPort != 0 guard means we only fall back once.
+                    // Note: Kestrel wraps EADDRINUSE in an IOException but surfaces
+                    // WSAEACCES as a bare SocketException, so we catch broadly here.
+                    LoggingService.Info($"LocalApiServer: persisted port {preferredPort} unavailable ({LocalApiBindFallback.Describe(bindEx)}); clearing preference and retrying ephemeral");
+                    SettingsService.Instance.LocalApiServerPersistedPort = 0;
+                    await DisposeAppQuietlyAsync();
+                    Start();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    await HandleRunFailureAsync(ex.Message);
+                    return;
+                }
+
+                try
+                {
                     var boundPort = ExtractPort(_app);
                     if (boundPort <= 0)
                     {
@@ -177,21 +207,6 @@ public sealed class LocalApiServer : INotifyPropertyChanged
                     LoggingService.Info($"LocalApiServer listening on 127.0.0.1:{boundPort}");
 
                     await _app.WaitForShutdownAsync();
-                }
-                catch (Exception bindEx) when (LocalApiBindFallback.ShouldRetryWithEphemeral(bindEx, preferredPort))
-                {
-                    // The preferred port is advisory only — clients rediscover the
-                    // live port via local-api.json, so any failure to bind it (port
-                    // taken, reserved by a Hyper-V/WSL excluded range → WSAEACCES,
-                    // address not available, …) is recoverable: wipe the preference
-                    // and retry on an ephemeral port, which effectively never fails.
-                    // The preferredPort != 0 guard means we only fall back once.
-                    // Note: Kestrel wraps EADDRINUSE in an IOException but surfaces
-                    // WSAEACCES as a bare SocketException, so we catch broadly here.
-                    LoggingService.Info($"LocalApiServer: persisted port {preferredPort} unavailable ({LocalApiBindFallback.Describe(bindEx)}); clearing preference and retrying ephemeral");
-                    SettingsService.Instance.LocalApiServerPersistedPort = 0;
-                    await DisposeAppQuietlyAsync();
-                    Start();
                 }
                 catch (Exception ex)
                 {

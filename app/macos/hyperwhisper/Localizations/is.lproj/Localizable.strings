@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Heim";
-"sidebar.statistics" = "Tölfræði";
 "sidebar.modes" = "Hamar";
 "sidebar.vocabulary" = "Orðaforði";
 "sidebar.streaming" = "Streymi";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Útgáfa %@";
 "home.recent.updates.new.badge" = "NÝTT";
 "home.recent.updates.no.notes" = "Engar útgáfuupplýsingar tiltækar";
+"home.stats.words.week" = "Orð í þessari viku";
+"home.stats.words.month" = "Orð í þessum mánuði";
+"home.stats.speed" = "Meðalhraði";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Byrjaðu með HyperWhisper";
-"sidebar.statistics.help" = "Skoða notkunartölfræði og greiningar";
 "sidebar.modes.help" = "Stjórna afritunarhamum fyrir mismunandi samhengi";
 "sidebar.vocabulary.help" = "Bæta við sérsniðnum orðum og orðasamböndum fyrir betri þekkingu";
 "sidebar.streaming.help" = "Rauntímastraumsafritun stillingar (krefst internets)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud einingar";
 "settings.credits.refresh" = "Endurhlaða";
-"settings.credits.subtitle" = "Fylgstu með afritunareiningunum þínum og notkun";
-"settings.credits.manage" = "Stjórna einingum";
 "settings.credits.timeRemaining" = "Afritunatími eftir";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "mínútur";
 "settings.credits.creditsRemaining" = "%@ einingar eftir";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Ókeypis dagleg mörk (100 einingar)";
-"settings.credits.resets" = "Endurstillir %@";
 "settings.credits.warning.low" = "Einingar að verða litlar. Íhugaðu að kaupa leyfi fyrir fleiri einingar.";
-"settings.credits.warning.exhausted.daily" = "Dagleg mörk tæmd. Keyptu leyfi fyrir ótakmarkaða notkun eða bíddu eftir endurstillingu.";
 "settings.credits.warning.exhausted" = "Einingar tæmdar. Keyptu fleiri einingar til að halda áfram að nota HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Reikningsupplýsingar";
-"settings.credits.stat.creditsRemaining" = "Einingar eftir";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Mínútur eftir";
-"settings.credits.stat.accountType" = "Reikningsgerð";
-"settings.credits.accountType.licensed" = "Leyfishafi";
-"settings.credits.accountType.anonymous" = "Nafnlaus";
-"settings.credits.accountType.trial" = "Prufuútgáfa";
-"settings.credits.stat.customerId" = "Viðskiptavinur auðkenni";
-"settings.credits.stat.dailyLimit" = "Dagleg mörk";
-"settings.credits.dailyLimit.value" = "100 einingar";
 "settings.credits.loading" = "Hleð einingastöðu...";
 "settings.credits.error.title" = "Ógat að hlaða einingastöðu";
 "settings.credits.error.retry" = "Reyna aftur";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Netvilla: %@";
 "settings.credits.error.invalidResponse" = "Ógilt svar frá netþjóni. Vinsamlegast reyndu aftur.";
 "settings.credits.error.server" = "Netþjónavilla: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Reikningslykill";
+"settings.cloud.purchaseMore" = "Kaupa einingar";
+"settings.cloud.key.reveal" = "Sýna reikningslykil";
+"settings.cloud.key.hide" = "Fela reikningslykil";
+"settings.cloud.key.copy" = "Afrita reikningslykil";
+"settings.cloud.activate.title" = "Virkja HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Reikningslykillinn þinn er veskið þitt — hann geymir Cloud-einingarnar þínar. Sláðu inn lykilinn til að byrja, eða keyptu einingar til að fá einn.";
+"settings.cloud.getCredits.title" = "Ertu ekki með lykil ennþá?";
+"settings.cloud.getCredits.subtitle" = "Keyptu einingar og við sendum þér reikningslykil í tölvupósti.";
+"settings.cloud.getCredits.button" = "Kaupa einingar";
 "settings.models.alert.cannotDelete.title" = "Get ekki eytt líkani";
 "settings.models.parakeet.title" = "Parakeet líkön";
 "settings.models.parakeet.subtitle" = "Mælt með fyrir flesta notendur. Fjöltungda líkan styður 25 tungumál.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Mælt með fyrir Mac með 24 GB sameinað minni eða meira. Hraði fer eftir örgjörvanum — hraðari á M3/M4 Pro og nýrri.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Orð þetta ár";
+"home.stats.typing.speed.help" = "Stilltu áætlaðan innsláttarhraða (WPM) sem notaður er til að meta sparaðan tíma.";
+"home.stats.saved.week" = "Sparað í þessari viku";
+"home.stats.minutes.value" = "%d mínútur";
 "vocabulary.input.placeholder" = "Bættu við orði eða búðu til brot";
 "vocabulary.action.addWord" = "Bæta við orði";
 "vocabulary.action.replaceWith" = "Skipta út með…";
@@ -641,22 +641,6 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "models.error.checksumFailed" = "Líkans gátsumustaðfesting mistókst. Sóttin gæti verið skemmd.";
 
 // MARK: - Statistics View
-"statistics.title" = "Tölfræði";
-"statistics.header.title" = "Notkunartölfræði þín";
-"statistics.header.subtitle" = "Fylgstu með afritunarstarfsemi og frammistöðu";
-"statistics.card.recordings" = "Heildarupptökur";
-"statistics.card.recordings.subtitle" = "Loknar afritanir";
-"statistics.card.duration" = "Heildartími";
-"statistics.card.duration.subtitle" = "Tími í upptöku";
-"statistics.card.words" = "Heildarorð";
-"statistics.card.words.subtitle" = "Orð afrituð";
-"statistics.card.average" = "Meðallengd";
-"statistics.card.average.subtitle" = "Á hverja upptöku";
-"statistics.graph.title" = "Starfsemi með tímanum";
-"statistics.daily.empty" = "Engar upptökur ennþá";
-"statistics.filter.week" = "Þessi vika";
-"statistics.filter.month" = "Þessi mánuður";
-"statistics.filter.alltime" = "Allan tímann";
 
 // MARK: - History View
 "history.title" = "Saga";
@@ -777,8 +761,13 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.cloudAccuracy.groqWhisper.description" = "Hratt og hagkvæmt. Best fyrir skjótar afritanir.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Jafnvægi hraða og nákvæmni. Mælt með fyrir flesta notendur.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ einingar/mín";
 "modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
+"modes.cloudAccuracy.googleChirp3.label" = "Há (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 með Chirp 3. Fjöltyngt með frasaaðlögun.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 í gegnum Azure Speech. 43 tungumál með samhengisaðlögun.";
 
 "modes.create.title" = "Búa til nýjan ham";
 "modes.create.subtitle" = "Stilltu sérsniðna afritunarnotendaupplýsingu";
@@ -915,9 +904,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 // MARK: - Audio Manager
 "audio.device.default" = "Sjálfgefinn hljóðnemi";
 "audio.error.permissionDenied" = "Aðgangur að hljóðnema hafnað. Vinsamlegast virkjaðu í kerfisstillingum.";
-"audio.error.fileWatcher.open" = "Gat ekki opnað skráarlýsing til að fylgjast með hljóðskránni.";
-"audio.error.fileWatcher.timeout" = "Aðgerðin tímafór á meðan beðið var eftir að hljóðskráin yrði skrifuð.";
-"audio.error.fileWatcher.creation" = "Hljóðskráin var ekki búin til í tíma.";
 "audio.error.microphonePermission" = "Hljóðnemaleyfi ekki veitt";
 "audio.error.microphoneInUse" = "HyperWhisper getur ekki nálgast hljóðnemannm vegna þess að annað forrit er núna að nota hann. Gerðu hlé á hinu forritinu eða skiptu um inntak, reyndu síðan aftur.";
 "audio.error.createEngine" = "Mistókst að búa til hljóðvél";
@@ -992,6 +978,15 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.timeout" = "Beiðnin tók of langan tíma. Athugaðu nethraðann þinn og reyndu aftur.";
 "transcription.error.noSpeechDetected" = "Engin tala greind í upptökunni.";
 "transcription.guidance.noSpeechDetected" = "Ábendingar:\n• Talaðu skýrt í hljóðnemanninn\n• Haltu lyklinum lengur áður en þú talar\n• Athugaðu að hljóðneminn þinn sé að virka\n• Gakktu úr skugga um að rétt inntakstæki sé valið";
+"transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
+"transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
+"transcription.error.localRuntimeUnavailable" = "Staðbundna gervigreindin gat ekki lokið verkinu — hráa uppskriftin þín var varðveitt.";
+"settings.backup.localDownload.title" = "Sækja staðbundin líkön?";
+"settings.backup.localDownload.message" = "%d af endurheimtu hömunum þínum nota gervigreindarlíkön í tækinu sem hafa ekki verið sótt.";
+"settings.backup.localDownload.downloadAll" = "Hlaða öllu niður";
+"settings.backup.localDownload.dismiss" = "Loka";
+"modelLibrary.local.requiresAppleSilicon" = "Krefst Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Endurræsa sem innbyggt forrit";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";
@@ -1125,3 +1120,12 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "history.autoDelete.status.enabled" = "Eyða upptökum eldri en %d %@";
 "history.autoDelete.cleanup.noItems" = "Engar upptökur til að eyða";
 "history.autoDelete.cleanup.summary" = "Eyddi %d upptöku(m) og losaði %@";
+"history.status.interrupted" = "Umritun rofnaði — forritið hætti áður en því lauk";
+"recording.maxDuration.reachedToast" = "Upptöku hætt — %d mínútna hámarki náð";
+"streaming.maxDuration.reachedToast" = "Streymi hætt — %d mínútna hámarki náð";
+"settings.storage.maxRecordingDuration.title" = "Hámarkslengd upptöku";
+"settings.storage.maxRecordingDuration.subtitle" = "Stöðva og umrita sjálfkrafa upptökur sem eru lengri en þetta.";
+"settings.storage.maxRecordingDuration.minutes" = "%d mínútur";
+"settings.storage.maxRecordingDuration.hour" = "1 klukkustund";
+"settings.storage.maxRecordingDuration.hours" = "%d klukkustundir";
+"settings.storage.maxRecordingDuration.off" = "Slökkt";

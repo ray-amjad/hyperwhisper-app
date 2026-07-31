@@ -38,13 +38,20 @@ Vocabulary entries work in three distinct ways depending on their type and the t
 
 Entries without a replacement are submitted as keyword hints to cloud providers that support them. This nudges the model toward the correct spelling without rewriting anything in the output.
 
-- **Deepgram** — sent as keyword boosting parameters (up to 100 terms; a warning appears on macOS if you exceed this limit).
-- **OpenAI Whisper, Soniox, HyperWhisper Cloud** — sent as prompt vocabulary terms.
-- **ElevenLabs** — sent as repeated `keyterms` multipart form fields (Scribe v2 only; capped at 100 terms, terms longer than 50 characters are dropped; Scribe v1 does not support vocabulary).
-- **AssemblyAI, Gemini** — sent as key-term context.
-- **Grok STT, Mistral** — these providers do not support custom vocabulary hints; entries are acknowledged but not forwarded.
+- **Deepgram** — sent as keyword boosting parameters (up to 100 terms, and terms longer than 50 characters are dropped; a warning appears if you exceed the term limit).
+- **OpenAI Whisper, Soniox** — sent as prompt vocabulary terms.
+- **HyperWhisper Cloud** — sent as prompt vocabulary terms; silently capped at 100 terms with no warning shown if you exceed it.
+- **Gemini** — sent as free text embedded in a natural-language prompt instruction, the same mechanism as OpenAI and HyperWhisper Cloud's prompt vocabulary.
+- **ElevenLabs** — sent as repeated `keyterms` multipart form fields (Scribe v2 only; capped at 100 terms, terms longer than 50 characters or 5 words are dropped; Scribe v1 does not support vocabulary).
+- **AssemblyAI** — sent as key-term context (up to 200 terms; phrases longer than 6 words are dropped).
+- **Mistral** — sent as a structured `context_bias` field (up to 100 terms, each 80 characters or fewer).
+- **Grok STT** — does not support custom vocabulary hints; entries are acknowledged but not forwarded.
 
-For the **local Parakeet model on Windows**, entries without replacements are matched phonetically using the Beider-Morse algorithm (via the shared Rust core). Words of two characters or fewer are excluded to avoid false positives.
+<Note>
+  Deepgram vocabulary boosting silently no-ops if the mode's language is set to **Auto** — Nova-3 ignores keyword boosting parameters when language auto-detection is enabled. Set an explicit language on the mode for boosting to actually apply.
+</Note>
+
+For **local models on both platforms** — Parakeet on macOS and Windows, and Nemotron on macOS and Windows — entries without replacements are matched phonetically using the Beider-Morse algorithm (via the shared Rust core). Words of two characters or fewer are excluded to avoid false positives.
 
 ### Text replacements
 
@@ -52,7 +59,7 @@ Entries with a replacement are applied by regex after transcription, before AI p
 
 ### AI post-processing context
 
-All vocabulary entries (with and without replacements) are injected into the system prompt sent to AI post-processing. This helps the model understand your terminology when cleaning up text for Meeting, Custom, and other presets.
+Entries without a replacement are injected into the per-request user-message context sent to AI post-processing (entries with a replacement are already applied via regex before post-processing runs, so they aren't re-injected). This helps the model understand your terminology when cleaning up text for Meeting, Custom, and other presets.
 
 ## Managing the List
 
@@ -86,7 +93,7 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
         Go to **Settings → Backup**.
       </Step>
       <Step title="Export">
-        Click **Export Backup** and choose what sections to include. The file is saved as a `.hwbackup.json` file.
+        Click **Export Backup...** and choose what sections to include. The file is saved as a `.hwbackup.json` file.
       </Step>
     </Steps>
   </Tab>
@@ -117,10 +124,10 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
         Go to **Settings → Backup**.
       </Step>
       <Step title="Pick a file">
-        Click **Import Backup** and select a `.hwbackup.json` file. HyperWhisper inspects the file and presents a section-selection dialog showing what it contains.
+        Click **Choose File...** and select a `.hwbackup.json` file. HyperWhisper inspects the file and presents a section-selection dialog showing what it contains.
       </Step>
       <Step title="Review and confirm">
-        Tick **Vocabulary** (and any other sections you want). The import merges new words into your existing list — it does not delete anything already there.
+        Tick **Vocabulary** (and any other sections you want), then click **Import Selected**. The import merges new words into your existing list — it does not delete anything already there.
       </Step>
     </Steps>
   </Tab>

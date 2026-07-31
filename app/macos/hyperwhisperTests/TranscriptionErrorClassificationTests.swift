@@ -7,6 +7,7 @@
 //  side breaks compilation here — that's the point. Do not add a `default:`.
 //
 
+import Foundation
 import Testing
 @testable import HyperWhisper
 
@@ -28,6 +29,23 @@ struct TranscriptionErrorClassificationTests {
                 "HyperWhisperCloudError.\(error) report decision changed"
             )
         }
+    }
+
+    @Test func transientURLErrorCodesIsTheSingleCanonicalSetForConnectivityCodes() {
+        // Regression test for the review-round-2 fix: `classifyTranscriptionError`'s
+        // bare-`URLError` branch used to keep its own narrower, independent
+        // 6-code list instead of reusing `transientURLErrorCodes` (missing
+        // `.dataNotAllowed` / `.internationalRoamingOff`), even though the doc
+        // comment already called this the shared canonical set. Both
+        // `classifyTranscriptionError` and `shouldCaptureTranscriptionErrorInSentry`
+        // now derive from this same property — pin its exact membership so a
+        // future edit can't silently narrow it again without this test catching it.
+        let expected: Set<URLError.Code> = [
+            .notConnectedToInternet, .networkConnectionLost, .timedOut,
+            .dnsLookupFailed, .cannotFindHost, .cannotConnectToHost,
+            .dataNotAllowed, .internationalRoamingOff
+        ]
+        #expect(TranscriptionPipeline.transientURLErrorCodes == expected)
     }
 
     @Test func transcriptionFailureFingerprintIncludesClassificationAndStage() {

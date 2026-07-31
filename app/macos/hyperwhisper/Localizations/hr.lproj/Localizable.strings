@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Početna";
-"sidebar.statistics" = "Statistika";
 "sidebar.modes" = "Načini";
 "sidebar.vocabulary" = "Rječnik";
 "sidebar.streaming" = "Strujanje";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Verzija %@";
 "home.recent.updates.new.badge" = "NOVO";
 "home.recent.updates.no.notes" = "Nema dostupnih bilješki o izdanju";
+"home.stats.words.week" = "Riječi ovaj tjedan";
+"home.stats.words.month" = "Riječi ovaj mjesec";
+"home.stats.speed" = "Prosječna brzina";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Započnite s HyperWhisper";
-"sidebar.statistics.help" = "Pregledajte statistiku korištenja i analitiku";
 "sidebar.modes.help" = "Upravljajte načinima transkripcije za različite kontekste";
 "sidebar.vocabulary.help" = "Dodajte prilagođene riječi i fraze za bolje prepoznavanje";
 "sidebar.streaming.help" = "Postavke transkripcije u stvarnom vremenu (potreban internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud krediti";
 "settings.credits.refresh" = "Osvježi";
-"settings.credits.subtitle" = "Pratite svoje kredite transkripcije i korištenje";
-"settings.credits.manage" = "Upravljaj kreditima";
 "settings.credits.timeRemaining" = "Preostalo vrijeme transkripcije";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minuta";
 "settings.credits.creditsRemaining" = "%@ preostalo kredita";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Besplatno dnevno ograničenje (100 kredita)";
-"settings.credits.resets" = "Resetira se %@";
 "settings.credits.warning.low" = "Krediti se smanjuju. Razmislite o kupnji licence za dodatne kredite.";
-"settings.credits.warning.exhausted.daily" = "Dnevno ograničenje iscrpljeno. Kupite licencu za neograničeno korištenje ili pričekajte resetiranje.";
 "settings.credits.warning.exhausted" = "Krediti iscrpljeni. Kupite više kredita kako biste nastavili koristiti HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Informacije o računu";
-"settings.credits.stat.creditsRemaining" = "Preostalo kredita";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Preostalo minuta";
-"settings.credits.stat.accountType" = "Vrsta računa";
-"settings.credits.accountType.licensed" = "Licencirano";
-"settings.credits.accountType.anonymous" = "Anonimno";
-"settings.credits.accountType.trial" = "Probno";
-"settings.credits.stat.customerId" = "ID kupca";
-"settings.credits.stat.dailyLimit" = "Dnevno ograničenje";
-"settings.credits.dailyLimit.value" = "100 kredita";
 "settings.credits.loading" = "Učitavanje stanja kredita...";
 "settings.credits.error.title" = "Nije moguće učitati stanje kredita";
 "settings.credits.error.retry" = "Pokušaj ponovno";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Mrežna greška: %@";
 "settings.credits.error.invalidResponse" = "Nevažeći odgovor s poslužitelja. Molimo pokušajte ponovno.";
 "settings.credits.error.server" = "Greška poslužitelja: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Ključ računa";
+"settings.cloud.purchaseMore" = "Kupi kredite";
+"settings.cloud.key.reveal" = "Prikaži ključ računa";
+"settings.cloud.key.hide" = "Sakrij ključ računa";
+"settings.cloud.key.copy" = "Kopiraj ključ računa";
+"settings.cloud.activate.title" = "Aktiviraj HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Vaš ključ računa je vaš novčanik — sadrži vaše Cloud kredite. Unesite svoj ključ za početak ili kupite kredite kako biste ga dobili.";
+"settings.cloud.getCredits.title" = "Još nemate ključ?";
+"settings.cloud.getCredits.subtitle" = "Kupite kredite i poslat ćemo vam ključ računa e-poštom.";
+"settings.cloud.getCredits.button" = "Kupi kredite";
 "settings.models.alert.cannotDelete.title" = "Nije moguće izbrisati model";
 "settings.models.parakeet.title" = "Parakeet modeli";
 "settings.models.parakeet.subtitle" = "Preporučeno za većinu korisnika. Višejezični model podržava 25 jezika.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Preporučeno za Mac s 24 GB objedinjene memorije ili više. Brzina ovisi o čipu — brže na M3/M4 Pro i novijima.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Riječi ove godine";
+"home.stats.typing.speed.help" = "Prilagodite pretpostavljenu brzinu tipkanja (WPM) koja se koristi za procjenu uštede vremena.";
+"home.stats.saved.week" = "Ušteđeno ovaj tjedan";
+"home.stats.minutes.value" = "%d minuta";
 "vocabulary.input.placeholder" = "Dodajte riječ ili stvorite isječak";
 "vocabulary.action.addWord" = "Dodaj riječ";
 "vocabulary.action.replaceWith" = "Zamijeni s…";
@@ -641,22 +641,6 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "models.error.checksumFailed" = "Provjera kontrolnog zbroja modela nije uspjela. Preuzimanje može biti oštećeno.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistika";
-"statistics.header.title" = "Vaša statistika korištenja";
-"statistics.header.subtitle" = "Pratite svoju aktivnost transkripcije i performanse";
-"statistics.card.recordings" = "Ukupno snimanja";
-"statistics.card.recordings.subtitle" = "Dovršene transkripcije";
-"statistics.card.duration" = "Ukupno vrijeme";
-"statistics.card.duration.subtitle" = "Vrijeme provedeno snimajući";
-"statistics.card.words" = "Ukupno riječi";
-"statistics.card.words.subtitle" = "Transkribirane riječi";
-"statistics.card.average" = "Prosječno trajanje";
-"statistics.card.average.subtitle" = "Po snimanju";
-"statistics.graph.title" = "Aktivnost tijekom vremena";
-"statistics.daily.empty" = "Još nema snimanja";
-"statistics.filter.week" = "Ovaj tjedan";
-"statistics.filter.month" = "Ovaj mjesec";
-"statistics.filter.alltime" = "Cijelo vrijeme";
 
 // MARK: - History View
 "history.title" = "Povijest";
@@ -777,8 +761,13 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.cloudAccuracy.groqWhisper.description" = "Brzo i pristupačno. Najbolje za brze transkripcije.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Uravnotežena brzina i točnost. Preporučeno za većinu korisnika.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kredita/min";
 "modes.cloudAccuracy.grokStt.label" = "Najviša (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
+"modes.cloudAccuracy.googleChirp3.label" = "Visoka (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 s modelom Chirp 3. Višejezično uz prilagodbu fraza.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 putem Azure Speech. 43 jezika s kontekstualnim usmjeravanjem.";
 
 "modes.create.title" = "Stvori novi način";
 "modes.create.subtitle" = "Konfiguriraj prilagođeni profil transkripcije";
@@ -915,9 +904,6 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 // MARK: - Audio Manager
 "audio.device.default" = "Zadani mikrofon";
 "audio.error.permissionDenied" = "Pristup mikrofonu odbijen. Molimo omogućite u Sistemskim postavkama.";
-"audio.error.fileWatcher.open" = "Nije moguće otvoriti deskriptor datoteke za nadzor audio datoteke.";
-"audio.error.fileWatcher.timeout" = "Operacija je istekla dok se čekalo pisanje audio datoteke.";
-"audio.error.fileWatcher.creation" = "Audio datoteka nije stvorena na vrijeme.";
 "audio.error.microphonePermission" = "Dozvola za mikrofon nije odobrena";
 "audio.error.microphoneInUse" = "HyperWhisper ne može pristupiti mikrofonu jer ga trenutno koristi druga aplikacija. Pauzirajte drugu aplikaciju ili promijenite ulaze, zatim pokušajte ponovno.";
 "audio.error.createEngine" = "Nije uspjelo stvaranje audio motora";
@@ -992,6 +978,15 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcription.guidance.timeout" = "Zahtjev je trajao predugo. Provjerite brzinu svog interneta i pokušajte ponovno.";
 "transcription.error.noSpeechDetected" = "Nije otkriven govor u snimci.";
 "transcription.guidance.noSpeechDetected" = "Savjeti:\n• Govorite jasno u mikrofon\n• Držite tipku dulje prije govora\n• Provjerite radi li vaš mikrofon\n• Osigurajte da je odabran ispravan ulazni uređaj";
+"transcription.guidance.needsNativeRelaunch" = "Zatvorite i ponovno otvorite HyperWhisper kao izvornu aplikaciju kako biste koristili lokalnu naknadnu obradu.";
+"transcription.guidance.localRuntimeUnavailable" = "Pokušajte ponovno ili u postavkama načina rada odaberite manji lokalni model.";
+"transcription.error.localRuntimeUnavailable" = "Lokalni AI nije uspio dovršiti obradu — vaš izvorni prijepis je sačuvan.";
+"settings.backup.localDownload.title" = "Preuzeti lokalne modele?";
+"settings.backup.localDownload.message" = "%d vaših vraćenih načina rada koristi AI modele na uređaju koji još nisu preuzeti.";
+"settings.backup.localDownload.downloadAll" = "Preuzmi sve";
+"settings.backup.localDownload.dismiss" = "Odbaci";
+"modelLibrary.local.requiresAppleSilicon" = "Zahtijeva Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Ponovno pokreni izvorno";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedovoljno kredita. Dodajte više kredita u Postavkama.";
@@ -1125,3 +1120,12 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "history.autoDelete.status.enabled" = "Izbriši snimanja starija od %d %@";
 "history.autoDelete.cleanup.noItems" = "Nema snimanja za brisanje";
 "history.autoDelete.cleanup.summary" = "Izbrisano %d snimanje/a i oslobođeno %@";
+"history.status.interrupted" = "Transkripcija je prekinuta — aplikacija se zatvorila prije nego što je završila";
+"recording.maxDuration.reachedToast" = "Snimanje zaustavljeno — dosegnuto ograničenje od %d minuta";
+"streaming.maxDuration.reachedToast" = "Strujanje zaustavljeno — dosegnuto ograničenje od %d minuta";
+"settings.storage.maxRecordingDuration.title" = "Maksimalno trajanje snimanja";
+"settings.storage.maxRecordingDuration.subtitle" = "Automatski zaustavi i transkribiraj snimke duže od ovog vremena.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minuta";
+"settings.storage.maxRecordingDuration.hour" = "1 sat";
+"settings.storage.maxRecordingDuration.hours" = "%d sati";
+"settings.storage.maxRecordingDuration.off" = "Isključeno";

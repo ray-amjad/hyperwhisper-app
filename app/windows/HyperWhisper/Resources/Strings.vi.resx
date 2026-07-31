@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Không thể tải tệp âm thanh</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -287,6 +290,9 @@
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Thay thế</value>
   </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Nguồn</value>
+  </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Chưa có từ vựng nào</value>
   </data>
@@ -334,6 +340,9 @@
   </data>
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
+  </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
@@ -462,34 +471,16 @@
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
   </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Cần khởi động lại</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Ứng dụng cần khởi động lại để áp dụng thay đổi về giao diện.\n\nBạn có muốn khởi động lại ngay bây giờ không?</value>
+  </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Xóa</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>Dùng thử</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>Kích hoạt</value>
@@ -505,23 +496,8 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>Tín dụng HyperWhisper Cloud</value>
-  </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>Làm mới</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>Quản lý Tín dụng</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -555,6 +531,40 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Không thể tải số dư tín dụ</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Khóa Tài khoản</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Hiển thị khóa tài khoản</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Ẩn khóa tài khoản</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Sao chép khóa tài khoản</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Mua Tín dụng</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Kích hoạt HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Khóa tài khoản của bạn chính là ví của bạn — nó lưu giữ tín dụng Cloud của bạn. Nhập khóa của bạn để bắt đầu, hoặc mua tín dụng để nhận một khóa.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Chưa có khóa?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Mua tín dụng và chúng tôi sẽ gửi email khóa tài khoản cho bạn.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Mua Tín dụng</value>
   </data>
 
   <!-- Settings - API Keys -->
@@ -923,6 +933,12 @@ Hành động này không thể được hoàn tác.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>Ghi âm đã dừng — đã đạt giới hạn an toàn 20 phút.</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>Phát trực tuyến đã đạt giới hạn an toàn 20 phút.</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1232,7 +1248,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>Bạn có chắc chắn muốn hủy kích hoạt thiết bị này không? Tính năng phiên âm đám mây sẽ ngừng hoạt động cho đến khi bạn nhập lại khóa tài khoản. Tín dụng của bạn vẫn còn trên khóa của bạn.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1240,6 +1256,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
+  </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Không thể mở thư mục chứa bản ghi. {0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
@@ -1282,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Dọn dẹp thất bại</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Không thể xóa các bản ghi cũ. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1342,20 +1367,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>Được cấp phép – Quyền truy cập Đầy đủ</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>Giấy phép Đã hết hạn</value>
+    <value>Giấy phép của bạn đã hết hạn. Gia hạn hoặc thêm tín dụng để tiếp tục sử dụng HyperWhisper Cloud.</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>Giấy phép Không hợp lệ</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Khóa cấp phép của bạn không còn hợp lệ. Nhập khóa mới bên dưới hoặc lấy tín dụng để tạo một khóa mới.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
@@ -1817,6 +1833,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Thủ công</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1985,6 +2004,54 @@ You can re-download it later.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 ngôn ngữ, điều chỉnh theo ngữ cảnh</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 ngôn ngữ, điều chỉnh theo ngữ cảnh</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - chép lời bằng LLM đa phương thức</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - nhắc thuật ngữ chính, chế độ y khoa</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Bản xem trước)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Bản xem trước</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Không hỗ trợ từ vựng tùy chỉnh)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Không hỗ trợ từ vựng tùy chỉnh</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Khuyến nghị)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Từ vựng y khoa (tiện ích bổ sung Chế độ Y khoa)</value>
+  </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
@@ -2028,7 +2095,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>Sử dụng tín dụng HyperWhisper Cloud của bạn. Không cần khóa API riêng.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>
@@ -2227,6 +2294,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Token chưa sẵn sàng.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Đã tạo lại token.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Đã mở vị trí của tệp khám phá.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Không thể mở vị trí của tệp khám phá: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Cổng chỉ khả dụng khi máy chủ đang chạy.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Không thể mở tài liệu: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Tệp khám phá chưa sẵn sàng. Hãy bật máy chủ và đợi máy chủ khởi động xong.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Không thể sao chép vào bảng nhớ tạm: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Đã sao chép vào bảng nhớ tạm.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

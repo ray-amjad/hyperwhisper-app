@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.41.0</title>
+            <pubDate>Thu, 02 Jul 2026 04:27:40 +0000</pubDate>
+            <sparkle:version>110</sparkle:version>
+            <sparkle:shortVersionString>2.41.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.41.0.dmg" length="33273104" type="application/octet-stream" sparkle:edSignature="6sBJL2a2hTRCbQk/OzAga3toTvrw3kH7mGOb53oLMC8OQxRBbOZRNwIpcJltPZKV6MqfARfHco490h5tcsM2Dg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Redesigned account panel: license and HyperWhisper Cloud credits in one place</li><li>Much faster paste after you stop recording — no more multi-second freeze</li><li>New setting to cap recording length, or turn the limit off entirely</li><li>Recordings now recover automatically after an unexpected quit or crash</li><li>More reliable transcription with smarter retries and faster error recovery</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.40.0</title>
             <pubDate>Sat, 20 Jun 2026 02:52:28 +0000</pubDate>
             <sparkle:version>109</sparkle:version>

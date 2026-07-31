@@ -22,6 +22,9 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Utilities;
+// LLM completion termination/wrapper policy lives in the shared Rust core so all
+// platforms share one implementation. See EvaluateLlmResponseJson / EvaluateCompletion.
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
 
@@ -60,6 +63,52 @@ public class PostProcessingService : IDisposable
     // =========================================================================
     // PUBLIC API
     // =========================================================================
+
+    /// <summary>
+    /// Processes transcription text while honouring the paragraph breaks the user
+    /// dictated ("new line" / "new paragraph").
+    /// <para>
+    /// The LLM will not keep a mid-body break, whatever the prompt says: measured
+    /// against the cloud model, it merged a dictated "new paragraph" back into one
+    /// paragraph on 5 of 5 runs — even with the break already inserted in its input
+    /// and an explicit do-not-merge-paragraphs instruction (issue #1). So the break is never shown
+    /// to the LLM. The transcript is split on the dictated commands, each segment is
+    /// post-processed independently, and the breaks are restored afterwards.
+    /// </para>
+    /// <para>
+    /// A transcript with no dictated break is a single segment and takes exactly the
+    /// old path — one LLM call, no added latency for the common case.
+    /// </para>
+    /// </summary>
+    public async Task<PostProcessingResult> ProcessPreservingBreaksAsync(
+        string text,
+        Mode mode,
+        ApplicationContext? applicationContext = null,
+        CancellationToken cancellationToken = default)
+    {
+        var segments = TranscriptionTextProcessing.SplitOnDictatedBreaks(text);
+        if (segments.Count <= 1)
+        {
+            return await ProcessAsync(text, mode, applicationContext, cancellationToken);
+        }
+
+        LoggingService.Info($"PostProcessingService: dictated break(s) found — post-processing {segments.Count} segments separately");
+
+        var processed = new List<string>(segments.Count);
+        var anyApplied = false;
+        foreach (var segment in segments)
+        {
+            var result = await ProcessAsync(segment, mode, applicationContext, cancellationToken);
+            anyApplied |= result.WasApplied;
+            var trimmed = result.Text.Trim();
+            if (trimmed.Length > 0)
+            {
+                processed.Add(trimmed);
+            }
+        }
+
+        return new PostProcessingResult(string.Join("\n\n", processed), anyApplied);
+    }
 
     /// <summary>
     /// Processes transcription text using the LLM configured in the mode.
@@ -127,14 +176,16 @@ public class PostProcessingService : IDisposable
                     cloudModel.ToLlmProviderHeader(),
                     cloudModel.ToLlmModelHeader(),
                     cancellationToken);
-                var cleanedText = PromptBuilder.ExtractCleanedTextLenient(response);
-                if (string.IsNullOrWhiteSpace(cleanedText))
+                // The hosted /post-process contract already validates provider termination
+                // and strips wrapper markers before returning `corrected`. Do not apply the
+                // provider-native wrapper contract a second time on this normalized response.
+                if (string.IsNullOrWhiteSpace(response))
                 {
-                    LoggingService.Warn("PostProcessingService: Empty/markerless cleaned text from cloud; keeping original transcription");
+                    LoggingService.Warn("PostProcessingService: Empty cloud response; keeping original transcription");
                     return PostProcessingResult.Skipped(text);
                 }
-                LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {cleanedText.Length} chars)");
-                return PostProcessingResult.Applied(cleanedText);
+                LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {response.Length} chars)");
+                return PostProcessingResult.Applied(response);
             }
             catch (OperationCanceledException)
             {
@@ -214,43 +265,37 @@ public class PostProcessingService : IDisposable
 
         try
         {
-            string response;
+            CompletionEvaluation evaluation;
 
             if (isCustomEndpoint)
             {
-                response = await CallCustomEndpointAsync(mode, text, systemPrompt, userMessage, cancellationToken);
+                var responseJson = await CallCustomEndpointAsync(mode, systemPrompt, userMessage, cancellationToken);
+                evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, responseJson, text);
             }
             else
             {
                 LoggingService.Info($"PostProcessingService: Processing with {provider}/{resolvedModelId}");
 
-                response = provider switch
+                evaluation = provider switch
                 {
-                    PostProcessingProvider.OpenAI => await CallOpenAIAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Anthropic => await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Groq => await CallGroqAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Grok => await CallGrokAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Gemini => await CallGeminiAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Cerebras => await CallCerebrasAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.Mistral => await CallMistralAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    PostProcessingProvider.LocalLlm => await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken),
-                    _ => text
+                    PostProcessingProvider.OpenAI or PostProcessingProvider.Groq or PostProcessingProvider.Grok
+                        or PostProcessingProvider.Gemini or PostProcessingProvider.Cerebras or PostProcessingProvider.Mistral =>
+                        HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(MapToOpenAICompatibleProvider(provider), apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.Anthropic => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.AnthropicMessages, await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                    PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
+                    _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
             }
 
-            // Extract the cleaned text from the response
-            var cleanedText = PromptBuilder.ExtractCleanedTextLenient(response);
-            if (string.IsNullOrWhiteSpace(cleanedText))
+            if (!evaluation.accepted)
             {
-                // Empty output, or a response missing the <<CLEANED>> marker (PromptBuilder returns
-                // empty in that case) — keep the original transcription rather than pasting empty
-                // text or a prompt-echo.
-                LoggingService.Warn("PostProcessingService: Empty/markerless cleaned text from model; keeping original transcription");
-                return PostProcessingResult.Skipped(text);
+                LoggingService.Warn($"PostProcessingService: Response rejected ({evaluation.failure}); keeping original transcription");
+                WarningOccurred?.Invoke(this, new ErrorToastEventArgs(Loc.S("postprocessing.error.failed")));
+                return PostProcessingResult.Skipped(evaluation.text);
             }
-            LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {cleanedText.Length} chars)");
+            LoggingService.Info($"PostProcessingService: Successfully processed ({text.Length} -> {evaluation.text.Length} chars)");
 
-            return PostProcessingResult.Applied(cleanedText);
+            return PostProcessingResult.Applied(evaluation.text);
         }
         catch (OperationCanceledException)
         {
@@ -296,14 +341,35 @@ public class PostProcessingService : IDisposable
     // =========================================================================
 
     /// <summary>
-    /// Calls the OpenAI Chat Completions API.
+    /// Calls any provider that implements the OpenAI Chat Completions protocol.
+    /// Provider-specific behavior belongs in <see cref="OpenAICompatibleProviderExtensions"/>.
     /// </summary>
-    private async Task<string> CallOpenAIAsync(
+    private async Task<string> CallOpenAICompatibleAsync(
+        OpenAICompatibleProvider provider,
         string apiKey,
         string model,
         string systemPrompt,
         string userMessage,
         CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, provider.Endpoint());
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Content = new StringContent(
+            BuildOpenAIRequestJson(model, systemPrompt, userMessage),
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    internal static string BuildOpenAIRequestJson(
+        string model,
+        string systemPrompt,
+        string userMessage)
     {
         var requestBody = new
         {
@@ -312,30 +378,26 @@ public class PostProcessingService : IDisposable
             {
                 new { role = "system", content = systemPrompt },
                 new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
+            }
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
+        return JsonSerializer.Serialize(requestBody);
     }
+
+    /// <summary>
+    /// Maps the OpenAI-compatible subset of <see cref="PostProcessingProvider"/> to the
+    /// dedicated <see cref="OpenAICompatibleProvider"/> enum used by <see cref="CallOpenAICompatibleAsync"/>.
+    /// </summary>
+    private static OpenAICompatibleProvider MapToOpenAICompatibleProvider(PostProcessingProvider provider) => provider switch
+    {
+        PostProcessingProvider.OpenAI => OpenAICompatibleProvider.OpenAI,
+        PostProcessingProvider.Groq => OpenAICompatibleProvider.Groq,
+        PostProcessingProvider.Grok => OpenAICompatibleProvider.Grok,
+        PostProcessingProvider.Gemini => OpenAICompatibleProvider.Gemini,
+        PostProcessingProvider.Cerebras => OpenAICompatibleProvider.Cerebras,
+        PostProcessingProvider.Mistral => OpenAICompatibleProvider.Mistral,
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Provider is not OpenAI-compatible")
+    };
 
     /// <summary>
     /// Calls the Anthropic Messages API.
@@ -347,9 +409,27 @@ public class PostProcessingService : IDisposable
         string userMessage,
         CancellationToken cancellationToken)
     {
-        // Use structured system content with cache_control for prompt caching
-        // The system prompt is static per mode/preset and gets cached by Anthropic,
-        // while dynamic content (time, app context, vocabulary) is in the user message.
+        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+        request.Headers.Add("x-api-key", apiKey);
+        request.Headers.Add("anthropic-version", "2023-06-01");
+        request.Content = new StringContent(
+            BuildAnthropicRequestJson(model, systemPrompt, userMessage),
+            Encoding.UTF8,
+            "application/json"
+        );
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    internal static string BuildAnthropicRequestJson(
+        string model,
+        string systemPrompt,
+        string userMessage)
+    {
+        // The static system prompt is cacheable; dynamic context stays in the user message.
         var systemContent = new[]
         {
             new Dictionary<string, object>
@@ -363,7 +443,7 @@ public class PostProcessingService : IDisposable
         var requestBody = new
         {
             model,
-            max_tokens = 4096,
+            max_tokens = 8192,
             system = systemContent,
             messages = new[]
             {
@@ -371,247 +451,7 @@ public class PostProcessingService : IDisposable
             }
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
-        request.Headers.Add("x-api-key", apiKey);
-        request.Headers.Add("anthropic-version", "2023-06-01");
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("content")[0]
-            .GetProperty("text")
-            .GetString() ?? "";
-    }
-
-    /// <summary>
-    /// Calls the Groq API (OpenAI-compatible endpoint).
-    /// </summary>
-    private async Task<string> CallGroqAsync(
-        string apiKey,
-        string model,
-        string systemPrompt,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        var requestBody = new
-        {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.groq.com/openai/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
-    }
-
-    /// <summary>
-    /// Calls the xAI Grok API (OpenAI-compatible endpoint).
-    /// </summary>
-    private async Task<string> CallGrokAsync(
-        string apiKey,
-        string model,
-        string systemPrompt,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        var requestBody = new
-        {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.x.ai/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
-    }
-
-    /// <summary>
-    /// Calls the Google Gemini API (OpenAI-compatible endpoint).
-    /// Gemini provides an OpenAI-compatible endpoint for easy integration.
-    /// API Endpoint: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-    /// Auth: Bearer token (same as OpenAI)
-    /// </summary>
-    private async Task<string> CallGeminiAsync(
-        string apiKey,
-        string model,
-        string systemPrompt,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        var requestBody = new
-        {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
-    }
-
-    /// <summary>
-    /// Calls the Cerebras API (OpenAI-compatible endpoint).
-    /// Cerebras provides ultra-fast inference on custom silicon.
-    /// API Endpoint: https://api.cerebras.ai/v1/chat/completions
-    /// Auth: Bearer token (same as OpenAI)
-    /// </summary>
-    private async Task<string> CallCerebrasAsync(
-        string apiKey,
-        string model,
-        string systemPrompt,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        var requestBody = new
-        {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            "https://api.cerebras.ai/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
-    }
-
-    /// <summary>
-    /// Calls the Mistral API (OpenAI-compatible endpoint).
-    /// Mistral provides an OpenAI-compatible /chat/completions endpoint.
-    /// API Endpoint: https://api.mistral.ai/v1/chat/completions
-    /// Auth: Bearer token (same as OpenAI)
-    /// </summary>
-    private async Task<string> CallMistralAsync(
-        string apiKey,
-        string model,
-        string systemPrompt,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        var requestBody = new
-        {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            "https://api.mistral.ai/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
+        return JsonSerializer.Serialize(requestBody);
     }
 
     /// <summary>
@@ -652,7 +492,6 @@ public class PostProcessingService : IDisposable
     /// </summary>
     private async Task<string> CallCustomEndpointAsync(
         Mode mode,
-        string text,
         string systemPrompt,
         string userMessage,
         CancellationToken cancellationToken)
@@ -662,25 +501,14 @@ public class PostProcessingService : IDisposable
         if (endpoint == null)
         {
             LoggingService.Warn($"PostProcessingService: Custom endpoint not found for '{mode.PostProcessingProvider}'");
-            return text;
+            throw new InvalidOperationException($"Custom endpoint not found for '{mode.PostProcessingProvider}'");
         }
 
         LoggingService.Info($"PostProcessingService: Processing with custom endpoint '{endpoint.Name}' / {endpoint.ModelName}");
 
-        var requestBody = new
-        {
-            model = endpoint.ModelName,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            },
-            max_tokens = 4096
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint.EndpointURL);
+        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, endpoint.EndpointURL);
         request.Content = new StringContent(
-            JsonSerializer.Serialize(requestBody),
+            BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage),
             Encoding.UTF8,
             "application/json"
         );
@@ -695,14 +523,7 @@ public class PostProcessingService : IDisposable
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(responseJson);
-
-        return doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     // =========================================================================
@@ -733,4 +554,28 @@ public readonly record struct PostProcessingResult(string Text, bool WasApplied)
 {
     public static PostProcessingResult Applied(string text) => new(text, true);
     public static PostProcessingResult Skipped(string text) => new(text, false);
+}
+
+internal enum OpenAICompatibleProvider
+{
+    OpenAI,
+    Groq,
+    Grok,
+    Gemini,
+    Cerebras,
+    Mistral
+}
+
+internal static class OpenAICompatibleProviderExtensions
+{
+    public static string Endpoint(this OpenAICompatibleProvider provider) => provider switch
+    {
+        OpenAICompatibleProvider.OpenAI => "https://api.openai.com/v1/chat/completions",
+        OpenAICompatibleProvider.Groq => "https://api.groq.com/openai/v1/chat/completions",
+        OpenAICompatibleProvider.Grok => "https://api.x.ai/v1/chat/completions",
+        OpenAICompatibleProvider.Gemini => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        OpenAICompatibleProvider.Cerebras => "https://api.cerebras.ai/v1/chat/completions",
+        OpenAICompatibleProvider.Mistral => "https://api.mistral.ai/v1/chat/completions",
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
+    };
 }

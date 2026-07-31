@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "홈";
-"sidebar.statistics" = "통계";
 "sidebar.modes" = "모드";
 "sidebar.vocabulary" = "어휘";
 "sidebar.streaming" = "스트리밍";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "버전 %@";
 "home.recent.updates.new.badge" = "새로운 기능";
 "home.recent.updates.no.notes" = "릴리스 노트가 없습니다";
+"home.stats.words.week" = "이번 주 단어 수";
+"home.stats.words.month" = "이번 달 단어 수";
+"home.stats.speed" = "평균 속도";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisper 시작하기";
-"sidebar.statistics.help" = "사용 통계 및 분석 보기";
 "sidebar.modes.help" = "다양한 컨텍스트에 대한 음성 인식 모드 관리";
 "sidebar.vocabulary.help" = "더 나은 인식을 위한 사용자 정의 단어 및 구문 추가";
 "sidebar.streaming.help" = "실시간 스트리밍 음성 인식 설정 (인터넷 필요)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud 크레딧";
 "settings.credits.refresh" = "새로 고침";
-"settings.credits.subtitle" = "음성 인식 크레딧 및 사용량 모니터링";
-"settings.credits.manage" = "크레딧 관리";
 "settings.credits.timeRemaining" = "남은 음성 인식 시간";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "분";
 "settings.credits.creditsRemaining" = "%@ 크레딧 남음";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "무료 일일 한도 (100 크레딧)";
-"settings.credits.resets" = "%@ 재설정";
 "settings.credits.warning.low" = "크레딧이 부족합니다. 추가 크레딧을 위해 라이선스 구매를 고려하세요.";
-"settings.credits.warning.exhausted.daily" = "일일 한도가 소진되었습니다. 무제한 사용을 위해 라이선스를 구매하거나 재설정을 기다리세요.";
 "settings.credits.warning.exhausted" = "크레딧이 소진되었습니다. HyperWhisper Cloud를 계속 사용하려면 더 많은 크레딧을 구매하세요.";
 "settings.credits.accountInfo" = "계정 정보";
-"settings.credits.stat.creditsRemaining" = "남은 크레딧";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "남은 분";
-"settings.credits.stat.accountType" = "계정 유형";
-"settings.credits.accountType.licensed" = "라이선스";
-"settings.credits.accountType.anonymous" = "익명";
-"settings.credits.accountType.trial" = "체험판";
-"settings.credits.stat.customerId" = "고객 ID";
-"settings.credits.stat.dailyLimit" = "일일 한도";
-"settings.credits.dailyLimit.value" = "100 크레딧";
 "settings.credits.loading" = "크레딧 잔액 로딩 중...";
 "settings.credits.error.title" = "크레딧 잔액을 로드할 수 없음";
 "settings.credits.error.retry" = "재시도";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "네트워크 오류: %@";
 "settings.credits.error.invalidResponse" = "서버의 잘못된 응답. 다시 시도하세요.";
 "settings.credits.error.server" = "서버 오류: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "계정 키";
+"settings.cloud.purchaseMore" = "크레딧 구매";
+"settings.cloud.key.reveal" = "계정 키 표시";
+"settings.cloud.key.hide" = "계정 키 숨기기";
+"settings.cloud.key.copy" = "계정 키 복사";
+"settings.cloud.activate.title" = "HyperWhisper Cloud 활성화";
+"settings.cloud.activate.subtitle" = "계정 키는 사용자의 지갑입니다 — Cloud 크레딧이 여기에 보관됩니다. 시작하려면 키를 입력하거나, 키를 받으려면 크레딧을 구매하세요.";
+"settings.cloud.getCredits.title" = "아직 키가 없으신가요?";
+"settings.cloud.getCredits.subtitle" = "크레딧을 구매하시면 이메일로 계정 키를 보내드립니다.";
+"settings.cloud.getCredits.button" = "크레딧 구매";
 "settings.models.alert.cannotDelete.title" = "모델을 삭제할 수 없음";
 "settings.models.parakeet.title" = "Parakeet 모델";
 "settings.models.parakeet.subtitle" = "대부분의 사용자에게 권장됩니다. 다국어 모델은 25개 언어를 지원합니다.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB 이상의 통합 메모리가 있는 Mac에 권장됩니다. 속도는 칩에 따라 다릅니다 — M3/M4 Pro 이상에서 더 빠릅니다.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "올해 단어 수";
+"home.stats.typing.speed.help" = "절약한 시간을 계산할 때 기준이 되는 타이핑 속도(WPM)를 조정합니다.";
+"home.stats.saved.week" = "이번 주 절약한 시간";
+"home.stats.minutes.value" = "%d분";
 "vocabulary.input.placeholder" = "단어 추가 또는 스니펫 만들기";
 "vocabulary.action.addWord" = "단어 추가";
 "vocabulary.action.replaceWith" = "다음으로 교체…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "모델 체크섬 확인 실패. 다운로드가 손상되었을 수 있습니다.";
 
 // MARK: - Statistics View
-"statistics.title" = "통계";
-"statistics.header.title" = "사용 통계";
-"statistics.header.subtitle" = "음성 인식 활동 및 성능 추적";
-"statistics.card.recordings" = "총 녹음";
-"statistics.card.recordings.subtitle" = "완료된 음성 인식";
-"statistics.card.duration" = "총 시간";
-"statistics.card.duration.subtitle" = "녹음에 소요된 시간";
-"statistics.card.words" = "총 단어";
-"statistics.card.words.subtitle" = "음성 인식된 단어";
-"statistics.card.average" = "평균 기간";
-"statistics.card.average.subtitle" = "녹음당";
-"statistics.graph.title" = "시간에 따른 활동";
-"statistics.daily.empty" = "아직 녹음이 없습니다";
-"statistics.filter.week" = "이번 주";
-"statistics.filter.month" = "이번 달";
-"statistics.filter.alltime" = "전체 기간";
 
 // MARK: - History View
 "history.title" = "기록";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "빠르고 저렴합니다. 빠른 음성 인식에 가장 적합합니다.";
 "modes.cloudAccuracy.deepgramNova3.description" = "속도와 정확도의 균형. 대부분의 사용자에게 권장됩니다.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ 크레딧/분";
 "modes.cloudAccuracy.grokStt.label" = "최고 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 처리가 느린 최고 정확도. 중요한 음성 인식에 가장 적합합니다.";
+"modes.cloudAccuracy.googleChirp3.label" = "높음 (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 기반 Google Cloud Speech-to-Text V2. 문구 적응을 지원하는 다국어.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "높음 (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech 기반 Microsoft MAI-Transcribe 1.5. 문맥 기반 보정을 지원하는 43개 언어.";
 
 "modes.create.title" = "새 모드 만들기";
 "modes.create.subtitle" = "사용자 정의 음성 인식 프로필 구성";
@@ -915,9 +904,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "기본 마이크";
 "audio.error.permissionDenied" = "마이크 액세스가 거부되었습니다. 시스템 설정에서 활성화하세요.";
-"audio.error.fileWatcher.open" = "오디오 파일을 모니터링하기 위해 파일 디스크립터를 열 수 없습니다.";
-"audio.error.fileWatcher.timeout" = "오디오 파일이 작성되기를 기다리는 동안 작업 시간이 초과되었습니다.";
-"audio.error.fileWatcher.creation" = "오디오 파일이 제시간에 생성되지 않았습니다.";
 "audio.error.microphonePermission" = "마이크 권한이 부여되지 않음";
 "audio.error.microphoneInUse" = "다른 앱이 현재 사용 중이므로 HyperWhisper가 마이크에 액세스할 수 없습니다. 다른 앱을 일시 중지하거나 입력을 전환한 다음 다시 시도하세요.";
 "audio.error.createEngine" = "오디오 엔진 생성 실패";
@@ -992,6 +978,15 @@
 "transcription.guidance.timeout" = "요청이 너무 오래 걸렸습니다. 인터넷 속도를 확인하고 다시 시도하세요.";
 "transcription.error.noSpeechDetected" = "녹음에서 음성이 감지되지 않았습니다.";
 "transcription.guidance.noSpeechDetected" = "팁:\n• 마이크에 명확하게 말하세요\n• 말하기 전에 키를 더 오래 누르세요\n• 마이크가 작동하는지 확인하세요\n• 올바른 입력 장치가 선택되었는지 확인하세요";
+"transcription.guidance.needsNativeRelaunch" = "로컬 후처리를 사용하려면 HyperWhisper를 종료한 후 네이티브로 다시 실행하세요.";
+"transcription.guidance.localRuntimeUnavailable" = "다시 시도하거나, 모드 설정에서 더 작은 로컬 모델을 선택하세요.";
+"transcription.error.localRuntimeUnavailable" = "로컬 AI가 처리를 완료하지 못했습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
+"settings.backup.localDownload.title" = "로컬 모델을 다운로드할까요?";
+"settings.backup.localDownload.message" = "복원된 모드 중 %d개가 아직 다운로드되지 않은 온디바이스 AI 모델을 사용합니다.";
+"settings.backup.localDownload.downloadAll" = "모두 다운로드";
+"settings.backup.localDownload.dismiss" = "닫기";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon 필요";
+"modelLibrary.local.needsNativeRelaunch" = "네이티브로 다시 실행";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";
@@ -1125,3 +1120,12 @@
 "history.autoDelete.status.enabled" = "%d %@보다 오래된 녹음 삭제";
 "history.autoDelete.cleanup.noItems" = "삭제할 녹음 없음";
 "history.autoDelete.cleanup.summary" = "%d개 녹음 삭제 및 %@ 확보";
+"history.status.interrupted" = "전사가 중단되었습니다 — 앱이 완료되기 전에 종료되었습니다";
+"recording.maxDuration.reachedToast" = "녹음이 중지되었습니다 — %d분 제한에 도달했습니다";
+"streaming.maxDuration.reachedToast" = "스트리밍이 중지되었습니다 — %d분 제한에 도달했습니다";
+"settings.storage.maxRecordingDuration.title" = "최대 녹음 시간";
+"settings.storage.maxRecordingDuration.subtitle" = "이 시간보다 길게 실행되는 녹음을 자동으로 중지하고 전사합니다.";
+"settings.storage.maxRecordingDuration.minutes" = "%d분";
+"settings.storage.maxRecordingDuration.hour" = "1시간";
+"settings.storage.maxRecordingDuration.hours" = "%d시간";
+"settings.storage.maxRecordingDuration.off" = "끄기";

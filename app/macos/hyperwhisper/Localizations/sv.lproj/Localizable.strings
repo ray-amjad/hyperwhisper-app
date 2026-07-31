@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Hem";
-"sidebar.statistics" = "Statistik";
 "sidebar.modes" = "Lägen";
 "sidebar.vocabulary" = "Ordförråd";
 "sidebar.streaming" = "Streaming";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Version %@";
 "home.recent.updates.new.badge" = "NY";
 "home.recent.updates.no.notes" = "Inga versionsinformation tillgängliga";
+"home.stats.words.week" = "Ord den här veckan";
+"home.stats.words.month" = "Ord den här månaden";
+"home.stats.speed" = "Genomsnittlig hastighet";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Kom igång med HyperWhisper";
-"sidebar.statistics.help" = "Visa användningsstatistik och analys";
 "sidebar.modes.help" = "Hantera transkriptionslägen för olika sammanhang";
 "sidebar.vocabulary.help" = "Lägg till anpassade ord och fraser för bättre igenkänning";
 "sidebar.streaming.help" = "Inställningar för transkription i realtid (kräver Internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud-krediter";
 "settings.credits.refresh" = "Uppdatera";
-"settings.credits.subtitle" = "Övervaka dina transkriptionskrediter och användning";
-"settings.credits.manage" = "Hantera krediter";
 "settings.credits.timeRemaining" = "Transkriptionstid återstår";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minuter";
 "settings.credits.creditsRemaining" = "%@ krediter återstår";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Gratis daglig gräns (100 krediter)";
-"settings.credits.resets" = "Återställs %@";
 "settings.credits.warning.low" = "Krediterna börjar ta slut. Överväg att köpa en licens för ytterligare krediter.";
-"settings.credits.warning.exhausted.daily" = "Daglig gräns uttömd. Köp en licens för obegränsad användning eller vänta på återställning.";
 "settings.credits.warning.exhausted" = "Krediter slut. Köp fler krediter för att fortsätta använda HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Kontoinformation";
-"settings.credits.stat.creditsRemaining" = "Krediter återstår";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minuter återstår";
-"settings.credits.stat.accountType" = "Kontotyp";
-"settings.credits.accountType.licensed" = "Licensierad";
-"settings.credits.accountType.anonymous" = "Anonym";
-"settings.credits.accountType.trial" = "Testversion";
-"settings.credits.stat.customerId" = "Kund-ID";
-"settings.credits.stat.dailyLimit" = "Daglig gräns";
-"settings.credits.dailyLimit.value" = "100 krediter";
 "settings.credits.loading" = "Läser in kreditsaldo...";
 "settings.credits.error.title" = "Det gick inte att läsa in kreditsaldo";
 "settings.credits.error.retry" = "Försök igen";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Nätverksfel: %@";
 "settings.credits.error.invalidResponse" = "Ogiltigt svar från servern. Försök igen.";
 "settings.credits.error.server" = "Serverfel: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kontonyckel";
+"settings.cloud.purchaseMore" = "Köp krediter";
+"settings.cloud.key.reveal" = "Visa kontonyckel";
+"settings.cloud.key.hide" = "Dölj kontonyckel";
+"settings.cloud.key.copy" = "Kopiera kontonyckel";
+"settings.cloud.activate.title" = "Aktivera HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Din kontonyckel är din plånbok — den innehåller dina Cloud-krediter. Ange din nyckel för att komma igång, eller köp krediter för att få en.";
+"settings.cloud.getCredits.title" = "Har du ingen nyckel än?";
+"settings.cloud.getCredits.subtitle" = "Köp krediter så mejlar vi dig en kontonyckel.";
+"settings.cloud.getCredits.button" = "Köp krediter";
 "settings.models.alert.cannotDelete.title" = "Det gick inte att ta bort modellen";
 "settings.models.parakeet.title" = "Parakeet-modeller";
 "settings.models.parakeet.subtitle" = "Rekommenderas för de flesta användare. Flerspråkig modell stöder 25 språk.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Rekommenderas för Mac med 24 GB unified memory eller mer. Hastigheten beror på ditt chip — snabbare på M3/M4 Pro och högre.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Ord i år";
+"home.stats.typing.speed.help" = "Justera den antagna skrivhastigheten (WPM) som används för att beräkna sparad tid.";
+"home.stats.saved.week" = "Sparat den här veckan";
+"home.stats.minutes.value" = "%d minuter";
 "vocabulary.input.placeholder" = "Lägg till ett ord eller skapa ett utdrag";
 "vocabulary.action.addWord" = "Lägg till ord";
 "vocabulary.action.replaceWith" = "Ersätt med…";
@@ -641,22 +641,6 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "models.error.checksumFailed" = "Modellkontrollsummaverifiering misslyckades. Nedladdningen kan vara skadad.";
 
 // MARK: - Statistics View
-"statistics.title" = "Statistik";
-"statistics.header.title" = "Din användningsstatistik";
-"statistics.header.subtitle" = "Spåra din transkriptionsaktivitet och prestanda";
-"statistics.card.recordings" = "Totala inspelningar";
-"statistics.card.recordings.subtitle" = "Slutförda transkriptioner";
-"statistics.card.duration" = "Total tid";
-"statistics.card.duration.subtitle" = "Tid använd för inspelning";
-"statistics.card.words" = "Totala ord";
-"statistics.card.words.subtitle" = "Ord transkriberade";
-"statistics.card.average" = "Genomsnittlig varaktighet";
-"statistics.card.average.subtitle" = "Per inspelning";
-"statistics.graph.title" = "Aktivitet över tid";
-"statistics.daily.empty" = "Inga inspelningar än";
-"statistics.filter.week" = "Denna vecka";
-"statistics.filter.month" = "Denna månad";
-"statistics.filter.alltime" = "All tid";
 
 // MARK: - History View
 "history.title" = "Historik";
@@ -777,8 +761,13 @@ Redigera dessa lägen för att välja en annan modell innan du tar bort den.";
 "modes.cloudAccuracy.groqWhisper.description" = "Snabb och prisvärd. Bäst för snabba transkriptioner.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Balanserad hastighet och noggrannhet. Rekommenderas för de flesta användare.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ krediter/min";
 "modes.cloudAccuracy.grokStt.label" = "Högsta (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Högsta noggrannhet med långsammare bearbetning. Bäst för viktiga transkriptioner.";
+"modes.cloudAccuracy.googleChirp3.label" = "Hög (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 med Chirp 3. Flerspråkig med frasanpassning.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Hög (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 språk med kontextuell anpassning.";
 
 "modes.create.title" = "Skapa nytt läge";
 "modes.create.subtitle" = "Konfigurera en anpassad transkriptionsprofil";
@@ -915,9 +904,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 // MARK: - Audio Manager
 "audio.device.default" = "Standardmikrofon";
 "audio.error.permissionDenied" = "Mikrofonåtkomst nekad. Aktivera i Systeminställningar.";
-"audio.error.fileWatcher.open" = "Kunde inte öppna en filbeskrivare för att övervaka ljudfilen.";
-"audio.error.fileWatcher.timeout" = "Åtgärden upphörde medan vi väntade på att ljudfilen skulle skrivas.";
-"audio.error.fileWatcher.creation" = "Ljudfilen skapades inte i tid.";
 "audio.error.microphonePermission" = "Mikrofonåtkomst inte beviljas";
 "audio.error.microphoneInUse" = "HyperWhisper kan inte komma åt mikrofonen eftersom en annan app använder den för närvarande. Pausa den andra appen eller växla inmatningar, sedan försök igen.";
 "audio.error.createEngine" = "Det gick inte att skapa audiomotor";
@@ -992,6 +978,15 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.guidance.timeout" = "Förfrågan tog för lång tid. Kontrollera din internethastighet och försök igen.";
 "transcription.error.noSpeechDetected" = "Inget tal upptäcktes i inspelningen.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Tala tydligt in i mikrofonen\n• Håll tangenten längre innan du talar\n• Kontrollera att din mikrofon fungerar\n• Se till att rätt ingångsenhet är vald";
+"transcription.guidance.needsNativeRelaunch" = "Avsluta och öppna HyperWhisper nativt igen för att använda lokal efterbearbetning.";
+"transcription.guidance.localRuntimeUnavailable" = "Försök igen eller välj en mindre lokal modell i lägesinställningarna.";
+"transcription.error.localRuntimeUnavailable" = "Den lokala AI:n kunde inte slutföra — din obearbetade transkribering sparades.";
+"settings.backup.localDownload.title" = "Hämta lokala modeller?";
+"settings.backup.localDownload.message" = "%d av dina återställda lägen använder lokala AI-modeller som inte har hämtats än.";
+"settings.backup.localDownload.downloadAll" = "Hämta alla";
+"settings.backup.localDownload.dismiss" = "Ignorera";
+"modelLibrary.local.requiresAppleSilicon" = "Kräver Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Starta om nativt";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Otillräckliga krediter. Lägg till mer krediter i inställningar.";
@@ -1125,3 +1120,12 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "history.autoDelete.status.enabled" = "Radera inspelningar äldre än %d %@";
 "history.autoDelete.cleanup.noItems" = "Inga inspelningar att radera";
 "history.autoDelete.cleanup.summary" = "Raderade %d inspelning(ar) och frigöra %@";
+"history.status.interrupted" = "Transkriberingen avbröts — appen avslutades innan den var klar";
+"recording.maxDuration.reachedToast" = "Inspelningen stoppades — gränsen på %d minuter uppnådd";
+"streaming.maxDuration.reachedToast" = "Strömningen stoppades — gränsen på %d minuter uppnådd";
+"settings.storage.maxRecordingDuration.title" = "Maximal inspelningslängd";
+"settings.storage.maxRecordingDuration.subtitle" = "Stoppa och transkribera automatiskt inspelningar som pågår längre än detta.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minuter";
+"settings.storage.maxRecordingDuration.hour" = "1 timme";
+"settings.storage.maxRecordingDuration.hours" = "%d timmar";
+"settings.storage.maxRecordingDuration.off" = "Av";

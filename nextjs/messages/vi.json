@@ -20,6 +20,7 @@
     "githubAria": "Xem HyperWhisper trên GitHub"
   },
   "hero": {
+    "openSourceBadge": "Mã nguồn mở · Apache-2.0",
     "logoAlt": "Logo HyperWhisper",
     "headline": "Viết, soạn thảo và sáng tạo",
     "headlineAccent": "nhanh hơn 5x với AI",

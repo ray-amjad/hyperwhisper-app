@@ -7,8 +7,6 @@ using System.Windows.Controls;
 using HyperWhisper.Services;
 using HyperWhisper.Views.Pages.Settings;
 
-using LicenseStatus = HyperWhisper.Models.LicenseStatus;
-
 namespace HyperWhisper.Views.Pages;
 
 public partial class SettingsPage : Page
@@ -25,48 +23,11 @@ public partial class SettingsPage : Page
         _initialSection = string.IsNullOrWhiteSpace(initialSection) ? "General" : initialSection;
         InitializeComponent();
         Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // Subscribe to license status changes to update Credits visibility in real-time
-        LicenseManager.Instance.LicenseStatusChanged += OnLicenseStatusChanged;
-
-        // Update Credits visibility based on license status
-        UpdateCreditsVisibility();
-
         SelectSection(_initialSection);
-    }
-
-    private void OnUnloaded(object sender, RoutedEventArgs e)
-    {
-        // Unsubscribe to prevent memory leaks
-        LicenseManager.Instance.LicenseStatusChanged -= OnLicenseStatusChanged;
-    }
-
-    private void OnLicenseStatusChanged(object? sender, System.EventArgs e)
-    {
-        // Ensure we're on the UI thread
-        if (!Dispatcher.CheckAccess())
-        {
-            Dispatcher.Invoke(() => OnLicenseStatusChanged(sender, e));
-            return;
-        }
-
-        UpdateCreditsVisibility();
-    }
-
-    private void UpdateCreditsVisibility()
-    {
-        // Only show Credits for licensed users (similar to macOS behavior)
-        var isLicensed = LicenseManager.Instance.LicenseStatus == LicenseStatus.Active;
-        CreditsNavItem.Visibility = isLicensed ? Visibility.Visible : Visibility.Collapsed;
-
-        if (!isLicensed && SectionList.SelectedItem == CreditsNavItem)
-        {
-            SelectSection("General");
-        }
     }
 
     /// <summary>
@@ -96,8 +57,8 @@ public partial class SettingsPage : Page
             "General" => new GeneralSettingsPage(),
             "Appearance" => new AppearanceSettingsPage(),
             "Sound" => new SoundSettingsPage(),
-            "License" => new LicenseSettingsPage(),
-            "Credits" => new CreditsSettingsPage(),
+            // "License" / "Credits" are legacy aliases for the unified Cloud panel.
+            "Cloud" or "License" or "Credits" => new CloudAccountSettingsPage(),
             "Storage" => new StorageSettingsPage(),
             "Output" => new OutputSettingsPage(),
             "LocalApi" => new LocalApiSettingsPage(),
@@ -113,9 +74,12 @@ public partial class SettingsPage : Page
 
     public void SelectSection(string sectionTag)
     {
+        // Normalize legacy deep-links ("License" / "Credits") onto the unified Cloud tag.
+        var normalized = sectionTag is "License" or "Credits" ? "Cloud" : sectionTag;
+
         foreach (var item in SectionList.Items)
         {
-            if (item is ListBoxItem listBoxItem && listBoxItem.Tag?.ToString() == sectionTag)
+            if (item is ListBoxItem listBoxItem && listBoxItem.Tag?.ToString() == normalized)
             {
                 SectionList.SelectedItem = listBoxItem;
                 return;

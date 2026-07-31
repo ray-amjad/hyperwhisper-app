@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "主页";
-"sidebar.statistics" = "统计";
 "sidebar.modes" = "模式";
 "sidebar.vocabulary" = "词汇";
 "sidebar.streaming" = "流式转写";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "版本 %@";
 "home.recent.updates.new.badge" = "新";
 "home.recent.updates.no.notes" = "暂无版本说明";
+"home.stats.words.week" = "本周字数";
+"home.stats.words.month" = "本月字数";
+"home.stats.speed" = "平均语速";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "开始使用 HyperWhisper";
-"sidebar.statistics.help" = "查看使用统计和分析";
 "sidebar.modes.help" = "为不同场景管理转写模式";
 "sidebar.vocabulary.help" = "添加自定义词语和短语以提升识别";
 "sidebar.streaming.help" = "流式转写设置（需互联网）";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper Cloud 额度";
 "settings.credits.refresh" = "刷新";
-"settings.credits.subtitle" = "查看你的转写额度和使用情况";
-"settings.credits.manage" = "管理额度";
 "settings.credits.timeRemaining" = "剩余转写时长";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "分钟";
 "settings.credits.creditsRemaining" = "剩余 %@ 额度";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "每日免费额度（100 积分）";
-"settings.credits.resets" = "%@ 重置";
 "settings.credits.warning.low" = "额度不足。考虑购买许可证以获得更多额度。";
-"settings.credits.warning.exhausted.daily" = "每日额度已用尽。购买许可证以无限使用或等待重置。";
 "settings.credits.warning.exhausted" = "额度已用尽。购买更多额度以继续使用 HyperWhisper Cloud。";
 "settings.credits.accountInfo" = "账户信息";
-"settings.credits.stat.creditsRemaining" = "剩余额度";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "剩余分钟数";
-"settings.credits.stat.accountType" = "账户类型";
-"settings.credits.accountType.licensed" = "已授权";
-"settings.credits.accountType.anonymous" = "匿名";
-"settings.credits.accountType.trial" = "试用";
-"settings.credits.stat.customerId" = "客户 ID";
-"settings.credits.stat.dailyLimit" = "每日上限";
-"settings.credits.dailyLimit.value" = "100 积分";
 "settings.credits.loading" = "正在加载额度余额...";
 "settings.credits.error.title" = "无法加载额度余额";
 "settings.credits.error.retry" = "重试";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "网络错误：%@";
 "settings.credits.error.invalidResponse" = "服务器响应无效。请重试。";
 "settings.credits.error.server" = "服务器错误：%@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "账户密钥";
+"settings.cloud.purchaseMore" = "购买额度";
+"settings.cloud.key.reveal" = "显示账户密钥";
+"settings.cloud.key.hide" = "隐藏账户密钥";
+"settings.cloud.key.copy" = "复制账户密钥";
+"settings.cloud.activate.title" = "激活 HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "您的账户密钥就是您的钱包 — 其中保存着您的 Cloud 额度。输入密钥即可开始使用，或购买额度以获取一个。";
+"settings.cloud.getCredits.title" = "还没有密钥？";
+"settings.cloud.getCredits.subtitle" = "购买额度后，我们会通过邮件将账户密钥发送给您。";
+"settings.cloud.getCredits.button" = "购买额度";
 "settings.models.alert.cannotDelete.title" = "无法删除模型";
 "settings.models.parakeet.title" = "Parakeet 模型";
 "settings.models.parakeet.subtitle" = "推荐给大多数用户。多语言模型支持 25 种语言。";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "建议配备 24 GB 统一内存或更多的 Mac 使用。速度取决于芯片 — 在 M3/M4 Pro 及以上机型上更快。";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "今年的字数";
+"home.stats.typing.speed.help" = "调整用于估算节省时间的假定打字速度（WPM）。";
+"home.stats.saved.week" = "本周节省时间";
+"home.stats.minutes.value" = "%d 分钟";
 "vocabulary.input.placeholder" = "添加单词或创建片段";
 "vocabulary.action.addWord" = "添加单词";
 "vocabulary.action.replaceWith" = "替换为…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "模型校验和验证失败。下载可能已损坏。";
 
 // MARK: - Statistics View
-"statistics.title" = "统计";
-"statistics.header.title" = "你的使用统计";
-"statistics.header.subtitle" = "跟踪转写活动与表现";
-"statistics.card.recordings" = "总录音数";
-"statistics.card.recordings.subtitle" = "已完成的转写";
-"statistics.card.duration" = "总时长";
-"statistics.card.duration.subtitle" = "录音时间";
-"statistics.card.words" = "总字数";
-"statistics.card.words.subtitle" = "已转写的字数";
-"statistics.card.average" = "平均时长";
-"statistics.card.average.subtitle" = "每次录音";
-"statistics.graph.title" = "活动趋势";
-"statistics.daily.empty" = "还没有录音";
-"statistics.filter.week" = "本周";
-"statistics.filter.month" = "本月";
-"statistics.filter.alltime" = "全部";
 
 // MARK: - History View
 "history.title" = "历史记录";
@@ -783,8 +767,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "快速且经济，适合快速转写。";
 "modes.cloudAccuracy.deepgramNova3.description" = "速度与准确度平衡，推荐给大多数用户。";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - 最高准确度但更慢，适合重要转写。";
+"modes.cloudAccuracy.creditsPerMinute" = "约 %@ 积分/分钟";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高准确度但更慢，适合重要转写。";
+"modes.cloudAccuracy.googleChirp3.label" = "高（Google Chirp 3）";
+"modes.cloudAccuracy.googleChirp3.description" = "采用 Chirp 3 的 Google Cloud Speech-to-Text V2。支持多语言，并具备短语自适应。";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "通过 Azure Speech 使用 Microsoft MAI-Transcribe 1.5。支持 43 种语言，并具备上下文偏置。";
 
 "modes.create.title" = "创建新模式";
 "modes.create.subtitle" = "配置自定义转写档案";
@@ -916,9 +905,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "默认麦克风";
 "audio.error.permissionDenied" = "麦克风访问被拒绝。请在系统设置中启用。";
-"audio.error.fileWatcher.open" = "无法打开用于监控音频文件的文件描述符。";
-"audio.error.fileWatcher.timeout" = "等待写入音频文件时操作超时。";
-"audio.error.fileWatcher.creation" = "音频文件未能及时创建。";
 "audio.error.microphonePermission" = "未授予麦克风权限";
 "audio.error.microphoneInUse" = "HyperWhisper 无法访问麦克风，因为其他应用正在使用。请暂停其他应用或切换输入后再试。";
 "audio.error.createEngine" = "无法创建音频引擎";
@@ -993,6 +979,15 @@
 "transcription.guidance.timeout" = "请求时间过长。检查网络速度后重试。";
 "transcription.error.noSpeechDetected" = "录音中未检测到语音。";
 "transcription.guidance.noSpeechDetected" = "提示：\n• 请清晰地对着麦克风说话\n• 说话前按住按键更久一些\n• 检查麦克风是否正常工作\n• 确认已选择正确的输入设备";
+"transcription.guidance.needsNativeRelaunch" = "请退出并以原生方式重新打开 HyperWhisper，以使用本地后处理。";
+"transcription.guidance.localRuntimeUnavailable" = "请重试，或在模式设置中选择更小的本地模型。";
+"transcription.error.localRuntimeUnavailable" = "本地 AI 未能完成处理 — 已为你保留原始转写文本。";
+"settings.backup.localDownload.title" = "要下载本地模型吗？";
+"settings.backup.localDownload.message" = "在已恢复的模式中，有 %d 个使用了尚未下载的设备端 AI 模型。";
+"settings.backup.localDownload.downloadAll" = "全部下载";
+"settings.backup.localDownload.dismiss" = "忽略";
+"modelLibrary.local.requiresAppleSilicon" = "需要 Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "以原生方式重新启动";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "额度不足。请在设置中添加更多额度。";
@@ -1126,3 +1121,12 @@
 "history.autoDelete.status.enabled" = "删除早于 %d %@ 的录音";
 "history.autoDelete.cleanup.noItems" = "没有可删除的录音";
 "history.autoDelete.cleanup.summary" = "已删除 %d 条录音并释放 %@";
+"history.status.interrupted" = "转录已中断 — 应用在完成前退出了";
+"recording.maxDuration.reachedToast" = "录音已停止 — 已达到 %d 分钟上限";
+"streaming.maxDuration.reachedToast" = "流式转录已停止 — 已达到 %d 分钟上限";
+"settings.storage.maxRecordingDuration.title" = "最长录音时长";
+"settings.storage.maxRecordingDuration.subtitle" = "自动停止并转录超过此时长的录音。";
+"settings.storage.maxRecordingDuration.minutes" = "%d 分钟";
+"settings.storage.maxRecordingDuration.hour" = "1 小时";
+"settings.storage.maxRecordingDuration.hours" = "%d 小时";
+"settings.storage.maxRecordingDuration.off" = "关闭";

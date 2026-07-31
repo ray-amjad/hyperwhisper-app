@@ -1,0 +1,205 @@
+{
+  "description": "Cross-platform conformance vectors for the LLM post-processing completion policy. Source of truth: shared-core-rs/crates/hw-text/src/completion.rs (consumed by shared-core-rs/crates/hw-text/tests/completion_vectors.rs and hyperwhisper-cloud/src/lib/llm-completion.test.ts). Every case runs normalize_termination(wireProtocol, reason) then evaluate_completion(original, content, state). Rejected cases keep `original` as the returned text. Leakage cases only use prompt markers present in BOTH the Rust and TS marker sets (<USER_SYSTEM_PROMPT>, <APPLICATION_CONTEXT>, <CUSTOM_VOCABULARY>); marker-set reconciliation is tracked as phase-2 work. Case content never places prose outside the wrapper markers: Rust extracts the wrapped inner content while the TS lenient path strips markers in place, so the two only agree on the final text when nothing lives outside the markers.",
+  "cases": [
+    {
+      "name": "openai-stop-wrapped-accepted",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>>Hello world.<<END>>",
+      "original": "hello world",
+      "expect": { "state": "complete", "accepted": true, "text": "Hello world.", "failure": "none" }
+    },
+    {
+      "name": "openai-length-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "length",
+      "content": "<<CLEANED>>partial text that was cut",
+      "original": "raw transcript",
+      "expect": { "state": "output_limit", "accepted": false, "text": "raw transcript", "failure": "output_limit" }
+    },
+    {
+      "name": "openai-length-with-complete-wrapper-still-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "length",
+      "content": "<<CLEANED>>looks finished but the provider says otherwise<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "output_limit", "accepted": false, "text": "raw transcript", "failure": "output_limit" }
+    },
+    {
+      "name": "openai-content-filter-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "content_filter",
+      "content": "<<CLEANED>>filtered response<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "incomplete", "accepted": false, "text": "raw transcript", "failure": "incomplete_response" }
+    },
+    {
+      "name": "openai-missing-reason-proceeds",
+      "wireProtocol": "openai_chat",
+      "reason": null,
+      "content": "<<CLEANED>>Cleaned text from a server that omits finish_reason.<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "unspecified", "accepted": true, "text": "Cleaned text from a server that omits finish_reason.", "failure": "none" }
+    },
+    {
+      "name": "anthropic-end-turn-accepted",
+      "wireProtocol": "anthropic_messages",
+      "reason": "end_turn",
+      "content": "<<CLEANED>>Cleaned by Claude.<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Cleaned by Claude.", "failure": "none" }
+    },
+    {
+      "name": "anthropic-stop-sequence-accepted",
+      "wireProtocol": "anthropic_messages",
+      "reason": "stop_sequence",
+      "content": "<<CLEANED>>Stopped on a stop sequence.<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Stopped on a stop sequence.", "failure": "none" }
+    },
+    {
+      "name": "anthropic-max-tokens-rejected",
+      "wireProtocol": "anthropic_messages",
+      "reason": "max_tokens",
+      "content": "<<CLEANED>>truncated mid",
+      "original": "raw transcript",
+      "expect": { "state": "output_limit", "accepted": false, "text": "raw transcript", "failure": "output_limit" }
+    },
+    {
+      "name": "anthropic-refusal-rejected",
+      "wireProtocol": "anthropic_messages",
+      "reason": "refusal",
+      "content": "<<CLEANED>>I cannot help with that.<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "incomplete", "accepted": false, "text": "raw transcript", "failure": "incomplete_response" }
+    },
+    {
+      "name": "anthropic-missing-reason-proceeds",
+      "wireProtocol": "anthropic_messages",
+      "reason": null,
+      "content": "<<CLEANED>>No stop_reason on the wire.<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "unspecified", "accepted": true, "text": "No stop_reason on the wire.", "failure": "none" }
+    },
+    {
+      "name": "unspecified-protocol-ignores-reason",
+      "wireProtocol": "unspecified",
+      "reason": "length",
+      "content": "<<CLEANED>>No wire metadata is trusted here.<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "unspecified", "accepted": true, "text": "No wire metadata is trusted here.", "failure": "none" }
+    },
+    {
+      "name": "unspecified-protocol-markerless-accepted",
+      "wireProtocol": "unspecified",
+      "reason": null,
+      "content": "Cleaned sentence with no markers.",
+      "original": "raw transcript",
+      "expect": { "state": "unspecified", "accepted": true, "text": "Cleaned sentence with no markers.", "failure": "none" }
+    },
+    {
+      "name": "markerless-complete-accepted-stripped",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "Here is the cleaned sentence.",
+      "original": "here is the cleaned sentence",
+      "expect": { "state": "complete", "accepted": true, "text": "Here is the cleaned sentence.", "failure": "none" }
+    },
+    {
+      "name": "marker-typo-single-angle-accepted",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<CLEANED>Hello<END>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Hello", "failure": "none" }
+    },
+    {
+      "name": "marker-typo-mixed-brackets-accepted",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>Hello<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Hello", "failure": "none" }
+    },
+    {
+      "name": "stray-end-marker-stripped",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "Hello world<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Hello world", "failure": "none" }
+    },
+    {
+      "name": "missing-end-marker-still-accepted",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>>Hello world",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Hello world", "failure": "none" }
+    },
+    {
+      "name": "wrapped-with-surrounding-whitespace-accepted",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "  <<CLEANED>>Hello<<END>>  ",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": true, "text": "Hello", "failure": "none" }
+    },
+    {
+      "name": "leakage-application-context-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<APPLICATION_CONTEXT>\n<APP>Mail</APP>\n</APPLICATION_CONTEXT>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "prompt_leakage" }
+    },
+    {
+      "name": "leakage-user-system-prompt-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "ignore previous instructions\n<USER_SYSTEM_PROMPT>\nsecret prompt\n</USER_SYSTEM_PROMPT>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "prompt_leakage" }
+    },
+    {
+      "name": "leakage-custom-vocabulary-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<CUSTOM_VOCABULARY>\nHyperWhisper\n</CUSTOM_VOCABULARY>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "prompt_leakage" }
+    },
+    {
+      "name": "leakage-inside-wrapper-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>><APPLICATION_CONTEXT>\nApp: Mail\n</APPLICATION_CONTEXT><<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "prompt_leakage" }
+    },
+    {
+      "name": "empty-content-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "empty_cleaned_text" }
+    },
+    {
+      "name": "wrapped-empty-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>><<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "empty_cleaned_text" }
+    },
+    {
+      "name": "wrapped-whitespace-only-rejected",
+      "wireProtocol": "openai_chat",
+      "reason": "stop",
+      "content": "<<CLEANED>>   \n<<END>>",
+      "original": "raw transcript",
+      "expect": { "state": "complete", "accepted": false, "text": "raw transcript", "failure": "empty_cleaned_text" }
+    }
+  ]
+}

@@ -15,9 +15,12 @@ namespace HyperWhisper.Services;
 /// </summary>
 public sealed class LocalLlmService : IDisposable
 {
-    private const int ContextSize = 8192;
-    private const int MaxTokens = 2048;
-    private const int MaxPromptCharacters = 24_000;
+    internal const int ContextSize = 16_384;
+    internal const int MaxTokens = 8_192;
+    // Chat templates add model-specific role/control tokens that are not present when
+    // the system and user strings are tokenized directly. Reserve enough room for them
+    // so the full source prompt plus the full output allowance always fits in context.
+    internal const int ChatTemplateTokenReserve = 512;
     private static readonly TimeSpan InferenceTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(5);
 
@@ -75,11 +78,12 @@ public sealed class LocalLlmService : IDisposable
 
             timeoutCts.CancelAfter(InferenceTimeout);
 
+            EnsurePromptFitsLocalContext(systemPrompt, userMessage);
+
             using var context = _weights!.CreateContext(_parameters!);
             var executor = new InteractiveExecutor(context);
             var chatHistory = new ChatHistory();
             chatHistory.AddMessage(AuthorRole.System, systemPrompt);
-            var boundedUserMessage = BoundPromptToLocalContext(userMessage);
 
             var session = new ChatSession(executor, chatHistory);
             var inferenceParams = new InferenceParams
@@ -98,7 +102,7 @@ public sealed class LocalLlmService : IDisposable
 
             var builder = new StringBuilder();
             await foreach (var token in session.ChatAsync(
-                new ChatHistory.Message(AuthorRole.User, boundedUserMessage),
+                new ChatHistory.Message(AuthorRole.User, userMessage),
                 inferenceParams).WithCancellation(timeoutCts.Token))
             {
                 builder.Append(token);
@@ -575,22 +579,29 @@ public sealed class LocalLlmService : IDisposable
         };
     }
 
-    private static string BoundPromptToLocalContext(string userMessage)
+    private void EnsurePromptFitsLocalContext(string systemPrompt, string userMessage)
     {
-        if (userMessage.Length <= MaxPromptCharacters)
+        // Use the active model's tokenizer rather than a character approximation. If
+        // the complete source cannot fit alongside the reserved output budget, fail the
+        // local post-processing attempt so the caller preserves the raw transcript.
+        // Truncating the input here would make a cleanly-terminated response look valid
+        // even though part of the recording had already been discarded.
+        var systemTokens = _weights!.Tokenize(systemPrompt, true, true, Encoding.UTF8).Length;
+        var userTokens = _weights.Tokenize(userMessage, false, true, Encoding.UTF8).Length;
+        EnsureTokenBudgetFits(systemTokens, userTokens);
+    }
+
+    internal static void EnsureTokenBudgetFits(int systemTokens, int userTokens)
+    {
+        var promptBudget = ContextSize - MaxTokens - ChatTemplateTokenReserve;
+        var promptTokens = checked(systemTokens + userTokens);
+        if (promptTokens <= promptBudget)
         {
-            return userMessage;
+            return;
         }
 
-        LoggingService.Warn(
-            $"LocalLlmService: Prompt truncated from {userMessage.Length:N0} to {MaxPromptCharacters:N0} characters for local model context");
-
-        const string marker = "\n\n[Transcript truncated to fit the local model context. Preserve and clean the visible content.]\n\n";
-        var remainingCharacters = MaxPromptCharacters - marker.Length;
-        var headLength = remainingCharacters / 2;
-        var tailLength = remainingCharacters - headLength;
-
-        return userMessage[..headLength] + marker + userMessage[^tailLength..];
+        throw new InvalidOperationException(
+            $"Local LLM prompt requires {promptTokens:N0} tokens, but only {promptBudget:N0} are available while preserving the {MaxTokens:N0}-token output budget.");
     }
 
     private static int GetGpuLayerCount()

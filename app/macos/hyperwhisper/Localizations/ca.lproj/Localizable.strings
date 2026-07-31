@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Inici";
-"sidebar.statistics" = "Estadístiques";
 "sidebar.modes" = "Modes";
 "sidebar.vocabulary" = "Vocabulari";
 "sidebar.streaming" = "Transmissió en temps real";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Versió %@";
 "home.recent.updates.new.badge" = "NOU";
 "home.recent.updates.no.notes" = "No hi ha notes de la versió disponibles";
+"home.stats.words.week" = "Paraules aquesta setmana";
+"home.stats.words.month" = "Paraules aquest mes";
+"home.stats.speed" = "Velocitat mitjana";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Comenceu amb HyperWhisper";
-"sidebar.statistics.help" = "Visualitzeu estadístiques d'ús i analítiques";
 "sidebar.modes.help" = "Gestioneu els modes de transcripció per a diferents contextos";
 "sidebar.vocabulary.help" = "Afegiu paraules i frases personalitzades per a un millor reconeixement";
 "sidebar.streaming.help" = "Configuració de la transmissió en temps real (requereix Internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Crèdits de HyperWhisper Cloud";
 "settings.credits.refresh" = "Actualitzar";
-"settings.credits.subtitle" = "Superviseu els vostres crèdits i ús de transcripció";
-"settings.credits.manage" = "Gestionar crèdits";
 "settings.credits.timeRemaining" = "Temps de transcripció restant";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minuts";
 "settings.credits.creditsRemaining" = "%@ crèdits restants";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Límit diari gratuït (100 crèdits)";
-"settings.credits.resets" = "Es reinicia %@";
 "settings.credits.warning.low" = "Crèdits baixos. Considereu comprar una llicència per a crèdits addicionals.";
-"settings.credits.warning.exhausted.daily" = "Límit diari exhaurit. Compreu una llicència per a ús il·limitat o espereu el reinici.";
 "settings.credits.warning.exhausted" = "Crèdits exhaurits. Compreu més crèdits per continuar utilitzant HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Informació del compte";
-"settings.credits.stat.creditsRemaining" = "Crèdits restants";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Minuts restants";
-"settings.credits.stat.accountType" = "Tipus de compte";
-"settings.credits.accountType.licensed" = "Amb llicència";
-"settings.credits.accountType.anonymous" = "Anònim";
-"settings.credits.accountType.trial" = "Prova";
-"settings.credits.stat.customerId" = "ID de client";
-"settings.credits.stat.dailyLimit" = "Límit diari";
-"settings.credits.dailyLimit.value" = "100 crèdits";
 "settings.credits.loading" = "Carregant saldo de crèdits...";
 "settings.credits.error.title" = "No s'ha pogut carregar el saldo de crèdits";
 "settings.credits.error.retry" = "Reintentar";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Error de xarxa: %@";
 "settings.credits.error.invalidResponse" = "Resposta no vàlida del servidor. Torneu-ho a provar.";
 "settings.credits.error.server" = "Error del servidor: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Clau del compte";
+"settings.cloud.purchaseMore" = "Comprar crèdits";
+"settings.cloud.key.reveal" = "Mostrar la clau del compte";
+"settings.cloud.key.hide" = "Amagar la clau del compte";
+"settings.cloud.key.copy" = "Copiar la clau del compte";
+"settings.cloud.activate.title" = "Activar HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "La clau del compte és la vostra cartera: hi conté els crèdits del Cloud. Introduïu la clau per començar, o compreu crèdits per obtenir-ne una.";
+"settings.cloud.getCredits.title" = "Encara no teniu una clau?";
+"settings.cloud.getCredits.subtitle" = "Compreu crèdits i us enviarem la clau del compte per correu electrònic.";
+"settings.cloud.getCredits.button" = "Comprar crèdits";
 "settings.models.alert.cannotDelete.title" = "No es pot eliminar el model";
 "settings.models.parakeet.title" = "Models Parakeet";
 "settings.models.parakeet.subtitle" = "Recomanat per a la majoria d'usuaris. El model multilingüe admet 25 idiomes.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Recomanat per a Mac amb 24 GB de memòria unificada o més. La velocitat depèn del xip — més ràpid en M3/M4 Pro i superiors.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Paraules enguany";
+"home.stats.typing.speed.help" = "Ajusta la velocitat d'escriptura estimada (WPM) que s'utilitza per calcular el temps estalviat.";
+"home.stats.saved.week" = "Estalviat aquesta setmana";
+"home.stats.minutes.value" = "%d minuts";
 "vocabulary.input.placeholder" = "Afegiu una paraula o creeu un fragment";
 "vocabulary.action.addWord" = "Afegir paraula";
 "vocabulary.action.replaceWith" = "Substituir per…";
@@ -641,22 +641,6 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "models.error.checksumFailed" = "La verificació de la suma de comprovació del model ha fallat. La descàrrega pot estar corrompuda.";
 
 // MARK: - Statistics View
-"statistics.title" = "Estadístiques";
-"statistics.header.title" = "Les vostres estadístiques d'ús";
-"statistics.header.subtitle" = "Feu seguiment de la vostra activitat i rendiment de transcripció";
-"statistics.card.recordings" = "Gravacions totals";
-"statistics.card.recordings.subtitle" = "Transcripcions completades";
-"statistics.card.duration" = "Temps total";
-"statistics.card.duration.subtitle" = "Temps dedicat a gravar";
-"statistics.card.words" = "Paraules totals";
-"statistics.card.words.subtitle" = "Paraules transcrites";
-"statistics.card.average" = "Durada mitjana";
-"statistics.card.average.subtitle" = "Per gravació";
-"statistics.graph.title" = "Activitat al llarg del temps";
-"statistics.daily.empty" = "Encara no hi ha gravacions";
-"statistics.filter.week" = "Aquesta setmana";
-"statistics.filter.month" = "Aquest mes";
-"statistics.filter.alltime" = "Tot el temps";
 
 // MARK: - History View
 "history.title" = "Historial";
@@ -777,8 +761,13 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.cloudAccuracy.groqWhisper.description" = "Ràpida i assequible. Ideal per a transcripcions ràpides.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Velocitat i precisió equilibrades. Recomanada per a la majoria d'usuaris.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ crèdits/min";
 "modes.cloudAccuracy.grokStt.label" = "Màxima (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
+"modes.cloudAccuracy.googleChirp3.label" = "Alta (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 amb Chirp 3. Multilingüe amb adaptació de frases.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 mitjançant Azure Speech. 43 idiomes amb adaptació contextual.";
 
 "modes.create.title" = "Crear nou mode";
 "modes.create.subtitle" = "Configureu un perfil de transcripció personalitzat";
@@ -915,9 +904,6 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 // MARK: - Audio Manager
 "audio.device.default" = "Micròfon per defecte";
 "audio.error.permissionDenied" = "Accés al micròfon denegat. Activeu-lo a la Configuració del sistema.";
-"audio.error.fileWatcher.open" = "No s'ha pogut obrir un descriptor de fitxer per supervisar el fitxer d'àudio.";
-"audio.error.fileWatcher.timeout" = "L'operació ha excedit el temps d'espera mentre esperava que el fitxer d'àudio s'escrigués.";
-"audio.error.fileWatcher.creation" = "El fitxer d'àudio no s'ha creat a temps.";
 "audio.error.microphonePermission" = "Permís de micròfon no concedit";
 "audio.error.microphoneInUse" = "HyperWhisper no pot accedir al micròfon perquè una altra aplicació l'està utilitzant. Poseu en pausa l'altra aplicació o canvieu d'entrada i torneu-ho a provar.";
 "audio.error.createEngine" = "No s'ha pogut crear el motor d'àudio";
@@ -992,6 +978,15 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.guidance.timeout" = "La sol·licitud ha trigat massa. Comproveu la velocitat d'Internet i torneu-ho a provar.";
 "transcription.error.noSpeechDetected" = "No s'ha detectat veu a la gravació.";
 "transcription.guidance.noSpeechDetected" = "Consells:\n• Parleu clarament al micròfon\n• Manteniu la tecla premuda més temps abans de parlar\n• Comproveu que el micròfon funcioni\n• Assegureu-vos que el dispositiu d'entrada correcte estigui seleccionat";
+"transcription.guidance.needsNativeRelaunch" = "Tanca i torna a obrir HyperWhisper en mode natiu per utilitzar el postprocessament local.";
+"transcription.guidance.localRuntimeUnavailable" = "Torna-ho a provar o tria un model local més petit als ajustos del mode.";
+"transcription.error.localRuntimeUnavailable" = "La IA local no ha pogut acabar — s'ha conservat la transcripció original.";
+"settings.backup.localDownload.title" = "Vols baixar els models locals?";
+"settings.backup.localDownload.message" = "%d dels modes restaurats utilitzen models d'IA locals que encara no s'han baixat.";
+"settings.backup.localDownload.downloadAll" = "Baixar-ho tot";
+"settings.backup.localDownload.dismiss" = "Descartar";
+"modelLibrary.local.requiresAppleSilicon" = "Requereix Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Reobrir en mode natiu";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Crèdits insuficients. Afegiu més crèdits a la Configuració.";
@@ -1125,3 +1120,12 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "history.autoDelete.status.enabled" = "Eliminar gravacions més antigues de %d %@";
 "history.autoDelete.cleanup.noItems" = "No hi ha gravacions per eliminar";
 "history.autoDelete.cleanup.summary" = "S'han eliminat %d gravació(ns) i s'han alliberat %@";
+"history.status.interrupted" = "Transcripció interrompuda — l'aplicació s'ha tancat abans d'acabar";
+"recording.maxDuration.reachedToast" = "Gravació aturada — s'ha arribat al límit de %d minuts";
+"streaming.maxDuration.reachedToast" = "Transmissió aturada — s'ha arribat al límit de %d minuts";
+"settings.storage.maxRecordingDuration.title" = "Durada màxima de gravació";
+"settings.storage.maxRecordingDuration.subtitle" = "Atura i transcriu automàticament les gravacions que durin més d'aquest temps.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minuts";
+"settings.storage.maxRecordingDuration.hour" = "1 hora";
+"settings.storage.maxRecordingDuration.hours" = "%d hores";
+"settings.storage.maxRecordingDuration.off" = "Desactivat";

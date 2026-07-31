@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "หน้าแรก";
-"sidebar.statistics" = "สถิติ";
 "sidebar.modes" = "โหมด";
 "sidebar.vocabulary" = "ศัพท์เฉพาะ";
 "sidebar.streaming" = "สตรีมมิง";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "เวอร์ชัน %@";
 "home.recent.updates.new.badge" = "ใหม่";
 "home.recent.updates.no.notes" = "ไม่มีหมายเหตุการเปิดตัวที่พร้อมใช้งาน";
+"home.stats.words.week" = "จำนวนคำสัปดาห์นี้";
+"home.stats.words.month" = "จำนวนคำเดือนนี้";
+"home.stats.speed" = "ความเร็วเฉลี่ย";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "เริ่มต้นใช้งาน HyperWhisper";
-"sidebar.statistics.help" = "ดูสถิติการใช้งานและการวิเคราะห์";
 "sidebar.modes.help" = "จัดการโหมดการสัญลักษณ์สำหรับบริบทต่างๆ";
 "sidebar.vocabulary.help" = "เพิ่มคำศัพท์และวลีที่กำหนดเองเพื่อการรู้จำที่ดีขึ้น";
 "sidebar.streaming.help" = "การตั้งค่าการสัญลักษณ์สตรีมมิงแบบเรียลไทม์ (ต้องเชื่อมต่ออินเทอร์เน็ต)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "เครดิต HyperWhisper Cloud";
 "settings.credits.refresh" = "รีเฟรช";
-"settings.credits.subtitle" = "ตรวจสอบเครดิตการสัญลักษณ์และการใช้งานของคุณ";
-"settings.credits.manage" = "จัดการเครดิต";
 "settings.credits.timeRemaining" = "เวลาการสัญลักษณ์ที่เหลือ";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "นาที";
 "settings.credits.creditsRemaining" = "%@ เครดิตคงเหลือ";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "ขีดจำกัดรายวันฟรี (100 เครดิต)";
-"settings.credits.resets" = "รีเซ็ต %@";
 "settings.credits.warning.low" = "เครดิตกำลังจะหมด พิจารณาซื้อลัทธิสำหรับเครดิตเพิ่มเติม";
-"settings.credits.warning.exhausted.daily" = "ขีดจำกัดรายวันหมดแล้ว ซื้อลัทธิเพื่อการใช้งานแบบไม่จำกัดหรือรอการรีเซ็ต";
 "settings.credits.warning.exhausted" = "เครดิตหมดแล้ว ซื้อเครดิตเพิ่มเติมเพื่อใช้งาน HyperWhisper Cloud ต่อ";
 "settings.credits.accountInfo" = "ข้อมูลบัญชี";
-"settings.credits.stat.creditsRemaining" = "เครดิตคงเหลือ";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "นาทีคงเหลือ";
-"settings.credits.stat.accountType" = "ประเภทบัญชี";
-"settings.credits.accountType.licensed" = "ลัทธิ";
-"settings.credits.accountType.anonymous" = "ไม่ระบุตัว";
-"settings.credits.accountType.trial" = "ทดลอง";
-"settings.credits.stat.customerId" = "รหัสลูกค้า";
-"settings.credits.stat.dailyLimit" = "ขีดจำกัดรายวัน";
-"settings.credits.dailyLimit.value" = "100 เครดิต";
 "settings.credits.loading" = "กำลังโหลดยอดคงเหลือเครดิต...";
 "settings.credits.error.title" = "ไม่สามารถโหลดยอดคงเหลือเครดิต";
 "settings.credits.error.retry" = "ลองใหม่";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "ข้อผิดพลาดเครือข่าย: %@";
 "settings.credits.error.invalidResponse" = "การตอบสนองจากเซิร์ฟเวอร์ไม่ถูกต้อง โปรดลองใหม่";
 "settings.credits.error.server" = "ข้อผิดพลาดเซิร์ฟเวอร์: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "คีย์บัญชี";
+"settings.cloud.purchaseMore" = "ซื้อเครดิต";
+"settings.cloud.key.reveal" = "แสดงคีย์บัญชี";
+"settings.cloud.key.hide" = "ซ่อนคีย์บัญชี";
+"settings.cloud.key.copy" = "คัดลอกคีย์บัญชี";
+"settings.cloud.activate.title" = "เปิดใช้งาน HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "คีย์บัญชีของคุณคือกระเป๋าเงินของคุณ — ใช้เก็บเครดิต Cloud ของคุณ ป้อนคีย์เพื่อเริ่มต้น หรือซื้อเครดิตเพื่อรับคีย์";
+"settings.cloud.getCredits.title" = "ยังไม่มีคีย์ใช่ไหม?";
+"settings.cloud.getCredits.subtitle" = "ซื้อเครดิตแล้วเราจะส่งคีย์บัญชีให้คุณทางอีเมล";
+"settings.cloud.getCredits.button" = "ซื้อเครดิต";
 "settings.models.alert.cannotDelete.title" = "ไม่สามารถลบโมเดล";
 "settings.models.parakeet.title" = "โมเดล Parakeet";
 "settings.models.parakeet.subtitle" = "แนะนำสำหรับผู้ใช้ส่วนใหญ่ โมเดลพหุภาษารองรับ 25 ภาษา";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "แนะนำสำหรับ Mac ที่มี unified memory 24 GB ขึ้นไป ความเร็วขึ้นอยู่กับชิป — เร็วขึ้นบน M3/M4 Pro และสูงกว่า";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "คำในปีนี้";
+"home.stats.typing.speed.help" = "ปรับความเร็วในการพิมพ์ที่ใช้อ้างอิง (WPM) สำหรับประมาณเวลาที่ประหยัดได้";
+"home.stats.saved.week" = "ประหยัดได้สัปดาห์นี้";
+"home.stats.minutes.value" = "%d นาที";
 "vocabulary.input.placeholder" = "เพิ่มคำหรือสร้างตัวอย่าง";
 "vocabulary.action.addWord" = "เพิ่มคำ";
 "vocabulary.action.replaceWith" = "แทนที่ด้วย…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "การตรวจสอบ checksum โมเดลล้มเหลว การดาวน์โหลดอาจเสียหาย";
 
 // MARK: - Statistics View
-"statistics.title" = "สถิติ";
-"statistics.header.title" = "สถิติการใช้งานของคุณ";
-"statistics.header.subtitle" = "ติดตามกิจกรรมการสัญลักษณ์และประสิทธิภาพ";
-"statistics.card.recordings" = "การบันทึกทั้งหมด";
-"statistics.card.recordings.subtitle" = "การสัญลักษณ์ที่เสร็จสิ้น";
-"statistics.card.duration" = "เวลาทั้งหมด";
-"statistics.card.duration.subtitle" = "เวลาที่ใช้บันทึก";
-"statistics.card.words" = "คำทั้งหมด";
-"statistics.card.words.subtitle" = "คำที่สัญลักษณ์";
-"statistics.card.average" = "ระยะเวลาเฉลี่ย";
-"statistics.card.average.subtitle" = "ต่อการบันทึก";
-"statistics.graph.title" = "กิจกรรมเมื่อเวลาผ่านไป";
-"statistics.daily.empty" = "ยังไม่มีการบันทึก";
-"statistics.filter.week" = "สัปดาห์นี้";
-"statistics.filter.month" = "เดือนนี้";
-"statistics.filter.alltime" = "ทั้งหมด";
 
 // MARK: - History View
 "history.title" = "ประวัติ";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "เร็วและราคาไม่แพง ดีที่สุดสำหรับการสัญลักษณ์อย่างรวดเร็ว";
 "modes.cloudAccuracy.deepgramNova3.description" = "ความเร็วและความแม่นยำที่สมดุล แนะนำสำหรับผู้ใช้ส่วนใหญ่";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ เครดิต/นาที";
 "modes.cloudAccuracy.grokStt.label" = "สูงสุด (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
+"modes.cloudAccuracy.googleChirp3.label" = "สูง (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 พร้อม Chirp 3 รองรับหลายภาษา พร้อมการปรับตามวลี";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 ผ่าน Azure Speech รองรับ 43 ภาษา พร้อมการปรับตามบริบท";
 
 "modes.create.title" = "สร้างโหมดใหม่";
 "modes.create.subtitle" = "กำหนดค่าโปรไฟล์การสัญลักษณ์ที่กำหนดเอง";
@@ -915,9 +904,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "ไมโครโฟนเริ่มต้น";
 "audio.error.permissionDenied" = "การเข้าถึงไมโครโฟนถูกปฏิเสธ โปรดเปิดใช้งานในการตั้งค่าระบบ";
-"audio.error.fileWatcher.open" = "ไม่สามารถเปิดตัวอธิบายไฟล์เพื่อตรวจสอบไฟล์เสียง";
-"audio.error.fileWatcher.timeout" = "การดำเนินการหมดเวลาขณะรอการเขียนไฟล์เสียง";
-"audio.error.fileWatcher.creation" = "ไฟล์เสียงไม่ได้สร้างขึ้นตรงเวลา";
 "audio.error.microphonePermission" = "ไม่ได้รับสิทธิ์ไมโครโฟน";
 "audio.error.microphoneInUse" = "HyperWhisper ไม่สามารถเข้าถึงไมโครโฟนเพราะแอปอื่นใช้งานอยู่ หยุดแอปอื่นหรือสลับอินพุต แล้วลองใหม่";
 "audio.error.createEngine" = "ไม่สามารถสร้างเอนจิ้นเสียง";
@@ -992,6 +978,15 @@
 "transcription.guidance.timeout" = "คำขอใช้เวลานานเกินไป ตรวจสอบความเร็วอินเทอร์เน็ตและลองใหม่";
 "transcription.error.noSpeechDetected" = "ไม่พบเสียงพูดในการบันทึก";
 "transcription.guidance.noSpeechDetected" = "เคล็ดลับ:\n• พูดชัดเจนลงในไมโครโฟน\n• ค้างคีย์นานขึ้นก่อนพูด\n• ตรวจสอบว่าไมโครโฟนของคุณใช้งานได้\n• ตรวจสอบให้แน่ใจว่าอุปกรณ์อินพุตที่ถูกต้องได้รับการเลือก";
+"transcription.guidance.needsNativeRelaunch" = "ออกจาก HyperWhisper แล้วเปิดใหม่แบบเนทีฟ เพื่อใช้การประมวลผลหลังถอดเสียงในเครื่อง";
+"transcription.guidance.localRuntimeUnavailable" = "ลองอีกครั้ง หรือเลือกโมเดลในเครื่องที่เล็กลงในการตั้งค่าโหมด";
+"transcription.error.localRuntimeUnavailable" = "AI ในเครื่องทำงานไม่สำเร็จ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"settings.backup.localDownload.title" = "ดาวน์โหลดโมเดลในเครื่องหรือไม่?";
+"settings.backup.localDownload.message" = "โหมดที่กู้คืนมา %d โหมดใช้โมเดล AI บนอุปกรณ์ที่ยังไม่ได้ดาวน์โหลด";
+"settings.backup.localDownload.downloadAll" = "ดาวน์โหลดทั้งหมด";
+"settings.backup.localDownload.dismiss" = "ปิด";
+"modelLibrary.local.requiresAppleSilicon" = "ต้องใช้ Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "เปิดใหม่แบบเนทีฟ";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";
@@ -1125,3 +1120,12 @@
 "history.autoDelete.status.enabled" = "ลบการบันทึกที่เก่ากว่า %d %@";
 "history.autoDelete.cleanup.noItems" = "ไม่มีการบันทึกที่จะลบ";
 "history.autoDelete.cleanup.summary" = "ลบ %d การบันทึก และปลดปล่อย %@";
+"history.status.interrupted" = "การถอดเสียงถูกขัดจังหวะ — แอปปิดตัวก่อนที่จะเสร็จสิ้น";
+"recording.maxDuration.reachedToast" = "หยุดการบันทึกแล้ว — ถึงขีดจำกัด %d นาที";
+"streaming.maxDuration.reachedToast" = "หยุดการสตรีมแล้ว — ถึงขีดจำกัด %d นาที";
+"settings.storage.maxRecordingDuration.title" = "ระยะเวลาบันทึกสูงสุด";
+"settings.storage.maxRecordingDuration.subtitle" = "หยุดและถอดเสียงการบันทึกที่นานเกินระยะเวลานี้โดยอัตโนมัติ";
+"settings.storage.maxRecordingDuration.minutes" = "%d นาที";
+"settings.storage.maxRecordingDuration.hour" = "1 ชั่วโมง";
+"settings.storage.maxRecordingDuration.hours" = "%d ชั่วโมง";
+"settings.storage.maxRecordingDuration.off" = "ปิด";

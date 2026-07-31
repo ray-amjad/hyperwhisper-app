@@ -20,6 +20,7 @@
     "cloud": "Cloud"
   },
   "hero": {
+    "openSourceBadge": "Open source · Apache-2.0",
     "logoAlt": "HyperWhisper Logo",
     "headline": "Write, compose, and create",
     "headlineAccent": "5x faster with AI",

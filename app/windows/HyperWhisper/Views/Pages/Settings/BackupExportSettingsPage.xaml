@@ -45,15 +45,12 @@
 
                     <CheckBox x:Name="ExportSettingsCheckbox"
                               Content="{loc:Loc settings.backup.export.section.settings}"
-                              IsChecked="True" Margin="0,0,0,4"
-                              Checked="ExportSection_Changed" Unchecked="ExportSection_Changed"/>
+                              IsChecked="True" Margin="0,0,0,4"/>
                     <CheckBox x:Name="ExportModesCheckbox"
                               Content="{loc:Loc settings.backup.export.section.modes}"
-                              IsChecked="True" Margin="0,0,0,4"
-                              Checked="ExportSection_Changed" Unchecked="ExportSection_Changed"/>
+                              IsChecked="True" Margin="0,0,0,4"/>
                     <CheckBox x:Name="ExportVocabularyCheckbox"
-                              IsChecked="True" Margin="0,0,0,4"
-                              Checked="ExportSection_Changed" Unchecked="ExportSection_Changed"/>
+                              IsChecked="True" Margin="0,0,0,4"/>
 
                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
 
@@ -70,8 +67,7 @@
                                        FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,2,0,0" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <CheckBox x:Name="IncludeApiKeysCheckbox" Grid.Column="1" VerticalAlignment="Center"
-                                  Checked="ExportSection_Changed" Unchecked="ExportSection_Changed"/>
+                        <CheckBox x:Name="IncludeApiKeysCheckbox" Grid.Column="1" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Export Status -->

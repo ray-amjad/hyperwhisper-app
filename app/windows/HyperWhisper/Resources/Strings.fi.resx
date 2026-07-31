@@ -173,6 +173,9 @@
   <data name="history.audio.notAvailable" xml:space="preserve">
     <value>Audio file not available</value>
   </data>
+  <data name="history.audio.loadFailed" xml:space="preserve">
+    <value>Äänitiedostoa ei voitu ladata</value>
+  </data>
   <data name="history.badge.originalTranscript" xml:space="preserve">
     <value>Original</value>
   </data>
@@ -287,6 +290,9 @@
   <data name="vocabulary.replacement.column" xml:space="preserve">
     <value>Korvaus</value>
   </data>
+  <data name="vocabulary.source.column" xml:space="preserve">
+    <value>Lähde</value>
+  </data>
   <data name="vocabulary.empty.title" xml:space="preserve">
     <value>Ei sanastosanoja vielä</value>
   </data>
@@ -334,6 +340,9 @@
   </data>
   <data name="settings.nav.credits" xml:space="preserve">
     <value>Credits</value>
+  </data>
+  <data name="settings.nav.cloud" xml:space="preserve">
+    <value>HyperWhisper Cloud</value>
   </data>
   <data name="settings.nav.storage" xml:space="preserve">
     <value>Storage</value>
@@ -462,34 +471,16 @@
   <data name="settings.appearance.theme.dark.subtitle" xml:space="preserve">
     <value>Always use dark theme for reduced eye strain</value>
   </data>
+  <data name="settings.appearance.theme.restart.title" xml:space="preserve">
+    <value>Uudelleenkäynnistys vaaditaan</value>
+  </data>
+  <data name="settings.appearance.theme.restart.message" xml:space="preserve">
+    <value>Sovellus on käynnistettävä uudelleen, jotta teeman vaihto tulee voimaan.\n\nHaluatko käynnistää sen uudelleen nyt?</value>
+  </data>
 
   <!-- Settings - License -->
-  <data name="settings.license.status.title" xml:space="preserve">
-    <value>License Status</value>
-  </data>
-  <data name="settings.license.activate.title" xml:space="preserve">
-    <value>Activate License</value>
-  </data>
-  <data name="settings.license.activate.subtitle" xml:space="preserve">
-    <value>Enter your license key to unlock unlimited usage</value>
-  </data>
-  <data name="settings.license.nolicense.prompt" xml:space="preserve">
-    <value>Don't have a license? </value>
-  </data>
-  <data name="settings.license.nolicense.link" xml:space="preserve">
-    <value>Purchase one here</value>
-  </data>
-  <data name="settings.license.trial.title" xml:space="preserve">
-    <value>Trial Usage</value>
-  </data>
-  <data name="settings.license.trial.subtitle" xml:space="preserve">
-    <value>Your daily usage limits reset at midnight</value>
-  </data>
   <data name="settings.license.clearInput" xml:space="preserve">
     <value>Tyhjennä</value>
-  </data>
-  <data name="license.status.trial.title" xml:space="preserve">
-    <value>Kokeilu</value>
   </data>
   <data name="license.button.activate" xml:space="preserve">
     <value>Aktivoi</value>
@@ -505,23 +496,8 @@
   </data>
 
   <!-- Settings - Credits -->
-  <data name="settings.credits.title" xml:space="preserve">
-    <value>HyperWhisper Cloud -krediitit</value>
-  </data>
-  <data name="settings.credits.balance.title" xml:space="preserve">
-    <value>Balance</value>
-  </data>
-  <data name="settings.credits.balance.subtitle" xml:space="preserve">
-    <value>Your HyperWhisper Cloud transcription credits</value>
-  </data>
   <data name="settings.credits.refresh" xml:space="preserve">
     <value>Päivitä</value>
-  </data>
-  <data name="settings.credits.manage" xml:space="preserve">
-    <value>Hallitse krediittejä</value>
-  </data>
-  <data name="settings.credits.manage.subtitle" xml:space="preserve">
-    <value>Add credits or manage your account</value>
   </data>
   <data name="settings.credits.minutesRemaining" xml:space="preserve">
     <value>minutes remaining</value>
@@ -555,6 +531,40 @@
   </data>
   <data name="settings.credits.error.title" xml:space="preserve">
     <value>Krediittisaldon lataus epäonnistui</value>
+  </data>
+  <!-- Settings - HyperWhisper Cloud (combined account panel) -->
+  <data name="settings.cloud.licenseKey" xml:space="preserve">
+    <value>Tiliavain</value>
+  </data>
+  <data name="settings.cloud.account.email" xml:space="preserve">
+    <value>Sähköposti</value>
+  </data>
+  <data name="settings.cloud.key.reveal" xml:space="preserve">
+    <value>Näytä tiliavain</value>
+  </data>
+  <data name="settings.cloud.key.hide" xml:space="preserve">
+    <value>Piilota tiliavain</value>
+  </data>
+  <data name="settings.cloud.key.copy" xml:space="preserve">
+    <value>Kopioi tiliavain</value>
+  </data>
+  <data name="settings.cloud.purchaseCredits" xml:space="preserve">
+    <value>Osta krediittejä</value>
+  </data>
+  <data name="settings.cloud.activate.title" xml:space="preserve">
+    <value>Aktivoi HyperWhisper Cloud</value>
+  </data>
+  <data name="settings.cloud.activate.subtitle" xml:space="preserve">
+    <value>Tiliavaimesi on lompakkosi — se sisältää Cloud-krediittisi. Anna avaimesi aloittaaksesi, tai osta krediittejä saadaksesi sellaisen.</value>
+  </data>
+  <data name="settings.cloud.getCredits.title" xml:space="preserve">
+    <value>Eikö sinulla ole vielä avainta?</value>
+  </data>
+  <data name="settings.cloud.getCredits.subtitle" xml:space="preserve">
+    <value>Osta krediittejä, niin lähetämme sinulle tiliavaimen sähköpostitse.</value>
+  </data>
+  <data name="settings.cloud.getCredits.button" xml:space="preserve">
+    <value>Osta krediittejä</value>
   </data>
 
   <!-- Settings - API Keys -->
@@ -923,6 +933,12 @@ Tätä toimintoa ei voi perua.</value>
   <data name="errors.retryFailed" xml:space="preserve">
     <value>Retry failed: {0}</value>
   </data>
+  <data name="errors.recordingDurationLimit" xml:space="preserve">
+    <value>Tallennus pysäytetty — 20 minuutin turvaraja saavutettu.</value>
+  </data>
+  <data name="errors.streamingDurationLimit" xml:space="preserve">
+    <value>Suoratoisto saavutti 20 minuutin turvarajan.</value>
+  </data>
 
   <!-- Recording States -->
   <data name="recording.state.enhancing" xml:space="preserve">
@@ -1232,7 +1248,7 @@ You can re-download it later.</value>
     <value>Deactivate License</value>
   </data>
   <data name="settings.license.deactivate.confirm.message" xml:space="preserve">
-    <value>Are you sure you want to deactivate your license? You will revert to trial mode with limited features.</value>
+    <value>Haluatko varmasti poistaa tämän laitteen aktivoinnin? Pilvitranskriptio lakkaa toimimasta, kunnes syötät tilin avaimen uudelleen. Krediittisi pysyvät avaimessasi.</value>
   </data>
   <!-- Settings - Storage -->
   <data name="settings.storage.error.title" xml:space="preserve">
@@ -1240,6 +1256,9 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.error.invalidFolder" xml:space="preserve">
     <value>Unable to use the selected folder.</value>
+  </data>
+  <data name="settings.storage.error.openFolder" xml:space="preserve">
+    <value>Tallennekansiota ei voitu avata. {0}</value>
   </data>
   <data name="settings.storage.folderBrowser.description" xml:space="preserve">
     <value>Choose a folder for new recordings</value>
@@ -1282,6 +1301,12 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.deleteComplete.message" xml:space="preserve">
     <value>Deleted {0} recording(s)</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.title" xml:space="preserve">
+    <value>Siivous epäonnistui</value>
+  </data>
+  <data name="settings.storage.autoDelete.deleteFailed.message" xml:space="preserve">
+    <value>Vanhoja tallenteita ei voitu poistaa. {0}</value>
   </data>
 
   <!-- Provider Names -->
@@ -1342,20 +1367,11 @@ You can re-download it later.</value>
   </data>
 
   <!-- License Status Descriptions -->
-  <data name="license.status.trial.description" xml:space="preserve">
-    <value>Local transcription is free and unlimited.</value>
-  </data>
-  <data name="license.status.active.description" xml:space="preserve">
-    <value>Lisensoitu – täysi pääsy</value>
-  </data>
   <data name="license.status.expired.description" xml:space="preserve">
-    <value>Lisenssi vanhentunut</value>
+    <value>Lisenssisi on vanhentunut. Uusi se tai lisää krediittejä jatkaaksesi HyperWhisper Cloudin käyttöä.</value>
   </data>
   <data name="license.status.invalid.description" xml:space="preserve">
-    <value>Virheellinen lisenssi</value>
-  </data>
-  <data name="license.status.unknown" xml:space="preserve">
-    <value>Unknown</value>
+    <value>Lisenssiavaimesi ei ole enää voimassa. Syötä alla uusi avain tai hanki krediittejä luodaksesi uuden.</value>
   </data>
   <data name="license.error.enterKey" xml:space="preserve">
     <value>Please enter a license key.</value>
@@ -1818,6 +1834,9 @@ You can re-download it later.</value>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>Auto-learned</value>
   </data>
+  <data name="vocabulary.manual.badge" xml:space="preserve">
+    <value>Manuaalinen</value>
+  </data>
   <data name="vocabulary.autoLearned.clear" xml:space="preserve">
     <value>Clear auto-learned</value>
   </data>
@@ -1986,6 +2005,54 @@ You can re-download it later.</value>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
   </data>
+  <data name="modes.cloudAccuracy.soniox.label" xml:space="preserve">
+    <value>Soniox</value>
+  </data>
+  <data name="modes.cloudAccuracy.soniox.description" xml:space="preserve">
+    <value>Soniox - 60 kieltä, kontekstipainotus</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.label" xml:space="preserve">
+    <value>OpenAI Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.openaiWhisper.description" xml:space="preserve">
+    <value>OpenAI GPT-4o Transcribe / Whisper</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.label" xml:space="preserve">
+    <value>Mistral Voxtral</value>
+  </data>
+  <data name="modes.cloudAccuracy.mistralVoxtral.description" xml:space="preserve">
+    <value>Mistral Voxtral - 13 kieltä, kontekstipainotus</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.label" xml:space="preserve">
+    <value>Google Gemini</value>
+  </data>
+  <data name="modes.cloudAccuracy.gemini.description" xml:space="preserve">
+    <value>Google Gemini - multimodaalinen LLM-litterointi</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.label" xml:space="preserve">
+    <value>AssemblyAI</value>
+  </data>
+  <data name="modes.cloudAccuracy.assemblyAI.description" xml:space="preserve">
+    <value>AssemblyAI Universal - avaintermien kehotteet, lääketieteellinen tila</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewLabel" xml:space="preserve">
+    <value>{0} (Esiversio)</value>
+  </data>
+  <data name="mode.editor.cloudModel.previewHint" xml:space="preserve">
+    <value>Esiversio</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyLabel" xml:space="preserve">
+    <value>{0} (Ei mukautettua sanastoa)</value>
+  </data>
+  <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
+    <value>Ei mukautettua sanastoa</value>
+  </data>
+  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
+    <value>{0} (Suositeltu)</value>
+  </data>
+  <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
+    <value>Lääketieteellinen sanasto (Medical Mode -lisäosa)</value>
+  </data>
   <data name="mode.editor.postProcessing.appAwareHint" xml:space="preserve">
     <value>AI post-processing can adapt formatting to the active app, such as email, chat, documents, code, or terminal windows. Local API callers can pass applicationContext explicitly; it is not captured automatically for API requests.</value>
   </data>
@@ -2029,7 +2096,7 @@ You can re-download it later.</value>
     <value>xAI</value>
   </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
-    <value>Uses your HyperWhisper license or trial credits. No separate API key is required.</value>
+    <value>Käyttää HyperWhisper Cloud -krediittejäsi. Erillistä API-avainta ei tarvita.</value>
   </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>Deepgram API key is configured.</value>
@@ -2228,6 +2295,33 @@ You can re-download it later.</value>
   </data>
   <data name="settings.localApi.curl.caption" xml:space="preserve">
     <value>Pre-filled with your port and token.</value>
+  </data>
+  <data name="settings.localApi.action.tokenUnavailable" xml:space="preserve">
+    <value>Tunnus ei ole vielä käytettävissä.</value>
+  </data>
+  <data name="settings.localApi.action.tokenRegenerated" xml:space="preserve">
+    <value>Tunnus luotiin uudelleen.</value>
+  </data>
+  <data name="settings.localApi.action.revealed" xml:space="preserve">
+    <value>Etsintätiedoston sijainti avattiin.</value>
+  </data>
+  <data name="settings.localApi.action.revealFailed" xml:space="preserve">
+    <value>Etsintätiedoston sijainnin avaaminen epäonnistui: {0}</value>
+  </data>
+  <data name="settings.localApi.action.portUnavailable" xml:space="preserve">
+    <value>Portti on käytettävissä vasta, kun palvelin on käynnissä.</value>
+  </data>
+  <data name="settings.localApi.action.openFailed" xml:space="preserve">
+    <value>Dokumentaation avaaminen epäonnistui: {0}</value>
+  </data>
+  <data name="settings.localApi.action.fileMissing" xml:space="preserve">
+    <value>Etsintätiedosto ei ole vielä käytettävissä. Käynnistä palvelin ja odota, että se on käynnistynyt kokonaan.</value>
+  </data>
+  <data name="settings.localApi.action.copyFailed" xml:space="preserve">
+    <value>Leikepöydälle kopiointi epäonnistui: {0}</value>
+  </data>
+  <data name="settings.localApi.action.copied" xml:space="preserve">
+    <value>Kopioitu leikepöydälle.</value>
   </data>
   <data name="settings.localApi.status.idle" xml:space="preserve">
     <value>No network sockets bound.</value>

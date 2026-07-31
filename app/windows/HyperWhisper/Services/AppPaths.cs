@@ -93,4 +93,21 @@ public static class AppPaths
             LoggingService.Warn($"{logContext}: could not clear read-only attribute: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Best-effort preparation of a destination (and optional backup) file for an
+    /// atomic overwrite via File.Replace / File.Move. A read-only attribute on
+    /// either file makes the replace throw UnauthorizedAccessException, which
+    /// callers typically swallow — turning every subsequent save into a silent
+    /// permanent loss. Clearing the attribute up front keeps app-owned state
+    /// files writable.
+    /// </summary>
+    public static void PrepareForOverwrite(string destPath, string logContext, string? backupPath = null)
+    {
+        ClearReadOnlyAttribute(destPath, logContext);
+        if (!string.IsNullOrEmpty(backupPath))
+        {
+            ClearReadOnlyAttribute(backupPath, logContext);
+        }
+    }
 }

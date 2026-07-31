@@ -154,6 +154,18 @@ fn voice_commands() {
     );
     // ...but a real "new line." (with trailing punctuation) still matches.
     assert_eq!(process_voice_commands("new line."), "\n\n");
+    // "new paragraph" is a break command too (issue #1), with the same
+    // mid-word guard as "new line".
+    assert_eq!(process_voice_commands("new paragraph"), "\n\n");
+    assert_eq!(process_voice_commands("New Paragraph,"), "\n\n");
+    assert_eq!(
+        process_voice_commands("first point new paragraph second point"),
+        "first point \n\n second point"
+    );
+    assert_eq!(
+        process_voice_commands("new paragraphs are needed"),
+        "new paragraphs are needed"
+    );
 }
 
 #[test]

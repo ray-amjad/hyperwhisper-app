@@ -4,11 +4,25 @@
 import { isRecord } from './utils';
 
 /**
+ * Threaded through the recursive extraction helpers below so a present-but-empty
+ * string (e.g. `message.content: ""`) can be distinguished from a response that
+ * has no text field anywhere. `sawEmpty` is only set, never used to short-circuit
+ * the search — a non-empty candidate found anywhere still wins.
+ */
+interface ExtractionContext {
+  sawEmpty: boolean;
+}
+
+/**
  * Extract corrected text from chat responses
  */
-export function tryExtractCorrectionText(value: unknown): string | undefined {
+export function tryExtractCorrectionText(value: unknown, ctx: ExtractionContext = { sawEmpty: false }): string | undefined {
   if (typeof value === 'string') {
-    return value;
+    if (value.length > 0) {
+      return value;
+    }
+    ctx.sawEmpty = true;
+    return undefined;
   }
 
   if (!isRecord(value)) {
@@ -18,13 +32,16 @@ export function tryExtractCorrectionText(value: unknown): string | undefined {
   const directKeys = ['response', 'result', 'output_text', 'text'] as const;
   for (const key of directKeys) {
     const candidate = value[key];
-    if (typeof candidate === 'string' && candidate.length > 0) {
-      return candidate;
+    if (typeof candidate === 'string') {
+      if (candidate.length > 0) {
+        return candidate;
+      }
+      ctx.sawEmpty = true;
     }
   }
 
   const responseField = value['response'];
-  const nestedResponse = tryExtractCorrectionText(responseField);
+  const nestedResponse = tryExtractCorrectionText(responseField, ctx);
   if (nestedResponse) {
     return nestedResponse;
   }
@@ -32,7 +49,7 @@ export function tryExtractCorrectionText(value: unknown): string | undefined {
   const choices = value['choices'];
   if (Array.isArray(choices)) {
     for (const choice of choices) {
-      const choiceText = tryExtractCorrectionText(choice);
+      const choiceText = tryExtractCorrectionText(choice, ctx);
       if (choiceText) {
         return choiceText;
       }
@@ -41,12 +58,12 @@ export function tryExtractCorrectionText(value: unknown): string | undefined {
         continue;
       }
 
-      const messageText = tryExtractCorrectionText(choice['message']);
+      const messageText = tryExtractCorrectionText(choice['message'], ctx);
       if (messageText) {
         return messageText;
       }
 
-      const deltaText = tryExtractCorrectionText(choice['delta']);
+      const deltaText = tryExtractCorrectionText(choice['delta'], ctx);
       if (deltaText) {
         return deltaText;
       }
@@ -54,13 +71,13 @@ export function tryExtractCorrectionText(value: unknown): string | undefined {
   }
 
   const output = value['output'];
-  const outputText = extractTextFromContent(output);
+  const outputText = extractTextFromContent(output, ctx);
   if (outputText) {
     return outputText;
   }
 
   const content = value['content'];
-  const contentText = extractTextFromContent(content);
+  const contentText = extractTextFromContent(content, ctx);
   if (contentText) {
     return contentText;
   }
@@ -68,23 +85,30 @@ export function tryExtractCorrectionText(value: unknown): string | undefined {
   return undefined;
 }
 
-function extractTextFromContent(value: unknown): string | undefined {
-  if (typeof value === 'string' && value.length > 0) {
-    return value;
+function extractTextFromContent(value: unknown, ctx: ExtractionContext): string | undefined {
+  if (typeof value === 'string') {
+    if (value.length > 0) {
+      return value;
+    }
+    ctx.sawEmpty = true;
+    return undefined;
   }
 
   if (isRecord(value)) {
     const direct = value['text'];
-    if (typeof direct === 'string' && direct.length > 0) {
-      return direct;
+    if (typeof direct === 'string') {
+      if (direct.length > 0) {
+        return direct;
+      }
+      ctx.sawEmpty = true;
     }
 
-    const nested = tryExtractCorrectionText(value['message']);
+    const nested = tryExtractCorrectionText(value['message'], ctx);
     if (nested) {
       return nested;
     }
 
-    const nestedContent = extractTextFromContent(value['content']);
+    const nestedContent = extractTextFromContent(value['content'], ctx);
     if (nestedContent) {
       return nestedContent;
     }
@@ -93,7 +117,7 @@ function extractTextFromContent(value: unknown): string | undefined {
   if (Array.isArray(value)) {
     const segments: string[] = [];
     for (const item of value) {
-      const text = tryExtractCorrectionText(item);
+      const text = tryExtractCorrectionText(item, ctx);
       if (text) {
         segments.push(text);
       }
@@ -108,12 +132,20 @@ function extractTextFromContent(value: unknown): string | undefined {
 }
 
 /**
- * Extract corrected text and throw if missing
+ * Extract corrected text. Throws only when no text field was found anywhere
+ * in the response; a present-but-empty text field (e.g. `message.content: ""`)
+ * returns `''` so callers can treat it as a graceful empty result rather than
+ * a malformed response.
  */
 export function extractCorrectedText(response: unknown): string {
-  const text = tryExtractCorrectionText(response);
+  const ctx: ExtractionContext = { sawEmpty: false };
+  const text = tryExtractCorrectionText(response, ctx);
   if (typeof text === 'string' && text.length > 0) {
     return text;
+  }
+
+  if (ctx.sawEmpty) {
+    return '';
   }
 
   throw new Error('Correction response missing text');

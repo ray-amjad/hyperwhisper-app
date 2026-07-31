@@ -327,23 +327,15 @@
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
 
-                    <ListView x:Name="VocabularyList"
-                              BorderThickness="0"
-                              Background="Transparent"
-                              Padding="0"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="Margin" Value="0"/>
-                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
-                            </Style>
-                        </ListView.ItemContainerStyle>
-                        <ListView.ItemTemplate>
+                    <ItemsControl x:Name="VocabularyList"
+                                  BorderThickness="0"
+                                  Background="Transparent"
+                                  Padding="0">
+                        <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="16,8">
+                                <Border Padding="16,8"
+                                        BorderThickness="0,0,0,1"
+                                        BorderBrush="{DynamicResource BorderBrush}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="2*"/>
@@ -418,8 +410,8 @@
                                     </Grid>
                                 </Border>
                             </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
             </StackPanel>

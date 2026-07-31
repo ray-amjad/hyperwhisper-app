@@ -11,6 +11,8 @@ When you add or change an API key, HyperWhisper waits 500 ms after you stop typi
 
 If a transcription is about to start and the cached result is stale, HyperWhisper runs one final check before sending your audio. The transcription pipeline waits for this probe to finish—your audio is never sent to a provider that fails the check.
 
+Health probes retry automatically with backoff (up to 3 attempts) before being marked as failed, to avoid flagging a provider as unhealthy on a single transient blip. Keys shorter than 16 characters skip probing entirely and are treated as obviously invalid without a network round-trip.
+
 ## Health status states
 
 <Tabs>
@@ -25,6 +27,7 @@ If a transcription is about to start and the cached result is stale, HyperWhispe
     | **Unreachable** | Orange | Cannot reach the provider (network issue or provider down) |
     | **Untested** | Gray | Key is present but no probe has run yet (both map to a single `.unknown` state, branched on whether a key is stored) |
     | **No key** | Gray | No API key configured for this provider (same `.unknown` state as Untested, different branch) |
+    | **Not installed** | Gray | Used for local-LLM post-processing status when the model hasn't been downloaded yet |
 
     In the provider key sheet (opened by clicking **Add** or **Edit**), a status banner appears below the key input field with a short plain-English explanation of the current state.
   </Tab>
@@ -45,7 +48,7 @@ If a transcription is about to start and the cached result is stale, HyperWhispe
     The **Checking…** state does not block recording. HyperWhisper permits you to start—the pipeline waits for the probe to complete before sending audio, so you're never recorded against a failing provider even if you start quickly.
   </Tab>
   <Tab title="Windows">
-    On Windows, the transcription service checks provider health before processing audio. If the active provider is unhealthy, the operation surfaces an error message rather than sending audio.
+    On Windows, the transcription pipeline does not run a pre-flight health check before sending audio — it only verifies that an API key is present (non-empty) for the active provider. If the provider itself rejects the request or is unreachable, that surfaces as a runtime error after the request is made, rather than being caught in advance.
   </Tab>
 </Tabs>
 

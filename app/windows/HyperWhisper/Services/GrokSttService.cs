@@ -41,6 +41,11 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     private const string ApiEndpoint = "https://api.x.ai/v1/stt";
     private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
 
+    // Per-attempt request timeout, scaled to file size (see GetRequestTimeout):
+    // a fixed cap can't cover a 500 MB upload on a slow uplink.
+    private static readonly TimeSpan BaseRequestTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromMinutes(30);
+
     // xAI only supports language-driven formatting for this subset. Unsupported
     // language selections should omit both `language` and `format=true`.
     private static readonly HashSet<string> SupportedFormattingLanguages = new(StringComparer.OrdinalIgnoreCase)
@@ -93,12 +98,12 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     {
         _httpClient = new HttpClient
         {
-            // Finite per-request cap (G1) — every sibling STT service uses 120–300s.
-            // With RustRetry.PerformAsync receiving only the cancellation token, an
-            // InfiniteTimeSpan let a stalled xAI send hang forever. 300s matches the
-            // longest sibling (Gemini) and suits large audio uploads; each retry
-            // attempt's send inherits this cap.
-            Timeout = TimeSpan.FromSeconds(300)
+            // No HttpClient-level cap: the request bound is the size-scaled
+            // per-attempt timeout that TranscribeAsync passes to
+            // RustRetry.PerformAsync (GetRequestTimeout — 5 min base + 3 s/MB,
+            // capped at 30 min). A fixed 300 s cap here killed large-file uploads
+            // that legitimately need longer than 5 minutes to send.
+            Timeout = Timeout.InfiniteTimeSpan
         };
     }
 
@@ -180,6 +185,9 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
             vocabulary: Array.Empty<string>(),
             apiKey: _apiKey);
 
+        var requestTimeout = GetRequestTimeout(fileInfo.Length);
+        LoggingService.Info($"  Request timeout: {requestTimeout.TotalMinutes:F1} minutes (per attempt)");
+
         uniffi.hyperwhisper_core.HttpResponse response;
         try
         {
@@ -188,7 +196,8 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
                 buildRequest: () => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(coreParams),
                 parseError: resp => RustCoreMapping.ParseProviderError(
                     () => HyperwhisperCoreMethods.GrokParseTranscribeResponse(resp), "Grok", resp),
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken,
+                perAttemptTimeout: requestTimeout);
         }
         catch (HwTranscriptionException ex)
         {
@@ -245,6 +254,16 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         var dashIdx = trimmed.IndexOf('-');
         var normalized = dashIdx > 0 ? trimmed[..dashIdx] : trimmed;
         return normalized.ToLowerInvariant();
+    }
+
+    // internal for SmokeTests.
+    internal static TimeSpan GetRequestTimeout(long fileSizeBytes)
+    {
+        var fileSizeMb = fileSizeBytes / (1024.0 * 1024.0);
+
+        // Budget extra time for large uploads instead of using a fixed timeout.
+        var scaledTimeout = BaseRequestTimeout + TimeSpan.FromSeconds(fileSizeMb * 3);
+        return scaledTimeout <= MaxRequestTimeout ? scaledTimeout : MaxRequestTimeout;
     }
 
     // =========================================================================

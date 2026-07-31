@@ -63,7 +63,8 @@ internal static class RustCoreMapping
         int creditsRemaining = 0,
         int creditsRequired = 0,
         long fileTooLargeBytes = 0,
-        long fileTooLargeLimit = 0)
+        long fileTooLargeLimit = 0,
+        TranscriptionProviderDiagnostics? providerDiagnostics = null)
     {
         switch (error)
         {
@@ -72,7 +73,10 @@ internal static class RustCoreMapping
                     TranscriptionErrorCode.Unauthorized,
                     $"Invalid {providerName} API key",
                     providerName,
-                    httpStatusCode);
+                    httpStatusCode,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.QuotaExceeded:
                 // HW Cloud / routed: a 402 is "out of credits". Surface the richer
@@ -84,13 +88,19 @@ internal static class RustCoreMapping
                         TranscriptionErrorCode.QuotaExceeded,
                         $"Insufficient credits (remaining: {creditsRemaining}, required: {creditsRequired})",
                         providerName,
-                        httpStatusCode ?? 402);
+                        httpStatusCode ?? 402,
+                        retryAfterSeconds: null,
+                        innerException: null,
+                        providerDiagnostics: providerDiagnostics);
                 }
                 return new TranscriptionException(
                     TranscriptionErrorCode.QuotaExceeded,
                     $"{providerName} quota exceeded",
                     providerName,
-                    httpStatusCode);
+                    httpStatusCode,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.FileTooLarge:
                 return new TranscriptionException(
@@ -99,7 +109,10 @@ internal static class RustCoreMapping
                         ? $"Audio file ({fileTooLargeBytes / 1_048_576.0:F1} MB) exceeds {providerName}'s {fileTooLargeLimit / 1_048_576} MB limit"
                         : $"Audio file too large for {providerName}",
                     providerName,
-                    httpStatusCode ?? 413);
+                    httpStatusCode ?? 413,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.RateLimited rateLimited:
                 return new TranscriptionException(
@@ -112,21 +125,29 @@ internal static class RustCoreMapping
                     // would wrap to a negative. Clamp to int.MaxValue.
                     rateLimited.@retryAfterSecs.HasValue
                         ? (int)Math.Min(rateLimited.@retryAfterSecs.Value, int.MaxValue)
-                        : null);
+                        : null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.ProviderUnavailable providerUnavailable:
                 return new TranscriptionException(
                     TranscriptionErrorCode.ProviderUnavailable,
                     $"{providerName} unavailable",
                     providerName,
-                    providerUnavailable.@status);
+                    providerUnavailable.@status,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.NoSpeech:
                 return new TranscriptionException(
                     TranscriptionErrorCode.NoSpeechDetected,
                     "No speech detected in audio",
                     providerName,
-                    httpStatusCode);
+                    httpStatusCode,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.BadRequest badRequest:
                 // 400-class. Surface the upstream message; an empty message
@@ -135,7 +156,10 @@ internal static class RustCoreMapping
                     TranscriptionErrorCode.InvalidRequest,
                     string.IsNullOrEmpty(badRequest.@message) ? "Invalid request" : badRequest.@message,
                     providerName,
-                    badRequest.@status);
+                    badRequest.@status,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             case HwTranscriptionException.Parse parse:
                 return new TranscriptionException(
@@ -144,14 +168,20 @@ internal static class RustCoreMapping
                         ? $"Invalid response from {providerName}"
                         : parse.@message,
                     providerName,
-                    httpStatusCode);
+                    httpStatusCode,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
 
             default:
                 return new TranscriptionException(
                     TranscriptionErrorCode.Unknown,
                     error.Message,
                     providerName,
-                    httpStatusCode);
+                    httpStatusCode,
+                    retryAfterSeconds: null,
+                    innerException: null,
+                    providerDiagnostics: providerDiagnostics);
         }
     }
 

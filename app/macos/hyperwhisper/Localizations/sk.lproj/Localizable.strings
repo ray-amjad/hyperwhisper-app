@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "Domov";
-"sidebar.statistics" = "Štatistika";
 "sidebar.modes" = "Režimy";
 "sidebar.vocabulary" = "Slovník";
 "sidebar.streaming" = "Streamovanie";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "Verzia %@";
 "home.recent.updates.new.badge" = "NOVÉ";
 "home.recent.updates.no.notes" = "Žiadne poznámky k vydaniu dostupné";
+"home.stats.words.week" = "Slová tento týždeň";
+"home.stats.words.month" = "Slová tento mesiac";
+"home.stats.speed" = "Priemerná rýchlosť";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "Začať s HyperWhisper";
-"sidebar.statistics.help" = "Zobraziť štatistiku použitia a analýzy";
 "sidebar.modes.help" = "Spravovať režimy prepisu pre rôzne kontexty";
 "sidebar.vocabulary.help" = "Pridať vlastné slová a frázy pre lepšie rozpoznávanie";
 "sidebar.streaming.help" = "Nastavenia streamovania prepisov v reálnom čase (vyžaduje Internet)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "Kredity HyperWhisper Cloud";
 "settings.credits.refresh" = "Obnoviť";
-"settings.credits.subtitle" = "Monitorujte svoje kredity na prepis a použitie";
-"settings.credits.manage" = "Spravovať kredity";
 "settings.credits.timeRemaining" = "Zostávajúci čas prepisu";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "minút";
 "settings.credits.creditsRemaining" = "%@ kreditov ostáva";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "Bezplatný denný limit (100 kreditov)";
-"settings.credits.resets" = "Resetuje %@";
 "settings.credits.warning.low" = "Kredity sa končia. Zvážte nákup licencie na ďalšie kredity.";
-"settings.credits.warning.exhausted.daily" = "Denný limit je vyčaný. Kúpite si licenciu na neobmedzené používanie alebo čakajte na reset.";
 "settings.credits.warning.exhausted" = "Kredity sú vyčerpané. Kúpite si viac kreditov, aby ste pokračovali v používaní HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "Informácie o účte";
-"settings.credits.stat.creditsRemaining" = "Ostávajúce kredity";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "Zostávajúce minúty";
-"settings.credits.stat.accountType" = "Typ účtu";
-"settings.credits.accountType.licensed" = "Licencovaný";
-"settings.credits.accountType.anonymous" = "Anonymný";
-"settings.credits.accountType.trial" = "Skúšobná verzia";
-"settings.credits.stat.customerId" = "ID zákazníka";
-"settings.credits.stat.dailyLimit" = "Denný limit";
-"settings.credits.dailyLimit.value" = "100 kreditov";
 "settings.credits.loading" = "Načítavam zostatok kreditov...";
 "settings.credits.error.title" = "Nie je možné načítať zostatok kreditov";
 "settings.credits.error.retry" = "Skúsiť znova";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "Chyba siete: %@";
 "settings.credits.error.invalidResponse" = "Neplatná odpoveď zo servera. Skúste znova.";
 "settings.credits.error.server" = "Chyba servera: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "Kľúč účtu";
+"settings.cloud.purchaseMore" = "Kúpiť kredity";
+"settings.cloud.key.reveal" = "Zobraziť kľúč účtu";
+"settings.cloud.key.hide" = "Skryť kľúč účtu";
+"settings.cloud.key.copy" = "Kopírovať kľúč účtu";
+"settings.cloud.activate.title" = "Aktivovať HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "Kľúč účtu je vaša peňaženka – uchováva vaše kredity pre Cloud. Zadajte svoj kľúč a začnite, alebo si kúpte kredity a získajte ho.";
+"settings.cloud.getCredits.title" = "Ešte nemáte kľúč?";
+"settings.cloud.getCredits.subtitle" = "Kúpte si kredity a my vám pošleme kľúč účtu e-mailom.";
+"settings.cloud.getCredits.button" = "Kúpiť kredity";
 "settings.models.alert.cannotDelete.title" = "Nie je možné vymazať model";
 "settings.models.parakeet.title" = "Parakeet modely";
 "settings.models.parakeet.subtitle" = "Odporúčané pre väčšinu používateľov. Multijazyčný model podporuje 25 jazykov.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "Odporúčané pre Mac s 24 GB zjednotenej pamäte alebo viac. Rýchlosť závisí od čipu — rýchlejšie na M3/M4 Pro a vyšších.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "Slová tento rok";
+"home.stats.typing.speed.help" = "Upravte predpokladanú rýchlosť písania (WPM), ktorá sa používa na odhad ušetreného času.";
+"home.stats.saved.week" = "Ušetrené tento týždeň";
+"home.stats.minutes.value" = "%d min";
 "vocabulary.input.placeholder" = "Pridajte slovo alebo vytvorte úryvok";
 "vocabulary.action.addWord" = "Pridať slovo";
 "vocabulary.action.replaceWith" = "Nahradiť za…";
@@ -641,22 +641,6 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "models.error.checksumFailed" = "Overenie kontrolného súčtu modelu zlyhalo. Stiahnutie môže byť poškodené.";
 
 // MARK: - Statistics View
-"statistics.title" = "Štatistika";
-"statistics.header.title" = "Vaša štatistika použitia";
-"statistics.header.subtitle" = "Sledujte svoju aktivitu prepisu a výkon";
-"statistics.card.recordings" = "Spolu nahrávok";
-"statistics.card.recordings.subtitle" = "Dokončené prepisy";
-"statistics.card.duration" = "Celkový čas";
-"statistics.card.duration.subtitle" = "Čas strávený nahrávaním";
-"statistics.card.words" = "Celkem slov";
-"statistics.card.words.subtitle" = "Prepísaných slov";
-"statistics.card.average" = "Priemerné trvanie";
-"statistics.card.average.subtitle" = "Na nahrávku";
-"statistics.graph.title" = "Aktivita v čase";
-"statistics.daily.empty" = "Zatiaľ žiadne nahrávky";
-"statistics.filter.week" = "Tento týždeň";
-"statistics.filter.month" = "Tento mesiac";
-"statistics.filter.alltime" = "Všetky časy";
 
 // MARK: - History View
 "history.title" = "História";
@@ -777,8 +761,13 @@ Uprav tieto režimy a vyber iný model pred jeho odstránením.";
 "modes.cloudAccuracy.groqWhisper.description" = "Rýchla a dostupná. Najvhodnejšia na rýchle prepisy.";
 "modes.cloudAccuracy.deepgramNova3.description" = "Vyvážená rýchlosť a presnosť. Odporúčané pre väčšinu používateľov.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditov/min";
 "modes.cloudAccuracy.grokStt.label" = "Najvyššia (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najvyššia presnosť s pomalším spracúvaním. Najlepšie pre dôležité prepisy.";
+"modes.cloudAccuracy.googleChirp3.label" = "Vysoká (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 s Chirp 3. Viacjazyčné, s prispôsobením fráz.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 cez Azure Speech. 43 jazykov s kontextovým prispôsobením.";
 
 "modes.create.title" = "Vytvoriť nový režim";
 "modes.create.subtitle" = "Konfigurovať vlastný profil prepisu";
@@ -915,9 +904,6 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 // MARK: - Audio Manager
 "audio.device.default" = "Predvolený mikrofón";
 "audio.error.permissionDenied" = "Prístup k mikrofónu je odmietnutý. Povolte ho v Nastaveniach systému.";
-"audio.error.fileWatcher.open" = "Nepodarilo sa otvoriť deskriptor súboru na monitorovanie zvukového súboru.";
-"audio.error.fileWatcher.timeout" = "Operácia vypršala pri čakaní na zápis zvukového súboru.";
-"audio.error.fileWatcher.creation" = "Zvukový súbor bol vytvorený v čase.";
 "audio.error.microphonePermission" = "Povolenie mikrofónu neudelené";
 "audio.error.microphoneInUse" = "HyperWhisper nemôže pristupovať k mikrofónu, pretože ho v tejto chvíli používa ďalšia aplikácia. Pozastavte ďalšiu aplikáciu alebo prepnite vstupy a skúste znova.";
 "audio.error.createEngine" = "Nepodarilo sa vytvoriť zvukový stroj";
@@ -992,6 +978,15 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcription.guidance.timeout" = "Požiadavka trvala príliš dlho. Skontrolujte rýchlosť internetu a skúste znova.";
 "transcription.error.noSpeechDetected" = "V nahrávke nebola detekovaná reč.";
 "transcription.guidance.noSpeechDetected" = "Tipy:\n• Jasne rozprávajtea do mikrofónu\n• Držte kľúč dlhšie pred rozprávaním\n• Skontrolujte, či mikrofón funguje\n• Uistite sa, že je vybrané správne vstupné zariadenie";
+"transcription.guidance.needsNativeRelaunch" = "Ukončite a znova otvorte HyperWhisper natívne, aby ste mohli používať lokálne dodatočné spracovanie.";
+"transcription.guidance.localRuntimeUnavailable" = "Skúste to znova alebo v nastaveniach režimu vyberte menší lokálny model.";
+"transcription.error.localRuntimeUnavailable" = "Lokálna AI nedokázala dokončiť spracovanie — váš pôvodný prepis sa zachoval.";
+"settings.backup.localDownload.title" = "Stiahnuť lokálne modely?";
+"settings.backup.localDownload.message" = "%d z vašich obnovených režimov používa modely AI v zariadení, ktoré ešte nie sú stiahnuté.";
+"settings.backup.localDownload.downloadAll" = "Stiahnuť všetky";
+"settings.backup.localDownload.dismiss" = "Zavrieť";
+"modelLibrary.local.requiresAppleSilicon" = "Vyžaduje Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "Spustiť natívne";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "Nedostatočné kredity. Pridajte ďalšie kredity v Nastaveniach.";
@@ -1125,3 +1120,12 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "history.autoDelete.status.enabled" = "Vymazať nahrávky staršie ako %d %@";
 "history.autoDelete.cleanup.noItems" = "Žiadne nahrávky na vymazanie";
 "history.autoDelete.cleanup.summary" = "Vymazaných %d nahrávok a uvoľnených %@";
+"history.status.interrupted" = "Prepis bol prerušený — aplikácia sa ukončila skôr, ako dokončila prácu";
+"recording.maxDuration.reachedToast" = "Nahrávanie zastavené — dosiahnutý limit %d minút";
+"streaming.maxDuration.reachedToast" = "Streamovanie zastavené — dosiahnutý limit %d minút";
+"settings.storage.maxRecordingDuration.title" = "Maximálna dĺžka nahrávania";
+"settings.storage.maxRecordingDuration.subtitle" = "Automaticky zastaviť a prepísať nahrávky dlhšie ako tento čas.";
+"settings.storage.maxRecordingDuration.minutes" = "%d minút";
+"settings.storage.maxRecordingDuration.hour" = "1 hodina";
+"settings.storage.maxRecordingDuration.hours" = "%d hodín";
+"settings.storage.maxRecordingDuration.off" = "Vypnuté";

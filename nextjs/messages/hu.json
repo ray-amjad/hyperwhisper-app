@@ -20,6 +20,7 @@
     "githubAria": "A HyperWhisper megtekintese a GitHubon"
   },
   "hero": {
+    "openSourceBadge": "Nyílt forráskód · Apache-2.0",
     "logoAlt": "HyperWhisper logó",
     "headline": "Írj, alkoss és hozz létre",
     "headlineAccent": "5x gyorsabban AI-val",

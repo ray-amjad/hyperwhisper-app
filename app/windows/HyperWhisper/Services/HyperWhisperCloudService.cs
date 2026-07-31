@@ -361,6 +361,17 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         // Get fresh credentials at request time (matches macOS behavior)
         var (identifier, isLicensed) = LicenseManager.Instance.GetTranscriptionIdentifier();
 
+        // Fail fast: the guest/device-credit path is dead server-side
+        // (entitlement is enforced there), so an unlicensed request is doomed —
+        // surface guidance instead of burning a network round-trip on a 401.
+        if (!isLicensed)
+        {
+            throw new TranscriptionException(
+                TranscriptionErrorCode.CloudAccountRequired,
+                "HyperWhisper Cloud requires an account key",
+                "HyperWhisper Cloud");
+        }
+
         LoggingService.Info("========== HYPERWHISPER CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Auth: {(isLicensed ? "License Key" : "Device Credits")}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
@@ -382,13 +393,33 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         var fileInfo = new FileInfo(audioPath);
         LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
 
+        // Gate `initial_prompt` on the catalog's customVocabulary support flag —
+        // the CORE DOES NOT DO THIS (it only builds the CSV: trim + drop-empty),
+        // so the native gate restored from 1.7.0 is the only thing preventing
+        // vocabulary from being sent to tiers/models that reject or ignore it.
+        // Prefer the per-model flag (a tier can mix vocab-capable and not, e.g.
+        // ElevenLabs scribe_v2 supports keyterms but scribe_v1 doesn't); fall
+        // back to the tier-level flag when the model is unknown/default.
+        var modelKnownForVocab = !string.IsNullOrEmpty(resolvedModel)
+            && Services.AppClassification.CloudSttCatalog.Shared.GetModel(tierStorageId, resolvedModel) != null;
+        var vocabSupported = modelKnownForVocab
+            ? Services.AppClassification.CloudSttCatalog.Shared.ModelSupportsCustomVocabulary(tierStorageId, resolvedModel)
+            : Services.AppClassification.CloudSttCatalog.Shared.SupportsCustomVocabulary(tierStorageId);
+
+        var effectiveVocabulary = vocabulary;
+        if (vocabulary != null && vocabulary.Count > 0 && !vocabSupported)
+        {
+            LoggingService.Info($"HyperWhisper Cloud dropping initial_prompt · tier={tierStorageId} model={(string.IsNullOrEmpty(resolvedModel) ? "(default)" : resolvedModel)} reason=catalog_unsupported");
+            effectiveVocabulary = null;
+        }
+
         // STEP 2: Build the request via the Rust shared core and drive it through
         // the shared executor + core retry loop. The core builds the URL + query
         // (license_key/device_id, language, initial_prompt), the X-STT-* routed
         // headers (from routedProvider/Model/Domain), the Content-Type, and the
-        // @raw raw-stream body. We pass the RAW vocab list — the core builds the
-        // CSV (trim + drop-empty, no lowercase/dedup) AND owns the per-model
-        // customVocabulary gating, so the native catalog gating is dropped.
+        // @raw raw-stream body. We pass the catalog-gated vocab list — the core
+        // builds the CSV (trim + drop-empty, no lowercase/dedup) but does NOT
+        // gate on customVocabulary support (see above).
         // KEEP native: credit-header extraction, no-speech diagnostics, the DNS
         // HttpClient rebuild (via onTransportError), and the /post-process path.
         // TODO-verify (Windows/CI): Rust shared-core swap.
@@ -399,11 +430,14 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
+            vocabulary: effectiveVocabulary ?? Array.Empty<string>(),
             // Core appends `/transcribe` itself — pass the BASE, not the endpoint.
             baseUrl: NetworkConfig.HyperWhisperCloudBaseUrl,
-            licenseKey: isLicensed ? identifier : null,
-            deviceId: isLicensed ? null : identifier,
+            licenseKey: identifier,
+            // Guest/device-credit auth is dead server-side and unreachable past
+            // the pre-check above. The core's deviceId param stays (macOS still
+            // populates it); this call site just never uses it.
+            deviceId: null,
             routedProvider: accuracyTier.ToSttProvider(),
             routedModel: string.IsNullOrEmpty(resolvedModel) ? null : resolvedModel,
             routedDomain: domain);
@@ -414,15 +448,19 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         try
         {
             response = await RustRetry.PerformAsync(
-                Volatile.Read(ref _httpClient),
+                // Resolved per attempt so the post-rebuild attempts actually run
+                // on the fresh pool (a plain HttpClient argument would pin the
+                // stale pre-rebuild client for the whole sequence).
+                () => Volatile.Read(ref _httpClient),
                 buildRequest: () => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams),
                 parseError: MapCloudError,
                 cancellationToken: cancellationToken,
                 onTransportError: ex =>
                 {
                     // One-shot HttpClient rebuild per retry sequence: a DNS-shaped
-                    // error (network flip → stale cache) drops the pool so the next
-                    // attempt re-resolves. Gated to one rebuild per sequence.
+                    // error (network flip → stale cache) swaps in a fresh client,
+                    // which the clientProvider above hands to the NEXT attempt so
+                    // it re-resolves DNS. Gated to one rebuild per sequence.
                     if (!rebuiltThisSequence && IsDnsError(ex))
                     {
                         RebuildHttpClient();
@@ -453,11 +491,21 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         catch (HwTranscriptionException ex)
         {
             // 200-but-no-speech surfaces here as a NoSpeech error.
-            LastDiagnostics = new TranscriptionProviderDiagnostics(
+            var diagnostics = new TranscriptionProviderDiagnostics(
                 Name, requestId, sttProvider,
                 BackendNoSpeechDetected: ex is HwTranscriptionException.NoSpeech,
                 (int)response.@status, totalSw.ElapsedMilliseconds, false);
-            throw RustCoreMapping.MapTranscriptionError(ex, "HyperWhisper Cloud");
+            LastDiagnostics = diagnostics;
+            // Attach the diagnostics we just captured (real HTTP status + latency)
+            // to the thrown exception itself, not just the LastDiagnostics property -
+            // callers that catch this exception directly (e.g. TranscriptionOrchestrator
+            // step 1, which never reaches its own diagnostics read at the bottom of
+            // TranscribeCloudAsync because this throw unwinds past it) would otherwise
+            // see ProviderDiagnostics as null and every Sentry no-speech event would
+            // report backend_http_status=0 / backend_response_latency_ms=0 regardless
+            // of what actually happened on the wire.
+            throw RustCoreMapping.MapTranscriptionError(
+                ex, "HyperWhisper Cloud", (int)response.@status, providerDiagnostics: diagnostics);
         }
 
         LastDiagnostics = new TranscriptionProviderDiagnostics(
@@ -758,19 +806,6 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             TranscriptionErrorCode.Unknown,
             "Post-processing failed after max retries",
             "HyperWhisper Cloud");
-    }
-
-    /// <summary>
-    /// Masks the URL to hide sensitive query params.
-    /// </summary>
-    private static string MaskUrl(string url)
-    {
-        // Replace device_id and license_key values with ***
-        var masked = System.Text.RegularExpressions.Regex.Replace(
-            url,
-            @"(device_id|license_key)=[^&]+",
-            "$1=***");
-        return masked;
     }
 
     // =========================================================================

@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "الرئيسية";
-"sidebar.statistics" = "الإحصائيات";
 "sidebar.modes" = "الأوضاع";
 "sidebar.vocabulary" = "المفردات";
 "sidebar.streaming" = "البث المباشر";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "الإصدار %@";
 "home.recent.updates.new.badge" = "جديد";
 "home.recent.updates.no.notes" = "لا توجد ملاحظات إصدار متاحة";
+"home.stats.words.week" = "الكلمات هذا الأسبوع";
+"home.stats.words.month" = "الكلمات هذا الشهر";
+"home.stats.speed" = "متوسط السرعة";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "ابدأ مع HyperWhisper";
-"sidebar.statistics.help" = "عرض إحصائيات الاستخدام والتحليلات";
 "sidebar.modes.help" = "إدارة أوضاع النسخ لسياقات مختلفة";
 "sidebar.vocabulary.help" = "إضافة كلمات وعبارات مخصصة لتحسين التعرف";
 "sidebar.streaming.help" = "إعدادات البث المباشر في الوقت الفعلي (يتطلب الإنترنت)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "رصيد HyperWhisper Cloud";
 "settings.credits.refresh" = "تحديث";
-"settings.credits.subtitle" = "مراقبة رصيدك ومستخدم النسخ";
-"settings.credits.manage" = "إدارة الأرصدة";
 "settings.credits.timeRemaining" = "وقت النسخ المتبقي";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "دقائق";
 "settings.credits.creditsRemaining" = "%@ رصيد متبقي";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "حد مجاني يومي (100 رصيد)";
-"settings.credits.resets" = "يعاد تعيينه %@";
 "settings.credits.warning.low" = "الأرصدة تنخفض. تفكر في شراء ترخيص للحصول على أرصدة إضافية.";
-"settings.credits.warning.exhausted.daily" = "تم استنفاد الحد اليومي. اشتري ترخيصاً للاستخدام غير المحدود أو انتظر إعادة التعيين.";
 "settings.credits.warning.exhausted" = "تم استنفاد الأرصدة. اشتري أرصدة إضافية لمتابعة استخدام HyperWhisper Cloud.";
 "settings.credits.accountInfo" = "معلومات الحساب";
-"settings.credits.stat.creditsRemaining" = "الأرصدة المتبقية";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "الدقائق المتبقية";
-"settings.credits.stat.accountType" = "نوع الحساب";
-"settings.credits.accountType.licensed" = "مرخص";
-"settings.credits.accountType.anonymous" = "مجهول";
-"settings.credits.accountType.trial" = "تجربة";
-"settings.credits.stat.customerId" = "معرف العميل";
-"settings.credits.stat.dailyLimit" = "الحد اليومي";
-"settings.credits.dailyLimit.value" = "100 رصيد";
 "settings.credits.loading" = "جارٍ تحميل رصيد الحساب...";
 "settings.credits.error.title" = "لم يتمكن من تحميل رصيد الحساب";
 "settings.credits.error.retry" = "إعادة المحاولة";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "خطأ في الشبكة: %@";
 "settings.credits.error.invalidResponse" = "رد غير صحيح من الخادم. يرجى المحاولة مجدداً.";
 "settings.credits.error.server" = "خطأ في الخادم: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "مفتاح الحساب";
+"settings.cloud.purchaseMore" = "شراء أرصدة";
+"settings.cloud.key.reveal" = "إظهار مفتاح الحساب";
+"settings.cloud.key.hide" = "إخفاء مفتاح الحساب";
+"settings.cloud.key.copy" = "نسخ مفتاح الحساب";
+"settings.cloud.activate.title" = "تفعيل HyperWhisper Cloud";
+"settings.cloud.activate.subtitle" = "مفتاح حسابك هو محفظتك — يحتفظ بأرصدة Cloud الخاصة بك. أدخل مفتاحك للبدء، أو اشترِ أرصدة للحصول على واحد.";
+"settings.cloud.getCredits.title" = "ليس لديك مفتاح بعد؟";
+"settings.cloud.getCredits.subtitle" = "اشترِ أرصدة وسنرسل لك مفتاح الحساب عبر البريد الإلكتروني.";
+"settings.cloud.getCredits.button" = "شراء أرصدة";
 "settings.models.alert.cannotDelete.title" = "لا يمكن حذف النموذج";
 "settings.models.parakeet.title" = "نماذج Parakeet";
 "settings.models.parakeet.subtitle" = "موصى بها لمعظم المستخدمين. نموذج متعدد اللغات يدعم 25 لغة.";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "يُوصى به لأجهزة Mac المزودة بذاكرة موحدة بسعة 24 GB أو أكثر. تعتمد السرعة على الشريحة — أسرع على M3/M4 Pro وما فوق.";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "الكلمات هذا العام";
+"home.stats.typing.speed.help" = "اضبط سرعة الكتابة المفترضة (WPM) المستخدَمة لتقدير الوقت الموفَّر.";
+"home.stats.saved.week" = "الوقت الموفَّر هذا الأسبوع";
+"home.stats.minutes.value" = "%d دقيقة";
 "vocabulary.input.placeholder" = "أضف كلمة أو أنشئ مقتطفاً";
 "vocabulary.action.addWord" = "إضافة كلمة";
 "vocabulary.action.replaceWith" = "استبدال بـ…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "فشل التحقق من المجموع الاختياري للنموذج. قد يكون التحميل تالفاً.";
 
 // MARK: - Statistics View
-"statistics.title" = "الإحصائيات";
-"statistics.header.title" = "إحصائيات استخدامك";
-"statistics.header.subtitle" = "تتبع نشاط وأداء النسخ الخاص بك";
-"statistics.card.recordings" = "إجمالي التسجيلات";
-"statistics.card.recordings.subtitle" = "النسخ المكتملة";
-"statistics.card.duration" = "الوقت الإجمالي";
-"statistics.card.duration.subtitle" = "الوقت المستغرق في التسجيل";
-"statistics.card.words" = "إجمالي الكلمات";
-"statistics.card.words.subtitle" = "الكلمات المنسوخة";
-"statistics.card.average" = "متوسط المدة";
-"statistics.card.average.subtitle" = "لكل تسجيل";
-"statistics.graph.title" = "النشاط على مدى الوقت";
-"statistics.daily.empty" = "لا توجد تسجيلات حتى الآن";
-"statistics.filter.week" = "هذا الأسبوع";
-"statistics.filter.month" = "هذا الشهر";
-"statistics.filter.alltime" = "منذ البداية";
 
 // MARK: - History View
 "history.title" = "السجل";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "سريع وبأسعار معقولة. الأفضل للنسخ السريعة.";
 "modes.cloudAccuracy.deepgramNova3.description" = "توازن بين السرعة والدقة. موصى به لمعظم المستخدمين.";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ رصيد/دقيقة";
 "modes.cloudAccuracy.grokStt.label" = "الأعلى (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - أعلى دقة مع معالجة أبطأ. الأفضل للنسخ المهمة.";
+"modes.cloudAccuracy.googleChirp3.label" = "مرتفع (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 مع Chirp 3. متعدد اللغات مع تكييف العبارات.";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "مرتفع (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 عبر Azure Speech. 43 لغة مع توجيه سياقي.";
 
 "modes.create.title" = "إنشاء وضع جديد";
 "modes.create.subtitle" = "تكوين ملف تعريف نسخ مخصص";
@@ -915,9 +904,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "ميكروفون افتراضي";
 "audio.error.permissionDenied" = "تم رفض الوصول إلى الميكروفون. يرجى التفعيل في إعدادات النظام.";
-"audio.error.fileWatcher.open" = "تعذر فتح واصف الملف لمراقبة ملف الصوت.";
-"audio.error.fileWatcher.timeout" = "انتهت مهلة العملية أثناء انتظار كتابة ملف الصوت.";
-"audio.error.fileWatcher.creation" = "لم يتم إنشاء ملف الصوت في الوقت المناسب.";
 "audio.error.microphonePermission" = "لم يتم منح إذن الميكروفون";
 "audio.error.microphoneInUse" = "لا يمكن لـ HyperWhisper الوصول إلى الميكروفون لأن تطبيقاً آخر يستخدمه حالياً. أوقف التطبيق الآخر أو بدّل المدخلات، ثم حاول مرة أخرى.";
 "audio.error.createEngine" = "فشل إنشاء محرك الصوت";
@@ -992,6 +978,15 @@
 "transcription.guidance.timeout" = "استغرق الطلب وقتاً طويلاً. تحقق من سرعة الإنترنت الخاصة بك وحاول مرة أخرى.";
 "transcription.error.noSpeechDetected" = "لم يتم الكشف عن أي كلام في التسجيل.";
 "transcription.guidance.noSpeechDetected" = "نصائح:\n• تحدث بوضوح نحو الميكروفون\n• اضغط على المفتاح لفترة أطول قبل التحدث\n• تحقق من أن الميكروفون يعمل\n• تأكد من تحديد جهاز الإدخال الصحيح";
+"transcription.guidance.needsNativeRelaunch" = "أغلق HyperWhisper وأعد فتحه كتطبيق أصلي لاستخدام المعالجة اللاحقة المحلية.";
+"transcription.guidance.localRuntimeUnavailable" = "حاول مرة أخرى، أو اختر نموذجاً محلياً أصغر في إعدادات الوضع.";
+"transcription.error.localRuntimeUnavailable" = "تعذّر على الذكاء الاصطناعي المحلي إكمال المعالجة — تم الاحتفاظ بالنص الأصلي.";
+"settings.backup.localDownload.title" = "تنزيل النماذج المحلية؟";
+"settings.backup.localDownload.message" = "%d من الأوضاع المستعادة تستخدم نماذج ذكاء اصطناعي على الجهاز لم يتم تنزيلها بعد.";
+"settings.backup.localDownload.downloadAll" = "تنزيل الكل";
+"settings.backup.localDownload.dismiss" = "تجاهل";
+"modelLibrary.local.requiresAppleSilicon" = "يتطلب Apple Silicon";
+"modelLibrary.local.needsNativeRelaunch" = "إعادة التشغيل كتطبيق أصلي";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "رصيد غير كافٍ. أضف المزيد من الرصيد في الإعدادات.";
@@ -1125,3 +1120,12 @@
 "history.autoDelete.status.enabled" = "حذف التسجيلات الأقدم من %d %@";
 "history.autoDelete.cleanup.noItems" = "لا توجد تسجيلات لحذفها";
 "history.autoDelete.cleanup.summary" = "تم حذف %d تسجيلات وتحرير %@";
+"history.status.interrupted" = "تم مقاطعة النسخ — أُغلق التطبيق قبل الانتهاء";
+"recording.maxDuration.reachedToast" = "تم إيقاف التسجيل — تم بلوغ الحد الأقصى %d دقيقة";
+"streaming.maxDuration.reachedToast" = "تم إيقاف البث — تم بلوغ الحد الأقصى %d دقيقة";
+"settings.storage.maxRecordingDuration.title" = "الحد الأقصى لمدة التسجيل";
+"settings.storage.maxRecordingDuration.subtitle" = "إيقاف التسجيلات الأطول من هذه المدة تلقائيًا ونسخها.";
+"settings.storage.maxRecordingDuration.minutes" = "%d دقيقة";
+"settings.storage.maxRecordingDuration.hour" = "ساعة واحدة";
+"settings.storage.maxRecordingDuration.hours" = "%d ساعات";
+"settings.storage.maxRecordingDuration.off" = "إيقاف";

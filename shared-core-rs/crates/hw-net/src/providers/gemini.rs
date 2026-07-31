@@ -45,6 +45,7 @@ use crate::contract::{
     Body, HttpMethod, HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime};
+use crate::providers::common::filename_of;
 
 /// Gemini API root. `params.base_url` overrides it (tests/staging).
 pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
@@ -79,15 +80,6 @@ fn mime(params: &TranscribeParams) -> String {
         .audio_mime
         .clone()
         .unwrap_or_else(|| resolve_mime(&params.audio_path))
-}
-
-/// Last path component of `path`, for the upload `display_name`.
-fn filename_of(path: &str) -> String {
-    path.rsplit(['/', '\\'])
-        .next()
-        .filter(|s| !s.is_empty())
-        .unwrap_or("audio")
-        .to_string()
 }
 
 /// Append `?key=<key>` to a URL (Gemini auth is a query param). Keeps parity with

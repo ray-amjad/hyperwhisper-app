@@ -19,8 +19,8 @@ HyperWhisper on Windows is a .NET 10 WPF app that lives in your system tray and 
   <Step title="Run the installer">
     Double-click the downloaded `.exe` and follow the setup wizard.
 
-    - If **.NET 10 Desktop Runtime** is missing, the installer downloads and installs it automatically.
-    - The default install location is `C:\Program Files\HyperWhisper`. The app itself uses about **300 MB** of disk space, not counting any local models you download later.
+    - The .NET 10 runtime is bundled with the app, so no separate runtime install is needed.
+    - The default install location is `%LOCALAPPDATA%\Programs\HyperWhisper` (a per-user install, no administrator privileges required). The app itself uses about **300 MB** of disk space, not counting any local models you download later.
     - The installer offers an optional **Create a desktop shortcut** task — it is unchecked by default.
   </Step>
   <Step title="Launch HyperWhisper">
@@ -61,8 +61,9 @@ The main window opens on first launch. Closing it sends the app to the system tr
 | Start / stop recording | **Ctrl+Alt** |
 | Cancel recording | **Esc** |
 | Change mode | **Ctrl+Shift+.** |
+| Start streaming transcription | **Ctrl+Shift+Space** |
 
-You can customize all shortcuts in **Settings → Shortcuts**.
+You can customize all shortcuts in **Settings → Shortcuts**, including switching your recording shortcut to **push-to-talk mode** (hold to record, release to stop) instead of the default toggle behavior.
 
 ## System tray behavior
 
@@ -71,13 +72,18 @@ HyperWhisper runs in the background with an icon in the Windows system tray (not
 | Menu item | What it does |
 | --- | --- |
 | **Start/Stop Recording** | Toggle recording without opening the main window |
+| **History...** | Open the main window on the History page |
+| **Settings...** | Open the main window on the Settings page |
 | **Microphone** | Switch your active input device |
 | **Select Mode** | Switch the active transcription mode |
 | **Transcribe File** | Open a file for transcription |
-| **History...** | Open the main window on the History page |
-| **Settings...** | Open the main window on the Settings page |
 | **Check for Updates** | Check for a new release |
+| **Help Center** | Open HyperWhisper's help center in your browser |
+| **Contact Support** | Open a new support email |
+| **Feedback** | Send feedback about the app |
 | **Quit** | Exit HyperWhisper |
+
+The menu also shows the installed version number below these items.
 
 By default, closing the main window hides it to the tray instead of quitting the app. To exit completely, use **Quit** from the tray menu.
 

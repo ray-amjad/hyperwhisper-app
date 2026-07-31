@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write   # release commit lands via an auto-merged PR (gh pr create/merge)
 
 concurrency:
   group: release-push
@@ -193,6 +194,37 @@ jobs:
         run: |
           chmod +x app/macos/strip_whisper_signatures.sh
           app/macos/strip_whisper_signatures.sh
+
+      # ----------------------------------------------------------------
+      # 5b. Rebuild the Rust core (macOS universal static lib)
+      # ----------------------------------------------------------------
+      # The Xcode project links libhyperwhisper_core.a out of
+      # app/macos/hyperwhisper/Libraries/, which is NOT committed (see that
+      # directory's README). Without this step the Archive below has nothing
+      # to link against.
+      #
+      # This step is also why the lib stopped being committed. While it was
+      # in git, the release shipped whatever binary happened to be checked
+      # in, and a rebuild was a manual step someone had to remember. Two ways
+      # that went wrong:
+      #   - loud:   the FFI surface moved, so the archive failed to link with
+      #             "Undefined symbols" (what PR #64 hit).
+      #   - silent: only a function *body* changed, so the UniFFI checksums
+      #             still matched, the archive linked clean, and the release
+      #             shipped stale Rust with no signal at all.
+      # Building from source here makes both impossible by construction.
+      #
+      # Deliberately uncached, unlike macos-ci.yml: releases are
+      # workflow_dispatch-only and rare, so ~5 min of cold compile is a fair
+      # price for an artifact that ships to users with no cache in its
+      # provenance.
+      - name: Rebuild shared Rust core
+        working-directory: shared-core-rs
+        run: |
+          rustup show
+          ./build-apple.sh
+          ls -lh ../app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a
+          lipo -info ../app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a
 
       # ----------------------------------------------------------------
       # 6. Build (xcodebuild archive)
@@ -550,29 +582,54 @@ jobs:
           echo "Upload complete: https://builds.hyperwhisper.com/$KEY"
 
       # ----------------------------------------------------------------
-      # 17. Commit and push version bump + appcast
+      # 17. Commit version bump + appcast, then open & merge a release PR
       # ----------------------------------------------------------------
-      - name: Commit and push changes
+      # The default branch is protected by a ruleset that requires changes to
+      # go through a pull request (0 approvals). A direct push from the release
+      # bot is rejected, so we land the commit via an auto-merged PR instead —
+      # rule-compliant and requires no ruleset bypass or human review.
+      - name: Commit and merge release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
           VERSION="${{ inputs.version }}"
+          BUILD="${{ inputs.build_number }}"
+          BASE="${GITHUB_REF_NAME}"
+          BRANCH="release/macos-v${VERSION}"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/macos/hyperwhisper.xcodeproj/project.pbxproj
-          git add nextjs/public/appcast.xml
+
+          # Fresh branch off the base (clear any stale branch from a failed run)
+          git push origin --delete "$BRANCH" 2>/dev/null || true
+          git checkout -b "$BRANCH"
+          git add app/macos/hyperwhisper.xcodeproj/project.pbxproj nextjs/public/appcast.xml
           git commit -m "release: macOS v${VERSION} — bump version and update appcast"
+          git push -u origin "$BRANCH"
+
+          gh pr create --base "$BASE" --head "$BRANCH" \
+            --title "release: macOS v${VERSION} — version bump + appcast" \
+            --body "Automated release commit from macos-release.yml (build ${BUILD})."
+
+          # Merge with a short retry — a brand-new PR can take a moment to
+          # report as mergeable.
           for i in 1 2 3 4 5; do
-            if git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push; then
+            if gh pr merge "$BRANCH" --squash --delete-branch; then
               break
             fi
-
             if [ "$i" = 5 ]; then
-              echo "git push failed after 5 attempts"
+              echo "PR merge failed after 5 attempts"
               exit 1
             fi
-
-            echo "push attempt $i failed, retrying after fetch/rebase..."
+            echo "merge attempt $i failed, retrying..."
             sleep 5
           done
+
+          # Ensure the release step below tags the merged commit on the base.
+          git fetch origin "$BASE"
+          git checkout "$BASE"
+          git reset --hard "origin/$BASE"
 
       # ----------------------------------------------------------------
       # 18. Create draft GitHub Release
@@ -606,7 +663,19 @@ jobs:
           echo "Release created: $TAG"
 
       # ----------------------------------------------------------------
-      # 19. Cleanup keychain
+      # 19. Verify the release actually reached users
+      # ----------------------------------------------------------------
+      # Publishing is not delivering. The appcast is a static file in
+      # nextjs/public/, so it only reaches users once the site is deployed —
+      # something this workflow neither triggers nor owns. Fail the run if the
+      # version never goes live.
+      - name: Verify update feed is live
+        if: ${{ inputs.skip_upload != true }}
+        working-directory: nextjs
+        run: node scripts/check-appcast-live.js --platform macos --version "${{ inputs.version }}"
+
+      # ----------------------------------------------------------------
+      # 20. Cleanup keychain
       # ----------------------------------------------------------------
       - name: Cleanup keychain
         if: always()
@@ -616,7 +685,7 @@ jobs:
           fi
 
       # ----------------------------------------------------------------
-      # 20. Job summary
+      # 21. Job summary
       # ----------------------------------------------------------------
       - name: Write job summary
         if: always()

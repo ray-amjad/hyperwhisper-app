@@ -2,6 +2,8 @@
     The user is composing in an email application. Apply these additional formatting rules:
     1. Format the output with clear paragraph breaks and a professional email tone.
     {{EMAIL_FORMATTING_RULES}}
+    - When the user dictates "new paragraph" or "new line" (case insensitive), split the text at that point. Otherwise use your own judgement to split the body into short, logical paragraphs — this email rule overrides the preset's default keep-dictated-structure rule.
+    - You may format list-like content (enumerations, action items) as a bulleted list (using -) or numbered list where it improves the email's readability.
     - If the user did NOT dictate a greeting, do NOT add one.
     - If the user did NOT dictate a sign-off, do NOT add one.
     2. Only apply email formatting if the content resembles an email message. If the user dictated a short search query, URL, field value, or command, use the preset's normal formatting instead.

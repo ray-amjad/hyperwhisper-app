@@ -227,10 +227,17 @@ public partial class App : WpfApplication
         // launch. Only a hard process death leaves the in-flight flag set.
         LocalLlmService.ClearInFlightGpuLoads();
 
+        // base.OnExit raises the Exit event — the update path's exit-time
+        // installer launch (UpdateService.StartInstallerProcess) runs there, so
+        // it MUST precede the Sentry flush or anything that launch captures
+        // (UAC decline, ShellExecute failure) is dropped. The flush (~2s) racing
+        // the installer's multi-second Inno extraction is an accepted small
+        // window, and only exists on the update path.
+        base.OnExit(e);
+
         // Flush and shutdown Sentry to ensure all pending events are sent
         SentryService.Shutdown();
 
         LoggingService.Info("========== APPLICATION EXITING ==========");
-        base.OnExit(e);
     }
 }

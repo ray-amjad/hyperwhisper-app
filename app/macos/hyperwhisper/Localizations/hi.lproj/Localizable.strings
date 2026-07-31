@@ -81,7 +81,6 @@
 
 // MARK: - Sidebar Navigation
 "sidebar.home" = "होम";
-"sidebar.statistics" = "आंकड़े";
 "sidebar.modes" = "मोड";
 "sidebar.vocabulary" = "शब्दावली";
 "sidebar.streaming" = "स्ट्रीमिंग";
@@ -133,6 +132,9 @@
 "home.recent.updates.version" = "संस्करण %@";
 "home.recent.updates.new.badge" = "नया";
 "home.recent.updates.no.notes" = "कोई रिलीज़ नोट उपलब्ध नहीं";
+"home.stats.words.week" = "इस सप्ताह के शब्द";
+"home.stats.words.month" = "इस महीने के शब्द";
+"home.stats.speed" = "औसत गति";
 
 // MARK: - Keyboard Labels
 "keyboard.escape" = "Esc";
@@ -169,7 +171,6 @@
 
 // MARK: - Sidebar Help Text
 "sidebar.home.help" = "HyperWhisper के साथ शुरुआत करें";
-"sidebar.statistics.help" = "उपयोग आंकड़े और विश्लेषण देखें";
 "sidebar.modes.help" = "विभिन्न संदर्भों के लिए ट्रांसक्रिप्शन मोड प्रबंधित करें";
 "sidebar.vocabulary.help" = "बेहतर पहचान के लिए कस्टम शब्द और वाक्यांश जोड़ें";
 "sidebar.streaming.help" = "रीयल-टाइम स्ट्रीमिंग ट्रांसक्रिप्शन सेटिंग्स (इंटरनेट की आवश्यकता है)";
@@ -531,29 +532,14 @@
 // MARK: - Settings · Credits
 "settings.credits.title" = "HyperWhisper क्लाउड क्रेडिट";
 "settings.credits.refresh" = "रीफ़्रेश करें";
-"settings.credits.subtitle" = "अपने ट्रांसक्रिप्शन क्रेडिट और उपयोग की निगरानी करें";
-"settings.credits.manage" = "क्रेडिट प्रबंधित करें";
 "settings.credits.timeRemaining" = "ट्रांसक्रिप्शन समय शेष";
 "settings.credits.minutesApproximate" = "~%d";
 "settings.credits.minutes" = "मिनट";
 "settings.credits.creditsRemaining" = "%@ क्रेडिट शेष";
 "settings.credits.currency" = "($%.2f)";
-"settings.credits.freeLimit" = "मुफ्त दैनिक सीमा (100 क्रेडिट)";
-"settings.credits.resets" = "रीसेट %@";
 "settings.credits.warning.low" = "क्रेडिट कम चल रहे हैं। अतिरिक्त क्रेडिट के लिए लाइसेंस खरीदने पर विचार करें।";
-"settings.credits.warning.exhausted.daily" = "दैनिक सीमा समाप्त। असीमित उपयोग के लिए लाइसेंस खरीदें या रीसेट की प्रतीक्षा करें।";
 "settings.credits.warning.exhausted" = "क्रेडिट समाप्त। HyperWhisper क्लाउड का उपयोग जारी रखने के लिए अधिक क्रेडिट खरीदें।";
 "settings.credits.accountInfo" = "खाता जानकारी";
-"settings.credits.stat.creditsRemaining" = "शेष क्रेडिट";
-"settings.credits.amount" = "$%.2f";
-"settings.credits.stat.minutesRemaining" = "शेष मिनट";
-"settings.credits.stat.accountType" = "खाता प्रकार";
-"settings.credits.accountType.licensed" = "लाइसेंसप्राप्त";
-"settings.credits.accountType.anonymous" = "गुमनाम";
-"settings.credits.accountType.trial" = "ट्रायल";
-"settings.credits.stat.customerId" = "ग्राहक ID";
-"settings.credits.stat.dailyLimit" = "दैनिक सीमा";
-"settings.credits.dailyLimit.value" = "100 क्रेडिट";
 "settings.credits.loading" = "क्रेडिट बैलेंस लोड हो रहा है...";
 "settings.credits.error.title" = "क्रेडिट बैलेंस लोड करने में असमर्थ";
 "settings.credits.error.retry" = "पुनः प्रयास करें";
@@ -564,6 +550,17 @@
 "settings.credits.error.network" = "नेटवर्क त्रुटि: %@";
 "settings.credits.error.invalidResponse" = "सर्वर से अमान्य प्रतिक्रिया। कृपया पुनः प्रयास करें।";
 "settings.credits.error.server" = "सर्वर त्रुटि: %@";
+"settings.section.cloud" = "HyperWhisper Cloud";
+"settings.cloud.licenseKey" = "खाता कुंजी";
+"settings.cloud.purchaseMore" = "क्रेडिट खरीदें";
+"settings.cloud.key.reveal" = "खाता कुंजी दिखाएं";
+"settings.cloud.key.hide" = "खाता कुंजी छिपाएं";
+"settings.cloud.key.copy" = "खाता कुंजी कॉपी करें";
+"settings.cloud.activate.title" = "HyperWhisper Cloud सक्रिय करें";
+"settings.cloud.activate.subtitle" = "आपकी खाता कुंजी आपका वॉलेट है — इसमें आपके Cloud क्रेडिट होते हैं। शुरू करने के लिए अपनी कुंजी दर्ज करें, या एक पाने के लिए क्रेडिट खरीदें।";
+"settings.cloud.getCredits.title" = "अभी तक कुंजी नहीं है?";
+"settings.cloud.getCredits.subtitle" = "क्रेडिट खरीदें और हम आपको ईमेल से खाता कुंजी भेजेंगे।";
+"settings.cloud.getCredits.button" = "क्रेडिट खरीदें";
 "settings.models.alert.cannotDelete.title" = "मॉडल हटाना नहीं जा सकता";
 "settings.models.parakeet.title" = "Parakeet मॉडल";
 "settings.models.parakeet.subtitle" = "अधिकांश उपयोगकर्ताओं के लिए अनुशंसित। बहुभाषी मॉडल 25 भाषाओं का समर्थन करता है।";
@@ -580,6 +577,9 @@
 "settings.models.localPostProcessing.memoryWarning" = "24 GB यूनिफाइड मेमोरी या अधिक वाले Mac के लिए अनुशंसित। गति आपके चिप पर निर्भर करती है — M3/M4 Pro और उससे ऊपर पर तेज़।";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "home.stats.words.year" = "इस वर्ष के शब्द";
+"home.stats.typing.speed.help" = "बचे हुए समय का अनुमान लगाने के लिए मानी गई टाइपिंग गति (WPM) समायोजित करें।";
+"home.stats.saved.week" = "इस सप्ताह बचा समय";
+"home.stats.minutes.value" = "%d मिनट";
 "vocabulary.input.placeholder" = "कोई शब्द जोड़ें या स्निपेट बनाएं";
 "vocabulary.action.addWord" = "शब्द जोड़ें";
 "vocabulary.action.replaceWith" = "इससे बदलें…";
@@ -641,22 +641,6 @@
 "models.error.checksumFailed" = "मॉडल चेकसम सत्यापन विफल। डाउनलोड क्षतिग्रस्त हो सकता है।";
 
 // MARK: - Statistics View
-"statistics.title" = "आंकड़े";
-"statistics.header.title" = "आपके उपयोग के आंकड़े";
-"statistics.header.subtitle" = "अपनी ट्रांसक्रिप्शन गतिविधि और प्रदर्शन को ट्रैक करें";
-"statistics.card.recordings" = "कुल रिकॉर्डिंग";
-"statistics.card.recordings.subtitle" = "पूर्ण ट्रांसक्रिप्शन";
-"statistics.card.duration" = "कुल समय";
-"statistics.card.duration.subtitle" = "रिकॉर्डिंग में बिताया गया समय";
-"statistics.card.words" = "कुल शब्द";
-"statistics.card.words.subtitle" = "ट्रांसक्राइब किए गए शब्द";
-"statistics.card.average" = "औसत अवधि";
-"statistics.card.average.subtitle" = "प्रति रिकॉर्डिंग";
-"statistics.graph.title" = "समय के साथ गतिविधि";
-"statistics.daily.empty" = "अभी तक कोई रिकॉर्डिंग नहीं";
-"statistics.filter.week" = "इस हफ्ते";
-"statistics.filter.month" = "इस महीने";
-"statistics.filter.alltime" = "सभी समय";
 
 // MARK: - History View
 "history.title" = "इतिहास";
@@ -777,8 +761,13 @@
 "modes.cloudAccuracy.groqWhisper.description" = "तेज़ और सस्ता। त्वरित ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
 "modes.cloudAccuracy.deepgramNova3.description" = "संतुलित गति और सटीकता। अधिकांश उपयोगकर्ताओं के लिए अनुशंसित।";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.creditsPerMinute" = "~%@ क्रेडिट/मिनट";
 "modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
+"modes.cloudAccuracy.googleChirp3.label" = "उच्च (Google Chirp 3)";
+"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 के साथ Google Cloud Speech-to-Text V2। फ़्रेज़ अनुकूलन के साथ बहुभाषी।";
+"modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe 1.5)";
+"modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe 1.5। संदर्भ-आधारित बायसिंग के साथ 43 भाषाएँ।";
 
 "modes.create.title" = "नया मोड बनाएं";
 "modes.create.subtitle" = "एक कस्टम ट्रांसक्रिप्शन प्रोफ़ाइल कॉन्फ़िगर करें";
@@ -915,9 +904,6 @@
 // MARK: - Audio Manager
 "audio.device.default" = "डिफ़ॉल्ट माइक्रोफ़ोन";
 "audio.error.permissionDenied" = "माइक्रोफ़ोन एक्सेस अस्वीकृत। कृपया सिस्टम सेटिंग्स में सक्षम करें।";
-"audio.error.fileWatcher.open" = "ऑडियो फ़ाइल की निगरानी करने के लिए एक फ़ाइल विवरणक को खोल नहीं सके।";
-"audio.error.fileWatcher.timeout" = "ऑडियो फ़ाइल के लिखे जाने की प्रतीक्षा करते समय ऑपरेशन का समय समाप्त हो गया।";
-"audio.error.fileWatcher.creation" = "ऑडियो फ़ाइल समय पर नहीं बनाई गई।";
 "audio.error.microphonePermission" = "माइक्रोफ़ोन अनुमति नहीं दी गई";
 "audio.error.microphoneInUse" = "HyperWhisper माइक्रोफ़ोन तक पहुंच नहीं सकता क्योंकि एक अन्य ऐप वर्तमान में इसका उपयोग कर रहा है। अन्य ऐप को रोकें या इनपुट स्विच करें, फिर फिर से प्रयास करें।";
 "audio.error.createEngine" = "ऑडियो इंजन बनाने में विफल";
@@ -992,6 +978,15 @@
 "transcription.guidance.timeout" = "अनुरोध में बहुत समय लगा। अपनी इंटरनेट गति जांचें और फिर से प्रयास करें।";
 "transcription.error.noSpeechDetected" = "रिकॉर्डिंग में कोई भाषण का पता नहीं चला।";
 "transcription.guidance.noSpeechDetected" = "सुझाव:\n• माइक्रोफ़ोन में स्पष्ट रूप से बोलें\n• कुंजी को दबाने से पहले लंबे समय तक दबाएं\n• जांचें कि आपका माइक्रोफ़ोन काम कर रहा है\n• सुनिश्चित करें कि सही इनपुट डिवाइस चयनित है";
+"transcription.guidance.needsNativeRelaunch" = "लोकल पोस्ट-प्रोसेसिंग इस्तेमाल करने के लिए HyperWhisper को बंद करके नेटिव रूप से फिर से खोलें।";
+"transcription.guidance.localRuntimeUnavailable" = "फिर से कोशिश करें, या अपनी मोड सेटिंग में कोई छोटा लोकल मॉडल चुनें।";
+"transcription.error.localRuntimeUnavailable" = "लोकल AI पूरा नहीं कर सका — आपका मूल ट्रांसक्रिप्ट सहेज लिया गया है।";
+"settings.backup.localDownload.title" = "लोकल मॉडल डाउनलोड करें?";
+"settings.backup.localDownload.message" = "आपके पुनर्स्थापित किए गए %d मोड ऐसे ऑन-डिवाइस AI मॉडल का उपयोग करते हैं जो अभी डाउनलोड नहीं हुए हैं।";
+"settings.backup.localDownload.downloadAll" = "सभी डाउनलोड करें";
+"settings.backup.localDownload.dismiss" = "खारिज करें";
+"modelLibrary.local.requiresAppleSilicon" = "Apple Silicon आवश्यक है";
+"modelLibrary.local.needsNativeRelaunch" = "नेटिव रूप से फिर से लॉन्च करें";
 
 // MARK: - HyperWhisper Cloud Errors
 "hyperwhisperCloud.error.insufficientCredits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";
@@ -1125,3 +1120,12 @@
 "history.autoDelete.status.enabled" = "%d %@ से पुरानी रिकॉर्डिंग हटाएं";
 "history.autoDelete.cleanup.noItems" = "हटाने के लिए कोई रिकॉर्डिंग नहीं";
 "history.autoDelete.cleanup.summary" = "%d रिकॉर्डिंग हटाई गई और %@ खाली किया गया";
+"history.status.interrupted" = "ट्रांसक्रिप्शन बाधित हुआ — पूरा होने से पहले ऐप बंद हो गया";
+"recording.maxDuration.reachedToast" = "रिकॉर्डिंग रोकी गई — %d-मिनट की सीमा पूरी हुई";
+"streaming.maxDuration.reachedToast" = "स्ट्रीमिंग रोकी गई — %d-मिनट की सीमा पूरी हुई";
+"settings.storage.maxRecordingDuration.title" = "अधिकतम रिकॉर्डिंग अवधि";
+"settings.storage.maxRecordingDuration.subtitle" = "इस समय से लंबी चलने वाली रिकॉर्डिंग को अपने आप रोकें और ट्रांसक्राइब करें।";
+"settings.storage.maxRecordingDuration.minutes" = "%d मिनट";
+"settings.storage.maxRecordingDuration.hour" = "1 घंटा";
+"settings.storage.maxRecordingDuration.hours" = "%d घंटे";
+"settings.storage.maxRecordingDuration.off" = "बंद";

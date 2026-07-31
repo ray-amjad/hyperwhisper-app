@@ -1053,6 +1053,7 @@ public partial class SettingsService
 
                 string tmpPath = SettingsFilePath + ".tmp";
                 File.WriteAllText(tmpPath, restoredJson);
+                AppPaths.PrepareForOverwrite(SettingsFilePath, "SettingsService.TryLoadBackup");
                 File.Move(tmpPath, SettingsFilePath, overwrite: true);
             }
             catch (Exception restoreEx)
@@ -1104,6 +1105,11 @@ public partial class SettingsService
                 // of the previous good file, which Load() falls back to on parse failure.
                 string tmpPath = SettingsFilePath + ".tmp";
                 File.WriteAllText(tmpPath, json);
+
+                // A read-only attribute (backup/restore tools, sync utilities) on
+                // either file would make File.Replace throw — and the catch below
+                // swallows it, silently losing every subsequent save.
+                AppPaths.PrepareForOverwrite(SettingsFilePath, "SettingsService.Save", BackupFilePath);
 
                 if (File.Exists(SettingsFilePath))
                 {

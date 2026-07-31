@@ -73,18 +73,11 @@
                             <TextBlock Text="{loc:Loc settings.nav.sound}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </ListBoxItem>
-                    <ListBoxItem Tag="License">
+                    <ListBoxItem Tag="Cloud">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#xEB95;" FontFamily="Segoe MDL2 Assets" FontSize="14"
                                        Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
-                            <TextBlock Text="{loc:Loc settings.nav.license}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </ListBoxItem>
-                    <ListBoxItem x:Name="CreditsNavItem" Tag="Credits">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE8C7;" FontFamily="Segoe MDL2 Assets" FontSize="14"
-                                       Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ListBoxItem}}"/>
-                            <TextBlock Text="{loc:Loc settings.nav.credits}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{loc:Loc settings.nav.cloud}" FontSize="13" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem Tag="Storage">

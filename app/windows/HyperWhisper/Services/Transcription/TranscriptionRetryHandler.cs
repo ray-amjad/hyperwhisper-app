@@ -199,12 +199,9 @@ public class TranscriptionRetryHandler : IDisposable
         var modelDir = _parakeetModelService.GetModelDirectory(modelInfo);
 
         string? language = mode.Language == "auto" ? null : mode.Language;
-        var effectiveLanguage = language ?? "auto";
 
-        // Skip if already loaded with same model and language hint
-        if (_parakeetTranscriptionService.IsInitialized &&
-            _parakeetTranscriptionService.LoadedModelId == modelInfo.Id &&
-            string.Equals(_parakeetTranscriptionService.LoadedLanguage, effectiveLanguage, StringComparison.OrdinalIgnoreCase))
+        // Skip when NeedsReload's per-engine rules say the warm daemon still fits.
+        if (!_parakeetTranscriptionService.NeedsReload(modelInfo.Id, mode.Language))
         {
             return;
         }

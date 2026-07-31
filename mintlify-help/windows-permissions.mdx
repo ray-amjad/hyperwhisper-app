@@ -11,9 +11,10 @@ HyperWhisper on Windows requires a small number of system permissions. Most are 
 | --- | --- | --- | --- |
 | Microphone | First recording | Recording any audio | Settings → Privacy & Security → Microphone |
 | UI Automation | When Autocapitalize Insert is enabled | Context-aware capitalisation | Automatic — no grant step required |
-| Autostart | When you enable the setting | Launch at Windows login | Settings → General → Launch at startup |
+| Autostart | Enabled automatically on first launch | Launch at Windows login | Settings → General → Launch at startup |
+| Screen capture | When a mode has **Screen Text** enabled | Feeding on-screen text to AI post-processing | Automatic — no Windows permission prompt |
 | SmartScreen warning | First launch on a new machine | — | Click "Run anyway" (one-time) |
-| Administrator / UAC | Never | — | Not required |
+| Administrator / UAC | Never for a per-user install; during auto-update only if you opted into a per-machine install | — | Not required |
 
 ## Microphone & audio access
 
@@ -43,7 +44,11 @@ When your microphone level is below 50%, HyperWhisper temporarily boosts it to 9
 
 ## UI Automation & Autocapitalize Insert
 
-Windows uses **UI Automation (UIA)** to inspect the currently focused element in other applications. HyperWhisper uses UIA for one specific feature: **Autocapitalize Insert**, which reads the context around your cursor to decide whether to capitalise the first word of a transcript.
+Windows uses **UI Automation (UIA)** to inspect the currently focused element in other applications. HyperWhisper uses UIA for **Autocapitalize Insert**, which reads the context around your cursor to decide whether to capitalise the first word of a transcript.
+
+<Note>
+  UIA isn't limited to Autocapitalize Insert. HyperWhisper also calls UIA on **every paste** (regardless of whether Autocapitalize Insert is enabled) to check for a focused password field, and a separate internal service uses UIA to capture the focused window, process name, and a short excerpt of the focused/selected text to enrich AI post-processing prompts with application context. Neither of these requires any additional grant step — they use the same always-available UIA access described below.
+</Note>
 
 UIA access on Windows is available to any application — there is no system-wide grant prompt. When you enable **Autocapitalize Insert** in **Settings → Text Output**, HyperWhisper runs a quick self-test by querying the focused element in its own settings window. If that call fails (indicating UIA is non-functional in the current process), an informational message appears:
 
@@ -59,11 +64,15 @@ The toggle stays on. If UIA can't read the focused field in a specific target ap
 
 ### Auto-paste without Autocapitalize Insert
 
-The core auto-paste feature (injecting text into the previously focused app) does not require UIA. It uses Win32 `SetForegroundWindow` and simulated `Ctrl+V`, which work independently of UI Automation.
+Injecting text into the previously focused app uses Win32 `SetForegroundWindow` and simulated `Ctrl+V`, which work independently of UI Automation — Autocapitalize Insert does not need to be enabled for auto-paste to work. As noted above, HyperWhisper still calls UIA on every paste for the password-field check regardless of this setting.
+
+## Screen Text capture
+
+Modes can enable **Screen Text** (Mode editor → AI Post-Processing → Screen Text) to capture visible on-screen text at the start of a recording and pass it to AI post-processing as extra context for names and terms. This uses a plain screen copy (`Graphics.CopyFromScreen`) plus Windows' built-in OCR — it does not go through any Windows privacy/consent prompt, unlike the Screen Recording permission macOS requires for the equivalent feature.
 
 ## Autostart registration
 
-When you enable **Launch at startup** in **Settings → General**, HyperWhisper writes a value to the Windows Registry under your user account:
+HyperWhisper registers itself to **Launch at startup** automatically the first time it runs — you don't need to turn this on. You can disable it afterward in **Settings → General**. When enabled, HyperWhisper writes a value to the Windows Registry under your user account:
 
 ```
 HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
@@ -101,6 +110,10 @@ HyperWhisper does not require administrator privileges for any feature:
 - **All other operations** (recording, transcription, paste) are standard user-level actions.
 
 No UAC elevation prompt appears during normal use.
+
+<Note>
+  **Edge case:** if you opted into a machine-wide (per-machine) install, auto-update re-launches the installer with elevation (`runas`) to update the shared `Program Files` copy, so you will see a UAC prompt when an update installs. The default per-user install never triggers UAC, including during updates.
+</Note>
 
 ## Troubleshooting
 

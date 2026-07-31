@@ -1,6 +1,8 @@
 // ASSEMBLYAI SERVICE
 // Cloud transcription via AssemblyAI's Speech-to-Text API.
 // Uses a 3-step async workflow: upload -> create transcript -> poll for completion.
+// Clips under the sync API's duration cap try a one-request sync fast path first
+// (see SYNC FAST PATH below) and fall back to the async workflow on any failure.
 //
 // API WORKFLOW:
 // 1. POST https://api.assemblyai.com/v2/upload (upload audio, get upload_url)
@@ -15,6 +17,18 @@
 // - Upload: { "upload_url": "..." }
 // - Create: { "id": "...", "status": "queued" }
 // - Poll: { "id": "...", "status": "completed|processing|error", "text": "..." }
+//
+// SYNC FAST PATH (clips < AssemblyaiSyncMaxDurationSecs(), currently 120s):
+// - POST https://sync.assemblyai.com/v1/transcribe returns the finished
+//   transcript in the SAME response (~134ms p50) — no upload_url, no job id,
+//   no polling. Built/parsed by the Rust core (AssemblyaiBuildSyncRequest /
+//   AssemblyaiParseSyncResponse); see hw-net's assemblyai.rs sync section for
+//   the verified request/response contract.
+// - Falls back to the 3-step async workflow above when: the exact NAudio
+//   duration is unavailable, duration >= the sync cap, the sync HTTP call
+//   errors/times out, or the response doesn't parse. A NoSpeech result is NOT
+//   a fallback trigger — it's a legitimate terminal outcome, surfaced exactly
+//   like the async poll path does.
 //
 // MODELS (as of 2026-04):
 // - universal-2: Multi-language (99 languages), auto-detection, $0.15/hr (default)
@@ -62,6 +76,16 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     private const int PollIntervalMs = 1000; // 1 second between polls
     private const int MaxRetries = 3;
 
+    // Sync fast path HTTP call timeout — sourced from the Rust core's shared
+    // `AssemblyaiSyncTimeoutMs()` FFI constant (see hw-net's
+    // assemblyai/sync_flow.rs) instead of a hardcoded literal, so Swift/C# can't
+    // drift from each other. Tightened from an earlier 40s to a much smaller value
+    // (AssemblyAI's sync p50 is ~134ms) so a stalled sync call blocks the async
+    // fallback for far less time — a sequential sync-then-async redesign into a
+    // concurrent race is out of scope; this just caps the worst case.
+    private static readonly TimeSpan SyncTimeout =
+        TimeSpan.FromMilliseconds(HyperwhisperCoreMethods.AssemblyaiSyncTimeoutMs());
+
     // MIME types for audio content
     private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -105,9 +129,16 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
 
     public AssemblyAIService()
     {
+        // Timeout enforcement lives PER-CALL (via a linked CancellationTokenSource —
+        // RustRetry's `perAttemptTimeout` for upload/create, an explicit CTS wrap for
+        // poll, and the sync path's own `SyncTimeout` CTS below), not on the
+        // HttpClient itself. A fixed HttpClient.Timeout here previously raced the
+        // sync path's own (longer) timeout budget and won, mislabeling a
+        // successful-but-slow sync call as "timed out" and needlessly falling back
+        // to async — Timeout.InfiniteTimeSpan removes that race entirely.
         _httpClient = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
+            Timeout = Timeout.InfiniteTimeSpan
         };
     }
 
@@ -133,13 +164,46 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     // =========================================================================
 
     /// <summary>
-    /// Transcribes audio using AssemblyAI's async API.
+    /// Transcribes audio using AssemblyAI's async API (ITranscriptionProvider
+    /// entry point — no pre-computed duration available to the caller).
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
         CancellationToken cancellationToken = default)
+        => TranscribeAsync(audioPath, language, vocabulary, knownDurationSeconds: null, cancellationToken);
+
+    /// <summary>
+    /// Transcribes audio using AssemblyAI's async API.
+    /// </summary>
+    /// <param name="knownDurationSeconds">
+    /// The audio duration the caller already computed for THIS SPECIFIC CALL
+    /// (e.g. <c>TranscriptionOrchestrator</c> forwards the file-import flow's
+    /// NAudio probe, or the live-recording flow's already-tracked
+    /// <c>RecordingDuration</c>), so the sync-eligibility gate below can skip
+    /// a redundant second <see cref="FileTranscriptionService.GetAudioDuration"/>
+    /// probe of the same file. Pass <c>null</c> when no duration is already
+    /// known — a fresh probe is then performed.
+    ///
+    /// Deliberately a per-call PARAMETER, not an instance field: this service
+    /// is a reused singleton reachable concurrently from live-recording,
+    /// file-import, History retry, and the Local API server's `/transcribe`
+    /// endpoint. An earlier revision stored the known duration on a
+    /// `_knownDurationSeconds` instance field set via a separate
+    /// `SetKnownDuration` call before this method — two concurrent requests
+    /// could race (thread B overwriting/clearing the field between thread A's
+    /// set and its own read inside this method), corrupting thread A's
+    /// sync-vs-async eligibility decision with the wrong clip's duration.
+    /// Scoping the value to this call's parameter list removes that race
+    /// entirely.
+    /// </param>
+    internal async Task<string> TranscribeAsync(
+        string audioPath,
+        string? language,
+        IReadOnlyList<string>? vocabulary,
+        double? knownDurationSeconds,
+        CancellationToken cancellationToken)
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== ASSEMBLYAI CLOUD TRANSCRIPTION ==========");
@@ -174,6 +238,17 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var extension = Path.GetExtension(audioPath);
         var contentType = MimeTypes.GetValueOrDefault(extension, "application/octet-stream");
+        // NOTE: this ONE `coreParams` value is passed to BOTH the sync builder
+        // (AssemblyaiBuildSyncRequest, in TryTranscribeSyncAsync below) AND —
+        // on fallback — the async builders (AssemblyaiBuild{Upload,Create,Poll}
+        // Request). The Rust core's doc comment on SYNC_BASE_URL warns against
+        // exactly this when a params value's BaseUrl is set: sync and async
+        // point at DIFFERENT hosts (sync.assemblyai.com vs api.assemblyai.com),
+        // so one override can't correctly redirect both. Currently latent —
+        // RustCoreMapping.TranscribeParams never sets BaseUrl here — but if a
+        // future staging/test override is added to this call site, it must NOT
+        // reuse this same coreParams value for both builders; build separate
+        // params for sync vs async instead.
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
@@ -182,11 +257,53 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
             apiKey: _apiKey,
             model: _modelId);
 
+        // STEP 3.5: Try the sync fast path for short clips. Uses the EXACT NAudio
+        // duration (not a byte-size estimate) since we have the file on disk.
+        // Unknown duration, >= the sync cap, or a medical model (the sync API
+        // has no medical/domain concept and always runs plain
+        // universal-3-5-pro, so routing a medical request through sync would
+        // silently drop the paid Medical Mode add-on) skip straight to the
+        // async workflow — matches the cloud TS path's existing exclusion.
+        //
+        // Reuse the caller's already-computed duration (knownDurationSeconds)
+        // when available instead of re-probing the same file a second time —
+        // e.g. the file-import flow (MainViewModel.TranscribeFileAsync)
+        // already reads it via NAudio moments earlier for the same audio
+        // content. Scoped to this call's parameter — see the parameter doc
+        // comment above for why this isn't a shared instance field.
+        var durationResult = knownDurationSeconds.HasValue
+            ? Result<double>.Success(knownDurationSeconds.Value)
+            : FileTranscriptionService.GetAudioDuration(audioPath);
+        var syncMaxDurationSeconds = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
+        var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(_modelId).Medical;
+        if (IsSyncEligible(durationResult, syncMaxDurationSeconds, isMedicalModel))
+        {
+            LoggingService.Info($"  Duration {durationResult.Value:F1}s < {syncMaxDurationSeconds:F0}s sync cap — trying sync fast path");
+            var syncText = await TryTranscribeSyncAsync(coreParams, durationResult.Value, cancellationToken);
+            if (syncText != null)
+            {
+                LoggingService.Info("========== ASSEMBLYAI TRANSCRIPTION COMPLETE (sync) ==========");
+                LoggingService.Info($"  Characters: {syncText.Length}");
+                LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
+                return syncText;
+            }
+            LoggingService.Info("  Sync fast path unavailable — falling back to async upload/create/poll");
+        }
+        else
+        {
+            var reason = isMedicalModel
+                ? "medical model (sync has no medical/domain concept)"
+                : durationResult.IsSuccess
+                    ? $"duration {durationResult.Value:F1}s >= {syncMaxDurationSeconds:F0}s sync cap"
+                    : $"duration unknown ({durationResult.Error})";
+            LoggingService.Debug($"  Skipping sync fast path: {reason}");
+        }
+
         // STEP 4: Upload (through retry) -> parse upload URL.
         LoggingService.Info("  Step 1: Uploading audio...");
         var uploadResp = await PerformAsync(
             () => HyperwhisperCoreMethods.AssemblyaiBuildUploadRequest(coreParams),
-            resp => MapError(resp, "upload"),
+            resp => MapError(resp, "upload", r => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(r)),
             cancellationToken);
         var uploadUrl = ParseStep(() => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(uploadResp));
         LoggingService.Info("  Upload complete");
@@ -195,7 +312,7 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         LoggingService.Info("  Step 2: Creating transcript...");
         var createResp = await PerformAsync(
             () => HyperwhisperCoreMethods.AssemblyaiBuildCreateRequest(coreParams, uploadUrl),
-            resp => MapError(resp, "create transcript"),
+            resp => MapError(resp, "create transcript", r => HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(r)),
             cancellationToken);
         var transcriptId = ParseStep(() => HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(createResp));
         LoggingService.Info($"  Transcript ID: {transcriptId}");
@@ -214,11 +331,26 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
             try
             {
                 var pollReq = HyperwhisperCoreMethods.AssemblyaiBuildPollRequest(coreParams, transcriptId);
-                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, _httpClient, cancellationToken);
+                // _httpClient.Timeout is Timeout.InfiniteTimeSpan (see the
+                // constructor) — bound this single poll attempt with its own linked
+                // CTS so a single stalled poll can't hang the whole loop forever;
+                // this restores the same DefaultTimeoutSeconds budget the client-level
+                // timeout used to provide for free.
+                using var pollCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                pollCts.CancelAfter(TimeSpan.FromSeconds(DefaultTimeoutSeconds));
+                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, _httpClient, pollCts.Token);
             }
             catch (HwTranscriptionException ex)
             {
                 throw RustCoreMapping.MapTranscriptionError(ex, "AssemblyAI");
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Our own per-poll timeout fired, not caller cancellation — transient,
+                // same treatment as a network error: wait + retry the poll.
+                LoggingService.Warn($"  Poll timed out after {DefaultTimeoutSeconds}s, retrying...");
+                await Task.Delay(PollIntervalMs, cancellationToken);
+                continue;
             }
             catch (HttpRequestException ex)
             {
@@ -257,6 +389,92 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
             "AssemblyAI");
     }
 
+    /// <summary>
+    /// Pure duration+model gate decision for the sync fast path: eligible only
+    /// when the duration probe succeeded, the exact duration is strictly under
+    /// the sync cap, AND the model is not a medical variant (the sync API has
+    /// no medical/domain concept and always runs plain universal-3-5-pro, so
+    /// routing a medical request through sync would silently drop the paid
+    /// Medical Mode add-on with no error or fallback signal). An unknown
+    /// duration (probe failure), a duration at/over the cap, or a medical
+    /// model all fall back to async — this must fail closed, never open,
+    /// since a false "eligible" either wastes a round-trip AssemblyAI will
+    /// reject as too long (>= the cap) or silently downgrades a paid feature
+    /// (medical), while a false "ineligible" only costs the (larger) async
+    /// latency, never correctness.
+    /// </summary>
+    // internal for SmokeTests.
+    internal static bool IsSyncEligible(Result<double> durationResult, double syncMaxDurationSeconds, bool isMedicalModel)
+    {
+        return !isMedicalModel && durationResult.IsSuccess && durationResult.Value < syncMaxDurationSeconds;
+    }
+
+    /// <summary>
+    /// Attempt AssemblyAI's sync transcription API (one blocking request — no
+    /// upload/create/poll) for a clip already confirmed to be under the sync
+    /// duration cap. Returns the transcript text on success, or <c>null</c> on
+    /// any failure that should fall back to the async workflow (HTTP/transport
+    /// error, non-2xx, malformed response, or a sync-specific timeout). Does
+    /// NOT go through <see cref="RustRetry"/> — the sync product is meant to be
+    /// a single fast call, and retrying a deterministic rejection (e.g. "too
+    /// long") would just delay the async fallback.
+    ///
+    /// A genuine <see cref="OperationCanceledException"/> from the caller's
+    /// <paramref name="cancellationToken"/> propagates uncaught (never treated
+    /// as a fallback signal). A <c>NoSpeech</c> parse result is a legitimate
+    /// terminal outcome — mirrors the async poll path by throwing the same
+    /// mapped <see cref="TranscriptionException"/> instead of falling back.
+    /// </summary>
+    private async Task<string?> TryTranscribeSyncAsync(
+        uniffi.hyperwhisper_core.TranscribeParams coreParams,
+        double durationSeconds,
+        CancellationToken cancellationToken)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(SyncTimeout);
+
+        uniffi.hyperwhisper_core.HttpResponse response;
+        try
+        {
+            var request = HyperwhisperCoreMethods.AssemblyaiBuildSyncRequest(coreParams);
+            response = await RustHttpExecutor.ExecuteAsync(request, _httpClient, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Our own sync timeout fired, not caller cancellation.
+            LoggingService.Warn($"  Sync transcription timed out after {SyncTimeout.TotalSeconds:F0}s ({durationSeconds:F1}s clip) — falling back to async");
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            LoggingService.Warn($"  Sync transcription network error ({ex.Message}) — falling back to async");
+            return null;
+        }
+        catch (HwTranscriptionException ex)
+        {
+            // Defense: ExecuteAsync itself never throws this, but a future
+            // change funneling build errors through here shouldn't crash the
+            // caller — treat it like any other sync failure.
+            LoggingService.Warn($"  Sync transcription request build error ({ex.Message}) — falling back to async");
+            return null;
+        }
+
+        try
+        {
+            var transcript = HyperwhisperCoreMethods.AssemblyaiParseSyncResponse(response);
+            return transcript.@text;
+        }
+        catch (HwTranscriptionException ex) when (ex is HwTranscriptionException.NoSpeech)
+        {
+            throw RustCoreMapping.MapTranscriptionError(ex, "AssemblyAI", (int)response.@status);
+        }
+        catch (HwTranscriptionException ex)
+        {
+            LoggingService.Warn($"  Sync transcription failed ({ex.GetType().Name}: {ex.Message}) — falling back to async");
+            return null;
+        }
+    }
+
     /// <summary>Run a build/RustRetry step, mapping a builder validation error.</summary>
     private async Task<uniffi.hyperwhisper_core.HttpResponse> PerformAsync(
         Func<uniffi.hyperwhisper_core.HttpRequest> buildRequest,
@@ -265,7 +483,13 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     {
         try
         {
-            return await RustRetry.PerformAsync(_httpClient, buildRequest, parseError, cancellationToken);
+            // _httpClient.Timeout is now Timeout.InfiniteTimeSpan (see the
+            // constructor) — pass the per-attempt budget explicitly so upload/create
+            // still get the same DefaultTimeoutSeconds protection that used to come
+            // for free from the client-level timeout.
+            return await RustRetry.PerformAsync(
+                _httpClient, buildRequest, parseError, cancellationToken,
+                perAttemptTimeout: TimeSpan.FromSeconds(DefaultTimeoutSeconds));
         }
         catch (HwTranscriptionException ex)
         {
@@ -286,17 +510,25 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         }
     }
 
-    /// <summary>Map a non-2xx step response to a TranscriptionException (retry give-up).</summary>
-    private static TranscriptionException MapError(uniffi.hyperwhisper_core.HttpResponse resp, string operation)
+    /// <summary>
+    /// Map a non-2xx step response to a TranscriptionException (retry give-up).
+    /// <paramref name="classify"/> must be the parser MATCHING the step (upload →
+    /// AssemblyaiParseUploadResponse, create → AssemblyaiParseCreateResponse) —
+    /// both throw the classified error via classify_http on any non-2xx. The poll
+    /// parser is NOT interchangeable: it reads the transcript `status` field and
+    /// would misclassify upload/create error bodies.
+    /// </summary>
+    // internal for SmokeTests.
+    internal static TranscriptionException MapError(
+        uniffi.hyperwhisper_core.HttpResponse resp,
+        string operation,
+        Action<uniffi.hyperwhisper_core.HttpResponse> classify)
     {
-        // Re-run the matching parser to obtain the classified error. The upload/
-        // create parsers throw the classified HwTranscriptionException on non-2xx.
         try
         {
-            // Use the poll parser as a generic classifier: it surfaces the same
-            // status/body-based classification. (Any parser would do — only the
-            // thrown error matters on a non-2xx.)
-            HyperwhisperCoreMethods.AssemblyaiParsePollResponse(resp);
+            classify(resp);
+            // Defense: the step parsers throw on every non-2xx, so this is
+            // unreachable for the responses the retry wrapper hands us.
             return new TranscriptionException(
                 TranscriptionErrorCode.Unknown, $"Unexpected non-error response ({operation})", "AssemblyAI", (int)resp.@status);
         }

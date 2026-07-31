@@ -250,6 +250,21 @@ class PersistenceController: ObservableObject {
         // pass in VocabularyView.
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
 
+        // Eagerly create the serial writer context here (not lazily) so exactly one
+        // writer ever exists — a `lazy var` first-touch from two threads can build
+        // two contexts and break the serial-write guarantee.
+        let writer = container.newBackgroundContext()
+        writer.name = "HyperWhisper.writer"
+        // Store-trump (NOT object-trump): user actions on the viewContext win
+        // over background flow writes. If a HistoryView delete lands between the
+        // writer's fetch and its save, the writer's update is discarded instead
+        // of resurrecting the deleted row. Inserts are unaffected, and all writer
+        // updates already guard "row not found — skipping".
+        writer.mergePolicy = NSMergeByPropertyStoreTrumpMergePolicy
+        writer.automaticallyMergesChangesFromParent = true
+        writer.undoManager = nil
+        writerContext = writer
+
         // Initialize default modes on first launch
         if !inMemory {
             initializeDefaultModes()
@@ -257,6 +272,7 @@ class PersistenceController: ObservableObject {
             migrateRemovedDeepgramModelsIfNeeded()
             normalizeCloudProviderIfNeeded()
             repairBrokenLocalModesOnLaunch()
+            repairStaleProcessingTranscriptsOnLaunch()
         }
     }
 
@@ -706,6 +722,37 @@ class PersistenceController: ObservableObject {
         }
     }
 
+    /// Launch hook: any transcript still marked "processing" at init is stale —
+    /// nothing can be in flight this early in the process lifetime — left behind
+    /// by a quit/crash between record-stop and the completion write. Mark it
+    /// failed ("interrupted") so it doesn't sit in HistoryView as processing
+    /// forever; rows that kept their audio file get the standard Retry
+    /// affordance for free (canRetry = failed + audio path present).
+    private func repairStaleProcessingTranscriptsOnLaunch() {
+        let context = container.viewContext
+        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+        request.predicate = NSPredicate(format: "status == %@", "processing")
+        do {
+            let stale = try context.fetch(request)
+            guard !stale.isEmpty else { return }
+            for transcript in stale {
+                transcript.setValue("failed", forKey: "status")
+                transcript.setValue("interrupted", forKey: "failedReason")
+                transcript.text = "history.status.interrupted".localized
+            }
+            try context.save()
+            AppLogger.coreData.info("Launch repair marked \(stale.count, privacy: .public) stale processing transcript(s) as interrupted")
+        } catch {
+            let nsError = error as NSError
+            AppLogger.logCoreData(.save, error: nsError)
+            SentryService.capture(
+                error: nsError,
+                message: "Failed to repair stale processing transcripts on launch",
+                tags: ["component": "PersistenceController", "operation": "repairStaleProcessingTranscripts"]
+            )
+        }
+    }
+
     /// One-time data migration that rewrites Modes, the per-mode default-model map,
     /// and the streaming Deepgram setting away from the 25 Deepgram model IDs that
     /// were removed in the 2026-05 catalog cleanup. Everything in
@@ -839,8 +886,363 @@ class PersistenceController: ObservableObject {
         }
     }
     
+    // MARK: - Background Writer (serial)
+
+    /// Long-lived, serial background context that all stop-flow writes funnel
+    /// through. Because every write runs on this single private queue, writes are
+    /// serialized (closing the duplicate-transcript race under rapid stop presses)
+    /// AND kept entirely off the main thread (removing the ~4.7s main-thread Core
+    /// Data stall that froze the stop→paste path).
+    ///
+    /// `automaticallyMergesChangesFromParent = true` means the `viewContext` picks
+    /// up these writes via the standard `NSManagedObjectContextDidSave` merge, so
+    /// HistoryView's existing save-notification observer refreshes with no change.
+    ///
+    /// Merge policy is store-trump: user actions committed on the `viewContext`
+    /// (e.g. a HistoryView delete) win over this context's in-flight background
+    /// writes, so a delete racing a slow transcription's completion write stays
+    /// deleted rather than being resurrected.
+    private let writerContext: NSManagedObjectContext
+
+    /// Debounced view-context maintenance task (cancel-previous). Keeps the
+    /// re-faulting benefit off the stop→paste hot path.
+    @MainActor private var viewContextMaintenanceTask: Task<Void, Never>?
+
+    /// Flush the serial writer before process exit. An empty `performAndWait`
+    /// barrier queues behind any already-enqueued write blocks (each block
+    /// saves itself), so returning means everything enqueued so far is
+    /// persisted. Writer blocks are milliseconds each — safe to call from
+    /// `applicationWillTerminate` without beachball risk.
+    func drainWriterOnTerminate() {
+        writerContext.performAndWait { }
+    }
+
+    /// Run a write block on the serial background writer context.
+    ///
+    /// The block receives the writer context and performs its mutations; if it
+    /// leaves pending changes they are saved on the writer queue. On save failure
+    /// the context is rolled back (never leaving the long-lived context poisoned)
+    /// and the error is logged + captured. After every write the writer context is
+    /// re-faulted to stay lean, and view-context maintenance is scheduled.
+    ///
+    /// Pass ONLY value types + `NSManagedObjectID` into `block` — never a managed
+    /// object — so nothing crosses a context boundary.
+    @discardableResult
+    func performWrite<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> T {
+        return await performWriteReportingSave(block).value
+    }
+
+    /// Like `performWrite`, but returns `nil` unless the write actually persisted.
+    ///
+    /// Use for creates whose returned value (e.g. an `NSManagedObjectID`) is only
+    /// meaningful if the row was saved — on save failure the writer rolls back, so
+    /// handing the ID out anyway would point at a row that doesn't exist.
+    func performWriteRequiringSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T?) async -> T? {
+        let outcome = await performWriteReportingSave(block)
+        return outcome.saved ? outcome.value : nil
+    }
+
+    private func performWriteReportingSave<T: Sendable>(_ block: @escaping (NSManagedObjectContext) -> T) async -> (value: T, saved: Bool) {
+        let context = writerContext
+        let result: (value: T, saved: Bool) = await context.perform {
+            let value = block(context)
+            var saved = true
+            if context.hasChanges {
+                do {
+                    try context.save()
+                } catch {
+                    saved = false
+                    let nsError = error as NSError
+                    AppLogger.logCoreData(.save, error: nsError)
+                    SentryService.capture(
+                        error: nsError,
+                        message: "Core Data background write failed",
+                        tags: ["component": "PersistenceController", "operation": "performWrite"]
+                    )
+                    // Never leave the long-lived writer context poisoned.
+                    context.rollback()
+                }
+                // Re-fault so the long-lived writer doesn't accumulate objects.
+                context.refreshAllObjects()
+            }
+            return (value, saved)
+        }
+        await MainActor.run { self.scheduleViewContextMaintenance() }
+        return result
+    }
+
+    /// Debounced (cancel-previous) view-context re-faulting. After ~3s of write
+    /// quiescence, if the view context has no pending edits, re-fault it to keep
+    /// it lean without ever touching the stop→paste path.
+    @MainActor
+    private func scheduleViewContextMaintenance() {
+        viewContextMaintenanceTask?.cancel()
+        viewContextMaintenanceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard !Task.isCancelled, let self else { return }
+            let viewContext = self.container.viewContext
+            guard !viewContext.hasChanges else { return }
+            viewContext.refreshAllObjects()
+        }
+    }
+
+    // MARK: - Background Domain Writes (stop flow)
+
+    /// Create a processing transcript on the serial writer.
+    ///
+    /// Mirrors `createProcessingTranscript`'s idempotency guard, and additionally
+    /// accepts the VAD trimmed path so the separate `setTrimmedAudioPath` write
+    /// collapses into this single create. Returns the permanent object ID **only if
+    /// the row was actually saved** — a dangling ID after a failed save would make
+    /// later status/text updates silently write to a row that doesn't exist.
+    func createProcessingTranscriptInBackground(
+        duration: TimeInterval,
+        mode: String?,
+        audioFilePath: String?,
+        trimmedAudioPath: String?
+    ) async -> NSManagedObjectID? {
+        return await performWriteRequiringSave { context -> NSManagedObjectID? in
+            let normalizedPath = audioFilePath?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            var reused: Transcript?
+            if !normalizedPath.isEmpty {
+                let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+                request.predicate = NSPredicate(
+                    format: "status == %@ AND audioFilePath == %@",
+                    "processing",
+                    normalizedPath
+                )
+                request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
+
+                if let existing = try? context.fetch(request), let primary = existing.first {
+                    if existing.count > 1 {
+                        for duplicate in existing.dropFirst() {
+                            context.delete(duplicate)
+                        }
+                        AppLogger.coreData.warning(
+                            "Collapsed duplicate processing transcripts for audio path: \(normalizedPath, privacy: .public) (\(existing.count, privacy: .public) -> 1)"
+                        )
+                    }
+
+                    primary.text = "Processing transcription..."
+                    primary.date = Date()
+                    primary.duration = max(primary.duration, duration)
+                    primary.mode = mode
+                    primary.audioFilePath = normalizedPath
+                    primary.setValue("processing", forKey: "status")
+                    reused = primary
+                }
+            }
+
+            let transcript: Transcript
+            if let reused {
+                transcript = reused
+            } else {
+                let created = Transcript(context: context)
+                created.id = UUID()
+                created.text = "Processing transcription..."
+                created.date = Date()
+                created.duration = duration
+                created.mode = mode
+                created.audioFilePath = audioFilePath
+                created.setValue("processing", forKey: "status")
+                transcript = created
+            }
+
+            if let trimmedAudioPath, !trimmedAudioPath.isEmpty {
+                transcript.setValue(trimmedAudioPath, forKey: "trimmedAudioFilePath")
+            }
+
+            do {
+                try context.obtainPermanentIDs(for: [transcript])
+            } catch {
+                AppLogger.coreData.error("Failed to obtain permanent ID for processing transcript: \(error.localizedDescription)")
+                return nil
+            }
+            return transcript.objectID
+        }
+    }
+
+    /// Create an already-failed transcript on the serial writer in ONE write
+    /// (replaces the old create + mutate + second save on the error paths).
+    /// Returns the permanent object ID **only if the row was actually saved**.
+    func createFailedTranscriptInBackground(
+        duration: TimeInterval,
+        mode: String?,
+        audioFilePath: String?,
+        failedReason: String,
+        errorText: String
+    ) async -> NSManagedObjectID? {
+        return await performWriteRequiringSave { context -> NSManagedObjectID? in
+            let created = Transcript(context: context)
+            created.id = UUID()
+            created.date = Date()
+            created.duration = duration
+            created.mode = mode
+            created.audioFilePath = audioFilePath
+            created.setValue("failed", forKey: "status")
+            created.setValue(failedReason, forKey: "failedReason")
+            created.text = errorText
+            do {
+                try context.obtainPermanentIDs(for: [created])
+            } catch {
+                AppLogger.coreData.error("Failed to obtain permanent ID for failed transcript: \(error.localizedDescription)")
+                return nil
+            }
+            return created.objectID
+        }
+    }
+
+    /// Complete a processing transcript on the serial writer. Same field updates
+    /// and near-now dedup as the `@MainActor` variant, but no `processPendingChanges()`
+    /// and no view-context `refreshAllObjects()` — the merge notification refreshes
+    /// HistoryView, and maintenance is debounced off the hot path.
+    func updateTranscriptWithTranscriptionInBackground(
+        transcriptID: NSManagedObjectID,
+        transcribedText: String,
+        postProcessedText: String? = nil,
+        transcriptionProvider: String? = nil,
+        postProcessingProvider: String? = nil,
+        wordTimestampsJSON: String? = nil
+    ) async {
+        await performWrite { context in
+            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
+                AppLogger.coreData.warning("updateTranscriptWithTranscriptionInBackground: transcript row not found (cancel race?) — skipping")
+                return
+            }
+
+            transcript.text = postProcessedText ?? transcribedText
+            transcript.setValue("completed", forKey: "status")
+            transcript.setValue(transcribedText, forKey: "transcribedText")
+            if let postProcessedText {
+                transcript.setValue(postProcessedText, forKey: "postProcessedText")
+            }
+            if let transcriptionProvider {
+                transcript.setValue(transcriptionProvider, forKey: "transcriptionProvider")
+            }
+            if let postProcessingProvider {
+                transcript.setValue(postProcessingProvider, forKey: "postProcessingProvider")
+            }
+            // Always overwrite (including clearing to nil) — see the @MainActor variant.
+            transcript.setValue(wordTimestampsJSON, forKey: "wordTimestampsJSON")
+
+            // Collapse transient near-now duplicates for the same audio path.
+            if let rawPath = transcript.audioFilePath {
+                let audioPath = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !audioPath.isEmpty {
+                    let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
+                    request.predicate = NSPredicate(format: "SELF != %@ AND audioFilePath == %@", transcript.objectID, audioPath)
+
+                    if let candidates = try? context.fetch(request) {
+                        let anchorDate = transcript.date ?? Date()
+                        let anchorDuration = transcript.duration
+                        let anchorText = transcript.text ?? ""
+
+                        for candidate in candidates {
+                            let status = candidate.value(forKey: "status") as? String ?? ""
+                            guard status == "processing" || status == "completed" else { continue }
+
+                            let candidateDate = candidate.date ?? .distantPast
+                            let isNearInTime = abs(candidateDate.timeIntervalSince(anchorDate)) <= 20
+                            let isNearInDuration = abs(candidate.duration - anchorDuration) <= 0.5
+                            let candidateRawText = candidate.value(forKey: "transcribedText") as? String ?? ""
+                            let sameText = (candidate.text ?? "") == anchorText || candidateRawText == transcribedText
+
+                            if isNearInTime && (isNearInDuration || sameText) {
+                                context.delete(candidate)
+                                AppLogger.coreData.warning("Removed transient duplicate transcript for path: \(audioPath, privacy: .public)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Mark a transcript failed on the serial writer.
+    func markTranscriptFailedInBackground(
+        transcriptID: NSManagedObjectID,
+        failedReason: String,
+        errorText: String
+    ) async {
+        await performWrite { context in
+            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
+                AppLogger.coreData.warning("markTranscriptFailedInBackground: transcript row not found — skipping")
+                return
+            }
+            transcript.setValue("failed", forKey: "status")
+            transcript.setValue(failedReason, forKey: "failedReason")
+            transcript.text = errorText
+        }
+    }
+
+    /// Finalize a recording session on stop in ONE serial write — collapses the
+    /// old `updateRecordingSessionOnStop` + audioFormat mutation + save.
+    func updateRecordingSessionOnStopInBackground(
+        sessionID: NSManagedObjectID,
+        audioFilePath: String,
+        duration: TimeInterval,
+        audioFormat: String
+    ) async {
+        await performWrite { context in
+            guard let session = try? context.existingObject(with: sessionID) as? RecordingSession else {
+                AppLogger.coreData.warning("updateRecordingSessionOnStopInBackground: session row not found — skipping")
+                return
+            }
+            session.audioFilePath = audioFilePath
+            session.durationInSeconds = duration
+            session.endTime = Date()
+            session.audioFormat = audioFormat
+        }
+    }
+
+    /// Update a transcript's audio file path (and its recording session's path)
+    /// on the serial writer — used by the background M4A conversion path.
+    func updateTranscriptAudioFilePathInBackground(
+        transcriptID: NSManagedObjectID,
+        newPath: String
+    ) async {
+        await performWrite { context in
+            guard let transcript = try? context.existingObject(with: transcriptID) as? Transcript else {
+                AppLogger.coreData.warning("updateTranscriptAudioFilePathInBackground: transcript row not found — skipping")
+                return
+            }
+            transcript.audioFilePath = newPath
+            if let session = transcript.recordingSession {
+                session.audioFilePath = newPath
+            }
+        }
+    }
+
+    /// Delete a recording session on the serial writer, then remove its audio file
+    /// off the main thread. Reads the path inside the writer so nothing crosses a
+    /// context boundary.
+    func deleteRecordingSessionInBackground(
+        sessionID: NSManagedObjectID,
+        deleteAudioFile: Bool = true
+    ) async {
+        let filePathToRemove: String? = await performWrite { context -> String? in
+            guard let session = try? context.existingObject(with: sessionID) as? RecordingSession else {
+                AppLogger.coreData.debug("deleteRecordingSessionInBackground: session row not found — skipping")
+                return nil
+            }
+            let path = deleteAudioFile ? session.audioFilePath : nil
+            context.delete(session)
+            return path
+        }
+
+        if let filePathToRemove {
+            do {
+                try FileManager.default.removeItem(atPath: filePathToRemove)
+                AppLogger.audio.debug("Deleted incomplete audio file: \(filePathToRemove, privacy: .public)")
+            } catch {
+                AppLogger.audio.debug("Could not delete incomplete audio file (may not exist): \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Transcript Operations
-    
+
     /// Creates a new transcript
     /// - Parameters:
     ///   - text: The transcribed text
@@ -873,6 +1275,13 @@ class PersistenceController: ObservableObject {
     }
     
     /// Creates a new transcript in processing state
+    ///
+    /// LEGACY (main-context, synchronous): blocks on `viewContext`, so a large
+    /// store can stall the main thread. New callers on any hot path should use
+    /// `createProcessingTranscriptInBackground` (serial writer, ID-based)
+    /// instead. Remaining callers are UI-initiated flows (file transcription,
+    /// retry, transcript actions) where the returned object is bound to UI.
+    ///
     /// - Parameters:
     ///   - duration: Recording duration in seconds
     ///   - mode: The transcription mode used
@@ -941,7 +1350,13 @@ class PersistenceController: ObservableObject {
     
     /// Updates a transcript with the transcription result
     /// This method is called when transcription completes (either successfully or with error)
-    /// 
+    ///
+    /// LEGACY (main-context, synchronous): new callers on any hot path should
+    /// use `updateTranscriptWithTranscriptionInBackground` (serial writer,
+    /// ID-based) instead. Remaining callers mutate viewContext objects that are
+    /// directly bound to UI (e.g. TranscriptionRetryController on a
+    /// HistoryView-bound row).
+    ///
     /// The @MainActor attribute ensures this runs on the main thread, which is critical because:
     /// 1. Core Data UI updates must happen on the main thread
     /// 2. This guarantees immediate UI refresh without threading delays
@@ -1640,84 +2055,18 @@ class PersistenceController: ObservableObject {
     }
     
     // MARK: - RecordingSession Operations
-    
-    /// Creates a new recording session
-    /// - Parameters:
-    ///   - deviceId: The audio device ID
-    ///   - deviceName: The audio device name
-    ///   - sampleRate: Audio sample rate
-    ///   - channelCount: Number of audio channels
-    ///   - audioFormat: Audio format description
-    /// - Returns: The created recording session
-    @discardableResult
-    func createRecordingSession(
-        deviceId: String,
-        deviceName: String,
-        sampleRate: Double,
-        channelCount: Int16,
-        audioFormat: String
-    ) -> RecordingSession {
-        let context = container.viewContext
-        
-        let session = RecordingSession(context: context)
-        session.id = UUID()
-        session.startTime = Date()
-        session.deviceId = deviceId
-        session.deviceName = deviceName
-        session.sampleRate = sampleRate
-        session.channelCount = channelCount
-        session.audioFormat = audioFormat
-        session.status = "recording"
-        session.retryCount = 0
-        
-        save()
-        
-        return session
-    }
-    
-    /// Updates a recording session when recording stops
-    /// - Parameters:
-    ///   - session: The recording session to update
-    ///   - audioFilePath: Path to the recorded audio file
-    ///   - duration: Recording duration in seconds
-    func updateRecordingSessionOnStop(
-        _ session: RecordingSession,
-        audioFilePath: String,
-        duration: TimeInterval
-    ) {
-        session.endTime = Date()
-        session.audioFilePath = audioFilePath
-        session.durationInSeconds = duration
-        session.status = "processing"
-        
-        save()
-    }
-    
-    /// Updates a recording session with transcription result
-    /// - Parameters:
-    ///   - session: The recording session to update
-    ///   - transcript: The resulting transcript (if successful)
-    ///   - error: Error message (if failed)
-    ///   - retryCount: Number of retry attempts made
-    func updateRecordingSessionWithResult(
-        _ session: RecordingSession,
-        transcript: Transcript? = nil,
-        error: String? = nil,
-        retryCount: Int16 = 0
-    ) {
-        session.retryCount = retryCount
-        
-        if let transcript = transcript {
-            session.transcript = transcript
-            session.status = "completed"
-        } else if let error = error {
-            session.errorMessage = error
-            session.status = "failed"
-        }
-        
-        save()
-    }
-    
+    //
+    // NOTE: Session create/update/delete live on RecordingSessionManager +
+    // performWriteRequiringSave (serial background writer context), NOT here.
+    // A pre-refactor synchronous pair (`createRecordingSession(deviceId:...)` /
+    // `updateRecordingSessionWithResult`) used to live in this section — it
+    // inserted + saved a RecordingSession directly on `container.viewContext`
+    // (main thread, no `perform`/`performAndWait`), which reproduced Sentry
+    // HYPERWHISPER-SH / HYPERWHISPER-R0 ("DB on Main Thread at Recording
+    // Start"). It had no remaining callers after the async rewrite, so it was
+    // deleted rather than fixed in place — do not reintroduce a synchronous
+    // viewContext insert/save for RecordingSession here.
+
     // MARK: - Vocabulary Operations
     
     /// Adds a new vocabulary item to Core Data
@@ -1920,26 +2269,11 @@ class PersistenceController: ObservableObject {
         return usage
     }
     
-    /// Updates daily transcription usage
-    /// - Parameter seconds: Number of seconds to add to daily usage
-    func updateDailyUsage(seconds: Int64) {
-        let usage = getOrCreateUsageTracking()
-        
-        // Check if we need to reset daily usage (new day)
-        if let lastReset = usage.lastResetDate {
-            let calendar = Calendar.current
-            if !calendar.isDateInToday(lastReset) {
-                // Reset daily usage for new day
-                usage.dailyTranscriptionSeconds = 0
-                usage.lastResetDate = Date()
-            }
-        }
-        
-        // Add new usage
-        usage.dailyTranscriptionSeconds += seconds
-        save()
-    }
-    
+    // NOTE: usage WRITES (updateDailyUsage / updateModelDownloadCount /
+    // resetDailyUsage) were removed — the Rust hw-license core owns usage
+    // tracking now. The getters below remain solely for the one-shot
+    // Core Data → UserDefaults seed in RustLicenseStore.
+
     /// Gets current daily usage in seconds
     /// - Returns: Number of seconds used today
     func getDailyUsage() -> Int64 {
@@ -1958,14 +2292,6 @@ class PersistenceController: ObservableObject {
         }
         
         return usage.dailyTranscriptionSeconds
-    }
-    
-    /// Updates the count of downloaded models
-    /// - Parameter count: New total count of downloaded models
-    func updateModelDownloadCount(_ count: Int16) {
-        let usage = getOrCreateUsageTracking()
-        usage.totalModelsDownloaded = count
-        save()
     }
     
     /// Gets the count of downloaded models
@@ -1996,14 +2322,6 @@ class PersistenceController: ObservableObject {
         save()
     }
     
-    /// Resets daily usage (called at midnight or manually)
-    func resetDailyUsage() {
-        let usage = getOrCreateUsageTracking()
-        usage.dailyTranscriptionSeconds = 0
-        usage.lastResetDate = Date()
-        save()
-    }
-
     // MARK: - Bulk Import Operations (Backup/Restore)
 
     /// Imports modes from backup data with conflict resolution

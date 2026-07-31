@@ -3,7 +3,6 @@ import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import {
   getAccountKeysByEmail,
   getCreditBalancesForUsers,
-  provisionAccountKeyForEmail,
 } from "@/src/lib/db-layer";
 
 export async function POST(request: NextRequest) {
@@ -26,15 +25,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Mint only when the email has *zero* keys of any status. A revoked-only
-    // email is intentionally not re-minted (closes the refund-then-regrant gap):
-    // it returns an empty list rather than a fresh free key.
-    let all = await getAccountKeysByEmail(email);
-    if (all.length === 0) {
-      // The freshly minted row is granted with the full 5,000-credit bundle, so
-      // use it directly instead of issuing a second read for the same row.
-      all = [await provisionAccountKeyForEmail(email)];
-    }
+    // Read-only: this endpoint never mints. An email with no granted key simply
+    // returns an empty list. (Minting happens only via grant-license, driven by
+    // the ACS claim flow — so nothing here can accidentally create a key.)
+    const all = await getAccountKeysByEmail(email);
 
     // Display only active keys; revoked keys are hidden. Credits are pooled per
     // account, so resolve balances by the keys' distinct owning users; each key
