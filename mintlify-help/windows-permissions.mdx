@@ -11,7 +11,8 @@ HyperWhisper on Windows requires a small number of system permissions. Most are 
 | --- | --- | --- | --- |
 | Microphone | First recording | Recording any audio | Settings → Privacy & Security → Microphone |
 | UI Automation | When Autocapitalize Insert is enabled | Context-aware capitalisation | Automatic — no grant step required |
-| Autostart | When you enable the setting | Launch at Windows login | Settings → General → Launch at startup |
+| Autostart | Enabled automatically on first launch | Launch at Windows login | Settings → General → Launch at startup |
+| Screen capture | When a mode has **Screen Text** enabled | Feeding on-screen text to AI post-processing | Automatic — no Windows permission prompt |
 | SmartScreen warning | First launch on a new machine | — | Click "Run anyway" (one-time) |
 | Administrator / UAC | Never for a per-user install; during auto-update only if you opted into a per-machine install | — | Not required |
 
@@ -65,9 +66,13 @@ The toggle stays on. If UIA can't read the focused field in a specific target ap
 
 Injecting text into the previously focused app uses Win32 `SetForegroundWindow` and simulated `Ctrl+V`, which work independently of UI Automation — Autocapitalize Insert does not need to be enabled for auto-paste to work. As noted above, HyperWhisper still calls UIA on every paste for the password-field check regardless of this setting.
 
+## Screen Text capture
+
+Modes can enable **Screen Text** (Mode editor → AI Post-Processing → Screen Text) to capture visible on-screen text at the start of a recording and pass it to AI post-processing as extra context for names and terms. This uses a plain screen copy (`Graphics.CopyFromScreen`) plus Windows' built-in OCR — it does not go through any Windows privacy/consent prompt, unlike the Screen Recording permission macOS requires for the equivalent feature.
+
 ## Autostart registration
 
-When you enable **Launch at startup** in **Settings → General**, HyperWhisper writes a value to the Windows Registry under your user account:
+HyperWhisper registers itself to **Launch at startup** automatically the first time it runs — you don't need to turn this on. You can disable it afterward in **Settings → General**. When enabled, HyperWhisper writes a value to the Windows Registry under your user account:
 
 ```
 HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
