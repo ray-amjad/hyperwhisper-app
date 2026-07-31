@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.8.3 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.3 - ARM64 -->
+<item>
+<title>1.8.3 (ARM64)</title>
+<pubDate>Fri, 31 Jul 2026 03:15:33 +0000</pubDate>
+<sparkle:version>1.8.3</sparkle:version>
+<sparkle:shortVersionString>1.8.3</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.3-arm64-Setup.exe"
+length="143933440"
+type="application/octet-stream"
+sparkle:edSignature="fsBl7iefstGs3SPwGLRYeWKCwv6qWkBgsxOQmGcqQmhqRGPlzs9vuqVpOJvv47NvTTv7ISDw/3GUfVvx/ch7BQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.3</h2>
+<ul>
+<li>Short recordings transcribe faster with AssemblyAI — clips under two minutes now finish in a single request instead of upload-then-wait.</li><li>Your vocabulary replacements now apply on modes that have AI post-processing turned off. They were being silently discarded.</li><li>Removed Groq's Llama 4 Maverick, which Groq has shut down. Picking it made AI post-processing quietly do nothing; modes still set to it now move to GPT-OSS 120B automatically.</li><li>Fixed a bug where a finished transcription could be overwritten in History with "Transcription did not finish", losing its text. The text was pasted correctly at the time — only the saved copy was destroyed.</li><li>The mouse wheel now scrolls the Modes and Model Library pages, instead of only the scrollbar working.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.3 - x64 -->
+<item>
+<title>1.8.3 (x64)</title>
+<pubDate>Fri, 31 Jul 2026 03:15:33 +0000</pubDate>
+<sparkle:version>1.8.3</sparkle:version>
+<sparkle:shortVersionString>1.8.3</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.3-x64-Setup.exe"
+length="181434696"
+type="application/octet-stream"
+sparkle:edSignature="UyoglP2UPidSmWHGkxups9bCiBL8QkCL5eMf+NI30VTq46btqe2c2UXBiW8s9nvuDH2NKkAOq5J0W3f6pBs8BQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.3</h2>
+<ul>
+<li>Short recordings transcribe faster with AssemblyAI — clips under two minutes now finish in a single request instead of upload-then-wait.</li><li>Your vocabulary replacements now apply on modes that have AI post-processing turned off. They were being silently discarded.</li><li>Removed Groq's Llama 4 Maverick, which Groq has shut down. Picking it made AI post-processing quietly do nothing; modes still set to it now move to GPT-OSS 120B automatically.</li><li>Fixed a bug where a finished transcription could be overwritten in History with "Transcription did not finish", losing its text. The text was pasted correctly at the time — only the saved copy was destroyed.</li><li>The mouse wheel now scrolls the Modes and Model Library pages, instead of only the scrollbar working.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.8.2 -->
 <!-- ================================================================== -->
 
