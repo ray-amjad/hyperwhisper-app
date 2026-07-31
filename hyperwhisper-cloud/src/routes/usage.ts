@@ -45,6 +45,14 @@ async function validateLicenseAndGetCredits(licenseKey: string, forceRefresh: bo
     const isValid = data.valid === true;
     const credits = readFiniteCredits(data) ?? 0;
 
+    // Rate limits and server failures are transient, not authoritative invalid
+    // verdicts. Fail this request closed without replacing the shared Redis
+    // entry; otherwise a one-off licensing outage locks the account out for
+    // the full cache TTL.
+    if (response.status === 429 || response.status >= 500) {
+      return { isValid: false, credits: 0 };
+    }
+
     await cacheLicense(licenseKey, {
       isValid,
       credits,

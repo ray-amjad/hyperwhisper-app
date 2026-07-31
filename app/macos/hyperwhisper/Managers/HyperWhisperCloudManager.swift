@@ -119,8 +119,29 @@ class HyperWhisperCloudManager: ObservableObject {
     /// - Parameter forceRefresh: If true, bypass cache and fetch fresh data
     /// - Returns: Credit balance or throws error
     func fetchCredits(forceRefresh: Bool = false) async throws -> HyperWhisperCloudCredits {
+        try await fetchCredits(forceRefresh: forceRefresh, identifierOverride: nil)
+    }
+
+    /// Forces the Fly backend to refresh the shared license-verdict cache for
+    /// the exact key that will be used by a recovered transcription request.
+    ///
+    /// This intentionally goes through `/usage?force_refresh=true`: that route
+    /// revalidates against the licensing API and overwrites the same Redis entry
+    /// consumed by `/transcribe` and `/post-process`.
+    func refreshServerLicenseCache(for identifier: String) async throws {
+        let refreshed = try await fetchCredits(forceRefresh: true, identifierOverride: identifier)
+        guard refreshed.isLicensed else {
+            throw HyperWhisperCloudError.invalidResponse("Server license-cache refresh did not confirm a licensed account")
+        }
+    }
+
+    private func fetchCredits(
+        forceRefresh: Bool,
+        identifierOverride: String?
+    ) async throws -> HyperWhisperCloudCredits {
         // Check cache first
-        if !forceRefresh,
+        if identifierOverride == nil,
+           !forceRefresh,
            let cachedCredits = credits,
            let lastFetch = lastFetchTime,
            Date().timeIntervalSince(lastFetch) < cacheDuration {
@@ -138,7 +159,12 @@ class HyperWhisperCloudManager: ObservableObject {
 
         do {
             // Get identifier from license manager
-            let (identifier, _) = licenseManager.getTranscriptionIdentifier()
+            let identifier: String
+            if let identifierOverride {
+                identifier = identifierOverride
+            } else {
+                identifier = licenseManager.getTranscriptionIdentifier().identifier
+            }
 
             // Build request URL with optional force_refresh parameter
             // When forceRefresh is true, the backend will bypass its cache and fetch fresh data
@@ -191,10 +217,18 @@ class HyperWhisperCloudManager: ObservableObject {
 
             return fetchedCredits
 
-        } catch let error as HyperWhisperCloudError {
-            lastError = error.localizedDescription
-            throw error
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
+            if Self.isCancellationError(error) {
+                throw CancellationError()
+            }
+
+            if let cloudError = error as? HyperWhisperCloudError {
+                lastError = cloudError.localizedDescription
+                throw cloudError
+            }
+
             let errorMessage = "Failed to fetch credits: \(error.localizedDescription)"
             lastError = errorMessage
             AppLogger.network.error("HyperWhisper Cloud credit fetch failed · error=\(error.localizedDescription, privacy: .public)")
@@ -206,6 +240,16 @@ class HyperWhisperCloudManager: ObservableObject {
             }
             throw HyperWhisperCloudError.transientNetwork(error.localizedDescription)
         }
+    }
+
+    nonisolated static func isCancellationError(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        let nsError = error as NSError
+        return (nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled)
+            || Task.isCancelled
     }
 
     /// Refreshes credit balance (bypasses cache)
