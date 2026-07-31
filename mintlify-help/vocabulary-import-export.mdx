@@ -187,5 +187,5 @@ Both platforms read and write the same `.hwbackup.json` vocabulary format, so mo
 The import is always additive: existing entries on the destination are never deleted. Only the words that are new (or that you explicitly chose to replace) are written.
 
 <Note>
-The `.hwbackup.json` format does not carry the case-sensitivity flag. If you need case-sensitive matching on a specific platform, set that flag manually after importing.
+Case-sensitive matching is an iOS-only concept, set via the `caseSensitive` CSV column above. Neither macOS nor Windows has a case-sensitivity field on vocabulary entries — matching is case-insensitive on both, and there's nothing to set manually after a `.hwbackup.json` import.
 </Note>
