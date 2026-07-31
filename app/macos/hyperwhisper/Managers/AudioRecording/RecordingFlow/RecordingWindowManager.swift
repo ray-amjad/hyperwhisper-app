@@ -97,6 +97,8 @@ final class RecordingWindowManager {
             .environmentObject(transcriptionPipeline)
             // High-frequency metrics isolated for performance (prevents main window invalidation at 30 FPS)
             .environmentObject(audioManager.liveMetrics)
+            // High-frequency streaming preview text isolated for the same reason (HYPERWHISPER-F7)
+            .environmentObject(appState.liveStreamingText)
             .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
 
         let hostingController = NSHostingController(rootView: recordingView)

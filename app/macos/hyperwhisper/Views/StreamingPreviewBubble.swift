@@ -12,6 +12,9 @@ import SwiftUI
 
 struct StreamingPreviewBubble: View {
     @EnvironmentObject var appState: AppState
+    /// High-frequency streaming preview text, isolated off `AppState` so updates here
+    /// don't invalidate the main window's view tree (HYPERWHISPER-F7).
+    @EnvironmentObject var liveStreamingText: StreamingLiveText
 
     @State private var bobOffset: CGFloat = 0
     @State private var hasStartedBob = false
@@ -20,8 +23,8 @@ struct StreamingPreviewBubble: View {
 
     private var bubbleText: String {
         // Once streaming has produced text, always show the transcript.
-        if !appState.streamingText.isEmpty {
-            return appState.streamingText
+        if !liveStreamingText.text.isEmpty {
+            return liveStreamingText.text
         }
         // Otherwise mirror the connection state shown on the recording capsule
         // (see RecordingDialog.statusText) so the user knows the model is
@@ -45,7 +48,7 @@ struct StreamingPreviewBubble: View {
     }
 
     private var isPlaceholder: Bool {
-        appState.streamingText.isEmpty
+        liveStreamingText.text.isEmpty
     }
 
     var body: some View {
@@ -62,7 +65,7 @@ struct StreamingPreviewBubble: View {
         .padding(.bottom, 14)
         .padding(.horizontal, 20)
         .animation(.spring(response: 0.55, dampingFraction: 0.82), value: appState.showStreamingPreview)
-        .animation(.spring(response: 0.5, dampingFraction: 0.86), value: appState.streamingText)
+        .animation(.spring(response: 0.5, dampingFraction: 0.86), value: liveStreamingText.text)
         .animation(.easeInOut(duration: 0.25), value: appState.streamingConnectionState)
         .onAppear {
             guard !hasStartedBob else { return }
@@ -100,7 +103,7 @@ struct StreamingPreviewBubble: View {
             .padding(.vertical, 12)
             .background(bubbleBackground)
             .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-            .onChange(of: appState.streamingText) { _, _ in
+            .onChange(of: liveStreamingText.text) { _, _ in
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo("bubbleEnd", anchor: .bottom)
                 }
