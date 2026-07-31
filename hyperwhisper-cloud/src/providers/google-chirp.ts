@@ -35,6 +35,20 @@ export const INLINE_AUDIO_MAX_BYTES = GOOGLE_CHIRP_INLINE_MAX_BYTES;
 // 10 MB byte cap. Use 55 s as the gate to leave headroom for the byte-rate
 // estimator being conservative on compressed audio.
 const INLINE_AUDIO_MAX_SECONDS = 55;
+// Sync `recognize` gets its own budget rather than the shared 15 s default in
+// providers/utils.ts. Two reasons that default is wrong here:
+//   1. Chirp's inline path is observed at ~5–15 s even for ~1 s of audio, so a
+//      15 s ceiling sits exactly at the top of the normal range — no headroom.
+//      Measured in CI on two adjacent ~1 s fixtures: ja-JP returned in 7.3 s,
+//      hi-IN blew the 15 s budget, purely on upstream variance.
+//   2. This branch admits up to INLINE_AUDIO_MAX_SECONDS (55 s) of audio, so
+//      the budget has to cover the *longest* clip we send inline, not the
+//      shortest. 45 s keeps margin at that cap while staying inside Fly's
+//      per-request budget.
+// Chirp is selfOnly, so a timeout here is a hard 502 with no fallback — worth
+// being generous. Mirrors the explicit budgets already used for batch polling
+// and GCS upload; only the inline call was left on the bare default.
+const SYNC_RECOGNIZE_TIMEOUT_MS = 45_000;
 const MAX_PHRASES = 1000;
 const MAX_PHRASE_LEN = 100;
 // batchRecognize polling. Real-world observed: a 90 s audio file on the
@@ -199,7 +213,7 @@ export async function transcribeWithGoogleChirp(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(bodyObject),
-      }, context);
+      }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
 
       if (!response.ok) {
         await throwForSpeechError(provider, response, startedAt, context);

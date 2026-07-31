@@ -4,7 +4,6 @@
 
 import { Redis } from '@upstash/redis';
 import { LICENSE_CACHE_TTL_SECONDS } from './constants';
-import { roundToTenth } from './utils';
 
 // Initialize Redis client (lazy initialization for testing without Redis)
 let _redis: Redis | null = null;
@@ -40,23 +39,6 @@ export async function isIPBlocked(ip: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-export async function getIPDailyUsage(ip: string, dateKey: string): Promise<number> {
-  const key = `ip_daily:${ip}:${dateKey}`;
-  try {
-    const raw = await getRedis().get(key);
-    if (!raw) return 0;
-    const parsed = typeof raw === 'string' ? Number.parseFloat(raw) : Number(raw);
-    return Number.isFinite(parsed) ? roundToTenth(parsed) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-export async function setIPDailyUsage(ip: string, dateKey: string, credits: number, ttlSeconds: number): Promise<void> {
-  const key = `ip_daily:${ip}:${dateKey}`;
-  await getRedis().set(key, credits.toFixed(1), { ex: ttlSeconds });
 }
 
 // ============================================================================

@@ -11,11 +11,11 @@ The server is **off by default**. You turn it on once in Settings and it stays o
 
 <Tabs>
   <Tab title="macOS">
-    1. Open **Settings → API Server**.
+    1. Open **Settings → Local API**.
     2. Flip the toggle to **on**. The status line updates to show the bound address and the last four characters of your bearer token.
   </Tab>
   <Tab title="Windows">
-    1. Open **Settings → API Server**.
+    1. Open **Settings → Local API**.
     2. Flip the toggle to **on**. The status line updates to show the bound address and the last four characters of your bearer token.
   </Tab>
 </Tabs>
@@ -164,8 +164,13 @@ The file is deleted when the server stops cleanly. If HyperWhisper is force-quit
 | POST | `/post-process` | Required | Rewrite text via preset or custom prompt. |
 | GET | `/recordings/search` | Required | Substring search across past transcripts. |
 | GET | `/recordings/{id}` | Required | Single transcript row. |
+| GET | `/recordings` | Required | Windows only — undocumented alias for `/recordings/search`. |
 
 Full request and response schemas are in the [OpenAPI reference](/api-reference/local-api/openapi.yaml).
+
+<Note>
+  Platform differences worth knowing: `GET /models` accepts `?kind=` and `?installed_only=` query params to filter the catalog on macOS — Windows currently ignores these params and always returns the full catalog. macOS also validates the `Host` and `Origin` headers on every request and returns `403` on anything that doesn't look like a genuine loopback call, as a defense against DNS-rebinding attacks from a browser tab; Windows does not perform this additional check.
+</Note>
 
 ## Next steps
 

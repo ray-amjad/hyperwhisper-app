@@ -9,6 +9,7 @@
 //  It sets up both the main window and the menu bar functionality.
 
 import SwiftUI
+import Combine
 import KeyboardShortcuts
 import AppKit  // Required for NSApplication and menu bar functionality
 import CoreData  // Required for Core Data persistence
@@ -316,6 +317,17 @@ struct MenuBarIconView: View {
                 }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
+                }
+                .onReceive(
+                    parakeetModelManager.$availableModels
+                        .dropFirst()
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
                 }
                 .onReceive(qwen3AsrModelManager.$isDownloaded) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
@@ -747,10 +759,6 @@ struct MenuBarIconView: View {
             }
         }
     }
-
-    // DEPRECATED: Old initializer that performed redundant rescans and preloading.
-    // Left temporarily for reference; no longer invoked.
-    // private func initializeSelectedMode() { ... }
 
     /// Perform one-time model bootstrap work on startup.
     /// Moves heavy installation/extraction off the main thread and avoids redundant rescans.

@@ -25,6 +25,104 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.8.2 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.2 - ARM64 -->
+<item>
+<title>1.8.2 (ARM64)</title>
+<pubDate>Wed, 29 Jul 2026 01:36:12 +0000</pubDate>
+<sparkle:version>1.8.2</sparkle:version>
+<sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.2-arm64-Setup.exe"
+length="143922008"
+type="application/octet-stream"
+sparkle:edSignature="kr+BUdSZj5uZzC7F+nckHOkIyNFb2bMw6tR2Ovk15E+SKBFYZd7hX5wbKjk1nyoc/BzPxKklrigC0QDC461JCQ=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.2</h2>
+<ul>
+<li>Fixed cancelling a transcription showing an error — pressing Escape while transcribing, or Cancel during a file transcription, now stops cleanly instead of reporting a failed transcription and marking the recording as Failed in History.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.2 - x64 -->
+<item>
+<title>1.8.2 (x64)</title>
+<pubDate>Wed, 29 Jul 2026 01:36:12 +0000</pubDate>
+<sparkle:version>1.8.2</sparkle:version>
+<sparkle:shortVersionString>1.8.2</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.2-x64-Setup.exe"
+length="181432944"
+type="application/octet-stream"
+sparkle:edSignature="aXfj/sa/ST9SmDprBzKO8G5jHNdKi+4pY+flOAe9jjBZ2RRt+HdiSfCEmcfEHGPFx1/fmFTw5qR21Mko6tqADg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.2</h2>
+<ul>
+<li>Fixed cancelling a transcription showing an error — pressing Escape while transcribing, or Cancel during a file transcription, now stops cleanly instead of reporting a failed transcription and marking the recording as Failed in History.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
+<!-- VERSION 1.8.1 -->
+<!-- ================================================================== -->
+
+<!-- 1.8.1 - ARM64 -->
+<item>
+<title>1.8.1 (ARM64)</title>
+<pubDate>Mon, 20 Jul 2026 23:42:31 +0000</pubDate>
+<sparkle:version>1.8.1</sparkle:version>
+<sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.1-arm64-Setup.exe"
+length="143933288"
+type="application/octet-stream"
+sparkle:edSignature="XWnTS0+u4tKvESHPjaTHe59oxpVggX74WFy24xQUZxyyxsmh3kv3KbgwYN6If8GWpUOux382ptagwA4nbNMZBg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.1</h2>
+<ul>
+<li>More reliable AI post-processing: if the AI returns an incomplete result, your original transcript is kept instead of being replaced</li>
+<li>Fixed an issue where entering an invalid replacement license key could deactivate your existing valid license</li>
+<li>Fixed mouse-wheel scrolling in the vocabulary list</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.8.1 - x64 -->
+<item>
+<title>1.8.1 (x64)</title>
+<pubDate>Mon, 20 Jul 2026 23:42:31 +0000</pubDate>
+<sparkle:version>1.8.1</sparkle:version>
+<sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.8.1-x64-Setup.exe"
+length="181454320"
+type="application/octet-stream"
+sparkle:edSignature="RWVnEU18Kzc1OFUNJ6PK7Z7ZYPtBhuR6vtf6TMeVPIuKATiI/ZoMVx/ey4KbPY9ICVLyI/ZsDEyF0XVcxKURBA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.8.1</h2>
+<ul>
+<li>More reliable AI post-processing: if the AI returns an incomplete result, your original transcript is kept instead of being replaced</li>
+<li>Fixed an issue where entering an invalid replacement license key could deactivate your existing valid license</li>
+<li>Fixed mouse-wheel scrolling in the vocabulary list</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.8.0 -->
 <!-- ================================================================== -->
 

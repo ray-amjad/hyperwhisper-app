@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   if (event.type === "charge.refunded") {
     const charge = event.data.object as Stripe.Charge;
     try {
-      await handleChargeRefunded(charge, event.id);
+      await handleChargeRefunded(charge);
     } catch (error) {
       console.error("Stripe webhook: Error processing refund:", error);
       // Don't return error status - log for manual review instead

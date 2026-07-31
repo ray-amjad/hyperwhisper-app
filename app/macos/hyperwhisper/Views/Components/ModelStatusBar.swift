@@ -120,9 +120,15 @@ struct ModelStatusBar: View {
                 Text(name)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Text("(Download Required)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
+                Button {
+                    appState.navigate(to: .modelLibrary)
+                } label: {
+                    Text("(\("settings.models.download".localized))")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("transcription.guidance.modelNotDownloaded".localized)
             }
         }
     }

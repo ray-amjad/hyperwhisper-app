@@ -62,6 +62,8 @@ Delivery paths:
 - ≤ 9.5 MB AND ≤ ~55 s estimated → inline base64 → sync `recognize` (~5–15 s)
 - otherwise → GCS upload → `batchRecognize` LRO + polling (~15–300 s)
 
+Every Chirp network call carries an explicit timeout budget — none of them use the shared 15 s `DEFAULT_PROVIDER_TIMEOUT_MS` from `providers/utils.ts`, because 15 s sits at the top of the inline path's own normal range: `SYNC_RECOGNIZE_TIMEOUT_MS` 45 s (inline), `BATCH_POLL_FETCH_TIMEOUT_MS` 8 s per poll under a 300 s `BATCH_POLL_DEADLINE_MS`, GCS upload `max(30 s, 1 s/100 KB)`. Chirp is `selfOnly`, so a timeout is a hard 502 with no fallback provider to absorb it. Budget generously; don't "simplify" one of these back to the default.
+
 batchRecognize submits intentionally OMIT `processingStrategy`. The unset default is Google's IMMEDIATE path; the named `DYNAMIC_BATCHING` enum is the opposite — a deferred 24-hour queue. Don't re-add the field.
 
 `batchRecognize` result shape gotcha: `totalBilledDuration` lives on `fileResult.metadata`, NOT `fileResult.transcript.metadata`. `normalizeSpeechResults` merges all three candidate metadata levels (transcript, file, operation) — preserve the merge when refactoring.

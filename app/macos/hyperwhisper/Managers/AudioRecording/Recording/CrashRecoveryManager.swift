@@ -503,6 +503,19 @@ class CrashRecoveryManager {
             stub.channelCount = 1
             stub.audioFormat = "WAV PCM 16000Hz 1ch"
             stub.endTime = nil
+            // `deviceId`/`deviceName` are non-optional on RecordingSession (no default
+            // value), but the crashed process that recorded this file never got a
+            // chance to persist them — the row we're synthesizing here never went
+            // through the normal record-start path that populates them from the
+            // selected input device. Leaving them nil causes the batch save in STEP 3
+            // to fail validation for every session in the batch with
+            // NSCocoaErrorDomain code 1570 "deviceId is a required value", silently
+            // dropping the whole recovery pass (see HYPERWHISPER-V3/V4). The real
+            // device is unrecoverable at this point, so fall back to a sentinel —
+            // consistent with the "default" fallback already used elsewhere when no
+            // input device resolves (see RecordingLifecycle.swift:459-460).
+            stub.deviceId = "default"
+            stub.deviceName = "audio.device.default".localized
             stubs.append(stub)
 
             AppLogger.audio.info("🩹 Synthesized stub session \(sessionId.uuidString, privacy: .public) for unclaimed incomplete WAV: \(url.lastPathComponent, privacy: .public)")

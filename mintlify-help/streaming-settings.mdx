@@ -33,7 +33,7 @@ After enabling streaming, you set the shortcut that triggers it.
     If the shortcut conflicts with another HyperWhisper shortcut, a warning appears and the new binding is not saved until the conflict is resolved.
   </Tab>
   <Tab title="Windows">
-    Click the shortcut field in **Streaming** (main sidebar) and press your preferred key combination. HyperWhisper validates the binding against your other shortcuts (Toggle, Cancel, Change Mode) and shows a conflict warning if there is a clash.
+    The default shortcut is **Ctrl+Shift+Space**. Click the shortcut field in **Streaming** (main sidebar) and press your preferred key combination. HyperWhisper validates the binding against your other shortcuts (Toggle, Cancel, Change Mode) and shows a conflict warning if there is a clash.
   </Tab>
 </Tabs>
 
@@ -43,7 +43,7 @@ Open the **Engine** section (visible when streaming is enabled) and pick a provi
 
 | Provider | API key required | Vocabulary boosting | Model selection |
 |---|---|---|---|
-| HyperWhisper Cloud | No | Yes | No |
+| HyperWhisper Cloud | No | Yes (explicit language only) | No |
 | Deepgram | Yes | Yes (explicit language only) | Yes — Nova 3 |
 | ElevenLabs | Yes | No | No |
 | OpenAI | Yes | No | No |
@@ -86,14 +86,14 @@ The model must be downloaded before first use. An **Install** button and downloa
 
 Nemotron 3.5 is NVIDIA's streaming ASR model family, also running fully on-device.
 
-- **Nemotron 3.5 (Multilingual)** — approximately 40 languages including Chinese, Japanese, Korean, and Arabic; this is the default variant.
+- **Nemotron 3.5 (Multilingual)** — approximately 30 languages available in the model picker, including Chinese, Japanese, Korean, and Arabic; this is the default variant.
 - **Nemotron 3.5 (Latin)** — approximately 6 Latin-script languages; faster.
 
 The same install flow applies: the variant you select must be downloaded before streaming can start.
 
 ## Language
 
-The **Language** setting tells the provider which language to expect. Setting an explicit language generally improves accuracy and, for Deepgram, is required for vocabulary boosting to work.
+The **Language** setting tells the provider which language to expect. Setting an explicit language generally improves accuracy and, for Deepgram, is required for vocabulary boosting to work. The default language on both platforms is **English**.
 
 <Tabs>
   <Tab title="macOS">

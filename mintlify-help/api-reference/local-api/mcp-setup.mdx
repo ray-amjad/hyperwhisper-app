@@ -7,7 +7,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 
 ## Prerequisites
 
-1. HyperWhisper is installed and you have opened it at least once.
+1. HyperWhisper for macOS or Windows is installed and you have opened it at least once. Both apps write the discovery file the bridge reads.
 2. **Settings → Local API** is turned **on**. This is what writes the discovery file the bridge reads.
 3. Node.js 18 or newer is on your `PATH`. `node --version` should print a version number — if it does not, install Node.js from [nodejs.org](https://nodejs.org). The `npx` command ships with Node.
 
@@ -20,9 +20,9 @@ You do not need to install the bridge globally. `npx -y @hyperwhisper/mcp` fetch
 | `health` | Confirms HyperWhisper is running. No auth required. |
 | `list_models` | Catalog of voice and post-processing models. |
 | `list_modes` | Saved transcription Modes. |
-| `transcribe` | Transcribes an absolute path to an audio file. |
-| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`, `prompt`) or a free-form prompt. |
-| `search_recordings` | Substring search across past transcripts. |
+| `transcribe` | Transcribes an absolute path to an audio file. Optionally writes the transcript straight to a file (`output_path`) and returns only a confirmation — keeps long transcripts out of the agent's context. Also accepts `mode_id`, an `engine`/`model` override, `language`, `timestamp_granularities`, and `post_process_preset`/`post_process_prompt` to clean up the result in the same call. |
+| `post_process` | Rewrites text with a preset (`hyper`, `message`, `mail`, `note`, `meeting`, `code`, `custom`, `prompt`) or a free-form prompt. Accepts optional `provider`/`model` overrides to bypass your default post-processing settings for a single call. |
+| `search_recordings` | Substring search across past transcripts. Accepts optional `since`, `until`, and `limit` filters. |
 | `get_recording` | Single transcript row by ID. |
 
 ## Cursor
@@ -79,12 +79,24 @@ Use hyperwhisper to transcribe /Users/me/Desktop/test.wav
 
 The agent should call the `transcribe` tool and return the text inline. If you do not have a sample, `Ask hyperwhisper to run a health check` is enough — the agent should call `health` and report the app version.
 
+## Write transcripts to a file
+
+For long recordings, ask the agent to save the transcript instead of returning it:
+
+```text
+Transcribe ~/notes/memo.wav and save the cleaned-up text to ~/notes/memo.md
+```
+
+The agent sets `output_path` (and optionally `post_process_preset` or `post_process_prompt` to clean the text up first), the bridge writes the file, and only a short confirmation comes back — not the full transcript. The confirmation payload includes `ok`, the resolved `if_exists` mode, the file's `bytes`, the `engine`/`model`/`language` used, `latency_ms`, whether `post_processed` ran, a character count, a 200-character preview, and an optional `warning` field. The full transcript never enters the agent's context. If the file already exists the tool fails by default; the agent can pass `if_exists: "overwrite"` or `if_exists: "append"` (handy for a running notes file).
+
 ## Troubleshooting
 
 **`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper, then toggle **Settings → Local API** on. Re-run the agent prompt.
 
-**`UNAUTHORIZED`** — the bearer token in the discovery file no longer matches what the server expects. This usually happens after **Regenerate token** in Settings. The bridge re-reads the file on every request, so the next agent call should succeed.
+**`INVALID_REQUEST`** (HTTP 401) — the bearer token in the discovery file no longer matches what the server expects. This usually happens after **Regenerate token** in Settings. The bridge re-reads the file on every request, so the next agent call should succeed.
 
 **Connection refused** — the port in the discovery file is stale (the app was force-killed before it could clean up). Toggle the **Local API** switch off and back on to write a fresh `local-api.json`.
 
 **`npx` hangs on first run** — `npx -y` downloads the package the first time. Subsequent runs are instant. If your network blocks the npm registry, install once with `npm i -g @hyperwhisper/mcp` and replace `npx -y @hyperwhisper/mcp` with `hyperwhisper-mcp` in the config above.
+
+**Other app-level error codes** — the app returns a closed set of error codes for tool calls: `MODEL_NOT_INSTALLED`, `MODEL_NOT_FOUND`, `ENGINE_UNAVAILABLE`, `MISSING_API_KEY`, `FILE_NOT_FOUND`, `FILE_ACCESS_DENIED`, `FILE_NOT_ALLOWED`, `AUDIO_DECODE_FAILED`, `TRANSCRIPTION_FAILED`, `MODE_NOT_FOUND`, `MODE_NAME_TAKEN`, `RATE_LIMITED`, and `TIMEOUT`. Each is returned with a human-readable message the agent can relay to you.

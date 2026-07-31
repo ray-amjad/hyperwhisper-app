@@ -84,6 +84,15 @@ const ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE = 0.15 / 60;       // $0.0025/
 const ASSEMBLYAI_UNIVERSAL3_PRO_COST_PER_AUDIO_MINUTE = 0.21 / 60;   // $0.0035/min
 const ASSEMBLYAI_MEDICAL_ADDON_COST_PER_AUDIO_MINUTE = 0.15 / 60;    // +$0.0025/min
 const ASSEMBLYAI_KEYTERMS_ADDON_COST_PER_AUDIO_MINUTE = 0.05 / 60;   // +~$0.05/hr (universal-3-pro only)
+// AssemblyAI's separate sync product (<=120s clips, single blocking request)
+// always runs universal-3-5-pro, a model the async tiers above don't cover —
+// billed at its own published rate, "the same rate as Universal-3.5 Pro
+// Realtime". No medical/keyterms add-ons: the sync API doesn't support them.
+// Exported as the single source of truth for this rate: stt-models.ts's
+// preflight reservation figure (`ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE`)
+// imports it rather than hardcoding a second copy of the same literal, so the
+// amount actually reserved can never silently drift from what's actually billed.
+export const ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE = 0.45 / 60;             // $0.0075/min
 
 // Mistral Voxtral — per-audio-minute billing.
 const MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE = 0.003;
@@ -370,6 +379,10 @@ export function computeAssemblyAITranscriptionCost(
   return roundUsd((durationSeconds / 60) * perMinute);
 }
 
+export function computeAssemblyAISyncTranscriptionCost(durationSeconds: number): number {
+  return roundUsd((durationSeconds / 60) * ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE);
+}
+
 export function computeMistralTranscriptionCost(durationSeconds: number): number {
   return roundUsd((durationSeconds / 60) * MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE);
 }
@@ -483,15 +496,6 @@ export function usdToCredits(usd: number): number {
 export function creditsForCost(costUsd: number): number {
   if (!Number.isFinite(costUsd) || costUsd <= 0) {
     return 0.1;
-  }
-
-  const rawCredits = usdToCredits(costUsd);
-  return Math.max(0.1, roundUpToTenth(rawCredits));
-}
-
-export function estimateCreditsForCost(costUsd: number): number {
-  if (!Number.isFinite(costUsd) || costUsd <= 0) {
-    return 0;
   }
 
   const rawCredits = usdToCredits(costUsd);

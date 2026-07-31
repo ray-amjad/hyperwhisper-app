@@ -447,7 +447,14 @@ class TranscriptionProviderRouter {
             }
             modelString = m
         case "parakeet":
-            modelString = model?.isEmpty == false ? model! : ParakeetModelManager.Constants.v3ModelId
+            let requestedModelId = ParakeetModelManager.Constants.modelIdForSelection(model)
+            guard let canonicalModelId = ParakeetModelManager.Constants.canonicalModelId(for: requestedModelId) else {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Parakeet",
+                    reason: "Unknown Parakeet model '\(requestedModelId)'"
+                )
+            }
+            modelString = canonicalModelId
         case "qwen3asr", "qwen3", "qwen3-asr":
             modelString = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":

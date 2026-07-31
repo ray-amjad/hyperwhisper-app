@@ -831,16 +831,6 @@ public partial class HistoryViewModel : ViewModelBase
     }
 
     // =========================================================================
-    // COMMANDS - DATE FILTER
-    // =========================================================================
-
-    [RelayCommand]
-    private void SetDateFilter(DateFilter filter)
-    {
-        DateFilter = filter;
-    }
-
-    // =========================================================================
     // EVENT HANDLERS - HISTORY SERVICE
     // =========================================================================
 
@@ -863,19 +853,11 @@ public partial class HistoryViewModel : ViewModelBase
         {
             if (_transcriptLookup.TryGetValue(transcript.Id, out var vm))
             {
-                // Update the source and refresh
-                var entity = vm.ToEntity();
-                entity.Text = transcript.Text;
-                entity.TranscribedText = transcript.TranscribedText;
-                entity.PostProcessedText = transcript.PostProcessedText;
-                entity.Status = transcript.Status;
-                entity.FailedReason = transcript.FailedReason;
-                entity.TranscriptionProvider = transcript.TranscriptionProvider;
-                entity.PostProcessingProvider = transcript.PostProcessingProvider;
-                entity.RetryCount = transcript.RetryCount;
-                entity.LastRetryDate = transcript.LastRetryDate;
-
-                vm.Refresh();
+                // Absorb the fresh entity, then refresh. Do NOT reach for
+                // vm.ToEntity() here: it writes the view model's stale snapshot
+                // back into the entity, and `transcript` is usually that very
+                // instance — so the write reverted the update we were handling.
+                vm.ApplyUpdate(transcript);
 
                 // If this is the selected transcript, update detail view
                 if (SelectedTranscript?.Id == transcript.Id)
