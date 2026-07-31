@@ -33,6 +33,23 @@
 
 import Foundation
 
+protocol LicenseNetworkServing {
+    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult
+    func deactivateLicense() async -> (success: Bool, error: String?)
+    /// Protocol requirements cannot carry default arguments, so the launch-retry
+    /// parameters are spelled out here; callers that don't care pass `false`/`nil`.
+    func validateLicense(
+        _ licenseKey: String,
+        isLaunchValidation: Bool,
+        expectedStoredLicenseKey: String?
+    ) async -> LicenseValidationResult
+    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult
+    func shouldRevalidateLicense() -> Bool
+    func getCachedLicenseStatus() -> LicenseStatus?
+    func getStoredLicenseKey() -> String?
+    func clearStoredLicense()
+}
+
 /// Handles license validation network operations.
 /// Stateless service - returns LicenseValidationResult for LicenseManager to process.
 /// Falls back to cached status on network errors (7-day grace period).
@@ -42,7 +59,26 @@ import Foundation
 /// `performWithRetry(.cloud / .licenseLaunchValidation)`, and Sentry — and
 /// delegates request building, response parsing, and persistence to the core
 /// over a shared `RustLicenseStore`.
-class LicenseNetworkService {
+class LicenseNetworkService: LicenseNetworkServing {
+
+    enum ValidationMode {
+        case stateful
+        case probe
+
+        var includesDeviceTracking: Bool { self == .stateful }
+        var persistsResult: Bool { self == .stateful }
+        var allowsOfflineFallback: Bool { self == .stateful }
+    }
+
+    private struct ProbeRequest: Encodable {
+        let licenseKey: String
+        let probeOnly = true
+
+        enum CodingKeys: String, CodingKey {
+            case licenseKey = "license_key"
+            case probeOnly = "probe_only"
+        }
+    }
 
     // MARK: - UserDefaults Keys
 
@@ -82,7 +118,7 @@ class LicenseNetworkService {
 
     /// Activates a license key by validating it and tracking the device.
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
-        return await validateLicense(licenseKey)
+        return await performValidation(licenseKey, mode: .stateful)
     }
 
     // MARK: - License Deactivation
@@ -117,6 +153,30 @@ class LicenseNetworkService {
         isLaunchValidation: Bool = false,
         expectedStoredLicenseKey: String? = nil
     ) async -> LicenseValidationResult {
+        return await performValidation(
+            licenseKey,
+            mode: .stateful,
+            isLaunchValidation: isLaunchValidation,
+            expectedStoredLicenseKey: expectedStoredLicenseKey
+        )
+    }
+
+    /// Checks a key without activating it on this Mac.
+    ///
+    /// Probe requests omit device identity, do not persist the key or validation
+    /// cache, and never substitute an existing key's offline cached result.
+    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        return await performValidation(licenseKey, mode: .probe)
+    }
+
+    /// - Parameter isLaunchValidation / expectedStoredLicenseKey: only meaningful
+    ///   in `.stateful` mode; a `.probe` never persists, so it never consults them.
+    private func performValidation(
+        _ licenseKey: String,
+        mode: ValidationMode,
+        isLaunchValidation: Bool = false,
+        expectedStoredLicenseKey: String? = nil
+    ) async -> LicenseValidationResult {
         let trimmedKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else {
             AppLogger.network.warning("License validation rejected: empty license key")
@@ -124,17 +184,35 @@ class LicenseNetworkService {
             return Self.adapt(licenseEmptyKeyOutcome())
         }
 
-        // Generate device identifier for tracking (kept native).
-        // This is used by the backend for fair usage policy monitoring.
-        let deviceId = DeviceIdentifierGenerator.generate()
-        let deviceName = ProcessInfo.processInfo.hostName
-
-        // Core builds the POST body (fixed field order, JSON-escaped, trimmed key).
-        let coreRequest = licenseBuildValidateRequest(
-            licenseKey: trimmedKey,
-            deviceId: deviceId,
-            deviceName: deviceName
-        )
+        let requestBody: Data
+        let contentType: String
+        if mode.includesDeviceTracking {
+            // Stateful validation identifies this Mac so the backend can enforce
+            // its fair-usage device policy.
+            let coreRequest = licenseBuildValidateRequest(
+                licenseKey: trimmedKey,
+                deviceId: DeviceIdentifierGenerator.generate(),
+                deviceName: ProcessInfo.processInfo.hostName
+            )
+            requestBody = coreRequest.body
+            contentType = coreRequest.contentType
+        } else {
+            // The backend treats device_id as optional and only records a device
+            // validation when it is present. Keep onboarding's Test action a
+            // lookup-only request.
+            guard let body = Self.makeProbeRequestBody(licenseKey: trimmedKey) else {
+                return LicenseValidationResult(
+                    isValid: false,
+                    status: .invalid,
+                    customerId: nil,
+                    customerEmail: nil,
+                    customerName: nil,
+                    errorMessage: "Invalid request configuration"
+                )
+            }
+            requestBody = body
+            contentType = "application/json"
+        }
 
         // Create the URLRequest shell natively (timeout, headers), then attach the
         // core-built body. `createRequest` defaults to POST + JSON content type,
@@ -165,8 +243,8 @@ class LicenseNetworkService {
                 errorMessage: "Invalid request configuration"
             )
         }
-        request.setValue(coreRequest.contentType, forHTTPHeaderField: "Content-Type")
-        request.httpBody = coreRequest.body
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.httpBody = requestBody
 
         do {
             return try await performWithRetry(config: policy.retryConfig) { [self] _ in
@@ -206,7 +284,10 @@ class LicenseNetworkService {
                 // Core parses the 200 body and maps it to a status/outcome.
                 let outcome = licenseParseValidateResponse(body: data)
 
-                // Persist the key + cache the result through the core's store.
+                // Persist the key + cache the result through the core's store —
+                // but only for explicit activation or background revalidation,
+                // never for an onboarding probe.
+                //
                 // The delayed launch retry additionally supplies the key that
                 // was current when it was scheduled. Check that precondition
                 // immediately before the side-effecting FFI call, on MainActor,
@@ -217,17 +298,19 @@ class LicenseNetworkService {
                 // The core still owns entitlement semantics: an Active verdict
                 // stores the key, while a rejected replacement cannot overwrite
                 // the current key's global cache.
-                let didPersist = await MainActor.run {
-                    Self.persistValidationVerdictIfCurrent(
-                        store: store,
-                        status: outcome.status,
-                        attemptedKey: trimmedKey,
-                        expectedStoredLicenseKey: expectedStoredLicenseKey,
-                        nowUnixSecs: RustLicenseTime.nowUTC(),
-                        isCancelled: withUnsafeCurrentTask { $0?.isCancelled ?? false }
-                    )
+                if mode.persistsResult {
+                    let didPersist = await MainActor.run {
+                        Self.persistValidationVerdictIfCurrent(
+                            store: store,
+                            status: outcome.status,
+                            attemptedKey: trimmedKey,
+                            expectedStoredLicenseKey: expectedStoredLicenseKey,
+                            nowUnixSecs: RustLicenseTime.nowUTC(),
+                            isCancelled: withUnsafeCurrentTask { $0?.isCancelled ?? false }
+                        )
+                    }
+                    guard didPersist else { throw CancellationError() }
                 }
-                guard didPersist else { throw CancellationError() }
                 AppLogger.network.info("License validation · status=\(Self.adapt(outcome.status).rawValue)")
 
                 return Self.adapt(outcome)
@@ -242,6 +325,17 @@ class LicenseNetworkService {
                 errorMessage: "Validation cancelled"
             )
         } catch {
+            guard mode.allowsOfflineFallback else {
+                return LicenseValidationResult(
+                    isValid: false,
+                    status: .invalid,
+                    customerId: nil,
+                    customerEmail: nil,
+                    customerName: nil,
+                    errorMessage: "Unable to verify license while offline"
+                )
+            }
+
             // Retries exhausted. The cached offline-grace status is only valid for
             // the SAME license key it was cached under. If the user is validating a
             // DIFFERENT key (or there is no stored key yet), reporting the cached
@@ -366,6 +460,10 @@ class LicenseNetworkService {
             // is unlikely to help). HYPERWHISPER-F4 (review round 2).
             return Self.adapt(outcome, networkFailureFallback: isNetworkFailure)
         }
+    }
+
+    static func makeProbeRequestBody(licenseKey: String) -> Data? {
+        try? JSONEncoder().encode(ProbeRequest(licenseKey: licenseKey))
     }
 
     // MARK: - Cache Management (delegated to the Rust core)

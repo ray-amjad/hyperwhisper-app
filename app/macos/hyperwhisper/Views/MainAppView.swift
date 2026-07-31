@@ -30,7 +30,9 @@ struct MainAppView: View {
     @EnvironmentObject var settingsManager: SettingsManager
     @EnvironmentObject var licenseManager: LicenseManager
     @EnvironmentObject var whisperModelManager: WhisperModelManager
-    
+    @EnvironmentObject var parakeetModelManager: ParakeetModelManager
+    @EnvironmentObject var cloudProviderHealthManager: CloudProviderHealthManager
+
     // MARK: - State
     
     /// Search text for filtering (if needed)
@@ -196,7 +198,9 @@ struct MainAppView: View {
                 .environmentObject(transcriptionPipeline)
                 .environmentObject(settingsManager)
                 .environmentObject(whisperModelManager)
+                .environmentObject(parakeetModelManager)
                 .environmentObject(licenseManager)
+                .environmentObject(cloudProviderHealthManager)
                 .interactiveDismissDisabled() // Prevent accidental dismissal
         }
     }
@@ -931,6 +935,10 @@ struct MenuBarItems: View {
         .environmentObject(AudioRecordingManager())
         .environmentObject(TranscriptionPipeline())
         .environmentObject(SettingsManager())
+        .environmentObject(LicenseManager())
+        .environmentObject(WhisperModelManager())
+        .environmentObject(ParakeetModelManager())
+        .environmentObject(CloudProviderHealthManager())
         .frame(width: 1000, height: 700)
 }
 

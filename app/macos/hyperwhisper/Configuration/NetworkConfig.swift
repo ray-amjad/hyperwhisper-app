@@ -28,7 +28,8 @@ struct NetworkConfig {
 
     /// License validation endpoint
     /// POST /api/license/validate
-    /// Body: { license_key: string, device_id: string, device_name: string }
+    /// Body: { license_key: string, device_id?: string, device_name?: string,
+    ///         probe_only?: boolean }
     /// Response: { valid: boolean, error?: string }
     ///
     /// Device tracking for fair usage policy happens automatically when

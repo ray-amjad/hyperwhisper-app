@@ -72,6 +72,7 @@ extension RecordingTranscriptionFlow {
         defer {
             currentRecordingAttemptId = nil
             currentRecordingTriggerSource = .unknown
+            sessionStartedWithTextDeliverySuppressed = false
             // Quick Capture context lives for one session — clear it now so the
             // next non-QC recording doesn't accidentally re-route to Notes.
             quickCaptureContext = nil
@@ -291,7 +292,7 @@ extension RecordingTranscriptionFlow {
             }
             await MainActor.run {
                 appState?.recordingState = .idle
-                appState?.lastTranscription = "Error: Audio file could not be read"
+                appState?.lastTranscription = "Error: \("audio.error.readFile".localized)"
                 appState?.pendingRetryAudioPath = audioURL.path
                 appState?.showRecordingDialog = true
                 KeyboardShortcuts.disable(.cancelRecording)
@@ -424,10 +425,36 @@ extension RecordingTranscriptionFlow {
                 // `pasteResultText` setting. The user opted in by binding a
                 // dedicated shortcut and toggling the feature on.
                 let isQuickCaptureRouting = (quickCaptureContext != nil)
-                let shouldDeliverText = isQuickCaptureRouting
-                    || (settingsManager?.pasteResultText ?? false)
 
-                if shouldDeliverText, let settings = settingsManager {
+                // ONBOARDING: the transcript is surfaced inline in the onboarding
+                // window only and must NEVER paste into another app, regardless of
+                // the user's global `pasteResultText` setting. The delivery primitives
+                // themselves refuse to emit while the gate is suppressed, but we ALSO
+                // skip at the caller here: if we let `handleAutoPaste` reach the guarded
+                // `sendPasteCommand`, it returns false and the failure branch would pop
+                // the recording dialog *behind* the onboarding sheet. So the batch
+                // caller must not enter delivery at all. `TextDeliveryGate.isSuppressed`
+                // tracks the onboarding sheet's lifetime; the explicit `.onboarding`
+                // trigger term is belt-and-suspenders. `lastTranscription` was already
+                // set above (line ~467), which the onboarding view observes to render
+                // "You said …".
+                let suppressForOnboarding = RecordingTextDeliveryPolicy.shouldSuppress(
+                    sessionStartedSuppressed: sessionStartedWithTextDeliverySuppressed,
+                    currentlySuppressed: TextDeliveryGate.isSuppressed,
+                    trigger: RecordingTriggerSource(rawValue: trigger) ?? .unknown
+                )
+                let shouldDeliverText = !suppressForOnboarding
+                    && (isQuickCaptureRouting
+                        || (settingsManager?.pasteResultText ?? false))
+
+                if suppressForOnboarding {
+                    // The onboarding view owns this result. Do not misclassify
+                    // intentional suppression as a paste failure or leave the
+                    // floating recording dialog open behind the onboarding sheet.
+                    appState?.transcriptionPasteFailed = false
+                    appState?.showRecordingDialog = false
+                    appState?.isStreamingShortcutTriggered = false
+                } else if shouldDeliverText, let settings = settingsManager {
                     var processedText = transcriptionResult.text
 
                     // REMOVE TRAILING PERIOD:

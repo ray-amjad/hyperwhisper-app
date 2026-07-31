@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  upsertDeviceValidation,
-  getCreditBalance,
-} from "@/src/lib/db-layer";
-import { checkLicenseKey } from "@/src/lib/license-validation";
+import { upsertDeviceValidation, getCreditBalance } from "@/src/lib/db-layer";
+import { checkLicenseKey, probeLicenseKey } from "@/src/lib/license-validation";
 import { licenseValidateRateLimiter } from "@/lib/rate-limit";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 
@@ -44,7 +41,7 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 async function trackDeviceValidation(
   licenseKeyId: string,
   deviceId: string,
-  deviceName?: string
+  deviceName?: string,
 ): Promise<void> {
   try {
     await upsertDeviceValidation(licenseKeyId, deviceId, deviceName);
@@ -64,7 +61,7 @@ export async function POST(req: NextRequest) {
   if (!success) {
     return NextResponse.json(
       { valid: false, error: "Too many requests. Please try again later." },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -74,33 +71,45 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { valid: false, error: "Invalid request body" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  const { license_key, include_credits, device_id, device_name } =
+  const { license_key, include_credits, device_id, device_name, probe_only } =
     (body ?? {}) as {
       license_key?: string;
       include_credits?: boolean;
       device_id?: string;
       device_name?: string;
+      probe_only?: boolean;
     };
 
   if (!license_key) {
     return NextResponse.json(
       { valid: false, error: "License key is required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   try {
+    if (probe_only === true) {
+      const result = await probeLicenseKey(license_key);
+      if (!result.valid) {
+        return NextResponse.json(
+          { valid: false, error: result.error },
+          { status: result.status },
+        );
+      }
+      return NextResponse.json({ valid: true });
+    }
+
     // Lookup in database, with Polar fallback + status check
     const result = await checkLicenseKey(license_key);
 
     if (!result.valid) {
       return NextResponse.json(
         { valid: false, error: result.error },
-        { status: result.status }
+        { status: result.status },
       );
     }
 
@@ -128,8 +137,11 @@ export async function POST(req: NextRequest) {
     console.error("License validation error:", error);
 
     return NextResponse.json(
-      { valid: false, error: "Failed to validate license. Please try again later." },
-      { status: 500 }
+      {
+        valid: false,
+        error: "Failed to validate license. Please try again later.",
+      },
+      { status: 500 },
     );
   }
 }

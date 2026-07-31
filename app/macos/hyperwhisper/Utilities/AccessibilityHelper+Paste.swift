@@ -22,6 +22,11 @@ extension AccessibilityHelper {
     func sendPasteCommand(allowBlindPaste: Bool = false) -> Bool {
         logger.info("📋 Attempting to send paste command (⌘V)...")
 
+        guard !TextDeliveryGate.isSuppressed else {
+            logger.info("🚫 sendPasteCommand suppressed by TextDeliveryGate")
+            return false
+        }
+
         guard AXIsProcessTrusted() else {
             logger.error("❌ No accessibility permission - cannot paste")
             return false
