@@ -263,7 +263,14 @@ extension TranscriptionPipeline {
                 // Honor dictated break commands ("new line" / "new paragraph")
                 // in the batch path too — they were streaming-only, so with AI
                 // post-processing off they were silently dropped (issue #1).
-                finalText = TranscriptionTextProcessing.processVoiceCommands(withoutFillers)
+                let withCommands = TranscriptionTextProcessing.processVoiceCommands(withoutFillers)
+                // Vocabulary replacements are the user's own spelling corrections and
+                // are independent of any AI step, so they must apply here too (issue
+                // #80). Applied last, mirroring the two post-processing branches
+                // above; deliberately not hoisted out of the if/else, because those
+                // branches would then run replacements twice and pairs aren't
+                // guaranteed idempotent when one entry's output is another's input.
+                finalText = vocabularyProcessor.applyVocabularyReplacements(withCommands, mode: mode)
             }
 
             markStage("cache_result")
