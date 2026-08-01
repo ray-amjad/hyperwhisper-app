@@ -160,7 +160,7 @@ The file is deleted when the server stops cleanly. If HyperWhisper is force-quit
 | GET | `/modes/{id}` | Required | Fetch one Mode. |
 | PATCH | `/modes/{id}` | Required | Partial-field update. |
 | DELETE | `/modes/{id}` | Required | Delete a Mode. |
-| POST | `/transcribe` | Required | Transcribe an audio file. |
+| POST | `/transcribe` | Required | Transcribe an audio file. When passing a `file` path (as opposed to `audio_base64`), it must resolve inside your recordings folder — other paths are rejected. |
 | POST | `/post-process` | Required | Rewrite text via preset or custom prompt. |
 | GET | `/recordings/search` | Required | Substring search across past transcripts. |
 | GET | `/recordings/{id}` | Required | Single transcript row. |

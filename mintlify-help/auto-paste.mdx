@@ -45,6 +45,7 @@ If permission is missing, the app shows a banner on the Home screen and an Acces
 - Confirm the foreground app accepts paste (try Notes or TextEdit).
 - Check the in-app logs for Accessibility actions if paste is blocked.
 - Temporarily disable clipboard managers that might overwrite the restored entry.
+- **macOS only:** if the app you were dictating into quit mid-recording (or a new app happened to reuse its process ID before the paste fired), HyperWhisper refuses to auto-paste as a confidentiality guard against pasting into the wrong window. Your transcript stays on the clipboard, but no message is shown — paste it manually with **⌘V**.
 
 <Tip>
   Looking for global hotkeys and permissions? See **Keyboard Shortcuts & Accessibility**.

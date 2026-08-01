@@ -32,7 +32,7 @@ If you're using **HyperWhisper Cloud** (the default, built-in transcription serv
 - `https://transcribe-prod-v2.hyperwhisper.com/usage` - Credit balance queries
 
 <Tip>
-HyperWhisper Cloud requires no API key and is the recommended option for most users. It uses a credit-based system with generous trial credits and affordable licensed pricing.
+HyperWhisper Cloud requires no API key and is the recommended option for most users. It uses a prepaid credit-based system with affordable pricing — there's no free trial or anonymous usage; see [Cloud Credits](/cloud-credits).
 </Tip>
 
 ## Model Downloads
@@ -326,7 +326,7 @@ If curl commands succeed but HyperWhisper still fails, SSL inspection is likely 
 1. **API Keys**: Stored securely in macOS Keychain, never sent to HyperWhisper servers
 2. **License Keys**: Only sent to `hyperwhisper.com` for validation (encrypted via HTTPS) 
 3. **Audio Data**:
-   - **HyperWhisper Cloud**: Sent to `transcribe-prod-v2.hyperwhisper.com` (Fly.io edge network, processed in-memory, never stored on disk)
+   - **HyperWhisper Cloud**: Sent to `transcribe-prod-v2.hyperwhisper.com` (Fly.io edge network, processed in-memory and never stored on disk — with one exception: larger Google Chirp 3 requests briefly touch a scratch bucket that's deleted immediately after, see [Data Privacy](/data-privacy))
    - **Third-party providers**: Sent directly to their APIs (xAI Grok, OpenAI, Groq, Deepgram, etc.) - subject to their privacy policies
    - **Local models**: Never leaves your device - completely offline and private
 

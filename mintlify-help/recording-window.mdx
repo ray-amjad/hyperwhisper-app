@@ -98,6 +98,7 @@ The mode badge also behaves differently once a streaming session is active: on m
     | Request cancellation | Press **Escape** |
     | Confirm cancellation (if prompted) | Press **Return** or click **Yes** |
     | Dismiss cancellation prompt | Press **Escape** again or click **No** |
+    | Move the window | Click and drag anywhere on the window body |
   </Tab>
   <Tab title="Windows">
     | Action | How |
@@ -150,8 +151,9 @@ If the waveform is flat or barely moving while you are speaking, check that the 
 <Tabs>
   <Tab title="macOS">
     - Floats above all other windows without stealing focus
+    - Draggable; your last position is saved and restored on the next recording
+    - Defaults to the bottom center of the screen if no saved position exists, or if the saved position is no longer on screen
     - Closes automatically after the success or error state resolves
-    - Your last position is saved and restored on the next recording
   </Tab>
   <Tab title="Windows">
     - Always on top; never activates (doesn't pull focus from your work)

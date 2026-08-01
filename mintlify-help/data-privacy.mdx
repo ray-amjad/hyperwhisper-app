@@ -21,6 +21,10 @@ If you want zero risk of your audio being used for training, use **local transcr
 
 When you use HyperWhisper Cloud, we forward your audio to a backing speech-to-text provider, and your transcribed text to a backing LLM for post-processing. We don't store your audio on HyperWhisper's own servers — it's processed in memory at the edge and discarded after the response is returned.
 
+<Note>
+  One exception: for **Google Chirp 3**, audio larger than ~9.5 MB (or longer than ~55 seconds) can't be sent inline and is briefly uploaded to a scratch bucket for Google's batch transcription API. The scratch object is always deleted immediately after the transcription completes, including on error paths, but it does briefly touch disk-backed storage rather than staying in memory only.
+</Note>
+
 **We apply the strongest data-protection control each provider offers**, so your audio isn't used to train their models:
 
 - Where a provider has a per-request no-train / no-store flag, we set it on every call (for example, Deepgram's `mip_opt_out`).

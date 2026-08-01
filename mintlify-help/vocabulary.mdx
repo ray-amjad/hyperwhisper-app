@@ -38,20 +38,22 @@ Vocabulary entries work in three distinct ways depending on their type and the t
 
 Entries without a replacement are submitted as keyword hints to cloud providers that support them. This nudges the model toward the correct spelling without rewriting anything in the output.
 
-- **Deepgram** — sent as keyword boosting parameters (up to 100 terms, and terms longer than 50 characters are dropped; a warning appears if you exceed the term limit).
+- **Deepgram** — sent as keyword boosting parameters (no cap on the number of terms; each term is truncated to 80 characters, not dropped). The app shows a warning banner once your list passes 100 entries, since that's the point Deepgram's own docs recommend staying under, but entries beyond 100 are still sent.
 - **OpenAI Whisper, Soniox** — sent as prompt vocabulary terms.
-- **HyperWhisper Cloud** — sent as prompt vocabulary terms; silently capped at 100 terms with no warning shown if you exceed it.
+- **HyperWhisper Cloud** — sent as prompt vocabulary terms; capped at 100 terms server-side (extra terms are silently dropped). The same 100-entry warning banner mentioned above applies here too.
 - **Gemini** — sent as free text embedded in a natural-language prompt instruction, the same mechanism as OpenAI and HyperWhisper Cloud's prompt vocabulary.
-- **ElevenLabs** — sent as repeated `keyterms` multipart form fields (Scribe v2 only; capped at 100 terms, terms longer than 50 characters or 5 words are dropped; Scribe v1 does not support vocabulary).
+- **ElevenLabs** — sent as repeated `keyterms` multipart form fields (Scribe v2 only; capped at 100 terms, terms longer than 50 characters are dropped; Scribe v1 does not support vocabulary).
 - **AssemblyAI** — sent as key-term context (up to 200 terms; phrases longer than 6 words are dropped).
-- **Mistral** — sent as a structured `context_bias` field (up to 100 terms, each 80 characters or fewer).
 - **Grok STT** — does not support custom vocabulary hints; entries are acknowledged but not forwarded.
+- **Mistral (BYOK)** — Voxtral does not support custom vocabulary; entries are acknowledged but not forwarded, regardless of what's typed. (HyperWhisper Cloud's own internal routing to Mistral is a separate, server-side mechanism and isn't affected by this.)
 
 <Note>
   Deepgram vocabulary boosting silently no-ops if the mode's language is set to **Auto** — Nova-3 ignores keyword boosting parameters when language auto-detection is enabled. Set an explicit language on the mode for boosting to actually apply.
 </Note>
 
 For **local models on both platforms** — Parakeet on macOS and Windows, and Nemotron on macOS and Windows — entries without replacements are matched phonetically using the Beider-Morse algorithm (via the shared Rust core). Words of two characters or fewer are excluded to avoid false positives.
+
+On **macOS**, two additional local engines also use vocabulary: local Whisper passes your entries as an `initial_prompt` hint, and Apple Speech Analyzer passes them as native `contextualStrings` biasing.
 
 ### Text replacements
 

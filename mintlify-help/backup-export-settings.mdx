@@ -55,7 +55,7 @@ HyperWhisper can export your configuration to a file and import it back later â€
 
 ## Importing a backup
 
-Vocabulary import is **merge-only**: existing words are never wiped, only added to or updated (see [Vocabulary merge behavior](#vocabulary-merge-behavior) below). Mode import works differently: if an incoming mode has the same name as one you already have, the existing mode is deleted and replaced by the version from the file; modes with new names are simply added alongside your existing ones. Only sections present in the chosen file can be restored, and you can deselect any of them before committing.
+Vocabulary import is **merge-only**: existing words are never wiped, only added to or updated (see [Vocabulary merge behavior](#vocabulary-merge-behavior) below). Mode import behavior differs by platform: on **macOS**, if an incoming mode has the same name as one you already have, the existing mode is deleted and replaced by the version from the file. On **Windows**, modes are matched and upserted by their internal ID rather than name, so two independently-created modes that happen to share a name are not merged â€” you'll end up with both. Modes with names/IDs not already present are simply added alongside your existing ones. Only sections present in the chosen file can be restored, and you can deselect any of them before committing.
 
 <Tabs>
   <Tab title="macOS">
