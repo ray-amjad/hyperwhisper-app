@@ -20,8 +20,8 @@ You do not need to install the bridge globally. `npx -y @hyperwhisper/mcp` fetch
 | `health` | Confirms HyperWhisper is running. No auth required. |
 | `list_models` | Catalog of voice and post-processing models. |
 | `list_modes` | Saved transcription Modes. |
-| `transcribe` | Transcribes an absolute path to an audio file. Optionally writes the transcript straight to a file (`output_path`) and returns only a confirmation — keeps long transcripts out of the agent's context. Also accepts `mode_id`, an `engine`/`model` override, `language`, `timestamp_granularities`, and `post_process_preset`/`post_process_prompt` to clean up the result in the same call. |
-| `post_process` | Rewrites text with a preset (`hyper`, `message`, `mail`, `note`, `meeting`, `code`, `custom`, `prompt`) or a free-form prompt. Accepts optional `provider`/`model` overrides to bypass your default post-processing settings for a single call. |
+| `transcribe` | Transcribes an absolute path to an audio file, which must be inside your recordings folder (see note below). Optionally writes the transcript straight to a file (`output_path`) and returns only a confirmation — keeps long transcripts out of the agent's context. Also accepts `mode_id`, an `engine`/`model` override, `language`, `timestamp_granularities`, and `post_process_preset`/`post_process_prompt` to clean up the result in the same call — passing either of these without `output_path` fails with `INVALID_REQUEST`. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or a free-form `prompt` — mutually exclusive with each other. Accepts optional `provider`/`model` overrides to bypass your default post-processing settings for a single call. |
 | `search_recordings` | Substring search across past transcripts. Accepts optional `since`, `until`, and `limit` filters. |
 | `get_recording` | Single transcript row by ID. |
 
@@ -74,10 +74,14 @@ In a new session, `/mcp` lists `hyperwhisper` with its tools.
 Open a fresh agent session and ask:
 
 ```text
-Use hyperwhisper to transcribe /Users/me/Desktop/test.wav
+Use hyperwhisper to transcribe a file in my recordings folder
 ```
 
 The agent should call the `transcribe` tool and return the text inline. If you do not have a sample, `Ask hyperwhisper to run a health check` is enough — the agent should call `health` and report the app version.
+
+<Note>
+  `transcribe` only reads files inside your HyperWhisper recordings folder — an arbitrary path like `/Users/me/Desktop/test.wav` is rejected (`FILE_ACCESS_DENIED` on macOS, `FILE_NOT_ALLOWED` on Windows). Point the agent at a file already saved by HyperWhisper (see [History](/history)), or an audio file you've copied into that folder.
+</Note>
 
 ## Write transcripts to a file
 
@@ -93,7 +97,7 @@ The agent sets `output_path` (and optionally `post_process_preset` or `post_proc
 
 **`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper, then toggle **Settings → Local API** on. Re-run the agent prompt.
 
-**`INVALID_REQUEST`** (HTTP 401) — the bearer token in the discovery file no longer matches what the server expects. This usually happens after **Regenerate token** in Settings. The bridge re-reads the file on every request, so the next agent call should succeed.
+**`INVALID_REQUEST`** — a generic bad-request code, most commonly seen as an HTTP 401 when the bearer token in the discovery file no longer matches what the server expects (usually after **Regenerate token** in Settings — the bridge re-reads the file on every request, so the next agent call should succeed). It's also returned for malformed calls, such as a missing required field or passing `post_process_preset`/`post_process_prompt` to `transcribe` without `output_path`.
 
 **Connection refused** — the port in the discovery file is stale (the app was force-killed before it could clean up). Toggle the **Local API** switch off and back on to write a fresh `local-api.json`.
 

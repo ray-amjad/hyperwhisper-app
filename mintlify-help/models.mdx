@@ -52,26 +52,26 @@ These run locally with no network calls. Once downloaded (where applicable) they
 
 OpenAI's general-purpose multilingual models. The **VRAM** values are the recommended GPU memory for full acceleration — with less, the model still runs on CPU (or partial GPU), just slower.
 
-| Model | Size (Windows) | Recommended VRAM | Languages | Best for |
-| --- | --- | --- | --- | --- |
-| Tiny | ~69 MB (macOS) / ~78 MB (Windows) | ~1 GB | Multilingual | Lowest-end machines, quick drafts |
-| Tiny (English) | ~69 MB (macOS) / ~78 MB (Windows) | ~1 GB | English only | Same as Tiny, slightly better English |
-| Base | 148 MB | ~1 GB | Multilingual | Light hardware, basic dictation |
-| Base (English) | 148 MB | ~1 GB | English only | Same as Base, slightly better English |
-| **Small** | **488 MB** | **~2 GB** | **Multilingual** | **Best balance for most users** |
-| Small (English) | 488 MB | ~2 GB | English only | Same as Small, slightly better English |
-| Medium | 1.5 GB | ~5 GB | Multilingual | Higher accuracy, mid-range GPUs |
-| Medium (English) | 1.5 GB | ~5 GB | English only | Same as Medium, slightly better English |
-| Large v3 Turbo | 1.5 GB (Windows) / ~809 MB (macOS) | ~6 GB | Multilingual | Near-Large accuracy, much faster |
-| Large v2 | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (older) |
-| Large v3 | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (latest) |
+| Model | Size (macOS) | Size (Windows) | Recommended VRAM | Languages | Best for |
+| --- | --- | --- | --- | --- | --- |
+| Tiny | 39 MB | 78 MB | ~1 GB | Multilingual | Lowest-end machines, quick drafts |
+| Tiny (English) | 39 MB | 78 MB | ~1 GB | English only | Same as Tiny, slightly better English |
+| Base | 142 MB | 148 MB | ~1 GB | Multilingual | Light hardware, basic dictation |
+| Base (English) | 142 MB | 148 MB | ~1 GB | English only | Same as Base, slightly better English |
+| **Small** | **466 MB** | **488 MB** | **~2 GB** | **Multilingual** | **Best balance for most users** |
+| Small (English) | 466 MB | 488 MB | ~2 GB | English only | Same as Small, slightly better English |
+| Medium | 1.5 GB | 1.5 GB | ~5 GB | Multilingual | Higher accuracy, mid-range GPUs |
+| Medium (English) | 1.5 GB | 1.5 GB | ~5 GB | English only | Same as Medium, slightly better English |
+| Large v3 Turbo | 809 MB | 1.5 GB | ~6 GB | Multilingual | Near-Large accuracy, much faster |
+| Large v2 | 2.9 GB | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (older) |
+| Large v3 | 3.1 GB | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (latest) |
 
 <Tip>
   English-only variants (`.en`) use the same architecture trained only on English data. If you only ever dictate in English, they're slightly more accurate at the same size — but you lose multilingual support entirely.
 </Tip>
 
 <Note>
-  Except where noted above, the sizes in this table are Windows values. macOS builds of the same models are meaningfully smaller (for example, Large v3 Turbo is ~809 MB on macOS vs. 1.5 GB on Windows) — check the exact download size for your platform in **Model Library** before downloading.
+  macOS builds of most Whisper models are somewhat smaller than the Windows builds of the same model (for example, Large v3 Turbo is 809 MB on macOS vs. 1.5 GB on Windows) — check the exact download size for your platform in **Model Library** before downloading.
 </Note>
 
 ### NVIDIA Parakeet models
@@ -127,16 +127,15 @@ Not sure which local model handles your language? This table maps the common use
 
 ## HyperWhisper Cloud
 
-HyperWhisper Cloud is built-in — no API key, no separate account. It routes to best-in-class providers behind four featured accuracy tiers with automatic failover, and **you only pay for actual speech** (silence and empty recordings cost 0 credits). Use it when you want the highest accuracy without any setup.
+HyperWhisper Cloud is built-in — no API key, no separate account. It routes to best-in-class providers across three accuracy tiers, and **you only pay for actual speech** (silence and empty recordings cost 0 credits). Use it when you want the highest accuracy without any setup.
 
 | Tier | Powered by | Best for |
 | --- | --- | --- |
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
-| **High** | Grok STT (xAI) | Solid multilingual accuracy at low cost |
-| **Medium** | Deepgram Nova-3 | Strong English accuracy, low latency |
-| **Fast** | Groq Whisper Large v3 Turbo | Sub-second latency for English & major European languages |
+| **High** | Grok STT (xAI), Microsoft MAI-Transcribe, Google Chirp 3 | Solid multilingual accuracy at low cost |
+| **Medium** | Deepgram Nova-3, Groq Whisper Large v3 Turbo | Strong English accuracy; Groq adds sub-second latency |
 
-These four are the featured picks with automatic failover to a backup provider. HyperWhisper Cloud actually offers all 11 supported providers (also including Soniox, Azure MAI-Transcribe, Google Chirp 3, OpenAI, AssemblyAI, Mistral Voxtral, and Gemini) selectable with no key required — providers outside the featured four don't get automatic failover. See [Providers](/choosing-a-provider) for pricing, cost examples, and per-language guidance.
+Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. HyperWhisper Cloud actually offers all 11 supported providers (also including Soniox, OpenAI, AssemblyAI, Mistral Voxtral, and Gemini) selectable with no key required — providers outside those four don't get automatic failover. See [Providers](/choosing-a-provider) for pricing, cost examples, and per-language guidance.
 
 ## Bring your own key
 

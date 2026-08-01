@@ -75,7 +75,7 @@ arrives as `ok:false` with a machine-readable code.
 | GET | `/modes/{id}` | Fetch one Mode. |
 | PATCH | `/modes/{id}` | Partial-field update. |
 | DELETE | `/modes/{id}` | Delete Mode (refuses to delete the last one). |
-| POST | `/transcribe` | File path or `audio_base64`. Drive by `mode_id`, by `engine`+`model`, or mix. |
+| POST | `/transcribe` | File path (must resolve inside your recordings folder) or `audio_base64`. Drive by `mode_id`, by `engine`+`model`, or mix. |
 | POST | `/post-process` | Rewrite text via preset or free-form prompt. |
 | GET | `/recordings/search?q=&since=&until=&limit=` | Substring search across past transcripts. |
 | GET | `/recordings/{id}` | Single transcript row. |

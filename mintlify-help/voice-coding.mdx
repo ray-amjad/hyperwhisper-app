@@ -14,7 +14,7 @@ This page covers the full picture. Deep-dive reference for individual features i
 - Node.js 18 or newer is on your `PATH` (`node --version` should print a version number). The `npx` command ships with Node.
 
 <Note>
-  The MCP bridge is a macOS feature. iOS does not currently support editor integrations.
+  The MCP bridge works on both macOS and Windows — both apps write the discovery file it reads. iOS does not currently support editor integrations.
 </Note>
 
 ---
@@ -31,7 +31,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 | `list_models` | Returns the catalog of available voice and post-processing models. |
 | `list_modes` | Lists your saved transcription Modes. |
 | `transcribe` | Transcribes an absolute path to an audio file. |
-| `post_process` | Rewrites text with a preset (`hyper`, `message`, `mail`, `note`, `meeting`, `code`, `custom`) or a free-form instruction passed via the `prompt` field. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or a free-form instruction passed via the `prompt` field. |
 | `search_recordings` | Substring search across past transcripts. |
 | `get_recording` | Retrieves a single transcript row by ID. |
 
@@ -55,7 +55,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
     Restart Cursor. The server should appear under **Settings → MCP**.
   </Tab>
   <Tab title="Claude Desktop">
-    Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+    Edit the config file — `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows:
 
     ```json
     {
