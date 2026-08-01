@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/trpc/client";
+import { formatDate } from "@/lib/format-date";
 
 /**
  * Credit History Card
@@ -15,13 +16,6 @@ export default function CreditHistoryCard() {
   // Hide the card entirely when there's nothing to show (no purchases yet).
   if (isLoading || error) return null;
   if (!data || data.grants.length === 0) return null;
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
 
   return (
     <div className="bg-white/5 rounded-xl border border-white/10 p-5">
