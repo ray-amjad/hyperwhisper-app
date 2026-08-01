@@ -690,20 +690,6 @@ class FileTranscriptionFlow {
         }
     }
 
-    /// Formats a file size in bytes to a human-readable string
-    ///
-    /// - Parameter bytes: File size in bytes
-    /// - Returns: Formatted string (e.g., "25 MB", "1.5 GB")
-    private func formatFileSize(_ bytes: Int64) -> String {
-        if bytes >= 1024 * 1024 * 1024 {
-            let gb = Double(bytes) / (1024.0 * 1024.0 * 1024.0)
-            return String(format: "%.1f GB", gb)
-        } else {
-            let mb = bytes / (1024 * 1024)
-            return "\(mb) MB"
-        }
-    }
-
     /// Checks if a URL points to a video file type that requires audio extraction
     ///
     /// **Purpose:**

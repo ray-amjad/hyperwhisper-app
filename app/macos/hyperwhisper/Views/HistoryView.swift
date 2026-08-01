@@ -956,12 +956,6 @@ private struct TranscriptRow: View {
         item.isFailed
     }
 
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return "history.duration.format".localized(arguments: minutes, seconds)
-    }
-
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
@@ -1681,13 +1675,7 @@ private struct TranscriptDetailView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return "history.duration.format".localized(arguments: minutes, seconds)
-    }
-    
+
     private func copyToClipboard() {
         // COPY CURRENT VIEW:
         // Copy the text that's currently being displayed
