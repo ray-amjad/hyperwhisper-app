@@ -43,4 +43,3 @@ export const blogPosts = pgTable(
 );
 
 export type BlogPostRow = typeof blogPosts.$inferSelect;
-export type NewBlogPostRow = typeof blogPosts.$inferInsert;
