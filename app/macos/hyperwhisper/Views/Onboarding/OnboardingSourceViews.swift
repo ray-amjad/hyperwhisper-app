@@ -2,21 +2,26 @@
 //  OnboardingSourceViews.swift
 //  hyperwhisper
 //
-//  "Choose your transcription source" onboarding screens.
-//  Splits the three-card picker + per-source Configure/Setup views out of
-//  OnboardingView so the step machine there stays readable. Each card drives
-//  the app's EXISTING managers (WhisperModelManager / LicenseManager /
-//  APIKeySettingsManager) — no new backend logic. The final choice is applied
-//  to the default Mode by OnboardingView at completion.
+//  The four branching onboarding screens, in the "Focused Task" design:
+//  choose a source, configure it, set it up, then check the microphone.
+//  Configure and Setup each fork three ways (HyperWhisper Cloud / on this Mac /
+//  your own API key), so these four screens cover eight of the flow's twelve
+//  states.
+//
+//  Every card drives the app's EXISTING managers through the flow model's narrow
+//  seams. No state, no policy, and no side effects live here: the views render
+//  and forward intent, and the single write path to production state stays in
+//  `OnboardingFlowModel` + `OnboardingLiveDependencies`.
 //
 
+import AppKit
 import SwiftUI
 
 // MARK: - Onboarding model selection
 
 /// One curated on-device model offered during onboarding. Deliberately spans
 /// BOTH local engines (Whisper + Parakeet) behind a single identity so that:
-///   • step 4 downloads via the correct manager, and
+///   • the setup step downloads via the correct manager, and
 ///   • the default Mode's `model` field is set to exactly the string the
 ///     transcription router expects (`TranscriptionProviderRouter` keys off the
 ///     `parakeet-tdt-` prefix to pick the engine).
@@ -86,983 +91,780 @@ struct OnboardingModelSelection: Identifiable, Equatable {
     }
 }
 
-/// Five-bar speed/accuracy gauge, mirroring `ModelRow.gaugeBar(rating:)` (which
-/// is private to that view). Kept standalone so onboarding can tint speed and
-/// accuracy differently, as in the redesign mockup.
-struct OnboardingGaugeBar: View {
-    let rating: Int
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 3) {
-            ForEach(0..<5, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(i < rating ? color : Color.primary.opacity(0.12))
-                    .frame(width: 12, height: 4)
-            }
-        }
-    }
-}
-
 // MARK: - Source metadata
 
-/// Presentation spec for one source card. Copy mirrors the validated
-/// "Three Cards" prototype (On-Device / HyperWhisper Cloud / Your API Key).
-struct OnboardingSourceSpec {
+/// Presentation spec for one source option. In the Focused Task design each
+/// source is a single row sized card, so the decision reads as three doors
+/// rather than a wall of feature bullets.
+struct OnboardingSourceSpec: Identifiable {
     let source: TranscriptionSource
-    let icon: String
-    let tint: Color
-    let badgeKey: String
+    let symbol: String
     let titleKey: String
     let descriptionKey: String
-    let featureKeys: [String]
 
+    var id: String { source.rawValue }
+
+    /// HyperWhisper Cloud is offered first: it is the fastest path to a working
+    /// first recording. Entitlement for it is enforced server side.
     static let all: [OnboardingSourceSpec] = [
         OnboardingSourceSpec(
-            source: .onDevice,
-            icon: "cpu",
-            tint: .green,
-            badgeKey: "onboarding.source.onDevice.badge",
-            titleKey: "onboarding.source.onDevice.title",
-            descriptionKey: "onboarding.source.onDevice.description",
-            featureKeys: [
-                "onboarding.source.onDevice.feature1",
-                "onboarding.source.onDevice.feature2",
-                "onboarding.source.onDevice.feature3"
-            ]
+            source: .hyperwhisperCloud,
+            symbol: "cloud",
+            titleKey: "onboarding.source.cloud.title",
+            descriptionKey: "onboarding.source.cloud.description"
         ),
         OnboardingSourceSpec(
-            source: .hyperwhisperCloud,
-            icon: "icloud.fill",
-            tint: .accentColor,
-            badgeKey: "onboarding.source.cloud.badge",
-            titleKey: "onboarding.source.cloud.title",
-            descriptionKey: "onboarding.source.cloud.description",
-            featureKeys: [
-                "onboarding.source.cloud.feature1",
-                "onboarding.source.cloud.feature2",
-                "onboarding.source.cloud.feature3"
-            ]
+            source: .onDevice,
+            symbol: "laptopcomputer",
+            titleKey: "onboarding.source.onDevice.title",
+            descriptionKey: "onboarding.source.onDevice.description"
         ),
         OnboardingSourceSpec(
             source: .yourProvider,
-            icon: "key.fill",
-            tint: .purple,
-            badgeKey: "onboarding.source.provider.badge",
+            symbol: "key",
             titleKey: "onboarding.source.provider.title",
-            descriptionKey: "onboarding.source.provider.description",
-            featureKeys: [
-                "onboarding.source.provider.feature1",
-                "onboarding.source.provider.feature2",
-                "onboarding.source.provider.feature3"
-            ]
+            descriptionKey: "onboarding.source.provider.description"
         )
     ]
 }
 
-// MARK: - Single source card
-
-struct OnboardingSourceCard: View {
-    let spec: OnboardingSourceSpec
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Icon + badge row
-                HStack(alignment: .top) {
-                    RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium)
-                        .fill(spec.tint.gradient)
-                        .frame(width: 40, height: 40)
-                        .overlay(
-                            Image(systemName: spec.icon)
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                        )
-
-                    Spacer(minLength: 4)
-
-                    Text(spec.badgeKey.localized)
-                        .font(.system(size: 10, weight: .semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Capsule().fill(spec.tint.opacity(0.18))
-                        )
-                        .foregroundColor(spec.tint)
-                }
-
-                Text(spec.titleKey.localized)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-
-                Text(spec.descriptionKey.localized)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .multilineTextAlignment(.leading)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(spec.featureKeys, id: \.self) { key in
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(spec.tint)
-                            Text(key.localized)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                .padding(.top, 2)
-
-                Spacer(minLength: 8)
-
-                HStack(spacing: 6) {
-                    Text((isSelected ? "onboarding.source.selected" : "onboarding.source.choose").localized)
-                        .font(.system(size: 13, weight: .semibold))
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "arrow.right")
-                        .font(.system(size: 13, weight: .semibold))
-                }
-                .foregroundColor(spec.tint)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 300, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.large)
-                    .fill(.thinMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.large)
-                    .stroke(isSelected ? spec.tint : Color.gray.opacity(0.2),
-                            lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Step 2: Choose source (3 cards)
+// MARK: - Step 3: Choose source
 
 struct OnboardingSourcePicker: View {
-    @Binding var selectedSource: TranscriptionSource?
+    @ObservedObject var flow: OnboardingFlowModel
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("onboarding.source.step".localized)
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(1.2)
-                .foregroundColor(.accentColor)
-
-            Text("onboarding.source.title".localized)
-                .font(.title)
-                .fontWeight(.semibold)
-
-            Text("onboarding.source.subtitle".localized)
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 520)
-
-            HStack(alignment: .top, spacing: 12) {
-                ForEach(OnboardingSourceSpec.all, id: \.source) { spec in
-                    OnboardingSourceCard(
-                        spec: spec,
-                        isSelected: selectedSource == spec.source,
-                        onSelect: {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                selectedSource = spec.source
-                            }
-                        }
-                    )
-                }
+        OnboardingStepScaffold(
+            symbol: "list.bullet",
+            question: "onboarding.source.title".localized,
+            detail: "onboarding.source.subtitle".localized
+        ) {
+            ForEach(OnboardingSourceSpec.all) { spec in
+                option(spec)
             }
-            .padding(.top, 4)
 
-            Text("onboarding.source.footer".localized)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            OnboardingQuietNote(text: "onboarding.source.note".localized)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
+    }
+
+    private func option(_ spec: OnboardingSourceSpec) -> some View {
+        let selected = flow.selectedSource == spec.source
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                flow.select(source: spec.source)
+            }
+        } label: {
+            HStack(spacing: DesignConstants.Spacing.medium) {
+                Image(systemName: spec.symbol)
+                    .font(.system(size: 16))
+                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                    .frame(width: 20)
+
+                OnboardingRowText(
+                    title: spec.titleKey.localized,
+                    caption: spec.descriptionKey.localized
+                )
+
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.green)
+                    .opacity(selected ? 1 : 0)
+            }
+            .padding(DesignConstants.Spacing.medium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selected ? OnboardingStyle.accentFill : nil)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: OnboardingStyle.cardRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: OnboardingStyle.cardRadius, style: .continuous)
+                    .strokeBorder(selected ? OnboardingStyle.accentStroke : OnboardingStyle.hairline, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spec.titleKey.localized)
+        .accessibilityValue((selected ? "onboarding.a11y.selected" : "onboarding.a11y.notSelected").localized)
+        .accessibilityHint(spec.descriptionKey.localized)
     }
 }
 
-// MARK: - Step 3: Configure (branches per source)
+// MARK: - Step 4: Configure (branches per source)
 
 struct OnboardingConfigureView: View {
-    /// BYOK providers offered during onboarding — matches the "OpenAI · Deepgram ·
-    /// Groq" copy on the source card. Others stay available in Settings.
-    static let onboardingProviders: [CloudProvider] = [.openai, .deepgram, .groq]
+    /// BYOK providers offered during onboarding. Deliberately excludes
+    /// `.hyperwhisper` (that is the Cloud branch, not a bring your own key one)
+    /// and the two providers whose health probe short circuits to `.healthy`
+    /// without an API key, which would otherwise open the gate on a fake pass.
+    static let onboardingProviders: [CloudProvider] = CloudProvider.allCases.filter {
+        $0 != .hyperwhisper && $0 != .microsoftAzureSpeech && $0 != .googleSpeech
+    }
 
-    let source: TranscriptionSource
-
-    @EnvironmentObject var whisperModelManager: WhisperModelManager
-    @EnvironmentObject var parakeetModelManager: ParakeetModelManager
-    @EnvironmentObject var licenseManager: LicenseManager
-    @EnvironmentObject var settingsManager: SettingsManager
-    @EnvironmentObject var cloudHealth: CloudProviderHealthManager
-
-    @Binding var selectedModel: OnboardingModelSelection?
-    @Binding var licenseKeyInput: String
-    @Binding var selectedProvider: CloudProvider
-    @Binding var apiKeyInput: String
-
-    // Surfaced to the parent's Continue gate: true only while the inline test above
-    // has a *passing* result for the current key/provider. Mirrors the local test
-    // state below and is cleared everywhere that state is cleared, so a stale pass
-    // can never gate a different key.
-    @Binding var keyValidated: Bool
-
-    // Inline "test key" result state. Reset on step appear + provider change so a
-    // stale "valid" can never carry over to a different key (mirrors the mockup).
-    @State private var isTestingKey = false
-    @State private var licenseTestValid: Bool?
-    @State private var licenseTestError: String?
-    @State private var providerTestHealth: ProviderHealth?
-    @State private var providerTestError: String?
+    @ObservedObject var flow: OnboardingFlowModel
+    @EnvironmentObject private var hyperWhisperCloudManager: HyperWhisperCloudManager
 
     var body: some View {
-        switch source {
-        case .onDevice:
-            onDeviceConfigure
-        case .hyperwhisperCloud:
-            cloudConfigure
-        case .yourProvider:
-            providerConfigure
+        OnboardingStepScaffold(symbol: symbol, question: question, detail: detail) {
+            switch flow.selectedSource {
+            case .hyperwhisperCloud:
+                cloudCard
+                OnboardingQuietNote(text: "onboarding.configure.cloud.note".localized)
+            case .onDevice:
+                modelCard
+                OnboardingQuietNote(text: "onboarding.configure.onDevice.note".localized)
+            case .yourProvider:
+                providerCard
+                OnboardingQuietNote(
+                    text: "onboarding.configure.provider.keychainNote".localized,
+                    symbol: "lock"
+                )
+            case nil:
+                noSourceCard
+            }
+        }
+        // Clears the inline test result so a pass for a previous key cannot be
+        // read as a pass for whatever is in the field now. The Continue gate does
+        // NOT depend on this alone: an already stored provider key keeps the gate
+        // open on a return visit (see `OnboardingFlowModel.canContinue`).
+        .onAppear { flow.resetConfigureTestResults() }
+    }
+
+    private var symbol: String {
+        switch flow.selectedSource {
+        case .hyperwhisperCloud: return "key"
+        case .onDevice: return "laptopcomputer"
+        case .yourProvider: return "key"
+        case nil: return "questionmark"
         }
     }
 
-    private func resetTestResults() {
-        isTestingKey = false
-        licenseTestValid = nil
-        licenseTestError = nil
-        providerTestHealth = nil
-        providerTestError = nil
-        keyValidated = false
+    private var question: String {
+        switch flow.selectedSource {
+        case .hyperwhisperCloud: return "onboarding.configure.cloud.title".localized
+        case .onDevice: return "onboarding.configure.onDevice.title".localized
+        case .yourProvider: return "onboarding.configure.provider.title".localized
+        case nil: return "onboarding.configure.noSource.title".localized
+        }
     }
 
-    // MARK: On-Device — pick a model to download
-
-    private var curatedModels: [OnboardingModelSelection] {
-        OnboardingModelSelection.curated(whisper: whisperModelManager, parakeet: parakeetModelManager)
+    private var detail: String {
+        switch flow.selectedSource {
+        case .hyperwhisperCloud: return "onboarding.configure.cloud.subtitle".localized
+        case .onDevice: return "onboarding.configure.onDevice.subtitle".localized
+        case .yourProvider: return "onboarding.configure.provider.subtitle".localized
+        case nil: return "onboarding.noSource.detail".localized
+        }
     }
 
-    private var onDeviceConfigure: some View {
-        VStack(spacing: 16) {
-            configureHeader(
-                icon: "cpu",
-                tint: .green,
-                title: "onboarding.configure.onDevice.title",
-                subtitle: "onboarding.configure.onDevice.subtitle"
-            )
+    private var noSourceCard: some View {
+        OnboardingCard {
+            OnboardingCardRow {
+                OnboardingRowText(
+                    title: "onboarding.setup.selectFirst".localized,
+                    caption: "onboarding.configure.noSource.caption".localized
+                )
+            }
+        }
+    }
 
-            ScrollView {
-                VStack(spacing: 9) {
-                    ForEach(curatedModels) { model in
-                        modelRow(model)
+    // MARK: HyperWhisper Cloud, access key + read only test
+
+    private var cloudCard: some View {
+        OnboardingCard {
+            OnboardingCardRow {
+                OnboardingKeyField(
+                    placeholder: "onboarding.configure.cloud.placeholder".localized,
+                    text: $flow.licenseKeyInput
+                )
+                Button("onboarding.configure.cloud.testKey".localized, action: flow.testAccessKey)
+                    .buttonStyle(.bordered)
+                    .disabled(flow.isTestingKey
+                              || flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if flow.isTestingKey {
+                OnboardingCardDivider()
+                OnboardingCardRow {
+                    ProgressView().scaleEffect(0.5).frame(width: 16, height: 16)
+                    OnboardingRowText(title: "onboarding.configure.test.testing".localized)
+                }
+            } else if flow.licenseTestPassed == true {
+                OnboardingCardDivider()
+                OnboardingCardRow {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.green)
+                    OnboardingRowText(title: "onboarding.configure.test.valid".localized)
+                }
+
+                if let credits = hyperWhisperCloudManager.credits {
+                    OnboardingCardDivider()
+                    OnboardingCardRow {
+                        OnboardingBigNumber(
+                            value: creditsLabel(credits),
+                            caption: "onboarding.configure.cloud.creditsCaption".localized
+                        )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button("onboarding.configure.cloud.getCredits".localized) {
+                            openCreditsPage()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
-                .padding(.horizontal, 2)
+            } else if flow.licenseTestPassed == false, let error = flow.setupErrorMessage {
+                OnboardingCardDivider()
+                OnboardingCardBlock {
+                    OnboardingErrorNote(text: error)
+                }
             }
-            .frame(maxWidth: 520, maxHeight: 290)
         }
-        .padding(40)
+        // Credits are read only here and only meaningful once a key resolves to
+        // an account. The task is cancelled by SwiftUI when the step goes away.
+        .task(id: flow.licenseTestPassed) {
+            guard flow.licenseTestPassed == true else { return }
+            await hyperWhisperCloudManager.refreshCredits()
+        }
     }
 
-    private func isModelDownloaded(_ model: OnboardingModelSelection) -> Bool {
-        switch model.kind {
-        case .whisper:
-            return whisperModelManager.getModelPath(for: model.id) != nil
-        case .parakeet:
-            return parakeetModelManager.availableModels.first { $0.id == model.id }?.isDownloaded == true
+    private func creditsLabel(_ credits: HyperWhisperCloudCredits) -> String {
+        OnboardingFlowContainer.creditsFormatter
+            .string(from: NSNumber(value: credits.creditsRemaining)) ?? "\(Int(credits.creditsRemaining))"
+    }
+
+    private func openCreditsPage() {
+        guard let url = URL(string: "https://hyperwhisper.com") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    // MARK: On this Mac, pick a model
+
+    private var modelCard: some View {
+        OnboardingCard {
+            ForEach(Array(flow.availableModels.enumerated()), id: \.element.id) { index, model in
+                if index > 0 {
+                    OnboardingCardDivider()
+                }
+                modelRow(model)
+            }
         }
     }
 
     private func modelRow(_ model: OnboardingModelSelection) -> some View {
-        let isDownloaded = isModelDownloaded(model)
-        let isSelected = selectedModel?.id == model.id
+        let selected = flow.selectedModel?.id == model.id
+        let installed = flow.isInstalled(model)
+
         return Button {
-            selectedModel = model
+            flow.select(model: model)
         } label: {
-            HStack(spacing: 13) {
-                Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                    .foregroundColor(isSelected ? .accentColor : .secondary)
+            HStack(spacing: DesignConstants.Spacing.medium) {
+                OnboardingRadioMark(selected: selected)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 8) {
-                        Text(model.displayName)
-                            .font(.system(size: 13.5, weight: .semibold))
-                            .foregroundColor(.primary)
-                        pill(model.kind == .parakeet
-                                ? "onboarding.model.pill.parakeet"
-                                : "onboarding.model.pill.whisper",
-                             tint: model.kind == .parakeet ? .green : .secondary)
-                        if model.isRecommended {
-                            pill("onboarding.model.pill.recommended", tint: .accentColor)
-                        }
-                    }
-                    Text(model.subtitleKey.localized)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
+                OnboardingRowText(
+                    title: model.displayName,
+                    caption: model.subtitleKey.localized
+                )
 
-                Spacer(minLength: 8)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    gaugeRow("onboarding.model.metric.speed", rating: model.speed, color: .accentColor)
-                    gaugeRow("onboarding.model.metric.accuracy", rating: model.accuracy, color: .green)
-                }
-                .frame(width: 112)
-
-                if isDownloaded {
-                    Label("onboarding.model.downloaded".localized, systemImage: "checkmark.circle.fill")
-                        .labelStyle(.iconOnly)
-                        .foregroundColor(.green)
+                if installed {
+                    OnboardingStatusPill(
+                        text: "onboarding.model.downloaded".localized,
+                        symbol: "checkmark",
+                        tone: .good
+                    )
                 } else {
                     Text(model.size)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .frame(width: 56, alignment: .trailing)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium)
-                    .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.gray.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1.5)
-            )
+            .padding(DesignConstants.Spacing.medium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selected ? OnboardingStyle.accentFill : Color.clear)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(model.displayName)
+        .accessibilityValue(
+            (selected ? "onboarding.a11y.selectedDetail" : "onboarding.a11y.notSelectedDetail")
+                .localized(arguments: model.size)
+        )
     }
 
-    private func pill(_ key: String, tint: Color) -> some View {
-        Text(key.localized.uppercased())
-            .font(.system(size: 9, weight: .bold))
-            .tracking(0.3)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(tint.opacity(0.16)))
-            .foregroundColor(tint)
-    }
+    // MARK: Your own API key, provider chips + key + test
 
-    private func gaugeRow(_ labelKey: String, rating: Int, color: Color) -> some View {
-        HStack(spacing: 7) {
-            Text(labelKey.localized)
-                .font(.system(size: 9.5))
-                .foregroundColor(.secondary)
-                .frame(width: 52, alignment: .leading)
-            OnboardingGaugeBar(rating: rating, color: color)
-        }
-    }
-
-    // MARK: HyperWhisper Cloud — access key + test
-
-    private var cloudConfigure: some View {
-        VStack(spacing: 16) {
-            configureHeader(
-                icon: "icloud.fill",
-                tint: .accentColor,
-                title: "onboarding.configure.cloud.title",
-                subtitle: "onboarding.configure.cloud.subtitle"
-            )
-
-            VStack(alignment: .leading, spacing: 12) {
-                TextField("onboarding.configure.cloud.placeholder".localized, text: $licenseKeyInput)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    // A fresh key invalidates any prior "valid" result.
-                    .onChange(of: licenseKeyInput) { _, _ in
-                        licenseTestValid = nil
-                        licenseTestError = nil
-                        keyValidated = false
-                    }
-
-                HStack(spacing: 12) {
-                    Button {
-                        testAccessKey()
-                    } label: {
-                        Text("onboarding.configure.cloud.testKey".localized)
-                    }
-                    .disabled(isTestingKey || licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                    cloudTestResult
-                }
-
-                Link("onboarding.configure.cloud.getCredits".localized,
-                     destination: URL(string: "https://hyperwhisper.com")!)
-                    .font(.caption)
-            }
-            .frame(maxWidth: 380)
-        }
-        .padding(40)
-        .onAppear(perform: resetTestResults)
-    }
-
-    @ViewBuilder
-    private var cloudTestResult: some View {
-        if isTestingKey {
-            testLabel("onboarding.configure.test.testing", systemImage: nil, color: .secondary, spinning: true)
-        } else if licenseTestValid == true {
-            testLabel("onboarding.configure.test.valid", systemImage: "checkmark.circle.fill", color: .green)
-        } else if let error = licenseTestError {
-            Text(error)
-                .font(.system(size: 12))
-                .foregroundColor(.red)
-                .lineLimit(2)
-        }
-    }
-
-    /// Validate without changing account state; activation stays on step 4.
-    private func testAccessKey() {
-        let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
-        Task {
-            isTestingKey = true
-            licenseTestValid = nil
-            licenseTestError = nil
-            let result = await licenseManager.probeLicense(key)
-            guard licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key else {
-                isTestingKey = false
-                return
-            }
-            licenseTestValid = result.isValid
-            licenseTestError = result.isValid ? nil : (result.errorMessage ?? "app.unknown.error".localized)
-            keyValidated = result.isValid
-            isTestingKey = false
-        }
-    }
-
-    // MARK: Your API Key — provider + key + test
-
-    private var providerConfigure: some View {
-        VStack(spacing: 16) {
-            configureHeader(
-                icon: "key.fill",
-                tint: .purple,
-                title: "onboarding.configure.provider.title",
-                subtitle: "onboarding.configure.provider.subtitle"
-            )
-
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("onboarding.configure.provider.pickerLabel".localized, selection: $selectedProvider) {
-                    // Keep onboarding focused on the providers the source card
-                    // advertises (OpenAI · Deepgram · Groq). The full BYOK provider
-                    // list remains available later in Settings.
+    private var providerCard: some View {
+        OnboardingCard {
+            OnboardingCardBlock {
+                OnboardingFlowLayout(spacing: DesignConstants.Spacing.small) {
                     ForEach(Self.onboardingProviders) { provider in
-                        Text(provider.displayName).tag(provider)
+                        OnboardingChip(
+                            label: provider.displayName,
+                            selected: flow.selectedProvider == provider
+                        ) {
+                            // Changing the provider clears the entered key on the
+                            // flow model, so a masked, stale key can never be
+                            // saved under a provider it was not typed for.
+                            flow.select(provider: provider)
+                        }
                     }
                 }
-                .pickerStyle(.menu)
-                // Clear any entered key when the provider changes so a masked,
-                // stale key can't be saved into the keychain under a different
-                // provider than the one it was typed for. Also drop the test
-                // result so it can't carry across providers.
-                .onChange(of: selectedProvider) { _, _ in
-                    apiKeyInput = ""
-                    providerTestHealth = nil
-                    providerTestError = nil
-                    keyValidated = false
-                }
-
-                SecureField("onboarding.configure.provider.keyPlaceholder".localized, text: $apiKeyInput)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    .onChange(of: apiKeyInput) { _, _ in
-                        providerTestHealth = nil
-                        providerTestError = nil
-                        keyValidated = false
-                    }
-
-                HStack(spacing: 12) {
-                    Button {
-                        testAPIKey()
-                    } label: {
-                        Text("onboarding.configure.provider.testKey".localized)
-                    }
-                    .disabled(isTestingKey || apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                    providerTestResult
-                }
-
-                Text("onboarding.configure.provider.keychainNote".localized)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
-            .frame(maxWidth: 380)
+
+            OnboardingCardDivider()
+
+            OnboardingCardRow {
+                OnboardingKeyField(
+                    placeholder: "onboarding.configure.provider.keyPlaceholder".localized,
+                    text: $flow.apiKeyInput,
+                    secure: true
+                )
+                Button("onboarding.configure.provider.testKey".localized, action: flow.testProviderKey)
+                    .buttonStyle(.bordered)
+                    .disabled(flow.isTestingKey
+                              || flow.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            providerTestResult
         }
-        .padding(40)
-        .onAppear(perform: resetTestResults)
     }
 
     @ViewBuilder
     private var providerTestResult: some View {
-        if isTestingKey {
-            testLabel("onboarding.configure.test.testing", systemImage: nil, color: .secondary, spinning: true)
-        } else if let error = providerTestError {
-            Text(error)
-                .font(.system(size: 12))
-                .foregroundColor(.red)
-                .lineLimit(2)
-        } else if let health = providerTestHealth {
+        if flow.isTestingKey {
+            OnboardingCardDivider()
+            OnboardingCardRow {
+                ProgressView().scaleEffect(0.5).frame(width: 16, height: 16)
+                OnboardingRowText(title: "onboarding.configure.test.testing".localized)
+            }
+        } else if flow.providerTestHealth == nil, let error = flow.setupErrorMessage {
+            OnboardingCardDivider()
+            OnboardingCardBlock {
+                OnboardingErrorNote(text: error)
+            }
+        } else if let health = flow.providerTestHealth {
             switch health {
             case .healthy:
-                testLabel("onboarding.configure.test.healthy", systemImage: "checkmark.circle.fill", color: .green)
+                OnboardingCardDivider()
+                OnboardingCardRow {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.green)
+                    OnboardingRowText(title: "onboarding.configure.test.healthy".localized)
+                }
             case .unauthorized:
-                Text("onboarding.configure.test.unauthorized".localized)
-                    .font(.system(size: 12)).foregroundColor(.orange).lineLimit(2)
+                OnboardingCardDivider()
+                OnboardingCardBlock {
+                    OnboardingErrorNote(text: "onboarding.configure.test.unauthorized".localized)
+                }
             case .unreachable:
-                Text("onboarding.configure.test.unreachable".localized)
-                    .font(.system(size: 12)).foregroundColor(.orange).lineLimit(2)
+                OnboardingCardDivider()
+                OnboardingCardBlock {
+                    OnboardingErrorNote(text: "onboarding.configure.test.unreachable".localized)
+                }
             case .unknown, .checking, .notInstalled:
                 EmptyView()
             }
         }
     }
-
-    /// Probe the candidate without staging it, then accept it only after Keychain
-    /// confirms the secure write. A passing network request alone is not enough.
-    private func testAPIKey() {
-        let key = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
-        let provider = selectedProvider
-        Task {
-            isTestingKey = true
-            providerTestHealth = nil
-            providerTestError = nil
-            let health = await cloudHealth.probe(provider, apiKey: key)
-            var persisted = false
-            if health == .healthy {
-                persisted = settingsManager.apiKeys.setAPIKey(key, for: provider)
-                if persisted {
-                    cloudHealth.registerAPIKeyChange(for: provider, newValue: key)
-                }
-            }
-            if selectedProvider == provider,
-               apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key {
-                providerTestHealth = persisted || health != .healthy ? health : nil
-                providerTestError = persisted || health != .healthy
-                    ? nil
-                    : settingsManager.apiKeys.validationError
-                keyValidated = (health == .healthy && persisted)
-            }
-            isTestingKey = false
-        }
-    }
-
-    @ViewBuilder
-    private func testLabel(_ key: String, systemImage: String?, color: Color, spinning: Bool = false) -> some View {
-        HStack(spacing: 6) {
-            if spinning {
-                ProgressView().scaleEffect(0.6)
-            } else if let systemImage {
-                Image(systemName: systemImage).foregroundColor(color)
-            }
-            Text(key.localized)
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundColor(color)
-        }
-    }
-
-    // MARK: Shared header
-
-    private func configureHeader(icon: String, tint: Color, title: String, subtitle: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 44))
-                .foregroundColor(tint)
-                .symbolRenderingMode(.hierarchical)
-            Text(title.localized)
-                .font(.title2)
-                .fontWeight(.semibold)
-            Text(subtitle.localized)
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 440)
-        }
-    }
 }
 
-// MARK: - Step 4: Set up (perform the action)
+// MARK: - Step 5: Set up (perform the action)
 
 struct OnboardingSetupView: View {
-    let source: TranscriptionSource
-
-    @EnvironmentObject var whisperModelManager: WhisperModelManager
-    @EnvironmentObject var parakeetModelManager: ParakeetModelManager
-    @EnvironmentObject var licenseManager: LicenseManager
-    @EnvironmentObject var settingsManager: SettingsManager
-
-    @Binding var selectedModel: OnboardingModelSelection?
-    @Binding var licenseKeyInput: String
-    @Binding var selectedProvider: CloudProvider
-    @Binding var apiKeyInput: String
+    @ObservedObject var flow: OnboardingFlowModel
+    @EnvironmentObject private var hyperWhisperCloudManager: HyperWhisperCloudManager
 
     var body: some View {
-        switch source {
-        case .onDevice:
-            onDeviceSetup
+        OnboardingStepScaffold(symbol: symbol, question: question, detail: detail) {
+            switch flow.selectedSource {
+            case .hyperwhisperCloud:
+                cloudCard
+                OnboardingQuietNote(text: "onboarding.setup.cloud.note".localized)
+            case .onDevice:
+                downloadCard
+                OnboardingQuietNote(text: "onboarding.setup.onDevice.note".localized)
+            case .yourProvider:
+                keychainCard
+                OnboardingQuietNote(text: "onboarding.setup.provider.note".localized)
+            case nil:
+                OnboardingCard {
+                    OnboardingCardRow {
+                        OnboardingRowText(
+                            title: "onboarding.setup.selectFirst".localized,
+                            caption: "onboarding.setup.noSource.caption".localized
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var symbol: String {
+        switch flow.selectedSource {
+        case .hyperwhisperCloud: return "cloud"
+        case .onDevice: return "arrow.down.circle"
+        case .yourProvider: return "lock"
+        case nil: return "ellipsis"
+        }
+    }
+
+    private var question: String {
+        switch flow.selectedSource {
+        case .hyperwhisperCloud: return "onboarding.setup.cloud.title".localized
+        case .onDevice: return "onboarding.setup.onDevice.title".localized
+        case .yourProvider: return "onboarding.setup.provider.title".localized
+        case nil: return "onboarding.setup.noSource.title".localized
+        }
+    }
+
+    private var detail: String {
+        switch flow.selectedSource {
         case .hyperwhisperCloud:
-            cloudSetup
+            return "onboarding.setup.cloud.subtitle".localized
+        case .onDevice:
+            return "onboarding.setup.onDevice.subtitle".localized
         case .yourProvider:
-            providerSetup
+            return "onboarding.setup.provider.subtitle".localized
+        case nil:
+            return "onboarding.noSource.detail".localized
         }
     }
 
-    // MARK: On-Device — download (routes per engine)
+    // MARK: HyperWhisper Cloud, activate
 
-    private func isModelReady(_ model: OnboardingModelSelection) -> Bool {
-        switch model.kind {
-        case .whisper:
-            return whisperModelManager.downloadedModels.contains { $0.name == model.id }
-        case .parakeet:
-            return parakeetModelManager.availableModels.first { $0.id == model.id }?.isDownloaded == true
-        }
-    }
+    private var cloudCard: some View {
+        let active = flow.isSelectedSourceUsable
 
-    private func isModelDownloading(_ model: OnboardingModelSelection) -> Bool {
-        switch model.kind {
-        case .whisper:
-            return whisperModelManager.downloadingModels.contains(model.id)
-        case .parakeet:
-            return parakeetModelManager.downloads.isDownloading(model.id)
-        }
-    }
+        return OnboardingCard {
+            OnboardingCheckLine(
+                text: "onboarding.setup.cloud.check.keyVerified".localized,
+                done: flow.keyValidated || active
+            )
+            OnboardingCardDivider()
+            OnboardingCheckLine(
+                text: "onboarding.setup.cloud.check.activated".localized,
+                done: active
+            )
+            OnboardingCardDivider()
+            OnboardingCheckLine(
+                text: "onboarding.setup.cloud.check.creditsConfirmed".localized,
+                done: active && hyperWhisperCloudManager.credits != nil
+            )
+            OnboardingCardDivider()
 
-    private func downloadProgress(_ model: OnboardingModelSelection) -> Double {
-        switch model.kind {
-        case .whisper:
-            return whisperModelManager.downloadProgress[model.id] ?? 0
-        case .parakeet:
-            return parakeetModelManager.downloads.progress[model.id] ?? 0
-        }
-    }
-
-    private func startModelDownload(_ model: OnboardingModelSelection) {
-        switch model.kind {
-        case .whisper:
-            // Resolve the catalog model by canonical name, then download it.
-            guard let whisperModel = whisperModelManager.availableModels.first(where: { $0.name == model.id }) else {
-                return
-            }
-            Task { await whisperModelManager.downloadModel(whisperModel) }
-        case .parakeet:
-            parakeetModelManager.startDownload(model.id)
-        }
-    }
-
-    private var onDeviceSetup: some View {
-        VStack(spacing: 20) {
-            setupHeader(icon: "arrow.down.circle.fill", tint: .green, title: "onboarding.setup.onDevice.title")
-
-            if let model = selectedModel {
-                let isReady = isModelReady(model)
-                let isDownloading = isModelDownloading(model)
-                let progress = downloadProgress(model)
-
-                VStack(spacing: 12) {
-                    Text(model.displayName)
-                        .font(.headline)
-
-                    if isReady {
-                        statusBadge(icon: "checkmark.circle.fill",
-                                    text: "onboarding.setup.onDevice.ready".localized,
-                                    color: .green)
-                    } else if isDownloading {
-                        VStack(spacing: 8) {
-                            ProgressView(value: progress)
-                                .progressViewStyle(.linear)
-                                .frame(width: 240)
-                            Text("onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100)))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    } else {
-                        Button {
-                            startModelDownload(model)
-                        } label: {
-                            Label("onboarding.setup.onDevice.download".localized(arguments: model.displayName),
-                                  systemImage: "arrow.down.circle.fill")
-                                .frame(width: 240)
-                        }
-                        .controlSize(.large)
-                        .buttonStyle(.borderedProminent)
-
-                        // Surface a failed download so the user isn't left stuck at
-                        // the mandatory Set-up gate with no explanation. (Whisper
-                        // exposes a shared errorMessage; Parakeet downloads report
-                        // their own failures inline via the progress controller.)
-                        if model.kind == .whisper, let error = whisperModelManager.errorMessage {
-                            errorText(error)
-                        }
-                    }
-                }
-            } else {
-                selectFirstNotice
-            }
-        }
-        .padding(40)
-    }
-
-    // MARK: HyperWhisper Cloud — activate
-
-    private var cloudSetup: some View {
-        VStack(spacing: 20) {
-            setupHeader(icon: "icloud.fill", tint: .accentColor, title: "onboarding.setup.cloud.title")
-
-            if licenseManager.licenseStatus == .active {
-                statusBadge(icon: "checkmark.circle.fill",
-                            text: "onboarding.setup.cloud.active".localized,
-                            color: .green)
-            } else {
-                Button {
-                    Task { _ = await licenseManager.activateLicense(licenseKeyInput) }
-                } label: {
-                    HStack {
-                        if licenseManager.isValidating {
-                            ProgressView().scaleEffect(0.7)
-                            Text("onboarding.setup.cloud.activating".localized)
-                        } else {
-                            Label("onboarding.setup.cloud.activate".localized, systemImage: "checkmark.seal.fill")
-                        }
-                    }
-                    .frame(width: 240)
-                }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .disabled(licenseManager.isValidating || licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                if let error = licenseManager.lastError {
-                    errorText(error)
-                }
-            }
-        }
-        .padding(40)
-    }
-
-    // MARK: Your API Key — save + verify
-
-    private var providerSetup: some View {
-        VStack(spacing: 20) {
-            setupHeader(icon: "key.fill", tint: .purple, title: "onboarding.setup.provider.title")
-
-            if settingsManager.apiKeys.hasAPIKey(for: selectedProvider) {
-                statusBadge(icon: "checkmark.circle.fill",
-                            text: "onboarding.setup.provider.saved".localized,
-                            color: .green)
-            } else {
-                Button {
-                    settingsManager.apiKeys.setAPIKey(
-                        apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines),
-                        for: selectedProvider
+            if active {
+                OnboardingCardRow {
+                    OnboardingBigNumber(
+                        value: creditsValue,
+                        caption: "onboarding.setup.cloud.credits.caption".localized
                     )
-                } label: {
-                    Label("onboarding.setup.provider.save".localized, systemImage: "lock.fill")
-                        .frame(width: 240)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    OnboardingStatusPill(text: "onboarding.setup.cloud.active".localized, tone: .accent)
                 }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
-                .disabled(apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else {
+                OnboardingCardBlock {
+                    // Bug 3: the activation task is owned and cancelled by the flow
+                    // model, so a late completion cannot write state after dismissal.
+                    // Entitlement itself is enforced server side.
+                    Button(action: flow.activateCloudLicense) {
+                        HStack(spacing: DesignConstants.Spacing.small) {
+                            if flow.isActivatingLicense {
+                                ProgressView().scaleEffect(0.5).frame(width: 14, height: 14)
+                                Text("onboarding.setup.cloud.activating".localized)
+                            } else {
+                                Image(systemName: "checkmark.seal.fill")
+                                Text("onboarding.setup.cloud.activate".localized)
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(flow.isActivatingLicense
+                              || flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                if let error = settingsManager.apiKeys.validationError {
-                    errorText(error)
+                    if let error = flow.setupErrorMessage {
+                        OnboardingErrorNote(text: "onboarding.setup.cloud.error".localized(arguments: error))
+                            .padding(.top, DesignConstants.Spacing.medium)
+                    }
                 }
             }
         }
-        .padding(40)
-    }
-
-    // MARK: Shared pieces
-
-    private func setupHeader(icon: String, tint: Color, title: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 44))
-                .foregroundColor(tint)
-                .symbolRenderingMode(.hierarchical)
-            Text(title.localized)
-                .font(.title2)
-                .fontWeight(.semibold)
+        .task(id: flow.isSelectedSourceUsable) {
+            guard flow.isSelectedSourceUsable else { return }
+            await hyperWhisperCloudManager.refreshCredits()
         }
     }
 
-    private func statusBadge(icon: String, text: String, color: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-            Text(text)
-                .font(.callout)
-                .foregroundColor(color)
+    private var creditsValue: String {
+        guard let credits = hyperWhisperCloudManager.credits else { return "\u{2026}" }
+        return OnboardingFlowContainer.creditsFormatter
+            .string(from: NSNumber(value: credits.creditsRemaining)) ?? "\(Int(credits.creditsRemaining))"
+    }
+
+    // MARK: On this Mac, download (routes per engine)
+
+    @ViewBuilder
+    private var downloadCard: some View {
+        if let model = flow.selectedModel {
+            let ready = flow.isSelectedModelInstalled()
+            let downloading = flow.isSelectedModelDownloading()
+            let progress = flow.selectedModelProgress()
+
+            OnboardingCard {
+                OnboardingCardRow {
+                    Image(systemName: "laptopcomputer")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+                    OnboardingRowText(
+                        title: model.displayName,
+                        caption: model.subtitleKey.localized
+                    )
+                    if ready {
+                        OnboardingStatusPill(
+                            text: "onboarding.setup.onDevice.ready".localized,
+                            symbol: "checkmark",
+                            tone: .good
+                        )
+                    } else if downloading {
+                        OnboardingStatusPill(
+                            text: "onboarding.setup.onDevice.downloading".localized(arguments: Int(progress * 100)),
+                            tone: .accent
+                        )
+                    } else {
+                        Text(model.size)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                OnboardingCardDivider()
+
+                OnboardingCardBlock {
+                    if ready {
+                        OnboardingBigNumber(
+                            value: "100%",
+                            caption: "onboarding.setup.onDevice.storedCaption".localized
+                        )
+                    } else if downloading {
+                        Text("\(Int(progress * 100))%")
+                            .font(.system(size: 30, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+
+                        OnboardingProgressBar(value: progress)
+                            .padding(.top, DesignConstants.Spacing.medium)
+
+                        // The managers publish a fraction, not bytes or a rate, so
+                        // the reference's "409 MB of 620 MB" and "40s left" are
+                        // reduced to the one figure that is actually known.
+                        OnboardingBigNumber(
+                            value: model.size,
+                            caption: "onboarding.setup.onDevice.totalCaption".localized,
+                            compact: true
+                        )
+                            .padding(.top, DesignConstants.Spacing.medium)
+                    } else {
+                        Button(action: flow.startSelectedModelDownload) {
+                            Label(
+                                "onboarding.setup.onDevice.download".localized(arguments: model.displayName),
+                                systemImage: "arrow.down.circle.fill"
+                            )
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                    }
+
+                    // Bug 2: a failed download is surfaced for BOTH engines, in
+                    // every branch, so nobody is parked at the mandatory gate with
+                    // no explanation. The message is framed by localized copy
+                    // because the managers report in hardcoded English.
+                    if let error = flow.setupErrorMessage {
+                        OnboardingErrorNote(text: "onboarding.setup.onDevice.error".localized(arguments: error))
+                            .padding(.top, DesignConstants.Spacing.medium)
+                    }
+                }
+            }
+        } else {
+            OnboardingCard {
+                OnboardingCardRow {
+                    OnboardingRowText(title: "onboarding.setup.selectFirst".localized)
+                }
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.12)))
     }
 
-    private func errorText(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundColor(.red)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: 380)
+    // MARK: Your own API key, save + verify
+
+    private var keychainCard: some View {
+        let saved = flow.isSelectedSourceUsable
+
+        return OnboardingCard {
+            OnboardingCheckLine(
+                text: "onboarding.setup.provider.check.validated"
+                    .localized(arguments: flow.selectedProvider.displayName),
+                done: flow.keyValidated || saved
+            )
+            OnboardingCardDivider()
+            OnboardingCheckLine(
+                text: "onboarding.setup.provider.check.written".localized,
+                done: saved
+            )
+            OnboardingCardDivider()
+
+            if saved {
+                OnboardingCardRow {
+                    Image(systemName: "lock")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+                    OnboardingRowText(
+                        title: "onboarding.setup.provider.keychainItem"
+                            .localized(arguments: flow.selectedProvider.displayName),
+                        caption: maskedKey,
+                        singleLine: true
+                    )
+                    OnboardingStatusPill(
+                        text: "onboarding.setup.provider.saved".localized,
+                        symbol: "checkmark",
+                        tone: .good
+                    )
+                }
+            } else {
+                OnboardingCardBlock {
+                    Button(action: flow.saveProviderKey) {
+                        Label("onboarding.setup.provider.save".localized, systemImage: "lock.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(flow.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    if let error = flow.setupErrorMessage {
+                        OnboardingErrorNote(text: "onboarding.setup.provider.error".localized(arguments: error))
+                            .padding(.top, DesignConstants.Spacing.medium)
+                    }
+                }
+            }
+        }
     }
 
-    private var selectFirstNotice: some View {
-        Text("onboarding.setup.selectFirst".localized)
-            .font(.callout)
-            .foregroundColor(.secondary)
+    /// Never renders the whole key, even on the machine that just typed it.
+    private var maskedKey: String {
+        let key = flow.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard key.count > 12 else { return "onboarding.setup.provider.keyHidden".localized }
+        return "\(key.prefix(8))\u{2026}\(key.suffix(4))"
     }
 }
 
-// MARK: - Step 5: Microphone (device + live level)
+// MARK: - Step 6: Microphone (device + live level)
 
 /// Lets the user pick their input device and confirm it registers a live level,
-/// before the "Give it a try" step. The level meter is driven by a dedicated
-/// idle-metering session on `AudioRecordingManager` (`startInputLevelPreview`),
-/// which is started on appear and torn down on disappear so the mic is never
-/// held open past this screen.
+/// before the "try it" step. The meter is driven by the dedicated idle metering
+/// session on `AudioRecordingManager` (`startInputLevelPreview`), started on
+/// appear and torn down on disappear so the mic is never held open past this
+/// screen.
 struct OnboardingMicrophoneView: View {
+    @ObservedObject var flow: OnboardingFlowModel
+    /// Only for the live level, which is published straight off the manager.
     @EnvironmentObject var audioManager: AudioRecordingManager
-    @EnvironmentObject var settingsManager: SettingsManager
-
-    private var usingSystemDefault: Bool { audioManager.selectedDevice == nil }
 
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "headphones")
-                .font(.system(size: 44))
-                .foregroundColor(.accentColor)
-                .symbolRenderingMode(.hierarchical)
+        OnboardingStepScaffold(
+            symbol: "mic",
+            question: "onboarding.mic.title".localized,
+            detail: "onboarding.mic.subtitle".localized
+        ) {
+            OnboardingCard {
+                OnboardingCardBlock {
+                    OnboardingLevelMeter(
+                        level: audioManager.idleInputLevel,
+                        active: flow.hasMicrophonePermission
+                    )
+                }
 
-            VStack(spacing: 8) {
-                Text("onboarding.mic.title".localized)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                Text("onboarding.mic.subtitle".localized)
-                    .font(.callout)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 440)
-            }
+                // "System Default" is always the first option (the flow model
+                // puts it there), so there is no separate toggle to keep in sync.
+                ForEach(flow.deviceOptions) { device in
+                    OnboardingCardDivider()
+                    deviceRow(device)
+                }
 
-            VStack(alignment: .leading, spacing: 18) {
-                // Input device picker (disabled while "use system default" is on).
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("onboarding.audio.input.label".localized)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                    Picker("", selection: deviceBinding) {
-                        ForEach(audioManager.availableDevices) { device in
-                            Text(device.name).tag(device.id)
-                        }
+                OnboardingCardDivider()
+
+                OnboardingCardRow {
+                    Text((flow.hasMicrophonePermission
+                          ? "onboarding.mic.levelHint"
+                          : "onboarding.mic.permissionHint").localized)
+                        .font(.system(size: 12))
+                        .foregroundStyle(flow.hasMicrophonePermission ? Color.secondary : Color.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Button {
+                        openSoundSettings()
+                    } label: {
+                        Label("onboarding.mic.soundSettings".localized, systemImage: "speaker.wave.2")
                     }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: .infinity)
-                    .disabled(usingSystemDefault)
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
                 }
-
-                HStack {
-                    Text("onboarding.audio.use.system.default".localized)
-                    Spacer()
-                    Toggle("", isOn: systemDefaultBinding)
-                        .labelsHidden()
-                        .toggleStyle(.switch)
-                }
-
-                // Live level meter.
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("onboarding.audio.level".localized)
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                    levelMeter
-                }
-
-                if !audioManager.hasMicrophonePermission {
-                    Text("onboarding.mic.permissionHint".localized)
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                }
-
-                Button {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.sound") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    Text("onboarding.audio.open.sound".localized)
-                }
-                .buttonStyle(.link)
             }
-            .padding(20)
-            .frame(maxWidth: 460)
-            .background(
-                RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.large)
-                    .fill(.thinMaterial)
-            )
+
+            OnboardingQuietNote(text: "onboarding.mic.note".localized)
         }
-        .padding(40)
-        .onAppear {
-            audioManager.updateAvailableDevices()
-            audioManager.checkMicrophonePermission()
-            audioManager.startInputLevelPreview()
-        }
-        .onDisappear {
-            audioManager.stopInputLevelPreview()
-        }
+        .onAppear { flow.beginMicrophoneStep() }
+        .onDisappear { flow.endMicrophoneStep() }
     }
 
-    private var levelMeter: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.primary.opacity(0.12))
-                Capsule()
-                    .fill(LinearGradient(colors: [Color.green.opacity(0.7), .green],
-                                         startPoint: .leading, endPoint: .trailing))
-                    .frame(width: max(0, geo.size.width * CGFloat(audioManager.idleInputLevel)))
-                    .animation(.easeOut(duration: 0.08), value: audioManager.idleInputLevel)
+    private func deviceRow(_ device: OnboardingInputDevice) -> some View {
+        let selected = flow.selectedDeviceID == device.id
+
+        return Button {
+            flow.selectDevice(id: device.id)
+        } label: {
+            HStack(spacing: DesignConstants.Spacing.medium) {
+                OnboardingRadioMark(selected: selected)
+
+                // The input device name always stays on one line.
+                Text(device.name)
+                    .font(.system(size: 14, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(detail(for: device))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(1)
             }
+            .padding(DesignConstants.Spacing.medium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selected ? OnboardingStyle.accentFill : Color.clear)
+            .contentShape(Rectangle())
         }
-        .frame(height: 9)
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(device.name)
+        .accessibilityValue((selected ? "onboarding.a11y.selectedInput" : "onboarding.a11y.notSelected").localized)
     }
 
-    /// Picker selection ↔ the active input device id. Reactive off the published
-    /// `selectedDevice`; persists to `selectedMicrophoneId` and re-points the
-    /// live meter at the new device.
-    private var deviceBinding: Binding<String> {
-        Binding(
-            get: { audioManager.selectedDevice?.id ?? "" },
-            set: { apply(deviceId: $0) }
-        )
-    }
-
-    /// Toggle ↔ "use the system default input" (an empty persisted id).
-    private var systemDefaultBinding: Binding<Bool> {
-        Binding(
-            get: { audioManager.selectedDevice == nil },
-            set: { on in
-                apply(deviceId: on ? "" : (audioManager.availableDevices.first?.id ?? ""))
-            }
-        )
-    }
-
-    private func apply(deviceId: String) {
-        if deviceId.isEmpty {
-            audioManager.selectDevice(nil)
-            settingsManager.selectedMicrophoneId = ""
-        } else if let device = audioManager.availableDevices.first(where: { $0.id == deviceId }) {
-            audioManager.selectDevice(device)
-            settingsManager.selectedMicrophoneId = deviceId
+    /// The trailing label on each device row. The synthetic first row names the
+    /// device macOS is actually using, so "System Default" is never a mystery.
+    private func detail(for device: OnboardingInputDevice) -> String {
+        if device.isSystemDefault {
+            let resolved = audioManager.activeInputDeviceName
+            return resolved.isEmpty ? "onboarding.mic.device.followsSystem".localized : resolved
         }
-        // Re-point the metering session at the newly selected device.
-        audioManager.startInputLevelPreview()
+        return device.id == audioManager.activeInputDeviceIdentifier
+            ? "onboarding.mic.device.inUse".localized
+            : ""
+    }
+
+    private func openSoundSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.sound") else { return }
+        NSWorkspace.shared.open(url)
     }
 }

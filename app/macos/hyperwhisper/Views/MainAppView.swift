@@ -32,6 +32,8 @@ struct MainAppView: View {
     @EnvironmentObject var whisperModelManager: WhisperModelManager
     @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var cloudProviderHealthManager: CloudProviderHealthManager
+    /// Needed by the onboarding sheet, which shows the account's credit balance.
+    @EnvironmentObject var hyperWhisperCloudManager: HyperWhisperCloudManager
 
     // MARK: - State
     
@@ -201,6 +203,7 @@ struct MainAppView: View {
                 .environmentObject(parakeetModelManager)
                 .environmentObject(licenseManager)
                 .environmentObject(cloudProviderHealthManager)
+                .environmentObject(hyperWhisperCloudManager)
                 .interactiveDismissDisabled() // Prevent accidental dismissal
         }
     }
@@ -939,6 +942,7 @@ struct MenuBarItems: View {
         .environmentObject(WhisperModelManager())
         .environmentObject(ParakeetModelManager())
         .environmentObject(CloudProviderHealthManager())
+        .environmentObject(HyperWhisperCloudManager(licenseManager: LicenseManager()))
         .frame(width: 1000, height: 700)
 }
 
