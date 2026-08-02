@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/trpc/client";
+import { formatDate, formatDateTime } from "@/lib/format-date";
 
 const TIME_RANGES = [
   { label: "7 days", value: 7 },
@@ -192,24 +193,6 @@ function DeviceRow({
     { enabled: expanded }
   );
 
-  function formatDate(date: string | Date) {
-    return new Date(date).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function formatDateTime(date: string | Date) {
-    return new Date(date).toLocaleString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
   return (
     <>
       <tr
@@ -299,9 +282,9 @@ function DeviceRow({
                       </div>
                     </div>
                     <div className="text-right text-xs text-gray-400">
-                      <div>First seen: {formatDate(device.createdAt)}</div>
+                      <div>First seen: {formatDate(device.createdAt, "en-US")}</div>
                       <div>
-                        Last active: {formatDateTime(device.lastValidatedAt)}
+                        Last active: {formatDateTime(device.lastValidatedAt, "en-US")}
                       </div>
                     </div>
                   </div>

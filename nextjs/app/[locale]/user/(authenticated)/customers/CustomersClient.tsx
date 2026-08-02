@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/trpc/client";
+import { formatDate } from "@/lib/format-date";
 
 const CREDITS_PER_MINUTE = 6.3;
 
@@ -153,14 +154,6 @@ export default function CustomersClient() {
 
   const customers = data?.customers ?? [];
   const error = queryError?.message ?? null;
-
-  function formatDate(timestamp: number) {
-    return new Date(timestamp * 1000).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
 
   return (
     <div className="space-y-6">
@@ -505,7 +498,7 @@ export default function CustomersClient() {
 
                       {/* Created */}
                       <td className="px-6 py-4 text-gray-400 text-sm">
-                        {formatDate(customer.created)}
+                        {formatDate(customer.created, "en-US")}
                       </td>
                     </tr>
                   );
