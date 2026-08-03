@@ -121,7 +121,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
         HyperWhisper validates the file. If your mode uses a **local** model (WhisperNet), the file is converted to a 16 kHz mono WAV in your temp folder — this is the format Whisper expects, and HyperWhisper handles resampling and stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, the original file is sent as-is, so MP3 and M4A are uploaded without re-encoding.
       </Step>
       <Step title="Transcribing (15–85%)">
-        The audio is sent to WhisperNet (with DirectCompute GPU acceleration if available) or to the cloud provider configured by your mode.
+        The audio is sent to WhisperNet (with Vulkan or CUDA GPU acceleration if available) or to the cloud provider configured by your mode.
       </Step>
       <Step title="Finishing (85–100%)">
         Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result.
