@@ -7,23 +7,12 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using HyperWhisper.Models;
+using HyperWhisper.Services;
 
 namespace HyperWhisper.Services.Streaming;
 
 public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
 {
-    private static readonly HashSet<string> SupportedFormattingLanguages = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ar", "cs", "da", "de", "en", "es", "fa", "fil", "fr", "hi",
-        "id", "it", "ja", "ko", "mk", "ms", "nl", "pl", "pt", "ro",
-        "ru", "sv", "th", "tr", "vi"
-    };
-
-    private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["tl"] = "fil"
-    };
-
     private string _committedTranscript = string.Empty;
 
     public string TranscriptionProviderLabel => "xAI (Streaming)";
@@ -166,20 +155,8 @@ public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
         return normalized;
     }
 
-    private static string? SupportedFormattingLanguage(string? code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            return null;
-
-        var normalized = code.Trim().ToLowerInvariant();
-        if (normalized == "auto")
-            return null;
-
-        var separatorIndex = normalized.IndexOf('-');
-        var primary = separatorIndex > 0 ? normalized[..separatorIndex] : normalized;
-        var aliased = LanguageAliases.GetValueOrDefault(primary, primary);
-        return SupportedFormattingLanguages.Contains(aliased) ? aliased : null;
-    }
+    private static string? SupportedFormattingLanguage(string? code) =>
+        XaiFormattingLanguages.TryGetSupportedCode(code, out var supportedCode) ? supportedCode : null;
 
     private static StreamingStopStep TextStep(string json) =>
         new(StreamingStopAction.SendMessage, Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text);

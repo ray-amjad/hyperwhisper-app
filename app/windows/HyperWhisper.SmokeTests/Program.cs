@@ -103,6 +103,18 @@ internal static class Program
                     "600MB → capped at 30min");
             });
 
+            Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
+            {
+                Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
+                Assert(XaiFormattingLanguages.TryGetSupportedCode("EN-US", out var enUs) && enUs == "en",
+                    "EN-US → en");
+                Assert(XaiFormattingLanguages.TryGetSupportedCode("tl", out var tl) && tl == "fil",
+                    "tl aliases to fil");
+                Assert(!XaiFormattingLanguages.TryGetSupportedCode("auto", out _), "auto unsupported");
+                Assert(!XaiFormattingLanguages.TryGetSupportedCode(null, out _), "null unsupported");
+                Assert(!XaiFormattingLanguages.TryGetSupportedCode("zz", out _), "unknown code unsupported");
+            });
+
             Run("OpenAI post-processing omits an output-token cap", () =>
             {
                 var requestJson = PostProcessingService.BuildOpenAIRequestJson(
