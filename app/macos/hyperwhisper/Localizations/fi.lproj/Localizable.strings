@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS säilyttää sen. HyperWhisper kysyy sitä vain, kun tallennus täytyy litteroida.";
 "onboarding.setup.onDevice.storedCaption" = "tallennettu tälle Macille";
 "onboarding.setup.onDevice.totalCaption" = "lataus yhteensä";
-"onboarding.setup.onDevice.note" = "Jatka vain. Lataus valmistuu taustalla, kun asetat mikrofonia.";
+"onboarding.setup.onDevice.note" = "Malli pysyy tällä Macilla, joten äänesi litteroidaan täällä eikä sitä ladata koskaan mihinkään.";
 "onboarding.setup.onDevice.subtitle" = "Tämä tapahtuu vain kerran. Jokainen tallennus sen jälkeen toimii offline-tilassa.";
 "onboarding.setup.cloud.check.keyVerified" = "Käyttöavain vahvistettu";
 "onboarding.setup.cloud.check.activated" = "Tili aktivoitu tälle laitteelle";

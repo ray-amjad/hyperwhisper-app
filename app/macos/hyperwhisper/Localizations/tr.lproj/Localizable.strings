@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS onu saklar. HyperWhisper yalnızca bir kayıt transkript edilmesi gerektiğinde ister.";
 "onboarding.setup.onDevice.storedCaption" = "bu Mac'te saklanıyor";
 "onboarding.setup.onDevice.totalCaption" = "toplam indirme";
-"onboarding.setup.onDevice.note" = "Devam edin. İndirme, siz mikrofonu ayarlarken arka planda tamamlanır.";
+"onboarding.setup.onDevice.note" = "Model bu Mac'te kalır, böylece sesiniz burada yazıya dökülür ve hiçbir yere yüklenmez.";
 "onboarding.setup.onDevice.subtitle" = "Bu yalnızca bir kez olur. Bundan sonraki her kayıt çevrimdışı çalışır.";
 "onboarding.setup.cloud.check.keyVerified" = "Erişim anahtarı doğrulandı";
 "onboarding.setup.cloud.check.activated" = "Hesap bu cihaz için etkinleştirildi";

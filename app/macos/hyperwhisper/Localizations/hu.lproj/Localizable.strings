@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "A macOS őrzi. A HyperWhisper csak akkor kéri, ha egy felvételt át kell írni.";
 "onboarding.setup.onDevice.storedCaption" = "ezen a Macen tárolva";
 "onboarding.setup.onDevice.totalCaption" = "teljes letöltés";
-"onboarding.setup.onDevice.note" = "Folytasd nyugodtan. A letöltés a háttérben fejeződik be, amíg a mikrofont állítod be.";
+"onboarding.setup.onDevice.note" = "A modell ezen a Macen marad, így a hangod itt íródik át, és soha nem kerül fel sehová.";
 "onboarding.setup.onDevice.subtitle" = "Ez csak egyszer történik meg. Minden utána következő felvétel offline fut.";
 "onboarding.setup.cloud.check.keyVerified" = "Hozzáférési kulcs ellenőrizve";
 "onboarding.setup.cloud.check.activated" = "A fiók aktiválva ezen az eszközön";

@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS שומר אותו. HyperWhisper מבקש אותו רק כשצריך לתמלל הקלטה.";
 "onboarding.setup.onDevice.storedCaption" = "מאוחסן על ה-Mac הזה";
 "onboarding.setup.onDevice.totalCaption" = "סך ההורדה";
-"onboarding.setup.onDevice.note" = "המשיכו הלאה. ההורדה מסתיימת ברקע בזמן שאתם מגדירים את המיקרופון.";
+"onboarding.setup.onDevice.note" = "המודל נשאר על ה-Mac הזה, כך שההקלטות שלכם מתומללות כאן ולא נשלחות לשום מקום.";
 "onboarding.setup.onDevice.subtitle" = "זה קורה פעם אחת. כל הקלטה אחרי זה פועלת ללא חיבור לאינטרנט.";
 "onboarding.setup.cloud.check.keyVerified" = "מפתח הגישה אומת";
 "onboarding.setup.cloud.check.activated" = "החשבון הופעל עבור המכשיר הזה";

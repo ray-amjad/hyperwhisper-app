@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS hoiab seda. HyperWhisper küsib seda ainult siis, kui salvestust on vaja transkribeerida.";
 "onboarding.setup.onDevice.storedCaption" = "salvestatud sellesse Maci";
 "onboarding.setup.onDevice.totalCaption" = "allalaadimine kokku";
-"onboarding.setup.onDevice.note" = "Jätka julgelt. Allalaadimine lõpeb taustal, kuni sa seadistad mikrofoni.";
+"onboarding.setup.onDevice.note" = "Mudel jääb sellesse Maci, nii et sinu heli transkribeeritakse siin ja seda ei laadita kuhugi üles.";
 "onboarding.setup.onDevice.subtitle" = "See juhtub ainult üks kord. Iga järgnev salvestus töötab võrguühenduseta.";
 "onboarding.setup.cloud.check.keyVerified" = "Ligipääsuvõti kinnitatud";
 "onboarding.setup.cloud.check.activated" = "Konto aktiveeritud selle seadme jaoks";

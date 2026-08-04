@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS go przechowuje. HyperWhisper prosi o niego tylko wtedy, gdy nagranie wymaga transkrypcji.";
 "onboarding.setup.onDevice.storedCaption" = "zapisane na tym Macu";
 "onboarding.setup.onDevice.totalCaption" = "łącznie do pobrania";
-"onboarding.setup.onDevice.note" = "Kontynuuj. Pobieranie zakończy się w tle, gdy będziesz konfigurować mikrofon.";
+"onboarding.setup.onDevice.note" = "Model zostaje na tym Macu, więc Twoje nagrania są transkrybowane tutaj i nigdy nie są nigdzie wysyłane.";
 "onboarding.setup.onDevice.subtitle" = "To dzieje się raz. Każde kolejne nagranie działa offline.";
 "onboarding.setup.cloud.check.keyVerified" = "Klucz dostępu zweryfikowany";
 "onboarding.setup.cloud.check.activated" = "Konto aktywowane dla tego urządzenia";

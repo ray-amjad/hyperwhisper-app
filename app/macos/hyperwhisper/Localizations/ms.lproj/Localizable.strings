@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS menyimpannya. HyperWhisper hanya memintanya apabila rakaman perlu ditranskripsi.";
 "onboarding.setup.onDevice.storedCaption" = "disimpan pada Mac ini";
 "onboarding.setup.onDevice.totalCaption" = "jumlah muat turun";
-"onboarding.setup.onDevice.note" = "Teruskan. Muat turun akan selesai di latar belakang semasa anda menyediakan mikrofon.";
+"onboarding.setup.onDevice.note" = "Model kekal pada Mac ini, jadi audio anda ditranskripsi di sini dan tidak pernah dimuat naik.";
 "onboarding.setup.onDevice.subtitle" = "Ini berlaku sekali sahaja. Setiap rakaman selepas itu berjalan luar talian.";
 "onboarding.setup.cloud.check.keyVerified" = "Kunci akses disahkan";
 "onboarding.setup.cloud.check.activated" = "Akaun diaktifkan untuk peranti ini";

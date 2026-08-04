@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS га чува. HyperWhisper га тражи само кад снимање треба да се препише.";
 "onboarding.setup.onDevice.storedCaption" = "сачувано на овом Mac-у";
 "onboarding.setup.onDevice.totalCaption" = "укупно за преузимање";
-"onboarding.setup.onDevice.note" = "Настави. Преузимање се завршава у позадини док подешаваш микрофон.";
+"onboarding.setup.onDevice.note" = "Модел остаје на овом Mac-у, па се твоји снимци преписују овде и никада се нигде не шаљу.";
 "onboarding.setup.onDevice.subtitle" = "Ово се дешава једном. Свако наредно снимање ради без интернета.";
 "onboarding.setup.cloud.check.keyVerified" = "Приступни кључ потврђен";
 "onboarding.setup.cloud.check.activated" = "Налог активиран за овај уређај";

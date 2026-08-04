@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "يحتفظ به macOS. يطلبه HyperWhisper فقط عندما يحتاج تسجيل إلى التفريغ.";
 "onboarding.setup.onDevice.storedCaption" = "مُخزَّن على جهاز Mac هذا";
 "onboarding.setup.onDevice.totalCaption" = "إجمالي التنزيل";
-"onboarding.setup.onDevice.note" = "تابع. سيكتمل التنزيل في الخلفية بينما تُعِدّ الميكروفون.";
+"onboarding.setup.onDevice.note" = "يبقى النموذج على جهاز Mac هذا، فيُفرَّغ صوتك هنا ولا يُرفع إلى أي مكان.";
 "onboarding.setup.onDevice.subtitle" = "يحدث هذا مرة واحدة فقط. كل تسجيل بعده يعمل دون اتصال.";
 "onboarding.setup.cloud.check.keyVerified" = "تم التحقق من مفتاح الوصول";
 "onboarding.setup.cloud.check.activated" = "تم تفعيل الحساب لهذا الجهاز";

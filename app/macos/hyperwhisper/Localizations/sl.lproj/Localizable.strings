@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS ga hrani. HyperWhisper zanj vpraša le, ko je treba posnetek prepisati.";
 "onboarding.setup.onDevice.storedCaption" = "shranjeno na tem Macu";
 "onboarding.setup.onDevice.totalCaption" = "skupaj za prenos";
-"onboarding.setup.onDevice.note" = "Nadaljuj. Prenos se konča v ozadju, medtem ko nastavljaš mikrofon.";
+"onboarding.setup.onDevice.note" = "Model ostane v tem Macu, zato se tvoji posnetki prepišejo tu in se nikamor ne pošiljajo.";
 "onboarding.setup.onDevice.subtitle" = "To se zgodi enkrat. Vsak naslednji posnetek deluje brez povezave.";
 "onboarding.setup.cloud.check.keyVerified" = "Dostopni ključ preverjen";
 "onboarding.setup.cloud.check.activated" = "Račun aktiviran za to napravo";

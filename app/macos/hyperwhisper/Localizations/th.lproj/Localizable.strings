@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS เป็นผู้เก็บคีย์ไว้ให้ HyperWhisper จะขอใช้ก็ต่อเมื่อมีการบันทึกที่ต้องถอดเสียงเท่านั้น";
 "onboarding.setup.onDevice.storedCaption" = "จัดเก็บบน Mac เครื่องนี้";
 "onboarding.setup.onDevice.totalCaption" = "ขนาดดาวน์โหลดทั้งหมด";
-"onboarding.setup.onDevice.note" = "ทำต่อไปได้เลย การดาวน์โหลดจะเสร็จสิ้นในเบื้องหลังขณะที่คุณตั้งค่าไมโครโฟน";
+"onboarding.setup.onDevice.note" = "โมเดลจะอยู่บน Mac เครื่องนี้ เสียงของคุณจึงถูกถอดเป็นข้อความที่นี่ และไม่ถูกอัปโหลดไปที่ใด";
 "onboarding.setup.onDevice.subtitle" = "เกิดขึ้นเพียงครั้งเดียว การบันทึกทุกครั้งหลังจากนี้จะทำงานแบบออฟไลน์";
 "onboarding.setup.cloud.check.keyVerified" = "ยืนยันคีย์เข้าถึงแล้ว";
 "onboarding.setup.cloud.check.activated" = "เปิดใช้งานบัญชีสำหรับอุปกรณ์นี้แล้ว";

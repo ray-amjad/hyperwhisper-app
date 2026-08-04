@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "金鑰由 macOS 保存。HyperWhisper 只有在錄音需要轉錄時才會請求它。";
 "onboarding.setup.onDevice.storedCaption" = "儲存在這台 Mac 上";
 "onboarding.setup.onDevice.totalCaption" = "總下載大小";
-"onboarding.setup.onDevice.note" = "繼續操作即可。下載會在您設定麥克風時於背景完成。";
+"onboarding.setup.onDevice.note" = "模型保留在這台 Mac 上，因此您的音訊在本機轉錄，不會上傳到任何地方。";
 "onboarding.setup.onDevice.subtitle" = "此過程只需一次。之後的每次錄音都會在離線狀態下執行。";
 "onboarding.setup.cloud.check.keyVerified" = "存取金鑰已驗證";
 "onboarding.setup.cloud.check.activated" = "此裝置帳戶已啟用";

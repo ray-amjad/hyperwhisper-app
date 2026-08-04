@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS lưu giữ key này. HyperWhisper chỉ yêu cầu khi có bản ghi cần chuyển thành văn bản.";
 "onboarding.setup.onDevice.storedCaption" = "được lưu trên Mac này";
 "onboarding.setup.onDevice.totalCaption" = "tổng dung lượng tải xuống";
-"onboarding.setup.onDevice.note" = "Cứ tiếp tục. Quá trình tải sẽ hoàn tất trong nền khi bạn thiết lập micrô.";
+"onboarding.setup.onDevice.note" = "Mô hình nằm trên Mac này, nên âm thanh của bạn được chuyển thành văn bản ngay tại đây và không bao giờ được tải lên.";
 "onboarding.setup.onDevice.subtitle" = "Việc này chỉ diễn ra một lần. Mọi bản ghi sau đó đều chạy ngoại tuyến.";
 "onboarding.setup.cloud.check.keyVerified" = "Key truy cập đã xác minh";
 "onboarding.setup.cloud.check.activated" = "Tài khoản đã kích hoạt cho thiết bị này";

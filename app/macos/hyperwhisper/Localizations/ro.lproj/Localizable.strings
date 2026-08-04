@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS o păstrează. HyperWhisper o cere doar când o înregistrare trebuie transcrisă.";
 "onboarding.setup.onDevice.storedCaption" = "stocat pe acest Mac";
 "onboarding.setup.onDevice.totalCaption" = "total de descărcat";
-"onboarding.setup.onDevice.note" = "Continuă. Descărcarea se termină în fundal cât timp configurezi microfonul.";
+"onboarding.setup.onDevice.note" = "Modelul rămâne pe acest Mac, așa că înregistrările tale sunt transcrise aici și nu ajung niciodată în altă parte.";
 "onboarding.setup.onDevice.subtitle" = "Asta se întâmplă o singură dată. Fiecare înregistrare de după rulează offline.";
 "onboarding.setup.cloud.check.keyVerified" = "Cheie de acces verificată";
 "onboarding.setup.cloud.check.activated" = "Cont activat pentru acest dispozitiv";

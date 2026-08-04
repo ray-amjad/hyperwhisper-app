@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "Το macOS το κρατά. Το HyperWhisper το ζητά μόνο όταν μια εγγραφή χρειάζεται μεταγραφή.";
 "onboarding.setup.onDevice.storedCaption" = "αποθηκευμένα σε αυτό το Mac";
 "onboarding.setup.onDevice.totalCaption" = "συνολική λήψη";
-"onboarding.setup.onDevice.note" = "Συνέχισε. Η λήψη ολοκληρώνεται στο παρασκήνιο όσο ρυθμίζεις το μικρόφωνο.";
+"onboarding.setup.onDevice.note" = "Το μοντέλο μένει σε αυτό το Mac, οπότε ο ήχος σου μεταγράφεται εδώ και δεν ανεβαίνει ποτέ πουθενά.";
 "onboarding.setup.onDevice.subtitle" = "Αυτό γίνεται μία φορά. Κάθε επόμενη εγγραφή εκτελείται εκτός σύνδεσης.";
 "onboarding.setup.cloud.check.keyVerified" = "Το κλειδί πρόσβασης επαληθεύτηκε";
 "onboarding.setup.cloud.check.activated" = "Ο λογαριασμός ενεργοποιήθηκε για αυτή τη συσκευή";

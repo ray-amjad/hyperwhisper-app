@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "इसे macOS रखता है। HyperWhisper इसे तभी मांगता है जब किसी रिकॉर्डिंग को ट्रांसक्राइब करना हो।";
 "onboarding.setup.onDevice.storedCaption" = "इस Mac पर स्टोर";
 "onboarding.setup.onDevice.totalCaption" = "कुल डाउनलोड";
-"onboarding.setup.onDevice.note" = "जारी रखें। माइक्रोफ़ोन सेट करते समय डाउनलोड बैकग्राउंड में पूरा हो जाता है।";
+"onboarding.setup.onDevice.note" = "मॉडल इसी Mac पर रहता है, इसलिए आपका ऑडियो यहीं ट्रांसक्राइब होता है और कहीं अपलोड नहीं होता।";
 "onboarding.setup.onDevice.subtitle" = "यह सिर्फ एक बार होता है। इसके बाद हर रिकॉर्डिंग ऑफ़लाइन चलती है।";
 "onboarding.setup.cloud.check.keyVerified" = "एक्सेस कुंजी सत्यापित";
 "onboarding.setup.cloud.check.activated" = "इस डिवाइस के लिए खाता सक्रिय";

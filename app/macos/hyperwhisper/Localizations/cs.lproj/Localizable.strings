@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "Uchovává ho macOS. HyperWhisper si o něj řekne jen tehdy, když je potřeba přepsat nahrávku.";
 "onboarding.setup.onDevice.storedCaption" = "uloženo na tomto Macu";
 "onboarding.setup.onDevice.totalCaption" = "celková velikost stahování";
-"onboarding.setup.onDevice.note" = "Pokračuj dál. Stahování doběhne na pozadí, zatímco nastavíš mikrofon.";
+"onboarding.setup.onDevice.note" = "Model zůstává v tomto Macu, takže se tvoje nahrávky přepisují tady a nikam se neodesílají.";
 "onboarding.setup.onDevice.subtitle" = "Tohle proběhne jen jednou. Každá další nahrávka pak poběží offline.";
 "onboarding.setup.cloud.check.keyVerified" = "Přístupový klíč ověřen";
 "onboarding.setup.cloud.check.activated" = "Účet aktivován pro toto zařízení";

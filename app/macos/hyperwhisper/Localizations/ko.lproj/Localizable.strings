@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS가 보관해요. HyperWhisper는 녹음을 필사해야 할 때만 이를 요청합니다.";
 "onboarding.setup.onDevice.storedCaption" = "이 Mac에 저장됨";
 "onboarding.setup.onDevice.totalCaption" = "총 다운로드 용량";
-"onboarding.setup.onDevice.note" = "계속 진행하세요. 마이크를 설정하는 동안 다운로드가 백그라운드에서 완료됩니다.";
+"onboarding.setup.onDevice.note" = "모델은 이 Mac에 남아 있어서 음성은 여기서 필사되고 어디에도 업로드되지 않습니다.";
 "onboarding.setup.onDevice.subtitle" = "이 과정은 한 번만 진행돼요. 이후의 모든 녹음은 오프라인으로 실행됩니다.";
 "onboarding.setup.cloud.check.keyVerified" = "액세스 키 확인됨";
 "onboarding.setup.cloud.check.activated" = "이 기기에서 계정이 활성화됨";

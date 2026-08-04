@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS ga čuva. HyperWhisper ga traži samo kad snimku treba transkribirati.";
 "onboarding.setup.onDevice.storedCaption" = "pohranjeno na ovom Macu";
 "onboarding.setup.onDevice.totalCaption" = "ukupno preuzimanje";
-"onboarding.setup.onDevice.note" = "Nastavite dalje. Preuzimanje se dovršava u pozadini dok postavljate mikrofon.";
+"onboarding.setup.onDevice.note" = "Model ostaje na ovom Macu, pa se vaše snimke transkribiraju ovdje i nikamo se ne šalju.";
 "onboarding.setup.onDevice.subtitle" = "Ovo se događa samo jednom. Svako sljedeće snimanje radi izvan mreže.";
 "onboarding.setup.cloud.check.keyVerified" = "Pristupni ključ potvrđen";
 "onboarding.setup.cloud.check.activated" = "Račun aktiviran za ovaj uređaj";

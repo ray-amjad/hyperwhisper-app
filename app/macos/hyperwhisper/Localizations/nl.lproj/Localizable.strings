@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS bewaart hem. HyperWhisper vraagt er alleen om wanneer een opname getranscribeerd moet worden.";
 "onboarding.setup.onDevice.storedCaption" = "opgeslagen op deze Mac";
 "onboarding.setup.onDevice.totalCaption" = "totale download";
-"onboarding.setup.onDevice.note" = "Ga verder. De download wordt op de achtergrond afgerond terwijl je de microfoon instelt.";
+"onboarding.setup.onDevice.note" = "Het model blijft op deze Mac, dus je audio wordt hier getranscribeerd en nooit geüpload.";
 "onboarding.setup.onDevice.subtitle" = "Dit gebeurt eenmalig. Elke opname daarna werkt offline.";
 "onboarding.setup.cloud.check.keyVerified" = "Toegangssleutel geverifieerd";
 "onboarding.setup.cloud.check.activated" = "Account geactiveerd voor dit apparaat";

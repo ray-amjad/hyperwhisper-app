@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS jį saugo. HyperWhisper jo prašo tik tada, kai reikia transkribuoti įrašą.";
 "onboarding.setup.onDevice.storedCaption" = "saugoma šiame Mac";
 "onboarding.setup.onDevice.totalCaption" = "bendras atsisiuntimas";
-"onboarding.setup.onDevice.note" = "Tęskite toliau. Atsisiuntimas baigsis fone, kol nustatysite mikrofoną.";
+"onboarding.setup.onDevice.note" = "Modelis lieka šiame Mac, todėl tavo garso įrašai transkribuojami čia ir niekur neįkeliami.";
 "onboarding.setup.onDevice.subtitle" = "Tai vyksta tik vieną kartą. Kiekvienas įrašas po to veikia neprisijungus.";
 "onboarding.setup.cloud.check.keyVerified" = "Prieigos raktas patvirtintas";
 "onboarding.setup.cloud.check.activated" = "Paskyra aktyvuota šiam įrenginiui";

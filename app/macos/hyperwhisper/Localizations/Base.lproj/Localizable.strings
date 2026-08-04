@@ -346,7 +346,7 @@
 "onboarding.setup.onDevice.ready" = "Model ready";
 "onboarding.setup.onDevice.storedCaption" = "stored on this Mac";
 "onboarding.setup.onDevice.totalCaption" = "total download";
-"onboarding.setup.onDevice.note" = "Keep going. The download finishes in the background while you set up the microphone.";
+"onboarding.setup.onDevice.note" = "The model stays on this Mac, so your audio is transcribed here and never uploaded.";
 "onboarding.setup.provider.title" = "Save your key";
 "onboarding.setup.provider.subtitle" = "macOS holds it. HyperWhisper asks for it only when a recording needs transcribing.";
 "onboarding.setup.provider.save" = "Save key";

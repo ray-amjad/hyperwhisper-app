@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS го съхранява. HyperWhisper го изисква само когато запис трябва да бъде транскрибиран.";
 "onboarding.setup.onDevice.storedCaption" = "съхранени на този Mac";
 "onboarding.setup.onDevice.totalCaption" = "общо за изтегляне";
-"onboarding.setup.onDevice.note" = "Продължи напред. Изтеглянето завършва във фонов режим, докато настройваш микрофона.";
+"onboarding.setup.onDevice.note" = "Моделът остава на този Mac, така че звукът ти се транскрибира тук и никога не се качва никъде.";
 "onboarding.setup.onDevice.subtitle" = "Това се случва само веднъж. Всеки следващ запис работи офлайн.";
 "onboarding.setup.cloud.check.keyVerified" = "Ключът за достъп е потвърден";
 "onboarding.setup.cloud.check.activated" = "Акаунтът е активиран за това устройство";

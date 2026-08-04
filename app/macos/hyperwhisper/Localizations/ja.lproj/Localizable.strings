@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOSが保管します。HyperWhisperは録音を文字起こしする必要があるときだけ、それを要求します。";
 "onboarding.setup.onDevice.storedCaption" = "このMacに保存されます";
 "onboarding.setup.onDevice.totalCaption" = "合計ダウンロード容量";
-"onboarding.setup.onDevice.note" = "そのまま進めてください。マイクを設定している間に、バックグラウンドでダウンロードが完了します。";
+"onboarding.setup.onDevice.note" = "モデルはこのMacに残るので、音声はここで文字起こしされ、どこにもアップロードされません。";
 "onboarding.setup.onDevice.subtitle" = "これは一度だけ行われます。それ以降のすべての録音はオフラインで動作します。";
 "onboarding.setup.cloud.check.keyVerified" = "アクセスキーを確認しました";
 "onboarding.setup.cloud.check.activated" = "このデバイスでアカウントが有効化されました";

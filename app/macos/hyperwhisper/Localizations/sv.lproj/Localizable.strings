@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS sparar den. HyperWhisper frågar efter den bara när en inspelning behöver transkriberas.";
 "onboarding.setup.onDevice.storedCaption" = "lagrat på den här Mac:en";
 "onboarding.setup.onDevice.totalCaption" = "total nedladdning";
-"onboarding.setup.onDevice.note" = "Fortsätt bara. Nedladdningen slutförs i bakgrunden medan du ställer in mikrofonen.";
+"onboarding.setup.onDevice.note" = "Modellen stannar på den här Mac:en, så ditt ljud transkriberas här och laddas aldrig upp.";
 "onboarding.setup.onDevice.subtitle" = "Det här sker bara en gång. Varje inspelning efteråt körs offline.";
 "onboarding.setup.cloud.check.keyVerified" = "Åtkomstnyckel verifierad";
 "onboarding.setup.cloud.check.activated" = "Konto aktiverat för den här enheten";

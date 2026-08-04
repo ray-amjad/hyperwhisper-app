@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS to glabā. HyperWhisper to pieprasa tikai tad, kad ieraksts jātranskribē.";
 "onboarding.setup.onDevice.storedCaption" = "saglabāts šajā Mac datorā";
 "onboarding.setup.onDevice.totalCaption" = "kopējā lejupielāde";
-"onboarding.setup.onDevice.note" = "Turpiniet. Lejupielāde pabeigsies fonā, kamēr iestatāt mikrofonu.";
+"onboarding.setup.onDevice.note" = "Modelis paliek šajā Mac datorā, tāpēc audio tiek transkribēts šeit un nekur netiek augšupielādēts.";
 "onboarding.setup.onDevice.subtitle" = "Tas notiek tikai vienu reizi. Katrs ieraksts pēc tam darbojas bezsaistē.";
 "onboarding.setup.cloud.check.keyVerified" = "Piekļuves atslēga apstiprināta";
 "onboarding.setup.cloud.check.activated" = "Konts aktivizēts šai ierīcei";

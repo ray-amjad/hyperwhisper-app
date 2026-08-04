@@ -561,7 +561,7 @@
 "onboarding.setup.provider.subtitle" = "macOS geymir hann. HyperWhisper biður aðeins um hann þegar upptöku þarf að umrita.";
 "onboarding.setup.onDevice.storedCaption" = "vistað á þessari Mac-tölvu";
 "onboarding.setup.onDevice.totalCaption" = "heildarniðurhal";
-"onboarding.setup.onDevice.note" = "Haltu áfram. Niðurhalið klárast í bakgrunni á meðan þú setur upp hljóðnemann.";
+"onboarding.setup.onDevice.note" = "Líkanið helst á þessari Mac-tölvu, svo hljóðið þitt er umritað hér og aldrei sent neitt annað.";
 "onboarding.setup.onDevice.subtitle" = "Þetta gerist aðeins einu sinni. Sérhver upptaka eftir það keyrir án nettengingar.";
 "onboarding.setup.cloud.check.keyVerified" = "Aðgangslykill staðfestur";
 "onboarding.setup.cloud.check.activated" = "Reikningur virkjaður fyrir þetta tæki";
