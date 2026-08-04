@@ -143,6 +143,10 @@ protocol OnboardingModelCatalog: AnyObject {
     /// Emits whenever either engine's error message changes. Carrying both in one
     /// value is what lets a Parakeet failure reach the UI (bug 2).
     var downloadErrors: AnyPublisher<OnboardingDownloadErrors, Never> { get }
+    /// Emits whenever download state or progress changes for either engine. The
+    /// catalog reads are plain function calls, so without this tick nothing tells
+    /// SwiftUI that the setup step's progress bar has moved (bug 2).
+    var downloadActivity: AnyPublisher<Void, Never> { get }
 }
 
 /// HyperWhisper Cloud. `probe` is read only; `activate` is the single explicit
@@ -176,6 +180,9 @@ protocol OnboardingProviderKeyGateway: AnyObject {
 @MainActor
 protocol OnboardingAudioGateway: AnyObject {
     var devices: [OnboardingInputDevice] { get }
+    /// Emits the connected devices whenever they change, so a microphone that is
+    /// unplugged while the step is open leaves the list (bug 6).
+    var devicesPublisher: AnyPublisher<[OnboardingInputDevice], Never> { get }
     /// nil means the system default is in use.
     var selectedDeviceID: String? { get }
     /// The persisted preference, which is what deferral has to put back. It can
@@ -342,6 +349,15 @@ final class OnboardingFlowModel: ObservableObject {
     /// here first. "" means the provider had no key, which `persist` encodes as a
     /// delete, so a rollback is exact either way.
     private var providerKeyRestorePoints: [CloudProvider: String] = [:]
+    /// Providers whose key passed a probe AND a Keychain write THIS session.
+    /// Survives `resetConfigureTestResults()` so Back navigation does not shut
+    /// the gate on a key that was just verified, but a pre-existing stored key
+    /// that was never probed here stays untrusted.
+    private var validatedProviders: Set<CloudProvider> = []
+    /// The exact trimmed key whose license probe last passed this session.
+    /// Editing the field closes the gate through the string mismatch; retyping
+    /// the validated key reopens it, mirroring the BYOK stored-key semantics.
+    private var lastValidatedLicenseKey: String?
     /// Bug 1, microphone step. `selectDevice` writes the app's input device
     /// setting immediately, so the value it replaces is captured on the first
     /// change. nil is a real value here ("follow the system default"), hence the
@@ -384,6 +400,22 @@ final class OnboardingFlowModel: ObservableObject {
                 guard let self else { return }
                 self.downloadErrors = errors
                 self.refreshSetupError()
+            }
+            .store(in: &cancellables)
+
+        // The catalog's download state lives on nested ObservableObjects, whose
+        // changes do not propagate to this flow's own observers, so the setup
+        // step's progress bar sat frozen at whatever it first rendered (bug 2).
+        catalog.downloadActivity
+            .sink { [weak self] in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
+        // Use the emitted list, never a re-read of `audio.devices`: @Published
+        // fires on willSet, so pulling here would see the pre-change value.
+        audio.devicesPublisher
+            .sink { [weak self] devices in
+                guard let self, self.step == .microphone else { return }
+                self.applyDeviceList(devices)
             }
             .store(in: &cancellables)
 
@@ -531,6 +563,12 @@ final class OnboardingFlowModel: ObservableObject {
             self.licenseTestPassed = outcome.isValid
             self.activationErrorMessage = outcome.isValid ? nil : outcome.errorMessage
             self.keyValidated = outcome.isValid
+            if outcome.isValid {
+                self.lastValidatedLicenseKey = key
+            } else if self.lastValidatedLicenseKey == key {
+                // A revoked key that fails a re-probe must not stay remembered.
+                self.lastValidatedLicenseKey = nil
+            }
             self.isTestingKey = false
             self.refreshSetupError()
             self.taskBox.clear(TaskKey.licenseTest)
@@ -551,18 +589,21 @@ final class OnboardingFlowModel: ObservableObject {
             guard let self else { return }
             let health = await self.providerKeys.probe(provider, apiKey: key)
             guard !Task.isCancelled, self.isLive else { return }
+            // Drop a result the user has since superseded BEFORE the persist:
+            // a stale probe must never write the Keychain or set a restore
+            // point (which would also wrongly flag a pending production write).
+            guard self.selectedProvider == provider,
+                  self.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key else {
+                self.isTestingKey = false
+                self.taskBox.clear(TaskKey.providerTest)
+                return
+            }
             var persisted = false
             if health == .healthy {
                 // Snapshot whatever this provider had BEFORE overwriting it, so
                 // Set Up Later can put the user's original key back (bug 1).
                 self.captureProviderKeyRestorePoint(for: provider)
                 persisted = self.providerKeys.persist(key, for: provider)
-            }
-            guard self.selectedProvider == provider,
-                  self.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines) == key else {
-                self.isTestingKey = false
-                self.taskBox.clear(TaskKey.providerTest)
-                return
             }
             if health == .healthy && !persisted {
                 self.providerTestHealth = nil
@@ -573,6 +614,9 @@ final class OnboardingFlowModel: ObservableObject {
                 self.providerTestHealth = health
                 self.providerErrorMessage = nil
                 self.keyValidated = health == .healthy && persisted
+                if self.keyValidated {
+                    self.validatedProviders.insert(provider)
+                }
             }
             self.isTestingKey = false
             self.refreshSetupError()
@@ -685,13 +729,22 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     func refreshDeviceOptions() {
+        applyDeviceList(audio.devices)
+    }
+
+    private func applyDeviceList(_ devices: [OnboardingInputDevice]) {
         // "System Default" is always the first option, and an empty id is how the
         // rest of the app already encodes it.
-        deviceOptions = [.systemDefault(name: systemDefaultDeviceName)] + audio.devices
+        deviceOptions = [.systemDefault(name: systemDefaultDeviceName)] + devices
         selectedDeviceID = audio.selectedDeviceID ?? ""
     }
 
     func selectDevice(id: String) {
+        // A device can vanish between the menu being built and the pick landing.
+        // Rejecting it here keeps a disconnected microphone out of the UI
+        // selection and, more importantly, stops it from flipping the pending
+        // write flag for a change that was never applied (bug 6).
+        guard id.isEmpty || deviceOptions.contains(where: { $0.id == id }) else { return }
         // The device change reaches SettingsManager immediately, because the
         // level meter and the try it recording both have to follow it. Capture
         // what it replaces so Set Up Later restores it (bug 1).
@@ -755,13 +808,19 @@ final class OnboardingFlowModel: ObservableObject {
                 return selectedModel != nil
             case .hyperwhisperCloud:
                 // A working key, not merely a typed one. Either the license is
-                // already active on this Mac or the inline test passed.
+                // already active on this Mac, the inline test passed, or the
+                // field still holds the exact key that passed earlier this
+                // session (Back navigation clears `keyValidated`, not the fact
+                // that the key was verified).
+                let key = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
                 return license.isActive || keyValidated
+                    || (!key.isEmpty && key == lastValidatedLicenseKey)
             case .yourProvider:
-                // `keyValidated` is cleared every time this step appears, so a
-                // user who tested a key, moved on, and pressed Back would find
-                // the gate shut on a key that is already in the Keychain.
-                return keyValidated || providerKeys.hasKey(for: selectedProvider)
+                // `keyValidated` is cleared every time this step appears, so the
+                // per-session validation record keeps the gate open across Back
+                // navigation. A key that merely sits in the Keychain but was
+                // never probed this session does not count.
+                return keyValidated || validatedProviders.contains(selectedProvider)
             }
         case .setup:
             return isSelectedSourceUsable
@@ -781,7 +840,10 @@ final class OnboardingFlowModel: ObservableObject {
         case .hyperwhisperCloud:
             return license.isActive
         case .yourProvider:
+            // Stored AND verified this session: an unprobed pre-existing key
+            // must not read as "validated" on the setup checklist.
             return providerKeys.hasKey(for: selectedProvider)
+                && validatedProviders.contains(selectedProvider)
         }
     }
 

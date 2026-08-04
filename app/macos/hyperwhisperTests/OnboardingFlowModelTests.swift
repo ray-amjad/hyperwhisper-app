@@ -60,12 +60,16 @@ final class FakeCatalog: OnboardingModelCatalog {
     var progresses: [String: Double] = [:]
     var startedDownloads: [String] = []
     let errors = CurrentValueSubject<OnboardingDownloadErrors, Never>(.none)
+    /// Stands in for the nested download managers' change ticks. Unthrottled,
+    /// because the live adapter is where the 200 ms throttle lives.
+    let activity = PassthroughSubject<Void, Never>()
 
     func isInstalled(_ model: OnboardingModelSelection) -> Bool { installed.contains(model.id) }
     func isDownloading(_ model: OnboardingModelSelection) -> Bool { downloading.contains(model.id) }
     func progress(for model: OnboardingModelSelection) -> Double { progresses[model.id] ?? 0 }
     func startDownload(_ model: OnboardingModelSelection) { startedDownloads.append(model.id) }
     var downloadErrors: AnyPublisher<OnboardingDownloadErrors, Never> { errors.eraseToAnyPublisher() }
+    var downloadActivity: AnyPublisher<Void, Never> { activity.eraseToAnyPublisher() }
 }
 
 @MainActor
@@ -137,10 +141,15 @@ final class FakeProviderKeys: OnboardingProviderKeyGateway {
 
 @MainActor
 final class FakeAudio: OnboardingAudioGateway {
-    var devices: [OnboardingInputDevice] = [
+    static let connectedDevices = [
         OnboardingInputDevice(id: "builtin", name: "MacBook Pro Microphone"),
         OnboardingInputDevice(id: "usb", name: "External USB Microphone")
     ]
+
+    var devices: [OnboardingInputDevice] = FakeAudio.connectedDevices
+    /// Stands in for AudioRecordingManager's @Published device list. Seeded so
+    /// subscribing mirrors the live adapter's immediate first value.
+    let devicesSubject = CurrentValueSubject<[OnboardingInputDevice], Never>(FakeAudio.connectedDevices)
     var selectedDeviceID: String?
     /// The persisted preference. Kept separate from `selectedDeviceID` so tests
     /// can reproduce the case where the remembered microphone is unplugged.
@@ -157,6 +166,11 @@ final class FakeAudio: OnboardingAudioGateway {
 
     func refreshDevices() { refreshDeviceCalls += 1 }
     func refreshMicrophonePermission() { refreshPermissionCalls += 1 }
+    /// A device is plugged in or pulled out while the step is open.
+    func publish(devices newDevices: [OnboardingInputDevice]) {
+        devices = newDevices
+        devicesSubject.send(newDevices)
+    }
     func selectDevice(id: String?) { selectedDeviceID = id; storedDeviceID = id }
     /// Mirrors the live adapter: the preference goes back even when the device
     /// it names is absent, while the open device only reopens if still present.
@@ -171,6 +185,7 @@ final class FakeAudio: OnboardingAudioGateway {
     func clearTranscript() { clearTranscriptCalls += 1; transcriptSubject.send("") }
     var isRecordingPublisher: AnyPublisher<Bool, Never> { recording.eraseToAnyPublisher() }
     var transcriptPublisher: AnyPublisher<String, Never> { transcriptSubject.eraseToAnyPublisher() }
+    var devicesPublisher: AnyPublisher<[OnboardingInputDevice], Never> { devicesSubject.eraseToAnyPublisher() }
 }
 
 struct FakeRestorePoint: OnboardingRestorePoint {
@@ -581,6 +596,30 @@ struct OnboardingDownloadErrorTests {
     }
 }
 
+// MARK: - Download progress invalidation (bug 2)
+
+@MainActor
+struct OnboardingDownloadProgressTests {
+    /// Progress is read through a plain function call, so the download tick is the
+    /// only thing that tells SwiftUI to re-read it.
+    @Test func catalogDownloadActivityInvalidatesTheFlow() {
+        let h = Harness()
+        h.flow.select(source: .onDevice)
+        h.flow.select(model: FakeCatalog.parakeet)
+
+        var invalidations = 0
+        let observer = h.flow.objectWillChange.sink { _ in invalidations += 1 }
+        defer { observer.cancel() }
+
+        h.catalog.downloading.insert(FakeCatalog.parakeet.id)
+        h.catalog.progresses[FakeCatalog.parakeet.id] = 0.42
+        h.catalog.activity.send()
+
+        #expect(invalidations == 1)
+        #expect(h.flow.selectedModelProgress() == 0.42)
+    }
+}
+
 // MARK: - Microphone lifecycle
 
 @MainActor
@@ -618,6 +657,47 @@ struct OnboardingMicrophoneTests {
 
         h.flow.selectDevice(id: "")
         #expect(h.audio.selectedDeviceID == nil)
+    }
+
+    /// Unplugging a microphone while the picker is open has to remove its row,
+    /// otherwise the list keeps offering a device that no longer exists (bug 6).
+    @Test func aDeviceChangeOnTheMicrophoneStepRefreshesTheOptions() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.flow.beginMicrophoneStep()
+        #expect(h.flow.deviceOptions.contains(where: { $0.id == "usb" }))
+
+        h.audio.publish(devices: [OnboardingInputDevice(id: "builtin", name: "MacBook Pro Microphone")])
+
+        #expect(h.flow.deviceOptions.count == 2)
+        #expect(!h.flow.deviceOptions.contains(where: { $0.id == "usb" }))
+    }
+
+    @Test func deviceChangesOffTheMicrophoneStepAreIgnored() {
+        let h = Harness()
+        h.flow.beginMicrophoneStep()
+        let before = h.flow.deviceOptions.count
+
+        // The flow is still on .welcome, so the step owns nothing to refresh.
+        h.audio.publish(devices: [])
+
+        #expect(h.flow.deviceOptions.count == before)
+    }
+
+    /// The picked device can disappear between the menu being drawn and the pick
+    /// landing. Applying it would select a phantom row and, worse, mark a
+    /// production write that never happened (bug 6).
+    @Test func selectingADisconnectedDeviceIsIgnored() {
+        let h = Harness()
+        h.flow.beginMicrophoneStep()
+
+        h.flow.selectDevice(id: "dock")
+
+        #expect(h.flow.selectedDeviceID.isEmpty)
+        #expect(h.audio.selectedDeviceID == nil)
+        #expect(h.audio.storedDeviceID == nil)
+        #expect(!h.flow.hasPendingProductionWrite)
     }
 
     @Test func everyExitPathReleasesTheMicrophone() {
@@ -904,5 +984,167 @@ struct OnboardingActivationLifetimeTests {
 
         #expect(!h.flow.keyValidated)
         #expect(h.flow.licenseTestPassed == nil)
+    }
+
+    /// The staleness check has to run BEFORE the persist: a probe the user has
+    /// abandoned must never write the Keychain or set a restore point, which
+    /// would otherwise flip `hasPendingProductionWrite` for a key nobody kept.
+    @Test func aStaleProviderKeyProbeResultIsNeverPersisted() async {
+        let h = Harness()
+        h.flow.select(source: .yourProvider)
+        h.flow.apiKeyInput = "sk-abandoned"
+        h.flow.testProviderKey()
+        // Edit the key before the probe result is consumed.
+        h.flow.apiKeyInput = "sk-current"
+        await h.flow.lastAsyncTaskForTesting?.value
+
+        #expect(h.providerKeys.stored.isEmpty)
+        #expect(!h.flow.keyValidated)
+        #expect(!h.flow.hasPendingProductionWrite)
+        #expect(h.providerKeys.probeCount == 1)
+    }
+
+    @Test func switchingProviderMidProbeDiscardsThePersist() async {
+        let h = Harness()
+        h.flow.select(source: .yourProvider)
+        h.flow.select(provider: .openai)
+        h.flow.apiKeyInput = "sk-openai"
+        h.flow.testProviderKey()
+        // Switch provider before the probe result is consumed.
+        h.flow.select(provider: .deepgram)
+        await h.flow.lastAsyncTaskForTesting?.value
+
+        #expect(h.providerKeys.stored.isEmpty)
+        #expect(!h.flow.keyValidated)
+        #expect(!h.flow.hasPendingProductionWrite)
+    }
+}
+
+// MARK: - Per-session validation records (BYOK + Cloud gates)
+
+@MainActor
+struct OnboardingSessionValidationTests {
+    /// A key that merely sits in the Keychain was never verified by this
+    /// session, so neither the configure gate nor the setup gate may trust it.
+    @Test func aStoredButNeverProbedKeyKeepsBothGatesShut() {
+        let h = Harness()
+        h.providerKeys.stored[.openai] = "sk-preexisting"
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+
+        #expect(!h.flow.canContinue)
+        #expect(!h.flow.isSelectedSourceUsable)
+    }
+
+    @Test func aValidatedKeySurvivesBackNavigationOnTheSetupGate() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+
+        h.flow.apiKeyInput = "sk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.flow.isSelectedSourceUsable)
+
+        #expect(h.flow.advance())
+        #expect(h.flow.back())
+        // What the view does on every appearance of the configure step.
+        h.flow.resetConfigureTestResults()
+
+        #expect(!h.flow.keyValidated)
+        #expect(h.flow.canContinue)
+        #expect(h.flow.isSelectedSourceUsable)
+    }
+
+    @Test func validationIsRememberedPerProviderNotGlobally() async {
+        let h = Harness()
+        h.providerKeys.stored[.deepgram] = "dg-preexisting"
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+
+        h.flow.select(provider: .groq)
+        h.flow.apiKeyInput = "gsk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.flow.canContinue)
+
+        // Deepgram's stored key was never probed this session.
+        h.flow.select(provider: .deepgram)
+        #expect(!h.flow.canContinue)
+        #expect(!h.flow.isSelectedSourceUsable)
+
+        // Groq's validation record survives the round trip.
+        h.flow.select(provider: .groq)
+        #expect(h.flow.canContinue)
+    }
+
+    @Test func returningToConfigureKeepsTheCloudGateOpenForTheTestedKey() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .hyperwhisperCloud)
+        h.advance(to: .configure)
+
+        h.flow.licenseKeyInput = "hw-key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.flow.canContinue)
+
+        #expect(h.flow.advance())
+        #expect(h.flow.back())
+        h.flow.resetConfigureTestResults()
+
+        #expect(!h.flow.keyValidated)
+        #expect(h.flow.canContinue, "the field still holds the exact key that passed")
+    }
+
+    @Test func editingTheRememberedKeyClosesTheGateUntilItMatchesAgain() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .hyperwhisperCloud)
+        h.advance(to: .configure)
+
+        h.flow.licenseKeyInput = "hw-key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.flow.resetConfigureTestResults()
+        #expect(h.flow.canContinue)
+
+        h.flow.licenseKeyInput = "hw-key-edited"
+        #expect(!h.flow.canContinue)
+
+        // Retyping the validated key reopens the gate without another probe.
+        h.flow.licenseKeyInput = "hw-key"
+        #expect(h.flow.canContinue)
+        #expect(h.license.probedKeys == ["hw-key"])
+    }
+
+    @Test func aFailedReProbeOfTheRememberedKeyClosesTheGate() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .hyperwhisperCloud)
+        h.advance(to: .configure)
+
+        h.flow.licenseKeyInput = "hw-key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        #expect(h.flow.canContinue)
+
+        // The key gets revoked server side; a re-probe of the SAME key fails.
+        h.license.probeOutcome = .failure("revoked")
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+
+        #expect(!h.flow.canContinue)
+        h.flow.resetConfigureTestResults()
+        #expect(!h.flow.canContinue, "a revoked key must not stay remembered")
     }
 }

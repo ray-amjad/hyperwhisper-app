@@ -117,6 +117,25 @@ final class LiveOnboardingModelCatalog: OnboardingModelCatalog {
             .removeDuplicates()
             .eraseToAnyPublisher()
     }
+
+    /// Bug 2: `ParakeetModelManager.downloads` is a nested ObservableObject, so
+    /// its ticks never reach the flow's observers on their own. Progress streams
+    /// are throttled here rather than in the flow so the unit tests stay
+    /// synchronous, mirroring `ModelLibraryManager.configure`.
+    var downloadActivity: AnyPublisher<Void, Never> {
+        let immediate: [AnyPublisher<Void, Never>] = [
+            whisper.$downloadingModels.map { _ in () }.eraseToAnyPublisher(),
+            parakeet.downloads.$downloading.map { _ in () }.eraseToAnyPublisher(),
+        ]
+        let throttled: [AnyPublisher<Void, Never>] = [
+            whisper.$downloadProgress.map { _ in () }.eraseToAnyPublisher(),
+            parakeet.downloads.$progress.map { _ in () }.eraseToAnyPublisher(),
+        ].map {
+            $0.throttle(for: .milliseconds(200), scheduler: DispatchQueue.main, latest: true)
+                .eraseToAnyPublisher()
+        }
+        return Publishers.MergeMany(immediate + throttled).eraseToAnyPublisher()
+    }
 }
 
 // MARK: - License
@@ -208,6 +227,12 @@ final class LiveOnboardingAudioGateway: OnboardingAudioGateway {
 
     var devices: [OnboardingInputDevice] {
         audioManager.availableDevices.map { OnboardingInputDevice(id: $0.id, name: $0.name) }
+    }
+
+    var devicesPublisher: AnyPublisher<[OnboardingInputDevice], Never> {
+        audioManager.$availableDevices
+            .map { $0.map { OnboardingInputDevice(id: $0.id, name: $0.name) } }
+            .eraseToAnyPublisher()
     }
 
     var selectedDeviceID: String? { audioManager.selectedDevice?.id }
@@ -445,6 +470,10 @@ final class LiveOnboardingSourceCommitter: OnboardingSourceCommitting {
         // Put the active mode selection back where it was.
         if let previous = point.previousSelection {
             appState.selectMode(previous, persist: true)
+        } else if !point.modeExisted, appState.selectedModeId == point.modeID.uuidString {
+            // Nothing was selected before and the Mode this flow created has just
+            // been deleted, so keeping the id would select a row that is gone.
+            appState.clearModeSelection()
         }
     }
 
