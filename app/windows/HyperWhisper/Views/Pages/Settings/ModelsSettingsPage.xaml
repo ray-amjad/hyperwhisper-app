@@ -423,6 +423,19 @@
                                                         <TextBlock Text="{Binding TagText}" FontSize="10"
                                                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                     </Border>
+                                                    <!-- Local-LLM CPU/GPU runtime backend badge (issue #77) -->
+                                                    <Border Background="{DynamicResource BadgeGrayBackgroundBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="9"
+                                                            Padding="6,1"
+                                                            Margin="6,0,0,0"
+                                                            VerticalAlignment="Center"
+                                                            ToolTip="{Binding RuntimeBadgeToolTip}"
+                                                            Visibility="{Binding RuntimeBadgeVisibility}">
+                                                        <TextBlock Text="{Binding RuntimeBadgeText}" FontSize="10"
+                                                                   controls:BrushKeyBinder.ForegroundKey="{Binding RuntimeBadgeBrushKey}"/>
+                                                    </Border>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding ProviderName}"
                                                            FontSize="11"
