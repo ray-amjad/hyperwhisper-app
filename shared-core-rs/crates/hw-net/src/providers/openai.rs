@@ -2,7 +2,8 @@
 //!
 //! `POST https://api.openai.com/v1/audio/transcriptions` — `multipart/form-data`
 //! with `Authorization: Bearer <key>`. Vocabulary is injected into the `prompt`
-//! field as comma-separated CSV; the parsed response is `{ "text": "..." }`.
+//! field framed as `"Important terms to recognize: a, b, c. "`; the parsed
+//! response is `{ "text": "..." }`.
 //!
 //! Parity references:
 //! - macOS `CloudWhisperProvider.swift` (the `.openai` branch)
@@ -20,13 +21,16 @@
 //!   *structured* response, so we send **`json`** (Windows behavior) and parse
 //!   the `text` field. Documented divergence from macOS; only this one field
 //!   value differs on the wire and the `text` string is identical.
-//! - **`prompt` (vocabulary)**: macOS/Windows wrap the terms as
-//!   `"Important terms to recognize: a, b, c. "` (comma-**space**) then append
-//!   the mode's custom instructions. We send the bare `vocabulary_csv` (comma,
-//!   no space) per the shared-core contract (`helpers::vocabulary_csv`), then
-//!   append `params.prompt` (custom instructions) when present. Documented
-//!   divergence — keeps vocabulary handling uniform and deterministic across
-//!   providers; the preamble is a soft hint that does not change recognition.
+//! - **`prompt` (vocabulary)**: terms are wrapped as `"Important terms to
+//!   recognize: a, b, c. "` (comma-**space** join, trailing `". "`) before
+//!   `params.prompt` (custom instructions) is appended, matching macOS/Windows.
+//!   This preamble is restored (not just cosmetic) for `gpt-4o-transcribe` /
+//!   `gpt-4o-mini-transcribe`: unlike `whisper-1`, those models are LLM-based
+//!   and treat `prompt` as an instruction rather than a decoding hint, so a
+//!   bare comma-separated term list can be read as the task itself instead of
+//!   a vocabulary hint — the failure mode reported in issue #76. See
+//!   [`crate::providers::common::build_prompt`] for the shared implementation
+//!   used by every `VocabularyMode::Prompt` provider.
 
 use crate::contract::{HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError};
 use crate::providers::common::{self, Auth, OpenAiStyleSpec, VocabularyMode};
@@ -140,12 +144,15 @@ mod tests {
     }
 
     #[test]
-    fn vocabulary_goes_into_prompt_as_bare_csv() {
+    fn vocabulary_goes_into_prompt_with_framing_preamble() {
         let mut p = params();
         p.vocabulary = vec!["Rust".to_string(), "UniFFI".to_string()];
         let req = build_transcribe_request(&p).unwrap();
         if let Body::Multipart { parts, .. } = &req.body {
-            assert_eq!(field(parts, "prompt"), Some("Rust,UniFFI"));
+            assert_eq!(
+                field(parts, "prompt"),
+                Some("Important terms to recognize: Rust, UniFFI. ")
+            );
         }
     }
 
@@ -156,7 +163,35 @@ mod tests {
         p.prompt = Some("Format as bullet points.".to_string());
         let req = build_transcribe_request(&p).unwrap();
         if let Body::Multipart { parts, .. } = &req.body {
-            assert_eq!(field(parts, "prompt"), Some("Rust Format as bullet points."));
+            assert_eq!(
+                field(parts, "prompt"),
+                Some("Important terms to recognize: Rust. Format as bullet points.")
+            );
+        }
+    }
+
+    #[test]
+    fn gpt4o_transcribe_vocabulary_prompt_is_framed_not_bare_csv() {
+        // Regression test for issue #76: gpt-4o-transcribe / gpt-4o-mini-transcribe
+        // are LLM-based and treat an unframed comma-separated term list as the task
+        // itself rather than a vocabulary hint. The `prompt` field must always carry
+        // the "Important terms to recognize: ..." preamble, never a bare CSV.
+        let mut p = params();
+        p.model = "gpt-4o-transcribe".to_string();
+        p.vocabulary = vec![
+            "Kubernetes".to_string(),
+            "Terraform".to_string(),
+            "gRPC".to_string(),
+        ];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            let prompt = field(parts, "prompt").expect("prompt field present");
+            assert!(
+                prompt.starts_with("Important terms to recognize:"),
+                "expected framed preamble, got: {prompt:?}"
+            );
+        } else {
+            panic!("expected multipart body");
         }
     }
 
