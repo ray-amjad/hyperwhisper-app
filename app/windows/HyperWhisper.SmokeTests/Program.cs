@@ -685,7 +685,7 @@ internal static class Program
                 application.Shutdown();
             });
 
-            Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured (issue #92)", () =>
+            Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured — issue #92", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 

@@ -26,9 +26,14 @@ public class VocabularyProcessor
             .Where(v => !string.IsNullOrWhiteSpace(v.Word) && !string.IsNullOrWhiteSpace(v.Replacement))
             .ToList();
 
-        if (vocab.Count == 0 || string.IsNullOrEmpty(text))
+        if (string.IsNullOrEmpty(text))
         {
-            return string.IsNullOrEmpty(text) ? text : text.Trim();
+            return text;
+        }
+
+        if (vocab.Count == 0)
+        {
+            return text.Trim();
         }
 
         // NFC-normalize the transcript once and each search word (mirrors macOS
