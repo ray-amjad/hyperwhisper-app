@@ -95,7 +95,15 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 _receiveTask = Task.Run(() => RunReceiveLoopAsync(webSocket, _sessionCts.Token), CancellationToken.None);
                 await SendStartMessagesAsync(_sessionCts.Token);
                 _sessionStartedTcs.TrySetResult();
-                ChangeState(StreamingConnectionState.Streaming);
+
+                // The receive loop (background thread) can concurrently observe a terminal
+                // close/error and call ChangeState(Error) while this await was in flight - only
+                // move to Streaming if we're still in the state this branch expects (Connecting).
+                // Without this guard, a same-tick "Streaming" transition here would silently
+                // clobber a concurrently-recorded Error back to Streaming, defeating callers
+                // (e.g. MainViewModel) that check State right after StartAsync returns.
+                if (State == StreamingConnectionState.Connecting)
+                    ChangeState(StreamingConnectionState.Streaming);
             }
             else
             {
@@ -357,16 +365,38 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         return stream.Length == 0 ? null : Encoding.UTF8.GetString(stream.ToArray());
     }
 
-    private void HandleCloseResult(WebSocketReceiveResult result)
+    // internal (not private): direct-call surface for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility change is intended.
+    internal void HandleCloseResult(WebSocketReceiveResult result)
     {
-        var closeCode = result.CloseStatus.HasValue ? (int)result.CloseStatus.Value : 0;
-        if (closeCode is not (4001 or 4002))
+        // No status at all is ambiguous (not a clear provider signal) - let it fall through to
+        // the existing reconnect/backoff path in RunReceiveLoopAsync, same as today.
+        if (result.CloseStatus is null)
+            return;
+
+        var closeCode = (int)result.CloseStatus.Value;
+
+        // A clean close (1000) is never a provider error - it's either a graceful server-side
+        // close or the server's echo of our own CloseAsync(NormalClosure, ...) during StopAsync.
+        if (closeCode == (int)WebSocketCloseStatus.NormalClosure)
+            return;
+
+        // We're already mid/post our own intentional shutdown (StopAsync sets Disconnecting
+        // before running the stop sequence, and _sessionCts isn't cancelled until after that
+        // completes, so the receive loop can still reach here concurrently). Don't reclassify a
+        // close arriving as a side effect of our own stop as a provider error.
+        if (State is StreamingConnectionState.Disconnecting or StreamingConnectionState.Idle)
             return;
 
         _receivedTerminalClose = true;
-        var message = closeCode == 4001
-            ? "Streaming stopped because credits are exhausted."
-            : "Streaming stopped because the maximum session duration was reached.";
+        var message = closeCode switch
+        {
+            4001 => "Streaming stopped because credits are exhausted.",
+            4002 => "Streaming stopped because the maximum session duration was reached.",
+            _ => string.IsNullOrWhiteSpace(result.CloseStatusDescription)
+                ? $"Streaming connection was closed by the provider (code {closeCode})."
+                : $"Streaming connection was closed by the provider: {result.CloseStatusDescription}"
+        };
 
         LoggingService.Warn($"StreamingTranscriptionClient: terminal server close {closeCode} ({result.CloseStatusDescription})");
         SentryService.AddBreadcrumb(

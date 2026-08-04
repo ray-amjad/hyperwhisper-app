@@ -1398,7 +1398,7 @@ public partial class MainViewModel : ViewModelBase
             audioRestoreClaim = AudioEnvironmentService.Instance.ClaimRestoreOwnershipForRecording();
             _audioEnvironmentState = audioRestoreClaim.InheritedRestoreState;
             var started = await _streamingClient.StartAsync(_streamingStartCts.Token);
-            if (!started)
+            if (!started || _streamingClient.State == StreamingConnectionState.Error)
                 throw new InvalidOperationException(GetStreamingStartupFailureMessage());
 
             _streamingAudioCapture.Start(SelectedAudioDevice.DeviceNumber, _streamingClient.AudioSampleRate);
