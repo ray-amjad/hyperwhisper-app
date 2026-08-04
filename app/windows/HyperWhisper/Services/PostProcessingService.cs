@@ -355,7 +355,7 @@ public class PostProcessingService : IDisposable
         using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, provider.Endpoint());
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = new StringContent(
-            BuildOpenAIRequestJson(model, systemPrompt, userMessage),
+            BuildOpenAIRequestJson(provider, model, systemPrompt, userMessage),
             Encoding.UTF8,
             "application/json"
         );
@@ -366,23 +366,62 @@ public class PostProcessingService : IDisposable
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Output-token cap sent to Groq. Groq applies a low default completion cap
+    /// when the request omits one (its reasoning docs cite 1,024), and gpt-oss
+    /// reasoning tokens spend from that same budget, so long dictations truncate
+    /// (finish_reason=length). Kept at 4,096 — not 8,192 like Anthropic — because
+    /// Groq's free-tier TPM ceiling for openai/gpt-oss-120b is 8,000 and the
+    /// admission check counts prompt + requested cap, not actual usage.
+    /// </summary>
+    internal const int GroqMaxCompletionTokens = 4096;
+
     internal static string BuildOpenAIRequestJson(
+        OpenAICompatibleProvider provider,
         string model,
         string systemPrompt,
         string userMessage)
     {
-        var requestBody = new
+        var requestBody = BaseOpenAIRequestBody(model, systemPrompt, userMessage);
+
+        if (provider == OpenAICompatibleProvider.Groq)
         {
-            model,
-            messages = new[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage }
-            }
-        };
+            requestBody["max_completion_tokens"] = GroqMaxCompletionTokens;
+        }
 
         return JsonSerializer.Serialize(requestBody);
     }
+
+    /// <summary>
+    /// Request JSON for custom OpenAI-compatible endpoints: no provider-specific
+    /// fields, because the server behind a user-supplied URL is unknown.
+    /// </summary>
+    internal static string BuildOpenAIRequestJson(
+        string model,
+        string systemPrompt,
+        string userMessage)
+        => JsonSerializer.Serialize(BaseOpenAIRequestBody(model, systemPrompt, userMessage));
+
+    /// <summary>
+    /// True when a custom endpoint's URL is Groq's own API — the same undocumented
+    /// completion-token default applies even when reached via the custom-endpoint path.
+    /// </summary>
+    internal static bool IsGroqEndpoint(string endpointUrl) =>
+        Uri.TryCreate(endpointUrl, UriKind.Absolute, out var uri)
+        && uri.Host.Equals("api.groq.com", StringComparison.OrdinalIgnoreCase);
+
+    private static Dictionary<string, object> BaseOpenAIRequestBody(
+        string model,
+        string systemPrompt,
+        string userMessage) => new()
+    {
+        ["model"] = model,
+        ["messages"] = new object[]
+        {
+            new { role = "system", content = systemPrompt },
+            new { role = "user", content = userMessage }
+        }
+    };
 
     /// <summary>
     /// Maps the OpenAI-compatible subset of <see cref="PostProcessingProvider"/> to the
@@ -507,8 +546,11 @@ public class PostProcessingService : IDisposable
         LoggingService.Info($"PostProcessingService: Processing with custom endpoint '{endpoint.Name}' / {endpoint.ModelName}");
 
         using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, endpoint.EndpointURL);
+        var requestJson = IsGroqEndpoint(endpoint.EndpointURL)
+            ? BuildOpenAIRequestJson(OpenAICompatibleProvider.Groq, endpoint.ModelName, systemPrompt, userMessage)
+            : BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage);
         request.Content = new StringContent(
-            BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage),
+            requestJson,
             Encoding.UTF8,
             "application/json"
         );
