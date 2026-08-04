@@ -141,6 +141,18 @@ internal static class Program
                     "Groq request should use max_completion_tokens, not max_tokens");
             });
 
+            Run("Custom endpoint pointed at Groq's API is recognized", () =>
+            {
+                Assert(PostProcessingService.IsGroqEndpoint("https://api.groq.com/openai/v1/chat/completions"),
+                    "api.groq.com should be recognized as a Groq endpoint");
+                Assert(PostProcessingService.IsGroqEndpoint("https://API.GROQ.COM/openai/v1/chat/completions"),
+                    "host match should be case-insensitive");
+                Assert(!PostProcessingService.IsGroqEndpoint("http://localhost:1234/v1/chat/completions"),
+                    "a local/self-hosted endpoint should not be recognized as Groq");
+                Assert(!PostProcessingService.IsGroqEndpoint("not a url"),
+                    "an unparsable URL should not be recognized as Groq");
+            });
+
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
             {
                 var strategy = new DeepgramStreamingStrategy();

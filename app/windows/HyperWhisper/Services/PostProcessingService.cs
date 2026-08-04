@@ -402,6 +402,14 @@ public class PostProcessingService : IDisposable
         string userMessage)
         => JsonSerializer.Serialize(BaseOpenAIRequestBody(model, systemPrompt, userMessage));
 
+    /// <summary>
+    /// True when a custom endpoint's URL is Groq's own API — the same undocumented
+    /// completion-token default applies even when reached via the custom-endpoint path.
+    /// </summary>
+    internal static bool IsGroqEndpoint(string endpointUrl) =>
+        Uri.TryCreate(endpointUrl, UriKind.Absolute, out var uri)
+        && uri.Host.Equals("api.groq.com", StringComparison.OrdinalIgnoreCase);
+
     private static Dictionary<string, object> BaseOpenAIRequestBody(
         string model,
         string systemPrompt,
@@ -538,8 +546,11 @@ public class PostProcessingService : IDisposable
         LoggingService.Info($"PostProcessingService: Processing with custom endpoint '{endpoint.Name}' / {endpoint.ModelName}");
 
         using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, endpoint.EndpointURL);
+        var requestJson = IsGroqEndpoint(endpoint.EndpointURL)
+            ? BuildOpenAIRequestJson(OpenAICompatibleProvider.Groq, endpoint.ModelName, systemPrompt, userMessage)
+            : BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage);
         request.Content = new StringContent(
-            BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage),
+            requestJson,
             Encoding.UTF8,
             "application/json"
         );

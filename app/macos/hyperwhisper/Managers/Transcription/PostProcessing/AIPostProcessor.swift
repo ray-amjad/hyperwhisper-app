@@ -1195,10 +1195,16 @@ class AIPostProcessor: ObservableObject {
             ["role": "user", "content": userContent]
         ]
 
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "model": endpoint.modelName,
             "messages": messages
         ]
+
+        // A custom endpoint pointed at Groq's own API hits the same undocumented
+        // completion-token default as the dedicated Groq path above.
+        if url.host?.caseInsensitiveCompare("api.groq.com") == .orderedSame {
+            requestBody["max_completion_tokens"] = groqMaxCompletionTokens
+        }
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
