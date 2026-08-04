@@ -18,7 +18,9 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
 
     public string TranscriptionProviderLabel => "Deepgram (Streaming)";
     public bool SupportsVocabulary => true;
-    public bool SessionStartsOnWebSocketOpen => false;
+    // Deepgram is ready as soon as the WebSocket handshake completes; its only
+    // session-shaped message (Metadata) doesn't arrive until after audio is sent.
+    public bool SessionStartsOnWebSocketOpen => true;
     public int AudioSampleRate => 16000;
     public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) => [];
 
@@ -162,6 +164,7 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
         public string? RequestId { get; set; }
 
         [JsonPropertyName("channel")]
+        [JsonConverter(typeof(DeepgramChannelConverter))]
         public DeepgramChannel? Channel { get; set; }
 
         [JsonPropertyName("is_final")]
@@ -178,5 +181,29 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
     {
         [JsonPropertyName("transcript")]
         public string? Transcript { get; set; }
+    }
+
+    /// <summary>Deepgram overloads "channel": an object on Results frames, but an array of channel
+    /// indices (e.g. [0,1]) on SpeechStarted/UtteranceEnd frames — tolerate the array shape as null.</summary>
+    private sealed class DeepgramChannelConverter : JsonConverter<DeepgramChannel?>
+    {
+        public override DeepgramChannel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                return JsonSerializer.Deserialize<DeepgramChannel>(ref reader, options);
+            }
+
+            if (reader.TokenType != JsonTokenType.StartArray)
+            {
+                LoggingService.Warn($"DeepgramStreamingStrategy: unexpected \"channel\" token type {reader.TokenType}, ignoring");
+            }
+
+            reader.Skip();
+            return null;
+        }
+
+        public override void Write(Utf8JsonWriter writer, DeepgramChannel? value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, options);
     }
 }

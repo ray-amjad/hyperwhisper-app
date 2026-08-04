@@ -334,8 +334,8 @@ If curl commands succeed but HyperWhisper still fails, SSL inspection is likely 
 
 1. **TLS/HTTPS**: All network connections use encrypted HTTPS
 2. **Certificate Validation**: HyperWhisper validates SSL certificates to prevent man-in-the-middle attacks
-3. **No Telemetry**: HyperWhisper doesn't track usage, analytics, or user behavior
-4. **Crash Reports**: Optional error reporting via Sentry (can be disabled in settings)
+3. **No Separate Analytics SDK**: HyperWhisper doesn't run a dedicated usage-analytics product
+4. **Error & Session Reporting**: Sentry is on by default (toggle it off in General Settings) and, alongside crash reports, also collects session/release-adoption and performance data, plus your IP address
 
 ### Privacy with Network Filters
 

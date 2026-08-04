@@ -96,7 +96,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
 
     | Provider | Max file size |
     | --- | --- |
-    | WhisperNet (local) | No limit |
+    | Whisper / Parakeet (local) | No limit |
     | HyperWhisper Cloud | 2 GB |
     | Deepgram | 2 GB |
     | AssemblyAI | 5 GB |
@@ -118,10 +118,10 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
 
     <Steps>
       <Step title="Preparing (0–15%)">
-        HyperWhisper validates the file. If your mode uses a **local** model (WhisperNet), the file is converted to a 16 kHz mono WAV in your temp folder — this is the format Whisper expects, and HyperWhisper handles resampling and stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, the original file is sent as-is, so MP3 and M4A are uploaded without re-encoding.
+        HyperWhisper validates the file. If your mode uses the local **Whisper** model, the file is converted to a 16 kHz mono WAV in your temp folder — this is the format Whisper expects, and HyperWhisper handles resampling and stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, the original file is sent as-is, so MP3 and M4A are uploaded without re-encoding.
       </Step>
       <Step title="Transcribing (15–85%)">
-        The audio is sent to WhisperNet (with Vulkan or CUDA GPU acceleration if available) or to the cloud provider configured by your mode.
+        The audio is sent to Whisper (with Vulkan or CUDA GPU acceleration if available), to Parakeet, or to the cloud provider configured by your mode.
       </Step>
       <Step title="Finishing (85–100%)">
         Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result.
@@ -132,7 +132,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
 
     ## Local model format conversion
 
-    The local WhisperNet engine requires 16 kHz mono WAV input. If you import an MP3, an M4A, or a WAV at a different sample rate or channel count, HyperWhisper converts it on the fly using NAudio:
+    The local Whisper engine requires 16 kHz mono WAV input. If you import an MP3, an M4A, or a WAV at a different sample rate or channel count, HyperWhisper converts it on the fly using NAudio:
 
     1. Reads the source file with `AudioFileReader` (handles MP3 / M4A via Windows Media Foundation).
     2. Downmixes stereo to mono if needed.

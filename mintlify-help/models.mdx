@@ -44,7 +44,7 @@ These run locally with no network calls. Once downloaded (where applicable) they
 | --- | --- | --- | --- |
 | **Apple Speech** | macOS (built-in) | Auto-detect | Zero download, instant, private. The fastest way to start dictating on a Mac with nothing to install. |
 | **NVIDIA Parakeet** | macOS · Windows | English (V2) · 25 European (V3) | Fastest accurate on-device transcription for English and European languages. |
-| **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~40 incl. Chinese, Japanese, Korean, Arabic (macOS); smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS — the only local option that reaches beyond European languages. |
+| **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~30 incl. Chinese, Japanese, Korean, Arabic (macOS); smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS — the only local option that reaches beyond European languages. |
 | **Whisper** | macOS · Windows | 101 languages | OpenAI's general-purpose model in many sizes (Tiny → Large). The universal fallback: runs on almost any hardware, including CPU-only and older machines. |
 | **Qwen3 ASR** | macOS · Windows | Multilingual | An additional multilingual on-device option for users who want to try Alibaba's ASR model. Windows ships a smaller 0.6B variant via the sherpa-onnx daemon. |
 
@@ -96,7 +96,7 @@ NVIDIA's Nemotron 3.5 ASR is the newest on-device option, available on macOS wit
 | Model | Platform | Size | Languages | Best for |
 | --- | --- | --- | --- | --- |
 | Nemotron 3.5 (Latin) | macOS | ~350 MB | English, Spanish, French, Italian, Portuguese, German | Smaller, faster Latin-script transcription |
-| Nemotron 3.5 (Multilingual) | macOS | ~1.3 GB | ~40 languages incl. Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
+| Nemotron 3.5 (Multilingual) | macOS | ~1.3 GB | ~30 languages incl. Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
 | Nemotron 3.5 Streaming (Multilingual) | Windows | Smaller than the macOS variant | English, Japanese | On-device streaming via the sherpa-onnx daemon |
 
 <Tip>
@@ -241,7 +241,7 @@ Local engines use your GPU when available and **fall back to CPU automatically**
 
 | Engine | Backend | GPU support | CPU fallback |
 | --- | --- | --- | --- |
-| Whisper (Windows) | WhisperNet / DirectCompute | NVIDIA, AMD, Intel (any DirectX 11 GPU) | Yes |
+| Whisper (Windows) | Whisper.net / Vulkan or CUDA | NVIDIA (CUDA or Vulkan), AMD, Intel (Vulkan) | Yes |
 | Whisper (macOS) | libwhisper / Metal | Apple Silicon GPU + Neural Engine | Yes |
 | Parakeet (Windows) | sherpa-onnx / DirectML | NVIDIA, AMD, Intel | Yes |
 | Parakeet (macOS) | sherpa-onnx / CoreML | Apple Silicon | Yes |
@@ -265,7 +265,7 @@ To free up disk space, click the trash icon next to any downloaded model in Mode
     **HyperWhisper Cloud — Highest (ElevenLabs Scribe v2)**. No API key, pay only for speech.
   </Card>
   <Card title="I speak a non-European language, offline" icon="globe">
-    **Nemotron 3.5 (Multilingual)** — on-device coverage for Chinese, Japanese, Korean, Arabic, and ~40 languages total.
+    **Nemotron 3.5 (Multilingual)** — on-device coverage for Chinese, Japanese, Korean, Arabic, and ~30 languages total.
   </Card>
   <Card title="Older laptop / no dedicated GPU" icon="microchip">
     **Whisper Tiny or Small** — runs comfortably on CPU. For longer audio, switch to HyperWhisper Cloud.

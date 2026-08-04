@@ -121,13 +121,57 @@ internal static class Program
             Run("OpenAI post-processing omits an output-token cap", () =>
             {
                 var requestJson = PostProcessingService.BuildOpenAIRequestJson(
-                    "gpt-4.1-nano", "system", "user");
+                    OpenAICompatibleProvider.OpenAI, "gpt-4.1-nano", "system", "user");
                 using var request = JsonDocument.Parse(requestJson);
 
                 Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
                     "OpenAI request should not contain max_tokens");
                 Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "OpenAI request should not contain max_completion_tokens");
+            });
+
+            Run("Groq post-processing sends an explicit output-token cap", () =>
+            {
+                var requestJson = PostProcessingService.BuildOpenAIRequestJson(
+                    OpenAICompatibleProvider.Groq, "openai/gpt-oss-20b", "system", "user");
+                using var request = JsonDocument.Parse(requestJson);
+
+                Assert(request.RootElement.GetProperty("max_completion_tokens").GetInt32()
+                        == PostProcessingService.GroqMaxCompletionTokens,
+                    "Groq request should cap completions at GroqMaxCompletionTokens");
+                Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
+                    "Groq request should use max_completion_tokens, not max_tokens");
+            });
+
+            Run("Custom endpoint pointed at Groq's API is recognized", () =>
+            {
+                Assert(PostProcessingService.IsGroqEndpoint("https://api.groq.com/openai/v1/chat/completions"),
+                    "api.groq.com should be recognized as a Groq endpoint");
+                Assert(PostProcessingService.IsGroqEndpoint("https://API.GROQ.COM/openai/v1/chat/completions"),
+                    "host match should be case-insensitive");
+                Assert(!PostProcessingService.IsGroqEndpoint("http://localhost:1234/v1/chat/completions"),
+                    "a local/self-hosted endpoint should not be recognized as Groq");
+                Assert(!PostProcessingService.IsGroqEndpoint("not a url"),
+                    "an unparsable URL should not be recognized as Groq");
+            });
+
+            Run("Deepgram parses every message shape of its \"channel\" field", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+
+                // "channel":[0,1] — the array form used by the endpointing frames.
+                Assert(strategy.ParseMessage("""{"type":"SpeechStarted","channel":[0,1],"timestamp":1.2}""")
+                        is StreamingProviderEvent.Metadata,
+                    "SpeechStarted should parse to a Metadata event");
+                Assert(strategy.ParseMessage("""{"type":"UtteranceEnd","channel":[0,1],"last_word_end":2.5}""")
+                        is StreamingProviderEvent.Metadata,
+                    "UtteranceEnd should parse to a Metadata event");
+
+                // "channel":{...} — the transcript form, which must keep working.
+                Assert(strategy.ParseMessage(
+                        """{"type":"Results","is_final":true,"channel":{"alternatives":[{"transcript":"hello"}]}}""")
+                        is StreamingProviderEvent.FinalTranscript { Text: "hello" },
+                    "Results should still yield its transcript");
             });
 
             // These checks call straight into the generated FFI surface
@@ -382,6 +426,31 @@ internal static class Program
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
             });
 
+            Run("DeepgramStreamingStrategy.SessionStartsOnWebSocketOpen is true (regression for #100)", () =>
+            {
+                // Deepgram never sends its only session-shaped message (Metadata) until
+                // after audio is sent, so startup must not block waiting for it — the
+                // client should treat the WebSocket handshake itself as session-start.
+                // A regression to false here reintroduces a guaranteed 10s connect
+                // timeout on every Windows Deepgram live session.
+                var strategy = new DeepgramStreamingStrategy();
+                Assert(strategy.SessionStartsOnWebSocketOpen,
+                    "Deepgram must start streaming on WebSocket open, not wait for a Metadata message");
+            });
+
+            Run("DeepgramStreamingStrategy.ParseMessage still classifies a late Metadata message as SessionStarted", () =>
+            {
+                // Even though startup no longer blocks on Metadata, a Metadata message
+                // can still legitimately arrive later (after audio starts flowing) and
+                // must keep parsing correctly.
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"Metadata\",\"request_id\":\"abc-123\"}");
+
+                Assert(evt is StreamingProviderEvent.SessionStarted, $"expected SessionStarted, got {evt}");
+                var sessionStarted = (StreamingProviderEvent.SessionStarted)evt!;
+                Assert(sessionStarted.SessionId == "abc-123", $"expected request id 'abc-123', got '{sessionStarted.SessionId}'");
+            });
+
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
             {
                 // Reproduces the History clobber: MainViewModel creates a Processing
@@ -552,6 +621,39 @@ internal static class Program
                 var secondDelta = client.AppendFinalTranscript("um, this works");
                 Assert(secondDelta == "this works",
                     $"expected a later delta's leading word to stay lowercase (mid-transcript), got '{secondDelta}'");
+            });
+
+            Run("DeepgramStreamingStrategy parses Results (object channel) into a FinalTranscript", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage(
+                    "{\"type\":\"Results\",\"channel\":{\"alternatives\":[{\"transcript\":\"hello\"}]},\"is_final\":true}");
+
+                var final = evt as StreamingProviderEvent.FinalTranscript;
+                Assert(final != null, $"expected FinalTranscript, got {evt?.GetType().Name ?? "null"}");
+                Assert(final!.Text == "hello", $"expected text 'hello', got '{final.Text}'");
+            });
+
+            Run("DeepgramStreamingStrategy parses SpeechStarted (array channel) without throwing — issue #106", () =>
+            {
+                // Deepgram overloads "channel": an object on Results frames, an array of channel
+                // indices on SpeechStarted/UtteranceEnd frames. Before the fix, deserializing the
+                // array shape into the DeepgramChannel object threw and was swallowed by the
+                // outer try/catch, so this event never reached the caller.
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"SpeechStarted\",\"channel\":[0,1],\"timestamp\":1.2}");
+
+                Assert(evt is StreamingProviderEvent.Metadata,
+                    $"expected Metadata, got {evt?.GetType().Name ?? "null"}");
+            });
+
+            Run("DeepgramStreamingStrategy parses UtteranceEnd (array channel) without throwing — issue #106", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"UtteranceEnd\",\"channel\":[0,1],\"last_word_end\":2.5}");
+
+                Assert(evt is StreamingProviderEvent.Metadata,
+                    $"expected Metadata, got {evt?.GetType().Name ?? "null"}");
             });
 
             Run("BackupExportSettingsPage initializes under WPF", () =>
