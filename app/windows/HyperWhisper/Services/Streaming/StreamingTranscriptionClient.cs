@@ -99,9 +99,15 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
 
                 // The receive loop (background thread) can concurrently observe a terminal
                 // close/error and call HandleCloseResult -> Error while this await was in
-                // flight. TryChangeState performs the check-and-set atomically under
-                // _stateLock, so it cannot clobber a concurrently-recorded Error back to
-                // Streaming, and it tells us whether our own transition actually landed.
+                // flight. It can also independently complete this exact Connecting -> Streaming
+                // transition itself: for a provider whose first inbound frame after connecting
+                // IS the session-started signal (Deepgram's Metadata), HandleProviderEvent's
+                // SessionStarted case races this same transition from the receive-loop thread.
+                // TryChangeState performs the check atomically under _stateLock and treats
+                // "already at Streaming" as success, so it cannot clobber a concurrently-recorded
+                // Error back to Streaming, doesn't spuriously fail just because the receive loop
+                // already completed the same transition first, and tells us whether the state we
+                // end up with is actually Streaming.
                 if (!TryChangeState(StreamingConnectionState.Connecting, StreamingConnectionState.Streaming))
                 {
                     LoggingService.Warn(
@@ -117,6 +123,21 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 await WaitForSessionStartedAsync(_sessionCts.Token);
             }
 
+            // Closes the remaining slice of the gap Codex flagged: whichever branch above landed
+            // us in Connecting/Ready -> Streaming, a terminal close can still land on the
+            // receive-loop thread in the instant right after that transition and before we return
+            // "started" to the caller - no check-then-return here can fully close a window that a
+            // background thread can keep writing into after the check, but re-reading State once
+            // more right before we hand success back closes almost all of it. MainViewModel also
+            // re-checks State itself after this call returns as defense in depth (see
+            // StartStreamingRecordingAsync) for what's left of the window.
+            if (State == StreamingConnectionState.Error)
+            {
+                LoggingService.Warn(
+                    $"StreamingTranscriptionClient: connected but raced straight into Error for {_strategy.TranscriptionProviderLabel}");
+                return false;
+            }
+
             LoggingService.Info($"StreamingTranscriptionClient: connected to {_strategy.TranscriptionProviderLabel}");
             return true;
         }
@@ -126,14 +147,27 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
             webSocket.Dispose();
             CleanupWebSocket();
             CurrentPartial = string.Empty;
-            ChangeState(StreamingConnectionState.Idle);
+
+            // The receive loop can already be running by this point (it starts before the awaits
+            // that this cancellation unwound through), so a concurrent terminal close/error on
+            // that thread can have already recorded Error - don't clobber it back to Idle.
+            TryChangeStateUnless(
+                StreamingConnectionState.Idle,
+                StreamingConnectionState.Error,
+                StreamingConnectionState.Disconnecting);
             throw;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             LoggingService.Error($"StreamingTranscriptionClient: connect failed for {_strategy.TranscriptionProviderLabel}", ex);
             Raise(ErrorReceived, ex.Message);
-            ChangeState(StreamingConnectionState.Error);
+
+            // Same reasoning as HandleCloseResult: don't reclassify an in-flight intentional
+            // shutdown (StopAsync already moved to Disconnecting/Idle) as this connect failure.
+            TryChangeStateUnless(
+                StreamingConnectionState.Error,
+                StreamingConnectionState.Disconnecting,
+                StreamingConnectionState.Idle);
             _sessionCts?.Cancel();
             webSocket.Dispose();
             CleanupWebSocket();
@@ -271,7 +305,13 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
             {
                 LoggingService.Error("StreamingTranscriptionClient: receive loop failed", ex);
                 Raise(ErrorReceived, ex.Message);
-                ChangeState(StreamingConnectionState.Error);
+
+                // TryReconnectAsync's own await chain gives StopAsync a window to move to
+                // Disconnecting/Idle concurrently - don't clobber that back to Error.
+                TryChangeStateUnless(
+                    StreamingConnectionState.Error,
+                    StreamingConnectionState.Disconnecting,
+                    StreamingConnectionState.Idle);
             }
         }
     }
@@ -350,7 +390,13 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
             data: new Dictionary<string, string> { ["provider"] = _strategy.TranscriptionProviderLabel });
         Raise(ErrorReceived, "Streaming connection was lost and could not be restored.");
         _sessionStartedTcs?.TrySetException(new InvalidOperationException("Streaming connection was lost and could not be restored."));
-        ChangeState(StreamingConnectionState.Error);
+
+        // The per-attempt loop above only checks Disconnecting/Idle at the top of each iteration -
+        // StopAsync can still win the race in the gap between the last attempt and here.
+        TryChangeStateUnless(
+            StreamingConnectionState.Error,
+            StreamingConnectionState.Disconnecting,
+            StreamingConnectionState.Idle);
         return false;
     }
 
@@ -403,54 +449,61 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         if (closeCode == (int)WebSocketCloseStatus.NormalClosure)
             return;
 
-        // Only genuinely non-recoverable codes end the session immediately. Standard transient
-        // codes (1001 Going Away, 1006 Abnormal/no close frame, 1012 Service Restart, 1013 Try
-        // Again Later, and anything else not explicitly known to be fatal) fall through to the
-        // existing reconnect/backoff path in RunReceiveLoopAsync, same as before this class
-        // recognized any terminal codes beyond HyperWhisper's own 4001/4002.
-        if (!IsTerminalCloseCode(closeCode))
+        // Only genuinely non-recoverable codes end the session immediately. 4001/4002 are
+        // HyperWhisper's own app-level codes (credits exhausted / max session duration) and stay
+        // here rather than in the strategy since they're not provider-specific. Everything else is
+        // delegated to the strategy, whose default covers the standard fatal WebSocket protocol
+        // codes (1002, 1003, 1007, 1008, 1009, 1011) - see IStreamingProviderStrategy for the full
+        // list and rationale. Standard transient codes (1001 Going Away, 1006 Abnormal/no close
+        // frame, 1012 Service Restart, 1013 Try Again Later, and anything else not explicitly known
+        // to be fatal) fall through to the existing reconnect/backoff path in RunReceiveLoopAsync.
+        if (!(closeCode is 4001 or 4002 || _strategy.IsTerminalCloseCode(closeCode)))
             return;
 
         // We're already mid/post our own intentional shutdown (StopAsync sets Disconnecting
         // before running the stop sequence, and _sessionCts isn't cancelled until after that
-        // completes, so the receive loop can still reach here concurrently). TryChangeStateUnless
+        // completes, so the receive loop can still reach here concurrently). TryChangeStateCore
         // performs the "are we shutting down" check and the write to Error atomically under
         // _stateLock, so it cannot race with StopAsync moving to Disconnecting/Idle in between -
         // and it doubles as the guard against reclassifying our own shutdown as a provider error.
-        if (!TryChangeStateUnless(StreamingConnectionState.Error, StreamingConnectionState.Disconnecting, StreamingConnectionState.Idle))
-            return;
-
-        _receivedTerminalClose = true;
-        var message = closeCode switch
-        {
-            4001 => "Streaming stopped because credits are exhausted.",
-            4002 => "Streaming stopped because the maximum session duration was reached.",
-            _ => string.IsNullOrWhiteSpace(result.CloseStatusDescription)
-                ? $"Streaming connection was closed by the provider (code {closeCode})."
-                : $"Streaming connection was closed by the provider: {result.CloseStatusDescription}"
-        };
-
-        LoggingService.Warn($"StreamingTranscriptionClient: terminal server close {closeCode} ({result.CloseStatusDescription})");
-        SentryService.AddBreadcrumb(
-            "streaming_terminal_close",
-            "audio.streaming",
-            data: new Dictionary<string, string>
+        //
+        // The bookkeeping below (_receivedTerminalClose, the failure message, the ErrorReceived
+        // event, and the startup-failure exception) is populated from the onSuccess callback,
+        // which TryChangeStateCore guarantees runs before StateChanged(Error) is published - a
+        // subscriber reacting synchronously to StateChanged, or a caller that just observed
+        // State == Error, must never see that state ahead of the reason for it. onSuccess also
+        // runs when State is already Error (e.g. a prior in-band provider error already got here
+        // first) rather than only on an actual Disconnecting/Idle-guarded transition, so a
+        // terminal close arriving after an in-band error still records _receivedTerminalClose
+        // instead of silently no-op'ing and losing the last partial transcript.
+        TryChangeStateCore(
+            current => current is not (StreamingConnectionState.Disconnecting or StreamingConnectionState.Idle),
+            StreamingConnectionState.Error,
+            onSuccess: () =>
             {
-                ["provider"] = _strategy.TranscriptionProviderLabel,
-                ["closeCode"] = closeCode.ToString()
-            });
-        Raise(ErrorReceived, message);
-        _sessionStartedTcs?.TrySetException(new InvalidOperationException(message));
-    }
+                _receivedTerminalClose = true;
+                var message = closeCode switch
+                {
+                    4001 => "Streaming stopped because credits are exhausted.",
+                    4002 => "Streaming stopped because the maximum session duration was reached.",
+                    _ => string.IsNullOrWhiteSpace(result.CloseStatusDescription)
+                        ? $"Streaming connection was closed by the provider (code {closeCode})."
+                        : $"Streaming connection was closed by the provider: {result.CloseStatusDescription}"
+                };
 
-    // Codes that mean the provider cannot recover the session and it should end immediately
-    // instead of burning reconnect attempts. 4001/4002 are HyperWhisper's own app-level codes
-    // (credits exhausted / max session duration). 1008 (Policy Violation) and 1011 (Internal
-    // Error) are what Deepgram uses for protocol/data errors it cannot recover from. Everything
-    // else - including the standard "transient" codes 1001 (Going Away), 1006 (Abnormal, no
-    // close frame), 1012 (Service Restart), and 1013 (Try Again Later) - is treated as
-    // recoverable and falls through to the existing reconnect/backoff path.
-    private static bool IsTerminalCloseCode(int closeCode) => closeCode is 4001 or 4002 or 1008 or 1011;
+                LoggingService.Warn($"StreamingTranscriptionClient: terminal server close {closeCode} ({result.CloseStatusDescription})");
+                SentryService.AddBreadcrumb(
+                    "streaming_terminal_close",
+                    "audio.streaming",
+                    data: new Dictionary<string, string>
+                    {
+                        ["provider"] = _strategy.TranscriptionProviderLabel,
+                        ["closeCode"] = closeCode.ToString()
+                    });
+                Raise(ErrorReceived, message);
+                _sessionStartedTcs?.TrySetException(new InvalidOperationException(message));
+            });
+    }
 
     private void HandleProviderEvent(StreamingProviderEvent? providerEvent)
     {
@@ -461,7 +514,18 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
 
             case StreamingProviderEvent.SessionStarted:
                 _sessionStartedTcs?.TrySetResult();
-                ChangeState(StreamingConnectionState.Streaming);
+
+                // For a provider whose first inbound frame after connecting IS the session-started
+                // signal (Deepgram's Metadata), this races StartAsync's own Connecting -> Streaming
+                // transition from the caller thread. Guard rather than a bare overwrite so this
+                // can't clobber a concurrently-recorded Error/Disconnecting/Idle, and so it no-ops
+                // cleanly (via TryChangeStateCore's "already there" success) if StartAsync's own
+                // transition already landed first.
+                TryChangeStateUnless(
+                    StreamingConnectionState.Streaming,
+                    StreamingConnectionState.Disconnecting,
+                    StreamingConnectionState.Idle,
+                    StreamingConnectionState.Error);
                 return;
 
             case StreamingProviderEvent.PartialTranscript partial:
@@ -507,7 +571,13 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 LoggingService.Error($"StreamingTranscriptionClient: provider error - {error.Message}");
                 Raise(ErrorReceived, error.Message);
                 _sessionStartedTcs?.TrySetException(new InvalidOperationException(error.Message));
-                ChangeState(StreamingConnectionState.Error);
+
+                // Don't reclassify an in-flight intentional shutdown (StopAsync already moved to
+                // Disconnecting/Idle) as this in-band provider error.
+                TryChangeStateUnless(
+                    StreamingConnectionState.Error,
+                    StreamingConnectionState.Disconnecting,
+                    StreamingConnectionState.Idle);
                 return;
 
             case StreamingProviderEvent.Metadata metadata:
@@ -726,70 +796,74 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         return CancellationTokenSource.CreateLinkedTokenSource(sessionToken, cancellationToken);
     }
 
+    // Single chokepoint for every State mutation in this class - the one discipline every call
+    // site (ChangeState/TryChangeState/TryChangeStateUnless, and HandleCloseResult's inline guard)
+    // routes through instead of each hand-rolling its own lock+check+set+raise body. `guard`
+    // decides whether the transition from the current state to `next` is allowed; it is not
+    // consulted (and the transition trivially "succeeds") when State already equals `next`, so
+    // repeated/racing attempts to reach the same target state are idempotent instead of spuriously
+    // failing - this is what lets StartAsync's own Connecting -> Streaming attempt and
+    // HandleProviderEvent's SessionStarted-driven attempt for a SessionStartsOnWebSocketOpen
+    // provider (e.g. Deepgram's Metadata frame) race safely: whichever lands first wins, and the
+    // other observes success rather than a false "conflict".
+    //
+    // `onSuccess`, if given, runs exactly once when the transition succeeds (whether by actually
+    // writing State or via the "already there" no-op) and always BEFORE StateChanged is raised for
+    // an actual write - so a caller like HandleCloseResult can use it to finish bookkeeping
+    // (failure message, _receivedTerminalClose, the startup-failure exception) that a subscriber
+    // reacting to StateChanged, or a caller that just observed State == next, depends on already
+    // being populated. It does not run when `guard` rejects the transition.
+    private bool TryChangeStateCore(Func<StreamingConnectionState, bool> guard, StreamingConnectionState next, Action? onSuccess = null)
+    {
+        bool alreadyThere;
+
+        lock (_stateLock)
+        {
+            alreadyThere = State == next;
+            if (!alreadyThere)
+            {
+                if (!guard(State))
+                    return false;
+
+                State = next;
+            }
+        }
+
+        onSuccess?.Invoke();
+
+        if (!alreadyThere)
+            Raise(StateChanged, next);
+
+        return true;
+    }
+
     // Unconditional transition. Safe to call from a single call site that only ever runs on one
     // logical thread of execution at a time (e.g. StopAsync's own sequential shutdown). Anywhere
     // a background thread (the receive loop) can concurrently observe/mutate State while the
     // caller is mid-await, use TryChangeState/TryChangeStateUnless instead so the check-then-act
     // is atomic.
-    private void ChangeState(StreamingConnectionState state)
-    {
-        lock (_stateLock)
-        {
-            if (State == state)
-                return;
+    private void ChangeState(StreamingConnectionState state) => TryChangeStateCore(_ => true, state);
 
-            State = state;
-        }
-
-        Raise(StateChanged, state);
-    }
-
-    // Atomically transitions State from `expected` to `next`, under the same lock ChangeState
-    // uses. Returns whether the transition actually happened - callers that only expected to
-    // move State forward from a specific prior state (e.g. StartAsync's Connecting -> Streaming,
-    // TryReconnectAsync's Reconnecting -> Streaming/Ready) use the return value to detect that
-    // something else (typically HandleCloseResult moving to Error off the receive-loop thread)
-    // already moved State elsewhere in the gap since it was last read, instead of blindly
-    // clobbering that concurrent transition.
-    private bool TryChangeState(StreamingConnectionState expected, StreamingConnectionState next)
-    {
-        lock (_stateLock)
-        {
-            if (State != expected)
-                return false;
-
-            State = next;
-        }
-
-        Raise(StateChanged, next);
-        return true;
-    }
+    // Atomically transitions State from `expected` to `next` (or treats State already being `next`
+    // as success - see TryChangeStateCore). Returns whether the transition landed - callers that
+    // only expected to move State forward from a specific prior state (e.g. StartAsync's
+    // Connecting -> Streaming, TryReconnectAsync's Reconnecting -> Streaming/Ready) use the return
+    // value to detect that something else (typically HandleCloseResult moving to Error off the
+    // receive-loop thread) already moved State elsewhere in the gap since it was last read,
+    // instead of blindly clobbering that concurrent transition.
+    private bool TryChangeState(StreamingConnectionState expected, StreamingConnectionState next) =>
+        TryChangeStateCore(current => current == expected, next);
 
     // Atomically transitions State to `next` unless State currently equals one of
-    // `excludedStates`, under the same lock ChangeState/TryChangeState use. Used where the guard
-    // is "don't overwrite these specific states" rather than "only proceed from this one
-    // expected state" - e.g. HandleCloseResult moving to Error unless StopAsync has already
-    // moved State to Disconnecting/Idle out from under it. Returns whether the transition
-    // actually happened.
-    private bool TryChangeStateUnless(StreamingConnectionState next, params StreamingConnectionState[] excludedStates)
-    {
-        lock (_stateLock)
-        {
-            foreach (var excluded in excludedStates)
-            {
-                if (State == excluded)
-                    return false;
-            }
-
-            if (State == next)
-                return false;
-
-            State = next;
-        }
-
-        Raise(StateChanged, next);
-        return true;
-    }
+    // `excludedStates` (or is already `next` - see TryChangeStateCore). Used where the guard is
+    // "don't overwrite these specific states" rather than "only proceed from this one expected
+    // state" - e.g. HandleCloseResult and the in-band provider-error path moving to Error unless
+    // StopAsync has already moved State to Disconnecting/Idle out from under them. Returns whether
+    // the transition landed - including the case where State was already `next` (e.g. a terminal
+    // close arriving after an in-band provider error already set Error), so bookkeeping that only
+    // makes sense once is still driven by the return value, not by "did we actually write".
+    private bool TryChangeStateUnless(StreamingConnectionState next, params StreamingConnectionState[] excludedStates) =>
+        TryChangeStateCore(current => Array.IndexOf(excludedStates, current) < 0, next);
 
     // Single chokepoint for every event raise. Drops all callbacks when _suppressDispatch is set
     // (synchronous Dispose() teardown) so no subscriber can marshal back to a blocked caller, and
