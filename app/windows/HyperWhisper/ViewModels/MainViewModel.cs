@@ -1646,6 +1646,12 @@ public partial class MainViewModel : ViewModelBase
         }
         finally
         {
+            // SAFETY NET: Ensure the transcript is never left stuck in Processing.
+            // If any code path above returned or threw without writing a terminal
+            // status, flip it to Failed here so the History row doesn't spin forever.
+            // See tasks/windows/phils-feedback/05-processing-audio-stuck-state.md
+            EnsureTranscriptTerminalStatus(transcript);
+
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
             try
             {
