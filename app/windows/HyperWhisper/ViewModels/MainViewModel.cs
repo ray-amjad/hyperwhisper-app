@@ -12,6 +12,7 @@
 
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -1627,22 +1628,25 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            if (transcript != null)
+            var failureWritten = transcript == null || MarkTranscriptAsGenericFailure(transcript, ex);
+
+            // If the guard no-op'd because the transcript was already persisted as
+            // Completed (some other path already wrote a result), don't show a
+            // misleading "transcription failed" toast/status on top of it.
+            if (failureWritten)
             {
-                MarkTranscriptAsGenericFailure(transcript, ex);
+                var isCredentialError = ex is TranscriptionException { Code: TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized };
+                // CloudAccountRequired routes to the HW Cloud settings page (where
+                // the account key is entered), NOT the BYOK API-keys manager.
+                var isCloudAccountError = ex is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired };
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    ex is TranscriptionException txEx ? txEx.GetUserMessage() : Loc.S("errors.transcriptionFailed", ex.Message),
+                    showSettingsButton: isCredentialError || isCloudAccountError,
+                    settingsSection: isCloudAccountError ? "Cloud" : null,
+                    openApiKeysManager: isCredentialError));
+
+                StatusText = Loc.S("status.failed", ex.Message);
             }
-
-            var isCredentialError = ex is TranscriptionException { Code: TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized };
-            // CloudAccountRequired routes to the HW Cloud settings page (where
-            // the account key is entered), NOT the BYOK API-keys manager.
-            var isCloudAccountError = ex is TranscriptionException { Code: TranscriptionErrorCode.CloudAccountRequired };
-            ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                ex is TranscriptionException txEx ? txEx.GetUserMessage() : Loc.S("errors.transcriptionFailed", ex.Message),
-                showSettingsButton: isCredentialError || isCloudAccountError,
-                settingsSection: isCloudAccountError ? "Cloud" : null,
-                openApiKeysManager: isCredentialError));
-
-            StatusText = Loc.S("status.failed", ex.Message);
         }
         finally
         {
@@ -2229,6 +2233,11 @@ public partial class MainViewModel : ViewModelBase
         {
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
 
+            // Tracks whether a failure was actually persisted, so we don't show a
+            // misleading "transcription failed" toast/status when the guard inside
+            // Mark*Failure no-op'd because the transcript was already Completed.
+            var failureWritten = true;
+
             // Show user-friendly error toast based on exception type
             if (ex is TranscriptionException txEx)
             {
@@ -2236,7 +2245,7 @@ public partial class MainViewModel : ViewModelBase
                 {
                     if (transcript != null && !string.IsNullOrEmpty(permanentAudioPath))
                     {
-                        MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
+                        failureWritten = MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
                         TranscriptionDiagnosticsService.CaptureNoSpeechDiagnostic(
                             transcriptId: transcript.Id,
                             audioPath: permanentAudioPath,
@@ -2251,39 +2260,53 @@ public partial class MainViewModel : ViewModelBase
                             captureDeviceCount: AudioDevices.Count);
                     }
 
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        txEx.GetUserMessage(),
-                        showSettingsButton: false));
-                    StatusText = Loc.S("status.failed", txEx.GetUserMessage());
+                    if (failureWritten)
+                    {
+                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                            txEx.GetUserMessage(),
+                            showSettingsButton: false));
+                        StatusText = Loc.S("status.failed", txEx.GetUserMessage());
+                    }
                     return;
                 }
 
                 if (transcript != null)
                 {
-                    MarkTranscriptAsGenericFailure(transcript, txEx);
+                    failureWritten = MarkTranscriptAsGenericFailure(transcript, txEx);
                 }
-                var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
-                // CloudAccountRequired routes to the HW Cloud settings page
-                // (account key entry), NOT the BYOK API-keys manager.
-                var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    txEx.GetUserMessage(),
-                    showSettingsButton: showSettings || isCloudAccountError,
-                    settingsSection: isCloudAccountError ? "Cloud" : null,
-                    openApiKeysManager: showSettings));
+
+                if (failureWritten)
+                {
+                    var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
+                    // CloudAccountRequired routes to the HW Cloud settings page
+                    // (account key entry), NOT the BYOK API-keys manager.
+                    var isCloudAccountError = txEx.Code == TranscriptionErrorCode.CloudAccountRequired;
+                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                        txEx.GetUserMessage(),
+                        showSettingsButton: showSettings || isCloudAccountError,
+                        settingsSection: isCloudAccountError ? "Cloud" : null,
+                        openApiKeysManager: showSettings));
+                }
             }
             else
             {
                 if (transcript != null)
                 {
-                    MarkTranscriptAsGenericFailure(transcript, ex);
+                    failureWritten = MarkTranscriptAsGenericFailure(transcript, ex);
                 }
-                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                    Loc.S("errors.transcriptionFailed", ex.Message),
-                    showSettingsButton: false));
+
+                if (failureWritten)
+                {
+                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                        Loc.S("errors.transcriptionFailed", ex.Message),
+                        showSettingsButton: false));
+                }
             }
 
-            StatusText = Loc.S("status.failed", ex.Message);
+            if (failureWritten)
+            {
+                StatusText = Loc.S("status.failed", ex.Message);
+            }
         }
         finally
         {
@@ -2823,7 +2846,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 if (ex is TranscriptionException txEx && txEx.Code == TranscriptionErrorCode.NoSpeechDetected && permanentPath != null)
                 {
-                    MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
+                    var failureWritten = MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
                     TranscriptionDiagnosticsService.CaptureNoSpeechDiagnostic(
                         transcriptId: transcript.Id,
                         audioPath: permanentPath,
@@ -2835,15 +2858,23 @@ public partial class MainViewModel : ViewModelBase
                         providerDiagnostics: txEx.ProviderDiagnostics,
                         exception: txEx);
 
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        txEx.GetUserMessage(),
-                        showSettingsButton: false));
+                    // Skip the toast if the guard no-op'd because the transcript was
+                    // already persisted as Completed by another path.
+                    if (failureWritten)
+                    {
+                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                            txEx.GetUserMessage(),
+                            showSettingsButton: false));
+                    }
                 }
                 else
                 {
-                    MarkTranscriptAsGenericFailure(transcript, ex);
-                    ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                        Loc.S("errors.transcriptionFailed", ex.Message), showSettingsButton: false));
+                    var failureWritten = MarkTranscriptAsGenericFailure(transcript, ex);
+                    if (failureWritten)
+                    {
+                        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                            Loc.S("errors.transcriptionFailed", ex.Message), showSettingsButton: false));
+                    }
                 }
             }
             else
@@ -3105,30 +3136,47 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private void MarkTranscriptAsNoSpeechFailure(Transcript transcript, string? transcriptionProvider = null)
+    /// <summary>
+    /// Shared guard + persistence for the terminal-failure writers below: reloads
+    /// the persisted transcript, no-ops if it is already terminal (some other path
+    /// already wrote a result), otherwise applies the caller-supplied failure state
+    /// and saves it. Returns whether a failure was actually persisted so callers can
+    /// decide whether a "transcription failed" toast/status is still warranted.
+    /// </summary>
+    private bool TryPersistTerminalFailure(Transcript transcript, Action<Transcript> applyFailureState, [CallerMemberName] string caller = "")
     {
         try
         {
             var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
             if (persisted != null && persisted.Status != TranscriptStatus.Processing)
             {
-                return;
+                return false;
             }
 
-            if (!string.IsNullOrWhiteSpace(transcriptionProvider))
-            {
-                transcript.TranscriptionProvider = transcriptionProvider;
-            }
-
-            transcript.Status = TranscriptStatus.Failed;
-            transcript.FailedReason = Loc.S("errors.noSpeechDetected");
-            transcript.Text = Loc.S("errors.noSpeechDetected");
+            applyFailureState(transcript);
             HistoryService.Instance.UpdateTranscript(transcript);
+            return true;
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"MarkTranscriptAsNoSpeechFailure: Failed to mark transcript {transcript.Id} as failed: {ex.Message}");
+            LoggingService.Warn($"{caller}: Failed to mark transcript {transcript.Id} as failed: {ex.Message}");
+            return false;
         }
+    }
+
+    private bool MarkTranscriptAsNoSpeechFailure(Transcript transcript, string? transcriptionProvider = null)
+    {
+        return TryPersistTerminalFailure(transcript, t =>
+        {
+            if (!string.IsNullOrWhiteSpace(transcriptionProvider))
+            {
+                t.TranscriptionProvider = transcriptionProvider;
+            }
+
+            t.Status = TranscriptStatus.Failed;
+            t.FailedReason = Loc.S("errors.noSpeechDetected");
+            t.Text = Loc.S("errors.noSpeechDetected");
+        });
     }
 
     /// <summary>
@@ -3181,30 +3229,19 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private void MarkTranscriptAsGenericFailure(Transcript transcript, Exception ex)
+    private bool MarkTranscriptAsGenericFailure(Transcript transcript, Exception ex)
     {
-        try
+        return TryPersistTerminalFailure(transcript, t =>
         {
-            var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
-            if (persisted != null && persisted.Status != TranscriptStatus.Processing)
-            {
-                return;
-            }
-
             if (ex is TranscriptionException txEx && !string.IsNullOrWhiteSpace(txEx.ProviderName))
             {
-                transcript.TranscriptionProvider = txEx.ProviderName;
+                t.TranscriptionProvider = txEx.ProviderName;
             }
 
-            transcript.Status = TranscriptStatus.Failed;
-            transcript.FailedReason = ex.Message;
-            transcript.Text = $"Transcription failed: {ex.Message}";
-            HistoryService.Instance.UpdateTranscript(transcript);
-        }
-        catch (Exception ex2)
-        {
-            LoggingService.Warn($"MarkTranscriptAsGenericFailure: Failed to mark transcript {transcript.Id} as failed: {ex2.Message}");
-        }
+            t.Status = TranscriptStatus.Failed;
+            t.FailedReason = ex.Message;
+            t.Text = $"Transcription failed: {ex.Message}";
+        });
     }
 
     public async Task CleanupAsync()
