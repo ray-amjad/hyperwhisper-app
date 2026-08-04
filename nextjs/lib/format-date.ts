@@ -25,3 +25,15 @@ export function formatDateTime(
 ): string {
   return new Date(date).toLocaleString(locale, DATE_TIME_OPTIONS);
 }
+
+/** Long-form, UTC-anchored date for statically-generated content (blog). Falls back to the raw string on an invalid date. */
+export function formatLongUTCDate(dateString: string, locale = "en"): string {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return new Intl.DateTimeFormat(locale, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
