@@ -28,7 +28,7 @@ public class VocabularyProcessor
 
         if (vocab.Count == 0 || string.IsNullOrEmpty(text))
         {
-            return text;
+            return string.IsNullOrEmpty(text) ? text : text.Trim();
         }
 
         // NFC-normalize the transcript once and each search word (mirrors macOS

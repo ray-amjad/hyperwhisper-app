@@ -685,6 +685,16 @@ internal static class Program
                 application.Shutdown();
             });
 
+            Run("VocabularyProcessor.ApplyReplacements trims even with no vocabulary configured (issue #92)", () =>
+            {
+                DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
+
+                var processor = new VocabularyProcessor();
+                var result = processor.ApplyReplacements("  hello world  ");
+
+                Assert(result == "hello world", $"expected trimmed text with empty vocabulary, got '{result}'");
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
