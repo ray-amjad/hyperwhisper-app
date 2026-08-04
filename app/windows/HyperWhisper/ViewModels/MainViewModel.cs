@@ -1399,7 +1399,11 @@ public partial class MainViewModel : ViewModelBase
             audioRestoreClaim = AudioEnvironmentService.Instance.ClaimRestoreOwnershipForRecording();
             _audioEnvironmentState = audioRestoreClaim.InheritedRestoreState;
             var started = await _streamingClient.StartAsync(_streamingStartCts.Token);
-            if (!started)
+            // StartAsync's own internal race-closing check (see StreamingTranscriptionClient) can
+            // still lose to a terminal close/error landing on the receive-loop thread in the
+            // instant right after it decided to return true - re-check State here too so a
+            // dead-on-arrival connection never gets marked as an actively recording session.
+            if (!started || _streamingClient.State == StreamingConnectionState.Error)
                 throw new InvalidOperationException(GetStreamingStartupFailureMessage());
 
             _streamingAudioCapture.Start(SelectedAudioDevice.DeviceNumber, _streamingClient.AudioSampleRate);
