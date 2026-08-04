@@ -181,6 +181,12 @@ export interface GroqUsage {
 // STT COSTS
 // =============================================================================
 
+// Shared shape for STT providers billed at a flat per-audio-minute rate.
+function computeLinearPerMinuteCost(durationSeconds: number, ratePerMinute: number): number {
+  const durationMinutes = durationSeconds / 60;
+  return roundUsd(durationMinutes * ratePerMinute);
+}
+
 export function computeElevenLabsTranscriptionCost(durationSeconds: number, keyterms: boolean = false): number {
   const durationMinutes = durationSeconds / 60;
   const base = durationMinutes * ELEVENLABS_COST_PER_AUDIO_MINUTE;
@@ -191,9 +197,7 @@ export function computeElevenLabsTranscriptionCost(durationSeconds: number, keyt
 }
 
 export function computeDeepgramTranscriptionCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  const raw = durationMinutes * DEEPGRAM_COST_PER_AUDIO_MINUTE;
-  return roundUsd(raw);
+  return computeLinearPerMinuteCost(durationSeconds, DEEPGRAM_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeGroqTranscriptionCost(durationSeconds: number, model?: string): number {
@@ -213,15 +217,11 @@ export function computeXaiTranscriptionCost(durationSeconds: number): number {
 }
 
 export function computeAzureMaiTranscriptionCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  const raw = durationMinutes * AZURE_MAI_COST_PER_AUDIO_MINUTE;
-  return roundUsd(raw);
+  return computeLinearPerMinuteCost(durationSeconds, AZURE_MAI_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeGoogleChirpTranscriptionCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  const raw = durationMinutes * GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE;
-  return roundUsd(raw);
+  return computeLinearPerMinuteCost(durationSeconds, GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE);
 }
 
 // ── New cloud STT proxy providers ───────────────────────────────────────────
@@ -380,11 +380,11 @@ export function computeAssemblyAITranscriptionCost(
 }
 
 export function computeAssemblyAISyncTranscriptionCost(durationSeconds: number): number {
-  return roundUsd((durationSeconds / 60) * ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE);
+  return computeLinearPerMinuteCost(durationSeconds, ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeMistralTranscriptionCost(durationSeconds: number): number {
-  return roundUsd((durationSeconds / 60) * MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE);
+  return computeLinearPerMinuteCost(durationSeconds, MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeSonioxTranscriptionCost(durationSeconds: number, contextTextTokens: number = 0): number {
@@ -496,15 +496,6 @@ export function usdToCredits(usd: number): number {
 export function creditsForCost(costUsd: number): number {
   if (!Number.isFinite(costUsd) || costUsd <= 0) {
     return 0.1;
-  }
-
-  const rawCredits = usdToCredits(costUsd);
-  return Math.max(0.1, roundUpToTenth(rawCredits));
-}
-
-export function estimateCreditsForCost(costUsd: number): number {
-  if (!Number.isFinite(costUsd) || costUsd <= 0) {
-    return 0;
   }
 
   const rawCredits = usdToCredits(costUsd);

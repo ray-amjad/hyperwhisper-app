@@ -8,6 +8,7 @@ import {
   getOrCreateUser,
   type AccountKeyRow,
 } from "@/src/lib/db-layer";
+import { probeLicenseKeyReadOnly } from "@/src/lib/license-validation-probe";
 
 /**
  * Shared license key validation logic.
@@ -46,7 +47,9 @@ async function importLicenseFromPolar(licenseKey: string): Promise<{
     // and reaches this fallback. Without this guard each variant would insert a
     // fresh license row and grant another 5000 credits. polarResult.id is the
     // canonical resource id regardless of how the input key was cased.
-    const alreadyImported = await findAccountByPolarLicenseKeyId(polarResult.id);
+    const alreadyImported = await findAccountByPolarLicenseKeyId(
+      polarResult.id,
+    );
     if (alreadyImported) {
       return { success: true, licenseId: alreadyImported.id };
     }
@@ -95,7 +98,7 @@ async function importLicenseFromPolar(licenseKey: string): Promise<{
     }
 
     console.log(
-      `Imported license from Polar: ${licenseKey} for ${email} with 5000 credits`
+      `Imported license from Polar: ${licenseKey} for ${email} with 5000 credits`,
     );
 
     return { success: true, licenseId: license.id };
@@ -113,6 +116,24 @@ export type LicenseCheckResult =
   | { valid: false; error: string; status: number };
 
 /**
+ * Read-only license check for UI that presents Test separately from Activate.
+ * Existing database rows are read directly; Polar fallback is validated live
+ * without importing a row, creating a user, or granting credits.
+ */
+export async function probeLicenseKey(
+  licenseKey: string,
+): Promise<{ valid: true } | { valid: false; error: string; status: number }> {
+  return probeLicenseKeyReadOnly(licenseKey, {
+    findStoredLicense: findAccountByKey,
+    validateWithPolar: async (key) =>
+      polarClient.customerPortal.licenseKeys.validate({
+        key,
+        organizationId: POLAR_ORGANIZATION_ID,
+      }),
+  });
+}
+
+/**
  * Checks whether a license key is valid (exists and is "granted").
  *
  * 1. Looks up the key in the database
@@ -120,7 +141,7 @@ export type LicenseCheckResult =
  * 3. Verifies the license status is "granted" (not revoked/disabled)
  */
 export async function checkLicenseKey(
-  licenseKey: string
+  licenseKey: string,
 ): Promise<LicenseCheckResult> {
   // Query database for the license
   let license = await findAccountByKey(licenseKey.trim());

@@ -21,8 +21,7 @@ Without these domains whitelisted, core features like license validation and sof
 
 | Domain | Purpose |
 |--------|---------|
-| `www.hyperwhisper.com` | Main website, API backend, and software updates |
-| `license.hyperwhisper.com` | License validation and subscription management |
+| `www.hyperwhisper.com` | Main website, API backend, software updates, and license validation |
 | `sentry.io` | Error reporting and crash analytics (optional but recommended) |
 
 ### HyperWhisper Cloud Endpoints
@@ -33,7 +32,7 @@ If you're using **HyperWhisper Cloud** (the default, built-in transcription serv
 - `https://transcribe-prod-v2.hyperwhisper.com/usage` - Credit balance queries
 
 <Tip>
-HyperWhisper Cloud requires no API key and is the recommended option for most users. It uses a credit-based system with generous trial credits and affordable licensed pricing.
+HyperWhisper Cloud requires no API key and is the recommended option for most users. It uses a prepaid credit-based system with affordable pricing — there's no free trial or anonymous usage; see [Cloud Credits](/cloud-credits).
 </Tip>
 
 ## Model Downloads
@@ -48,6 +47,7 @@ Specifically, HyperWhisper downloads models from:
 - `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/*` - Whisper models
 - `https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/*` - Gemma 4 E2B local post-processing models
 - `https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/*` - Gemma 4 E4B local post-processing models
+- `https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/*` - Gemma 4 12B local post-processing models (macOS only)
 - `https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/*` - Gemma 4 26B A4B local post-processing models
 - `https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/*` - Gemma 4 31B local post-processing models
 
@@ -96,7 +96,20 @@ If you've configured **Deepgram** in Settings → API Keys:
 
 Specific endpoints:
 - `https://api.deepgram.com/v1/listen` - Transcription API
+- `wss://api.deepgram.com/v1/listen` - Streaming transcription
 - `https://api.deepgram.com/v1/projects` - Health check
+
+### Soniox
+
+If you've configured **Soniox** in Settings → API Keys:
+
+| Domain | Purpose |
+|--------|---------|
+| `api.soniox.com` | Soniox speech-to-text API |
+| `soniox.com` | Website (informational) |
+
+Specific endpoints:
+- `https://api.soniox.com/v1` - Transcription API
 
 ### AssemblyAI
 
@@ -275,7 +288,7 @@ If you've whitelisted all domains but still see "No network connection" or SSL c
 **Solution:** Ask your IT administrator to add HyperWhisper domains to the **SSL inspection bypass list** (not just the URL allowlist). This ensures traffic to these domains passes through without certificate interception.
 
 Domains to bypass SSL inspection for:
-- `*.hyperwhisper.com` (includes `transcribe-prod-v2.hyperwhisper.com` and `license.hyperwhisper.com`)
+- `*.hyperwhisper.com` (includes `www.hyperwhisper.com` and `transcribe-prod-v2.hyperwhisper.com`)
 - Any third-party API domains you use (e.g., `api.openai.com`, `huggingface.co`)
 
 <Tip>
@@ -291,7 +304,7 @@ If you're experiencing issues, you can test connectivity to specific domains:
 curl -I https://transcribe-prod-v2.hyperwhisper.com/
 
 # Test license server
-curl -I https://license.hyperwhisper.com/validate
+curl -I https://www.hyperwhisper.com/api/license/validate
 
 # Test OpenAI (if using)
 curl -I https://api.openai.com/v1/models
@@ -313,7 +326,7 @@ If curl commands succeed but HyperWhisper still fails, SSL inspection is likely 
 1. **API Keys**: Stored securely in macOS Keychain, never sent to HyperWhisper servers
 2. **License Keys**: Only sent to `hyperwhisper.com` for validation (encrypted via HTTPS) 
 3. **Audio Data**:
-   - **HyperWhisper Cloud**: Sent to `transcribe-prod-v2.hyperwhisper.com` (Fly.io edge network, processed in-memory, never stored on disk)
+   - **HyperWhisper Cloud**: Sent to `transcribe-prod-v2.hyperwhisper.com` (Fly.io edge network, processed in-memory and never stored on disk — with one exception: larger Google Chirp 3 requests briefly touch a scratch bucket that's deleted immediately after, see [Data Privacy](/data-privacy))
    - **Third-party providers**: Sent directly to their APIs (xAI Grok, OpenAI, Groq, Deepgram, etc.) - subject to their privacy policies
    - **Local models**: Never leaves your device - completely offline and private
 
@@ -321,8 +334,8 @@ If curl commands succeed but HyperWhisper still fails, SSL inspection is likely 
 
 1. **TLS/HTTPS**: All network connections use encrypted HTTPS
 2. **Certificate Validation**: HyperWhisper validates SSL certificates to prevent man-in-the-middle attacks
-3. **No Telemetry**: HyperWhisper doesn't track usage, analytics, or user behavior
-4. **Crash Reports**: Optional error reporting via Sentry (can be disabled in settings)
+3. **No Separate Analytics SDK**: HyperWhisper doesn't run a dedicated usage-analytics product
+4. **Error & Session Reporting**: Sentry is on by default (toggle it off in General Settings) and, alongside crash reports, also collects session/release-adoption and performance data, plus your IP address
 
 ### Privacy with Network Filters
 
@@ -337,4 +350,3 @@ For maximum privacy, request IT to bypass SSL inspection for HyperWhisper domain
 **Related Documentation:**
 - [API Keys Configuration](/api-keys)
 - [Models](/models)
-- [Developer Mode](/developer-mode)

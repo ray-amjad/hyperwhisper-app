@@ -108,10 +108,22 @@ To update or remove a key, edit the endpoint and change the API Key field. Leavi
 
 The test button is available both when adding a new endpoint and when editing an existing one. It sends a minimal request to your server:
 
-```
-POST <your endpoint URL>
-{ "model": "<your model>", "messages": [{"role": "user", "content": "Say hello in one word."}], "max_tokens": 10, "temperature": 0.0 }
-```
+<Tabs>
+  <Tab title="macOS">
+    ```
+    POST <your endpoint URL>
+    { "model": "<your model>", "messages": [{"role": "user", "content": "Say hello in one word."}], "max_tokens": 10, "temperature": 0.0 }
+    ```
+  </Tab>
+  <Tab title="Windows">
+    ```
+    POST <your endpoint URL>
+    { "model": "<your model>", "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": "Say hello in one word."}] }
+    ```
+
+    Windows sends a system+user message pair with no `max_tokens` or `temperature` fields.
+  </Tab>
+</Tabs>
 
 HyperWhisper expects a standard OpenAI-compatible response — a JSON object with a `choices[0].message.content` field. The last test result (pass or fail) is saved and shown next to the endpoint name so you can see at a glance whether it was working the last time you checked.
 
@@ -133,7 +145,7 @@ Each endpoint in the list has three actions:
 | Duplicate | Creates a copy with a new name — useful for trying different models on the same server without re-entering the URL |
 | Delete | Permanently removes the endpoint and its stored API key |
 
-Duplicating an endpoint copies the test status along with the settings, since the URL and model are the same. The API key is also copied securely to the new entry. If the key copy fails for any reason, the test status is cleared so you know to verify the duplicate before relying on it.
+Duplicating an endpoint copies the test status along with the settings, since the URL and model are the same. The API key is also copied securely to the new entry. On **macOS**, if the key copy fails for any reason, the test status is cleared so you know to verify the duplicate before relying on it. On **Windows**, a failed key copy doesn't currently clear the test status, so verify the duplicate's key manually if you suspect the copy didn't go through.
 
 <Note>
   Deleting an endpoint removes it from the list and erases the stored API key. Any Modes that were using that endpoint will need to be updated to a different post-processing provider.

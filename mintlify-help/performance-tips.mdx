@@ -18,7 +18,9 @@ HyperWhisper Cloud routes to best-in-class providers and requires no setup. Resu
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
 | **High** | Grok STT (xAI) | High-accuracy multilingual transcription |
 | **Medium** | Deepgram Nova-3 | English accuracy with low latency |
-| **Medium** | Groq Whisper Large v3 | Sub-second latency for English and major European languages |
+| **Medium** | Groq Whisper Large v3 Turbo | Sub-second latency for English and major European languages |
+
+HyperWhisper Cloud also includes Azure MAI-Transcribe and Google Chirp 3 (both rated **High** accuracy) among its selectable providers, alongside several others — see [Choosing a Provider](/choosing-a-provider) for the full list.
 
 **Cost note:** HyperWhisper Cloud detects silence and empty audio automatically. If a recording contains no detectable speech you are charged 0 credits — pauses, dead air, and accidentally triggered empty recordings don't cost anything. Across a typical push-to-talk workday, you only pay for the minutes you actually spoke.
 
@@ -27,7 +29,7 @@ HyperWhisper Cloud routes to best-in-class providers and requires no setup. Resu
 Local models run entirely on your machine. Audio never leaves your device, and there is no per-minute charge once the model is downloaded. The trade-off is slightly lower accuracy than the top cloud tiers, and a one-time download of 350 MB–3.1 GB depending on the model.
 
 <Note>
-  On-device streaming transcription is available on both macOS and Windows. Parakeet V2 and Parakeet V3 stream on both platforms; Nemotron 3.5 Streaming (Multilingual) also runs as a streaming transducer on Windows. See the [Models](/models) page for the full platform matrix.
+  On-device streaming transcription (Parakeet V2/V3, Nemotron 3.5 Streaming) is macOS-only. Windows's streaming feature only supports cloud providers (HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, Grok) — there is no local-model streaming on Windows today. See the [Models](/models) page for the full platform matrix.
 </Note>
 
 ---
@@ -46,10 +48,10 @@ Local models work on Intel but use CPU only — no GPU or Neural Engine accelera
 
 ### Windows x64
 
-Windows local transcription uses DirectCompute (Whisper) and DirectML (Parakeet) for GPU acceleration. Any modern NVIDIA, AMD, or Intel GPU with DirectX 11 support qualifies. If no compatible GPU is detected, the model falls back to CPU automatically — it still works, just slower.
+Windows local transcription uses Vulkan (Whisper) and DirectML (Parakeet) for GPU acceleration. Vulkan is vendor-agnostic, so any modern NVIDIA, AMD, or Intel GPU with Vulkan drivers qualifies. If no compatible GPU is detected, the model falls back to CPU automatically — it still works, just slower.
 
 <Note>
-  On ARM64 / Snapdragon Windows devices, **Whisper is not supported yet**. Use **Parakeet V2** (English) or **Parakeet V3** (25 European languages) for local transcription on ARM64 — both run with DirectML acceleration.
+  On ARM64 / Snapdragon Windows devices, **Whisper requires Windows 11 or Windows Server 2022 or newer** — it's unavailable on ARM64 devices still running Windows 10. On those older builds, use **Parakeet V2** (English) or **Parakeet V3** (25 European languages) for local transcription — both run with DirectML acceleration.
 </Note>
 
 ### Whisper size ladder
@@ -57,13 +59,18 @@ Windows local transcription uses DirectCompute (Whisper) and DirectML (Parakeet)
 | Model | Size | Recommended VRAM | Character |
 | --- | --- | --- | --- |
 | Tiny | ~39 MB (macOS) / ~78 MB (Windows) | ~1 GB | Lowest-end machines, quick drafts |
-| Base | 148 MB | ~1 GB | Light hardware, basic dictation |
+| Base | 142 MB (macOS) / 148 MB (Windows) | ~1 GB | Light hardware, basic dictation |
 | **Small** | **466 MB (macOS) / 488 MB (Windows)** | **~2 GB** | **Best balance for most users** |
 | Medium | 1.5 GB | ~5 GB | Higher accuracy, mid-range GPUs |
 | Large v3 Turbo | 809 MB (macOS) / 1.5 GB (Windows) | ~6 GB | Near-Large accuracy, much faster |
-| Large v2 / Large v3 | 3.1 GB | ~10 GB | Highest Whisper accuracy |
+| Large v2 | 2.9 GB (macOS) / 3.1 GB (Windows) | ~10 GB | High accuracy |
+| Large v3 | 3.1 GB | ~10 GB | Highest Whisper accuracy |
 
 Smaller models are faster but less accurate; larger models are slower but handle difficult audio better. If your GPU doesn't have enough VRAM, the model falls back to CPU automatically.
+
+<Note>
+  Recommended VRAM figures for Whisper models are sourced from the Windows build. macOS uses Apple Silicon's unified memory, which has no separate VRAM concept.
+</Note>
 
 <Tip>
   If you only ever dictate in one language, the English-only Whisper variants (`.en`) produce slightly better results at the same model size. You give up multilingual support in exchange.
@@ -179,14 +186,15 @@ If local Gemma is too large for your machine, every cloud post-processing provid
 | Whisper Tiny | ~39 MB (macOS) / ~78 MB (Windows) |
 | Whisper Small | ~466 MB (macOS) / ~488 MB (Windows) |
 | Whisper Large v3 | ~3.1 GB |
-| Parakeet V2 | ~474 MB |
-| Nemotron 3.5 Multilingual | ~1.3 GB |
+| Parakeet V2 | ~474 MB (macOS) / ~661 MB (Windows) |
+| Nemotron 3.5 Multilingual (macOS) | ~1.3 GB |
+| Nemotron 3.5 Streaming (Windows, English + Japanese only) | ~660 MB |
 | Gemma 4 E2B (post-processing) | ~3.1 GB |
 | Gemma 4 31B Dense (post-processing) | ~18.3 GB |
 
-**Keep audio files** is off by default — audio is discarded once transcription succeeds to save disk space. Turn it on only if you need playback from History or want to retry failed transcriptions.
+**Keep audio files** (macOS) is off by default — audio is discarded once transcription succeeds to save disk space. Turn it on only if you need playback from History or want to retry failed transcriptions. Windows doesn't have an equivalent toggle — it uses a separate automatic-deletion setting that removes audio after a configured number of days instead. See [History](/history#automatic-deletion) for details.
 
-**Max recording duration** defaults to 300 seconds (5 minutes).
+**Max recording duration** defaults to 3600 seconds (1 hour) on macOS, configurable via presets (20 min / 1 hr / 2 hr / Off) in **Settings → Storage**. Windows has a fixed, non-configurable 20-minute (1200 s) hard stop.
 
 ---
 
@@ -196,13 +204,13 @@ Not sure where to start? Find your goal below.
 
 | Goal | Recommended setup |
 | --- | --- |
-| **Lowest latency (words appear as fast as possible)** | HyperWhisper Cloud Medium (Groq Whisper Large v3) — or on-device Parakeet V2 + Keep Microphone Warm |
+| **Lowest latency (words appear as fast as possible)** | HyperWhisper Cloud Medium (Groq Whisper Large v3 Turbo) — or on-device Parakeet V2 + Keep Microphone Warm |
 | **Best accuracy for difficult audio** | HyperWhisper Cloud Highest (ElevenLabs Scribe v2) |
 | **Fully offline, no network** | Nemotron 3.5 Multilingual or Whisper Small/Large (macOS + Windows) + on-device Gemma 4 E2B post-processing |
-| **Lowest cost** | HyperWhisper Cloud Medium (Groq Whisper Large v3, ~\$0.11/hr) or on-device models (free after download) |
+| **Lowest cost** | HyperWhisper Cloud Medium (Groq Whisper Large v3 Turbo, ~\$0.04/hr) or on-device models (free after download) |
 | **Older or low-end machine** | Whisper Tiny or Base locally, or HyperWhisper Cloud to offload compute |
 | **Best all-round on Apple Silicon** | Whisper Small + Gemma 4 E2B post-processing |
-| **ARM64 Windows device** | Parakeet V2 (English) or Parakeet V3 (multilingual) — Whisper is x64-only |
+| **ARM64 Windows device on Windows 10** | Parakeet V2 (English) or Parakeet V3 (multilingual) — Whisper requires Windows 11/Server 2022+ on ARM64 |
 
 ---
 

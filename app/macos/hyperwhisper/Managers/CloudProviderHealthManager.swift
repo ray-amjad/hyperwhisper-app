@@ -486,6 +486,23 @@ final class CloudProviderHealthManager: ObservableObject {
         }
     }
 
+    /// Probe a candidate key without publishing or persisting it.
+    ///
+    /// Onboarding uses this path so a failed Keychain write cannot be masked by a
+    /// successful health check against a temporary in-memory credential.
+    func probe(_ provider: CloudProvider, apiKey rawKey: String) async -> ProviderHealth {
+        if provider == .hyperwhisper || provider == .microsoftAzureSpeech || provider == .googleSpeech {
+            return .healthy
+        }
+
+        let apiKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !apiKey.isEmpty else { return .unknown }
+
+        return await runHealthCheckWithRetry(force: true) {
+            await self.performRustHealthCheck(for: provider, apiKey: apiKey)
+        }
+    }
+
     // MARK: - Rust Shared Core STT Health Probe
 
     /// Execute a cloud STT provider's health probe via the Rust shared core.

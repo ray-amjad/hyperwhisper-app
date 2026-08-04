@@ -270,6 +270,11 @@ public class TranscriptionOrchestrator : IDisposable
             // batch path too — they were streaming-only, so with AI post-processing
             // off they were silently dropped (issue #1).
             finalText = TranscriptionTextProcessing.ProcessVoiceCommands(finalText);
+            // Vocabulary replacements are the user's own spelling corrections, not
+            // part of AI post-processing — turning post-processing off must not
+            // discard them. Applied last, mirroring the post-processing branch
+            // above where it is the final transformation.
+            finalText = _vocabularyProcessor.ApplyReplacements(finalText);
         }
 
         return new TranscriptionResult(

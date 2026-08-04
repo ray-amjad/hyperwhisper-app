@@ -54,19 +54,40 @@ class LicenseManager: ObservableObject {
     /// subsystem shares a single instance — and a single one-shot Core Data →
     /// UserDefaults usage seed (run in `RustLicenseStore.init`, before any usage
     /// call). This is load-bearing for backward compatibility.
-    private let store = RustLicenseStore()
+    private let store: RustLicenseStore?
 
     /// Network service for license API calls
-    private let networkService: LicenseNetworkService
+    private let networkService: any LicenseNetworkServing
+
+    /// One-shot background retry, scheduled only when launch-time validation
+    /// fell back to a cached verdict because of a genuine network failure (see
+    /// `loadStoredLicense()`). Held so a second `loadStoredLicense()` call
+    /// (unlikely in practice — `LicenseManager` is a long-lived singleton — but
+    /// possible in tests) cancels any still-pending retry rather than stacking
+    /// them. HYPERWHISPER-F4 (review round 2).
+    private var networkFailureRetryTask: Task<Void, Never>?
+    private var networkFailureRetryID: UUID?
 
     // MARK: - Initialization
 
-    init() {
-        networkService = LicenseNetworkService(store: store)
+    init(
+        networkService: (any LicenseNetworkServing)? = nil,
+        loadStoredLicenseOnInit: Bool = true
+    ) {
+        if let networkService {
+            self.store = nil
+            self.networkService = networkService
+        } else {
+            let store = RustLicenseStore()
+            self.store = store
+            self.networkService = LicenseNetworkService(store: store)
+        }
 
         // Load stored license on initialization.
-        Task {
-            await loadStoredLicense()
+        if loadStoredLicenseOnInit {
+            Task {
+                await loadStoredLicense()
+            }
         }
     }
 
@@ -74,6 +95,7 @@ class LicenseManager: ObservableObject {
 
     /// Activates a license key by validating it with the backend.
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        cancelNetworkFailureRetry()
         isValidating = true
         lastError = nil
         defer { isValidating = false }
@@ -85,6 +107,7 @@ class LicenseManager: ObservableObject {
 
     /// Deactivates the license locally (clears UserDefaults).
     func deactivateLicense() async -> Bool {
+        cancelNetworkFailureRetry()
         isDeactivating = true
         lastError = nil
         defer { isDeactivating = false }
@@ -99,18 +122,46 @@ class LicenseManager: ObservableObject {
     }
 
     /// Validates a license key with the backend.
-    func validateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+    /// - Parameter isLaunchValidation: forwarded to `LicenseNetworkService` — `true`
+    ///   only for the silent background revalidation `loadStoredLicense()` fires at
+    ///   launch, selecting its tighter retry budget. See HYPERWHISPER-F4.
+    func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
+        if !isLaunchValidation {
+            cancelNetworkFailureRetry()
+        }
         isValidating = true
         lastError = nil
         defer { isValidating = false }
 
-        let result = await networkService.validateLicense(licenseKey)
+        let result = await networkService.validateLicense(
+            licenseKey,
+            isLaunchValidation: isLaunchValidation,
+            expectedStoredLicenseKey: nil
+        )
         await processValidationResult(result)
 
         return result
     }
 
+    /// Tests a key without changing the active account, persisted key, customer
+    /// metadata, or validation cache. Used when UI presents testing separately
+    /// from explicit activation.
+    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        await networkService.probeLicense(licenseKey)
+    }
+
     /// Loads stored license from UserDefaults, revalidates if cache expired (24h).
+    ///
+    /// The revalidation call is tagged `isLaunchValidation: true` so a stale
+    /// network at launch (wake-from-sleep, captive portal, DNS not up yet) gets a
+    /// short bounded retry and — if that's still not enough — falls back to the
+    /// last cached server verdict instead of leaving `licenseStatus` stuck at its
+    /// default `.trial` for the whole `.cloud` retry budget. HYPERWHISPER-F4.
+    ///
+    /// If that fallback happened specifically because the network couldn't be
+    /// reached (`result.networkFailureFallback`), a short background retry is
+    /// scheduled — see `scheduleRetrySoonAfterNetworkFallback`. HYPERWHISPER-F4
+    /// (review round 2).
     func loadStoredLicense() async {
         guard let storedKey = networkService.getStoredLicenseKey() else {
             licenseStatus = .trial
@@ -118,14 +169,87 @@ class LicenseManager: ObservableObject {
         }
 
         if networkService.shouldRevalidateLicense() {
-            _ = await validateLicense(storedKey)
+            // Publish the still-usable cached verdict before awaiting the live
+            // refresh. Otherwise the manager remains at its default `.trial`
+            // throughout the request/retry budget even though a server-issued
+            // verdict is available within the offline grace period.
+            if let cachedStatus = networkService.getCachedLicenseStatus() {
+                licenseStatus = cachedStatus
+            }
+
+            let result = await validateLicense(storedKey, isLaunchValidation: true)
+            if result.networkFailureFallback {
+                scheduleRetrySoonAfterNetworkFallback(licenseKey: storedKey)
+            }
         } else if let cachedStatus = networkService.getCachedLicenseStatus() {
             licenseStatus = cachedStatus
         }
     }
 
+    /// Schedules ONE short, background revalidation after launch-time
+    /// validation fell back to a cached (or Invalid) verdict due to a genuine
+    /// network failure, rather than waiting out the full 24h cache TTL / 7-day
+    /// offline grace before trying the real server again.
+    ///
+    /// A merely-slow-but-live network (weak wifi, VPN overhead) can trip the
+    /// deliberately tight launch-time timeout/retry budget
+    /// (`NetworkConfig.licenseLaunchValidationTimeout` +
+    /// `.licenseLaunchValidation`) without the user actually being offline —
+    /// that budget is tuned for a fast self-heal, not for correctly
+    /// distinguishing "dead" from "slow." Without this follow-up, a
+    /// legitimately-licensed user who hit that misclassification would silently
+    /// ride the cached fallback for up to a week. By the time this fires, a
+    /// merely-slow connection has almost certainly stabilized, so this quietly
+    /// re-confirms against the real server. Deliberately a simple one-shot
+    /// delayed `Task` rather than wiring up `NetworkStatus`/reachability
+    /// observation — a single retry in the background costs nothing extra if
+    /// the network happens to still be down (it just repeats the same
+    /// fallback), and avoids the added complexity of debouncing a
+    /// possibly-flapping reachability signal for what is already a rare edge
+    /// case. HYPERWHISPER-F4 (review round 2).
+    private func scheduleRetrySoonAfterNetworkFallback(licenseKey: String) {
+        cancelNetworkFailureRetry()
+        let retryID = UUID()
+        networkFailureRetryID = retryID
+        networkFailureRetryTask = Task { [weak self] in
+            defer {
+                if let self, self.networkFailureRetryID == retryID {
+                    self.networkFailureRetryTask = nil
+                    self.networkFailureRetryID = nil
+                }
+            }
+
+            let delayNanoseconds = UInt64(NetworkConfig.licenseLaunchValidationRetrySoonDelay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard let self,
+                  !Task.isCancelled,
+                  self.networkFailureRetryID == retryID else {
+                return
+            }
+            guard self.networkService.getStoredLicenseKey() == licenseKey else { return }
+
+            AppLogger.network.info("License validation · retrying soon after launch-time network-failure fallback")
+            let result = await self.networkService.validateLicense(
+                licenseKey,
+                isLaunchValidation: true,
+                expectedStoredLicenseKey: licenseKey
+            )
+
+            // Activation, deactivation, backup restore, or another validation
+            // may have changed the key while the request was in flight. Never
+            // let a stale retry overwrite the current key's published state.
+            guard !Task.isCancelled,
+                  self.networkFailureRetryID == retryID,
+                  self.networkService.getStoredLicenseKey() == licenseKey else {
+                return
+            }
+            self.processValidationResult(result)
+        }
+    }
+
     /// Clears stored license and resets to the unlicensed (trial) state.
     func clearLicense() {
+        cancelNetworkFailureRetry()
         networkService.clearStoredLicense()
         licenseStatus = .trial
         customerEmail = nil
@@ -135,6 +259,12 @@ class LicenseManager: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func cancelNetworkFailureRetry() {
+        networkFailureRetryID = nil
+        networkFailureRetryTask?.cancel()
+        networkFailureRetryTask = nil
+    }
 
     /// Updates UI state from validation result and posts notification.
     private func processValidationResult(_ result: LicenseValidationResult) {

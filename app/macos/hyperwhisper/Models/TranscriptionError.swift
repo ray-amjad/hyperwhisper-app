@@ -217,16 +217,3 @@ enum TranscriptionError: LocalizedError {
         }
     }
 }
-
-// MARK: - Private Helpers
-
-/// Format file size in bytes to human-readable string (e.g., "25 MB", "1.5 GB")
-private func formatFileSize(_ bytes: Int64) -> String {
-    if bytes >= 1024 * 1024 * 1024 {
-        let gb = Double(bytes) / (1024.0 * 1024.0 * 1024.0)
-        return String(format: "%.1f GB", gb)
-    } else {
-        let mb = bytes / (1024 * 1024)
-        return "\(mb) MB"
-    }
-}

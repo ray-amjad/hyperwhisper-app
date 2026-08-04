@@ -3,7 +3,7 @@ title: Voice Coding in AI IDEs
 description: Use HyperWhisper with Cursor, Claude Code, and other AI-powered editors to dictate prompts and tag files by voice.
 ---
 
-HyperWhisper integrates with AI coding agents through the local MCP bridge, a dedicated Code preset, and Developer Mode. Together they help your transcripts land in the right format and carry the right file context before agents like Cursor and Claude Code see them.
+HyperWhisper integrates with AI coding agents through the local MCP bridge and a dedicated Code preset. Together they help your transcripts land in the right format before agents like Cursor and Claude Code see them.
 
 This page covers the full picture. Deep-dive reference for individual features is linked throughout.
 
@@ -14,7 +14,7 @@ This page covers the full picture. Deep-dive reference for individual features i
 - Node.js 18 or newer is on your `PATH` (`node --version` should print a version number). The `npx` command ships with Node.
 
 <Note>
-  The MCP bridge is a macOS feature. iOS does not currently support editor integrations.
+  The MCP bridge works on both macOS and Windows — both apps write the discovery file it reads. iOS does not currently support editor integrations.
 </Note>
 
 ---
@@ -55,7 +55,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
     Restart Cursor. The server should appear under **Settings → MCP**.
   </Tab>
   <Tab title="Claude Desktop">
-    Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+    Edit the config file — `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows:
 
     ```json
     {
@@ -103,7 +103,7 @@ For full tool signatures and troubleshooting, see [MCP Setup](/api-reference/loc
 
 ## Code preset for voice-to-code
 
-When you're dictating code rather than prose, use a mode with the **Code** preset. It converts spoken symbol names into code syntax and disables automatic capitalization and punctuation so your identifiers land exactly as spoken.
+When you're dictating code rather than prose, use a mode with the **Code** preset. It converts spoken symbol names into code syntax. Pair it with **Capitalization** and **Punctuation** turned off (see setup below) so your identifiers land exactly as spoken — the preset itself doesn't change those formatting toggles for you.
 
 | You say | You get |
 |---|---|
@@ -137,39 +137,9 @@ When you're dictating code rather than prose, use a mode with the **Code** prese
 
 ## Developer Mode for file context
 
-Developer Mode lets you tag specific files by voice during a recording. HyperWhisper detects your active IDE, indexes your project files, and resolves spoken file references into proper `@filename` tags — exactly what AI agents need for precise, context-aware code generation.
-
-### Setup
-
-<Steps>
-  <Step title="Enable Developer Mode">
-    Open HyperWhisper settings and turn on **Enable Developer Mode**. See [Developer Mode](/developer-mode) for the exact location.
-  </Step>
-  <Step title="Add your project directories">
-    Click **+ Add Directory** and select your project root. You can add multiple directories for monorepos or parallel projects.
-  </Step>
-  <Step title="Verify indexing">
-    The status indicator shows your active project name and a file count. A blue checkmark confirms the IDE is detected.
-  </Step>
-</Steps>
-
-### Using @ mentions
-
-With Developer Mode and AI post-processing active, say `"at [filename]"` during recording:
-
-| You say | Transcript becomes |
-|---|---|
-| `"at app.swift, add error handling"` | `@app.swift, add error handling` |
-| `"at components/button, update the border radius"` | `@components/button.tsx, update the border radius` |
-| `"at main.swift and at utils.ts, check the date formatting"` | `@main.swift and @utils.ts, check the date formatting` |
-
-HyperWhisper uses fuzzy matching to resolve partial file names and path fragments. The system remembers your last active project for 30 minutes and switches automatically when you change IDEs or projects.
-
-### Supported IDEs
-
-Xcode, VS Code, Cursor, Windsurf, IntelliJ IDEA, PyCharm, WebStorm, GoLand, Zed, Atom, and Brackets.
-
-For a deeper look at status indicators and troubleshooting, see [Developer Mode](/developer-mode).
+<Note>
+  Developer Mode — voice-tagging files with `@` mentions ("at app.swift, add error handling") — is **not currently available** in the shipping app. This section previously documented that feature; it's kept here only as a placeholder until a product decision is made on whether it returns.
+</Note>
 
 ---
 
@@ -195,9 +165,9 @@ See [Auto Paste & Clipboard Behavior](/auto-paste) for the full configuration op
 ### Cursor agent: dictate a prompt
 
 1. Switch to your Code mode.
-2. Press your record shortcut, speak your prompt — e.g. *"at components/button, refactor the onClick handler to use useCallback"*.
-3. HyperWhisper transcribes, resolves the `@` mention, and pastes the result into Cursor's composer.
-4. Cursor's agent picks up the prompt with full file context and generates code.
+2. Press your record shortcut, speak your prompt — e.g. *"refactor the onClick handler in components/button to use useCallback"*.
+3. HyperWhisper transcribes and pastes the result into Cursor's composer.
+4. Cursor's agent picks up the prompt and generates code.
 
 ### Standalone transcription via MCP
 
@@ -223,12 +193,6 @@ Open HyperWhisper, enable **Settings → Local API**, then re-run the agent prom
 
 **Code preset not converting symbols**
 Verify **AI Post-Processing** is set to **Cloud** or **Local** on the mode — the Code preset has no effect when post-processing is off.
-
-**@ mentions not appearing in the transcript**
-- Confirm Developer Mode is enabled (see [Developer Mode](/developer-mode)).
-- Click **Reindex Files** to refresh the file index.
-- Ensure AI post-processing is on for the active mode.
-- Say `"at [filename]"` clearly — the fuzzy matcher needs at least a partial filename.
 
 **Auto-paste not working**
 - Grant Accessibility permission in **System Settings → Privacy & Security → Accessibility**.

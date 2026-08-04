@@ -24,7 +24,9 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
+using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
 
@@ -102,6 +104,18 @@ internal static class Program
                     "600MB → capped at 30min");
             });
 
+            Run("XaiFormattingLanguages shared between Grok batch and streaming", () =>
+            {
+                Assert(XaiFormattingLanguages.TryGetSupportedCode("en", out var en) && en == "en", "en supported");
+                Assert(XaiFormattingLanguages.TryGetSupportedCode("EN-US", out var enUs) && enUs == "en",
+                    "EN-US → en");
+                Assert(XaiFormattingLanguages.TryGetSupportedCode("tl", out var tl) && tl == "fil",
+                    "tl aliases to fil");
+                Assert(!XaiFormattingLanguages.TryGetSupportedCode("auto", out _), "auto unsupported");
+                Assert(!XaiFormattingLanguages.TryGetSupportedCode(null, out _), "null unsupported");
+                Assert(!XaiFormattingLanguages.TryGetSupportedCode("zz", out _), "unknown code unsupported");
+            });
+
             Run("OpenAI post-processing omits an output-token cap", () =>
             {
                 var requestJson = PostProcessingService.BuildOpenAIRequestJson(
@@ -125,6 +139,25 @@ internal static class Program
                     "Groq request should cap completions at GroqMaxCompletionTokens");
                 Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
                     "Groq request should use max_completion_tokens, not max_tokens");
+            });
+
+            Run("Deepgram parses every message shape of its \"channel\" field", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+
+                // "channel":[0,1] — the array form used by the endpointing frames.
+                Assert(strategy.ParseMessage("""{"type":"SpeechStarted","channel":[0,1],"timestamp":1.2}""")
+                        is StreamingProviderEvent.Metadata,
+                    "SpeechStarted should parse to a Metadata event");
+                Assert(strategy.ParseMessage("""{"type":"UtteranceEnd","channel":[0,1],"last_word_end":2.5}""")
+                        is StreamingProviderEvent.Metadata,
+                    "UtteranceEnd should parse to a Metadata event");
+
+                // "channel":{...} — the transcript form, which must keep working.
+                Assert(strategy.ParseMessage(
+                        """{"type":"Results","is_final":true,"channel":{"alternatives":[{"transcript":"hello"}]}}""")
+                        is StreamingProviderEvent.FinalTranscript { Text: "hello" },
+                    "Results should still yield its transcript");
             });
 
             // These checks call straight into the generated FFI surface
@@ -379,6 +412,62 @@ internal static class Program
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
             });
 
+            Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
+            {
+                // Reproduces the History clobber: MainViewModel creates a Processing
+                // transcript, HistoryViewModel wraps that exact instance, then
+                // MainViewModel completes the SAME instance and hands it back through
+                // HistoryService.TranscriptUpdated. Absorbing the update must not
+                // revert the entity to the snapshot taken at construction — the
+                // transcription flow's finally-block safety net reads that status and
+                // would overwrite a completed transcript with a failure.
+                var transcript = new Transcript
+                {
+                    Id = Guid.NewGuid(),
+                    Status = TranscriptStatus.Processing,
+                    Text = "Processing audio..."
+                };
+
+                var vm = new TranscriptViewModel(transcript);
+
+                transcript.Text = "the real transcription";
+                transcript.TranscribedText = "the real transcription";
+                transcript.Status = TranscriptStatus.Completed;
+                transcript.TranscriptionProvider = "Whisper large-v3-turbo";
+
+                vm.ApplyUpdate(transcript);
+
+                Assert(transcript.Status == TranscriptStatus.Completed,
+                    $"entity status was reverted to {transcript.Status}");
+                Assert(transcript.Text == "the real transcription",
+                    $"entity text was reverted to '{transcript.Text}'");
+                Assert(transcript.TranscribedText == "the real transcription",
+                    "entity raw text was discarded");
+                Assert(transcript.TranscriptionProvider == "Whisper large-v3-turbo",
+                    "entity provider was discarded");
+
+                Assert(vm.Status == TranscriptStatus.Completed,
+                    $"view model still shows {vm.Status}");
+                Assert(vm.Text == "the real transcription",
+                    $"view model still shows '{vm.Text}'");
+
+                // A distinct instance (e.g. re-read from the DB) must still land.
+                var reread = new Transcript
+                {
+                    Id = transcript.Id,
+                    Status = TranscriptStatus.Failed,
+                    Text = "No speech detected",
+                    FailedReason = "No speech detected",
+                    RetryCount = 2
+                };
+
+                vm.ApplyUpdate(reread);
+
+                Assert(vm.Status == TranscriptStatus.Failed, $"view model shows {vm.Status}");
+                Assert(vm.Text == "No speech detected", $"view model shows '{vm.Text}'");
+                Assert(vm.RetryCount == 2, $"view model shows retry count {vm.RetryCount}");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
@@ -386,9 +475,24 @@ internal static class Program
                 var application = new Application();
                 LoadApplicationResources(application);
 
+                // Constructing the page exercises the exact construction-order NRE this
+                // regression test covers. Export selection handlers must not run until
+                // InitializeComponent has created the complete checkbox tree.
                 var page = new BackupExportSettingsPage();
                 if (!page.IsInitialized)
                     throw new InvalidOperationException("BackupExportSettingsPage did not finish WPF initialization.");
+
+                // Post-construction changes prove handlers are attached and state is
+                // recomputed; the button's default enabled value alone proves nothing.
+                page.ExportSettingsCheckbox.IsChecked = false;
+                page.ExportModesCheckbox.IsChecked = false;
+                page.ExportVocabularyCheckbox.IsChecked = false;
+                Assert(!page.ExportButton.IsEnabled,
+                    "expected ExportButton to be disabled once all export sections are unchecked");
+
+                page.ExportModesCheckbox.IsChecked = true;
+                Assert(page.ExportButton.IsEnabled,
+                    "expected ExportButton to be re-enabled after re-checking a section");
 
                 application.Shutdown();
             });

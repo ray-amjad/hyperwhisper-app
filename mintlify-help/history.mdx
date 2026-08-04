@@ -104,7 +104,7 @@ If HyperWhisper saved the audio for a recording, an audio player appears in the 
   <Tab title="Windows">
     Click the **play/pause** button to start or pause playback. A seek slider and a position / total-duration readout let you scrub to any point in the recording.
 
-    If the audio file has been deleted or moved, an "Audio file not available" message replaces the player.
+    If the audio file has been deleted or moved, an "Audio file not available" message replaces the player. Windows shows a slightly different message ("could not be loaded") if the file exists but fails to load.
   </Tab>
 </Tabs>
 
@@ -133,12 +133,16 @@ Click **Copy** in the actions bar to copy the currently displayed text (processe
 
     **Multiple entries:** Hold `⌘` or `Shift` to select more than one row, then press `Delete` or right-click and choose **Delete Selected**. The detail panel switches to a bulk-delete confirmation view showing the count of selected items.
 
+    A confirmation dialog appears before every delete, whether you're removing a single entry or a selection.
+
     Deleting a transcription also removes its associated audio file from disk.
   </Tab>
   <Tab title="Windows">
-    **Single entry:** Select the row and press `Delete`, or right-click and choose **Delete** from the context menu.
+    **Single entry:** Select the row and press `Delete`, right-click and choose **Delete** from the context menu, or click the **Delete** button in the detail panel's actions bar.
 
     **Multiple entries:** Hold `Ctrl` or `Shift` to select more than one row, then press `Delete`. The detail panel shows a bulk-delete button with the count of selected items.
+
+    A confirmation dialog appears before every delete, whether you're removing a single entry or a selection.
 
     Deleting a transcription also removes its associated audio file from disk.
   </Tab>
@@ -162,6 +166,10 @@ If a transcription fails, the entry shows a **Failed** badge in the list and an 
     **Retry with a different mode:** Right-click the row and choose **Retry with…**, then pick a mode from the submenu.
 
     The row shows a "Retrying..." badge while the job is in progress.
+
+    <Note>
+      On Windows, **Retry with…** only works on entries with a **Failed** status — the menu item stays clickable on other entries but silently does nothing if the transcript didn't fail. This differs from macOS, where **Retry with…** works on any transcript that still has its saved audio.
+    </Note>
   </Tab>
 </Tabs>
 
@@ -171,4 +179,4 @@ If a transcription fails, the entry shows a **Failed** badge in the list and an 
 
 ## Automatic Deletion
 
-Both apps support an optional automatic-deletion setting that removes transcriptions older than a configured age. Configure this in **Settings** if you want the history to self-prune. Automatic deletion runs in the background and removes both the transcript record and the associated audio file. See [Advanced Settings](/advanced-settings) for configuration details.
+Both apps support an optional automatic-deletion setting that removes transcriptions older than a configured age. Configure this at **Settings → Storage → Enable automatic deletion**, where you can set the age threshold in minutes, hours, or days. Automatic deletion runs in the background and removes both the transcript record and the associated audio file.

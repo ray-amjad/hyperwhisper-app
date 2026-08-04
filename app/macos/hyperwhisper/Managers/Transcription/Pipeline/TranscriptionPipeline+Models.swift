@@ -68,6 +68,52 @@ extension TranscriptionPipeline {
         await modelCoordinator.refreshLocalRuntime(forModeId: modeId)
     }
 
+    /// Re-evaluate the selected Parakeet mode after its installed-model state changes.
+    @MainActor
+    func refreshParakeetReadiness(forModeId modeId: String?) async {
+        guard let modeId, UUID(uuidString: modeId) != nil else {
+            return
+        }
+
+        pendingParakeetReadinessModeId = modeId
+        await refreshPendingParakeetReadinessIfReady()
+    }
+
+    /// Apply a queued readiness refresh only when it cannot cancel active work.
+    @MainActor
+    func refreshPendingParakeetReadinessIfReady() async {
+        guard state_isReadyForTranscription(),
+              let modeId = pendingParakeetReadinessModeId else {
+            return
+        }
+        guard appState?.selectedModeId == modeId else {
+            pendingParakeetReadinessModeId = nil
+            return
+        }
+        guard let mode = await PersistenceController.shared.fetchModeInBackground(withId: modeId) else {
+            return
+        }
+
+        // The background fetch yields. Recheck both state and request identity
+        // before invoking prepareModel, which intentionally cancels stale work.
+        guard state_isReadyForTranscription(),
+              pendingParakeetReadinessModeId == modeId,
+              appState?.selectedModeId == modeId else {
+            if pendingParakeetReadinessModeId == modeId,
+               appState?.selectedModeId != modeId {
+                pendingParakeetReadinessModeId = nil
+            }
+            return
+        }
+        pendingParakeetReadinessModeId = nil
+
+        guard ParakeetModelManager.Constants.canonicalModelId(for: mode.model ?? "") != nil else {
+            return
+        }
+
+        await prepareModel(for: mode)
+    }
+
     /// Delete a downloaded model to free up space.
     func deleteModel(_ model: WhisperModel) throws {
         try modelCoordinator.deleteModel(model)

@@ -53,6 +53,11 @@ enum NotesDestination {
     ///   `needsAutomationPermission` flag for the settings banner).
     @MainActor
     static func send(text: String) async -> Bool {
+        guard !TextDeliveryGate.isSuppressed else {
+            AppLogger.audio.info("🚫 NotesDestination.send suppressed by TextDeliveryGate")
+            return false
+        }
+
         let escapedBody = escapeForAppleScript(text)
 
         // `activate` ensures the user sees the new note land — without it,

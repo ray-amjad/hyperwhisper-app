@@ -9,6 +9,7 @@
 //  It sets up both the main window and the menu bar functionality.
 
 import SwiftUI
+import Combine
 import KeyboardShortcuts
 import AppKit  // Required for NSApplication and menu bar functionality
 import CoreData  // Required for Core Data persistence
@@ -70,9 +71,15 @@ struct HyperWhisperApp: App {
     /// Controls whether the app launches with the main window hidden (menu bar only)
     @AppStorage("launchMinimized") private var launchMinimized: Bool = false
     
-    /// Tracks whether this is the first launch (used for onboarding)
-    /// TEMPORARILY DISABLED - Set to false to enable onboarding
-    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = true
+    /// Tracks whether this is the first launch (used for onboarding).
+    /// Defaults to `false` so new installs see the first-run onboarding flow.
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+
+    /// Durable "onboarding still owed" signal. Set true on the launch that seeds
+    /// the default modes (a genuine fresh install) and kept until onboarding is
+    /// completed, so an interrupted first run is re-shown on the next launch —
+    /// `didSeedDefaultModesOnLaunch` alone is only true on the seeding launch.
+    @AppStorage("onboardingPending") private var onboardingPending: Bool = false
 
     /// Tracks whether we've shown the one-time Gemma removal migration alert
     @AppStorage("didShowGemmaMigrationAlert") private var didShowGemmaMigrationAlert: Bool = false
@@ -316,6 +323,17 @@ struct MenuBarIconView: View {
                 }
                 .onReceive(parakeetModelManager.$availableModels) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
+                }
+                .onReceive(
+                    parakeetModelManager.$availableModels
+                        .dropFirst()
+                        .removeDuplicates()
+                ) { _ in
+                    Task { @MainActor in
+                        await transcriptionPipeline.refreshParakeetReadiness(
+                            forModeId: appState.selectedModeId
+                        )
+                    }
                 }
                 .onReceive(qwen3AsrModelManager.$isDownloaded) { _ in
                     transcriptionPipeline.rescanAvailableLocalModels()
@@ -563,6 +581,25 @@ struct MenuBarIconView: View {
         // These work even when the app isn't focused
         setupGlobalHotkeys()
 
+        // Resolve onboarding before launch-minimized behavior. Existing users may
+        // not have a persisted completion key because older builds defaulted it to
+        // true; marking them complete here ensures their first upgraded launch
+        // still honors the menu-bar-only preference.
+        if !hasCompletedOnboarding {
+            if PersistenceController.shared.didSeedDefaultModesOnLaunch {
+                onboardingPending = true
+            }
+            if onboardingPending {
+                // Small delay to ensure the main window is ready before showing sheet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    appState.showOnboarding = true
+                }
+            } else {
+                // Existing user (modes already present): treat onboarding as done.
+                hasCompletedOnboarding = true
+            }
+        }
+
         // LAUNCH MINIMIZED: Hide main window if preference is set
         // This allows the app to run in menu bar only mode by default
         // Users can still access the window via Menu Bar > Settings
@@ -575,15 +612,6 @@ struct MenuBarIconView: View {
                     // Return focus to previous app after hiding our window
                     NSApp.deactivate()
                 }
-            }
-        }
-
-        // Show onboarding if this is the first launch
-        // The hasCompletedOnboarding check is done here to trigger the sheet
-        if !hasCompletedOnboarding {
-            // Small delay to ensure the main window is ready before showing sheet
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                appState.showOnboarding = true
             }
         }
 

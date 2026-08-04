@@ -51,6 +51,11 @@ extension RecordingTranscriptionFlow {
 
         let resolvedTrigger: RecordingTriggerSource = (appState?.isStreamingShortcutTriggered == true) ? .streamingShortcut : currentRecordingTriggerSource
         currentRecordingTriggerSource = resolvedTrigger
+        sessionStartedWithTextDeliverySuppressed = RecordingTextDeliveryPolicy.shouldSuppress(
+            sessionStartedSuppressed: false,
+            currentlySuppressed: TextDeliveryGate.isSuppressed,
+            trigger: resolvedTrigger
+        )
 
         let recordingStartTransaction = SentryService.startTransaction(name: "Recording Start", operation: "audio.recording.start")
         func finishStartTransaction(_ status: SpanStatus) {
@@ -118,6 +123,7 @@ extension RecordingTranscriptionFlow {
             )
             currentRecordingAttemptId = nil
             currentRecordingTriggerSource = .unknown
+            sessionStartedWithTextDeliverySuppressed = false
             quickCaptureContext = nil
             finishStartTransaction(.internalError)
             return

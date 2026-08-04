@@ -112,6 +112,23 @@ struct ModelStatusBar: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.tertiary)
                 }
+
+            case .unavailable(let name):
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 6, height: 6)
+                Text(name)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Button {
+                    appState.navigate(to: .modelLibrary)
+                } label: {
+                    Text("(\("settings.models.download".localized))")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("transcription.guidance.modelNotDownloaded".localized)
             }
         }
     }

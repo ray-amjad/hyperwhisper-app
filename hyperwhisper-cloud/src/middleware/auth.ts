@@ -59,15 +59,13 @@ async function validateLicenseViaApi(licenseKey: string): Promise<{ isValid: boo
 
     console.log(`[License] ${maskedKey}: status=${response.status}, valid=${isValid}, credits=${credits}${data.error ? `, error=${data.error}` : ''}`);
 
-    // A 5xx (cold start, upstream timeout, internal error) is a transient
-    // failure, not proof the license is invalid — caching it would lock a
-    // paying user out for the full LICENSE_CACHE_TTL_SECONDS. Fail this
-    // request closed but leave the cache untouched so the next request
-    // retries the API. A 4xx, by contrast, is a definitive verdict from the
-    // licensing API (revoked/not-found/malformed key → valid:false); those
-    // MUST be cached so repeated requests with the same bad key don't hammer
-    // the licensing API on every call.
-    if (response.status >= 500) {
+    // A 429 or 5xx (rate limit, cold start, upstream timeout, internal error)
+    // is a transient failure, not proof the license is invalid — caching it
+    // would lock a paying user out for the full LICENSE_CACHE_TTL_SECONDS.
+    // Fail this request closed but leave the cache untouched so the next
+    // request retries the API. Other 4xx responses are definitive verdicts
+    // (revoked/not-found/malformed key → valid:false) and remain cacheable.
+    if (response.status === 429 || response.status >= 500) {
       console.warn(`[License] Transient ${response.status} response for ${maskedKey}; not caching`);
       return { isValid: false, credits: 0 };
     }

@@ -189,8 +189,14 @@ class AppState: ObservableObject {
     /// Whether to show the cancel recording confirmation dialog
     @Published var showCancelConfirmation: Bool = false
     
-    /// Whether to show the onboarding flow
-    @Published var showOnboarding: Bool = false
+    /// Whether to show the onboarding flow.
+    ///
+    /// Mirrored into `TextDeliveryGate` so every transcript-delivery sink
+    /// suppresses pasting/typing into other apps for the whole sheet lifetime —
+    /// onboarding shows transcripts inline only.
+    @Published var showOnboarding: Bool = false {
+        didSet { TextDeliveryGate.setSuppressed(showOnboarding) }
+    }
     
     /// Current step in onboarding (for resuming if interrupted)
     @Published var onboardingCurrentStep: Int = 0
@@ -249,8 +255,21 @@ class AppState: ObservableObject {
     /// Whether AI post‑processing is currently streaming
     @Published var isStreaming: Bool = false
 
-    /// Partial text produced by streaming post‑processing
-    @Published var streamingText: String = ""
+    /// Dedicated high-frequency object for the streaming preview text. Kept off
+    /// `AppState`'s own `@Published` storage so rapid streaming deltas don't
+    /// invalidate every view observing `AppState` — see `StreamingLiveText` for the
+    /// full rationale (HYPERWHISPER-F7).
+    let liveStreamingText = StreamingLiveText()
+
+    /// Partial text produced by streaming post‑processing.
+    /// Computed passthrough to `liveStreamingText` for backward compatibility — reads
+    /// and writes still work everywhere, but this no longer republishes through
+    /// `AppState.objectWillChange`. Views needing reactive updates as streaming text
+    /// changes should observe `liveStreamingText` directly via `@EnvironmentObject`.
+    var streamingText: String {
+        get { liveStreamingText.text }
+        set { liveStreamingText.text = newValue }
+    }
 
     /// True when the current recording was started via the streaming shortcut (Option+Shift+Space)
     /// Used to show "Streaming" badge in RecordingDialog instead of the mode name

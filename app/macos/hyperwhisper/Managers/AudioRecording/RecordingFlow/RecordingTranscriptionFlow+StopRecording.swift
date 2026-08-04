@@ -53,9 +53,14 @@ extension RecordingTranscriptionFlow {
         var createRowMs = -1
         var transcribeMs = -1
         var coreDataUpdateMs = -1
+        // HYPERWHISPER-P4: same fix as HYPERWHISPER-P3 (TranscriptionPipeline+Transcription.swift) —
+        // these base thresholds cover fixed overhead; `slowTranscribingUIPerAudioSecondMs` adds a
+        // per-audio-second allowance so long-but-proportionally-fast dictations stop tripping the
+        // same bar as short ones.
         let slowTranscribingUIThresholdMs = 8_000
         let slowTranscribingUIWithPostProcessingThresholdMs = 15_000
         let slowTranscribingUIWithLocalLLMThresholdMs = 45_000
+        let slowTranscribingUIPerAudioSecondMs = 150.0
         var transcribingUIStart: Date?
 
         let sessionModeName = activeSessionModeName
@@ -67,6 +72,7 @@ extension RecordingTranscriptionFlow {
         defer {
             currentRecordingAttemptId = nil
             currentRecordingTriggerSource = .unknown
+            sessionStartedWithTextDeliverySuppressed = false
             // Quick Capture context lives for one session — clear it now so the
             // next non-QC recording doesn't accidentally re-route to Notes.
             quickCaptureContext = nil
@@ -286,7 +292,7 @@ extension RecordingTranscriptionFlow {
             }
             await MainActor.run {
                 appState?.recordingState = .idle
-                appState?.lastTranscription = "Error: Audio file could not be read"
+                appState?.lastTranscription = "Error: \("audio.error.readFile".localized)"
                 appState?.pendingRetryAudioPath = audioURL.path
                 appState?.showRecordingDialog = true
                 KeyboardShortcuts.disable(.cancelRecording)
@@ -383,12 +389,17 @@ extension RecordingTranscriptionFlow {
             // Use finalAudioURL which may be VAD-trimmed if VAD was enabled.
             // `transcribe` folds provider selection + transcription + post-processing;
             // its wall time is surfaced as the transcribe stage.
+            // Audio actually sent to the provider: VAD-trimmed length when VAD ran,
+            // else the raw recording. Reused below for the UI-side slow threshold so
+            // both P3 (pipeline) and P4 (this flow) scale off the same duration.
+            let effectiveAudioDurationSeconds = (vadResult.wasProcessed ? trimResult?.trimmedDuration : nil) ?? recordingDuration
             let transcribeStart = Date()
             let transcriptionResult = try await transcriptionMgr.transcribeWithDetails(
                 audioURL: finalAudioURL,
                 mode: transcriptionMode,
                 recordingSession: nil, // Will be set by RecordingLifecycle
-                applicationContext: capturedApplicationContext
+                applicationContext: capturedApplicationContext,
+                audioDurationSeconds: effectiveAudioDurationSeconds
             )
             transcribeMs = Int(Date().timeIntervalSince(transcribeStart) * 1000)
 
@@ -414,10 +425,36 @@ extension RecordingTranscriptionFlow {
                 // `pasteResultText` setting. The user opted in by binding a
                 // dedicated shortcut and toggling the feature on.
                 let isQuickCaptureRouting = (quickCaptureContext != nil)
-                let shouldDeliverText = isQuickCaptureRouting
-                    || (settingsManager?.pasteResultText ?? false)
 
-                if shouldDeliverText, let settings = settingsManager {
+                // ONBOARDING: the transcript is surfaced inline in the onboarding
+                // window only and must NEVER paste into another app, regardless of
+                // the user's global `pasteResultText` setting. The delivery primitives
+                // themselves refuse to emit while the gate is suppressed, but we ALSO
+                // skip at the caller here: if we let `handleAutoPaste` reach the guarded
+                // `sendPasteCommand`, it returns false and the failure branch would pop
+                // the recording dialog *behind* the onboarding sheet. So the batch
+                // caller must not enter delivery at all. `TextDeliveryGate.isSuppressed`
+                // tracks the onboarding sheet's lifetime; the explicit `.onboarding`
+                // trigger term is belt-and-suspenders. `lastTranscription` was already
+                // set above (line ~467), which the onboarding view observes to render
+                // "You said …".
+                let suppressForOnboarding = RecordingTextDeliveryPolicy.shouldSuppress(
+                    sessionStartedSuppressed: sessionStartedWithTextDeliverySuppressed,
+                    currentlySuppressed: TextDeliveryGate.isSuppressed,
+                    trigger: RecordingTriggerSource(rawValue: trigger) ?? .unknown
+                )
+                let shouldDeliverText = !suppressForOnboarding
+                    && (isQuickCaptureRouting
+                        || (settingsManager?.pasteResultText ?? false))
+
+                if suppressForOnboarding {
+                    // The onboarding view owns this result. Do not misclassify
+                    // intentional suppression as a paste failure or leave the
+                    // floating recording dialog open behind the onboarding sheet.
+                    appState?.transcriptionPasteFailed = false
+                    appState?.showRecordingDialog = false
+                    appState?.isStreamingShortcutTriggered = false
+                } else if shouldDeliverText, let settings = settingsManager {
                     var processedText = transcriptionResult.text
 
                     // REMOVE TRAILING PERIOD:
@@ -553,14 +590,16 @@ extension RecordingTranscriptionFlow {
                 "Recording transcription flow succeeded · attemptId=\(attemptId) · trigger=\(trigger) · mode=\(actualMode) · provider=\(transcriptionResult.provider) · flowMs=\(flowElapsedMs) · transcribingUiMs=\(transcribingUIElapsedMs) · vadProcessed=\(vadResult.wasProcessed) · silenceRemovedSeconds=\(trimmedSeconds) · \(stageTimings)"
 
             let isLocalLLM = transcriptionResult.postProcessingProvider == PostProcessingProvider.localLLM.rawValue
-            let effectiveUIThreshold: Int
+            let uiDurationAllowanceMs = Int(effectiveAudioDurationSeconds * slowTranscribingUIPerAudioSecondMs)
+            let baseUIThreshold: Int
             if isLocalLLM {
-                effectiveUIThreshold = slowTranscribingUIWithLocalLLMThresholdMs
+                baseUIThreshold = slowTranscribingUIWithLocalLLMThresholdMs
             } else if transcriptionResult.wasPostProcessed {
-                effectiveUIThreshold = slowTranscribingUIWithPostProcessingThresholdMs
+                baseUIThreshold = slowTranscribingUIWithPostProcessingThresholdMs
             } else {
-                effectiveUIThreshold = slowTranscribingUIThresholdMs
+                baseUIThreshold = slowTranscribingUIThresholdMs
             }
+            let effectiveUIThreshold = baseUIThreshold + uiDurationAllowanceMs
             if transcribingUIElapsedMs >= effectiveUIThreshold {
                 // Slow path: attach per-stage timings as scope extras (they survive
                 // beforeSend, unlike breadcrumbs) so any subsequent event carries them.
@@ -571,7 +610,10 @@ extension RecordingTranscriptionFlow {
                     "stage_create_row_ms": createRowMs,
                     "stage_transcribe_ms": transcribeMs,
                     "stage_core_data_update_ms": coreDataUpdateMs,
-                    "stage_flow_ms": flowElapsedMs
+                    "stage_flow_ms": flowElapsedMs,
+                    "stage_audio_duration_seconds": effectiveAudioDurationSeconds,
+                    "stage_duration_allowance_ms": uiDurationAllowanceMs,
+                    "stage_effective_ui_threshold_ms": effectiveUIThreshold
                 ])
                 AppLogger.audio.warning("\(uiLogMessage, privacy: .public)")
             } else {

@@ -142,6 +142,11 @@ final class TextInputService {
             return true // Nothing to type
         }
 
+        guard !TextDeliveryGate.isSuppressed else {
+            logger.info("🚫 typeText suppressed by TextDeliveryGate")
+            return false
+        }
+
         guard AXIsProcessTrusted() else {
             logger.error("❌ No accessibility permission - cannot type")
             return false
@@ -200,7 +205,7 @@ final class TextInputService {
     /// - Parameter text: The text to type
     /// - Returns: true if typing succeeded, false otherwise
     func typeTextAsync(_ text: String) async -> Bool {
-        await coordinator.run { [self] in
+        return await coordinator.run { [self] in
             await typeTextAsyncUnlocked(text)
         }
     }
@@ -208,6 +213,11 @@ final class TextInputService {
     private func typeTextAsyncUnlocked(_ text: String) async -> Bool {
         guard !text.isEmpty else {
             return true
+        }
+
+        guard !TextDeliveryGate.isSuppressed else {
+            logger.info("🚫 typeTextAsyncUnlocked suppressed by TextDeliveryGate")
+            return false
         }
 
         guard AXIsProcessTrusted() else {
@@ -284,6 +294,11 @@ final class TextInputService {
 
     private func pasteTextForStreamingUnlocked(_ text: String, targetPID: pid_t? = nil) async -> Bool {
         guard !text.isEmpty else { return true }
+
+        guard !TextDeliveryGate.isSuppressed else {
+            logger.info("🚫 pasteTextForStreaming suppressed by TextDeliveryGate")
+            return false
+        }
 
         guard AXIsProcessTrusted() else {
             logger.error("❌ No accessibility permission - cannot paste")

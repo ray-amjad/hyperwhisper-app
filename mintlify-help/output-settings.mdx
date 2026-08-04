@@ -28,7 +28,7 @@ When **Paste result automatically** is enabled, HyperWhisper copies the transcri
     3. Restart the app if you changed the setting while it was running.
   </Tab>
   <Tab title="Windows">
-    Auto Paste uses standard UI Automation on Windows. No extra permission step is required in most cases. If the app warns that UI Automation is unavailable in your environment, the toggle can remain on and will work in applications where UIA is accessible.
+    Auto Paste works by simulating a **Ctrl+V** keystroke into the focused application — it does not use UI Automation to perform the paste itself. UI Automation is used only for a quick pre-paste check that detects password fields, so the paste can be skipped in that case. No extra permission step is required for Auto Paste.
   </Tab>
 </Tabs>
 
@@ -40,6 +40,10 @@ Enable **Remove filler words** to strip common speech fillers — "uh", "um", an
   This setting applies only when a mode is not using AI post-processing. When AI post-processing is active, the AI model handles transcript cleanup through the mode's prompt, so this toggle has no additional effect.
 </Note>
 
+<Note>
+  On macOS, filler-word removal only runs on English transcripts. On Windows, filler words are stripped regardless of the transcript's language.
+</Note>
+
 ## Autocapitalize Insert
 
 **Autocapitalize Insert** adjusts the capitalization of the first word of your transcript to match the context of the cursor in the target text field.
@@ -47,6 +51,7 @@ Enable **Remove filler words** to strip common speech fillers — "uh", "um", an
 - If the cursor is **mid-sentence** (preceded by regular text), the first letter is lowercased so the inserted text flows naturally.
 - If the cursor is at the **start of a sentence** (preceded by a sentence-ending character such as `.`, `!`, or `?`, or at the beginning of a field), the transcript is left unchanged.
 - **Acronyms are preserved** — if the first word begins with two or more uppercase letters (for example, "API" or "USA"), it is never lowercased.
+- **The first-person pronoun "I" is preserved on macOS** — "I", "I'm", "I'll", "I've", and "I'd" (including curly-apostrophe forms) are never lowercased, even mid-sentence. On Windows this guard isn't in place yet, so a mid-sentence "I" can still be lowercased.
 
 <Tabs>
   <Tab title="macOS">

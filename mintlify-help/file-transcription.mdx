@@ -37,11 +37,16 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
     | LibWhisper / Parakeet (local) | No limit |
     | HyperWhisper Cloud | 2 GB |
     | Deepgram | 2 GB |
-    | AssemblyAI | 2.2 GB |
+    | AssemblyAI | 5 GB |
     | ElevenLabs | 3 GB |
+    | Google Gemini | 2 GB |
     | Mistral | 100 MB |
     | OpenAI | 25 MB |
     | Groq | 25 MB |
+    | Soniox | 1 GB |
+    | Grok | 500 MB |
+    | Microsoft Azure Speech | 300 MB |
+    | Google Cloud Speech | ~9.5 MB |
 
     If the file is too large for the selected mode's provider, you get a friendly error showing the file size, the provider's limit, and the provider name — switch the mode to a different provider (for example, HyperWhisper Cloud or a local model) to transcribe larger files.
 
@@ -71,7 +76,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
   <Tab title="Windows">
     ## Open the file picker
 
-    Right-click the HyperWhisper tray icon and choose **Transcribe Audio File**. A standard Windows file dialog opens. Unlike macOS, Windows uses your **currently selected mode** — change the mode from the tray menu first if you want to transcribe with something other than the default.
+    Right-click the HyperWhisper tray icon, hover **Transcribe File**, and choose the mode you want to use from the submenu — the same mechanic as macOS. A standard Windows file dialog opens immediately. Picking a mode from the submenu transcribes with that mode directly; it does not change your currently selected mode.
 
     ## Supported formats
 
@@ -91,14 +96,19 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
 
     | Provider | Max file size |
     | --- | --- |
-    | WhisperNet (local) | No limit |
+    | Whisper / Parakeet (local) | No limit |
     | HyperWhisper Cloud | 2 GB |
     | Deepgram | 2 GB |
-    | AssemblyAI | 2.2 GB |
+    | AssemblyAI | 5 GB |
     | ElevenLabs | 3 GB |
+    | Google Gemini | 2 GB |
     | Mistral | 100 MB |
     | OpenAI | 25 MB |
     | Groq | 25 MB |
+    | Soniox | 1 GB |
+    | Grok | 500 MB |
+    | Microsoft Azure Speech | 300 MB |
+    | Google Cloud Speech | ~9.5 MB |
 
     If the file exceeds the limit, you get a toast notification with the maximum size for that provider before any upload happens.
 
@@ -108,13 +118,13 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
 
     <Steps>
       <Step title="Preparing (0–15%)">
-        HyperWhisper validates the file. If your mode uses a **local** model (WhisperNet), the file is converted to a 16 kHz mono WAV in your temp folder — this is the format Whisper expects, and HyperWhisper handles resampling and stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, the original file is sent as-is, so MP3 and M4A are uploaded without re-encoding.
+        HyperWhisper validates the file. If your mode uses the local **Whisper** model, the file is converted to a 16 kHz mono WAV in your temp folder — this is the format Whisper expects, and HyperWhisper handles resampling and stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, the original file is sent as-is, so MP3 and M4A are uploaded without re-encoding.
       </Step>
       <Step title="Transcribing (15–85%)">
-        The audio is sent to WhisperNet (with DirectCompute GPU acceleration if available) or to the cloud provider configured by your mode.
+        The audio is sent to Whisper (with Vulkan or CUDA GPU acceleration if available), to Parakeet, or to the cloud provider configured by your mode.
       </Step>
       <Step title="Finishing (85–100%)">
-        Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result. The transcribed text is also smart-pasted or copied to your clipboard depending on your settings.
+        Post-processing rules from the mode are applied, the transcript is saved to History, and the main window updates to show the result.
       </Step>
     </Steps>
 
@@ -122,7 +132,7 @@ In addition to live recording, HyperWhisper can transcribe audio files you alrea
 
     ## Local model format conversion
 
-    The local WhisperNet engine requires 16 kHz mono WAV input. If you import an MP3, an M4A, or a WAV at a different sample rate or channel count, HyperWhisper converts it on the fly using NAudio:
+    The local Whisper engine requires 16 kHz mono WAV input. If you import an MP3, an M4A, or a WAV at a different sample rate or channel count, HyperWhisper converts it on the fly using NAudio:
 
     1. Reads the source file with `AudioFileReader` (handles MP3 / M4A via Windows Media Foundation).
     2. Downmixes stereo to mono if needed.

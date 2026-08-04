@@ -471,8 +471,7 @@ async function handleCreditMint(
  * charge.refunded events never double-deduct.
  */
 export async function handleChargeRefunded(
-  charge: Stripe.Charge,
-  eventId: string
+  charge: Stripe.Charge
 ): Promise<void> {
   console.log(
     `Processing refund for charge ${charge.id} (${charge.amount_refunded}/${charge.amount})`
@@ -521,7 +520,7 @@ export async function handleChargeRefunded(
       );
       return;
     }
-    await handleCreditRefund(charge, checkoutSession, eventId);
+    await handleCreditRefund(charge, checkoutSession);
     return;
   }
 
@@ -578,8 +577,7 @@ export async function handleChargeRefunded(
  */
 async function handleCreditRefund(
   charge: Stripe.Charge,
-  checkoutSession: Stripe.Checkout.Session,
-  eventId: string
+  checkoutSession: Stripe.Checkout.Session
 ): Promise<void> {
   // license_key is only present on top-ups; minted credit purchases carry none.
   // The clawback is keyed on the checkout session id (the grant's source_id),

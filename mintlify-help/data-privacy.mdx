@@ -21,6 +21,10 @@ If you want zero risk of your audio being used for training, use **local transcr
 
 When you use HyperWhisper Cloud, we forward your audio to a backing speech-to-text provider, and your transcribed text to a backing LLM for post-processing. We don't store your audio on HyperWhisper's own servers — it's processed in memory at the edge and discarded after the response is returned.
 
+<Note>
+  One exception: for **Google Chirp 3**, audio larger than ~9.5 MB (or longer than ~55 seconds) can't be sent inline and is briefly uploaded to a scratch bucket for Google's batch transcription API. The scratch object is always deleted immediately after the transcription completes, including on error paths, but it does briefly touch disk-backed storage rather than staying in memory only.
+</Note>
+
 **We apply the strongest data-protection control each provider offers**, so your audio isn't used to train their models:
 
 - Where a provider has a per-request no-train / no-store flag, we set it on every call (for example, Deepgram's `mip_opt_out`).
@@ -56,6 +60,7 @@ For **Deepgram** specifically, HyperWhisper does the work for you on both macOS 
 | ElevenLabs | Retention is enabled by default; Zero Retention Mode is enterprise-only | Contact ElevenLabs sales if your use case requires it |
 | AssemblyAI | **Yes** — paid async transcripts are used for model improvement (PII-redacted) unless you opt out | Email `data-opt-out@assemblyai.com` to opt out (paid accounts; applies going forward). [Source](https://www.assemblyai.com/docs/deployment/account-management/data-retention) |
 | Mistral | No — paid API content isn't used for training by default (retained ~30 days for abuse monitoring) | Nothing to do for default usage |
+| Soniox | No — audio and transcripts are never used to improve Soniox's models; real-time API is zero-retention by default | Nothing to do for default usage. [Source](https://soniox.com/docs/security-and-privacy) |
 
 <Note>
 This table reflects publicly stated policies as of when this page was written. Providers can change their terms — for any provider whose policy is critical to your use case, verify directly using the prompt below.

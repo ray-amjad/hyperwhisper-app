@@ -57,24 +57,37 @@ The window transitions through several states as your recording progresses.
 
 | State | What you see |
 |---|---|
-| **Recording** | Waveform animates; duration timer counts up; stop button is visible |
+| **Recording** | Waveform animates; stop button is visible; duration timer counts up (macOS only — Windows has no duration timer element) |
+| **Pending Retry** (macOS only) | Yellow clock icon with a **Retry** button; shown if the just-stopped recording's audio file fails a readability check right after stopping |
 | **Transcribing** | Spinner with a status message; waveform stops |
 | **Post-processing** | Spinner with a status message; shown when AI post-processing is enabled and running after transcription |
-| **Success** | Checkmark icon with "Pasted!" (or "Saved to Notes" if that delivery was used); window closes automatically after a moment |
-| **Copied** | Clipboard icon shown when text was copied to clipboard but not pasted (for example, when a password field is detected) |
-| **Error** | On Windows: error message shown inline; window stays open so you can read it. On macOS: a floating toast appears above the window, then the recording window closes automatically |
+| **Success** | Checkmark icon with "Pasted!" (or, on macOS only, "Saved to Notes!" if Quick Capture was used — Windows has no Quick Capture and always shows "Pasted!"); window closes automatically after a moment |
+| **Copied** | On Windows: shown automatically when text was copied to clipboard but not pasted (for example, when a password field is detected). On macOS: a **Copy** button appears in this situation — clicking it copies the text and shows the checkmark/"Copied!" confirmation |
+| **Error** | A floating toast appears — above the window on macOS, as a separate toast window on Windows — then the recording window closes automatically on both platforms |
 | **Cancel confirmation** | "Cancel?" prompt with **No** and **Yes** buttons |
+
+<Note>
+  macOS also has a rarer inline-error state — used for silent streaming failures — that stays open with a manual close button instead of following the toast-then-close pattern above.
+</Note>
 
 ### Streaming indicator colors
 
-When using a streaming transcription mode, a small dot appears next to the waveform:
+When using a streaming transcription mode, a small dot appears next to the waveform. Colors differ by platform and aren't interchangeable:
 
 | Color | Meaning | Platform |
 |---|---|---|
-| Orange (pulsing) | Connecting or warming up | macOS, Windows |
+| Orange (pulsing) | Connecting, warming up, or ready | macOS |
+| Yellow (pulsing) | Reconnecting | macOS |
+| Yellow/gold (pulsing) | Connecting or ready | Windows |
+| Orange (pulsing) | Reconnecting | Windows |
 | Green | Actively streaming | macOS, Windows |
-| Yellow/orange (pulsing) | Reconnecting | macOS, Windows |
 | Red | Connection error | Windows only (macOS renders no dot in this state) |
+
+Windows has no separate "warming up" state — it goes straight from connecting to ready.
+
+### Mode badge during streaming
+
+The mode badge also behaves differently once a streaming session is active: on macOS the badge is hidden entirely and replaced by the streaming dot described above; on Windows the badge stays visible but its text changes to **Live**.
 
 ## Controls
 
@@ -86,6 +99,7 @@ When using a streaming transcription mode, a small dot appears next to the wavef
     | Request cancellation | Press **Escape** |
     | Confirm cancellation (if prompted) | Press **Return** or click **Yes** |
     | Dismiss cancellation prompt | Press **Escape** again or click **No** |
+    | Move the window | Click and drag anywhere on the window body |
   </Tab>
   <Tab title="Windows">
     | Action | How |
@@ -118,6 +132,10 @@ If you press **Escape** during a recording, a "Cancel?" confirmation prompt repl
 
 If your recording is below the threshold, pressing **Escape** cancels immediately without a prompt.
 
+<Note>
+  During an active streaming session, pressing **Escape** always cancels immediately on both platforms — the confirmation prompt never appears, regardless of how long the session has been running.
+</Note>
+
 ## Audio level visualization
 
 The animated waveform gives you real-time feedback on what your microphone is picking up.
@@ -134,8 +152,9 @@ If the waveform is flat or barely moving while you are speaking, check that the 
 <Tabs>
   <Tab title="macOS">
     - Floats above all other windows without stealing focus
+    - Draggable; your last position is saved and restored on the next recording
+    - Defaults to the bottom center of the screen if no saved position exists, or if the saved position is no longer on screen
     - Closes automatically after the success or error state resolves
-    - Your last position is saved and restored on the next recording
   </Tab>
   <Tab title="Windows">
     - Always on top; never activates (doesn't pull focus from your work)

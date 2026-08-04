@@ -11,7 +11,9 @@ HyperWhisper needs a small number of macOS permissions to work. Each is prompted
 | --- | --- | --- | --- |
 | Microphone | First recording | Recording any audio | System Settings → Privacy & Security → Microphone |
 | Accessibility | First auto-paste / push-to-talk | Auto-paste, bare-modifier push-to-talk | System Settings → Privacy & Security → Accessibility |
-| Screen Recording | First use of Screen OCR mode | Screen OCR mode only | System Settings → Privacy & Security → Screen Recording |
+| Screen Recording | First use of Screen Text mode | Screen Text mode only | System Settings → Privacy & Security → Screen Recording |
+| Automation (Apple Events) | First Notes Quick Capture | Sending text to Notes | System Settings → Privacy & Security → Automation |
+| Speech Recognition | First use of Apple Speech Analyzer | Apple Speech Analyzer local transcription engine | System Settings → Privacy & Security → Speech Recognition |
 | Input Monitoring | — | Not required | — |
 
 ## Microphone
@@ -29,7 +31,7 @@ Click **OK**. If you click **Don't Allow** by accident, you can change it later 
 Required for two features:
 
 - **Auto-paste** — issuing the paste keystroke on your behalf into the frontmost app.
-- **Bare-modifier push-to-talk** — listening for hold-to-record on a single modifier key (Option, Control) globally. (Standard hotkey combinations like `⌥Space` work without Accessibility.)
+- **Bare-modifier push-to-talk** — listening for hold-to-record on a single modifier key (Fn, Option, or Control) globally, including the Fn+Control and Fn+Option combo modes. Fn is the default. (Standard hotkey combinations like `⌥Space` work without Accessibility.)
 
 Unlike Microphone, macOS does not show an automatic prompt for Accessibility — you have to grant it manually:
 
@@ -53,11 +55,27 @@ If Accessibility is missing, HyperWhisper shows a banner on the home screen with
 
 ## Screen Recording
 
-**Optional** — only needed if you use **Screen OCR mode**, which reads on-screen text into your transcript context. If you don't use that mode, you don't need this permission.
+**Optional** — only needed if you use **Screen Text mode**, which reads on-screen text into your transcript context. If you don't use that mode, you don't need this permission.
 
-If you enable Screen OCR mode, macOS prompts the first time it captures the screen. Grant at **System Settings → Privacy & Security → Screen Recording** and restart HyperWhisper.
+If you enable Screen Text mode, macOS prompts the first time it captures the screen. Grant at **System Settings → Privacy & Security → Screen Recording** and restart HyperWhisper.
 
-**Without it:** Screen OCR mode fails silently. Other modes are unaffected.
+**Without it:** Screen Text mode fails silently. Other modes are unaffected.
+
+## Automation (Apple Events)
+
+Used to send your transcribed text to apps like **Notes** (Quick Capture). macOS prompts the first time HyperWhisper needs to automate one of these apps — grant at **System Settings → Privacy & Security → Automation**.
+
+**Without it:** Quick Capture to Notes doesn't work; other transcription features are unaffected.
+
+<Note>
+  HyperWhisper mutes system audio during recording (see [Media Control](/media-control)) using direct system audio APIs, not Apple Events automation — this does not require the Automation permission.
+</Note>
+
+## Speech Recognition
+
+Used by the **Apple Speech Analyzer** local transcription engine (macOS 26+). macOS prompts the first time you transcribe with that model — grant at **System Settings → Privacy & Security → Speech Recognition**.
+
+**Without it:** Apple Speech Analyzer transcriptions fail; other local and cloud models are unaffected.
 
 ## Input Monitoring
 
@@ -68,13 +86,15 @@ If you enable Screen OCR mode, macOS prompts the first time it captures the scre
 If permissions get stuck or you've granted them to an old build:
 
 ```bash
-tccutil reset Microphone com.hyperwhisper.app
-tccutil reset Accessibility com.hyperwhisper.app
-tccutil reset ScreenCapture com.hyperwhisper.app
+tccutil reset Microphone com.hyperwhisper.hyperwhisper
+tccutil reset Accessibility com.hyperwhisper.hyperwhisper
+tccutil reset ScreenCapture com.hyperwhisper.hyperwhisper
+tccutil reset AppleEvents com.hyperwhisper.hyperwhisper
+tccutil reset SpeechRecognition com.hyperwhisper.hyperwhisper
 ```
 
 Then relaunch HyperWhisper and re-grant when prompted.
 
 <Note>
-  Replace `com.hyperwhisper.app` with the bundle ID of your build if you're running a development version.
+  Replace `com.hyperwhisper.hyperwhisper` with the bundle ID of your build if you're running a development version.
 </Note>

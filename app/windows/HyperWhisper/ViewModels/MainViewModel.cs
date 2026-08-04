@@ -3126,6 +3126,17 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
+
+            // A persisted terminal status means some path already wrote a result,
+            // so there is nothing to repair — never downgrade it. The in-memory
+            // copy is not trustworthy on its own: it is shared with the History
+            // page's view model, which can revert it to Processing while the row
+            // in the database is already Completed.
+            if (persisted != null && persisted.Status != TranscriptStatus.Processing)
+            {
+                return;
+            }
+
             if (persisted?.Status == TranscriptStatus.Processing &&
                 transcript.Status != TranscriptStatus.Processing)
             {

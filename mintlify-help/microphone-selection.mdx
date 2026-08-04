@@ -3,7 +3,7 @@ title: Select a Microphone or Audio Input Device
 description: Choose which microphone or audio input device HyperWhisper records from, and how it handles device changes at runtime.
 ---
 
-HyperWhisper lets you pick any audio input device on your system — built-in mic, USB microphone, AirPods, Bluetooth headset, or a virtual audio cable — directly from the menu bar (macOS) or system tray (Windows). Your choice is remembered across restarts, and the list refreshes automatically when you plug or unplug hardware.
+HyperWhisper lets you pick any audio input device on your system — built-in mic, USB microphone, AirPods, Bluetooth headset, or a virtual audio cable — directly from the menu bar (macOS) or system tray (Windows). On macOS, your choice is remembered across restarts; on Windows, device selection currently does not persist (see [Persistence](#persistence) below). The device list refreshes automatically on both platforms when you plug or unplug hardware.
 
 ## Changing the active input device
 
@@ -20,7 +20,7 @@ HyperWhisper lets you pick any audio input device on your system — built-in mi
     2. Hover over **Microphone** to open the submenu.
     3. Click the device you want to use. A checkmark appears next to the active device.
 
-    On first launch HyperWhisper selects the first device Windows reports. If that device is later removed, HyperWhisper automatically falls back to the first available device (see [When a device disconnects](#when-a-device-disconnects) below).
+    HyperWhisper selects the first device Windows reports on every launch — including the current selection not carrying over from your last session. If that device is later removed while the app is running, HyperWhisper automatically falls back to the first available device (see [When a device disconnects](#when-a-device-disconnects) below).
   </Tab>
 </Tabs>
 
@@ -48,6 +48,10 @@ You do not need to restart HyperWhisper after connecting new hardware.
   </Tab>
 </Tabs>
 
+<Note>
+  On macOS, selecting a device in the Microphone submenu also sets it as the system-wide default input device — not just HyperWhisper's own input. Other apps that follow the system default (video calls, voice memos, etc.) will pick up the change too, until you change the default elsewhere.
+</Note>
+
 ## Persistence
 
 <Tabs>
@@ -55,7 +59,7 @@ You do not need to restart HyperWhisper after connecting new hardware.
     Your selected device ID is stored in `UserDefaults` under the key `selectedMicrophoneId`. An empty value means "follow the macOS system default." The setting survives app restarts and macOS updates.
   </Tab>
   <Tab title="Windows">
-    The selected device name is stored in `%LOCALAPPDATA%\HyperWhisper\settings.json` under `LastSelectedMicrophone`.
+    Device selection does not currently persist across restarts on Windows. HyperWhisper re-selects the first device Windows reports every time the app launches, regardless of what you had selected in a previous session.
   </Tab>
 </Tabs>
 
