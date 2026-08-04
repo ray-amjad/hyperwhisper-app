@@ -457,7 +457,7 @@ internal static class Program
                 // HandleCloseResult only recognized HyperWhisper's own 4001/4002 codes and let
                 // everything else fall through to ~3s of doomed reconnect churn before finally
                 // surfacing a generic message instead of the provider's own close description.
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 // HandleCloseResult's own shutdown guard no-ops on a freshly constructed
                 // (Idle) client - drive it into a realistic in-session state first.
@@ -476,7 +476,7 @@ internal static class Program
             Run("StreamingTranscriptionClient.HandleCloseResult treats an abnormal provider close (1011) as terminal", () =>
             {
                 // Deepgram's NET-xxxx errors (timeout / no audio) close with 1011.
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
@@ -492,7 +492,7 @@ internal static class Program
 
             Run("StreamingTranscriptionClient.HandleCloseResult still recognizes HyperWhisper's own 4001 (credits exhausted)", () =>
             {
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
@@ -507,7 +507,7 @@ internal static class Program
 
             Run("StreamingTranscriptionClient.HandleCloseResult still recognizes HyperWhisper's own 4002 (max session duration)", () =>
             {
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
@@ -522,7 +522,7 @@ internal static class Program
 
             Run("StreamingTranscriptionClient.HandleCloseResult does not treat a normal closure (1000) as terminal", () =>
             {
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
@@ -537,7 +537,7 @@ internal static class Program
 
             Run("StreamingTranscriptionClient.HandleCloseResult does not treat a null close status as terminal", () =>
             {
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
@@ -555,7 +555,7 @@ internal static class Program
                 // keep falling through to the existing reconnect/backoff path, not be treated
                 // as terminal (the earlier blanket "any non-1000 code is terminal" diff broke
                 // this).
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
@@ -573,7 +573,7 @@ internal static class Program
                 // Even a code that would otherwise be terminal (e.g. 1011) must not overwrite
                 // an in-flight StopAsync/Dispose shutdown - HandleCloseResult can still observe
                 // a close arriving concurrently with our own Disconnecting/Idle transition.
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Disconnecting);
                 string? capturedMessage = null;
