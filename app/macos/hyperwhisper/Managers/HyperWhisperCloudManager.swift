@@ -261,6 +261,24 @@ class HyperWhisperCloudManager: ObservableObject {
         }
     }
 
+    /// Refreshes credit balance for a specific identifier instead of the one the
+    /// license manager currently reports.
+    ///
+    /// Onboarding needs this to show the balance of a key that has been verified
+    /// but not yet activated on this Mac, where the default identity is still the
+    /// anonymous device id.
+    ///
+    /// Like every other path through the private fetch, this publishes `credits`
+    /// and `lastFetchTime` for the override identity; both are corrected by the
+    /// next default refresh once the license is activated.
+    func refreshCredits(identifierOverride: String) async {
+        do {
+            _ = try await fetchCredits(forceRefresh: true, identifierOverride: identifierOverride)
+        } catch {
+            // Error already logged and stored in lastError
+        }
+    }
+
     /// Checks if user has sufficient credits for estimated audio duration
     ///
     /// - Parameter estimatedMinutes: Estimated audio duration in minutes

@@ -321,10 +321,15 @@ struct OnboardingConfigureView: View {
             }
         }
         // Credits are read only here and only meaningful once a key resolves to
-        // an account. The task is cancelled by SwiftUI when the step goes away.
+        // an account. The key is verified but not yet activated at this point, so
+        // the manager's default identity is still the anonymous device id and the
+        // balance has to be fetched for the tested key explicitly.
+        // The task is cancelled by SwiftUI when the step goes away.
         .task(id: flow.licenseTestPassed) {
             guard flow.licenseTestPassed == true else { return }
-            await hyperWhisperCloudManager.refreshCredits()
+            let trimmedKey = flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedKey.isEmpty else { return }
+            await hyperWhisperCloudManager.refreshCredits(identifierOverride: trimmedKey)
         }
     }
 
