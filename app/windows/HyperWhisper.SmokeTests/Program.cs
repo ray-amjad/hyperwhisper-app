@@ -505,6 +505,39 @@ internal static class Program
                 Assert(vm.RetryCount == 2, $"view model shows retry count {vm.RetryCount}");
             });
 
+            Run("DeepgramStreamingStrategy parses Results (object channel) into a FinalTranscript", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage(
+                    "{\"type\":\"Results\",\"channel\":{\"alternatives\":[{\"transcript\":\"hello\"}]},\"is_final\":true}");
+
+                var final = evt as StreamingProviderEvent.FinalTranscript;
+                Assert(final != null, $"expected FinalTranscript, got {evt?.GetType().Name ?? "null"}");
+                Assert(final!.Text == "hello", $"expected text 'hello', got '{final.Text}'");
+            });
+
+            Run("DeepgramStreamingStrategy parses SpeechStarted (array channel) without throwing — issue #106", () =>
+            {
+                // Deepgram overloads "channel": an object on Results frames, an array of channel
+                // indices on SpeechStarted/UtteranceEnd frames. Before the fix, deserializing the
+                // array shape into the DeepgramChannel object threw and was swallowed by the
+                // outer try/catch, so this event never reached the caller.
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"SpeechStarted\",\"channel\":[0,1],\"timestamp\":1.2}");
+
+                Assert(evt is StreamingProviderEvent.Metadata,
+                    $"expected Metadata, got {evt?.GetType().Name ?? "null"}");
+            });
+
+            Run("DeepgramStreamingStrategy parses UtteranceEnd (array channel) without throwing — issue #106", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"UtteranceEnd\",\"channel\":[0,1],\"last_word_end\":2.5}");
+
+                Assert(evt is StreamingProviderEvent.Metadata,
+                    $"expected Metadata, got {evt?.GetType().Name ?? "null"}");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

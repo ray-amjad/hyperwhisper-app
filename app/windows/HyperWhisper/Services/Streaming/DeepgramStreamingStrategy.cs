@@ -183,28 +183,27 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
         public string? Transcript { get; set; }
     }
 
-    // Deepgram overloads "channel": "Results" carries the transcript object, but
-    // "SpeechStarted" and "UtteranceEnd" carry a channel-index array ("channel":[0,1]).
-    // Deserializing the array into DeepgramChannel throws, which would take the whole
-    // message down before ParseMessage can route it, so treat any non-object as absent.
+    /// <summary>Deepgram overloads "channel": an object on Results frames, but an array of channel
+    /// indices (e.g. [0,1]) on SpeechStarted/UtteranceEnd frames — tolerate the array shape as null.</summary>
     private sealed class DeepgramChannelConverter : JsonConverter<DeepgramChannel?>
     {
-        public override DeepgramChannel? Read(
-            ref Utf8JsonReader reader,
-            Type typeToConvert,
-            JsonSerializerOptions options
-        )
+        public override DeepgramChannel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            if (reader.TokenType != JsonTokenType.StartObject)
+            if (reader.TokenType == JsonTokenType.StartObject)
             {
-                reader.Skip();
-                return null;
+                return JsonSerializer.Deserialize<DeepgramChannel>(ref reader, options);
             }
 
-            return JsonSerializer.Deserialize<DeepgramChannel>(ref reader, options);
+            if (reader.TokenType != JsonTokenType.StartArray)
+            {
+                LoggingService.Warn($"DeepgramStreamingStrategy: unexpected \"channel\" token type {reader.TokenType}, ignoring");
+            }
+
+            reader.Skip();
+            return null;
         }
 
-        public override void Write(Utf8JsonWriter writer, DeepgramChannel? value, JsonSerializerOptions options) =>
-            throw new NotSupportedException("DeepgramMessage is deserialize-only.");
+        public override void Write(Utf8JsonWriter writer, DeepgramChannel? value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, options);
     }
 }
