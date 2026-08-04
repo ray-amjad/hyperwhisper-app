@@ -23,6 +23,17 @@ import SwiftUI
 /// clobbered by a concurrent invocation.
 final class MutationSignal {
     var didMutate: Bool = false
+
+    /// Set by `performAIPostProcessingPreservingBreaks` only for its multi-segment,
+    /// Local-API-scoped code path (the branch that receives an explicit
+    /// `onSegmentTextUpdate`): `true` when at least one segment's own,
+    /// per-segment signal mutated the text and at least one other segment's did
+    /// not — i.e. `didMutate` is `true` but the result is a mix of processed and
+    /// raw/unprocessed segment text. `didMutate` alone can't tell this apart from
+    /// a full success because it is OR-aggregated (and never reset) across
+    /// segments. Left `false` for the single-segment path and for the in-app
+    /// pipeline's multi-segment branch, which doesn't need this distinction.
+    var anyPartialFailure: Bool = false
 }
 
 /// AI Post-Processor for transcribed text
@@ -537,26 +548,39 @@ class AIPostProcessor: ObservableObject {
             // overlapping live in-app recording): each request's `defer` could
             // otherwise restore a callback captured from a DIFFERENT,
             // concurrently-running request, corrupting both previews.
+            // Per-segment failure tracking (Local API path only): `signal.didMutate`
+            // is OR-aggregated and never reset to `false`, so once one segment
+            // succeeds it stays `true` regardless of what later segments do —
+            // that hides a later segment silently falling back to raw text. Give
+            // each segment its OWN fresh signal so its outcome can be read in
+            // isolation, mirroring how `PostProcessingService.cs` tracks
+            // `anyApplied`/`anyFailed` per segment on the Windows side.
+            var anyFailed = false
             for segment in segments {
                 let completed = processed.joined(separator: "\n\n")
+                let segmentSignal = MutationSignal()
                 let output = try await performAIPostProcessingStreaming(
                     text: segment,
                     mode: mode,
                     applicationContext: applicationContext,
-                    mutationSignal: signal,
+                    mutationSignal: segmentSignal,
                     streamingTextUpdate: { chunk in
                         let prefix = completed.isEmpty ? "" : completed + "\n\n"
                         onSegmentTextUpdate(prefix + chunk)
                     }
                 )
-                // `performAIPostProcessingStreaming` does not reset `signal.didMutate`
-                // back to false internally (only the legacy `didMutateLastRun` instance
-                // property) — accumulating via `signal` across segments is safe without
-                // extra reset logic, and (unlike the instance property) can't be
-                // clobbered by a concurrent overlapping call.
-                anyMutated = anyMutated || signal.didMutate
+                anyMutated = anyMutated || segmentSignal.didMutate
+                anyFailed = anyFailed || !segmentSignal.didMutate
                 processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
             }
+            // Segments here are always non-empty (`splitOnDictatedBreaks` filters
+            // those out) and share the same `mode`, so a per-segment failure
+            // (`!segmentSignal.didMutate`) can only be a genuine runtime failure —
+            // never a settings-driven skip, since settings-driven skips (post-
+            // processing off, no provider, etc.) are uniform across every segment
+            // and would already make `anyMutated` false overall.
+            signal.didMutate = anyMutated
+            signal.anyPartialFailure = anyMutated && anyFailed
         } else {
             // No per-call sink: this is the single in-app live-recording caller,
             // which post-processes one recording at a time and never overlaps

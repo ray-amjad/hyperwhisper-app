@@ -120,10 +120,23 @@ internal static class PostProcessEndpoints
                 // some segments applied and at least one did not — `WasApplied`
                 // alone is OR-aggregated across segments and would otherwise
                 // report `ok: true` with a response that's silently a mix of
-                // correctly-processed and raw/unprocessed segment text. Route
-                // that case through the same `capturedWarning` failure-reporting
-                // path as a full failure, rather than inventing a new one.
-                if (!result.WasApplied || result.AnyPartialFailure)
+                // correctly-processed and raw/unprocessed segment text. Several
+                // genuine per-segment failure paths inside PostProcessingService
+                // (empty HyperWhisperCloud response, unknown model, cancellation)
+                // never raise `WarningOccurred`, so this branch must not depend on
+                // `capturedWarning` being set — report failure whenever
+                // `AnyPartialFailure` is true regardless, falling back to a
+                // generic message when no specific warning was captured.
+                if (result.AnyPartialFailure)
+                {
+                    return LocalApiResponder.Failure(
+                        LocalApiErrorCode.TranscriptionFailed,
+                        !string.IsNullOrEmpty(capturedWarning)
+                            ? capturedWarning
+                            : "Post-processing partially failed: some segments were processed and at least one was not.");
+                }
+
+                if (!result.WasApplied)
                 {
                     if (!string.IsNullOrEmpty(capturedWarning))
                     {

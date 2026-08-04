@@ -108,6 +108,19 @@ enum PostProcessEndpoint {
         // the honest, concurrency-safe answer.
         let didPostProcess = mutationSignal.didMutate
 
+        // `mutationSignal.anyPartialFailure` covers the multi-segment case where
+        // some segments post-processed and at least one fell back to raw text —
+        // `didMutate` alone is OR-aggregated across segments and would otherwise
+        // report `ok: true, post_processed: true` for a response that's silently
+        // a mix of processed and raw/unprocessed segment text.
+        if mutationSignal.anyPartialFailure {
+            if working.isTransient { cleanupTransientMode(working.mode) }
+            return LocalAPIResponder.failure(
+                code: .transcriptionFailed,
+                message: "Post-processing partially failed: some segments were processed and at least one was not."
+            )
+        }
+
         let providerLabel = working.mode.postProcessingProvider ?? "hyperwhisper"
         let modelLabel = working.mode.languageModel ?? ""
         let presetLabel = working.mode.preset ?? "hyper"
