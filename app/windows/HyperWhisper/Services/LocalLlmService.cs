@@ -4,6 +4,7 @@ using System.Text.Json;
 using HyperWhisper.Models;
 using LLama;
 using LLama.Common;
+using LLama.Native;
 using LLama.Sampling;
 
 namespace HyperWhisper.Services;
@@ -32,7 +33,17 @@ public sealed class LocalLlmService : IDisposable
     private LLamaWeights? _weights;
     private ModelParams? _parameters;
     private string? _activeModelPath;
+    private LocalLlmBackend _activeBackend = LocalLlmBackend.None;
     private bool _disposed;
+
+    /// <summary>
+    /// The backend the process-wide LLamaSharp native library was chosen for.
+    /// LLamaSharp freezes <see cref="NativeLibraryConfig"/> on first load
+    /// (every mutator throws once LibraryHasLoaded), so the first model to
+    /// load decides the library for the whole process. Null until then.
+    /// </summary>
+    private static LocalLlmBackend? _processNativeBackend;
+    private static readonly object ProcessBackendLock = new();
 
     public bool IsModelLoaded => _weights != null;
     public string? ActiveModelPath => _activeModelPath;
@@ -122,6 +133,7 @@ public sealed class LocalLlmService : IDisposable
         _weights = null;
         _parameters = null;
         _activeModelPath = null;
+        _activeBackend = LocalLlmBackend.None;
         IsUsingGpu = false;
     }
 
@@ -139,24 +151,22 @@ public sealed class LocalLlmService : IDisposable
 
         UnloadModel();
 
-        var gpuLayerCount = GetGpuLayerCount();
-
-        // A native CUDA crash during weight upload (driver mismatch, VRAM
+        // A native GPU crash during weight upload (driver mismatch, VRAM
         // exhaustion, GGUF corruption beyond the magic-byte check) surfaces as an
         // AccessViolationException. On .NET 5+ that is a corrupted-state exception
         // and is NOT delivered to managed catch handlers, so the CPU fallback
         // below cannot run — the process simply dies. An in-flight record written
         // before the GPU load and cleared on success (or on a clean process exit,
         // see ClearInFlightGpuLoads) lets the next launch detect the prior crash —
-        // a record still flagged in-flight survived a hard death — and skip the GPU
-        // path for that model. A clean quit mid-load no longer counts as a crash.
+        // a record still flagged in-flight survived a hard death — and skip that
+        // backend for that model. A clean quit mid-load no longer counts as a crash.
         //
         // The crash cause is usually durable (incompatible driver/GPU, corrupt
-        // GGUF), so the record must SURVIVE this forced-CPU recovery — clearing it
-        // here would let the next launch/reload retry CUDA and crash again, an
+        // GGUF), so the record must SURVIVE this recovery — clearing it here would
+        // let the next launch/reload retry the crashed backend and crash again, an
         // endless crash loop that only ever recovers its first post-crash load.
         //
-        // The store keeps one entry PER (model path, GPU identity) so that:
+        // The store keeps one entry PER (model path, GPU identity, backend) so that:
         //   * Loading a different model never erases another model's crash memory
         //     (the single-sentinel design lost it on model switching, so a
         //     crash-prone model re-crashed once per selection — issue surfaced in
@@ -167,54 +177,89 @@ public sealed class LocalLlmService : IDisposable
         //   * Each entry expires after a bounded number of launches so a one-off
         //     non-crash process death (force-quit, OS kill, unrelated crash on the
         //     load thread) cannot pin a model to CPU permanently.
+        //   * A crash pins ONLY the backend that crashed: a CUDA crash on an
+        //     NVIDIA card still lets the next launch try Vulkan for that model.
+        //     Entries written before the Backend field existed pin every backend
+        //     (see CrashEntryPinsBackend), preserving their pre-upgrade meaning.
         var gpuIdentity = GetGpuIdentity();
-        var forcedCpuAfterCrash = false;
-        if (gpuLayerCount > 0 && GpuLoadCrashedPreviously(modelPath, gpuIdentity))
+
+        // What the hardware alone would pick vs. what this model's crash pins allow.
+        var hardwarePlan = GetRuntimePlanSafely(modelPath: null, restrictToBackend: null);
+        var pinnedPlan = GetRuntimePlanSafely(modelPath, restrictToBackend: null);
+        if (hardwarePlan.Backend != LocalLlmBackend.None && pinnedPlan.Backend != hardwarePlan.Backend)
         {
             LoggingService.Warn(
-                "LocalLlmService: Previous GPU load of this model crashed the process; loading on CPU backend");
-            ReportRecoveredGpuLoadCrash(modelPath);
-            gpuLayerCount = 0;
-            forcedCpuAfterCrash = true;
+                $"LocalLlmService: Previous {LocalLlmGpuHelper.BackendDisplayName(hardwarePlan.Backend)} load of this model crashed the process; " +
+                $"continuing on {LocalLlmGpuHelper.BackendDisplayName(pinnedPlan.Backend)} backend");
+            ReportRecoveredGpuLoadCrash(modelPath, hardwarePlan.Backend, pinnedPlan.Backend);
         }
+
+        // The native library choice is PROCESS-WIDE and one-shot: the first model
+        // to load picks the library (Vulkan plans pin the shipped vulkan build
+        // explicitly; CUDA and CPU plans keep LLamaSharp's default selection,
+        // which already works today). Any later model whose plan disagrees with
+        // that frozen choice is re-planned against the loaded backend only —
+        // usually degrading to GpuLayerCount 0 on the already-loaded library,
+        // exactly the pre-existing forced-CPU behaviour. Its preferred backend
+        // applies again from the next launch.
+        var processBackend = PinProcessNativeLibraryOnce(pinnedPlan.Backend);
+        var plan = processBackend == pinnedPlan.Backend
+            ? pinnedPlan
+            : GetRuntimePlanSafely(modelPath, processBackend);
+        if (plan.Backend != pinnedPlan.Backend)
+        {
+            LoggingService.Info(
+                $"LocalLlmService: Planned {LocalLlmGpuHelper.BackendDisplayName(pinnedPlan.Backend)} backend is unavailable this session " +
+                $"(process already loaded the {LocalLlmGpuHelper.BackendDisplayName(processBackend)} library); using {LocalLlmGpuHelper.BackendDisplayName(plan.Backend)}");
+        }
+
+        var gpuLayerCount = plan.GpuLayerCount;
+        var backendId = LocalLlmGpuHelper.BackendId(plan.Backend);
 
         try
         {
             var parameters = CreateParameters(modelPath, gpuLayerCount);
-            if (gpuLayerCount > 0)
+            if (gpuLayerCount > 0 && backendId != null)
             {
-                WriteGpuLoadSentinel(modelPath, gpuIdentity);
+                WriteGpuLoadSentinel(modelPath, gpuIdentity, backendId);
             }
             _weights = await Task.Run(() => LLamaWeights.LoadFromFile(parameters), cancellationToken);
-            // GPU load survived: this model is safe on this GPU, so drop its crash
-            // record. On the forced-CPU recovery path no record was written for
-            // this load (gpuLayerCount == 0), and the pre-existing crash record for
-            // this model must persist, so leave the store untouched.
-            if (!forcedCpuAfterCrash)
+            // GPU load survived: this model is safe on this backend + GPU, so drop
+            // its crash record for THIS backend only. A crash record for a
+            // different backend (e.g. the CUDA pin that routed us to Vulkan) must
+            // persist — the scoped clear is what preserves it, replacing the old
+            // forcedCpuAfterCrash bookkeeping. On a CPU load nothing was written
+            // and nothing is cleared, so pre-existing pins survive untouched.
+            if (gpuLayerCount > 0 && backendId != null)
             {
-                ClearGpuLoadSentinel(modelPath);
+                ClearGpuLoadSentinel(modelPath, backendId);
             }
             _parameters = parameters;
             _activeModelPath = modelPath;
             IsUsingGpu = gpuLayerCount > 0;
+            _activeBackend = gpuLayerCount > 0 ? plan.Backend : LocalLlmBackend.None;
             LoggingService.Info(BuildRuntimeStatusMessage(modelPath));
         }
         catch (OperationCanceledException)
         {
-            // A managed exception means the GPU process survived the load, so the
-            // crash record would be a false positive on the next launch — unless we
-            // are already on the forced-CPU recovery path, where no record was
-            // written for this load and the pre-existing record must persist.
-            if (!forcedCpuAfterCrash)
+            // A managed exception means the process survived the load, so the
+            // in-flight record written above would be a false positive on the next
+            // launch. Scoped to the attempted backend; records for other backends
+            // (pre-existing pins) must persist and are untouched.
+            if (gpuLayerCount > 0 && backendId != null)
             {
-                ClearGpuLoadSentinel(modelPath);
+                ClearGpuLoadSentinel(modelPath, backendId);
             }
             throw;
         }
         catch when (gpuLayerCount > 0)
         {
-            ClearGpuLoadSentinel(modelPath);
-            LoggingService.Warn("LocalLlmService: GPU load failed, retrying with CPU backend");
+            if (backendId != null)
+            {
+                ClearGpuLoadSentinel(modelPath, backendId);
+            }
+            LoggingService.Warn(
+                $"LocalLlmService: {LocalLlmGpuHelper.BackendDisplayName(plan.Backend)} load failed, retrying with CPU backend");
             UnloadModel();
             var parameters = CreateParameters(modelPath, gpuLayerCount: 0);
             _weights = await Task.Run(() => LLamaWeights.LoadFromFile(parameters), cancellationToken);
@@ -222,6 +267,63 @@ public sealed class LocalLlmService : IDisposable
             _activeModelPath = modelPath;
             IsUsingGpu = false;
             LoggingService.Info(BuildRuntimeStatusMessage(modelPath));
+        }
+    }
+
+    /// <summary>
+    /// Chooses and freezes the process-wide LLamaSharp native library on the
+    /// first load. Vulkan is pinned explicitly via <see cref="NativeLibraryConfig"/>
+    /// because LLamaSharp's own Vulkan detection shells out to the Vulkan SDK's
+    /// vulkaninfo tool (absent on end-user machines) and silently skips the
+    /// backend; CUDA and CPU keep the default selection chain, which works today.
+    /// The pinned vulkan directory must be self-contained — the build copies the
+    /// CPU backend (ggml-cpu.dll) next to the vulkan binaries so both the Vulkan
+    /// load and the 0-layer in-process degrade can resolve every dependency.
+    /// </summary>
+    private static LocalLlmBackend PinProcessNativeLibraryOnce(LocalLlmBackend desiredBackend)
+    {
+        lock (ProcessBackendLock)
+        {
+            if (_processNativeBackend is { } chosen)
+            {
+                return chosen;
+            }
+
+            if (desiredBackend == LocalLlmBackend.Vulkan)
+            {
+                try
+                {
+                    var vulkanDir = Path.Combine(
+                        AppContext.BaseDirectory, "runtimes", "win-x64", "native", "vulkan");
+                    NativeLibraryConfig.All.WithLibrary(
+                        Path.Combine(vulkanDir, "llama.dll"),
+                        Path.Combine(vulkanDir, "mtmd.dll"));
+                    LoggingService.Info("LocalLlmService: Pinned LLamaSharp native library to the Vulkan backend");
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Warn(
+                        $"LocalLlmService: Failed to pin the Vulkan native library, keeping default backend selection: {ex.Message}");
+                    desiredBackend = LocalLlmBackend.None;
+                }
+            }
+
+            _processNativeBackend = desiredBackend;
+            return desiredBackend;
+        }
+    }
+
+    private static LocalLlmGpuHelper.RuntimePlan GetRuntimePlanSafely(
+        string? modelPath, LocalLlmBackend? restrictToBackend)
+    {
+        try
+        {
+            return LocalLlmGpuHelper.GetRuntimePlan(modelPath, restrictToBackend);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"LocalLlmService: GPU detection failed: {ex.Message}");
+            return LocalLlmGpuHelper.CpuPlan(null);
         }
     }
 
@@ -268,6 +370,20 @@ public sealed class LocalLlmService : IDisposable
         /// <see cref="ClearInFlightGpuLoads"/>) drops the entry without forcing CPU.
         /// </summary>
         public bool? InFlight { get; set; }
+
+        /// <summary>
+        /// Which backend was being loaded when this entry was written
+        /// (<see cref="LocalLlmGpuHelper.CudaBackendId"/> /
+        /// <see cref="LocalLlmGpuHelper.VulkanBackendId"/>). A crash pins only
+        /// its own backend, so a CUDA crash still lets the next launch try
+        /// Vulkan for the same model. Nullable for the same back-compat reason
+        /// as <see cref="InFlight"/>: entries deserialized from a store written
+        /// before this field existed yield <c>null</c>, which is treated as
+        /// pinning EVERY backend (see <see cref="CrashEntryPinsBackend"/>) —
+        /// those crashes predate the Vulkan backend and forced CPU, and the
+        /// launch-ordinal expiry still ages them out.
+        /// </summary>
+        public string? Backend { get; set; }
     }
 
     private sealed class GpuLoadCrashStore
@@ -332,6 +448,8 @@ public sealed class LocalLlmService : IDisposable
                         LaunchOrdinal = store.LaunchOrdinal,
                         // The legacy single-path marker was only ever left behind by a
                         // hard process death, so preserve it as a confirmed crash.
+                        // Backend stays null: the marker predates per-backend pins,
+                        // so it pins every backend (matching its original meaning).
                         InFlight = true
                     });
                 }
@@ -380,7 +498,18 @@ public sealed class LocalLlmService : IDisposable
         return ordinal;
     }
 
-    private static bool GpuLoadCrashedPreviously(string modelPath, string gpuIdentity)
+    /// <summary>
+    /// Whether a crash-store entry written for <paramref name="entryBackend"/>
+    /// pins <paramref name="plannedBackend"/>. A null entry backend predates
+    /// per-backend pins (shipped #563 store / legacy sentinel migration) and
+    /// pins every backend — its crash was recorded when the app only ever
+    /// forced CPU, so matching everything preserves that pre-upgrade meaning.
+    /// </summary>
+    internal static bool CrashEntryPinsBackend(string? entryBackend, string plannedBackend)
+        => entryBackend == null
+           || string.Equals(entryBackend, plannedBackend, StringComparison.OrdinalIgnoreCase);
+
+    internal static bool GpuLoadCrashedPreviously(string modelPath, string gpuIdentity, string backend)
     {
         try
         {
@@ -389,51 +518,64 @@ public sealed class LocalLlmService : IDisposable
                 var store = LoadCrashStore();
                 var now = CurrentLaunchOrdinal(store);
 
-                var entry = store.Entries.FirstOrDefault(e =>
-                    string.Equals(e.ModelPath, modelPath, StringComparison.OrdinalIgnoreCase));
+                var matching = store.Entries.Where(e =>
+                    string.Equals(e.ModelPath, modelPath, StringComparison.OrdinalIgnoreCase)
+                    && CrashEntryPinsBackend(e.Backend, backend)).ToList();
 
-                if (entry == null)
+                if (matching.Count == 0)
                 {
                     return false;
                 }
 
-                // The load that wrote this entry completed cleanly or the process exited
-                // gracefully (ClearInFlightGpuLoads ran on exit). Only an in-flight entry
-                // that survived a hard process death is treated as a crash, so a clean
-                // shutdown mid-load no longer forces CPU or emits a Sentry crash event.
-                //
-                // Match ONLY an explicit false. A null InFlight means the entry came from
-                // the already-shipped #563 JSON store (no InFlight field) where every
-                // surviving entry was a confirmed native crash, so null is treated as a
-                // crash (falls through to the GPU-identity / expiry checks below) rather
-                // than dropped — otherwise a genuine pre-upgrade pin would be discarded
-                // and the same CUDA crash would recur once on the first launch.
-                if (entry.InFlight == false)
+                var pinned = false;
+                var mutated = false;
+                foreach (var entry in matching)
                 {
-                    store.Entries.Remove(entry);
+                    // The load that wrote this entry completed cleanly or the process exited
+                    // gracefully (ClearInFlightGpuLoads ran on exit). Only an in-flight entry
+                    // that survived a hard process death is treated as a crash, so a clean
+                    // shutdown mid-load no longer forces CPU or emits a Sentry crash event.
+                    //
+                    // Match ONLY an explicit false. A null InFlight means the entry came from
+                    // the already-shipped #563 JSON store (no InFlight field) where every
+                    // surviving entry was a confirmed native crash, so null is treated as a
+                    // crash (falls through to the GPU-identity / expiry checks below) rather
+                    // than dropped — otherwise a genuine pre-upgrade pin would be discarded
+                    // and the same GPU crash would recur once on the first launch.
+                    if (entry.InFlight == false)
+                    {
+                        store.Entries.Remove(entry);
+                        mutated = true;
+                        continue;
+                    }
+
+                    // GPU environment changed since the crash: re-probe the GPU instead of
+                    // staying pinned. Drop the stale entry.
+                    if (!string.Equals(entry.GpuIdentity, gpuIdentity, StringComparison.OrdinalIgnoreCase))
+                    {
+                        store.Entries.Remove(entry);
+                        mutated = true;
+                        continue;
+                    }
+
+                    // Pin has aged out: give the GPU another chance rather than pinning
+                    // forever off a single (possibly non-crash) process death.
+                    if (now - entry.LaunchOrdinal >= CrashPinExpiryLaunches)
+                    {
+                        store.Entries.Remove(entry);
+                        mutated = true;
+                        continue;
+                    }
+
+                    pinned = true;
+                }
+
+                if (mutated)
+                {
                     SaveCrashStore(store);
-                    return false;
                 }
 
-                // GPU environment changed since the crash: re-probe the GPU instead of
-                // staying pinned to CPU. Drop the stale entry.
-                if (!string.Equals(entry.GpuIdentity, gpuIdentity, StringComparison.OrdinalIgnoreCase))
-                {
-                    store.Entries.Remove(entry);
-                    SaveCrashStore(store);
-                    return false;
-                }
-
-                // Pin has aged out: give the GPU another chance rather than pinning CPU
-                // forever off a single (possibly non-crash) process death.
-                if (now - entry.LaunchOrdinal >= CrashPinExpiryLaunches)
-                {
-                    store.Entries.Remove(entry);
-                    SaveCrashStore(store);
-                    return false;
-                }
-
-                return true;
+                return pinned;
             }
         }
         catch (Exception ex)
@@ -443,7 +585,7 @@ public sealed class LocalLlmService : IDisposable
         }
     }
 
-    private static void WriteGpuLoadSentinel(string modelPath, string gpuIdentity)
+    private static void WriteGpuLoadSentinel(string modelPath, string gpuIdentity, string backend)
     {
         try
         {
@@ -458,12 +600,14 @@ public sealed class LocalLlmService : IDisposable
                 var now = CurrentLaunchOrdinal(store);
 
                 store.Entries.RemoveAll(e =>
-                    string.Equals(e.ModelPath, modelPath, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(e.ModelPath, modelPath, StringComparison.OrdinalIgnoreCase)
+                    && CrashEntryPinsBackend(e.Backend, backend));
                 store.Entries.Add(new GpuLoadCrashEntry
                 {
                     ModelPath = modelPath,
                     GpuIdentity = gpuIdentity,
                     LaunchOrdinal = now,
+                    Backend = backend,
                     // Marked in-flight; a clean shutdown clears it, so only a hard
                     // process death during the load leaves it set for the next launch.
                     InFlight = true
@@ -524,7 +668,7 @@ public sealed class LocalLlmService : IDisposable
         }
     }
 
-    private static void ClearGpuLoadSentinel(string modelPath)
+    private static void ClearGpuLoadSentinel(string modelPath, string backend)
     {
         try
         {
@@ -536,8 +680,12 @@ public sealed class LocalLlmService : IDisposable
                 }
 
                 var store = LoadCrashStore();
+                // Scoped to the backend that just proved safe (or survived with a
+                // managed failure); a crash pin recorded for a DIFFERENT backend
+                // must persist so the next launch keeps skipping it.
                 var removed = store.Entries.RemoveAll(e =>
-                    string.Equals(e.ModelPath, modelPath, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(e.ModelPath, modelPath, StringComparison.OrdinalIgnoreCase)
+                    && CrashEntryPinsBackend(e.Backend, backend));
                 if (removed > 0)
                 {
                     SaveCrashStore(store);
@@ -550,24 +698,30 @@ public sealed class LocalLlmService : IDisposable
         }
     }
 
-    private static void ReportRecoveredGpuLoadCrash(string modelPath)
+    private static void ReportRecoveredGpuLoadCrash(
+        string modelPath, LocalLlmBackend crashedBackend, LocalLlmBackend fallbackBackend)
     {
         var gpu = GpuInfoService.GetBestGpu();
+        var from = LocalLlmGpuHelper.BackendId(crashedBackend) ?? "gpu";
+        var to = LocalLlmGpuHelper.BackendId(fallbackBackend) ?? "cpu";
         SentryService.CaptureDiagnosticEvent(
-            "LocalLlmService: Recovered from native GPU load crash, forced CPU backend",
+            "LocalLlmService: Recovered from native GPU load crash, downgraded backend",
             extras: new Dictionary<string, object>
             {
                 ["model_file"] = Path.GetFileName(modelPath),
                 ["gpu_name"] = gpu?.Name ?? "unknown",
-                ["gpu_vram"] = gpu?.VramDisplay ?? "unknown"
+                ["gpu_vram"] = gpu?.VramDisplay ?? "unknown",
+                ["crashed_backend"] = from,
+                ["fallback_backend"] = to
             },
             tags: new Dictionary<string, string>
             {
                 ["component"] = "local_llm",
-                ["recovery"] = "gpu_to_cpu"
+                ["backend"] = from,
+                ["recovery"] = $"{from}_to_{to}"
             },
             fingerprint: new[] { "local-llm-gpu-load-crash" },
-            dedupeKey: $"local-llm-gpu-load-crash:{Path.GetFileName(modelPath)}");
+            dedupeKey: $"local-llm-gpu-load-crash:{Path.GetFileName(modelPath)}:{from}_to_{to}");
     }
 
     private static ModelParams CreateParameters(string modelPath, int gpuLayerCount)
@@ -604,20 +758,6 @@ public sealed class LocalLlmService : IDisposable
             $"Local LLM prompt requires {promptTokens:N0} tokens, but only {promptBudget:N0} are available while preserving the {MaxTokens:N0}-token output budget.");
     }
 
-    private static int GetGpuLayerCount()
-    {
-        try
-        {
-            return LocalLlmGpuHelper.GetRuntimePlan().GpuLayerCount;
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Warn($"LocalLlmService: GPU detection failed: {ex.Message}");
-        }
-
-        return 0;
-    }
-
     private string BuildRuntimeStatusMessage(string modelPath)
     {
         var modelName = Path.GetFileName(modelPath);
@@ -626,12 +766,12 @@ public sealed class LocalLlmService : IDisposable
             return $"LocalLlmService: Loaded {modelName} (CPU fallback)";
         }
 
-        var gpu = LocalLlmGpuHelper.GetRuntimePlan().Gpu;
+        var gpu = GpuInfoService.GetBestGpu();
         var gpuSummary = gpu == null
             ? "GPU"
             : $"{gpu.Name}, {gpu.VramDisplay} VRAM";
 
-        return $"LocalLlmService: Loaded {modelName} (CUDA, {gpuSummary})";
+        return $"LocalLlmService: Loaded {modelName} ({LocalLlmGpuHelper.BackendDisplayName(_activeBackend)}, {gpuSummary})";
     }
 
     public void Dispose()

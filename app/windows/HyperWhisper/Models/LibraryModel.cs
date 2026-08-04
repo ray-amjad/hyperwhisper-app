@@ -45,6 +45,11 @@ public sealed class LibraryModel
     public required LibraryModelSource Source { get; init; }
     public string? SizeDescription { get; init; }
     public string? Tag { get; init; }
+    /// <summary>
+    /// Runtime backend chip for local-LLM rows ("GPU · CUDA", "GPU · Vulkan",
+    /// "CPU") — pin-aware per model. Null on every other row kind.
+    /// </summary>
+    public string? RuntimeBadge { get; init; }
     public string? Detail { get; init; }
     public string? DetailToolTip { get; init; }
     public string? StatusMessage { get; init; }
@@ -117,6 +122,8 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string CompactMetadataText => $"{TypeText} - Fast {FormatRating(Model.Speed)} - Acc {FormatRating(Model.Accuracy)} - {LocationText}";
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
+    public string RuntimeBadgeText => Model.RuntimeBadge ?? "";
+    public Visibility RuntimeBadgeVisibility => string.IsNullOrWhiteSpace(Model.RuntimeBadge) ? Visibility.Collapsed : Visibility.Visible;
     public string Detail => Model.Detail ?? "";
     public string? DetailToolTip
     {

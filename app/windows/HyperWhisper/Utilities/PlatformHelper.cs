@@ -73,6 +73,39 @@ public static class PlatformHelper
             "cuda12",
             "llama.dll"));
 
+    public static bool HasLocalLlmVulkanRuntime =>
+        RuntimeInformation.ProcessArchitecture == Architecture.X64
+        && File.Exists(Path.Combine(
+            AppContext.BaseDirectory,
+            "runtimes",
+            "win-x64",
+            "native",
+            "vulkan",
+            "llama.dll"));
+
+    /// <summary>
+    /// True when the system-wide Vulkan ICD loader is present in System32.
+    /// Every modern AMD/Intel/NVIDIA driver installs it; its absence means
+    /// Vulkan cannot work at all, so the local-LLM plan falls back to CPU
+    /// without ever attempting a Vulkan load.
+    /// </summary>
+    public static bool HasSystemVulkanLoader
+    {
+        get
+        {
+            try
+            {
+                return File.Exists(Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.System),
+                    "vulkan-1.dll"));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
     /// <summary>
     /// Cached discrete GPU detection result.
     /// </summary>

@@ -1846,8 +1846,11 @@
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
     <value>将优先尝试 CUDA；如果加载失败则回退到 CPU</value>
   </data>
-  <data name="settings.models.localLlm.hardware.cudaRequiresNvidia" xml:space="preserve">
-    <value>CPU 回退。CUDA 加速需要 NVIDIA GPU</value>
+  <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
+    <value>将优先尝试 Vulkan；如果加载失败则回退到 CPU</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.gpuUnsupported" xml:space="preserve">
+    <value>CPU 回退。此 GPU 不支持本地后处理加速</value>
   </data>
   <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
     <value>本地 LLM 和 Whisper 可能共享 GPU 内存；如果转写变慢，请使用更小的模型。</value>

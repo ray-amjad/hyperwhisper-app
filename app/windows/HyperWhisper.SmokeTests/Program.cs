@@ -319,6 +319,92 @@ internal static class Program
                     LocalLlmService.EnsureTokenBudgetFits(500, promptBudget - 499));
             });
 
+            Run("Local LLM backend plan matrix (issue #77)", () =>
+            {
+                static LocalLlmBackend Decide(
+                    string gpuName,
+                    bool discrete,
+                    bool cudaRuntime = true,
+                    bool vulkanRuntime = true,
+                    bool vulkanLoader = true,
+                    bool cudaPinned = false,
+                    bool vulkanPinned = false)
+                    => LocalLlmGpuHelper.DecideBackend(
+                        gpuName, discrete, cudaRuntime, vulkanRuntime, vulkanLoader, cudaPinned, vulkanPinned);
+
+                // The issue #77 machine: discrete AMD with a Vulkan-capable driver.
+                Assert(Decide("AMD Radeon RX 6900 XT", discrete: true) == LocalLlmBackend.Vulkan,
+                    "RX 6900 XT should plan Vulkan");
+                // The CUDA runtime files ship on every x64 install, so they must
+                // never route a non-NVIDIA adapter to CUDA.
+                Assert(Decide("AMD Radeon RX 6900 XT", discrete: true, cudaRuntime: true) != LocalLlmBackend.Cuda,
+                    "AMD must never plan CUDA");
+
+                // Integrated adapters stay on CPU.
+                Assert(Decide("AMD Radeon(TM) Graphics", discrete: false) == LocalLlmBackend.None,
+                    "AMD APU should plan CPU");
+                Assert(Decide("Intel(R) UHD Graphics 770", discrete: false) == LocalLlmBackend.None,
+                    "Intel UHD should plan CPU");
+                Assert(Decide("Intel(R) Arc(TM) A770 Graphics", discrete: true) == LocalLlmBackend.Vulkan,
+                    "Intel Arc should plan Vulkan");
+
+                // NVIDIA: CUDA first; Vulkan when CUDA is pinned or its runtime is
+                // absent; CPU when both backends are pinned.
+                Assert(Decide("NVIDIA GeForce RTX 4060", discrete: true) == LocalLlmBackend.Cuda,
+                    "NVIDIA should plan CUDA");
+                Assert(Decide("NVIDIA GeForce RTX 4060", discrete: true, cudaPinned: true) == LocalLlmBackend.Vulkan,
+                    "CUDA-pinned NVIDIA should plan Vulkan");
+                Assert(Decide("NVIDIA GeForce RTX 4060", discrete: true, cudaRuntime: false) == LocalLlmBackend.Vulkan,
+                    "NVIDIA without cuda12 runtime should plan Vulkan");
+                Assert(Decide("NVIDIA GeForce RTX 4060", discrete: true, cudaPinned: true, vulkanPinned: true) == LocalLlmBackend.None,
+                    "doubly-pinned NVIDIA should plan CPU");
+
+                // Vulkan needs the system loader and the shipped runtime files.
+                Assert(Decide("AMD Radeon RX 6900 XT", discrete: true, vulkanLoader: false) == LocalLlmBackend.None,
+                    "no vulkan-1.dll should plan CPU");
+                Assert(Decide("AMD Radeon RX 6900 XT", discrete: true, vulkanRuntime: false) == LocalLlmBackend.None,
+                    "missing vulkan runtime files should plan CPU");
+                Assert(Decide("AMD Radeon RX 6900 XT", discrete: true, vulkanPinned: true) == LocalLlmBackend.None,
+                    "vulkan-pinned AMD should plan CPU");
+            });
+
+            Run("GPU name classification gates local-LLM offload eligibility", () =>
+            {
+                static bool EligibleForMl(string name) => new GpuInfoService.GpuInfo
+                {
+                    Name = name,
+                    PriorityScore = GpuInfoService.GetGpuPriorityScore(name)
+                }.IsDiscreteForMl;
+
+                Assert(EligibleForMl("NVIDIA GeForce RTX 4060"), "NVIDIA discrete should be ML-eligible");
+                Assert(EligibleForMl("AMD Radeon RX 6900 XT"), "AMD RX should be ML-eligible");
+                Assert(EligibleForMl("Intel(R) Arc(TM) A770 Graphics"), "Intel Arc discrete should be ML-eligible");
+                Assert(!EligibleForMl("AMD Radeon(TM) Graphics"), "AMD APU should not be ML-eligible");
+                Assert(!EligibleForMl("Intel(R) UHD Graphics 770"), "Intel UHD should not be ML-eligible");
+                // Old discrete AMD parts outside the RX/PRO/VEGA families stay on
+                // CPU — the accepted safe direction for unrecognised hardware.
+                Assert(!EligibleForMl("AMD Radeon HD 7970"), "pre-RX AMD discrete should not be ML-eligible");
+            });
+
+            Run("Crash-pin entries are scoped per backend, legacy entries pin all", () =>
+            {
+                // Legacy entries (written before the Backend field existed) pin
+                // whichever backend the plan picks — i.e. every backend.
+                Assert(LocalLlmService.CrashEntryPinsBackend(null, LocalLlmGpuHelper.CudaBackendId),
+                    "legacy entry should pin CUDA");
+                Assert(LocalLlmService.CrashEntryPinsBackend(null, LocalLlmGpuHelper.VulkanBackendId),
+                    "legacy entry should pin Vulkan");
+
+                // A CUDA crash must not pin Vulkan (and vice versa) so the next
+                // launch can still try the other backend.
+                Assert(!LocalLlmService.CrashEntryPinsBackend(LocalLlmGpuHelper.CudaBackendId, LocalLlmGpuHelper.VulkanBackendId),
+                    "cuda entry must not pin Vulkan");
+                Assert(!LocalLlmService.CrashEntryPinsBackend(LocalLlmGpuHelper.VulkanBackendId, LocalLlmGpuHelper.CudaBackendId),
+                    "vulkan entry must not pin CUDA");
+                Assert(LocalLlmService.CrashEntryPinsBackend("CUDA", LocalLlmGpuHelper.CudaBackendId),
+                    "backend match should be case-insensitive");
+            });
+
             RunAsync("RustRetry caps transport failures at 4 and resolves the client per attempt", async () =>
             {
                 var handler = new StubHandler(_ => throw new HttpRequestException("connection refused"));

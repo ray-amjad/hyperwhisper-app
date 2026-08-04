@@ -193,13 +193,17 @@ public sealed class ModelLibraryManager
     {
         var vocab = SharedModelsCatalog.SupportsCustomVocabulary(SharedModelsCatalog.LocalLlmKey, CatalogKind.Text, "*");
         var cloud = SharedModelsCatalog.AvailableViaHyperWhisperCloud(SharedModelsCatalog.LocalLlmKey, CatalogKind.Text, "*");
-        var runtimePlan = LocalLlmGpuHelper.GetRuntimePlan();
-        var runtimeGuidance = BuildLocalLlmRuntimeGuidance(runtimePlan);
         foreach (var model in LocalLlmModelInfo.AllModels)
         {
             var installed = _localLlm.IsModelDownloaded(model);
             var unsupportedReason = PlatformHelper.SupportsLocalLlmPostProcessing ? null : LocalLlmUnsupportedReason();
             var status = OfflineStatus(installed, unsupportedReason);
+            // Per-model, pin-aware plan: a backend that previously crashed the
+            // process for this model is excluded, so the badge never claims an
+            // offload the load path would refuse.
+            var runtimePlan = LocalLlmGpuHelper.GetRuntimePlan(_localLlm.GetModelPath(model));
+            var runtimeGuidance = BuildLocalLlmRuntimeGuidance(runtimePlan);
+            var offloads = runtimePlan.Backend != LocalLlmBackend.None;
             var detail = $"{model.Size} - Requires {model.RecommendedVramDisplay} VRAM - Runtime: {runtimePlan.BackendSummary}";
             yield return new LibraryModel
             {
@@ -215,7 +219,18 @@ public sealed class ModelLibraryManager
                 SizeDescription = model.Size,
                 Speed = 3,
                 Accuracy = model.IsRecommended ? 4 : 3,
-                Tag = model.IsRecommended ? "Recommended" : null,
+                // "Recommended" implies GPU offload; on CPU-fallback machines the
+                // recommendation would be misleading (~29 s for a 5 s clip), so
+                // hide it when the plan cannot offload.
+                Tag = model.IsRecommended && offloads ? "Recommended" : null,
+                RuntimeBadge = unsupportedReason == null
+                    ? runtimePlan.Backend switch
+                    {
+                        LocalLlmBackend.Cuda => "GPU · CUDA",
+                        LocalLlmBackend.Vulkan => "GPU · Vulkan",
+                        _ => "CPU"
+                    }
+                    : null,
                 Detail = detail,
                 DetailToolTip = unsupportedReason != null
                     ? $"{model.Description} {unsupportedReason}"
@@ -259,9 +274,12 @@ public sealed class ModelLibraryManager
             return Loc.S("settings.models.localLlm.hardware.cpuFallback");
         }
 
-        var guidance = plan.WillTryCuda
-            ? Loc.S("settings.models.localLlm.hardware.cudaFirst")
-            : Loc.S("settings.models.localLlm.hardware.cudaRequiresNvidia");
+        var guidance = plan.Backend switch
+        {
+            LocalLlmBackend.Cuda => Loc.S("settings.models.localLlm.hardware.cudaFirst"),
+            LocalLlmBackend.Vulkan => Loc.S("settings.models.localLlm.hardware.vulkanFirst"),
+            _ => Loc.S("settings.models.localLlm.hardware.gpuUnsupported")
+        };
 
         var summary = Loc.S(
             "settings.models.localLlm.hardware.runtimeFormat",

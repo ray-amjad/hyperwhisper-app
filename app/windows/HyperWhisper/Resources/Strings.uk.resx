@@ -1743,8 +1743,11 @@ You can re-download it later.</value>
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
     <value>CUDA will be tried first, with CPU fallback if loading fails</value>
   </data>
-  <data name="settings.models.localLlm.hardware.cudaRequiresNvidia" xml:space="preserve">
-    <value>CPU fallback. CUDA acceleration requires an NVIDIA GPU</value>
+  <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
+    <value>Спочатку буде випробувано Vulkan, з переходом на CPU у разі невдалого завантаження</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.gpuUnsupported" xml:space="preserve">
+    <value>Резервний режим CPU. Цей GPU не підтримує прискорену локальну постобробку</value>
   </data>
   <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
     <value>Local LLM and Whisper may share GPU memory; use a smaller model if transcription slows.</value>

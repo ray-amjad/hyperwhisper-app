@@ -1843,7 +1843,8 @@ public partial class ModeEditorWindow : Window
                 {
                     var modelService = new LocalLlmModelService();
                     var isDownloaded = modelService.IsModelDownloaded(localModel);
-                    content = $"{localModel.DisplayName} ({localModel.Size}){(isDownloaded ? "" : Loc.S("settings.models.localLlm.notDownloadedSuffix"))}";
+                    // Plan-aware: drops "(Recommended)" on machines whose local-LLM plan is CPU-only.
+                    content = $"{LocalLlmGpuHelper.DisplayNameFor(localModel)} ({localModel.Size}){(isDownloaded ? "" : Loc.S("settings.models.localLlm.notDownloadedSuffix"))}";
                 }
             }
 
