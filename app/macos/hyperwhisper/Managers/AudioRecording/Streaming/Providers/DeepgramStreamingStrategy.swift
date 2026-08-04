@@ -264,7 +264,7 @@ final class DeepgramStreamingStrategy: StreamingProviderStrategy {
             // EXTRACT TRANSCRIPT TEXT:
             // Navigate channel → alternatives[0] → transcript.
             // If no alternatives or empty transcript, return nil (no event).
-            guard let transcript = result.channel?.alternatives.first?.transcript,
+            guard let transcript = result.channel?.asChannel?.alternatives.first?.transcript,
                   !transcript.isEmpty else {
                 return nil
             }
@@ -361,11 +361,16 @@ final class DeepgramStreamingStrategy: StreamingProviderStrategy {
 /// into the rest of the app. The strategy's parseMessage() converts these
 /// into normalized StreamingProviderEvent values.
 private struct DeepgramMessage: Decodable {
+    private static let logger = Logger(subsystem: "com.hyperwhisper.app", category: "DeepgramStreaming")
+
     /// Message type identifier: "Results", "Metadata", "UtteranceEnd", "SpeechStarted"
     let type: String
 
-    /// Transcription channel data (only present in "Results" messages)
-    let channel: Channel?
+    /// Transcription channel data (only present in "Results" messages). Deepgram
+    /// overloads this field with an unrelated shape on other frame types — see
+    /// `ChannelOrIndices` below — so it's left to the compiler-synthesized
+    /// `Decodable` init like every other field here.
+    let channel: ChannelOrIndices?
 
     /// Whether this is a final (committed) result. true = won't change, false = interim.
     let is_final: Bool?
@@ -384,26 +389,42 @@ private struct DeepgramMessage: Decodable {
         let transcript: String
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case type, channel, is_final, request_id
-    }
+    /// Deepgram overloads the "channel" field: an object with `alternatives` on
+    /// "Results" frames, but a bare channel-index array (e.g. `[0,1]`) on
+    /// "SpeechStarted"/"UtteranceEnd" frames. Strict decoding of `channel` as
+    /// `Channel?` used to throw `DecodingError.typeMismatch` for the *entire*
+    /// message when it hit the array shape — including `type` — before
+    /// `parseMessage`'s switch ever ran, silently dropping the message via the
+    /// outer do/catch and making `case "UtteranceEnd", "SpeechStarted"`
+    /// unreachable in practice.
+    ///
+    /// This wrapper (mirrors `IntOrString`/`BoolOrString`/`ArrayOrString` in
+    /// `CloudSTTCatalog.swift`) tries the object shape first, silently accepts
+    /// the known array-of-indices shape as "no channel", and logs any other
+    /// unexpected shape so a genuine future protocol change doesn't fail
+    /// completely silently.
+    enum ChannelOrIndices: Decodable {
+        case channel(Channel)
+        case indices
+        case unknown
 
-    /// Custom decode: Deepgram overloads the "channel" field. It's an object with
-    /// `alternatives` on "Results" frames, but a bare channel-index array (e.g. `[0,1]`)
-    /// on "SpeechStarted"/"UtteranceEnd" frames. The compiler-synthesized `Decodable`
-    /// init decodes every field strictly, so hitting the array shape while decoding
-    /// `channel` used to throw `DecodingError.typeMismatch` for the *entire* message —
-    /// including `type` — before `parseMessage`'s switch ever ran. That error was
-    /// caught and logged by the outer do/catch, silently dropping the message, which
-    /// meant `case "UtteranceEnd", "SpeechStarted"` below was unreachable in practice.
-    /// Decoding `channel` with `try?` makes a shape mismatch resolve to `nil` instead
-    /// of failing the whole decode, while every other field keeps its original
-    /// strictness (still throws if `type` is missing/wrong-typed).
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        type = try container.decode(String.self, forKey: .type)
-        channel = try? container.decodeIfPresent(Channel.self, forKey: .channel)
-        is_final = try container.decodeIfPresent(Bool.self, forKey: .is_final)
-        request_id = try container.decodeIfPresent(String.self, forKey: .request_id)
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let channel = try? container.decode(Channel.self) {
+                self = .channel(channel)
+                return
+            }
+            if (try? container.decode([Int].self)) != nil {
+                self = .indices
+                return
+            }
+            DeepgramMessage.logger.warning("Deepgram \"channel\" field had unexpected shape (not an object or an index array)")
+            self = .unknown
+        }
+
+        var asChannel: Channel? {
+            if case .channel(let channel) = self { return channel }
+            return nil
+        }
     }
 }
