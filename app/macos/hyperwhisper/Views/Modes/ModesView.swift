@@ -289,10 +289,7 @@ struct ModesView: View {
                 AppLogger.ui.info("Deleted selected mode, switched to first remaining mode: \(firstMode.name ?? "Unknown")")
             } else {
                 // No modes left - clear the selection to prevent errors
-                appState.selectedModeId = ""
-                appState.selectedModeName = ""
-                settingsManager.currentModeId = ""
-                settingsManager.currentMode = ""
+                appState.clearModeSelection()
                 AppLogger.ui.warning("Deleted last mode, cleared mode selection")
             }
         }
