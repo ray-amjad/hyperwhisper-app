@@ -458,6 +458,9 @@ internal static class Program
                 // surfacing a generic message instead of the provider's own close description.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                // HandleCloseResult's own shutdown guard no-ops on a freshly constructed
+                // (Idle) client - drive it into a realistic in-session state first.
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
 
@@ -474,6 +477,7 @@ internal static class Program
                 // Deepgram's NET-xxxx errors (timeout / no audio) close with 1011.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
 
@@ -489,6 +493,7 @@ internal static class Program
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
 
@@ -503,6 +508,7 @@ internal static class Program
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
 
@@ -517,6 +523,7 @@ internal static class Program
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
 
@@ -524,20 +531,58 @@ internal static class Program
                     0, WebSocketMessageType.Close, true, WebSocketCloseStatus.NormalClosure, ""));
 
                 Assert(capturedMessage == null, $"expected no ErrorReceived for a normal closure, got '{capturedMessage}'");
-                Assert(client.State == StreamingConnectionState.Idle, $"expected State to remain Idle, got {client.State}");
+                Assert(client.State == StreamingConnectionState.Streaming, $"expected State to remain Streaming, got {client.State}");
             });
 
             Run("StreamingTranscriptionClient.HandleCloseResult does not treat a null close status as terminal", () =>
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
                 var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
 
                 client.HandleCloseResult(new WebSocketReceiveResult(0, WebSocketMessageType.Close, true, null, null));
 
                 Assert(capturedMessage == null, $"expected no ErrorReceived when CloseStatus is null (ambiguous), got '{capturedMessage}'");
-                Assert(client.State == StreamingConnectionState.Idle, $"expected State to remain Idle, got {client.State}");
+                Assert(client.State == StreamingConnectionState.Streaming, $"expected State to remain Streaming, got {client.State}");
+            });
+
+            Run("StreamingTranscriptionClient.HandleCloseResult treats a transient close (1006 abnormal) as recoverable", () =>
+            {
+                // 1006 (no close frame) is a textbook-transient WebSocket close code - it must
+                // keep falling through to the existing reconnect/backoff path, not be treated
+                // as terminal (the earlier blanket "any non-1000 code is terminal" diff broke
+                // this).
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
+                string? capturedMessage = null;
+                client.ErrorReceived += m => capturedMessage = m;
+
+                client.HandleCloseResult(new WebSocketReceiveResult(
+                    0, WebSocketMessageType.Close, true, (WebSocketCloseStatus)1006, "abnormal closure"));
+
+                Assert(capturedMessage == null, $"expected no ErrorReceived for a transient close code, got '{capturedMessage}'");
+                Assert(client.State == StreamingConnectionState.Streaming, $"expected State to remain Streaming, got {client.State}");
+            });
+
+            Run("StreamingTranscriptionClient.HandleCloseResult does not reclassify our own shutdown as a provider error", () =>
+            {
+                // Even a code that would otherwise be terminal (e.g. 1011) must not overwrite
+                // an in-flight StopAsync/Dispose shutdown - HandleCloseResult can still observe
+                // a close arriving concurrently with our own Disconnecting/Idle transition.
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false);
+                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                client.SetStateForTesting(StreamingConnectionState.Disconnecting);
+                string? capturedMessage = null;
+                client.ErrorReceived += m => capturedMessage = m;
+
+                client.HandleCloseResult(new WebSocketReceiveResult(
+                    0, WebSocketMessageType.Close, true, (WebSocketCloseStatus)1011, "NET-0000: timeout"));
+
+                Assert(capturedMessage == null, $"expected no ErrorReceived while Disconnecting, got '{capturedMessage}'");
+                Assert(client.State == StreamingConnectionState.Disconnecting, $"expected State to remain Disconnecting, got {client.State}");
             });
 
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
