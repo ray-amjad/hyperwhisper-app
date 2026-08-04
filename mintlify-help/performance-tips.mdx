@@ -51,7 +51,7 @@ Local models work on Intel but use CPU only — no GPU or Neural Engine accelera
 Windows local transcription uses Vulkan (Whisper) and DirectML (Parakeet) for GPU acceleration. Vulkan is vendor-agnostic, so any modern NVIDIA, AMD, or Intel GPU with Vulkan drivers qualifies. If no compatible GPU is detected, the model falls back to CPU automatically — it still works, just slower.
 
 <Note>
-  On ARM64 / Snapdragon Windows devices, **Whisper is not supported yet**. Use **Parakeet V2** (English) or **Parakeet V3** (25 European languages) for local transcription on ARM64 — both run with DirectML acceleration.
+  On ARM64 / Snapdragon Windows devices, **Whisper requires Windows 11 or Windows Server 2022 or newer** — it's unavailable on ARM64 devices still running Windows 10. On those older builds, use **Parakeet V2** (English) or **Parakeet V3** (25 European languages) for local transcription — both run with DirectML acceleration.
 </Note>
 
 ### Whisper size ladder
@@ -210,7 +210,7 @@ Not sure where to start? Find your goal below.
 | **Lowest cost** | HyperWhisper Cloud Medium (Groq Whisper Large v3 Turbo, ~\$0.04/hr) or on-device models (free after download) |
 | **Older or low-end machine** | Whisper Tiny or Base locally, or HyperWhisper Cloud to offload compute |
 | **Best all-round on Apple Silicon** | Whisper Small + Gemma 4 E2B post-processing |
-| **ARM64 Windows device** | Parakeet V2 (English) or Parakeet V3 (multilingual) — Whisper is x64-only |
+| **ARM64 Windows device on Windows 10** | Parakeet V2 (English) or Parakeet V3 (multilingual) — Whisper requires Windows 11/Server 2022+ on ARM64 |
 
 ---
 

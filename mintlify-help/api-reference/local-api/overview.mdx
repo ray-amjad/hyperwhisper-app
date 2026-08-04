@@ -60,8 +60,9 @@ Both shapes are returned with **HTTP 200**:
 ```
 
 HTTP 4xx is reserved for protocol failures: 400 for malformed JSON, 401
-for missing or invalid bearer token. Everything else (including
-"transcription engine errored", "API key missing", "file not found")
+for missing or invalid bearer token, 403 for a rejected Host/Origin header
+(macOS only — a DNS-rebinding guard applied to every route). Everything else
+(including "transcription engine errored", "API key missing", "file not found")
 arrives as `ok:false` with a machine-readable code.
 
 ## Endpoints
@@ -75,7 +76,7 @@ arrives as `ok:false` with a machine-readable code.
 | GET | `/modes/{id}` | Fetch one Mode. |
 | PATCH | `/modes/{id}` | Partial-field update. |
 | DELETE | `/modes/{id}` | Delete Mode (refuses to delete the last one). |
-| POST | `/transcribe` | File path (must resolve inside your recordings folder) or `audio_base64`. Drive by `mode_id`, by `engine`+`model`, or mix. |
+| POST | `/transcribe` | File path (must resolve inside your recordings folder) or `audio_base64`. Drive by `mode_id`, by `engine`+`model`, or mix. Accepts optional `timestamp_granularities` (macOS only) to get `segments`/`words` back. |
 | POST | `/post-process` | Rewrite text via preset or free-form prompt. |
 | GET | `/recordings/search?q=&since=&until=&limit=` | Substring search across past transcripts. |
 | GET | `/recordings/{id}` | Single transcript row. |

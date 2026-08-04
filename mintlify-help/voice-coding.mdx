@@ -31,7 +31,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 | `list_models` | Returns the catalog of available voice and post-processing models. |
 | `list_modes` | Lists your saved transcription Modes. |
 | `transcribe` | Transcribes an absolute path to an audio file. |
-| `post_process` | Rewrites text with a preset (`hyper`, `message`, `mail`, `note`, `meeting`, `code`, `custom`) or a free-form instruction passed via the `prompt` field. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or a free-form instruction passed via the `prompt` field. |
 | `search_recordings` | Substring search across past transcripts. |
 | `get_recording` | Retrieves a single transcript row by ID. |
 
@@ -103,7 +103,7 @@ For full tool signatures and troubleshooting, see [MCP Setup](/api-reference/loc
 
 ## Code preset for voice-to-code
 
-When you're dictating code rather than prose, use a mode with the **Code** preset. It converts spoken symbol names into code syntax and disables automatic capitalization and punctuation so your identifiers land exactly as spoken.
+When you're dictating code rather than prose, use a mode with the **Code** preset. It converts spoken symbol names into code syntax. Pair it with **Capitalization** and **Punctuation** turned off (see setup below) so your identifiers land exactly as spoken — the preset itself doesn't change those formatting toggles for you.
 
 | You say | You get |
 |---|---|

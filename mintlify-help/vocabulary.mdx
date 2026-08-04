@@ -57,11 +57,11 @@ On **macOS**, two additional local engines also use vocabulary: local Whisper pa
 
 ### Text replacements
 
-Entries with a replacement are applied by regex after transcription, before AI post-processing runs. Matching is case-insensitive and word-boundary anchored, so "eta" only matches the standalone abbreviation — not words like "metadata". Stray leading or trailing spaces in both the word and replacement are trimmed automatically.
+Entries with a replacement are applied by regex after transcription, after AI post-processing runs. Matching is case-insensitive and word-boundary anchored, so "eta" only matches the standalone abbreviation — not words like "metadata". Stray leading or trailing spaces in both the word and replacement are trimmed automatically.
 
 ### AI post-processing context
 
-Entries without a replacement are injected into the per-request user-message context sent to AI post-processing (entries with a replacement are already applied via regex before post-processing runs, so they aren't re-injected). This helps the model understand your terminology when cleaning up text for Meeting, Custom, and other presets.
+Entries without a replacement are injected into the per-request user-message context sent to AI post-processing (entries with a replacement are excluded from this context, since their regex substitution runs on the AI-processed output afterward, so they don't need to be re-injected). This helps the model understand your terminology when cleaning up text for Meeting, Custom, and other presets.
 
 ## Managing the List
 
