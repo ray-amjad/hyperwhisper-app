@@ -4,11 +4,15 @@
 #
 # Reusable gate for the macOS onboarding flow.
 #
-#   1. Builds the app and runs ONLY the hyperwhisperTests unit suite.
+#   1. Repo hygiene: no prototype references, no hardcoded signing identity,
+#      no client-side entitlement bypass.
 #   2. Static design conformance over the onboarding views.
 #   3. Localization checks (no unlocalized Text, no missing keys).
-#   4. Regression guards for the four known onboarding bugs.
-#   5. Repo hygiene: no prototype references, no hardcoded signing identity.
+#   4. Builds the app and runs ONLY the hyperwhisperTests unit suite.
+#
+# Regression guards for specific onboarding bugs are deliberately NOT done here.
+# They live in the hyperwhisperTests unit suite, which asserts on behaviour
+# instead of pattern matching Swift function names.
 #
 # Signing: DEVELOPMENT_TEAM is read from the environment and is NEVER hardcoded
 # here. This repo deliberately commits an empty team. Run it like:
@@ -39,7 +43,6 @@ REPO_ROOT="$(cd "$MACOS_DIR/../.." && pwd)"
 PROJECT="$MACOS_DIR/hyperwhisper.xcodeproj"
 SCHEME="hyperwhisper"
 APP_SRC="$MACOS_DIR/hyperwhisper"
-TESTS_DIR="$MACOS_DIR/hyperwhisperTests"
 VIEWS_DIR="$APP_SRC/Views"
 ONBOARDING_VIEW="$VIEWS_DIR/OnboardingView.swift"
 ONBOARDING_DIR="$VIEWS_DIR/Onboarding"
@@ -99,7 +102,7 @@ show_hits() {
 }
 
 usage() {
-    sed -n '3,28p' "$SCRIPT_PATH" | sed 's/^# \{0,1\}//'
+    sed -n '3,30p' "$SCRIPT_PATH" | sed 's/^# \{0,1\}//'
     echo
     echo "Usage: verify-onboarding.sh [--static-only] [--no-tests] [--help]"
     echo "  --static-only  skip the build and the unit tests (never exits 0)"
@@ -152,31 +155,6 @@ if [ "$ALL_ONB_COUNT" -gt 0 ]; then
     [ -z "$MIC_VIEW_FILE" ] && MIC_VIEW_FILE="$MIC_FILE"
 fi
 
-# Extract "name|start|end" for every Swift func in a file (brace balanced,
-# strings and // comments stripped first).
-extract_funcs() {
-    awk '
-    {
-        line = $0
-        sub(/\/\/.*/, "", line)
-        gsub(/"[^"]*"/, "\"\"", line)
-        if (tracking == 0) {
-            if (match(line, /(^|[^A-Za-z0-9_])func[ \t]+[A-Za-z_][A-Za-z0-9_]*/)) {
-                s = substr(line, RSTART, RLENGTH)
-                sub(/^.*func[ \t]+/, "", s)
-                name = s; tracking = 1; start = NR; depth = 0; opened = 0
-            }
-        }
-        if (tracking == 1) {
-            n = gsub(/\{/, "{", line)
-            m = gsub(/\}/, "}", line)
-            depth += n - m
-            if (n > 0) opened = 1
-            if (opened == 1 && depth <= 0) { print name "|" start "|" NR; tracking = 0 }
-        }
-    }' "$1"
-}
-
 printf '%s\n' "${C_BLD}HyperWhisper onboarding gate${C_OFF}"
 info "repo:          $REPO_ROOT"
 info "design files:  $DESIGN_COUNT (OnboardingView.swift + Views/Onboarding/)"
@@ -191,7 +169,7 @@ fi
 head1 "1. Repo hygiene"
 # ===========================================================================
 
-# --- 5. no references to the standalone prototype -------------------------
+# --- no references to the standalone prototype -----------------------------
 HITS="$TMP/proto.txt"
 grep -rIn --binary-files=without-match \
     --exclude-dir=DerivedData --exclude-dir=.build --exclude-dir=build \
@@ -205,7 +183,7 @@ else
     pass "no references to the onboarding prototype anywhere under app/macos"
 fi
 
-# --- 6. no hardcoded signing identity under app/macos/scripts --------------
+# --- no hardcoded signing identity under app/macos/scripts -----------------
 # An Apple team id is exactly 10 chars of [A-Z0-9] with both digits and letters,
 # which is rare enough in shell to detect reliably. Referencing the team through
 # the environment (${DEVELOPMENT_TEAM:-}) is the required, allowed form.
@@ -258,6 +236,23 @@ fi
 if [ -s "$TMP/signing_soft_only.txt" ]; then
     warn "identifier-shaped token under app/macos/scripts; confirm it is not a signing identity"
     show_hits "$TMP/signing_soft_only.txt" 6
+fi
+
+# --- no client-side entitlement bypass in the onboarding flow --------------
+# Paid moat: HyperWhisper Cloud entitlement is enforced server side. A debug
+# backdoor or fake license key introduced during onboarding would hand the
+# product away, and no unit test would catch it, so it is grepped for here.
+if [ "$ALL_ONB_COUNT" -gt 0 ]; then
+    HITS="$TMP/bypass.txt"
+    all_onb_args grep -nHiE 'bypassLicense|skipLicenseCheck|fakeLicense|testLicenseKey|debugEntitlement|forceEntitled|HYPERWHISPER_DEBUG_LICENSE' > "$HITS"
+    if [ -s "$HITS" ]; then
+        fail "possible client-side entitlement bypass in onboarding (Cloud entitlement is enforced server side)"
+        show_hits "$HITS" 6
+    else
+        pass "no client-side entitlement bypass in the onboarding views"
+    fi
+else
+    warn "entitlement-bypass check skipped: no onboarding Swift files found to scan"
 fi
 
 # ===========================================================================
@@ -574,223 +569,7 @@ else
 fi
 
 # ===========================================================================
-head1 "4. Regression guards for the four known bugs"
-# ===========================================================================
-
-if [ "$ALL_ONB_COUNT" -gt 0 ]; then
-
-# Build a function index over every onboarding source file.
-FUNCS="$TMP/funcs.txt"
-: > "$FUNCS"
-while IFS= read -r f; do
-    [ -z "$f" ] && continue
-    extract_funcs "$f" | while IFS='|' read -r name start end; do
-        echo "$f|$name|$start|$end"
-    done >> "$FUNCS"
-done < "$ALL_ONB"
-
-func_body() { sed -n "$3,$4p" "$1"; }
-
-# --- Bug 1: deferral must not commit the staged source configuration -------
-# A "commit" is the real primitive: writing the default Mode through Core Data
-# or re-pointing the active mode. Reachability is computed over the onboarding
-# call graph, but never propagated *through* a completion-named function
-# (completion is allowed to commit; deferral and plain forward nav are not).
-COMMIT_PRIMITIVE='createOrUpdateMode\(|selectMode\(|findDefaultMode\(|applySelectedSourceToDefaultMode\('
-COMPLETION_NAME='complete|finish|confirmDone'
-ROLLBACK_NAME='rollback|restore|revert|undo'
-DEFERRAL_NAME='skip|setUpLater|setupLater|later|defer|dismiss|cancelOnboarding|onboardingCancel'
-FORWARD_NAME='navigateForward|goForward|advance|nextStep|continueTapped|forward'
-
-# Completion-named and rollback-named functions are ALLOWED to write the default
-# Mode (completion is the commit boundary; rollback restores the prior mode), so
-# they are never treated as illegal committers and never propagate to callers.
-COMMITTERS="$TMP/committers.txt"; : > "$COMMITTERS"
-COMPLETERS="$TMP/completers.txt"; : > "$COMPLETERS"
-ROLLBACKERS="$TMP/rollbackers.txt"; : > "$ROLLBACKERS"
-while IFS='|' read -r f name start end; do
-    [ -z "$f" ] && continue
-    if func_body "$f" "$name" "$start" "$end" | grep -qE "$COMMIT_PRIMITIVE"; then
-        if echo "$name" | grep -qiE "$ROLLBACK_NAME"; then
-            echo "$name" >> "$ROLLBACKERS"
-        elif echo "$name" | grep -qiE "$COMPLETION_NAME"; then
-            echo "$name" >> "$COMPLETERS"
-        else
-            echo "$name|$f|$start" >> "$COMMITTERS"
-        fi
-    fi
-done < "$FUNCS"
-
-# Transitive closure (3 levels), skipping allowed-name intermediaries.
-for _ in 1 2 3; do
-    while IFS='|' read -r f name start end; do
-        [ -z "$f" ] && continue
-        grep -q "^$name|" "$COMMITTERS" && continue
-        echo "$name" | grep -qiE "$COMPLETION_NAME|$ROLLBACK_NAME" && continue
-        body="$(func_body "$f" "$name" "$start" "$end")"
-        while IFS='|' read -r cname _cf _cs; do
-            [ -z "$cname" ] && continue
-            [ "$cname" = "$name" ] && continue
-            if printf '%s' "$body" | grep -qE "(^|[^A-Za-z0-9_.])$cname[[:space:]]*\("; then
-                echo "$name|$f|$start" >> "$COMMITTERS"
-                break
-            fi
-        done < "$COMMITTERS"
-    done < "$FUNCS"
-    sort -u "$COMMITTERS" -o "$COMMITTERS"
-done
-
-BUG1="$TMP/bug1.txt"; : > "$BUG1"
-while IFS='|' read -r f name start end; do
-    [ -z "$f" ] && continue
-    if echo "$name" | grep -qiE "$DEFERRAL_NAME"; then
-        if grep -q "^$name|" "$COMMITTERS"; then
-            echo "${f#$REPO_ROOT/}:$start: deferral func $name() reaches a default-Mode write" >> "$BUG1"
-            continue
-        fi
-        body="$(func_body "$f" "$name" "$start" "$end")"
-        while IFS= read -r cname; do
-            [ -z "$cname" ] && continue
-            if printf '%s' "$body" | grep -qE "(^|[^A-Za-z0-9_.])$cname[[:space:]]*\("; then
-                echo "${f#$REPO_ROOT/}:$start: deferral func $name() calls committing func $cname()" >> "$BUG1"
-                break
-            fi
-        done < "$COMPLETERS"
-    elif echo "$name" | grep -qiE "$FORWARD_NAME"; then
-        if grep -q "^$name|" "$COMMITTERS"; then
-            echo "${f#$REPO_ROOT/}:$start: forward-nav func $name() commits the staged source before completion" >> "$BUG1"
-        fi
-    fi
-done < "$FUNCS"
-
-if [ -s "$BUG1" ]; then
-    fail "BUG 1 regression: Set Up Later / forward navigation can mutate production state"
-    show_hits "$BUG1" 8
-    detail "stage the source configuration and commit it only at explicit completion, or roll back on deferral"
-else
-    pass "BUG 1 guard: no deferral or forward-nav path reaches a default-Mode write"
-    [ -s "$COMPLETERS" ] && detail "commit boundary: $(tr '\n' ' ' < "$COMPLETERS")"
-    [ -s "$ROLLBACKERS" ] && detail "rollback path: $(tr '\n' ' ' < "$ROLLBACKERS") (exempt by name, review once)"
-    if ! all_onb_args grep -qiE 'rollback|restoreSnapshot|revertStaged|stagedSource|pendingSource|PendingSourceCommit'; then
-        warn "no staged-commit or rollback vocabulary found (stagedSource / pendingSource / rollback); confirm the commit boundary exists"
-    fi
-fi
-
-# --- Bug 2: Parakeet download errors must be surfaced ----------------------
-# `$errorMessage` (the Combine projected value) counts too: publishing the
-# manager's error into the flow is exactly how it reaches the setup screen.
-WHISPER_ERR=$(all_onb_args grep -nHE 'whisper[A-Za-z]*Manager\.\$?errorMessage|whisper[A-Za-z]*\.\$?errorMessage' | head -3)
-PARAKEET_ERR=$(all_onb_args grep -nHE 'parakeet[A-Za-z]*Manager\.\$?errorMessage|parakeet[A-Za-z]*\.\$?errorMessage|parakeetError' | head -3)
-if [ -n "$PARAKEET_ERR" ]; then
-    pass "BUG 2 guard: the setup error surface reads ParakeetModelManager's errorMessage"
-    detail "$(printf '%s' "$PARAKEET_ERR" | head -1)"
-elif [ -n "$WHISPER_ERR" ]; then
-    fail "BUG 2 regression: only WhisperModelManager.errorMessage is rendered; Parakeet download failures stay invisible"
-    detail "$(printf '%s' "$WHISPER_ERR" | head -1)"
-else
-    fail "BUG 2 regression: no model-download error is surfaced at all in the onboarding setup step"
-fi
-
-# --- Bug 3: cloud activation must not outlive the sheet -------------------
-ACT="$TMP/activate.txt"
-all_onb_args grep -nHE 'activateLicense[[:space:]]*\(' > "$ACT"
-if [ ! -s "$ACT" ]; then
-    warn "BUG 3 guard: no activateLicense( call site found in the onboarding views; confirm the Cloud branch still activates"
-else
-    BUG3="$TMP/bug3.txt"; : > "$BUG3"
-    while IFS= read -r hit; do
-        [ -z "$hit" ] && continue
-        f="${hit%%:*}"; rest="${hit#*:}"; ln="${rest%%:*}"
-        # Enclosing function body, or a +/- window if we cannot resolve one.
-        fstart=""; fend=""
-        while IFS='|' read -r ff fname fs fe; do
-            [ "$ff" = "$f" ] || continue
-            if [ "$ln" -ge "$fs" ] && [ "$ln" -le "$fe" ]; then fstart="$fs"; fend="$fe"; fi
-        done < "$FUNCS"
-        if [ -z "$fstart" ]; then
-            fstart=$((ln - 10)); [ "$fstart" -lt 1 ] && fstart=1
-            fend=$((ln + 14))
-        fi
-        body="$(sed -n "${fstart},${fend}p" "$f")"
-        lo=$((ln - 4)); [ "$lo" -lt 1 ] && lo=1
-        near="$(sed -n "${lo},${ln}p" "$f")"
-        BARE_TASK=0
-        printf '%s' "$near" | grep -qE '(^|[^=])[[:space:]]*Task[[:space:]]*(\.detached)?[[:space:]]*\{' \
-            && ! printf '%s' "$near" | grep -qE '=[[:space:]]*Task' && BARE_TASK=1
-        GUARDED=0
-        # Only the enclosing function counts: a tracked Task somewhere else in the
-        # onboarding code must not excuse an untracked one here.
-        printf '%s' "$body" | grep -qE 'Task\.isCancelled|isCancelled|activationTask|\.cancel\(\)|guard[^\n]*(isActive|isPresented|!isDismissed|generation|token)' && GUARDED=1
-        if [ "$BARE_TASK" -eq 1 ] && [ "$GUARDED" -eq 0 ]; then
-            echo "${f#$REPO_ROOT/}:$ln: bare unstructured Task around activateLicense with no cancellation or dismissal guard" >> "$BUG3"
-        fi
-    done < "$ACT"
-    if [ -s "$BUG3" ]; then
-        fail "BUG 3 regression: cloud activation can complete after the user leaves onboarding"
-        show_hits "$BUG3" 6
-        detail "hold the Task on the view model, cancel it on dismissal, and guard the post-await commit"
-    else
-        pass "BUG 3 guard: every activateLicense call site is tracked, cancellable or dismissal guarded"
-    fi
-fi
-
-# Paid moat: no client side entitlement bypass may be introduced here.
-HITS="$TMP/bypass.txt"
-all_onb_args grep -nHiE 'bypassLicense|skipLicenseCheck|fakeLicense|testLicenseKey|debugEntitlement|forceEntitled|HYPERWHISPER_DEBUG_LICENSE' > "$HITS"
-if [ -s "$HITS" ]; then
-    fail "possible client-side entitlement bypass in onboarding (Cloud entitlement is enforced server side)"
-    show_hits "$HITS" 6
-else
-    pass "no client-side entitlement bypass in the onboarding views"
-fi
-
-fi # ALL_ONB_COUNT > 0
-
-# --- Bug 4: real onboarding coverage in hyperwhisperTests -----------------
-ONB_TESTS="$TMP/onb_tests.txt"
-: > "$ONB_TESTS"
-if [ -d "$TESTS_DIR" ]; then
-    # Prefer files whose NAME is about onboarding; only fall back to files that
-    # merely mention it, so an unrelated suite cannot satisfy this gate quietly.
-    find "$TESTS_DIR" -name '*Onboarding*.swift' -type f > "$ONB_TESTS"
-    if [ ! -s "$ONB_TESTS" ]; then
-        grep -rlE 'Onboarding|onboarding' "$TESTS_DIR" --include='*.swift' 2>/dev/null > "$ONB_TESTS"
-        [ -s "$ONB_TESTS" ] && warn "no hyperwhisperTests file is named *Onboarding*Tests.swift; falling back to files that merely mention onboarding"
-    fi
-fi
-if [ ! -s "$ONB_TESTS" ]; then
-    fail "BUG 4 regression: hyperwhisperTests contains no onboarding tests at all"
-else
-    TEST_FN_COUNT=$(tr '\n' '\0' < "$ONB_TESTS" | xargs -0 grep -hcE '(func[[:space:]]+test[A-Za-z0-9_]*\(|@Test)' 2>/dev/null | awk '{s+=$1} END{print s+0}')
-    MISSING_TOPICS=""
-    check_topic() {
-        if ! tr '\n' '\0' < "$ONB_TESTS" | xargs -0 grep -qiE "$2" 2>/dev/null; then
-            MISSING_TOPICS="$MISSING_TOPICS $1"
-        fi
-    }
-    check_topic "step-gating"        'canContinue|gating|stepGat|advanc|cannotContinue'
-    check_topic "permission-recovery" 'permission'
-    check_topic "source-cloud"        'cloud'
-    check_topic "source-onDevice"     'onDevice|on_device|parakeet|whisper'
-    check_topic "source-apiKey"       'apiKey|api_key|provider|byok'
-    check_topic "download-failure"    'downloadFail|failedDownload|downloadError|errorMessage|failure'
-    check_topic "microphone"          'microphone|inputLevel|mic'
-    check_topic "setUpLater-rollback" 'rollback|setUpLater|setupLater|skip|defer'
-    check_topic "completion"          'complet|finish|\bdone\b'
-    N_MISSING=$(echo "$MISSING_TOPICS" | wc -w | tr -d ' ')
-    info "onboarding test files: $(tr '\n' ' ' < "$ONB_TESTS" | sed "s#$REPO_ROOT/##g")"
-    if [ "$TEST_FN_COUNT" -lt 8 ]; then
-        fail "BUG 4 regression: only $TEST_FN_COUNT onboarding test function(s) in hyperwhisperTests (need real coverage, at least 8)"
-    elif [ "$N_MISSING" -ge 3 ]; then
-        fail "BUG 4 regression: $TEST_FN_COUNT onboarding tests but $N_MISSING required topic(s) uncovered:$MISSING_TOPICS"
-    else
-        pass "BUG 4 guard: $TEST_FN_COUNT onboarding test function(s) in hyperwhisperTests"
-        [ -n "$MISSING_TOPICS" ] && warn "onboarding topic(s) not obviously covered (name matching is heuristic):$MISSING_TOPICS"
-    fi
-fi
-
-# ===========================================================================
-head1 "5. Build and unit tests"
+head1 "4. Build and unit tests"
 # ===========================================================================
 
 note "hyperwhisperUITests are NOT run by this script. The XCUITest runner is"
