@@ -41,9 +41,11 @@ public class PostProcessingService : IDisposable
     /// <summary>
     /// Output-token cap used for reasoning models where an explicit cap is required to
     /// keep hidden chain-of-thought from starving visible output (e.g. Anthropic, and
-    /// Groq's gpt-oss models — see issue #98). Shared so the two callers can't drift.
+    /// the Groq/Cerebras gpt-oss models — see issue #98). Shared so callers can't drift.
+    /// Internal (not private) so <see cref="OpenAICompatibleProviderExtensions.MaxOutputTokens"/>
+    /// can reference it too.
     /// </summary>
-    private const int DefaultReasoningOutputTokenCap = 8192;
+    internal const int DefaultReasoningOutputTokenCap = 8192;
 
     // =========================================================================
     // HTTP CLIENT
@@ -363,13 +365,13 @@ public class PostProcessingService : IDisposable
         string userMessage,
         CancellationToken cancellationToken)
     {
-        // Groq's server default (2,048 completion tokens) is shared between visible
-        // output and gpt-oss's hidden reasoning tokens, so long dictations can exhaust
-        // the budget on reasoning alone and get truncated (issue #98). Cap explicitly
-        // for Groq only — other OpenAI-compatible providers keep "use model max".
-        int? maxOutputTokens = provider == OpenAICompatibleProvider.Groq
-            ? DefaultReasoningOutputTokenCap
-            : null;
+        // Groq and Cerebras both serve the same gpt-oss model family, whose server
+        // default (2,048 completion tokens) is shared between visible output and
+        // hidden reasoning tokens — long dictations can exhaust the budget on
+        // reasoning alone and get truncated (issue #98). Cap explicitly for those
+        // two; other OpenAI-compatible providers keep "use model max". See
+        // <see cref="OpenAICompatibleProviderExtensions.MaxOutputTokens"/>.
+        int? maxOutputTokens = provider.MaxOutputTokens();
 
         using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, provider.Endpoint());
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -604,5 +606,19 @@ internal static class OpenAICompatibleProviderExtensions
         OpenAICompatibleProvider.Cerebras => "https://api.cerebras.ai/v1/chat/completions",
         OpenAICompatibleProvider.Mistral => "https://api.mistral.ai/v1/chat/completions",
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
+    };
+
+    /// <summary>
+    /// Groq and Cerebras both serve the same gpt-oss model family, whose server
+    /// default (2,048 completion tokens) is shared between visible output and
+    /// hidden reasoning tokens — long dictations can exhaust the budget on
+    /// reasoning alone and get truncated (issue #98). Returns the explicit cap for
+    /// those two providers; <c>null</c> for everyone else, which keeps "use model max".
+    /// </summary>
+    public static int? MaxOutputTokens(this OpenAICompatibleProvider provider) => provider switch
+    {
+        OpenAICompatibleProvider.Groq or OpenAICompatibleProvider.Cerebras
+            => PostProcessingService.DefaultReasoningOutputTokenCap,
+        _ => null
     };
 }

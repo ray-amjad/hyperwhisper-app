@@ -1,6 +1,7 @@
 // CEREBRAS LLM CLIENT
 
 import { computeCerebrasChatCost, type GroqUsage } from '../lib/cost-calculator';
+import { CEREBRAS_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import type { CorrectionRequestPayload } from './groq-llm';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
@@ -23,7 +24,13 @@ export async function requestCerebrasChat(
       providerTag: 'cerebras',
       errorLogLabel: 'Cerebras API',
       errorChatLabel: 'Cerebras chat',
-      buildBody: (body, model) => ({ model, ...body, reasoning_effort: 'low', stream: false }),
+      buildBody: (body, model) => ({
+        model,
+        ...body,
+        reasoning_effort: 'low',
+        stream: false,
+        max_completion_tokens: CEREBRAS_MAX_COMPLETION_TOKENS,
+      }),
       computeCost: computeCerebrasChatCost,
     },
     payload,

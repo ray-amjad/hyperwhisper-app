@@ -359,14 +359,14 @@ class AIPostProcessor: ObservableObject {
                 "model": languageModel,
                 "messages": messages,
             ]
-            if provider == .groq {
-                // Groq's server default (2,048 completion tokens) is shared between
-                // visible output and gpt-oss's hidden reasoning tokens, so long
-                // dictations can exhaust the budget on reasoning alone and get
-                // truncated (issue #98). Cap explicitly for Groq only — other
-                // OpenAI-compatible providers keep "use model max". Groq's current
-                // OpenAI-aligned API uses `max_completion_tokens`, not the legacy
-                // `max_tokens`.
+            if provider == .groq || provider == .cerebras {
+                // Groq and Cerebras both serve the same gpt-oss model family, whose
+                // server default (2,048 completion tokens) is shared between visible
+                // output and hidden reasoning tokens, so long dictations can exhaust
+                // the budget on reasoning alone and get truncated (issue #98). Cap
+                // explicitly for those two — other OpenAI-compatible providers keep
+                // "use model max". Both use the current, OpenAI-aligned
+                // `max_completion_tokens` name, not the legacy `max_tokens`.
                 requestBody["max_completion_tokens"] = maxOutputTokens
             }
         }
