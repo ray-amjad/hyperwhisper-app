@@ -84,4 +84,77 @@ struct TranscriptionFillerWordTests {
                 == "I think we should go"
         )
     }
+
+    // MARK: - processConfirmedStreamingDelta (streaming confirmed-delta pipeline)
+
+    @Test func streamingDeltaStripsFillersWhenEnabledForEnglish() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh I think we should um go",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "so I think we should go")
+    }
+
+    @Test func streamingDeltaLeavesFillersWhenSettingDisabled() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh I think we should um go",
+            language: "en",
+            removeFillerWords: false,
+            vocabulary: []
+        )
+
+        #expect(result == "so uh I think we should um go")
+    }
+
+    @Test func streamingDeltaPreservesNonEnglishRealWordsEvenWhenEnabled() {
+        // "er"/"um" are real German words — the language gate inside
+        // removeFillerWords must still protect them here, even though the
+        // setting itself is enabled.
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "ich denke er ist groß",
+            language: "de",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "ich denke er ist groß")
+    }
+
+    @Test func streamingDeltaSkipsFillerRemovalWhenLanguageIsUnknown() {
+        // nil corresponds to auto-detect — ambiguous, so the pipeline leaves
+        // filler words untouched even with the setting enabled.
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh I think we should um go",
+            language: nil,
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "so uh I think we should um go")
+    }
+
+    @Test func streamingDeltaAppliesVoiceCommandsAfterFillerRemoval() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh new line let's continue",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "so \n\n let's continue")
+    }
+
+    @Test func streamingDeltaAppliesVocabularyAfterFillerRemovalAndVoiceCommands() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh kubernetes is great",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: [VocabularyEntrySnapshot(word: "kubernetes", replacement: "Kubernetes")]
+        )
+
+        #expect(result == "so Kubernetes is great")
+    }
 }

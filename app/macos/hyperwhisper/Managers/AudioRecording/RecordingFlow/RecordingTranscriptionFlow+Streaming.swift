@@ -438,18 +438,19 @@ extension RecordingTranscriptionFlow {
                     "🧩 Streaming final delta received: chars=\(text.count, privacy: .public) spaces=\(Self.whitespaceCount(text), privacy: .public) text=\(Self.diagnosticExcerpt(text), privacy: .public)"
                 )
 
-                // VOICE COMMAND PROCESSING:
-                // Detect and replace voice commands (e.g., "new line" → actual newlines)
-                // This must happen before accumulation so both history and display reflect it.
-                var processedText = TranscriptionTextProcessing.processVoiceCommands(text)
-
-                // Local streaming gets exact-vocab parity with batch: fast,
-                // deterministic substitutions on each confirmed delta.
+                // FILLER WORDS → VOICE COMMANDS → VOCABULARY:
+                // Mirrors the batch path's order (TranscriptionPipeline+Transcription.swift).
+                // Filler removal must run first so it sees the raw delta, and is
+                // gated on the same setting used by batch transcription. It's a
+                // no-op for non-English languages (see removeFillerWords doc).
                 // Phonetic matching and AI post-processing are deliberately
                 // skipped here (too slow / stream-incompatible).
-                if !localVocabulary.isEmpty {
-                    processedText = Self.applyStreamingVocabulary(processedText, vocabulary: localVocabulary)
-                }
+                let processedText = Self.processConfirmedStreamingDelta(
+                    text,
+                    language: streamingLanguage,
+                    removeFillerWords: self.settingsManager?.removeFillerWords ?? true,
+                    vocabulary: localVocabulary
+                )
 
                 // Accumulate for history + final paste
                 if !self.streamingAccumulatedText.isEmpty && !processedText.isEmpty {
@@ -852,6 +853,33 @@ extension RecordingTranscriptionFlow {
             updated = VocabularyProcessor.applyHardenedReplacement(to: updated, word: entry.word, replacement: replacement)
         }
         return updated
+    }
+
+    /// Confirmed-delta transform for streaming transcription: filler-word
+    /// removal → voice-command processing → vocabulary substitution, mirroring
+    /// the batch path's order (`TranscriptionPipeline+Transcription.swift`).
+    ///
+    /// Extracted as a pure static function so it's directly testable without
+    /// standing up `RecordingTranscriptionFlow`/`AppState`/`SettingsManager`.
+    /// Only ever call this on confirmed/final deltas — applying filler removal
+    /// to interim/partial text would cause words to visibly pop in and out as
+    /// the partial hypothesis changes.
+    static func processConfirmedStreamingDelta(
+        _ text: String,
+        language: String?,
+        removeFillerWords: Bool,
+        vocabulary: [VocabularyEntrySnapshot]
+    ) -> String {
+        let withoutFillers = removeFillerWords
+            ? TranscriptionTextProcessing.removeFillerWords(text, language: language)
+            : text
+        var processedText = TranscriptionTextProcessing.processVoiceCommands(withoutFillers)
+
+        if !vocabulary.isEmpty {
+            processedText = applyStreamingVocabulary(processedText, vocabulary: vocabulary)
+        }
+
+        return processedText
     }
 
     fileprivate func bestStreamingCommitText(for deliveryMode: StreamingDeliveryMode) -> String {
