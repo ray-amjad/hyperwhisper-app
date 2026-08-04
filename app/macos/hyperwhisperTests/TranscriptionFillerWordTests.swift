@@ -84,4 +84,116 @@ struct TranscriptionFillerWordTests {
                 == "I think we should go"
         )
     }
+
+    // MARK: - processConfirmedStreamingDelta (streaming confirmed-delta pipeline)
+
+    @Test func streamingDeltaStripsFillersWhenEnabledForEnglish() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh I think we should um go",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "so I think we should go")
+    }
+
+    @Test func streamingDeltaLeavesFillersWhenSettingDisabled() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh I think we should um go",
+            language: "en",
+            removeFillerWords: false,
+            vocabulary: []
+        )
+
+        #expect(result == "so uh I think we should um go")
+    }
+
+    @Test func streamingDeltaPreservesNonEnglishRealWordsEvenWhenEnabled() {
+        // "er"/"um" are real German words — the language gate inside
+        // removeFillerWords must still protect them here, even though the
+        // setting itself is enabled.
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "ich denke er ist groß",
+            language: "de",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "ich denke er ist groß")
+    }
+
+    @Test func streamingDeltaSkipsFillerRemovalWhenLanguageIsUnknown() {
+        // nil corresponds to auto-detect — ambiguous, so the pipeline leaves
+        // filler words untouched even with the setting enabled.
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh I think we should um go",
+            language: nil,
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "so uh I think we should um go")
+    }
+
+    @Test func streamingDeltaAppliesVoiceCommandsAfterFillerRemoval() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh new line let's continue",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+
+        #expect(result == "so \n\n let's continue")
+    }
+
+    @Test func streamingDeltaAppliesVocabularyAfterFillerRemovalAndVoiceCommands() {
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "so uh kubernetes is great",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: [VocabularyEntrySnapshot(word: "kubernetes", replacement: "Kubernetes")]
+        )
+
+        #expect(result == "so Kubernetes is great")
+    }
+
+    @Test func streamingDeltaRecapitalizesLeadingFillerOnlyForFirstConfirmedDelta() {
+        // The FIRST confirmed delta of a session mirrors the batch path: a
+        // leading filler really is a sentence opener, so the word after it
+        // should be recapitalized. isFirstConfirmedDelta defaults to true, so
+        // this matches existing call sites that don't pass it explicitly.
+        let first = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "um, the cat sat down",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+        #expect(first == "The cat sat down")
+
+        // A LATER delta is mid-transcript, not a new sentence — a leading
+        // filler there (e.g. following an earlier confirmed "I think") must
+        // not force-capitalize the next word into "I think This works".
+        let later = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "um, this works",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: [],
+            isFirstConfirmedDelta: false
+        )
+        #expect(later == "this works")
+    }
+
+    @Test func streamingDeltaLeavesAlreadyUppercaseLeadingWordAloneForLaterDeltas() {
+        // If the raw delta already opened uppercase, removeFillerWords didn't
+        // recapitalize anything — a later delta shouldn't force it lowercase.
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "Um, The cat sat down",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: [],
+            isFirstConfirmedDelta: false
+        )
+        #expect(result == "The cat sat down")
+    }
 }

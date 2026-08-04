@@ -12,9 +12,15 @@ namespace HyperWhisper.Services.LocalApi.Endpoints;
 /// `POST /post-process` — run free-form text through the same post-processing
 /// pipeline the GUI uses. Resolves the working Mode (saved id, preset, prompt,
 /// or per-call provider/model overrides), then dispatches directly through
-/// <see cref="PostProcessingService"/> — NOT the orchestrator, since the
-/// orchestrator's wrapping (vocabulary replacements, filler-word removal) is
-/// transcription-specific. Core wire shape matches macOS `PostProcessEndpoint`;
+/// <see cref="PostProcessingService.ProcessPreservingBreaksAsync"/> — NOT the
+/// orchestrator, since the orchestrator's wrapping (vocabulary replacements,
+/// filler-word removal) is transcription-specific and stays out of scope here.
+/// Dictated paragraph breaks ("new line" / "new paragraph") ARE preserved,
+/// matching the GUI pipeline (<see cref="Services.Transcription.TranscriptionOrchestrator"/>):
+/// the LLM can't be trusted to keep a mid-body break, so the text is pre-split
+/// on dictated commands, each segment is post-processed independently, and the
+/// breaks are restored afterwards — see <see cref="PostProcessingService.ProcessPreservingBreaksAsync"/>
+/// for the full rationale. Core wire shape matches macOS `PostProcessEndpoint`;
 /// Windows additionally accepts optional `applicationContext` and never gathers
 /// foreground app context automatically for API requests.
 /// </summary>
@@ -89,7 +95,7 @@ internal static class PostProcessEndpoints
                 PostProcessingResult result;
                 try
                 {
-                    result = await svc.ProcessAsync(
+                    result = await svc.ProcessPreservingBreaksAsync(
                         trimmedText,
                         workingMode,
                         req.ApplicationContext?.ToApplicationContext(),
@@ -109,6 +115,26 @@ internal static class PostProcessEndpoints
                         ex.Message);
                 }
                 var latencyMs = (int)Math.Round((DateTime.UtcNow - started).TotalMilliseconds);
+
+                // `result.AnyPartialFailure` covers the multi-segment case where
+                // some segments applied and at least one did not — `WasApplied`
+                // alone is OR-aggregated across segments and would otherwise
+                // report `ok: true` with a response that's silently a mix of
+                // correctly-processed and raw/unprocessed segment text. Several
+                // genuine per-segment failure paths inside PostProcessingService
+                // (empty HyperWhisperCloud response, unknown model, cancellation)
+                // never raise `WarningOccurred`, so this branch must not depend on
+                // `capturedWarning` being set — report failure whenever
+                // `AnyPartialFailure` is true regardless, falling back to a
+                // generic message when no specific warning was captured.
+                if (result.AnyPartialFailure)
+                {
+                    return LocalApiResponder.Failure(
+                        LocalApiErrorCode.TranscriptionFailed,
+                        !string.IsNullOrEmpty(capturedWarning)
+                            ? capturedWarning
+                            : "Post-processing partially failed: some segments were processed and at least one was not.");
+                }
 
                 if (!result.WasApplied)
                 {

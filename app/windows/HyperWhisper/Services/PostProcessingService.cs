@@ -96,10 +96,22 @@ public class PostProcessingService : IDisposable
 
         var processed = new List<string>(segments.Count);
         var anyApplied = false;
+        // Segments here are always non-empty (SplitOnDictatedBreaks filters those
+        // out) and share the same `mode`, so a per-segment ProcessAsync failure
+        // (WasApplied == false) can only be a genuine runtime failure (provider
+        // error, rejected/timed-out response, etc.) — never a settings-driven
+        // skip, since settings-driven skips (post-processing disabled, no
+        // provider, empty system prompt, ...) are uniform across every segment
+        // in a single call and would already make `anyApplied` false overall.
+        // Track that separately from the OR-aggregated `anyApplied` so a
+        // partial failure (some segments applied, at least one did not) isn't
+        // silently reported as a full success.
+        var anyFailed = false;
         foreach (var segment in segments)
         {
             var result = await ProcessAsync(segment, mode, applicationContext, cancellationToken);
             anyApplied |= result.WasApplied;
+            anyFailed |= !result.WasApplied;
             var trimmed = result.Text.Trim();
             if (trimmed.Length > 0)
             {
@@ -107,7 +119,7 @@ public class PostProcessingService : IDisposable
             }
         }
 
-        return new PostProcessingResult(string.Join("\n\n", processed), anyApplied);
+        return new PostProcessingResult(string.Join("\n\n", processed), anyApplied, AnyPartialFailure: anyApplied && anyFailed);
     }
 
     /// <summary>
@@ -592,7 +604,16 @@ public class PostProcessingService : IDisposable
     }
 }
 
-public readonly record struct PostProcessingResult(string Text, bool WasApplied)
+/// <param name="Text">The (possibly post-processed) text.</param>
+/// <param name="WasApplied">True if at least one LLM call actually ran and
+/// produced this text (OR-aggregated across segments for
+/// <see cref="PostProcessingService.ProcessPreservingBreaksAsync"/>).</param>
+/// <param name="AnyPartialFailure">True only for a multi-segment call where
+/// some segments applied and at least one did not — i.e. <paramref name="WasApplied"/>
+/// is `true` but the result is a mix of processed and raw/unprocessed segment
+/// text. Callers that only check <see cref="WasApplied"/> would otherwise
+/// treat this as a full success.</param>
+public readonly record struct PostProcessingResult(string Text, bool WasApplied, bool AnyPartialFailure = false)
 {
     public static PostProcessingResult Applied(string text) => new(text, true);
     public static PostProcessingResult Skipped(string text) => new(text, false);

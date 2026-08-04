@@ -23,6 +23,17 @@ import SwiftUI
 /// clobbered by a concurrent invocation.
 final class MutationSignal {
     var didMutate: Bool = false
+
+    /// Set by `performAIPostProcessingPreservingBreaks` only for its multi-segment,
+    /// Local-API-scoped code path (the branch that receives an explicit
+    /// `onSegmentTextUpdate`): `true` when at least one segment's own,
+    /// per-segment signal mutated the text and at least one other segment's did
+    /// not — i.e. `didMutate` is `true` but the result is a mix of processed and
+    /// raw/unprocessed segment text. `didMutate` alone can't tell this apart from
+    /// a full success because it is OR-aggregated (and never reset) across
+    /// segments. Left `false` for the single-segment path and for the in-app
+    /// pipeline's multi-segment branch, which doesn't need this distinction.
+    var anyPartialFailure: Bool = false
 }
 
 /// AI Post-Processor for transcribed text
@@ -487,17 +498,34 @@ class AIPostProcessor: ObservableObject {
     ///
     /// A transcript with no dictated break is a single segment and takes exactly the
     /// old path — one LLM call, no added latency for the common case.
+    ///
+    /// - Parameter mutationSignal: Optional request-scoped carrier for "did an LLM
+    ///   actually mutate this text?" — see `MutationSignal`. Pass one when callers
+    ///   can overlap (e.g. the Local API handling concurrent `/post-process` calls);
+    ///   the shared `didMutateLastRun` property is unreliable in that case. Defaults
+    ///   to `nil`, which allocates a private signal and still updates
+    ///   `didMutateLastRun` for the single-caller in-app pipeline.
+    /// - Parameter onSegmentTextUpdate: Optional request-scoped sink for
+    ///   per-segment streaming updates — see the shared-property hazard note
+    ///   below. Pass one when callers can overlap (e.g. the Local API); leave
+    ///   `nil` for the single in-app live-recording caller, which keeps using
+    ///   the shared `onStreamingTextUpdate` property as before.
     func performAIPostProcessingPreservingBreaks(
         text: String,
         mode: Mode?,
-        applicationContext: ApplicationContext? = nil
+        applicationContext: ApplicationContext? = nil,
+        mutationSignal: MutationSignal? = nil,
+        onSegmentTextUpdate: ((String) -> Void)? = nil
     ) async throws -> String {
+        let signal = mutationSignal ?? MutationSignal()
         let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(text)
         guard segments.count > 1 else {
             return try await performAIPostProcessingStreaming(
                 text: text,
                 mode: mode,
-                applicationContext: applicationContext
+                applicationContext: applicationContext,
+                mutationSignal: signal,
+                streamingTextUpdate: onSegmentTextUpdate
             )
         }
 
@@ -506,29 +534,81 @@ class AIPostProcessor: ObservableObject {
         // Each per-segment call restarts its own streaming buffer from "", so the
         // live preview would show only the segment in flight and drop the ones
         // already done. Re-emit the completed text ahead of each chunk.
-        let originalUpdate = onStreamingTextUpdate
-        defer { onStreamingTextUpdate = originalUpdate }
-
         var processed: [String] = []
         var anyMutated = false
-        for segment in segments {
-            let completed = processed.joined(separator: "\n\n")
-            onStreamingTextUpdate = { chunk in
-                let prefix = completed.isEmpty ? "" : completed + "\n\n"
-                originalUpdate?(prefix + chunk)
+
+        if let onSegmentTextUpdate {
+            // Per-call sink supplied (e.g. the Local API): route every segment's
+            // streaming updates through it directly, via `performAIPostProcessingStreaming`'s
+            // `streamingTextUpdate` override. Never touch the shared
+            // `onStreamingTextUpdate` instance property in this branch — that
+            // property is also the in-app live-recording UI preview callback,
+            // and reassigning it across `await` points is unsafe once calls can
+            // overlap (two concurrent `/post-process` requests, or an API call
+            // overlapping live in-app recording): each request's `defer` could
+            // otherwise restore a callback captured from a DIFFERENT,
+            // concurrently-running request, corrupting both previews.
+            // Per-segment failure tracking (Local API path only): `signal.didMutate`
+            // is OR-aggregated and never reset to `false`, so once one segment
+            // succeeds it stays `true` regardless of what later segments do —
+            // that hides a later segment silently falling back to raw text. Give
+            // each segment its OWN fresh signal so its outcome can be read in
+            // isolation, mirroring how `PostProcessingService.cs` tracks
+            // `anyApplied`/`anyFailed` per segment on the Windows side.
+            var anyFailed = false
+            for segment in segments {
+                let completed = processed.joined(separator: "\n\n")
+                let segmentSignal = MutationSignal()
+                let output = try await performAIPostProcessingStreaming(
+                    text: segment,
+                    mode: mode,
+                    applicationContext: applicationContext,
+                    mutationSignal: segmentSignal,
+                    streamingTextUpdate: { chunk in
+                        let prefix = completed.isEmpty ? "" : completed + "\n\n"
+                        onSegmentTextUpdate(prefix + chunk)
+                    }
+                )
+                anyMutated = anyMutated || segmentSignal.didMutate
+                anyFailed = anyFailed || !segmentSignal.didMutate
+                processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
             }
-            let output = try await performAIPostProcessingStreaming(
-                text: segment,
-                mode: mode,
-                applicationContext: applicationContext
-            )
-            anyMutated = anyMutated || didMutateLastRun
-            processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
+            // Segments here are always non-empty (`splitOnDictatedBreaks` filters
+            // those out) and share the same `mode`, so a per-segment failure
+            // (`!segmentSignal.didMutate`) can only be a genuine runtime failure —
+            // never a settings-driven skip, since settings-driven skips (post-
+            // processing off, no provider, etc.) are uniform across every segment
+            // and would already make `anyMutated` false overall.
+            signal.didMutate = anyMutated
+            signal.anyPartialFailure = anyMutated && anyFailed
+        } else {
+            // No per-call sink: this is the single in-app live-recording caller,
+            // which post-processes one recording at a time and never overlaps
+            // itself. Preserve the historical behavior of re-prefixing the
+            // shared `onStreamingTextUpdate` property so the live preview keeps
+            // showing already-completed segments as later ones stream in.
+            let originalUpdate = onStreamingTextUpdate
+            defer { onStreamingTextUpdate = originalUpdate }
+            for segment in segments {
+                let completed = processed.joined(separator: "\n\n")
+                onStreamingTextUpdate = { chunk in
+                    let prefix = completed.isEmpty ? "" : completed + "\n\n"
+                    originalUpdate?(prefix + chunk)
+                }
+                let output = try await performAIPostProcessingStreaming(
+                    text: segment,
+                    mode: mode,
+                    applicationContext: applicationContext,
+                    mutationSignal: signal
+                )
+                anyMutated = anyMutated || signal.didMutate
+                processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
+            }
         }
 
-        // `performAIPostProcessingStreaming` resets this per call, so the loop would
-        // leave only the last segment's verdict. The pipeline's "was it actually
-        // post-processed?" signal must reflect the whole run.
+        // The in-app pipeline still reads the shared instance property (see
+        // `TranscriptionPipeline+Transcription.swift`), so keep writing it for that
+        // caller. Callers that can overlap should rely on `signal.didMutate` instead.
         didMutateLastRun = anyMutated
         return processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
@@ -536,9 +616,26 @@ class AIPostProcessor: ObservableObject {
     /// Streaming variant of AI post-processing using OpenAI Chat Completions SSE
     /// Attempts streaming first; if it fails before any chunk arrives, falls back to non-streaming.
     /// If it fails after chunks arrived, throws `.streamingInterrupted` and keeps partial text in callbacks.
-    func performAIPostProcessingStreaming(text: String, mode: Mode?, applicationContext: ApplicationContext? = nil, mutationSignal: MutationSignal? = nil) async throws -> String {
+    /// - Parameter streamingTextUpdate: Optional per-call override for streaming
+    ///   text updates. When provided, streaming chunks are delivered to this
+    ///   closure instead of the shared `onStreamingTextUpdate` instance
+    ///   property — used by `performAIPostProcessingPreservingBreaks` so that
+    ///   overlapping requests (e.g. concurrent Local API calls) never mutate
+    ///   shared state. Defaults to `nil`, which preserves the historical
+    ///   behavior of calling the shared `onStreamingTextUpdate` property.
+    func performAIPostProcessingStreaming(text: String, mode: Mode?, applicationContext: ApplicationContext? = nil, mutationSignal: MutationSignal? = nil, streamingTextUpdate: ((String) -> Void)? = nil) async throws -> String {
         let signal = mutationSignal ?? MutationSignal()
         didMutateLastRun = false
+        // Route every in-function streaming update through this local helper
+        // instead of calling `onStreamingTextUpdate?(...)` directly, so a
+        // per-call override never needs to touch the shared instance property.
+        func emitStreamingUpdate(_ chunk: String) {
+            if let streamingTextUpdate {
+                streamingTextUpdate(chunk)
+            } else {
+                onStreamingTextUpdate?(chunk)
+            }
+        }
         // Only perform when enabled
         guard let mode = mode else { return text }
 
@@ -717,7 +814,7 @@ class AIPostProcessor: ObservableObject {
 
         // Prepare streaming UI state via callbacks
         onStreamingStateChange?(true)
-        onStreamingTextUpdate?("")
+        emitStreamingUpdate("")
 
         var buffer = ""
         var receivedAnyChunk = false
@@ -777,7 +874,7 @@ class AIPostProcessor: ObservableObject {
                     receivedAnyChunk = true
                     buffer += content
                     let display = TranscriptionTextProcessing.sanitizeStreamingBuffer(buffer)
-                    onStreamingTextUpdate?(display)
+                    emitStreamingUpdate(display)
                 }
                 if let finishReason = first["finish_reason"] as? String, !finishReason.isEmpty {
                     localLLMFinishReason = finishReason
@@ -809,7 +906,7 @@ class AIPostProcessor: ObservableObject {
             // raw transcript — the correct behavior, so don't hijack it.)
             if !sawTerminator && receivedAnyChunk {
                 AppLogger.transcription.warning("Streaming post-processing ended without terminator after partial output — delivering raw transcript · provider=\(provider.displayName, privacy: .public)")
-                onStreamingTextUpdate?("")
+                emitStreamingUpdate("")
                 onPostProcessingError?(.localRuntimeUnavailable(reason: "Local AI stopped before finishing"))
                 return trimmed
             }
@@ -836,7 +933,7 @@ class AIPostProcessor: ObservableObject {
                     reason = "Local AI returned an incomplete response"
                 }
                 AppLogger.transcription.warning("\(reason, privacy: .public) — delivering raw transcript · provider=\(provider.displayName, privacy: .public) · receivedAnyChunk=\(receivedAnyChunk) · bufferLen=\(buffer.count) · bufferPreview=\(bufferPreview, privacy: .public)")
-                onStreamingTextUpdate?("")
+                emitStreamingUpdate("")
                 onPostProcessingError?(.localRuntimeUnavailable(reason: reason))
                 return trimmed
             }
@@ -856,7 +953,7 @@ class AIPostProcessor: ObservableObject {
                 // deliver the RAW transcript instead of throwing .streamingInterrupted
                 // (which the error handler treats as a total failure and pastes nothing).
                 AppLogger.transcription.warning("Streaming interrupted after partial output — delivering raw transcript: \(error.localizedDescription, privacy: .public)")
-                onStreamingTextUpdate?("")
+                emitStreamingUpdate("")
                 onPostProcessingError?(.localRuntimeUnavailable(reason: error.localizedDescription))
                 return trimmed
             } else {

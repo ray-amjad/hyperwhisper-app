@@ -12,7 +12,7 @@ use crate::contract::{
     Body, Header, HttpMethod, HttpRequest, HttpResponse, Part, TranscribeParams, Transcript,
     TranscriptionError,
 };
-use crate::helpers::{multipart_field, multipart_file, resolve_mime, vocabulary_csv, MULTIPART_BOUNDARY};
+use crate::helpers::{keyword_boost_terms, multipart_field, multipart_file, resolve_mime, MULTIPART_BOUNDARY};
 
 /// Which HTTP auth scheme a provider uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,21 +121,33 @@ pub fn build_openai_style(
     })
 }
 
-/// Compose the `prompt` field value: bare vocabulary CSV, then the caller's
-/// custom instructions (`params.prompt`), separated by a single space when both
-/// are present.
+/// Compose the `prompt` field value: vocabulary terms framed as
+/// `"Important terms to recognize: a, b, c. "` (comma-**space** join, trailing
+/// `". "`), then the caller's custom instructions (`params.prompt`).
+///
+/// The framing preamble matters: `gpt-4o-transcribe` / `gpt-4o-mini-transcribe`
+/// are LLM-based and treat `prompt` as an instruction rather than a pure
+/// decoding hint, so a bare comma-separated term list can be read as the task
+/// itself instead of a vocabulary hint (issue #76). Wrapping the terms in an
+/// explicit sentence restores the historical macOS/Windows framing and reads
+/// unambiguously as a hint on every provider using [`VocabularyMode::Prompt`].
 fn build_prompt(params: &TranscribeParams) -> String {
-    let csv = vocabulary_csv(&params.vocabulary);
+    let terms = keyword_boost_terms(&params.vocabulary, None);
+    let framed_vocab = if terms.is_empty() {
+        String::new()
+    } else {
+        format!("Important terms to recognize: {}. ", terms.join(", "))
+    };
     let custom = params
         .prompt
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty());
-    match (csv.is_empty(), custom) {
+    match (framed_vocab.is_empty(), custom) {
         (true, None) => String::new(),
         (true, Some(c)) => c.to_string(),
-        (false, None) => csv,
-        (false, Some(c)) => format!("{csv} {c}"),
+        (false, None) => framed_vocab,
+        (false, Some(c)) => format!("{framed_vocab}{c}"),
     }
 }
 
@@ -397,9 +409,12 @@ mod tests {
         let mut p = TranscribeParams::default();
         assert_eq!(build_prompt(&p), "");
         p.vocabulary = vec!["A".into(), "B".into()];
-        assert_eq!(build_prompt(&p), "A,B");
+        assert_eq!(build_prompt(&p), "Important terms to recognize: A, B. ");
         p.prompt = Some("  Be terse.  ".into());
-        assert_eq!(build_prompt(&p), "A,B Be terse.");
+        assert_eq!(
+            build_prompt(&p),
+            "Important terms to recognize: A, B. Be terse."
+        );
         p.vocabulary.clear();
         assert_eq!(build_prompt(&p), "Be terse.");
     }
