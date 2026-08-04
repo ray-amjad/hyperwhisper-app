@@ -128,6 +128,25 @@ internal static class Program
                     "OpenAI request should not contain max_completion_tokens");
             });
 
+            Run("Deepgram parses every message shape of its \"channel\" field", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+
+                // "channel":[0,1] — the array form used by the endpointing frames.
+                Assert(strategy.ParseMessage("""{"type":"SpeechStarted","channel":[0,1],"timestamp":1.2}""")
+                        is StreamingProviderEvent.Metadata,
+                    "SpeechStarted should parse to a Metadata event");
+                Assert(strategy.ParseMessage("""{"type":"UtteranceEnd","channel":[0,1],"last_word_end":2.5}""")
+                        is StreamingProviderEvent.Metadata,
+                    "UtteranceEnd should parse to a Metadata event");
+
+                // "channel":{...} — the transcript form, which must keep working.
+                Assert(strategy.ParseMessage(
+                        """{"type":"Results","is_final":true,"channel":{"alternatives":[{"transcript":"hello"}]}}""")
+                        is StreamingProviderEvent.FinalTranscript { Text: "hello" },
+                    "Results should still yield its transcript");
+            });
+
             // These checks call straight into the generated FFI surface
             // (HyperwhisperCoreMethods.EvaluateLlmResponseJson / EvaluateCompletion /
             // NormalizeTermination), which doubles as the uniffi API-checksum drift
@@ -378,6 +397,31 @@ internal static class Program
                 Assert(
                     !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: true),
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
+            });
+
+            Run("DeepgramStreamingStrategy.SessionStartsOnWebSocketOpen is true (regression for #100)", () =>
+            {
+                // Deepgram never sends its only session-shaped message (Metadata) until
+                // after audio is sent, so startup must not block waiting for it — the
+                // client should treat the WebSocket handshake itself as session-start.
+                // A regression to false here reintroduces a guaranteed 10s connect
+                // timeout on every Windows Deepgram live session.
+                var strategy = new DeepgramStreamingStrategy();
+                Assert(strategy.SessionStartsOnWebSocketOpen,
+                    "Deepgram must start streaming on WebSocket open, not wait for a Metadata message");
+            });
+
+            Run("DeepgramStreamingStrategy.ParseMessage still classifies a late Metadata message as SessionStarted", () =>
+            {
+                // Even though startup no longer blocks on Metadata, a Metadata message
+                // can still legitimately arrive later (after audio starts flowing) and
+                // must keep parsing correctly.
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"Metadata\",\"request_id\":\"abc-123\"}");
+
+                Assert(evt is StreamingProviderEvent.SessionStarted, $"expected SessionStarted, got {evt}");
+                var sessionStarted = (StreamingProviderEvent.SessionStarted)evt!;
+                Assert(sessionStarted.SessionId == "abc-123", $"expected request id 'abc-123', got '{sessionStarted.SessionId}'");
             });
 
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
