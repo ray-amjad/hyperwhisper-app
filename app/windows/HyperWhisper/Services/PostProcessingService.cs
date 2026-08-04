@@ -35,6 +35,17 @@ namespace HyperWhisper.Services;
 public class PostProcessingService : IDisposable
 {
     // =========================================================================
+    // CONSTANTS
+    // =========================================================================
+
+    /// <summary>
+    /// Output-token cap used for reasoning models where an explicit cap is required to
+    /// keep hidden chain-of-thought from starving visible output (e.g. Anthropic, and
+    /// Groq's gpt-oss models — see issue #98). Shared so the two callers can't drift.
+    /// </summary>
+    private const int DefaultReasoningOutputTokenCap = 8192;
+
+    // =========================================================================
     // HTTP CLIENT
     // =========================================================================
 
@@ -352,10 +363,18 @@ public class PostProcessingService : IDisposable
         string userMessage,
         CancellationToken cancellationToken)
     {
+        // Groq's server default (2,048 completion tokens) is shared between visible
+        // output and gpt-oss's hidden reasoning tokens, so long dictations can exhaust
+        // the budget on reasoning alone and get truncated (issue #98). Cap explicitly
+        // for Groq only — other OpenAI-compatible providers keep "use model max".
+        int? maxOutputTokens = provider == OpenAICompatibleProvider.Groq
+            ? DefaultReasoningOutputTokenCap
+            : null;
+
         using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, provider.Endpoint());
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = new StringContent(
-            BuildOpenAIRequestJson(model, systemPrompt, userMessage),
+            BuildOpenAIRequestJson(model, systemPrompt, userMessage, maxOutputTokens),
             Encoding.UTF8,
             "application/json"
         );
@@ -369,8 +388,27 @@ public class PostProcessingService : IDisposable
     internal static string BuildOpenAIRequestJson(
         string model,
         string systemPrompt,
-        string userMessage)
+        string userMessage,
+        int? maxOutputTokens = null)
     {
+        if (maxOutputTokens is int cap)
+        {
+            var requestBodyWithCap = new
+            {
+                model,
+                // Groq's OpenAI-compatible API uses the current, OpenAI-aligned
+                // `max_completion_tokens` name (not the legacy `max_tokens`).
+                max_completion_tokens = cap,
+                messages = new[]
+                {
+                    new { role = "system", content = systemPrompt },
+                    new { role = "user", content = userMessage }
+                }
+            };
+
+            return JsonSerializer.Serialize(requestBodyWithCap);
+        }
+
         var requestBody = new
         {
             model,
@@ -443,7 +481,7 @@ public class PostProcessingService : IDisposable
         var requestBody = new
         {
             model,
-            max_tokens = 8192,
+            max_tokens = DefaultReasoningOutputTokenCap,
             system = systemContent,
             messages = new[]
             {

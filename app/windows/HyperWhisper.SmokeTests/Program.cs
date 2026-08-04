@@ -127,6 +127,17 @@ internal static class Program
                     "OpenAI request should not contain max_completion_tokens");
             });
 
+            Run("Groq post-processing sets an output-token cap", () =>
+            {
+                var requestJson = PostProcessingService.BuildOpenAIRequestJson(
+                    "openai/gpt-oss-120b", "system", "user", maxOutputTokens: 8192);
+                using var request = JsonDocument.Parse(requestJson);
+
+                Assert(request.RootElement.TryGetProperty("max_completion_tokens", out var cap),
+                    "Groq request should contain max_completion_tokens");
+                Assert(cap.GetInt32() == 8192, $"Groq max_completion_tokens should be 8192, got {cap}");
+            });
+
             // These checks call straight into the generated FFI surface
             // (HyperwhisperCoreMethods.EvaluateLlmResponseJson / EvaluateCompletion /
             // NormalizeTermination), which doubles as the uniffi API-checksum drift
