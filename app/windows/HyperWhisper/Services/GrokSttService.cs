@@ -46,20 +46,6 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     private static readonly TimeSpan BaseRequestTimeout = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromMinutes(30);
 
-    // xAI only supports language-driven formatting for this subset. Unsupported
-    // language selections should omit both `language` and `format=true`.
-    private static readonly HashSet<string> SupportedFormattingLanguages = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ar", "cs", "da", "de", "en", "es", "fa", "fil", "fr", "hi",
-        "id", "it", "ja", "ko", "mk", "ms", "nl", "pl", "pt", "ro",
-        "ru", "sv", "th", "tr", "vi"
-    };
-
-    private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { "tl", "fil" }
-    };
-
     // Audio MIME types Grok accepts (containers auto-detected by API)
     private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -224,37 +210,8 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     }
 
 
-    public static bool TryGetSupportedFormattingLanguageCode(string? code, out string supportedCode)
-    {
-        supportedCode = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(code) || code.Equals("auto", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var normalized = NormalizeLanguageCode(code);
-        if (LanguageAliases.TryGetValue(normalized, out var alias))
-        {
-            normalized = alias;
-        }
-
-        if (!SupportedFormattingLanguages.Contains(normalized))
-        {
-            return false;
-        }
-
-        supportedCode = normalized;
-        return true;
-    }
-
-    private static string NormalizeLanguageCode(string code)
-    {
-        var trimmed = code.Trim();
-        var dashIdx = trimmed.IndexOf('-');
-        var normalized = dashIdx > 0 ? trimmed[..dashIdx] : trimmed;
-        return normalized.ToLowerInvariant();
-    }
+    public static bool TryGetSupportedFormattingLanguageCode(string? code, out string supportedCode) =>
+        XaiFormattingLanguages.TryGetSupportedCode(code, out supportedCode);
 
     // internal for SmokeTests.
     internal static TimeSpan GetRequestTimeout(long fileSizeBytes)
