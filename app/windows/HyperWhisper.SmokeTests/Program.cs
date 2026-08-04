@@ -24,6 +24,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
@@ -377,6 +378,31 @@ internal static class Program
                 Assert(
                     !AssemblyAIService.IsSyncEligible(Result<double>.Success(cap - 1), cap, isMedicalModel: true),
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
+            });
+
+            Run("DeepgramStreamingStrategy.SessionStartsOnWebSocketOpen is true (regression for #100)", () =>
+            {
+                // Deepgram never sends its only session-shaped message (Metadata) until
+                // after audio is sent, so startup must not block waiting for it — the
+                // client should treat the WebSocket handshake itself as session-start.
+                // A regression to false here reintroduces a guaranteed 10s connect
+                // timeout on every Windows Deepgram live session.
+                var strategy = new DeepgramStreamingStrategy();
+                Assert(strategy.SessionStartsOnWebSocketOpen,
+                    "Deepgram must start streaming on WebSocket open, not wait for a Metadata message");
+            });
+
+            Run("DeepgramStreamingStrategy.ParseMessage still classifies a late Metadata message as SessionStarted", () =>
+            {
+                // Even though startup no longer blocks on Metadata, a Metadata message
+                // can still legitimately arrive later (after audio starts flowing) and
+                // must keep parsing correctly.
+                var strategy = new DeepgramStreamingStrategy();
+                var evt = strategy.ParseMessage("{\"type\":\"Metadata\",\"request_id\":\"abc-123\"}");
+
+                Assert(evt is StreamingProviderEvent.SessionStarted, $"expected SessionStarted, got {evt}");
+                var sessionStarted = (StreamingProviderEvent.SessionStarted)evt!;
+                Assert(sessionStarted.SessionId == "abc-123", $"expected request id 'abc-123', got '{sessionStarted.SessionId}'");
             });
 
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
