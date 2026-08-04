@@ -87,7 +87,14 @@ enum PostProcessEndpoint {
                 text: text,
                 mode: working.mode,
                 applicationContext: ApplicationContext.none,
-                mutationSignal: mutationSignal
+                mutationSignal: mutationSignal,
+                // The endpoint returns the final accumulated `result` as a single
+                // HTTP response body — it never consumes intermediate streaming
+                // text. Pass a no-op sink so the per-segment loop never touches
+                // the shared `onStreamingTextUpdate` instance property (which is
+                // also the in-app live-recording preview callback); see
+                // `AIPostProcessor.performAIPostProcessingPreservingBreaks`.
+                onSegmentTextUpdate: { _ in }
             )
         } catch {
             if working.isTransient { cleanupTransientMode(working.mode) }
