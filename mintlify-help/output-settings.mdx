@@ -51,7 +51,7 @@ Enable **Remove filler words** to strip common speech fillers — "uh", "um", an
 - If the cursor is **mid-sentence** (preceded by regular text), the first letter is lowercased so the inserted text flows naturally.
 - If the cursor is at the **start of a sentence** (preceded by a sentence-ending character such as `.`, `!`, or `?`, or at the beginning of a field), the transcript is left unchanged.
 - **Acronyms are preserved** — if the first word begins with two or more uppercase letters (for example, "API" or "USA"), it is never lowercased.
-- **The first-person pronoun "I" is preserved** — "I", "I'm", "I'll", "I've", and "I'd" (including curly-apostrophe forms) are never lowercased, even mid-sentence.
+- **The first-person pronoun "I" is preserved on macOS** — "I", "I'm", "I'll", "I've", and "I'd" (including curly-apostrophe forms) are never lowercased, even mid-sentence. On Windows this guard isn't in place yet, so a mid-sentence "I" can still be lowercased.
 
 <Tabs>
   <Tab title="macOS">

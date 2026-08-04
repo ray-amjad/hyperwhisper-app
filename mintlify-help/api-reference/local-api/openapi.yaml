@@ -16,7 +16,8 @@ info:
     key, file not found, transcription engine errored, etc.) also return HTTP
     200 with `{"ok": false, "error": {"code": "...", "message": "...", "hint": "..."}}`.
     HTTP 4xx is reserved for protocol failures: malformed JSON (400), missing
-    or invalid bearer token (401).
+    or invalid bearer token (401), or a rejected Host/Origin header (403,
+    macOS only — a DNS-rebinding guard applied to every route).
   version: "1.0.0"
 servers:
   - url: http://127.0.0.1:{port}
@@ -397,6 +398,10 @@ components:
           type: string
         language:
           type: string
+        timestamp_granularities:
+          type: array
+          items: { type: string, enum: [segment, word] }
+          description: "macOS only. Opt-in caption timestamps — ['segment'], ['word'], or both. Populates segments/words on the response."
 
     TranscribeResponse:
       type: object
@@ -412,6 +417,31 @@ components:
             load_ms: { type: integer }
             decode_ms: { type: integer }
         latency_ms: { type: integer }
+        raw_text: { type: string, nullable: true, description: "macOS only. Set when timestamp_granularities was requested." }
+        segments:
+          type: array
+          nullable: true
+          description: "macOS only. Present when timestamp_granularities included 'segment'."
+          items: { $ref: '#/components/schemas/TranscribeSegment' }
+        words:
+          type: array
+          nullable: true
+          description: "macOS only. Present when timestamp_granularities included 'word'."
+          items: { $ref: '#/components/schemas/TranscribeWord' }
+
+    TranscribeSegment:
+      type: object
+      properties:
+        text: { type: string }
+        start: { type: number }
+        end: { type: number }
+
+    TranscribeWord:
+      type: object
+      properties:
+        word: { type: string }
+        start: { type: number }
+        end: { type: number }
 
     PostProcessRequest:
       type: object
@@ -455,6 +485,7 @@ components:
       properties:
         ok: { type: boolean }
         total: { type: integer }
+        returned: { type: integer }
         recordings:
           type: array
           items: { $ref: '#/components/schemas/RecordingDTO' }
