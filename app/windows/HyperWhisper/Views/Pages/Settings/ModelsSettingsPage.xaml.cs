@@ -707,32 +707,7 @@ public partial class ModelsSettingsPage : Page
 
     private static LibraryModel WithDownloadState(LibraryModel model, double progress)
     {
-        return new LibraryModel
-        {
-            Id = model.Id,
-            DisplayName = model.DisplayName,
-            ProviderName = model.ProviderName,
-            ProviderAssetName = model.ProviderAssetName,
-            Kind = model.Kind,
-            LocationKind = model.LocationKind,
-            StatusKind = LibraryModelStatusKind.Downloading,
-            Source = model.Source,
-            SizeDescription = model.SizeDescription,
-            Tag = model.Tag,
-            IsRecommended = model.IsRecommended,
-            Detail = model.Detail,
-            DetailToolTip = model.DetailToolTip,
-            RuntimeUsesGpu = model.RuntimeUsesGpu,
-            RuntimeBadgeToolTip = model.RuntimeBadgeToolTip,
-            StatusMessage = model.StatusMessage,
-            Speed = model.Speed,
-            Accuracy = model.Accuracy,
-            SupportsCustomVocabulary = model.SupportsCustomVocabulary,
-            AvailableViaHyperWhisperCloud = model.AvailableViaHyperWhisperCloud,
-            IsHyperWhisperProvider = model.IsHyperWhisperProvider,
-            DownloadProgress = progress,
-            Payload = model.Payload
-        };
+        return model with { StatusKind = LibraryModelStatusKind.Downloading, DownloadProgress = progress };
     }
 
     private void CancelDownload(string id)

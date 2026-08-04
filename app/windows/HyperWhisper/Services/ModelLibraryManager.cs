@@ -214,7 +214,7 @@ public sealed class ModelLibraryManager
                 Source = LibraryModelSource.LocalLlm,
                 SizeDescription = model.Size,
                 Speed = 3,
-                Accuracy = model.IsRecommended && runtimePlan.WillTryCuda ? 4 : 3,
+                Accuracy = model.IsRecommended ? 4 : 3,
                 Tag = model.IsRecommended && runtimePlan.WillTryCuda ? "Recommended" : null,
                 IsRecommended = model.IsRecommended,
                 Detail = detail,

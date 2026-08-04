@@ -33,7 +33,7 @@ public enum LibraryModelSource
     CustomEndpoint
 }
 
-public sealed class LibraryModel
+public sealed record LibraryModel
 {
     public required string Id { get; init; }
     public required string DisplayName { get; init; }
