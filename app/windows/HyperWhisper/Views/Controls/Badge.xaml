@@ -1,0 +1,17 @@
+<UserControl x:Class="HyperWhisper.Views.Controls.Badge"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Small rounded pill badge (macOS ModelRow tag/badge parity). Used for both
+         the plain Tag pill ("EN", "Verified", ...) and the local-LLM CPU/GPU
+         runtime badge in the Model Library. Text and foreground key are applied
+         in code-behind so the control stays correct when the host ListBox
+         recycles rows, mirroring GaugeBar. -->
+    <Border Background="{DynamicResource BadgeGrayBackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="9"
+            Padding="6,1"
+            VerticalAlignment="Center">
+        <TextBlock x:Name="BadgeText" FontSize="10"/>
+    </Border>
+</UserControl>

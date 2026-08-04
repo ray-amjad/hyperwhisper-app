@@ -412,30 +412,15 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                MaxWidth="280"
                                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                                    <Border Background="{DynamicResource BadgeGrayBackgroundBrush}"
-                                                            BorderBrush="{DynamicResource BorderBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="9"
-                                                            Padding="6,1"
-                                                            Margin="8,0,0,0"
-                                                            VerticalAlignment="Center"
-                                                            Visibility="{Binding TagVisibility}">
-                                                        <TextBlock Text="{Binding TagText}" FontSize="10"
-                                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                                    </Border>
+                                                    <controls:Badge Text="{Binding TagText}"
+                                                                    Margin="8,0,0,0"
+                                                                    Visibility="{Binding TagVisibility}"/>
                                                     <!-- Local-LLM CPU/GPU runtime backend badge (issue #77) -->
-                                                    <Border Background="{DynamicResource BadgeGrayBackgroundBrush}"
-                                                            BorderBrush="{DynamicResource BorderBrush}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="9"
-                                                            Padding="6,1"
-                                                            Margin="6,0,0,0"
-                                                            VerticalAlignment="Center"
-                                                            ToolTip="{Binding RuntimeBadgeToolTip}"
-                                                            Visibility="{Binding RuntimeBadgeVisibility}">
-                                                        <TextBlock Text="{Binding RuntimeBadgeText}" FontSize="10"
-                                                                   controls:BrushKeyBinder.ForegroundKey="{Binding RuntimeBadgeBrushKey}"/>
-                                                    </Border>
+                                                    <controls:Badge Text="{Binding RuntimeBadgeText}"
+                                                                    Margin="6,0,0,0"
+                                                                    ToolTip="{Binding RuntimeBadgeToolTip}"
+                                                                    Visibility="{Binding RuntimeBadgeVisibility}"
+                                                                    ForegroundKey="{Binding RuntimeBadgeBrushKey}"/>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding ProviderName}"
                                                            FontSize="11"

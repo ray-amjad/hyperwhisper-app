@@ -48,22 +48,28 @@ public sealed class LibraryModel
     public string? Detail { get; init; }
     public string? DetailToolTip { get; init; }
     /// <summary>
-    /// Short (single-word/phrase) CPU/GPU runtime backend badge for local LLM
-    /// rows only (e.g. "GPU" / "CPU only"), derived from the already-computed
-    /// <see cref="Services.LocalLlmGpuHelper.RuntimePlan.WillTryCuda"/>. Null
-    /// for every non-<see cref="LibraryModelSource.LocalLlm"/> row.
+    /// Intrinsic "recommended" flag from the underlying catalog entry (e.g.
+    /// <see cref="LocalLlmModelInfo.IsRecommended"/>), independent of
+    /// any display-only gating applied to <see cref="Tag"/>. Search matching
+    /// uses this so a model doesn't silently drop out of "recommended" search
+    /// results just because its display tag is conditionally hidden.
     /// </summary>
-    public string? RuntimeBadgeText { get; init; }
+    public bool IsRecommended { get; init; }
     /// <summary>
-    /// True when <see cref="RuntimeBadgeText"/> represents the "concerning"
-    /// CPU-fallback state, so the UI can style it distinctly (mirrors the
-    /// warning-vs-accent split in <see cref="LibraryModelViewModel.GaugeBrushKey"/>).
+    /// CPU/GPU runtime backend state for local LLM rows only — true when the
+    /// runtime plan will try CUDA, false for CPU fallback, null when there is
+    /// no badge to show (non-<see cref="LibraryModelSource.LocalLlm"/> rows, or
+    /// a local LLM row whose <see cref="LibraryModelStatusKind.Error"/> status
+    /// means it can't run at all). Single source of truth for both the badge
+    /// text ("GPU"/"CPU only") and its brush key, derived in
+    /// <see cref="LibraryModelViewModel"/>.
     /// </summary>
-    public bool RuntimeBadgeIsCpuFallback { get; init; }
+    public bool? RuntimeUsesGpu { get; init; }
     /// <summary>
-    /// Tooltip for <see cref="RuntimeBadgeText"/> — reuses the full-sentence
-    /// runtime guidance text (see <c>ModelLibraryManager.BuildLocalLlmRuntimeGuidance</c>)
+    /// Tooltip for the runtime badge — reuses the full-sentence runtime
+    /// guidance text (see <c>ModelLibraryManager.BuildLocalLlmRuntimeGuidance</c>)
     /// already used for <see cref="DetailToolTip"/>, rather than composing new text.
+    /// Null whenever <see cref="RuntimeUsesGpu"/> is null.
     /// </summary>
     public string? RuntimeBadgeToolTip { get; init; }
     public string? StatusMessage { get; init; }
@@ -136,11 +142,16 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string CompactMetadataText => $"{TypeText} - Fast {FormatRating(Model.Speed)} - Acc {FormatRating(Model.Accuracy)} - {LocationText}";
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
-    public string RuntimeBadgeText => Model.RuntimeBadgeText ?? "";
-    public Visibility RuntimeBadgeVisibility => string.IsNullOrWhiteSpace(Model.RuntimeBadgeText) ? Visibility.Collapsed : Visibility.Visible;
+    public string RuntimeBadgeText => Model.RuntimeUsesGpu switch
+    {
+        true => "GPU",
+        false => "CPU only",
+        null => ""
+    };
+    public Visibility RuntimeBadgeVisibility => Model.RuntimeUsesGpu.HasValue ? Visibility.Visible : Visibility.Collapsed;
     public string? RuntimeBadgeToolTip => string.IsNullOrWhiteSpace(Model.RuntimeBadgeToolTip) ? null : Model.RuntimeBadgeToolTip;
     // Runtime badge brush mirrors GaugeBrushKey: warning on CPU fallback, accent otherwise.
-    public string RuntimeBadgeBrushKey => Model.RuntimeBadgeIsCpuFallback ? "WarningBrush" : "AccentBrush";
+    public string RuntimeBadgeBrushKey => Model.RuntimeUsesGpu == true ? "AccentBrush" : "WarningBrush";
     public string Detail => Model.Detail ?? "";
     public string? DetailToolTip
     {

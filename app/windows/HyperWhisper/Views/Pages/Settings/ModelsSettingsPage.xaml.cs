@@ -463,7 +463,11 @@ public partial class ModelsSettingsPage : Page
         return model.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase)
             || model.ProviderName.Contains(search, StringComparison.OrdinalIgnoreCase)
             || (model.Detail?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
-            || (model.Tag?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false);
+            || (model.Tag?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+            // model.Tag is conditionally hidden (e.g. local-LLM CPU-fallback rows),
+            // so also match the intrinsic recommended flag against the literal word —
+            // otherwise "recommended" search silently drops the model on those machines.
+            || (model.IsRecommended && "Recommended".Contains(search, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool MatchesProvider(LibraryModel model, string provider) => provider switch
@@ -715,8 +719,11 @@ public partial class ModelsSettingsPage : Page
             Source = model.Source,
             SizeDescription = model.SizeDescription,
             Tag = model.Tag,
+            IsRecommended = model.IsRecommended,
             Detail = model.Detail,
             DetailToolTip = model.DetailToolTip,
+            RuntimeUsesGpu = model.RuntimeUsesGpu,
+            RuntimeBadgeToolTip = model.RuntimeBadgeToolTip,
             StatusMessage = model.StatusMessage,
             Speed = model.Speed,
             Accuracy = model.Accuracy,

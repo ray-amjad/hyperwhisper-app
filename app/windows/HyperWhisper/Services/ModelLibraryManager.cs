@@ -214,15 +214,18 @@ public sealed class ModelLibraryManager
                 Source = LibraryModelSource.LocalLlm,
                 SizeDescription = model.Size,
                 Speed = 3,
-                Accuracy = model.IsRecommended ? 4 : 3,
+                Accuracy = model.IsRecommended && runtimePlan.WillTryCuda ? 4 : 3,
                 Tag = model.IsRecommended && runtimePlan.WillTryCuda ? "Recommended" : null,
+                IsRecommended = model.IsRecommended,
                 Detail = detail,
                 DetailToolTip = unsupportedReason != null
                     ? $"{model.Description} {unsupportedReason}"
                     : $"{model.Description} Requires {model.RecommendedVramDisplay} VRAM. {runtimeGuidance}",
-                RuntimeBadgeText = runtimePlan.WillTryCuda ? "GPU" : "CPU only",
-                RuntimeBadgeIsCpuFallback = !runtimePlan.WillTryCuda,
-                RuntimeBadgeToolTip = runtimeGuidance,
+                // Suppress the runtime badge entirely for a row that's already flagged
+                // Error (unsupported architecture) — GPU/CPU-fallback guidance is
+                // meaningless for a model that can't run on this build at all.
+                RuntimeUsesGpu = unsupportedReason != null ? null : runtimePlan.WillTryCuda,
+                RuntimeBadgeToolTip = unsupportedReason != null ? null : runtimeGuidance,
                 SupportsCustomVocabulary = vocab,
                 AvailableViaHyperWhisperCloud = cloud,
                 Payload = model

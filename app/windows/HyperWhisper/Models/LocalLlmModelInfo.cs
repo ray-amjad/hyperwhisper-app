@@ -1,3 +1,5 @@
+using HyperWhisper.Services;
+
 namespace HyperWhisper.Models;
 
 /// <summary>
@@ -102,7 +104,22 @@ public class LocalLlmModelInfo
 
     public static LocalLlmModelInfo[] GetAll() => AllModels;
 
-    public static LocalLlmModelInfo GetDefault() => AllModels.First(m => m.IsRecommended);
+    /// <summary>
+    /// Auto-selected default model. Mirrors the Model Library's "Recommended"
+    /// gating (<see cref="LocalLlmGpuHelper.RuntimePlan.WillTryCuda"/>,
+    /// see <c>ModelLibraryManager.BuildLocalLlmRows</c>) so the model this
+    /// picks and the one the UI labels "Recommended" always agree: on
+    /// CPU-fallback machines the GPU-oriented pick isn't marked recommended in
+    /// the UI, so fall back to the smallest/fastest model instead, which is
+    /// also the most CPU-friendly choice.
+    /// </summary>
+    public static LocalLlmModelInfo GetDefault()
+    {
+        var runtimePlan = LocalLlmGpuHelper.GetRuntimePlan();
+        return runtimePlan.WillTryCuda
+            ? AllModels.First(m => m.IsRecommended)
+            : AllModels.OrderBy(m => m.SizeInBytes).First();
+    }
 
     public static LocalLlmModelInfo? GetById(string? id) =>
         string.IsNullOrEmpty(id) ? null : AllModels.FirstOrDefault(m => m.Id == id);
