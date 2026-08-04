@@ -487,17 +487,27 @@ class AIPostProcessor: ObservableObject {
     ///
     /// A transcript with no dictated break is a single segment and takes exactly the
     /// old path — one LLM call, no added latency for the common case.
+    ///
+    /// - Parameter mutationSignal: Optional request-scoped carrier for "did an LLM
+    ///   actually mutate this text?" — see `MutationSignal`. Pass one when callers
+    ///   can overlap (e.g. the Local API handling concurrent `/post-process` calls);
+    ///   the shared `didMutateLastRun` property is unreliable in that case. Defaults
+    ///   to `nil`, which allocates a private signal and still updates
+    ///   `didMutateLastRun` for the single-caller in-app pipeline.
     func performAIPostProcessingPreservingBreaks(
         text: String,
         mode: Mode?,
-        applicationContext: ApplicationContext? = nil
+        applicationContext: ApplicationContext? = nil,
+        mutationSignal: MutationSignal? = nil
     ) async throws -> String {
+        let signal = mutationSignal ?? MutationSignal()
         let segments = TranscriptionTextProcessing.splitOnDictatedBreaks(text)
         guard segments.count > 1 else {
             return try await performAIPostProcessingStreaming(
                 text: text,
                 mode: mode,
-                applicationContext: applicationContext
+                applicationContext: applicationContext,
+                mutationSignal: signal
             )
         }
 
@@ -506,6 +516,13 @@ class AIPostProcessor: ObservableObject {
         // Each per-segment call restarts its own streaming buffer from "", so the
         // live preview would show only the segment in flight and drop the ones
         // already done. Re-emit the completed text ahead of each chunk.
+        //
+        // NOTE: this reassigns the shared instance property `onStreamingTextUpdate`,
+        // which is also the in-app live-recording UI preview callback. That's a
+        // pre-existing shared-mutable-state hazard (the endpoint already indirectly
+        // touched this callback via the streaming call for local-LLM-provider
+        // requests) — not introduced by threading `mutationSignal` through here, and
+        // out of scope to fix in this change.
         let originalUpdate = onStreamingTextUpdate
         defer { onStreamingTextUpdate = originalUpdate }
 
@@ -520,15 +537,21 @@ class AIPostProcessor: ObservableObject {
             let output = try await performAIPostProcessingStreaming(
                 text: segment,
                 mode: mode,
-                applicationContext: applicationContext
+                applicationContext: applicationContext,
+                mutationSignal: signal
             )
-            anyMutated = anyMutated || didMutateLastRun
+            // `performAIPostProcessingStreaming` does not reset `signal.didMutate`
+            // back to false internally (only the legacy `didMutateLastRun` instance
+            // property) — accumulating via `signal` across segments is safe without
+            // extra reset logic, and (unlike the instance property) can't be
+            // clobbered by a concurrent overlapping call.
+            anyMutated = anyMutated || signal.didMutate
             processed.append(output.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
-        // `performAIPostProcessingStreaming` resets this per call, so the loop would
-        // leave only the last segment's verdict. The pipeline's "was it actually
-        // post-processed?" signal must reflect the whole run.
+        // The in-app pipeline still reads the shared instance property (see
+        // `TranscriptionPipeline+Transcription.swift`), so keep writing it for that
+        // caller. Callers that can overlap should rely on `signal.didMutate` instead.
         didMutateLastRun = anyMutated
         return processed.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
