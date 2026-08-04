@@ -3107,15 +3107,28 @@ public partial class MainViewModel : ViewModelBase
 
     private void MarkTranscriptAsNoSpeechFailure(Transcript transcript, string? transcriptionProvider = null)
     {
-        if (!string.IsNullOrWhiteSpace(transcriptionProvider))
+        try
         {
-            transcript.TranscriptionProvider = transcriptionProvider;
-        }
+            var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
+            if (persisted != null && persisted.Status != TranscriptStatus.Processing)
+            {
+                return;
+            }
 
-        transcript.Status = TranscriptStatus.Failed;
-        transcript.FailedReason = Loc.S("errors.noSpeechDetected");
-        transcript.Text = Loc.S("errors.noSpeechDetected");
-        HistoryService.Instance.UpdateTranscript(transcript);
+            if (!string.IsNullOrWhiteSpace(transcriptionProvider))
+            {
+                transcript.TranscriptionProvider = transcriptionProvider;
+            }
+
+            transcript.Status = TranscriptStatus.Failed;
+            transcript.FailedReason = Loc.S("errors.noSpeechDetected");
+            transcript.Text = Loc.S("errors.noSpeechDetected");
+            HistoryService.Instance.UpdateTranscript(transcript);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"MarkTranscriptAsNoSpeechFailure: Failed to mark transcript {transcript.Id} as failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -3170,15 +3183,28 @@ public partial class MainViewModel : ViewModelBase
 
     private void MarkTranscriptAsGenericFailure(Transcript transcript, Exception ex)
     {
-        if (ex is TranscriptionException txEx && !string.IsNullOrWhiteSpace(txEx.ProviderName))
+        try
         {
-            transcript.TranscriptionProvider = txEx.ProviderName;
-        }
+            var persisted = HistoryService.Instance.GetTranscript(transcript.Id);
+            if (persisted != null && persisted.Status != TranscriptStatus.Processing)
+            {
+                return;
+            }
 
-        transcript.Status = TranscriptStatus.Failed;
-        transcript.FailedReason = ex.Message;
-        transcript.Text = $"Transcription failed: {ex.Message}";
-        HistoryService.Instance.UpdateTranscript(transcript);
+            if (ex is TranscriptionException txEx && !string.IsNullOrWhiteSpace(txEx.ProviderName))
+            {
+                transcript.TranscriptionProvider = txEx.ProviderName;
+            }
+
+            transcript.Status = TranscriptStatus.Failed;
+            transcript.FailedReason = ex.Message;
+            transcript.Text = $"Transcription failed: {ex.Message}";
+            HistoryService.Instance.UpdateTranscript(transcript);
+        }
+        catch (Exception ex2)
+        {
+            LoggingService.Warn($"MarkTranscriptAsGenericFailure: Failed to mark transcript {transcript.Id} as failed: {ex2.Message}");
+        }
     }
 
     public async Task CleanupAsync()
