@@ -7,6 +7,12 @@ import { requestOpenAICompatibleChat } from './openai-compat-chat';
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 const GROQ_CHAT_MODEL = 'openai/gpt-oss-120b';
 
+// Groq's server default (2,048 completion tokens) is shared between visible
+// output and gpt-oss's hidden reasoning tokens, so long dictations can exhaust
+// the budget on reasoning alone and get truncated (issue #98). Cap explicitly,
+// matching the client-side (Windows/macOS BYOK) fix for the same model family.
+const GROQ_MAX_COMPLETION_TOKENS = 8192;
+
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
@@ -33,7 +39,13 @@ export async function requestGroqChat(
       providerTag: 'groq',
       errorLogLabel: 'Groq LLM API',
       errorChatLabel: 'Groq chat',
-      buildBody: (body, model) => ({ model, ...body, reasoning_effort: 'low', stream: false }),
+      buildBody: (body, model) => ({
+        model,
+        ...body,
+        reasoning_effort: 'low',
+        stream: false,
+        max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
+      }),
       computeCost: computeGroqChatCost,
     },
     payload,

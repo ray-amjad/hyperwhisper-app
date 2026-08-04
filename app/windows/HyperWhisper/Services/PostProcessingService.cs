@@ -391,33 +391,22 @@ public class PostProcessingService : IDisposable
         string userMessage,
         int? maxOutputTokens = null)
     {
-        if (maxOutputTokens is int cap)
+        var requestBody = new Dictionary<string, object?>
         {
-            var requestBodyWithCap = new
-            {
-                model,
-                // Groq's OpenAI-compatible API uses the current, OpenAI-aligned
-                // `max_completion_tokens` name (not the legacy `max_tokens`).
-                max_completion_tokens = cap,
-                messages = new[]
-                {
-                    new { role = "system", content = systemPrompt },
-                    new { role = "user", content = userMessage }
-                }
-            };
-
-            return JsonSerializer.Serialize(requestBodyWithCap);
-        }
-
-        var requestBody = new
-        {
-            model,
-            messages = new[]
+            ["model"] = model,
+            ["messages"] = new[]
             {
                 new { role = "system", content = systemPrompt },
                 new { role = "user", content = userMessage }
             }
         };
+
+        if (maxOutputTokens is int cap)
+        {
+            // Groq's OpenAI-compatible API uses the current, OpenAI-aligned
+            // `max_completion_tokens` name (not the legacy `max_tokens`).
+            requestBody["max_completion_tokens"] = cap;
+        }
 
         return JsonSerializer.Serialize(requestBody);
     }
