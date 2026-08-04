@@ -2233,19 +2233,21 @@ public partial class MainViewModel : ViewModelBase
         {
             HideOverlayRequested?.Invoke(this, EventArgs.Empty);
 
-            // Tracks whether a failure was actually persisted, so we don't show a
-            // misleading "transcription failed" toast/status when the guard inside
-            // Mark*Failure no-op'd because the transcript was already Completed.
-            var failureWritten = true;
-
             // Show user-friendly error toast based on exception type
             if (ex is TranscriptionException txEx)
             {
                 if (txEx.Code == TranscriptionErrorCode.NoSpeechDetected)
                 {
-                    if (transcript != null && !string.IsNullOrEmpty(permanentAudioPath))
+                    // No transcript/audio path to guard against means nothing was
+                    // suppressed, so the failure is treated as written and the user
+                    // still sees it.
+                    var failureWritten = transcript == null || string.IsNullOrEmpty(permanentAudioPath)
+                        || MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
+
+                    // Skip the diagnostic capture if the guard no-op'd because the
+                    // transcript was already persisted as Completed by another path.
+                    if (failureWritten && transcript != null && !string.IsNullOrEmpty(permanentAudioPath))
                     {
-                        failureWritten = MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
                         TranscriptionDiagnosticsService.CaptureNoSpeechDiagnostic(
                             transcriptId: transcript.Id,
                             audioPath: permanentAudioPath,
@@ -2270,12 +2272,8 @@ public partial class MainViewModel : ViewModelBase
                     return;
                 }
 
-                if (transcript != null)
-                {
-                    failureWritten = MarkTranscriptAsGenericFailure(transcript, txEx);
-                }
-
-                if (failureWritten)
+                var failureWrittenForTxEx = transcript == null || MarkTranscriptAsGenericFailure(transcript, txEx);
+                if (failureWrittenForTxEx)
                 {
                     var showSettings = txEx.Code is TranscriptionErrorCode.ApiKeyMissing or TranscriptionErrorCode.Unauthorized;
                     // CloudAccountRequired routes to the HW Cloud settings page
@@ -2286,26 +2284,19 @@ public partial class MainViewModel : ViewModelBase
                         showSettingsButton: showSettings || isCloudAccountError,
                         settingsSection: isCloudAccountError ? "Cloud" : null,
                         openApiKeysManager: showSettings));
+                    StatusText = Loc.S("status.failed", ex.Message);
                 }
             }
             else
             {
-                if (transcript != null)
-                {
-                    failureWritten = MarkTranscriptAsGenericFailure(transcript, ex);
-                }
-
+                var failureWritten = transcript == null || MarkTranscriptAsGenericFailure(transcript, ex);
                 if (failureWritten)
                 {
                     ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                         Loc.S("errors.transcriptionFailed", ex.Message),
                         showSettingsButton: false));
+                    StatusText = Loc.S("status.failed", ex.Message);
                 }
-            }
-
-            if (failureWritten)
-            {
-                StatusText = Loc.S("status.failed", ex.Message);
             }
         }
         finally
@@ -2847,21 +2838,23 @@ public partial class MainViewModel : ViewModelBase
                 if (ex is TranscriptionException txEx && txEx.Code == TranscriptionErrorCode.NoSpeechDetected && permanentPath != null)
                 {
                     var failureWritten = MarkTranscriptAsNoSpeechFailure(transcript, txEx.ProviderName);
-                    TranscriptionDiagnosticsService.CaptureNoSpeechDiagnostic(
-                        transcriptId: transcript.Id,
-                        audioPath: permanentPath,
-                        fallbackDurationSeconds: duration,
-                        mode: mode,
-                        diagnosticStage: "file_transcription",
-                        diagnosticSource: "provider_no_speech",
-                        transcriptionProviderDisplayName: txEx.ProviderName,
-                        providerDiagnostics: txEx.ProviderDiagnostics,
-                        exception: txEx);
 
-                    // Skip the toast if the guard no-op'd because the transcript was
-                    // already persisted as Completed by another path.
+                    // Skip the diagnostic capture and toast if the guard no-op'd
+                    // because the transcript was already persisted as Completed by
+                    // another path.
                     if (failureWritten)
                     {
+                        TranscriptionDiagnosticsService.CaptureNoSpeechDiagnostic(
+                            transcriptId: transcript.Id,
+                            audioPath: permanentPath,
+                            fallbackDurationSeconds: duration,
+                            mode: mode,
+                            diagnosticStage: "file_transcription",
+                            diagnosticSource: "provider_no_speech",
+                            transcriptionProviderDisplayName: txEx.ProviderName,
+                            providerDiagnostics: txEx.ProviderDiagnostics,
+                            exception: txEx);
+
                         ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                             txEx.GetUserMessage(),
                             showSettingsButton: false));
@@ -3159,8 +3152,12 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            // A genuine failure to persist is not the same as the guard's no-op
+            // above: here the write was attempted and blew up, so the caller
+            // should still surface a "transcription failed" toast rather than
+            // silently swallowing it as if nothing happened.
             LoggingService.Warn($"{caller}: Failed to mark transcript {transcript.Id} as failed: {ex.Message}");
-            return false;
+            return true;
         }
     }
 
