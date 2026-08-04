@@ -446,9 +446,18 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         }
     }
 
-    private string? AppendFinalTranscript(string text)
+    internal string? AppendFinalTranscript(string text)
     {
-        var processed = TranscriptionTextProcessing.ProcessVoiceCommands(text).Trim();
+        // Mirrors the batch path's order (TranscriptionOrchestrator.RunAsync):
+        // RemoveFillerWords -> ProcessVoiceCommands -> (vocabulary is applied earlier,
+        // upstream, for streaming). Only confirmed/final deltas reach this method
+        // (see HandleProviderEvent's FinalTranscript / FinalTranscriptAndSessionComplete
+        // cases) - interim/partial text must never be filler-stripped, to avoid words
+        // popping in/out as the partial hypothesis changes.
+        var withoutFillers = SettingsService.Instance.RemoveFillerWords
+            ? SmartSpacing.RemoveFillerWords(text)
+            : text;
+        var processed = TranscriptionTextProcessing.ProcessVoiceCommands(withoutFillers).Trim();
         if (string.IsNullOrEmpty(processed))
             return null;
 

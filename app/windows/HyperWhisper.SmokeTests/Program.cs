@@ -18,13 +18,16 @@
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.WebSockets;
 using System.Text.Json;
 using System.Windows;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
+using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
@@ -435,6 +438,51 @@ internal static class Program
                 Assert(vm.RetryCount == 2, $"view model shows retry count {vm.RetryCount}");
             });
 
+            Run("StreamingTranscriptionClient.AppendFinalTranscript applies filler-word removal to confirmed deltas, gated by RemoveFillerWords (mirrors TranscriptionOrchestrator's batch order)", () =>
+            {
+                // Issue #94: "Remove filler words" stripped fillers from batch
+                // transcription but was silently ignored in streaming. This pins the
+                // fix's wiring in AppendFinalTranscript — the only place confirmed/
+                // final streaming deltas are processed (never PartialTranscript/interim).
+                var originalRemoveFillerWords = SettingsService.Instance.RemoveFillerWords;
+                try
+                {
+                    const string raw = "I uh think this is, um, correct";
+                    var config = new StreamingSessionConfig(
+                        LicenseKey: null,
+                        DeviceId: null,
+                        Language: "en",
+                        Vocabulary: null,
+                        ApiKey: null,
+                        Model: null,
+                        FastFormatting: false);
+
+                    SettingsService.Instance.RemoveFillerWords = true;
+                    var enabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
+                    var expectedEnabled = TranscriptionTextProcessing
+                        .ProcessVoiceCommands(SmartSpacing.RemoveFillerWords(raw))
+                        .Trim();
+                    var actualEnabled = enabledClient.AppendFinalTranscript(raw);
+                    Assert(actualEnabled == expectedEnabled,
+                        $"expected filler words stripped ('{expectedEnabled}'), got '{actualEnabled}'");
+                    Assert(actualEnabled != null && !actualEnabled.Contains("uh") && !actualEnabled.Contains("um"),
+                        $"filler words were not removed from '{actualEnabled}'");
+
+                    SettingsService.Instance.RemoveFillerWords = false;
+                    var disabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
+                    var expectedDisabled = TranscriptionTextProcessing.ProcessVoiceCommands(raw).Trim();
+                    var actualDisabled = disabledClient.AppendFinalTranscript(raw);
+                    Assert(actualDisabled == expectedDisabled,
+                        $"expected filler words preserved when the setting is off ('{expectedDisabled}'), got '{actualDisabled}'");
+                    Assert(actualDisabled != null && actualDisabled.Contains("uh") && actualDisabled.Contains("um"),
+                        $"filler words should be preserved when RemoveFillerWords is disabled, got '{actualDisabled}'");
+                }
+                finally
+                {
+                    SettingsService.Instance.RemoveFillerWords = originalRemoveFillerWords;
+                }
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
@@ -563,6 +611,30 @@ internal static class Program
             Sends++;
             return _respond(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Minimal IStreamingProviderStrategy for exercising StreamingTranscriptionClient
+    /// methods (like AppendFinalTranscript) that never touch the provider strategy.
+    /// Any member a test does end up hitting should throw loudly rather than fake
+    /// network behavior.
+    /// </summary>
+    private sealed class NoOpStreamingProviderStrategy : IStreamingProviderStrategy
+    {
+        public string TranscriptionProviderLabel => "test";
+        public bool SupportsVocabulary => false;
+        public bool SessionStartsOnWebSocketOpen => false;
+        public int AudioSampleRate => 16000;
+
+        public Uri? BuildWebSocketUri(StreamingSessionConfig config) => throw new NotSupportedException();
+        public void ConfigureWebSocket(ClientWebSocket webSocket, StreamingSessionConfig config) => throw new NotSupportedException();
+        public (byte[] Data, WebSocketMessageType Type) EncodeAudioChunk(byte[] pcmData) => throw new NotSupportedException();
+        public StreamingProviderEvent? ParseMessage(string text) => throw new NotSupportedException();
+        public IReadOnlyList<StreamingStopStep> GetStopSequence() => throw new NotSupportedException();
+        public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) => throw new NotSupportedException();
+        public Task OnAudioSendOpportunityAsync(
+            Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private static void LoadApplicationResources(Application application)
