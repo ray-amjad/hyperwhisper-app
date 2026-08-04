@@ -215,11 +215,14 @@ public sealed class ModelLibraryManager
                 SizeDescription = model.Size,
                 Speed = 3,
                 Accuracy = model.IsRecommended ? 4 : 3,
-                Tag = model.IsRecommended ? "Recommended" : null,
+                Tag = model.IsRecommended && runtimePlan.WillTryCuda ? "Recommended" : null,
                 Detail = detail,
                 DetailToolTip = unsupportedReason != null
                     ? $"{model.Description} {unsupportedReason}"
                     : $"{model.Description} Requires {model.RecommendedVramDisplay} VRAM. {runtimeGuidance}",
+                RuntimeBadgeText = runtimePlan.WillTryCuda ? "GPU" : "CPU only",
+                RuntimeBadgeIsCpuFallback = !runtimePlan.WillTryCuda,
+                RuntimeBadgeToolTip = runtimeGuidance,
                 SupportsCustomVocabulary = vocab,
                 AvailableViaHyperWhisperCloud = cloud,
                 Payload = model

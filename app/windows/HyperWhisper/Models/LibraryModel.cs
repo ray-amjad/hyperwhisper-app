@@ -47,6 +47,25 @@ public sealed class LibraryModel
     public string? Tag { get; init; }
     public string? Detail { get; init; }
     public string? DetailToolTip { get; init; }
+    /// <summary>
+    /// Short (single-word/phrase) CPU/GPU runtime backend badge for local LLM
+    /// rows only (e.g. "GPU" / "CPU only"), derived from the already-computed
+    /// <see cref="Services.LocalLlmGpuHelper.RuntimePlan.WillTryCuda"/>. Null
+    /// for every non-<see cref="LibraryModelSource.LocalLlm"/> row.
+    /// </summary>
+    public string? RuntimeBadgeText { get; init; }
+    /// <summary>
+    /// True when <see cref="RuntimeBadgeText"/> represents the "concerning"
+    /// CPU-fallback state, so the UI can style it distinctly (mirrors the
+    /// warning-vs-accent split in <see cref="LibraryModelViewModel.GaugeBrushKey"/>).
+    /// </summary>
+    public bool RuntimeBadgeIsCpuFallback { get; init; }
+    /// <summary>
+    /// Tooltip for <see cref="RuntimeBadgeText"/> — reuses the full-sentence
+    /// runtime guidance text (see <c>ModelLibraryManager.BuildLocalLlmRuntimeGuidance</c>)
+    /// already used for <see cref="DetailToolTip"/>, rather than composing new text.
+    /// </summary>
+    public string? RuntimeBadgeToolTip { get; init; }
     public string? StatusMessage { get; init; }
     public int Speed { get; init; }
     public int Accuracy { get; init; }
@@ -117,6 +136,11 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string CompactMetadataText => $"{TypeText} - Fast {FormatRating(Model.Speed)} - Acc {FormatRating(Model.Accuracy)} - {LocationText}";
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
+    public string RuntimeBadgeText => Model.RuntimeBadgeText ?? "";
+    public Visibility RuntimeBadgeVisibility => string.IsNullOrWhiteSpace(Model.RuntimeBadgeText) ? Visibility.Collapsed : Visibility.Visible;
+    public string? RuntimeBadgeToolTip => string.IsNullOrWhiteSpace(Model.RuntimeBadgeToolTip) ? null : Model.RuntimeBadgeToolTip;
+    // Runtime badge brush mirrors GaugeBrushKey: warning on CPU fallback, accent otherwise.
+    public string RuntimeBadgeBrushKey => Model.RuntimeBadgeIsCpuFallback ? "WarningBrush" : "AccentBrush";
     public string Detail => Model.Detail ?? "";
     public string? DetailToolTip
     {
