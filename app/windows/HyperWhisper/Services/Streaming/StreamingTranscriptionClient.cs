@@ -454,9 +454,40 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         // (see HandleProviderEvent's FinalTranscript / FinalTranscriptAndSessionComplete
         // cases) - interim/partial text must never be filler-stripped, to avoid words
         // popping in/out as the partial hypothesis changes.
-        var withoutFillers = SettingsService.Instance.RemoveFillerWords
+        //
+        // SmartSpacing.RemoveFillerWords is a hardcoded-English regex with no
+        // language parameter (unlike the shared Rust remove_filler_words used on
+        // macOS/the batch path, which no-ops outside en/en-*) - gate it on the
+        // session's language here so a non-English stream doesn't get real words
+        // stripped (e.g. German "er"/"um").
+        var shouldRemoveFillers = _config.RemoveFillerWords && IsEnglishLanguage(_config.Language);
+
+        bool isFirstConfirmedDelta;
+        lock (_finalTranscriptLock)
+        {
+            isFirstConfirmedDelta = _finalTranscript.Length == 0;
+        }
+
+        var withoutFillers = shouldRemoveFillers
             ? SmartSpacing.RemoveFillerWords(text)
             : text;
+
+        // SmartSpacing.RemoveFillerWords recapitalizes the word after a leading
+        // filler on the assumption that it is processing the START of a whole
+        // transcript - true for the batch path, and for this session's very
+        // first confirmed delta. For later deltas that assumption is wrong: a
+        // filler opening a mid-transcript delta (e.g. "um, this works" following
+        // an earlier confirmed "I think") is not a sentence start, so undo the
+        // recapitalization it applied. Only reverse it when the raw delta itself
+        // opened lowercase - if the delta already opened uppercase, leave it.
+        if (shouldRemoveFillers &&
+            !isFirstConfirmedDelta &&
+            text.Length > 0 && char.IsLower(text[0]) &&
+            withoutFillers.Length > 0 && char.IsUpper(withoutFillers[0]))
+        {
+            withoutFillers = char.ToLower(withoutFillers[0]) + withoutFillers.Substring(1);
+        }
+
         var processed = TranscriptionTextProcessing.ProcessVoiceCommands(withoutFillers).Trim();
         if (string.IsNullOrEmpty(processed))
             return null;
@@ -474,6 +505,22 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         }
 
         return processed;
+    }
+
+    /// <summary>
+    /// True when <paramref name="language"/> is English ("en" or a regional
+    /// variant like "en-GB"). SmartSpacing.RemoveFillerWords has no language
+    /// parameter of its own (unlike the shared Rust remove_filler_words used on
+    /// macOS/the batch path) - callers must gate on this before invoking it for
+    /// any non-English, unset, or "auto" session.
+    /// </summary>
+    private static bool IsEnglishLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return false;
+
+        return language.Equals("en", StringComparison.OrdinalIgnoreCase) ||
+               language.StartsWith("en-", StringComparison.OrdinalIgnoreCase);
     }
 
     private string BuildLiveTranscript(string partial)

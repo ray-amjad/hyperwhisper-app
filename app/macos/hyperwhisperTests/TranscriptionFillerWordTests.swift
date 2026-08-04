@@ -157,4 +157,43 @@ struct TranscriptionFillerWordTests {
 
         #expect(result == "so Kubernetes is great")
     }
+
+    @Test func streamingDeltaRecapitalizesLeadingFillerOnlyForFirstConfirmedDelta() {
+        // The FIRST confirmed delta of a session mirrors the batch path: a
+        // leading filler really is a sentence opener, so the word after it
+        // should be recapitalized. isFirstConfirmedDelta defaults to true, so
+        // this matches existing call sites that don't pass it explicitly.
+        let first = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "um, the cat sat down",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: []
+        )
+        #expect(first == "The cat sat down")
+
+        // A LATER delta is mid-transcript, not a new sentence — a leading
+        // filler there (e.g. following an earlier confirmed "I think") must
+        // not force-capitalize the next word into "I think This works".
+        let later = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "um, this works",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: [],
+            isFirstConfirmedDelta: false
+        )
+        #expect(later == "this works")
+    }
+
+    @Test func streamingDeltaLeavesAlreadyUppercaseLeadingWordAloneForLaterDeltas() {
+        // If the raw delta already opened uppercase, removeFillerWords didn't
+        // recapitalize anything — a later delta shouldn't force it lowercase.
+        let result = RecordingTranscriptionFlow.processConfirmedStreamingDelta(
+            "Um, The cat sat down",
+            language: "en",
+            removeFillerWords: true,
+            vocabulary: [],
+            isFirstConfirmedDelta: false
+        )
+        #expect(result == "The cat sat down")
+    }
 }

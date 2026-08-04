@@ -438,49 +438,120 @@ internal static class Program
                 Assert(vm.RetryCount == 2, $"view model shows retry count {vm.RetryCount}");
             });
 
-            Run("StreamingTranscriptionClient.AppendFinalTranscript applies filler-word removal to confirmed deltas, gated by RemoveFillerWords (mirrors TranscriptionOrchestrator's batch order)", () =>
+            Run("StreamingTranscriptionClient.AppendFinalTranscript applies filler-word removal to confirmed deltas, gated by _config.RemoveFillerWords (mirrors TranscriptionOrchestrator's batch order)", () =>
             {
                 // Issue #94: "Remove filler words" stripped fillers from batch
                 // transcription but was silently ignored in streaming. This pins the
                 // fix's wiring in AppendFinalTranscript — the only place confirmed/
                 // final streaming deltas are processed (never PartialTranscript/interim).
-                var originalRemoveFillerWords = SettingsService.Instance.RemoveFillerWords;
-                try
-                {
-                    const string raw = "I uh think this is, um, correct";
-                    var config = new StreamingSessionConfig(
-                        LicenseKey: null,
-                        DeviceId: null,
-                        Language: "en",
-                        Vocabulary: null,
-                        ApiKey: null,
-                        Model: null,
-                        FastFormatting: false);
+                //
+                // RemoveFillerWords now flows through the immutable StreamingSessionConfig
+                // (built once by StreamingTranscriptionSessionFactory.Create), like every
+                // other per-session setting on this client — so exercising "on" vs "off"
+                // is just two configs, no global-singleton save/mutate/restore needed.
+                const string raw = "I uh think this is, um, correct";
+                var baseConfig = new StreamingSessionConfig(
+                    LicenseKey: null,
+                    DeviceId: null,
+                    Language: "en",
+                    Vocabulary: null,
+                    ApiKey: null,
+                    Model: null,
+                    FastFormatting: false,
+                    RemoveFillerWords: true);
 
-                    SettingsService.Instance.RemoveFillerWords = true;
-                    var enabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
-                    var expectedEnabled = TranscriptionTextProcessing
-                        .ProcessVoiceCommands(SmartSpacing.RemoveFillerWords(raw))
-                        .Trim();
-                    var actualEnabled = enabledClient.AppendFinalTranscript(raw);
-                    Assert(actualEnabled == expectedEnabled,
-                        $"expected filler words stripped ('{expectedEnabled}'), got '{actualEnabled}'");
-                    Assert(actualEnabled != null && !actualEnabled.Contains("uh") && !actualEnabled.Contains("um"),
-                        $"filler words were not removed from '{actualEnabled}'");
+                var enabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), baseConfig);
+                var expectedEnabled = TranscriptionTextProcessing
+                    .ProcessVoiceCommands(SmartSpacing.RemoveFillerWords(raw))
+                    .Trim();
+                var actualEnabled = enabledClient.AppendFinalTranscript(raw);
+                Assert(actualEnabled == expectedEnabled,
+                    $"expected filler words stripped ('{expectedEnabled}'), got '{actualEnabled}'");
+                Assert(actualEnabled != null && !actualEnabled.Contains("uh") && !actualEnabled.Contains("um"),
+                    $"filler words were not removed from '{actualEnabled}'");
 
-                    SettingsService.Instance.RemoveFillerWords = false;
-                    var disabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
-                    var expectedDisabled = TranscriptionTextProcessing.ProcessVoiceCommands(raw).Trim();
-                    var actualDisabled = disabledClient.AppendFinalTranscript(raw);
-                    Assert(actualDisabled == expectedDisabled,
-                        $"expected filler words preserved when the setting is off ('{expectedDisabled}'), got '{actualDisabled}'");
-                    Assert(actualDisabled != null && actualDisabled.Contains("uh") && actualDisabled.Contains("um"),
-                        $"filler words should be preserved when RemoveFillerWords is disabled, got '{actualDisabled}'");
-                }
-                finally
-                {
-                    SettingsService.Instance.RemoveFillerWords = originalRemoveFillerWords;
-                }
+                var disabledConfig = baseConfig with { RemoveFillerWords = false };
+                var disabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), disabledConfig);
+                var expectedDisabled = TranscriptionTextProcessing.ProcessVoiceCommands(raw).Trim();
+                var actualDisabled = disabledClient.AppendFinalTranscript(raw);
+                Assert(actualDisabled == expectedDisabled,
+                    $"expected filler words preserved when the setting is off ('{expectedDisabled}'), got '{actualDisabled}'");
+                Assert(actualDisabled != null && actualDisabled.Contains("uh") && actualDisabled.Contains("um"),
+                    $"filler words should be preserved when RemoveFillerWords is disabled, got '{actualDisabled}'");
+            });
+
+            Run("StreamingTranscriptionClient.AppendFinalTranscript gates filler removal on the session language (English-only regex, no language parameter)", () =>
+            {
+                // SmartSpacing.RemoveFillerWords is a hardcoded-English regex - unlike the
+                // shared Rust remove_filler_words used on macOS/batch, it has no language
+                // parameter of its own to no-op on non-English text. AppendFinalTranscript
+                // must gate the call itself so a German stream doesn't have real words
+                // ("er" = he, "um" = at) stripped just because the setting is on.
+                const string german = "ich denke er ist groß";
+                var germanConfig = new StreamingSessionConfig(
+                    LicenseKey: null,
+                    DeviceId: null,
+                    Language: "de",
+                    Vocabulary: null,
+                    ApiKey: null,
+                    Model: null,
+                    FastFormatting: false,
+                    RemoveFillerWords: true);
+
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), germanConfig);
+                var actual = client.AppendFinalTranscript(german);
+                Assert(actual == german,
+                    $"expected German real words preserved ('{german}'), got '{actual}'");
+            });
+
+            Run("StreamingTranscriptionClient.AppendFinalTranscript strips a confirmed delta that is entirely a filler word", () =>
+            {
+                // A confirmed segment that is JUST "uh"/"um"/"er" (already trimmed, no
+                // surrounding whitespace) must be stripped down to empty, same as a filler
+                // appearing mid-sentence — regression coverage for the boundary case where
+                // the old regex required whitespace on at least one side to match.
+                var config = new StreamingSessionConfig(
+                    LicenseKey: null,
+                    DeviceId: null,
+                    Language: "en",
+                    Vocabulary: null,
+                    ApiKey: null,
+                    Model: null,
+                    FastFormatting: false,
+                    RemoveFillerWords: true);
+
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
+                var actual = client.AppendFinalTranscript("uh");
+                Assert(actual == null,
+                    $"expected a filler-only delta to be stripped down to nothing, got '{actual}'");
+            });
+
+            Run("StreamingTranscriptionClient.AppendFinalTranscript only recapitalizes the leading word for the session's first confirmed delta", () =>
+            {
+                // A leading filler on the FIRST confirmed delta of a session is a real
+                // sentence opener, so SmartSpacing.RemoveFillerWords correctly recapitalizes
+                // the word after it. But that same recapitalization is wrong for a LATER
+                // delta - "um, this works" following an earlier confirmed "I think" is
+                // mid-transcript, not a new sentence, and must not become "I think This works".
+                var config = new StreamingSessionConfig(
+                    LicenseKey: null,
+                    DeviceId: null,
+                    Language: "en",
+                    Vocabulary: null,
+                    ApiKey: null,
+                    Model: null,
+                    FastFormatting: false,
+                    RemoveFillerWords: true);
+
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
+
+                var firstDelta = client.AppendFinalTranscript("um, the cat sat down");
+                Assert(firstDelta == "The cat sat down",
+                    $"expected the session's first delta to recapitalize after its leading filler, got '{firstDelta}'");
+
+                var secondDelta = client.AppendFinalTranscript("um, this works");
+                Assert(secondDelta == "this works",
+                    $"expected a later delta's leading word to stay lowercase (mid-transcript), got '{secondDelta}'");
             });
 
             Run("BackupExportSettingsPage initializes under WPF", () =>

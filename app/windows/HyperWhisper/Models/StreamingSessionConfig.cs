@@ -11,5 +11,6 @@ public sealed record StreamingSessionConfig(
     string? Vocabulary,
     string? ApiKey,
     string? Model,
-    bool FastFormatting
+    bool FastFormatting,
+    bool RemoveFillerWords
 );
