@@ -47,7 +47,8 @@ public static class StreamingTranscriptionSessionFactory
             Vocabulary: BuildVocabulary(provider, vocabularyWords),
             ApiKey: apiKey,
             Model: provider == StreamingTranscriptionProvider.Deepgram ? settings.StreamingDeepgramModel : null,
-            FastFormatting: settings.StreamingFastFormatting
+            FastFormatting: settings.StreamingFastFormatting,
+            RemoveFillerWords: settings.RemoveFillerWords
         );
 
         return Result<StreamingTranscriptionClient>.Success(new StreamingTranscriptionClient(strategy, config));

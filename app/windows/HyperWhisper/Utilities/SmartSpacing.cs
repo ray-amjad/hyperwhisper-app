@@ -183,16 +183,19 @@ public static class SmartSpacing
 
         // Port of macOS TranscriptionTextProcessing.removeFillerWords. Each alternative ends the
         // filler with an OPTIONAL trailing comma (",?") so "uh," is stripped with its comma:
-        //   1. (?:^\s*|(?<=\s))\b(uh|um|er)\b,?\s+  - start of text (after leading whitespace) OR
-        //      preceded by whitespace, then trailing whitespace. The "^\s*" branch catches a
-        //      sentence-opening "Uh," / "Um " that the old pattern missed.
+        //   1. (?:^\s*|(?<=\s))\b(uh|um|er)\b,?(?:\s+|$)  - start of text (after leading whitespace) OR
+        //      preceded by whitespace, then EITHER trailing whitespace OR end of text. The "^\s*"
+        //      branch catches a sentence-opening "Uh," / "Um " that the old pattern missed; the
+        //      trailing "|$" branch (together with "^\s*") catches a segment that is ENTIRELY a
+        //      filler word with no surrounding whitespace at all (e.g. a standalone confirmed
+        //      streaming delta that is just "uh").
         //   2. \s+\b(uh|um|er)\b,?(?=\s|$)          - preceded by whitespace, followed by whitespace
         //      or end of text — catches a filler that ends a line/sentence.
         // Lookbehind/lookahead are not consumed, so consecutive fillers ("uh um") both match.
         // Whitespace is replaced with nothing (not a space) so newlines/tabs are preserved.
         var result = Regex.Replace(
             text,
-            @"(?i)(?:^\s*|(?<=\s))\b(uh|um|er)\b,?\s+|\s+\b(uh|um|er)\b,?(?=\s|$)",
+            @"(?i)(?:^\s*|(?<=\s))\b(uh|um|er)\b,?(?:\s+|$)|\s+\b(uh|um|er)\b,?(?=\s|$)",
             "");
 
         // If a sentence-opening filler was stripped, the next word may now start lowercase
