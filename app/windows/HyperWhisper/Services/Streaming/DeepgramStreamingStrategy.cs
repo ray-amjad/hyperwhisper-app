@@ -162,6 +162,7 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
         public string? RequestId { get; set; }
 
         [JsonPropertyName("channel")]
+        [JsonConverter(typeof(DeepgramChannelConverter))]
         public DeepgramChannel? Channel { get; set; }
 
         [JsonPropertyName("is_final")]
@@ -178,5 +179,30 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
     {
         [JsonPropertyName("transcript")]
         public string? Transcript { get; set; }
+    }
+
+    // Deepgram overloads "channel": "Results" carries the transcript object, but
+    // "SpeechStarted" and "UtteranceEnd" carry a channel-index array ("channel":[0,1]).
+    // Deserializing the array into DeepgramChannel throws, which would take the whole
+    // message down before ParseMessage can route it, so treat any non-object as absent.
+    private sealed class DeepgramChannelConverter : JsonConverter<DeepgramChannel?>
+    {
+        public override DeepgramChannel? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
+        {
+            if (reader.TokenType != JsonTokenType.StartObject)
+            {
+                reader.Skip();
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<DeepgramChannel>(ref reader, options);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DeepgramChannel? value, JsonSerializerOptions options) =>
+            throw new NotSupportedException("DeepgramMessage is deserialize-only.");
     }
 }
