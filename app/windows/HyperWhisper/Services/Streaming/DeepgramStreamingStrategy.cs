@@ -162,6 +162,7 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
         public string? RequestId { get; set; }
 
         [JsonPropertyName("channel")]
+        [JsonConverter(typeof(DeepgramChannelConverter))]
         public DeepgramChannel? Channel { get; set; }
 
         [JsonPropertyName("is_final")]
@@ -178,5 +179,24 @@ public sealed class DeepgramStreamingStrategy : IStreamingProviderStrategy
     {
         [JsonPropertyName("transcript")]
         public string? Transcript { get; set; }
+    }
+
+    /// <summary>Deepgram overloads "channel": an object on Results frames, but an array of channel
+    /// indices (e.g. [0,1]) on SpeechStarted/UtteranceEnd frames — tolerate the array shape as null.</summary>
+    internal sealed class DeepgramChannelConverter : JsonConverter<DeepgramChannel?>
+    {
+        public override DeepgramChannel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType != JsonTokenType.StartObject)
+            {
+                reader.Skip();
+                return null;
+            }
+
+            return JsonSerializer.Deserialize<DeepgramChannel>(ref reader, options);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DeepgramChannel? value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, options);
     }
 }
