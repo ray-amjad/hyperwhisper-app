@@ -537,9 +537,22 @@ struct OnboardingFlowContainer: View {
         isPresented = false
     }
 
+    /// Onboarding spells the caps out as words, so every token maps to a label.
     private var shortcutKeys: [String] {
         let description = KeyboardShortcuts.getShortcut(for: .toggleRecordingWithTranscription)?.description
             ?? "keyboard.option.space".localized
-        return OnboardingShortcutKeys.split(description)
+        return ShortcutKeyTokens.tokenize(description).map { token in
+            switch token {
+            case .command: return "keyboard.command".localized
+            case .option: return "keyboard.option".localized
+            case .control: return "keyboard.control".localized
+            case .shift: return "keyboard.shift".localized
+            case .capsLock: return "keyboard.capsLock".localized
+            case .escape: return "keyboard.escape".localized
+            case .return: return "keyboard.return".localized
+            case .space: return "keyboard.space".localized
+            case .key(let key): return key
+            }
+        }
     }
 }

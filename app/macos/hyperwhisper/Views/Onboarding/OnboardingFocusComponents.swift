@@ -679,39 +679,3 @@ struct OnboardingFlowLayout: Layout {
         return (origins, CGSize(width: widest, height: y + rowHeight))
     }
 }
-
-// MARK: - Shortcut rendering
-
-/// Splits a KeyboardShortcuts description such as "⌥Space" into the individual
-/// caps the design shows. Modifier glyphs are named so the row reads as words,
-/// which is what the reference does.
-enum OnboardingShortcutKeys {
-    static func split(_ description: String) -> [String] {
-        var keys: [String] = []
-        var remainder = ""
-        for character in description {
-            switch character {
-            case "⌘": keys.append("keyboard.command".localized)
-            case "⌥": keys.append("keyboard.option".localized)
-            case "⌃": keys.append("keyboard.control".localized)
-            case "⇧": keys.append("keyboard.shift".localized)
-            case "⇪": keys.append("keyboard.capsLock".localized)
-            default: remainder.append(character)
-            }
-        }
-        let tail = remainder.trimmingCharacters(in: .whitespaces)
-        if !tail.isEmpty {
-            keys.append(normalize(tail))
-        }
-        return keys.isEmpty ? [normalize(description)] : keys
-    }
-
-    private static func normalize(_ key: String) -> String {
-        switch key {
-        case "⎋": return "keyboard.escape".localized
-        case "↩", "↩︎": return "keyboard.return".localized
-        case " ": return "keyboard.space".localized
-        default: return key
-        }
-    }
-}
