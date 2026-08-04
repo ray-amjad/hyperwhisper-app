@@ -371,11 +371,12 @@ class AIPostProcessor: ObservableObject {
             requestBody["max_tokens"] = maxOutputTokens
         }
 
-        // Groq defaults to 2,048 completion tokens when the request omits a cap,
-        // and gpt-oss reasoning tokens spend from that same budget, so long
-        // dictations truncate (finish_reason=length). Kept at 4,096 — not
-        // maxOutputTokens (8,192) — because Groq's free-tier TPM admission check
-        // (8,000) counts prompt + requested cap, not actual usage.
+        // Groq applies a low default completion cap when the request omits one
+        // (its reasoning docs cite 1,024), and gpt-oss reasoning tokens spend
+        // from that same budget, so long dictations truncate
+        // (finish_reason=length). Kept at 4,096 — not maxOutputTokens (8,192) —
+        // because Groq's free-tier TPM ceiling for openai/gpt-oss-120b is 8,000
+        // and the admission check counts prompt + requested cap, not actual usage.
         if provider == .groq {
             requestBody["max_completion_tokens"] = groqMaxCompletionTokens
         }

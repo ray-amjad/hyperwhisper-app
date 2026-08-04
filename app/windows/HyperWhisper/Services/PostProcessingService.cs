@@ -367,11 +367,12 @@ public class PostProcessingService : IDisposable
     }
 
     /// <summary>
-    /// Output-token cap sent to Groq. Groq defaults to 2,048 completion tokens
-    /// when the request omits a cap, and gpt-oss reasoning tokens spend from
-    /// that same budget, so long dictations truncate (finish_reason=length).
-    /// Kept at 4,096 — not 8,192 like Anthropic — because Groq's free-tier TPM
-    /// admission check (8,000) counts prompt + requested cap, not actual usage.
+    /// Output-token cap sent to Groq. Groq applies a low default completion cap
+    /// when the request omits one (its reasoning docs cite 1,024), and gpt-oss
+    /// reasoning tokens spend from that same budget, so long dictations truncate
+    /// (finish_reason=length). Kept at 4,096 — not 8,192 like Anthropic — because
+    /// Groq's free-tier TPM ceiling for openai/gpt-oss-120b is 8,000 and the
+    /// admission check counts prompt + requested cap, not actual usage.
     /// </summary>
     internal const int GroqMaxCompletionTokens = 4096;
 
