@@ -383,4 +383,27 @@ private struct DeepgramMessage: Decodable {
         /// The transcribed text for this alternative
         let transcript: String
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case type, channel, is_final, request_id
+    }
+
+    /// Custom decode: Deepgram overloads the "channel" field. It's an object with
+    /// `alternatives` on "Results" frames, but a bare channel-index array (e.g. `[0,1]`)
+    /// on "SpeechStarted"/"UtteranceEnd" frames. The compiler-synthesized `Decodable`
+    /// init decodes every field strictly, so hitting the array shape while decoding
+    /// `channel` used to throw `DecodingError.typeMismatch` for the *entire* message —
+    /// including `type` — before `parseMessage`'s switch ever ran. That error was
+    /// caught and logged by the outer do/catch, silently dropping the message, which
+    /// meant `case "UtteranceEnd", "SpeechStarted"` below was unreachable in practice.
+    /// Decoding `channel` with `try?` makes a shape mismatch resolve to `nil` instead
+    /// of failing the whole decode, while every other field keeps its original
+    /// strictness (still throws if `type` is missing/wrong-typed).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        channel = try? container.decodeIfPresent(Channel.self, forKey: .channel)
+        is_final = try container.decodeIfPresent(Bool.self, forKey: .is_final)
+        request_id = try container.decodeIfPresent(String.self, forKey: .request_id)
+    }
 }
