@@ -10,7 +10,7 @@ Default to tRPC. These REST endpoints are kept intentionally — don't migrate t
 |----------|-------------|
 | `/api/license/*` | **App compatibility** - Native app makes direct HTTP calls, can't use tRPC |
 | `/api/checkout/*` | Redirect-based flows that work better as REST |
-| `/api/download` | GET does HTTP redirect to CDN, not a JSON response |
+| `/api/download` | GET does an HTTP redirect to the download URL, not a JSON response |
 | `/api/webhooks/stripe` | **Signature verification** - Needs raw request body for HMAC validation |
 | `/api/auth/*` | Better Auth handlers |
 </important>
