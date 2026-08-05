@@ -16,8 +16,9 @@ use crate::contract::Part;
 pub const ELEVENLABS_MAX_TERMS: usize = 100;
 pub const ELEVENLABS_MAX_TERM_CHARS: usize = 50;
 
-/// Maximum length of one sanitized vocabulary term.
-pub const MAX_VOCABULARY_TERM_CHARS: usize = 80;
+/// Maximum length of one sanitized vocabulary term. Re-exported from `hw-text`
+/// so this crate has a single implementation of vocabulary-word sanitization.
+pub use hw_text::prompt::MAX_VOCABULARY_TERM_CHARS;
 
 /// HW Cloud / routed `initial_prompt` vocabulary cap (soft backend limit; terms
 /// beyond are silently dropped). Applied via [`normalize_vocabulary_capped`].
@@ -36,20 +37,12 @@ pub fn normalize_vocabulary(words: &[String]) -> Vec<String> {
 
 /// Neutralize a vocabulary word for safe interpolation into a provider request
 /// field (e.g. the Soniox `context` string). Port of macOS
-/// `PromptBuilder.sanitizeVocabularyWord` (and `hw-text`'s `sanitize_vocabulary_word`):
-/// drop `<`/`>` so a term cannot open/close a tag, collapse all whitespace
-/// runs into single spaces so it cannot masquerade as a directive, and cap the
-/// result at [`MAX_VOCABULARY_TERM_CHARS`].
-pub fn sanitize_vocabulary_word(word: &str) -> String {
-    let without_brackets: String = word.chars().filter(|&c| c != '<' && c != '>').collect();
-    without_brackets
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .chars()
-        .take(MAX_VOCABULARY_TERM_CHARS)
-        .collect()
-}
+/// `PromptBuilder.sanitizeVocabularyWord`, shared with `hw-text`'s prompt
+/// assembly path so there is exactly one implementation: drop `<`/`>` so a
+/// term cannot open/close a tag, collapse all whitespace runs into single
+/// spaces so it cannot masquerade as a directive, and cap the result at
+/// [`MAX_VOCABULARY_TERM_CHARS`].
+pub use hw_text::sanitize_vocabulary_word;
 
 /// Canonical vocabulary egress terms: sanitize, drop empties, de-duplicate
 /// case-insensitively while preserving first-seen casing/order, and optionally
