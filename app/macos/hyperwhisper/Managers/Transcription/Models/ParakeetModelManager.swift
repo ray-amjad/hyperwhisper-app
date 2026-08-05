@@ -217,7 +217,19 @@ final class ParakeetModelManager: ObservableObject {
             localURL: v3Exists ? v3Directory : nil
         ))
 
-        availableModels = models
+        // Publish only on a real change. `@Published` emits on every assignment,
+        // and `prepareModel` calls `refreshState()` on each invocation — an
+        // unconditional assignment therefore re-emits an identical value, and the
+        // `$availableModels` observers in `hyperwhisperApp` respond by calling
+        // `refreshParakeetReadiness` → `prepareModel` → `refreshState()` again.
+        // The `removeDuplicates()` on that observer cannot break the cycle because
+        // `.onReceive` resubscribes (with empty state) whenever the root view body
+        // re-evaluates — which each cycle causes via `modelReadyState`. The result
+        // is an infinite prepare loop: a "Loading…" flicker in the status UI and a
+        // core pegged at 100%.
+        if availableModels != models {
+            availableModels = models
+        }
     }
 
     // START DOWNLOAD:
