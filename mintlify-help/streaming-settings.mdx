@@ -56,7 +56,7 @@ Open the **Engine** section (visible when streaming is enabled) and pick a provi
 **Parakeet** and **Nemotron 3.5** run fully on this device — no network connection is needed once the model is downloaded. They are available on macOS only; the Windows provider list includes HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, and xAI.
 
 <Note>
-  Vocabulary entries you have added in the [Vocabulary](/vocabulary) section are forwarded to HyperWhisper Cloud and Deepgram (when an explicit language is set). ElevenLabs, OpenAI, and xAI do not support vocabulary boosting via the streaming API — a warning appears if you have vocabulary entries and switch to one of those providers.
+  Vocabulary entries you have added in the [Vocabulary](/vocabulary) section are forwarded to HyperWhisper Cloud and Deepgram (when an explicit language is set). ElevenLabs, OpenAI, and xAI do not support vocabulary boosting via the streaming API — a warning appears if you have vocabulary entries and switch to one of those providers. [Text replacements](/vocabulary#text-replacements) are applied during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5); cloud streaming providers only receive vocabulary entries without a replacement, sent as boosting hints.
 </Note>
 
 ## Deepgram Options
@@ -109,5 +109,7 @@ The **Language** setting tells the provider which language to expect. Setting an
 ## How Streaming Differs from Modes
 
 Regular recording in HyperWhisper uses your configured [transcription modes](/transcription-modes) — each mode can have its own provider, language, and post-processing settings. Streaming is a separate, always-available path with its own settings that are shared across every streaming session. It does not inherit mode settings and does not apply AI post-processing.
+
+The [Remove Filler Words](/output-settings#remove-filler-words) Text Output setting still applies to streaming, stripping fillers from each confirmed chunk as it arrives. On Windows, filler removal during streaming only runs when the streaming language is English — unlike batch transcription, where Windows strips fillers regardless of language.
 
 Use streaming when you want words to appear on screen in real time as you speak. Use a mode when you want a complete, optionally post-processed transcript after you finish speaking.

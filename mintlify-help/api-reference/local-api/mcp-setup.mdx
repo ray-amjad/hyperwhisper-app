@@ -21,7 +21,7 @@ You do not need to install the bridge globally. `npx -y @hyperwhisper/mcp` fetch
 | `list_models` | Catalog of voice and post-processing models. |
 | `list_modes` | Saved transcription Modes. |
 | `transcribe` | Transcribes an absolute path to an audio file, which must be inside your recordings folder (see note below). Optionally writes the transcript straight to a file (`output_path`) and returns only a confirmation — keeps long transcripts out of the agent's context. Also accepts `mode_id`, an `engine`/`model` override, `language`, `timestamp_granularities`, and `post_process_preset`/`post_process_prompt` to clean up the result in the same call — passing either of these without `output_path` fails with `INVALID_ARGUMENTS`. `timestamp_granularities` cannot be combined with `output_path` either (caption files aren't written to disk yet) — omit `output_path` to get timestamps back in the response. |
-| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or a free-form `prompt` — mutually exclusive with each other. Accepts optional `provider`/`model` overrides to bypass your default post-processing settings for a single call. |
+| `post_process` | Rewrites text with a preset (`hyper`, `message`, `mail`, `note`, `meeting`, `code`, `custom`) or a free-form `prompt` — mutually exclusive with each other. Accepts optional `provider`/`model` overrides to bypass your default post-processing settings for a single call. |
 | `search_recordings` | Substring search across past transcripts. Accepts an optional `q` substring plus `since`, `until`, and `limit` filters. |
 | `get_recording` | Single transcript row by ID. |
 

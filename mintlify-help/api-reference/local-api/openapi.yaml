@@ -330,7 +330,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
-        preset: { type: string, description: "hyper | note | email | commit | custom" }
+        preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom" }
         language: { type: string }
         model: { type: string }
         punctuation: { type: boolean }
@@ -449,7 +449,7 @@ components:
       properties:
         text: { type: string }
         mode_id: { type: string, format: uuid }
-        preset: { type: string, description: "hyper | note | email | commit. Mutually exclusive with prompt." }
+        preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom. Mutually exclusive with prompt." }
         prompt: { type: string, description: "Free-form system prompt. Sets preset=custom." }
         provider: { type: string }
         model: { type: string }
