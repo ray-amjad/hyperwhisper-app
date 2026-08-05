@@ -69,6 +69,12 @@ async function getBetterAuthSession(request: NextRequest) {
  * 1. next-intl locale routing (adds locale prefix)
  * 2. Better Auth session checking
  * 3. User route protection (unified portal for customers and admins)
+ *
+ * Runtime note: unlike middleware.ts, Proxy files always run on the
+ * Node.js runtime in Next.js 16 - there is no Edge option (a
+ * `runtime`/`config.runtime` export here throws a build error). This is
+ * expected framework behavior, not a bug: see
+ * https://nextjs.org/docs/messages/middleware-to-proxy
  */
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

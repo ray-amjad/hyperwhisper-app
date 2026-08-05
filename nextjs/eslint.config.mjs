@@ -93,16 +93,21 @@ export default defineConfig([globalIgnores([
         "react/react-in-jsx-scope": "off",
         "react-hooks/exhaustive-deps": "off",
 
-        // eslint-plugin-react-hooks 6/7 merged in the React Compiler's
-        // correctness rules (set-state-in-effect, immutability, refs,
-        // globals, use-memo, preserve-manual-memoization,
-        // static-components, incompatible-library) as part of
-        // "recommended". They're new as of this phase 3 lint-chain bump
-        // and flag real (pre-existing, not introduced by this upgrade)
-        // patterns across ~10 files that would require actual behavioral
-        // component rewrites to satisfy - out of scope for a lint-tooling
-        // phase. Left off deliberately; rules-of-hooks (the original,
-        // stable rule) stays on. Revisit as a dedicated follow-up.
+        // eslint-plugin-react-hooks 5->7 merged in the React Compiler's
+        // correctness rules as part of "recommended". Of those, the 8
+        // below (set-state-in-effect, immutability, refs, globals,
+        // use-memo, preserve-manual-memoization, static-components,
+        // incompatible-library) flag real (pre-existing, not introduced
+        // by this upgrade) patterns across ~10 files that would require
+        // actual behavioral component rewrites to satisfy - out of scope
+        // for a lint-tooling phase. Left off deliberately.
+        //
+        // "recommended" also added 6 more rules (error-boundaries,
+        // purity, set-state-in-render, unsupported-syntax, config,
+        // gating) that are NOT disabled here - they're left on and are
+        // currently clean (no violations as of this bump). rules-of-hooks
+        // (the original, stable rule) also stays on. Revisit the 8
+        // disabled rules as a dedicated follow-up.
         "react-hooks/set-state-in-effect": "off",
         "react-hooks/immutability": "off",
         "react-hooks/refs": "off",

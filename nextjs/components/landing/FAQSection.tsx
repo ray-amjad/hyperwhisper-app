@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 
 // Parse markdown links [text](url) and convert to JSX
 function parseMarkdownLinks(text: string) {
-  const parts: (string | ReactElement<any>)[] = [];
+  const parts: (string | ReactElement)[] = [];
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
   let lastIndex = 0;
   let match;
