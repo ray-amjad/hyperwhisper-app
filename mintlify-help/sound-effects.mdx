@@ -3,9 +3,9 @@ title: Sound Effects
 description: Audio feedback that confirms when HyperWhisper starts and stops recording.
 ---
 
-HyperWhisper plays a short chime when you begin recording and a different chime when you stop. This audio feedback lets you know exactly when the app is capturing your voice without having to look at the screen.
+HyperWhisper plays a short chime when you start a recording. It plays a different chime when you stop the recording. These sounds tell you when the app records your voice. You do not have to look at the screen.
 
-## Enabling or disabling sound effects
+## Turn sound effects on or off
 
 <Tabs>
   <Tab title="macOS">
@@ -17,7 +17,7 @@ HyperWhisper plays a short chime when you begin recording and a different chime 
         Select the **Sound** section.
       </Step>
       <Step title="Toggle Sound Effects">
-        Turn **Sound Effects** on or off. When disabled, no audio feedback plays during recording.
+        Turn **Sound Effects** on or off. If you turn it off, the app plays no sounds during a recording.
       </Step>
     </Steps>
   </Tab>
@@ -30,38 +30,38 @@ HyperWhisper plays a short chime when you begin recording and a different chime 
         Select **Sound** from the sidebar.
       </Step>
       <Step title="Toggle Sound Effects">
-        Check or uncheck **Sound Effects**. When unchecked, no audio feedback plays during recording.
+        Check or uncheck **Sound Effects**. If the box is not checked, the app plays no sounds during a recording.
       </Step>
     </Steps>
   </Tab>
 </Tabs>
 
-## What you'll hear
+## The two chimes
 
-Two distinct chimes play during normal use:
+The app plays two different chimes:
 
-- **Start recording** — A chime plays as soon as you press your recording hotkey and the app begins capturing audio.
-- **Stop recording** — A different chime plays when you release the hotkey or click stop.
+- **Start recording** — The app plays a chime when you press your recording hotkey and the app starts to record.
+- **Stop recording** — The app plays a different chime when you release the hotkey or click stop.
 
-The sounds are pre-loaded at startup so playback is immediate with no perceptible delay.
+The app loads the sounds at startup. As a result, each chime plays immediately, with no delay that you can hear.
 
 ## Sound themes (macOS only)
 
-Two sound themes are available:
+The app has two sound themes:
 
 | Theme | Description |
 |-------|-------------|
-| **Classic** | Traditional system sounds |
-| **New** | Modern, subtle sounds |
+| **Classic** | The traditional system sounds |
+| **New** | Modern, quiet sounds |
 
 <Note>
-  The theme selector is stored internally but is not yet exposed in the Settings UI. Theme switching will be added in a future release.
+  The app keeps the theme selection internally. The Settings window does not show a theme control yet. A future release will add this control.
 </Note>
 
 ## Sound effects volume (macOS only)
 
-Sound effects volume can be adjusted independently from your system volume on a 0.0–1.0 scale. The volume control is fully implemented but does not yet have a slider in the Settings UI — it defaults to 0.5 (half volume). A volume slider will be added in an upcoming release.
+The volume of the sound effects is separate from the system volume. The scale is 0.0 to 1.0. The Settings window does not show a volume slider yet, and the volume stays at the default value of 0.5 (half volume). A future release will add the slider.
 
 <Note>
-  Windows plays sounds at a fixed volume of 0.5 (half volume). Independent volume control for sound effects is not yet available on Windows.
+  Windows plays the sounds at a fixed volume of 0.5 (half volume). Windows has no separate volume control for the sound effects.
 </Note>

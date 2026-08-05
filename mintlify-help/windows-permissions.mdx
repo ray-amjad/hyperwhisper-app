@@ -1,138 +1,140 @@
 ---
 title: Windows Permissions
-description: What access HyperWhisper requests on Windows, when each is needed, what breaks without it, and how to fix common problems.
+description: The access HyperWhisper needs on Windows, when it needs each one, what fails without it, and how to correct common problems.
 ---
 
-HyperWhisper on Windows requires a small number of system permissions. Most are granted silently through normal Windows mechanisms — there are no system-wide prompts like macOS shows for Accessibility or Screen Recording.
+HyperWhisper needs a small number of system permissions on Windows. Windows gives most of them silently through its usual mechanisms. Windows shows no system-wide prompt like the macOS prompts for Accessibility or Screen Recording.
 
 ## Permissions at a glance
 
-| Access | When needed | Required for | Where to configure |
+| Access | When needed | Needed for | Where to change |
 | --- | --- | --- | --- |
-| Microphone | First recording | Recording any audio | Settings → Privacy & Security → Microphone |
-| UI Automation | When Autocapitalize Insert is enabled | Context-aware capitalisation | Automatic — no grant step required |
-| Autostart | Enabled automatically on first launch | Launch at Windows login | Settings → General → Launch at startup |
-| Screen capture | When a mode has **Screen Text** enabled | Feeding on-screen text to AI post-processing | Automatic — no Windows permission prompt |
-| SmartScreen warning | First launch on a new machine | — | Click "Run anyway" (one-time) |
-| Administrator / UAC | Never for a per-user install; during auto-update only if you opted into a per-machine install | — | Not required |
+| Microphone | The first recording | All audio recording | Settings → Privacy & Security → Microphone |
+| UI Automation | When Autocapitalize Insert is on | Capitalization that uses context | Automatic. No grant step. |
+| Autostart | Turned on automatically at the first start | Start at Windows login | Settings → General → Launch at startup |
+| Screen capture | When a mode has **Screen Text** turned on | On-screen text for AI post-processing | Automatic. No Windows permission prompt. |
+| SmartScreen warning | The first start on a new machine | — | Click "Run anyway" one time |
+| Administrator / UAC | Never for a per-user install. During auto-update only if you selected a per-machine install. | — | Not necessary |
 
 ## Microphone & audio access
 
-HyperWhisper records audio using the NAudio library, which accesses your microphone through the Windows Core Audio layer. The active device is selected from your system's available audio endpoints; if no specific device is chosen, it falls back to the Windows system default.
+HyperWhisper records audio with the NAudio library. This library uses your microphone through the Windows Core Audio layer. HyperWhisper selects the active device from the audio endpoints of your system. If you do not select a device, HyperWhisper uses the Windows system default.
 
-Windows manages microphone access through a privacy toggle. If the toggle is off for desktop apps, recording fails immediately when you start.
+Windows controls microphone access with a privacy toggle. If the toggle is off for desktop apps, recording fails immediately when you start it.
 
-**If recording doesn't work:**
+**If recording does not work:**
 
 <Steps>
   <Step title="Open Windows Privacy Settings">
     Go to **Settings → Privacy & Security → Microphone**.
   </Step>
   <Step title="Confirm microphone access is on">
-    Ensure **Microphone access** is enabled, and scroll down to verify that **Let desktop apps access your microphone** is also on.
+    Make sure that **Microphone access** is on. Then scroll down and make sure that **Let desktop apps access your microphone** is also on.
   </Step>
   <Step title="Restart HyperWhisper">
-    Close and reopen the app, then try recording again.
+    Close the app and open it again. Then make a new recording.
   </Step>
 </Steps>
 
-**Without it:** Recording fails immediately when you try to start.
+**Without it:** Recording fails immediately when you start it.
 
 ### Volume boost
 
-When your microphone level is below 50%, HyperWhisper temporarily boosts it to 90% before recording and restores it when you stop. This uses the same Core Audio device access as recording — no additional permission is needed. If you manually adjust your mic volume during a recording, the restore step is skipped so your manual change isn't overwritten.
+If your microphone level is less than 50%, HyperWhisper increases it to 90% before the recording. HyperWhisper sets the level back when you stop. This function uses the same Core Audio device access as recording, and it needs no additional permission. If you change the microphone level yourself during a recording, HyperWhisper does not set the level back. Your change stays.
 
 ## UI Automation & Autocapitalize Insert
 
-Windows uses **UI Automation (UIA)** to inspect the currently focused element in other applications. HyperWhisper uses UIA for **Autocapitalize Insert**, which reads the context around your cursor to decide whether to capitalise the first word of a transcript.
+Windows uses **UI Automation (UIA)** to examine the focused element in other applications. HyperWhisper uses UIA for **Autocapitalize Insert**. This feature reads the context around your cursor. Then it decides if the first word of a transcript needs a capital letter.
 
 <Note>
-  UIA isn't limited to Autocapitalize Insert. HyperWhisper also calls UIA on **every paste** (regardless of whether Autocapitalize Insert is enabled) to check for a focused password field, and a separate internal service uses UIA to capture the focused window, process name, and a short excerpt of the focused/selected text to enrich AI post-processing prompts with application context. Neither of these requires any additional grant step — they use the same always-available UIA access described below.
+  Autocapitalize Insert is not the only function that uses UIA. HyperWhisper calls UIA on **every paste** to find a focused password field. It does this even when Autocapitalize Insert is off.
+
+  A separate internal service also uses UIA. This service captures the focused window, the process name, and a short extract of the focused or selected text. It adds this application context to the AI post-processing prompts. Neither function needs an additional grant step. Both use the same UIA access that is always available, as described below.
 </Note>
 
-UIA access on Windows is available to any application — there is no system-wide grant prompt. When you enable **Autocapitalize Insert** in **Settings → Text Output**, HyperWhisper runs a quick self-test by querying the focused element in its own settings window. If that call fails (indicating UIA is non-functional in the current process), an informational message appears:
+Windows makes UIA access available to any application, and there is no system-wide grant prompt. When you turn on **Autocapitalize Insert** in **Settings → Text Output**, HyperWhisper does a quick self-test. The test queries the focused element in the settings window of HyperWhisper. If the test fails, UIA does not work in the current process. HyperWhisper then shows this message:
 
 > "Some applications (like web browsers and Electron apps) may not expose the focused text field. Autocapitalize Insert will pass through unchanged in those cases — the feature still works in most native editors and Office applications."
 
-The toggle stays on. If UIA can't read the focused field in a specific target app, the transcript is inserted without capitalisation adjustment — the paste itself still works.
+The toggle stays on. If UIA cannot read the focused field in a target app, HyperWhisper inserts the transcript without a change to capitalization. The paste still works.
 
 **Apps where Autocapitalize Insert works:** Most native Windows apps, Microsoft Office, and standard text editors.
 
-**Apps where it degrades gracefully:** Web browsers (Chrome, Edge, Firefox) and Electron-based apps (VS Code, Cursor, Windsurf) — UIA cannot reliably read text field context inside web content areas. Text is still pasted; capitalisation is not adjusted.
+**Apps where the feature is limited:** Web browsers (Chrome, Edge, Firefox) and Electron apps (VS Code, Cursor, Windsurf). In web content areas, UIA cannot read the text field context reliably. HyperWhisper still pastes the text, but it does not change the capitalization.
 
-**Password fields:** UIA also detects password fields. When you dictate with the cursor in a password field, HyperWhisper skips the paste entirely — the transcript stays on your clipboard but is not inserted. This is intentional.
+**Password fields:** UIA also finds password fields. When you dictate with the cursor in a password field, HyperWhisper does not paste. The transcript stays on your clipboard. This behavior is intentional.
 
 ### Auto-paste without Autocapitalize Insert
 
-Injecting text into the previously focused app uses Win32 `SetForegroundWindow` and simulated `Ctrl+V`, which work independently of UI Automation — Autocapitalize Insert does not need to be enabled for auto-paste to work. As noted above, HyperWhisper still calls UIA on every paste for the password-field check regardless of this setting.
+To insert text into the app that had the focus before, HyperWhisper uses Win32 `SetForegroundWindow` and a simulated `Ctrl+V`. These functions do not use UI Automation. Auto-paste works when Autocapitalize Insert is off. As stated above, HyperWhisper still calls UIA on every paste to find a password field.
 
 ## Screen Text capture
 
-Modes can enable **Screen Text** (Mode editor → AI Post-Processing → Screen Text) to capture visible on-screen text at the start of a recording and pass it to AI post-processing as extra context for names and terms. This uses a plain screen copy (`Graphics.CopyFromScreen`) plus Windows' built-in OCR — it does not go through any Windows privacy/consent prompt, unlike the Screen Recording permission macOS requires for the equivalent feature.
+A mode can use **Screen Text** (Mode editor → AI Post-Processing → Screen Text). At the start of a recording, this feature captures the visible text on your screen. It sends the text to AI post-processing as extra context for names and terms. The feature uses a plain screen copy (`Graphics.CopyFromScreen`) and the OCR function that is built into Windows. Windows shows no privacy prompt or consent prompt for this. macOS needs the Screen Recording permission for the same feature.
 
 ## Autostart registration
 
-HyperWhisper registers itself to **Launch at startup** automatically the first time it runs — you don't need to turn this on. You can disable it afterward in **Settings → General**. When enabled, HyperWhisper writes a value to the Windows Registry under your user account:
+The first time HyperWhisper runs, it turns on **Launch at startup** automatically. You do not need to turn this setting on. You can turn it off later in **Settings → General**. When the setting is on, HyperWhisper writes a value to the Windows Registry under your user account:
 
 ```
 HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
 Value name: HyperWhisper
 ```
 
-This is a per-user key that requires no administrator privileges. Once registered, HyperWhisper appears in **Task Manager → Startup apps**.
+This key is a per-user key, and it needs no administrator privileges. HyperWhisper then appears in **Task Manager → Startup apps**.
 
-If the registry write fails (for example, because a group policy restricts HKCU access), the toggle snaps back to the off position and a dialog appears:
+If the registry write fails, the toggle returns to the off position. HyperWhisper then shows this dialog:
 
 > "Failed to enable launch at startup. Please check if you have permission to modify startup settings."
 
-In that case, contact your IT administrator — the restriction is applied at the system level, not within HyperWhisper.
+A group policy that restricts access to HKCU is one cause of this error. Contact your IT administrator. The system applies the restriction, not HyperWhisper.
 
-To verify autostart is active, open **Task Manager**, click **More details** if needed, and open the **Startup apps** tab. **HyperWhisper** should appear there with its status set to **Enabled**.
+To make sure that autostart is active, open **Task Manager**. If the details are hidden, click **More details**. Then open the **Startup apps** tab. **HyperWhisper** appears there with the status **Enabled**.
 
 ## SmartScreen warnings
 
-When you run the HyperWhisper installer on a machine where Windows hasn't yet established a reputation for the file, SmartScreen may show a blue warning dialog before the installer launches. This is not a permission you can pre-grant.
+Windows builds a reputation for each file. If Windows has no reputation for the HyperWhisper installer on your machine, SmartScreen can show a blue warning dialog. The dialog appears before the installer starts. You cannot grant this permission in advance.
 
-Click **More info**, then **Run anyway** to proceed. The warning does not appear again on subsequent installs or updates on the same machine.
+Click **More info**. Then click **Run anyway**. The warning does not appear again for later installs or updates on the same machine.
 
-HyperWhisper is a signed application distributed through an installer built with Inno Setup. The installer is configured to request the lowest necessary privileges (`PrivilegesRequired=lowest`) and installs per-user by default.
+HyperWhisper is a signed application. Inno Setup builds the installer. The installer requests the lowest necessary privileges (`PrivilegesRequired=lowest`). By default, it installs the app for one user.
 
 <Note>
-  No SmartScreen exclusion is needed for the app itself after installation — only the installer download may trigger it.
+  After installation, the app needs no SmartScreen exclusion. Only the download of the installer can show the warning.
 </Note>
 
 ## Administrator privileges
 
-HyperWhisper does not require administrator privileges for any feature:
+HyperWhisper needs no administrator privileges for any feature:
 
-- **Installation** defaults to a per-user install in `%LOCALAPPDATA%\Programs` via the Inno Setup `{autopf}` directive (resolved to the local-app-data path when `PrivilegesRequired=lowest`). Users can opt into a machine-wide install under `Program Files` if UAC elevation is available.
-- **Autostart** uses `HKEY_CURRENT_USER` (no elevation needed).
+- **Installation** puts the app in `%LOCALAPPDATA%\Programs` for one user by default. It uses the Inno Setup `{autopf}` directive, which resolves to the local-app-data path when `PrivilegesRequired=lowest`. If UAC elevation is available, you can select a machine-wide install under `Program Files`.
+- **Autostart** uses `HKEY_CURRENT_USER` and needs no elevation.
 - **All other operations** (recording, transcription, paste) are standard user-level actions.
 
 No UAC elevation prompt appears during normal use.
 
 <Note>
-  **Edge case:** if you opted into a machine-wide (per-machine) install, auto-update re-launches the installer with elevation (`runas`) to update the shared `Program Files` copy, so you will see a UAC prompt when an update installs. The default per-user install never triggers UAC, including during updates.
+  **Edge case:** If you selected a machine-wide install, auto-update starts the installer again with elevation (`runas`). The installer updates the shared copy in `Program Files`. Windows shows a UAC prompt when the update installs. The default per-user install never shows a UAC prompt, and updates do not show one.
 </Note>
 
 ## Troubleshooting
 
 **Microphone not working**
-Check **Windows Settings → Privacy & Security → Microphone**. Ensure both **Microphone access** and **Let desktop apps access your microphone** are on. Restart HyperWhisper after changing these settings.
+Open **Windows Settings → Privacy & Security → Microphone**. Make sure that **Microphone access** is on. Make sure that **Let desktop apps access your microphone** is also on. After you change these settings, start HyperWhisper again.
 
 **Paste not working in a specific app**
-If the transcript appears on your clipboard but isn't inserted, check whether the destination is a web browser or Electron app — HyperWhisper may not be able to detect or refocus the text field reliably. Paste manually with `Ctrl+V`.
+If the transcript appears on your clipboard but HyperWhisper does not insert it, look at the destination app. In a web browser or an Electron app, HyperWhisper cannot always find the text field. It also cannot always set the focus on the field again. Paste the text yourself with `Ctrl+V`.
 
-If the cursor is in a password field, paste is intentionally blocked. The transcript is on your clipboard.
+If the cursor is in a password field, HyperWhisper blocks the paste. This behavior is intentional. The transcript is on your clipboard.
 
-**Autocapitalize Insert not adjusting capitalisation**
-This feature degrades gracefully in browsers and Electron apps. If capitalisation adjustment matters for a particular workflow, use a native editor or Office application where UIA can read the text field context.
+**Autocapitalize Insert not adjusting capitalization**
+This feature is limited in browsers and Electron apps. If you need the change to capitalization, use a native editor or an Office application. UIA can read the text field context in those applications.
 
 **Launch at startup not working**
-Open **Task Manager → Startup apps**. If HyperWhisper isn't listed, re-enable the setting in **Settings → General → Launch at startup**. If the toggle reverts or you see an error dialog, a group policy may be blocking HKCU registry writes — contact your IT administrator.
+Open **Task Manager → Startup apps**. If HyperWhisper is not in the list, turn on the setting again in **Settings → General → Launch at startup**. If the toggle returns to off, or an error dialog appears, a group policy can block registry writes to HKCU. Contact your IT administrator.
 
 ---
 
 <Note>
-  **macOS comparison:** macOS uses the Accessibility API (a single, system-wide permission that covers both auto-paste and bare-modifier hotkeys). Windows uses UI Automation, which is available per-app without a grant step but provides less reliable access in browser and Electron environments. Both platforms restore your original clipboard contents after paste.
+  **macOS comparison:** macOS uses the Accessibility API. This is one system-wide permission for auto-paste and for bare-modifier hotkeys. Windows uses UI Automation. Each app gets UIA access without a grant step. In browsers and Electron apps, this access is less reliable. After a paste, both platforms put your original clipboard contents back.
 </Note>

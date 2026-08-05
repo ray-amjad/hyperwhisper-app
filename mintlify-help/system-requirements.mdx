@@ -3,7 +3,7 @@ title: System Requirements
 description: Supported operating systems, processor architectures, and hardware notes for HyperWhisper on macOS and Windows.
 ---
 
-HyperWhisper runs natively on macOS and Windows. Pick your platform below for minimum versions, architecture support, and hardware notes that affect local model performance.
+HyperWhisper runs natively on macOS and Windows. Select your platform below. Each tab gives the minimum version, the supported architectures, and the hardware notes for local models.
 
 <Tabs>
   <Tab title="macOS">
@@ -11,7 +11,7 @@ HyperWhisper runs natively on macOS and Windows. Pick your platform below for mi
 
     - **macOS 14.6 (Sonoma) or later**
     - Apple Silicon (M-series) **or** Intel — universal binary
-    - ~200 MB free disk for the app, plus space for any local models you download (78 MB to 3.1 GB each)
+    - ~200 MB free disk for the app, plus space for each local model you download (78 MB to 3.1 GB each)
 
     ## Apple Silicon vs Intel
 
@@ -22,28 +22,28 @@ HyperWhisper runs natively on macOS and Windows. Pick your platform below for mi
     | Local Gemma post-processing | Yes | **Not supported** (cloud post-processing only) |
     | HyperWhisper Cloud | Same | Same |
 
-    On **Apple Silicon**, local models run noticeably faster — the small Whisper model is comfortably realtime even on an M1 Air.
+    On **Apple Silicon**, local models run faster. The small Whisper model transcribes in realtime, even on an M1 Air.
 
-    On **Intel Macs**, local transcription models still work but use CPU only. For best results on Intel, pick a smaller local model (Whisper Tiny or Base) or use HyperWhisper Cloud. Local Gemma post-processing is gated to Apple Silicon — Intel Macs must use a cloud post-processing provider.
+    On **Intel Macs**, local transcription models work, but they use the CPU only. On Intel, use a small local model (Whisper Tiny or Base), or use HyperWhisper Cloud. Local Gemma post-processing needs Apple Silicon. Intel Macs must use a cloud post-processing provider.
 
     ## Network
 
-    - **HyperWhisper Cloud** and BYOK providers require an internet connection.
-    - **Local models** transcribe entirely offline once downloaded.
-    - License activation requires a one-time network call.
+    - **HyperWhisper Cloud** and BYOK providers need an internet connection.
+    - **Local models** transcribe offline after you download them.
+    - License activation needs one network call.
 
-    See [Network Filtering](/network-filtering) if you're behind a corporate firewall.
+    If you are behind a corporate firewall, see [Network Filtering](/network-filtering).
   </Tab>
 
   <Tab title="Windows">
     ## Minimum requirements
 
     - **Windows 10 or later** (Windows 11 recommended)
-    - **.NET 10 Desktop Runtime** (bundled with the installer — no separate download needed)
+    - **.NET 10 Desktop Runtime** (the installer includes it — no separate download)
     - x64 **or** ARM64 (Snapdragon) — separate installers
-    - Visual C++ Redistributable 2015–2022 (auto-installed)
-    - DirectX 11 compatible GPU recommended for local model acceleration (any modern NVIDIA, AMD, or Intel GPU)
-    - ~300 MB free disk for the app, plus space for any local models (78 MB to 3.1 GB each)
+    - Visual C++ Redistributable 2015–2022 (the installer adds it)
+    - A DirectX 11 compatible GPU makes local models faster (any recent NVIDIA, AMD, or Intel GPU)
+    - ~300 MB free disk for the app, plus space for each local model (78 MB to 3.1 GB each)
 
     ## x64 vs ARM64
 
@@ -52,13 +52,13 @@ HyperWhisper runs natively on macOS and Windows. Pick your platform below for mi
     | App | Native | Native |
     | Whisper local models | Yes (Vulkan GPU) | Yes on **Windows 11+** (not supported on Windows 10 ARM64) |
     | Parakeet local models | Yes (DirectML GPU) | Yes (CPU only — DirectML is x64-only) |
-    | Local Gemma post-processing | Yes (CUDA on NVIDIA, CPU fallback otherwise) | **Not supported yet** |
+    | Local Gemma post-processing | Yes (CUDA on NVIDIA, otherwise the CPU) | **Not supported yet** |
     | HyperWhisper Cloud | Yes | Yes |
 
-    If you're on a **Snapdragon X / ARM64 Windows device** and want local transcription, **Parakeet v2** (English) and **Parakeet v3** (multilingual) run on CPU, and Whisper runs with GPU acceleration on Windows 11+ (Windows 10 ARM64 is not supported for Whisper).
+    On a **Snapdragon X / ARM64 Windows device**, you can use local transcription. **Parakeet v2** (English) and **Parakeet v3** (multilingual) run on the CPU. Whisper runs with GPU acceleration on Windows 11+. Whisper does not run on Windows 10 ARM64.
 
     ## GPU acceleration
 
-    Local transcription engines use your GPU automatically when available and **fall back to CPU** if you don't have a dedicated GPU or there's not enough VRAM. Whisper uses Vulkan, a vendor-agnostic GPU backend that works across NVIDIA, AMD, and Intel GPUs. Local Gemma post-processing currently uses CUDA on NVIDIA GPUs only; AMD and Intel systems use CPU fallback for post-processing. See [Models](/models) for per-model VRAM recommendations.
+    Local transcription engines use your GPU automatically. If you have no dedicated GPU, or if the VRAM is not sufficient, the engines **use the CPU instead**. Whisper uses Vulkan, a vendor-agnostic GPU backend for NVIDIA, AMD, and Intel GPUs. Local Gemma post-processing uses CUDA on NVIDIA GPUs only. On AMD and Intel systems, post-processing uses the CPU. For the VRAM of each model, see [Models](/models).
   </Tab>
 </Tabs>

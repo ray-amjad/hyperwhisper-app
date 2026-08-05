@@ -1,9 +1,9 @@
 ---
 title: Import & Export Vocabulary
-description: Move your custom vocabulary between devices and platforms using CSV files and universal .hwbackup.json backups.
+description: Move your custom vocabulary between devices and platforms with CSV files and universal .hwbackup.json backups.
 ---
 
-HyperWhisper lets you move your [custom vocabulary](/vocabulary) between devices and across platforms. Two formats are supported depending on which app you're using:
+You can move your [custom vocabulary](/vocabulary) between devices and between platforms. HyperWhisper supports two formats. The format depends on the app that you use:
 
 | Format | macOS | Windows | iOS |
 |---|---|---|---|
@@ -12,7 +12,7 @@ HyperWhisper lets you move your [custom vocabulary](/vocabulary) between devices
 
 ## CSV format (iOS)
 
-On iOS, vocabulary is exported and imported as a plain CSV file. Each row represents one entry:
+On iOS, the app exports and imports vocabulary as a plain CSV file. Each row is one entry:
 
 ```
 phrase,replacement,caseSensitive
@@ -22,11 +22,11 @@ phrase,replacement,caseSensitive
 
 | Column | Required | Notes |
 |---|---|---|
-| `phrase` | Yes | The phrase HyperWhisper listens for. Rows with an empty phrase are skipped. |
-| `replacement` | Yes | The text to substitute in the transcript. Rows with an empty replacement are skipped. |
-| `caseSensitive` | No | `true` or `1` to enable case-sensitive matching; any other value (or omitting the column entirely) defaults to `false`. |
+| `phrase` | Yes | The phrase that HyperWhisper recognizes. The app skips a row with an empty phrase. |
+| `replacement` | Yes | The text that replaces the phrase in the transcript. The app skips a row with an empty replacement. |
+| `caseSensitive` | No | `true` or `1` gives case-sensitive matching. Any other value gives `false`. If you omit this column, the value is `false`. |
 
-The parser follows RFC 4180: fields that contain commas, quotes, or newlines must be wrapped in double-quotes, and a literal double-quote inside a quoted field is escaped as `""`. LF, CR, and CRLF line endings are all accepted.
+The parser obeys RFC 4180. A field that contains a comma, a quote, or a newline must have double-quotes around it. A literal double-quote inside a quoted field becomes `""`. The parser accepts LF, CR, and CRLF line endings.
 
 **Example:**
 
@@ -46,7 +46,7 @@ API,Application Programming Interface,true
     Tap the **⋯** button in the top-right corner.
   </Step>
   <Step title="Tap Export CSV">
-    Your vocabulary is saved as a `.csv` file via the system share sheet.
+    The app saves your vocabulary as a `.csv` file with the system share sheet.
   </Step>
 </Steps>
 
@@ -60,17 +60,19 @@ API,Application Programming Interface,true
     Tap the **⋯** button in the top-right corner.
   </Step>
   <Step title="Tap Import CSV">
-    Pick a `.csv` file from Files. The app shows a summary: how many entries were imported and how many were skipped.
+    Pick a `.csv` file from Files. The app shows how many entries it imported and how many it skipped.
   </Step>
 </Steps>
 
-Import uses merge semantics: entries whose word already exists in your vocabulary (matched case-insensitively) are skipped. Your existing entries are never deleted.
+An import merges the file into your vocabulary. The app skips an entry when its word is already in your vocabulary. This match is case-insensitive. The app does not delete your existing entries.
 
 ---
 
 ## `.hwbackup.json` format (macOS and Windows)
 
-macOS and Windows share a universal `.hwbackup.json` format (`schemaVersion: 2`) for **vocabulary-only** exports. On macOS, a full export that also includes Settings, Modes, or API keys currently uses the legacy `HyperWhisper-Backup-{date}.json` (schemaVersion 1) format instead — universal v2 export for full backups exists in the app but is gated behind an internal flag with no UI toggle. In practice, only a **vocabulary-only** macOS export is guaranteed to be cross-platform compatible with Windows today. The vocabulary section of a `.hwbackup.json` file looks like this:
+macOS and Windows share a universal `.hwbackup.json` format (`schemaVersion: 2`) for **vocabulary-only** exports. On macOS, a full export that also contains Settings, Modes, or API keys uses the older `HyperWhisper-Backup-{date}.json` format (schemaVersion 1). The macOS app also has a universal v2 export for full backups. An internal flag hides this export, and the app gives no UI control for the flag. Today, only a **vocabulary-only** macOS export is compatible with Windows.
+
+This is the vocabulary section of a `.hwbackup.json` file:
 
 ```json
 {
@@ -101,13 +103,13 @@ macOS and Windows share a universal `.hwbackup.json` format (`schemaVersion: 2`)
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID string | Unique identifier for the entry. |
-| `word` | string | The phrase HyperWhisper listens for. Entries with an empty or whitespace-only word are skipped on import. |
-| `replacement` | string or null | Text substituted in the transcript. |
-| `sortOrder` | integer | Ordering hint. |
+| `word` | string | The phrase that HyperWhisper recognizes. On import, the app skips an entry when the word is empty or contains only whitespace. |
+| `replacement` | string or null | The text that replaces the phrase in the transcript. |
+| `sortOrder` | integer | The sort position of the entry. |
 | `source` | string or null | Optional origin label. |
 
 <Note>
-On Windows, a `.hwbackup.json` export can include settings, modes, and API keys alongside vocabulary. On macOS today, only a **vocabulary-only** export uses this `.hwbackup.json` schemaVersion 2 format — it produces a file with five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) and no settings, modes, or API keys sections. A macOS export that also includes Settings, Modes, or API keys currently uses the older schemaVersion 1 format described above instead. When you import a `.hwbackup.json` file on either platform, only the vocabulary section is applied.
+On Windows, a `.hwbackup.json` export can contain settings, modes, and API keys with the vocabulary. On macOS today, only a **vocabulary-only** export uses this `.hwbackup.json` schemaVersion 2 format. That file has five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) and no settings, modes, or API keys sections. A macOS export that also contains Settings, Modes, or API keys uses the older schemaVersion 1 format above. On both platforms, an import of a `.hwbackup.json` file applies only the vocabulary section.
 </Note>
 
 ### Export vocabulary (macOS)
@@ -120,7 +122,7 @@ On Windows, a `.hwbackup.json` export can include settings, modes, and API keys 
     Select the **Backup** tab.
   </Step>
   <Step title="Select Vocabulary and export">
-    Tick the **Vocabulary** section (you can deselect everything else to get a vocabulary-only file), then click **Export**. Save the file—it will be named `HyperWhisper Vocabulary YYYY-MM-DD.hwbackup.json` when vocabulary is the only selected section.
+    Tick the **Vocabulary** section. To get a vocabulary-only file, deselect all other sections. Then click **Export**. Save the file. If **Vocabulary** is the only selected section, the app names the file `HyperWhisper Vocabulary YYYY-MM-DD.hwbackup.json`.
   </Step>
 </Steps>
 
@@ -128,19 +130,19 @@ On Windows, a `.hwbackup.json` export can include settings, modes, and API keys 
 
 <Steps>
   <Step title="Open Settings → Backup">
-    Click the HyperWhisper menu bar icon, choose **Settings**, then select the **Backup** tab.
+    Click the HyperWhisper menu bar icon. Choose **Settings**. Then select the **Backup** tab.
   </Step>
   <Step title="Choose a file">
-    Click **Import** and pick your `.hwbackup.json` file. The app shows the vocabulary entry count from the file.
+    Click **Import**. Pick your `.hwbackup.json` file. The app then shows the number of vocabulary entries in the file.
   </Step>
   <Step title="Select Vocabulary and choose a conflict policy">
-    Tick **Vocabulary** and pick how to handle entries whose word already exists in your list:
+    Tick **Vocabulary**. Then pick what the app does with an entry whose word is already in your list:
 
-    - **Skip existing** (default) — leaves your current entry untouched.
-    - **Replace existing** — overwrites the replacement text of the matching entry.
+    - **Skip existing** (default) — the app keeps your current entry.
+    - **Replace existing** — the app writes the new replacement text into the matching entry.
   </Step>
   <Step title="Apply the import">
-    Click **Import**. The app reports how many entries were imported and how many were skipped.
+    Click **Import**. The app shows how many entries it imported and how many it skipped.
   </Step>
 </Steps>
 
@@ -148,10 +150,10 @@ On Windows, a `.hwbackup.json` export can include settings, modes, and API keys 
 
 <Steps>
   <Step title="Open Settings → Backup">
-    Open HyperWhisper and go to **Settings → Backup**.
+    Open HyperWhisper. Then go to **Settings → Backup**.
   </Step>
   <Step title="Select sections and export">
-    Tick **Vocabulary** (and any other sections you want to include), then click **Export Backup...**. Choose a save location. The file is saved as `.hwbackup.json`.
+    Tick **Vocabulary** and each other section that you want in the file. Then click **Export Backup...**. Choose a location. The app saves the file as `.hwbackup.json`.
   </Step>
 </Steps>
 
@@ -159,19 +161,19 @@ On Windows, a `.hwbackup.json` export can include settings, modes, and API keys 
 
 <Steps>
   <Step title="Open Settings → Backup">
-    Open HyperWhisper and go to **Settings → Backup**.
+    Open HyperWhisper. Then go to **Settings → Backup**.
   </Step>
   <Step title="Choose a file">
-    Click **Choose File...** and pick your `.hwbackup.json`. The app inspects the file and shows which sections it contains, along with the vocabulary entry count.
+    Click **Choose File...**. Pick your `.hwbackup.json` file. The app then shows which sections the file contains and the number of vocabulary entries.
   </Step>
   <Step title="Select Vocabulary and choose a conflict policy">
-    Tick **Vocabulary** and pick how to handle words that already exist:
+    Tick **Vocabulary**. Then pick what the app does with a word that is already in your list:
 
-    - **Keep my existing word** (default) — leaves the existing entry untouched.
-    - **Replace with the imported word** — updates the replacement text, sort order, and source of the matching entry (the entry's ID and creation date are preserved).
+    - **Keep my existing word** (default) — the app keeps your current entry.
+    - **Replace with the imported word** — the app writes the new replacement text, sort order, and source into the matching entry. The ID and the creation date do not change.
   </Step>
   <Step title="Apply the import">
-    Click **Import Selected**. A confirmation dialog shows how many entries will be added versus how many conflicts exist. Confirm to proceed. The app reports the final import summary.
+    Click **Import Selected**. A dialog shows how many entries the app adds and how many conflicts it found. Confirm the dialog. The app then shows the final import summary.
   </Step>
 </Steps>
 
@@ -179,13 +181,13 @@ On Windows, a `.hwbackup.json` export can include settings, modes, and API keys 
 
 ## Migrating vocabulary between macOS and Windows
 
-Both platforms read and write the same `.hwbackup.json` vocabulary format, so moving your vocabulary from one platform to the other requires no conversion:
+Both platforms read and write the same `.hwbackup.json` vocabulary format. A move of your vocabulary from one platform to the other needs no conversion:
 
 1. **Export** a vocabulary-only backup on the source platform (see above).
 2. **Import** the `.hwbackup.json` file on the destination platform.
 
-The import is always additive: existing entries on the destination are never deleted. Only the words that are new (or that you explicitly chose to replace) are written.
+An import only adds. The app does not delete the existing entries on the destination platform. The app writes only the new words and the words that you chose to replace.
 
 <Note>
-Case-sensitive matching is an iOS-only concept, set via the `caseSensitive` CSV column above. Neither macOS nor Windows has a case-sensitivity field on vocabulary entries — matching is case-insensitive on both, and there's nothing to set manually after a `.hwbackup.json` import.
+Case-sensitive matching is an iOS-only function. You set it with the `caseSensitive` CSV column above. Vocabulary entries on macOS and Windows have no case-sensitivity field. Matching on both platforms is case-insensitive. After a `.hwbackup.json` import, there is no case setting to change.
 </Note>

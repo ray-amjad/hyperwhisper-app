@@ -1,212 +1,212 @@
 ---
 title: Models
-description: Every model HyperWhisper offers — speech-to-text and post-processing, on-device and cloud — and why each one exists. Pick by privacy, language coverage, speed, accuracy, and cost.
+description: Every model HyperWhisper offers — speech-to-text and post-processing, on-device and cloud — and why each one exists. Choose by privacy, language coverage, speed, accuracy, and cost.
 ---
 
-HyperWhisper doesn't lock you into one engine. It ships a **library** of models because no single model wins on everything — each trades off **privacy, language coverage, speed, accuracy, and cost** differently. This page lists everything on offer and explains *why* each one is there.
+HyperWhisper does not lock you into one engine. It ships a **library** of models, because no single model wins on everything. Each model makes a different trade between **privacy, language coverage, speed, accuracy, and cost**. This page lists every model and explains why each one is there.
 
 There are two kinds of model:
 
-- **Speech-to-text** — turns your voice into text (the transcription step).
-- **Post-processing** — an optional LLM pass that cleans up, punctuates, and formats the transcript afterwards.
+- **Speech-to-text** — changes your voice into text. This is the transcription step.
+- **Post-processing** — an optional LLM step. The LLM removes filler words, adds punctuation, and formats the transcript after transcription.
 
-You choose both in the app under **Model Library**, and per-mode in the [mode editor](/transcription-modes).
+You choose both models in the app under **Model Library**. You can also choose them for each mode in the [mode editor](/transcription-modes).
 
-![Model Library](/images/model-management.jpg)
+![The Model Library screen in the app](/images/model-management.jpg)
 
 ## Three ways to run a model
 
-Every model — speech or post-processing — falls into one of three buckets:
+Every model — speech-to-text or post-processing — is in one of three groups:
 
 <CardGroup cols={3}>
   <Card title="On-device" icon="lock">
-    Runs entirely on your machine. Audio never leaves your device, works offline, and costs nothing per minute. The strongest privacy guarantee.
+    This model runs on your machine. Your audio never leaves your device. It works offline, and it costs nothing for each minute. This is the strongest privacy guarantee.
   </Card>
   <Card title="HyperWhisper Cloud" icon="cloud">
-    Built-in, no API key, no separate account. The most accurate option, billed per minute of **actual speech** with no markup.
+    Built into the app. You need no API key and no separate account. This is the most accurate option. You pay for each minute of **actual speech**, with no markup.
   </Card>
   <Card title="Bring your own key" icon="key">
-    Plug in your own provider API key and pay that provider directly — useful if you already have credits or want a specific model.
+    Add your own provider API key and pay that provider directly. This is useful if you have credits, or if you want a specific model.
   </Card>
 </CardGroup>
 
 <Note>
-  There is no universally "best" model. On-device models are unbeatable for privacy and offline use; cloud models are noticeably more accurate on accents, noise, and technical vocabulary. The library exists so you can make that trade yourself.
+  There is no "best" model for all conditions. On-device models are the best choice for privacy and offline use. Cloud models are more accurate on accents, background noise, and technical vocabulary. The library lets you make this trade yourself.
 </Note>
 
 # Speech-to-text models
 
 ## On-device
 
-These run locally with no network calls. Once downloaded (where applicable) they work fully offline — your audio is never uploaded anywhere. See [Data Privacy](/data-privacy) for details.
+These models run on your machine and make no network calls. After you download a model (where applicable), it works offline. The app never uploads your audio. For more information, see [Data Privacy](/data-privacy).
 
-| Model | Runs on | Languages | Why it's here |
+| Model | Runs on | Languages | Why it is here |
 | --- | --- | --- | --- |
-| **Apple Speech** | macOS (built-in) | Auto-detect | Zero download, instant, private. The fastest way to start dictating on a Mac with nothing to install. |
+| **Apple Speech** | macOS (built-in) | Auto-detect | No download, immediate, private. The fastest way to start dictation on a Mac, with nothing to install. |
 | **NVIDIA Parakeet** | macOS · Windows | English (V2) · 25 European (V3) | Fastest accurate on-device transcription for English and European languages. |
-| **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~30 incl. Chinese, Japanese, Korean, Arabic (macOS); smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS — the only local option that reaches beyond European languages. |
-| **Whisper** | macOS · Windows | 101 languages | OpenAI's general-purpose model in many sizes (Tiny → Large). The universal fallback: runs on almost any hardware, including CPU-only and older machines. |
-| **Qwen3 ASR** | macOS · Windows | Multilingual | An additional multilingual on-device option for users who want to try Alibaba's ASR model. Windows ships a smaller 0.6B variant via the sherpa-onnx daemon. |
+| **NVIDIA Nemotron 3.5** | macOS · Windows | 6 Latin · ~30 including Chinese, Japanese, Korean, Arabic (macOS). Smaller English+Japanese streaming variant on Windows | Best on-device accuracy and the **broadest offline language coverage** on macOS. The only local option that goes beyond European languages. |
+| **Whisper** | macOS · Windows | 101 languages | The general-purpose model from OpenAI, in many sizes (Tiny to Large). The universal fallback. It runs on almost all hardware, including CPU-only and older machines. |
+| **Qwen3 ASR** | macOS · Windows | Multilingual | An additional multilingual on-device option for users who want the ASR model from Alibaba. Windows ships a smaller 0.6B variant with the sherpa-onnx daemon. |
 
 ### Whisper models
 
-OpenAI's general-purpose multilingual models. The **VRAM** values are the recommended GPU memory for full acceleration — with less, the model still runs on CPU (or partial GPU), just slower.
+The general-purpose multilingual models from OpenAI. The **VRAM** values give the recommended GPU memory for full acceleration. With less memory, the model still runs on the CPU or on part of the GPU, but more slowly.
 
 | Model | Size (macOS) | Size (Windows) | Recommended VRAM | Languages | Best for |
 | --- | --- | --- | --- | --- | --- |
 | Tiny | 39 MB | 78 MB | ~1 GB | Multilingual | Lowest-end machines, quick drafts |
-| Tiny (English) | 39 MB | 78 MB | ~1 GB | English only | Same as Tiny, slightly better English |
+| Tiny (English) | 39 MB | 78 MB | ~1 GB | English only | Same as Tiny, with better English accuracy |
 | Base | 142 MB | 148 MB | ~1 GB | Multilingual | Light hardware, basic dictation |
-| Base (English) | 142 MB | 148 MB | ~1 GB | English only | Same as Base, slightly better English |
+| Base (English) | 142 MB | 148 MB | ~1 GB | English only | Same as Base, with better English accuracy |
 | **Small** | **466 MB** | **488 MB** | **~2 GB** | **Multilingual** | **Best balance for most users** |
-| Small (English) | 466 MB | 488 MB | ~2 GB | English only | Same as Small, slightly better English |
+| Small (English) | 466 MB | 488 MB | ~2 GB | English only | Same as Small, with better English accuracy |
 | Medium | 1.5 GB | 1.5 GB | ~5 GB | Multilingual | Higher accuracy, mid-range GPUs |
-| Medium (English) | 1.5 GB | 1.5 GB | ~5 GB | English only | Same as Medium, slightly better English |
-| Large v3 Turbo | 809 MB | 1.5 GB | ~6 GB | Multilingual | Near-Large accuracy, much faster |
+| Medium (English) | 1.5 GB | 1.5 GB | ~5 GB | English only | Same as Medium, with better English accuracy |
+| Large v3 Turbo | 809 MB | 1.5 GB | ~6 GB | Multilingual | Accuracy near Large, much faster |
 | Large v2 | 2.9 GB | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (older) |
 | Large v3 | 3.1 GB | 3.1 GB | ~10 GB | Multilingual | Highest Whisper accuracy (latest) |
 
 <Tip>
-  English-only variants (`.en`) use the same architecture trained only on English data. If you only ever dictate in English, they're slightly more accurate at the same size — but you lose multilingual support entirely.
+  The English-only variants (`.en`) use the same architecture, but the training data is English only. At the same size, they are more accurate for English. They give no support for other languages.
 </Tip>
 
 <Note>
-  macOS builds of most Whisper models are somewhat smaller than the Windows builds of the same model (for example, Large v3 Turbo is 809 MB on macOS vs. 1.5 GB on Windows) — check the exact download size for your platform in **Model Library** before downloading.
+  The macOS build of most Whisper models is smaller than the Windows build of the same model. For example, Large v3 Turbo is 809 MB on macOS and 1.5 GB on Windows. **Model Library** shows the exact download size for your platform.
 </Note>
 
 ### NVIDIA Parakeet models
 
-NVIDIA Parakeet models are typically faster than equivalent-size Whisper models and very accurate for the languages they support.
+NVIDIA Parakeet models are faster than Whisper models of an equivalent size. They are accurate for the languages that they support.
 
 | Model | Size | Languages | Best for |
 | --- | --- | --- | --- |
 | Parakeet V2 (English) | 474 MB | English only | Fastest accurate English transcription |
 | Parakeet V3 (Multilingual) | 494 MB | 25 European languages | Multilingual European dictation |
 
-Parakeet V3 covers: English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Russian, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Serbian, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian.
+Parakeet V3 supports these languages: English, German, Spanish, French, Italian, Portuguese, Dutch, Polish, Russian, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Serbian, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian.
 
 <Note>
-  On Windows, Parakeet runs on both **x64 and ARM64**, while Whisper is currently x64-only. If you're on a Snapdragon / ARM Windows device, choose Parakeet.
+  On Windows, Parakeet runs on **x64 and ARM64**. Whisper runs on x64 only. Parakeet is the correct choice for a Snapdragon or ARM Windows device.
 </Note>
 
 ### NVIDIA Nemotron 3.5 models
 
-NVIDIA's Nemotron 3.5 ASR is the newest on-device option, available on macOS with a broader variant and on Windows with a smaller streaming variant. On macOS it edges out the other local models on accuracy and reaches well beyond European languages — the macOS multilingual variant is the only local model that handles Chinese, Japanese, Korean, and Arabic.
+Nemotron 3.5 ASR from NVIDIA is the newest on-device option. macOS gets a broader variant, and Windows gets a smaller streaming variant. On macOS, Nemotron 3.5 is more accurate than the other local models, and it goes far beyond European languages. The macOS multilingual variant is the only local model that supports Chinese, Japanese, Korean, and Arabic.
 
 | Model | Platform | Size | Languages | Best for |
 | --- | --- | --- | --- | --- |
 | Nemotron 3.5 (Latin) | macOS | ~350 MB | English, Spanish, French, Italian, Portuguese, German | Smaller, faster Latin-script transcription |
-| Nemotron 3.5 (Multilingual) | macOS | ~1.3 GB | ~30 languages incl. Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
-| Nemotron 3.5 Streaming (Multilingual) | Windows | Smaller than the macOS variant | English, Japanese | On-device streaming via the sherpa-onnx daemon |
+| Nemotron 3.5 (Multilingual) | macOS | ~1.3 GB | ~30 languages including Chinese, Japanese, Korean, Arabic | Broadest offline language coverage |
+| Nemotron 3.5 Streaming (Multilingual) | Windows | Smaller than the macOS variant | English, Japanese | On-device streaming with the sherpa-onnx daemon |
 
 <Tip>
-  Want non-European languages **offline** on macOS? **Nemotron 3.5 (Multilingual)** is the pick. Choose the **Latin** variant if you only speak English/Spanish/French/Italian/Portuguese/German and want it smaller and faster. The Windows Nemotron variant is a different, smaller streaming model with English and Japanese only — it isn't a substitute for the macOS multilingual model.
+  For non-European languages **offline** on macOS, **Nemotron 3.5 (Multilingual)** is the correct choice. The **Latin** variant is smaller and faster, and it is enough if you speak only English, Spanish, French, Italian, Portuguese, or German. The Windows Nemotron variant is a different, smaller streaming model with English and Japanese only. It is not a substitute for the macOS multilingual model.
 </Tip>
 
 ### Apple Speech & Qwen3 ASR
 
-- **Apple Speech** is built into macOS — no download, available the moment you launch the app. It's the quickest private option for everyday Mac dictation. (Requires a recent macOS version.)
-- **Qwen3 ASR** is an additional multilingual on-device model (macOS · Windows, via the sherpa-onnx daemon on Windows) for users who want to try Alibaba's ASR.
+- **Apple Speech** is built into macOS. There is no download, and it is available when you start the app. It is the fastest private option for daily Mac dictation. (It requires a recent macOS version.)
+- **Qwen3 ASR** is an additional multilingual on-device model for users who want the ASR model from Alibaba. It runs on macOS and Windows, and it uses the sherpa-onnx daemon on Windows.
 
-## Offline language coverage at a glance
+## Offline language coverage
 
-Not sure which local model handles your language? This table maps the common use-cases. For the full Parakeet V3 and Nemotron language lists, see the sections above.
+This table gives the best local model for the most common languages. For the full Parakeet V3 and Nemotron language lists, see the sections above.
 
 | Language / region | Best offline option | Also works |
 | --- | --- | --- |
 | English | Parakeet V2 or V3, Nemotron Latin | Whisper (any size) |
 | Spanish, French, Italian, Portuguese, German | Nemotron Latin, Parakeet V3 | Whisper |
-| Other European (Polish, Czech, Dutch, etc.) | Parakeet V3 | Whisper |
+| Other European (Polish, Czech, Dutch, and more) | Parakeet V3 | Whisper |
 | Chinese, Japanese, Korean, Arabic | **Nemotron Multilingual** | Whisper Large |
 | 100-language general coverage | Whisper Large v3 | — |
 | macOS, fastest start, no download | Apple Speech | — |
 
 <Note>
-  Parakeet and Whisper run on both macOS and Windows with the same language coverage. Nemotron and Qwen3 ASR are also available on both platforms, but the Windows variants are different (smaller, fewer languages) from the macOS versions — see individual sections above for details.
+  Parakeet and Whisper run on macOS and Windows with the same language coverage. Nemotron and Qwen3 ASR also run on both platforms. Their Windows variants are different from the macOS variants — they are smaller and support fewer languages. The sections above give the details.
 </Note>
 
 ## HyperWhisper Cloud
 
-HyperWhisper Cloud is built-in — no API key, no separate account. It routes to best-in-class providers across three accuracy tiers, and **you only pay for actual speech** (silence and empty recordings cost 0 credits). Use it when you want the highest accuracy without any setup.
+HyperWhisper Cloud is built into the app. You need no API key and no separate account. It routes to top providers across three accuracy tiers, and **you pay only for actual speech** (silence and empty recordings cost 0 credits). HyperWhisper Cloud is the best choice when you want the highest accuracy with no setup.
 
 | Tier | Powered by | Best for |
 | --- | --- | --- |
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
-| **High** | Grok STT (xAI), Microsoft MAI-Transcribe, Google Chirp 3 | Solid multilingual accuracy at low cost |
-| **Medium** | Deepgram Nova-3, Groq Whisper Large v3 Turbo | Strong English accuracy; Groq adds sub-second latency |
+| **High** | Grok STT (xAI), Microsoft MAI-Transcribe, Google Chirp 3 | Good multilingual accuracy at low cost |
+| **Medium** | Deepgram Nova-3, Groq Whisper Large v3 Turbo | Strong English accuracy. Groq adds sub-second latency |
 
-Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. HyperWhisper Cloud actually offers all 11 supported providers (also including Soniox, OpenAI, AssemblyAI, Mistral Voxtral, and Gemini) selectable with no key required — providers outside those four don't get automatic failover. See [Providers](/choosing-a-provider) for pricing, cost examples, and per-language guidance.
+HyperWhisper Cloud gives you all 11 supported providers with no key. The other providers are Soniox, OpenAI, AssemblyAI, Mistral Voxtral, and Gemini. Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. The other providers have no automatic failover. For pricing, cost examples, and language guidance, see [Providers](/choosing-a-provider).
 
 ## Bring your own key
 
-If you already hold API credits, want a provider's free tier (Deepgram \$200, AssemblyAI \$50), or need a specific model, plug in your own key under [API Keys](/api-keys). You pay the provider directly at their published rate.
+You can use your own key if you hold API credits, if you want the free tier of a provider (Deepgram \$200, AssemblyAI \$50), or if you need a specific model. Add the key under [API Keys](/api-keys). You pay the provider directly at the published rate.
 
 Supported providers for bring-your-own-key transcription:
 
 **OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini · xAI (Grok)**
 
 <Note>
-  When you bring your own key, opting your audio out of model training is your responsibility — each provider has its own setting. See [Data Privacy](/data-privacy) for a copy-pasteable prompt that finds the current opt-out for any provider.
+  When you use your own key, you are responsible to opt your audio out of model training. Each provider has its own setting. [Data Privacy](/data-privacy) gives a prompt that you can copy to find the current opt-out for any provider.
 </Note>
 
 # Post-processing models
 
-Post-processing is an optional second step: after transcription, an LLM cleans up filler words, fixes punctuation and capitalization, and applies any formatting your [mode](/transcription-modes) asks for. It's separate from the speech model — you can mix any speech model with any post-processing model.
+Post-processing is an optional second step. After transcription, an LLM removes filler words and corrects the punctuation and the capitalization. It also applies the formatting that your [mode](/transcription-modes) specifies. Post-processing is separate from the speech model, and you can combine any speech model with any post-processing model.
 
 ## Cloud post-processing
 
-Available built-in through HyperWhisper Cloud (no key needed) or with your own API key.
+You can use cloud post-processing through HyperWhisper Cloud with no key, or with your own API key.
 
 | Provider | Bring-your-own-key needed? | Character |
 | --- | --- | --- |
 | **HyperWhisper Cloud** | No | Built-in, credit-based |
-| **OpenAI** | Yes | GPT-4.1 and GPT-5 family; fast and accurate |
-| **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet; high quality reasoning |
-| **Google Gemini** | Yes | Gemini Flash and Pro; efficient, multilingual |
-| **Groq** | Yes | Ultra-fast inference via GPT OSS and Llama 4 models |
-| **xAI (Grok)** | Yes | Grok 4.3; high-accuracy with low latency |
-| **Cerebras** | Yes | Ultra-fast inference; GPT OSS, Qwen, and Z.ai models |
-| **Mistral** | Yes | Multilingual-friendly; Mistral Small and Nemo |
+| **OpenAI** | Yes | GPT-4.1 and GPT-5 family. Fast and accurate |
+| **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet. High-quality reasoning |
+| **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
+| **Groq** | Yes | Very fast inference with GPT OSS and Llama 4 models |
+| **xAI (Grok)** | Yes | Grok 4.3. High accuracy with low latency |
+| **Cerebras** | Yes | Very fast inference with GPT OSS, Qwen, and Z.ai models |
+| **Mistral** | Yes | Good for many languages. Mistral Small and Nemo |
 
-Every cloud post-processing model is labeled with a **speed** and **accuracy** rating (explained in the [Rating scale](#rating-scale) section below) so you can pick the trade-off that matters to you.
+Every cloud post-processing model has a **speed** rating and an **accuracy** rating. The [Rating scale](#rating-scale) section explains these ratings. They let you choose the trade that is important to you.
 
 ## Local LLM post-processing
 
-Local **Gemma 4** models clean up and format transcript text fully offline after download — your text never leaves your device. The local LLM is powered by a bundled **llama.cpp** server that starts automatically when the mode needs it.
+After you download them, the local **Gemma 4** models clean and format the transcript text offline. Your text never leaves your device. A bundled **llama.cpp** server runs the local LLM, and this server starts automatically when the mode needs it.
 
 **Platform availability:**
 
 <Tabs>
   <Tab title="macOS">
-    Local LLM post-processing is available on **Apple Silicon Macs** (M1 and later). The llama.cpp server runs via Metal GPU acceleration. Intel Macs do not support local LLM post-processing — cloud post-processing providers are available as an alternative.
+    Local LLM post-processing runs on **Apple Silicon Macs** (M1 and later). The llama.cpp server uses Metal GPU acceleration. Intel Macs do not support local LLM post-processing. On an Intel Mac, use a cloud post-processing provider.
 
     | Model | Size | Recommended RAM | Best for |
     | --- | --- | --- | --- |
     | **Gemma 4 E2B (Recommended)** | **3.1 GB** | **~4 GB** | **Best balance of speed and quality for most Macs** |
-    | Gemma 4 E4B | 5 GB | ~6 GB | Higher quality cleanup |
+    | Gemma 4 E4B | 5 GB | ~6 GB | Higher-quality cleanup |
     | Gemma 4 12B | 7.1 GB | ~10 GB | Mid-size dense model, good for 16 GB Macs |
-    | Gemma 4 26B MoE | 16.9 GB | ~18 GB | Mixture-of-experts for capable machines |
+    | Gemma 4 26B MoE | 16.9 GB | ~18 GB | Mixture-of-experts model for powerful machines |
     | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
   </Tab>
   <Tab title="Windows">
-    Local LLM post-processing is available on **Windows x64 and ARM64**. GPU acceleration uses NVIDIA CUDA when a compatible GPU is detected on x64; ARM64 and non-CUDA configurations fall back to CPU.
+    Local LLM post-processing runs on **Windows x64 and ARM64**. On x64, GPU acceleration uses NVIDIA CUDA when the app finds a compatible GPU. ARM64 machines and machines with no CUDA GPU use the CPU.
 
     | Model | Size | Recommended VRAM | Best for |
     | --- | --- | --- | --- |
     | **Gemma 4 E2B (Recommended)** | **3.1 GB** | **~4 GB** | **Recommended local cleanup model** |
-    | Gemma 4 E4B | 5 GB | ~6 GB | Higher quality local cleanup |
+    | Gemma 4 E4B | 5 GB | ~6 GB | Higher-quality local cleanup |
     | Gemma 4 26B MoE | 16.9 GB | ~18 GB | High-memory workstations |
     | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
 
     <Note>
-      On AMD and Intel GPUs, local Gemma post-processing uses CPU fallback in the current Windows build. Transcription can still use GPU acceleration independently.
+      In the current Windows build, local Gemma post-processing uses the CPU on AMD and Intel GPUs. Transcription can still use GPU acceleration.
     </Note>
   </Tab>
 </Tabs>
 
 ## Rating scale
 
-Every model in the library — speech-to-text and post-processing — shows a **Speed** bar and an **Accuracy** bar, each rated 1–5. The numbers come from an internal benchmark suite run over real recordings (results in `benchmarks/results/`).
+Every model in the library — speech-to-text and post-processing — shows a **Speed** bar and an **Accuracy** bar. Each bar has a rating from 1 to 5. The numbers come from an internal benchmark suite that runs over real recordings (results in `benchmarks/results/`).
 
 | Rating | Speed (p50 latency) | Transcription accuracy (avg WER) | Post-processing accuracy (WER vs reference) |
 | --- | --- | --- | --- |
@@ -216,17 +216,17 @@ Every model in the library — speech-to-text and post-processing — shows a **
 | 2 | 3.5 – 5.5 s | 12 – 18% | 25 – 40% |
 | 1 | > 5.5 s | > 18% | > 40% |
 
-The Model Library sorts by the sum of Speed + Accuracy (descending) so the most balanced models float to the top. If you care more about one dimension than the other, you can scroll past the top recommendations to find a model that emphasizes speed or quality specifically.
+The Model Library sorts models by the sum of Speed + Accuracy, from high to low. Thus the most balanced models are at the top. If one rating is more important to you than the other, scroll past the top recommendations. There you can find a model that gives priority to speed or to quality.
 
 <Tip>
-  A model with Speed 5, Accuracy 3 and one with Speed 3, Accuracy 5 land at the same rank. Look at the individual bars, not just the position in the list, when you have a strong preference.
+  A model with Speed 5 and Accuracy 3 gets the same rank as a model with Speed 3 and Accuracy 5. If you have a strong preference, look at the two bars and not only at the position in the list.
 </Tip>
 
-# Using on-device models
+# How to use on-device models
 
-## Downloading & storage
+## Download and storage
 
-Open **Model Library** in the app, click **Download** on any entry, and watch the circular progress indicator. You can cancel mid-stream with the `×` button. Downloaded models stay on disk until you remove them.
+Open **Model Library** in the app. Click **Download** on a model. The circular indicator shows the progress. To stop the download, click the `×` button. Downloaded models stay on disk until you remove them.
 
 | Platform | Storage location |
 | --- | --- |
@@ -237,7 +237,7 @@ Apple Speech is built into macOS and needs no download.
 
 ## GPU vs CPU
 
-Local engines use your GPU when available and **fall back to CPU automatically** if you don't have a dedicated GPU or there isn't enough VRAM. The model still runs on CPU — it's just slower.
+Local engines use your GPU when one is available. If you have no dedicated GPU, or if the VRAM is not sufficient, the engine **falls back to the CPU automatically**. The model still runs, but more slowly.
 
 | Engine | Backend | GPU support | CPU fallback |
 | --- | --- | --- | --- |
@@ -251,46 +251,46 @@ Local engines use your GPU when available and **fall back to CPU automatically**
 | Local Gemma post-processing (macOS) | llama.cpp / Metal | Apple Silicon (M1+) | No (Intel Macs not supported) |
 | Local Gemma post-processing (Windows) | LLamaSharp / GGUF | NVIDIA CUDA (x64 only) | Yes (CPU — x64 and ARM64) |
 
-## Removing models
+## Remove models
 
-To free up disk space, click the trash icon next to any downloaded model in Model Library. The file is removed immediately and can be re-downloaded any time.
+To make disk space available, click the trash icon next to a downloaded model in Model Library. The app removes the file immediately. You can download the model again at any time.
 
-# Which should I pick?
+# Which model to choose
 
 <CardGroup cols={2}>
   <Card title="Privacy is non-negotiable / offline" icon="shield-halved">
-    An **on-device** speech model. Apple Speech for instant Mac dictation, or **Parakeet** / **Nemotron** for higher accuracy. Audio never leaves your machine.
+    Choose an **on-device** speech model. Use Apple Speech for immediate Mac dictation, or **Parakeet** or **Nemotron** for higher accuracy. Your audio never leaves your machine.
   </Card>
   <Card title="I want the best accuracy, no setup" icon="sparkles">
-    **HyperWhisper Cloud — Highest (ElevenLabs Scribe v2)**. No API key, pay only for speech.
+    Choose **HyperWhisper Cloud — Highest (ElevenLabs Scribe v2)**. You need no API key, and you pay only for speech.
   </Card>
   <Card title="I speak a non-European language, offline" icon="globe">
-    **Nemotron 3.5 (Multilingual)** — on-device coverage for Chinese, Japanese, Korean, Arabic, and ~30 languages total.
+    Choose **Nemotron 3.5 (Multilingual)**. It gives on-device coverage for Chinese, Japanese, Korean, Arabic, and approximately 30 languages in total.
   </Card>
   <Card title="Older laptop / no dedicated GPU" icon="microchip">
-    **Whisper Tiny or Small** — runs comfortably on CPU. For longer audio, switch to HyperWhisper Cloud.
+    Choose **Whisper Tiny or Small**. These models run well on the CPU. For longer audio, change to HyperWhisper Cloud.
   </Card>
   <Card title="English only, want it fast & local" icon="bolt">
-    **Parakeet V2 (English)** — typically faster than equivalent Whisper with comparable accuracy.
+    Choose **Parakeet V2 (English)**. It is faster than the equivalent Whisper model, with comparable accuracy.
   </Card>
   <Card title="I already have a provider key" icon="key">
-    **Bring your own key** — plug it in and pay the provider directly. See [API Keys](/api-keys).
+    Choose **Bring your own key**. Add the key and pay the provider directly. See [API Keys](/api-keys).
   </Card>
 </CardGroup>
 
 # Boost accuracy on any model
 
-- **[Custom vocabulary](/vocabulary)** — add product names, jargon, and colleagues' names. The single biggest improvement for technical or professional use. (Support varies by model — Apple Speech and Whisper support it locally; among cloud providers most do, a few don't.)
-- **Low-noise environment** — every model degrades with background noise. See [Best Practices](/best-practices).
-- **Natural pace** — speech that's too fast or too slow both hurt accuracy.
+- **[Custom vocabulary](/vocabulary)** — add product names, technical terms, and the names of colleagues. This gives the largest improvement for technical or professional use. (Support is different for each model. Apple Speech and Whisper support it locally. Most cloud providers support it, but some do not.)
+- **Low-noise environment** — background noise makes every model less accurate. See [Best Practices](/best-practices).
+- **Natural pace** — speech that is too fast or too slow decreases accuracy.
 
-# Go deeper
+# More information
 
 <CardGroup cols={2}>
   <Card title="Providers" icon="cloud" href="/choosing-a-provider">
     HyperWhisper Cloud tiers, per-minute pricing, cost examples, and accuracy by language.
   </Card>
   <Card title="API Keys" icon="key" href="/api-keys">
-    Set up bring-your-own-key access for any supported provider.
+    Configure bring-your-own-key access for any supported provider.
   </Card>
 </CardGroup>

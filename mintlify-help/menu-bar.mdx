@@ -1,18 +1,18 @@
 ---
 title: "Menu Bar & Tray Controls"
-description: Quick access to recording, microphone switching, mode switching, and settings without opening the main window.
+description: Start a recording, switch the microphone or the mode, and open settings without the main window.
 ---
 
-HyperWhisper lives in your menu bar (macOS) or system tray (Windows) so you can start a recording, switch modes, or open settings at any time — even when the main window is closed.
+HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can start a recording, switch the mode, or open settings at any time, even when the main window is closed.
 
 <Tabs>
   <Tab title="macOS">
     ## Menu Bar Icon
 
-    The HyperWhisper menu icon sits in the top-right of the macOS menu bar.
+    The HyperWhisper menu icon is at the top right of the macOS menu bar.
 
-    - **Idle** — rocket icon rendered as a monochrome template image (white on dark menu bars, black on light menu bars)
-    - **Recording** — icon turns **red**
+    - **Idle** — the rocket icon shows as a monochrome template image (white on dark menu bars, black on light menu bars)
+    - **Recording** — the icon becomes **red**
 
     Click the icon to open the menu.
 
@@ -20,29 +20,29 @@ HyperWhisper lives in your menu bar (macOS) or system tray (Windows) so you can 
 
     | Item | What it does |
     |---|---|
-    | **Start/Stop Recording** / **Stop Recording** | Toggles recording. Displays your configured shortcut on the right, or a Push-to-Talk hint (e.g., "Hold FN") if PTT is enabled instead. |
+    | **Start/Stop Recording** / **Stop Recording** | Starts or stops the recording. The item shows your shortcut on the right. If you use Push-to-Talk instead, the item shows a Push-to-Talk hint, for example "Hold FN". |
     | **History** | Opens the main window to the History view. |
     | **Settings** | Opens the main window to the Settings view. |
-    | **Microphone** | Submenu listing all available input devices. A checkmark marks the active device. The system default device is labeled with "(Default)". Click any device to switch immediately. |
-    | **Select Mode** | Submenu listing all your transcription modes. A checkmark marks the active mode. Click any mode to switch. |
-    | **Transcribe File** | Submenu listing all your modes. Select a mode, then pick an audio or video file to transcribe. |
+    | **Microphone** | Submenu with all available input devices. A checkmark shows the active device. The system default device has the label "(Default)". Click a device to switch to it immediately. |
+    | **Select Mode** | Submenu with all your transcription modes. A checkmark shows the active mode. Click a mode to switch to it. |
+    | **Transcribe File** | Submenu with all your modes. Select a mode. Then select an audio file or a video file to transcribe. |
     | **Help Center** | Opens [hyperwhisper.com/docs](https://hyperwhisper.com/docs). |
     | **Contact Support** | Opens the support portal. |
     | **Feedback & Suggestions** | Opens the feedback portal. |
-    | *(Version number)* | Read-only — shows the installed app version (e.g., Version 2.42.1). |
+    | *(Version number)* | Read-only. Shows the installed app version, for example Version 2.42.1. |
     | **Quit** | Exits HyperWhisper. |
 
     ## Behavior
 
     - The menu bar icon is **always available**, even when the main window is closed.
-    - Microphone and mode selections made from the menu persist across sessions.
-    - If you have configured a global toggle shortcut, it appears as a keyboard hint next to **Start/Stop Recording**. If Push-to-Talk is configured instead, the menu shows the PTT key hint (for example, "Hold FN" or "Hold ⌃").
-    - To start the app without showing the main window at launch, enable **Launch Minimized** in Settings → General.
+    - The app keeps your microphone and mode selections from the menu across sessions.
+    - If you set a global toggle shortcut, the menu shows a keyboard hint next to **Start/Stop Recording**. If you set Push-to-Talk instead, the menu shows the Push-to-Talk key hint (for example, "Hold FN" or "Hold ⌃").
+    - To start the app without the main window, enable **Launch Minimized** in Settings → General.
   </Tab>
   <Tab title="Windows">
     ## System Tray Icon
 
-    The HyperWhisper icon appears in the **taskbar notification area** (bottom-right of the screen). If it is hidden, click the up-arrow (^) to expand hidden tray icons.
+    The HyperWhisper icon appears in the **taskbar notification area** at the bottom right of the screen. If the icon is hidden, click the up-arrow (^) to show the hidden tray icons.
 
     - **Double-click** the icon to open or restore the main window.
     - **Right-click** the icon to open the context menu.
@@ -51,47 +51,47 @@ HyperWhisper lives in your menu bar (macOS) or system tray (Windows) so you can 
 
     | Item | What it does |
     |---|---|
-    | **Start/Stop Recording** / **Stop Recording** | Toggles recording. Disabled while a transcription or model load is in progress, or when no microphone device or mode is selected. |
+    | **Start/Stop Recording** / **Stop Recording** | Starts or stops the recording. The item is disabled during a transcription or a model load. The item is also disabled when no microphone device or mode is selected. |
     | **History** | Opens the main window to the History view. |
     | **Settings** | Opens the main window to the Settings view. |
-    | **Microphone** | Submenu listing all available input devices. A checkmark marks the active device. Click any device to switch. |
-    | **Select Mode** | Submenu listing all your transcription modes. A checkmark marks the active mode. Click any mode to switch. |
-    | **Transcribe File** | Submenu listing all your modes. Select a mode to open the file picker and transcribe an audio file. |
+    | **Microphone** | Submenu with all available input devices. A checkmark shows the active device. Click a device to switch to it. |
+    | **Select Mode** | Submenu with all your transcription modes. A checkmark shows the active mode. Click a mode to switch to it. |
+    | **Transcribe File** | Submenu with all your modes. Select a mode to open the file picker and transcribe an audio file. |
     | **Help Center** | Opens [hyperwhisper.com/docs](https://hyperwhisper.com/docs). |
     | **Contact Support** | Opens the support portal. |
     | **Send Feedback** | Opens the feedback portal. |
-    | **Check for Updates** | Manually checks for a new app version. The item is temporarily disabled while the check is running. |
-    | *(Version number)* | Read-only — shows the installed app version. |
+    | **Check for Updates** | Looks for a new app version immediately. The item is disabled during the check. |
+    | *(Version number)* | Read-only. Shows the installed app version. |
     | **Quit** | Exits HyperWhisper. |
 
     ## Behavior
 
-    - Microphone and mode selections made from the tray menu persist across sessions.
-    - **Minimize to Tray** — When this setting is enabled (Settings → General), closing the main window hides the app to the tray instead of exiting. A balloon notification reminds you of your recording shortcut.
-    - **Launch Minimized** — When this setting is enabled (Settings → General), HyperWhisper starts hidden in the tray. A balloon notification appears with your configured shortcut so you know the app is running.
+    - The app keeps your microphone and mode selections from the tray menu across sessions.
+    - **Minimize to Tray** — If you enable this setting (Settings → General), the app goes to the tray when you close the main window. The app does not exit. A balloon notification shows your recording shortcut.
+    - **Launch Minimized** — If you enable this setting (Settings → General), HyperWhisper starts hidden in the tray. A balloon notification shows your shortcut. This notification tells you that the app runs.
   </Tab>
 </Tabs>
 
 ## Common Features
 
-Both platforms share the same core tray capabilities:
+Both platforms give the same tray functions:
 
-- **Switch microphone** without opening the main window — changes take effect immediately.
-- **Switch mode** without opening the main window — the new mode is used for the next recording.
-- **Transcribe a file** — choose the mode from the submenu, then pick a file. See [Transcribe a File](/file-transcription) for supported formats and size limits.
-- **Open History or Settings** directly from the menu.
-- **Start or stop recording** with a single click.
+- **Switch microphone** without the main window. The change takes effect immediately.
+- **Switch mode** without the main window. The app uses the new mode for the next recording.
+- **Transcribe a file** — select the mode in the submenu, then select a file. See [Transcribe a File](/file-transcription) for the supported formats and the size limits.
+- **Open History or Settings** from the menu.
+- **Start or stop recording** with one click.
 
 ## Tips
 
 <Tip>
-  On Windows, enable **Minimize to Tray** (Settings → General) if you want to keep HyperWhisper running in the background after closing the window. Without it, closing the window exits the app.
+  To keep HyperWhisper in the background on Windows after you close the window, enable **Minimize to Tray** (Settings → General). If this setting is off, the app exits when you close the window.
 </Tip>
 
 <Tip>
-  Enable **Launch Minimized** (Settings → General) on either platform to start HyperWhisper at login without the main window appearing on screen. The menu bar icon (macOS) or tray icon (Windows) is still immediately usable.
+  To start HyperWhisper at login without the main window on the screen, enable **Launch Minimized** (Settings → General). This setting works on both platforms. You can use the menu bar icon (macOS) or the tray icon (Windows) immediately.
 </Tip>
 
 <Tip>
-  You can switch modes from the tray even while recording — the new mode applies to the next recording session, not the current one.
+  You can switch the mode from the tray during a recording. The new mode applies to the next recording, not to the current recording.
 </Tip>
