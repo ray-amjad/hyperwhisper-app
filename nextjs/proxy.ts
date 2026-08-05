@@ -65,12 +65,12 @@ async function getBetterAuthSession(request: NextRequest) {
 }
 
 /**
- * Middleware that handles:
+ * Proxy (formerly middleware) that handles:
  * 1. next-intl locale routing (adds locale prefix)
  * 2. Better Auth session checking
  * 3. User route protection (unified portal for customers and admins)
  */
-export default async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Check if this is a user route (matches /<locale>/user/*)
