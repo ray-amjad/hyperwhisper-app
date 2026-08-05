@@ -76,7 +76,6 @@
     "eslint-plugin-unused-imports": "4.4.1",
     "globals": "17.9.0",
     "prettier": "3.5.3",
-    "raw-loader": "^4.0.2",
     "tailwindcss": "4.1.11",
     "tsx": "^4.21.0",
     "typescript": "5.9.3",
