@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Sulge HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Hiljem";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Hoia mikrofon soojana salvestuste vahel";
 "settings.sound.keepWarmMicrophone.info" = "Vähendab push-to-talk käivitusviivitust, hoides mikrofoni seansi avatuna, kui HyperWhisper on jõude. macOS kuvab pidevalt oranži mikrofonimärguannet ja Bluetooth-kõrvaklapid võivad selle lubamise ajal jääda madalama kvaliteediga kõnerežiimi.";
 "settings.models.local.inUse" = "Seda kohalikku mudelit kasutatakse praegu järeltöötlemiseks:

@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "結束 HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "稍後";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "在錄音間隙保持麥克風熱啟動狀態";
 "settings.sound.keepWarmMicrophone.info" = "透過在 HyperWhisper 閒置時保持麥克風工作階段開啟，減少一鍵通啟動延遲。macOS 將持續顯示橙色麥克風指示燈，啟用時藍牙耳機可能會保持在較低音質的通話模式。";
 "settings.models.local.inUse" = "此本機模型目前正被以下功能用於後處理：

@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Loka HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Seinna";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Haltu hljóðnema heitum á milli upptaka";
 "settings.sound.keepWarmMicrophone.info" = "Dregur úr push-to-talk ræsingartafinu með því að halda hljóðnemasetunni opinni meðan HyperWhisper er aðgerðarlaus. macOS mun sýna appelsínugula hljóðnemavísa stöðugt, og Bluetooth heyrnartól gætu verið í lægri gæða símtalsham á meðan þetta er virkt.";
 "settings.models.local.inUse" = "Þetta staðbundna líkan er notað í aukavinnslu af:

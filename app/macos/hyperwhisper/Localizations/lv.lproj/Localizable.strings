@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Aizvērt HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Vēlāk";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Uzturēt mikrofonu siltu starp ierakstiem";
 "settings.sound.keepWarmMicrophone.info" = "Samazina push-to-talk palaišanas aizkavēšanos, uzturot mikrofona sesiju atvērtu, kamēr HyperWhisper ir dīkstāvē. macOS pastāvīgi rādīs oranžo mikrofona indikatoru, un Bluetooth austiņas var palikt zemākas kvalitātes zvana režīmā, kamēr tas ir iespējots.";
 "settings.models.local.inUse" = "Šis lokālais modelis pašlaik tiek izmantots pēcapstrādei:

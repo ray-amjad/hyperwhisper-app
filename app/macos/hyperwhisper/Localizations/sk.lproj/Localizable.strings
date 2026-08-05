@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Zatvoriť HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Neskôr";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Udržiavaj mikrofón aktívny medzi nahrávkami";
 "settings.sound.keepWarmMicrophone.info" = "Znižuje oneskorenie spustenia push-to-talk tým, že udržuje reláciu mikrofónu otvorenú, keď je HyperWhisper nečinný. macOS bude nepretržite zobrazovať oranžový indikátor mikrofónu a Bluetooth slúchadlá môžu zostať v režime hovoru nižšej kvality, pokiaľ je táto funkcia aktívna.";
 "settings.models.local.inUse" = "Tento lokálny model sa v súčasnosti používa na následné spracovanie pre:

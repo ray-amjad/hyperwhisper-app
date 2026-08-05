@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "HyperWhisper बंद करें";
 "vocabulary.icloudSync.restart.later" = "बाद में";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "रिकॉर्डिंग के बीच माइक्रोफ़ोन को सक्रिय रखें";
 "settings.sound.keepWarmMicrophone.info" = "HyperWhisper के निष्क्रिय रहने के दौरान माइक्रोफ़ोन सत्र को खुला रखकर पुश-टू-टॉक स्टार्टअप देरी को कम करता है। macOS लगातार नारंगी माइक्रोफ़ोन संकेतक दिखाएगा, और Bluetooth हेडसेट इसके सक्षम होने पर कम-गुणवत्ता वाले कॉल मोड में रह सकते हैं।";
 "settings.models.local.inUse" = "यह स्थानीय मॉडल वर्तमान में पोस्ट-प्रोसेसिंग के लिए उपयोग किया जा रहा है:

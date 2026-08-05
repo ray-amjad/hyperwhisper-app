@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "HyperWhisper bezárása";
 "vocabulary.icloudSync.restart.later" = "Később";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Mikrofon melegen tartása felvételek között";
 "settings.sound.keepWarmMicrophone.info" = "Csökkenti a push-to-talk indítási késleltetést azzal, hogy nyitva tartja a mikrofon munkamenetet, amíg a HyperWhisper tétlen. A macOS folyamatosan megjeleníti a narancsszínű mikrofon jelzőt, és a Bluetooth fejhallgatók alacsonyabb minőségű hívás módban maradhatnak, amíg ez engedélyezve van.";
 "settings.models.local.inUse" = "Ezt a helyi modellt jelenleg a következők használják utófeldolgozásra:

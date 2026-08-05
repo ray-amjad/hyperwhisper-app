@@ -504,6 +504,7 @@
 "settings.shortcuts.pushToTalk.mode.control" = "Control Key";
 "settings.shortcuts.pushToTalk.mode.fnControl" = "FN + Control";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.shortcuts.pushToTalk.mode.custom" = "Custom Shortcut";
 
 "settings.shortcuts.pushToTalk.doublePress.title" = "Double press to lock recording";

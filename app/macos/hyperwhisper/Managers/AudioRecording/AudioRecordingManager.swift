@@ -443,11 +443,12 @@ class AudioRecordingManager: NSObject, ObservableObject {
         // Combo modes (FN+Control, FN+Option) don't support double-press-to-lock —
         // a quick press-and-release should silently exit, not start recording.
         let isComboMode = pushToTalkMode == .fnControl || pushToTalkMode == .fnOption
+            || pushToTalkMode == .controlOptionCommand
         BareModifierKeyMonitor.shared.doublePressEnabled = isComboMode ? false : settingsManager.pushToTalkDoublePressEnabled
 
         if pushToTalkMode == .disabled {
             AppLogger.audio.debug("📴 Push to Talk is disabled")
-        } else if [.fn, .control, .leftOption, .rightOption, .fnControl, .fnOption].contains(pushToTalkMode) {
+        } else if [.fn, .control, .leftOption, .rightOption, .fnControl, .fnOption, .controlOptionCommand].contains(pushToTalkMode) {
             // BARE MODIFIER MODE (single key or combo)
 
             if AccessibilityHelper.shared.hasAccessibilityPermission() {
@@ -531,6 +532,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
                     switch pushToTalkMode {
                     case .fnControl: BareModifierKeyMonitor.shared.start(combo: [.fn, .control])
                     case .fnOption: BareModifierKeyMonitor.shared.start(combo: [.fn, .leftOption])
+                    case .controlOptionCommand: BareModifierKeyMonitor.shared.start(combo: [.control, .anyOption, .command])
                     case .fn: BareModifierKeyMonitor.shared.start(mode: .fn)
                     case .control: BareModifierKeyMonitor.shared.start(mode: .control)
                     case .leftOption: BareModifierKeyMonitor.shared.start(mode: .leftOption)

@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Tanca HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Més tard";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Mantén el micròfon actiu entre gravacions";
 "settings.sound.keepWarmMicrophone.info" = "Redueix el retard d'inici de push-to-talk mantenint la sessió del micròfon oberta mentre HyperWhisper està inactiu. macOS mostrarà contínuament l'indicador taronja del micròfon, i els auriculars Bluetooth poden romandre en mode de trucada de menor qualitat mentre estigui activat.";
 "settings.models.local.inUse" = "Aquest model local s'utilitza actualment per al postprocessament per:

@@ -50,6 +50,7 @@ enum PushToTalkMode: String, CaseIterable, Codable {
     case rightOption
     case fnControl
     case fnOption
+    case controlOptionCommand
     case custom
 
     var localizedName: String {
@@ -68,6 +69,8 @@ enum PushToTalkMode: String, CaseIterable, Codable {
             return NSLocalizedString("settings.shortcuts.pushToTalk.mode.fnControl", value: "FN + Control", comment: "")
         case .fnOption:
             return NSLocalizedString("settings.shortcuts.pushToTalk.mode.fnOption", value: "FN + Left Option", comment: "")
+        case .controlOptionCommand:
+            return NSLocalizedString("settings.shortcuts.pushToTalk.mode.controlOptionCommand", value: "Control + Option + Command", comment: "")
         case .custom:
             return NSLocalizedString("settings.shortcuts.pushToTalk.mode.custom", value: "Custom Shortcut", comment: "")
         }

@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "HyperWhisperを終了";
 "vocabulary.icloudSync.restart.later" = "後で";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "録音の合間もマイクをウォームアップ状態に保つ";
 "settings.sound.keepWarmMicrophone.info" = "HyperWhisperがアイドル中もマイクセッションを開いたままにすることで、プッシュトゥトークの起動遅延を軽減します。macOSはオレンジ色のマイクインジケーターを常時表示し、この機能が有効な間はBluetoothヘッドセットが低品質の通話モードのままになる場合があります。";
 "settings.models.local.inUse" = "このローカルモデルは現在、以下でポスト処理に使用されています：

@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "HyperWhisper'ı Kapat";
 "vocabulary.icloudSync.restart.later" = "Daha Sonra";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Kayıtlar arasında mikrofonu sıcak tut";
 "settings.sound.keepWarmMicrophone.info" = "HyperWhisper boştayken mikrofon oturumunu açık tutarak push-to-talk başlatma gecikmesini azaltır. macOS turuncu mikrofon göstergesini sürekli gösterecek ve Bluetooth kulaklıklar bu etkinken daha düşük kaliteli arama modunda kalabilir.";
 "settings.models.local.inUse" = "Bu yerel model şu anda şunlar tarafından son işleme için kullanılıyor:

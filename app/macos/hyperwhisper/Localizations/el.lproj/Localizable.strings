@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Κλείσιμο HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Αργότερα";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Διατήρηση μικροφώνου ενεργού μεταξύ εγγραφών";
 "settings.sound.keepWarmMicrophone.info" = "Μειώνει την καθυστέρηση εκκίνησης push-to-talk διατηρώντας τη συνεδρία μικροφώνου ανοιχτή ενώ το HyperWhisper είναι σε αδράνεια. Το macOS θα εμφανίζει συνεχώς την πορτοκαλί ένδειξη μικροφώνου, και τα ακουστικά Bluetooth ενδέχεται να παραμένουν σε λειτουργία κλήσης χαμηλότερης ποιότητας ενώ αυτό είναι ενεργοποιημένο.";
 "settings.models.local.inUse" = "Αυτό το τοπικό μοντέλο χρησιμοποιείται αυτή τη στιγμή για μετεπεξεργασία από:

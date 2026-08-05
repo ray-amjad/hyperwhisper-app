@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Đóng HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Sau";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Giữ micro ấm giữa các lần ghi âm";
 "settings.sound.keepWarmMicrophone.info" = "Giảm độ trễ khởi động push-to-talk bằng cách giữ phiên micro mở trong khi HyperWhisper ở chế độ chờ. macOS sẽ hiển thị liên tục chỉ báo micro màu cam, và tai nghe Bluetooth có thể ở lại chế độ cuộc gọi chất lượng thấp hơn khi tính năng này được bật.";
 "settings.models.local.inUse" = "Mô hình cục bộ này hiện đang được sử dụng cho hậu xử lý bởi:

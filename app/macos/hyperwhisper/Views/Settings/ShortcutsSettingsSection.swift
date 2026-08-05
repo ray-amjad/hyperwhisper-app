@@ -151,7 +151,8 @@ struct ShortcutsSettingsSection: View {
                     // Combo modes (FN+Control, FN+Option) don't support double-press-to-lock
                     if settingsManager.pushToTalkMode != .custom
                         && settingsManager.pushToTalkMode != .fnControl
-                        && settingsManager.pushToTalkMode != .fnOption {
+                        && settingsManager.pushToTalkMode != .fnOption
+                        && settingsManager.pushToTalkMode != .controlOptionCommand {
                         Divider()
 
                         SettingsToggleRow(

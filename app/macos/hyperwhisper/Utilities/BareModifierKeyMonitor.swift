@@ -81,6 +81,10 @@ final class BareModifierKeyMonitor {
         case control
         case leftOption
         case rightOption
+        /// Either Option key. Combo members are matched with allSatisfy, which cannot
+        /// express "left OR right", so combos that should accept both sides use this.
+        case anyOption
+        case command
     }
 
     private enum MonitorState {
@@ -1008,6 +1012,11 @@ final class BareModifierKeyMonitor {
             return flags.contains(.maskSecondaryFn)
         case .control:
             return flags.contains(.maskControl)
+        case .command:
+            return flags.contains(.maskCommand)
+        case .anyOption:
+            // .maskAlternate covers both Option keys
+            return flags.contains(.maskAlternate)
         case .leftOption, .rightOption:
             // CGEventFlags doesn't directly distinguish left/right Option
             // We check the raw value for side-specific detection
@@ -1045,7 +1054,9 @@ final class BareModifierKeyMonitor {
                 break
             case .control:
                 interferingFlags.removeAll { $0 == .maskControl }
-            case .leftOption, .rightOption:
+            case .command:
+                interferingFlags.removeAll { $0 == .maskCommand }
+            case .leftOption, .rightOption, .anyOption:
                 interferingFlags.removeAll { $0 == .maskAlternate }
             }
         }

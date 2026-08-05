@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Закрити HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Пізніше";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Тримати мікрофон активним між записами";
 "settings.sound.keepWarmMicrophone.info" = "Зменшує затримку запуску push-to-talk, тримаючи сеанс мікрофона відкритим, поки HyperWhisper простоює. macOS постійно відображатиме помаранчевий індикатор мікрофона, а Bluetooth-гарнітури можуть залишатися в режимі дзвінка нижчої якості, поки це ввімкнено.";
 "settings.models.local.inUse" = "Ця локальна модель наразі використовується для постобробки:

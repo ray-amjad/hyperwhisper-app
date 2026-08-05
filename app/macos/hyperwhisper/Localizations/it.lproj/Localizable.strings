@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Chiudi HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Più tardi";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Mantieni il microfono attivo tra le registrazioni";
 "settings.sound.keepWarmMicrophone.info" = "Riduce il ritardo di avvio del push-to-talk mantenendo la sessione del microfono aperta mentre HyperWhisper è inattivo. macOS mostrerà continuamente l'indicatore arancione del microfono, e i cuffie Bluetooth potrebbero rimanere in modalità chiamata di qualità inferiore mentre questa opzione è attiva.";
 "settings.models.local.inUse" = "Questo modello locale è attualmente utilizzato per la post-elaborazione da:

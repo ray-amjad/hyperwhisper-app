@@ -650,6 +650,8 @@ struct MenuBarItems: View {
             return "Hold FN+⌃"
         case .fnOption:
             return "Hold FN+⌥"
+        case .controlOptionCommand:
+            return "Hold ⌃⌥⌘"
         case .custom:
             // For custom PTT shortcut, try to get its description
             if let shortcut = KeyboardShortcuts.getShortcut(for: .pushToTalk) {

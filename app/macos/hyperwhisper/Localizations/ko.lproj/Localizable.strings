@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "HyperWhisper 종료";
 "vocabulary.icloudSync.restart.later" = "나중에";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "녹음 사이에 마이크를 워밍업 상태로 유지";
 "settings.sound.keepWarmMicrophone.info" = "HyperWhisper가 유휴 상태일 때 마이크 세션을 열어 두어 푸시 투 토크 시작 지연을 줄입니다. macOS는 주황색 마이크 표시기를 지속적으로 표시하며, 이 기능이 활성화된 동안 Bluetooth 헤드셋이 낮은 품질의 통화 모드를 유지할 수 있습니다.";
 "settings.models.local.inUse" = "이 로컬 모델은 현재 다음에서 후처리에 사용 중입니다:

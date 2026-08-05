@@ -614,6 +614,7 @@
 "vocabulary.icloudSync.restart.quit" = "Luk HyperWhisper";
 "vocabulary.icloudSync.restart.later" = "Senere";
 "settings.shortcuts.pushToTalk.mode.fnOption" = "FN + Left Option";
+"settings.shortcuts.pushToTalk.mode.controlOptionCommand" = "Control + Option + Command";
 "settings.sound.keepWarmMicrophone.title" = "Hold mikrofon varm mellem optagelser";
 "settings.sound.keepWarmMicrophone.info" = "Reducerer push-to-talk opstartsforsinkelse ved at holde mikrofonssessionen åben, mens HyperWhisper er inaktiv. macOS viser den orange mikrofonindikator kontinuerligt, og Bluetooth-headset kan forblive i lavere kvalitets opkaldstilstand, mens dette er aktiveret.";
 "settings.models.local.inUse" = "Denne lokale model bruges i øjeblikket til efterbehandling af:
