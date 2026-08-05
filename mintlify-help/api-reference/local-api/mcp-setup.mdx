@@ -1,33 +1,33 @@
 ---
 title: MCP Setup
-description: Wire HyperWhisper's local API into Cursor, Claude Desktop, or Claude Code as an MCP server so any agent can transcribe and post-process through the running app.
+description: Connect the HyperWhisper local API to Cursor, Claude Desktop, or Claude Code as an MCP server. Any agent can then transcribe and post-process through the app.
 ---
 
-The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) package is a Model Context Protocol bridge that wraps the [local API](./overview). Configure it once and any MCP-capable agent — Cursor, Claude Desktop, Claude Code, Zed, custom code — can call HyperWhisper as a tool.
+The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) package is a Model Context Protocol bridge for the [local API](./overview). You configure this bridge one time. Then any MCP-capable agent can call HyperWhisper as a tool: Cursor, Claude Desktop, Claude Code, Zed, or your own code.
 
 ## Prerequisites
 
-1. HyperWhisper for macOS or Windows is installed and you have opened it at least once. Both apps write the discovery file the bridge reads.
-2. **Settings → Local API** is turned **on**. This is what writes the discovery file the bridge reads.
-3. Node.js 18 or newer is on your `PATH`. `node --version` should print a version number — if it does not, install Node.js from [nodejs.org](https://nodejs.org). The `npx` command ships with Node.
+1. Install HyperWhisper for macOS or Windows, then open it one time. Both apps write the discovery file that the bridge reads.
+2. Turn **Settings → Local API** on. This setting writes the discovery file that the bridge reads.
+3. Put Node.js 18 or newer on your `PATH`. Run `node --version` to see the version number. If the command fails, install Node.js from [nodejs.org](https://nodejs.org). Node.js includes the `npx` command.
 
-You do not need to install the bridge globally. `npx -y @hyperwhisper/mcp` fetches and runs it on demand, and every MCP client below uses that command directly.
+You do not need a global installation of the bridge. The `npx -y @hyperwhisper/mcp` command downloads the bridge and runs it on demand. Each MCP client in this page uses that command directly.
 
-## Tools the bridge exposes
+## Tools the bridge supplies
 
 | Tool | What the agent gets |
 |---|---|
-| `health` | Confirms HyperWhisper is running. No auth required. |
+| `health` | Makes sure that HyperWhisper runs. No authentication is necessary. |
 | `list_models` | Catalog of voice and post-processing models. |
 | `list_modes` | Saved transcription Modes. |
-| `transcribe` | Transcribes an absolute path to an audio file, which must be inside your recordings folder (see note below). Optionally writes the transcript straight to a file (`output_path`) and returns only a confirmation — keeps long transcripts out of the agent's context. Also accepts `mode_id`, an `engine`/`model` override, `language`, `timestamp_granularities`, and `post_process_preset`/`post_process_prompt` to clean up the result in the same call — passing either of these without `output_path` fails with `INVALID_ARGUMENTS`. `timestamp_granularities` cannot be combined with `output_path` either (caption files aren't written to disk yet) — omit `output_path` to get timestamps back in the response. |
-| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or a free-form `prompt` — mutually exclusive with each other. Accepts optional `provider`/`model` overrides to bypass your default post-processing settings for a single call. Only `hyper` and `note` currently map to a real backend preset — `email` and `commit` silently produce Hyper-style output instead. |
-| `search_recordings` | Substring search across past transcripts. Accepts an optional `q` substring plus `since`, `until`, and `limit` filters. |
-| `get_recording` | Single transcript row by ID. |
+| `transcribe` | Transcribes an audio file at an absolute path. The file must be in your recordings folder (see the note in this page). The tool can write the transcript directly to a file with `output_path` and return only a confirmation. This keeps long transcripts out of the context of the agent. The tool also accepts `mode_id`, an `engine`/`model` override, `language`, `timestamp_granularities`, and `post_process_preset`/`post_process_prompt`. The two post-process options clean the result in the same call. If you use one of them without `output_path`, the call fails with `INVALID_ARGUMENTS`. You also cannot combine `timestamp_granularities` with `output_path`, because the app does not write caption files to disk yet. To get timestamps in the response, omit `output_path`. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`) or with a free-form `prompt`. You can use a preset or a prompt, but not both. Optional `provider`/`model` overrides replace your default post-processing settings for one call. Only `hyper` and `note` map to a real backend preset at this time. `email` and `commit` give Hyper-style output instead, with no message. |
+| `search_recordings` | Searches past transcripts for a substring. The tool accepts an optional `q` substring and the `since`, `until`, and `limit` filters. |
+| `get_recording` | Gets one transcript row by ID. |
 
 ## Cursor
 
-Edit `~/.cursor/mcp.json` and add the `hyperwhisper` entry:
+Open `~/.cursor/mcp.json`. Add the `hyperwhisper` entry:
 
 ```json
 {
@@ -40,11 +40,11 @@ Edit `~/.cursor/mcp.json` and add the `hyperwhisper` entry:
 }
 ```
 
-Restart Cursor. The server should appear under **Settings → MCP**.
+Restart Cursor. The server appears under **Settings → MCP**.
 
 ## Claude Desktop
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Open `~/Library/Application Support/Claude/claude_desktop_config.json`. Add the same entry:
 
 ```json
 {
@@ -57,7 +57,7 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-Quit and reopen Claude Desktop. The hammer icon in the composer should list `hyperwhisper`.
+Quit Claude Desktop, then open it again. The hammer icon in the composer lists `hyperwhisper`.
 
 ## Claude Code
 
@@ -69,40 +69,42 @@ claude mcp add hyperwhisper -- npx -y @hyperwhisper/mcp
 
 In a new session, `/mcp` lists `hyperwhisper` with its tools.
 
-## Verify
+## Make sure that the bridge works
 
-Open a fresh agent session and ask:
+Open a new agent session. Then give the agent this instruction:
 
 ```text
 Use hyperwhisper to transcribe a file in my recordings folder
 ```
 
-The agent should call the `transcribe` tool and return the text inline. If you do not have a sample, `Ask hyperwhisper to run a health check` is enough — the agent should call `health` and report the app version.
+The agent calls the `transcribe` tool and returns the text inline. If you do not have an audio file, use this instruction instead: `Ask hyperwhisper to run a health check`. The agent then calls `health` and reports the version of the app.
 
 <Note>
-  `transcribe` only reads files inside your HyperWhisper recordings folder — an arbitrary path like `/Users/me/Desktop/test.wav` is rejected (`FILE_ACCESS_DENIED` on macOS, `FILE_NOT_ALLOWED` on Windows). Point the agent at a file already saved by HyperWhisper (see [History](/history)), or an audio file you've copied into that folder.
+  `transcribe` reads files only in your HyperWhisper recordings folder. The tool rejects a different path such as `/Users/me/Desktop/test.wav` (`FILE_ACCESS_DENIED` on macOS, `FILE_NOT_ALLOWED` on Windows). The agent can use a file that HyperWhisper saved (see [History](/history)), or an audio file that you copied into that folder.
 </Note>
 
 ## Write transcripts to a file
 
-For long recordings, ask the agent to save the transcript instead of returning it:
+For a long recording, ask the agent to save the transcript to a file instead:
 
 ```text
 Transcribe ~/notes/memo.wav and save the cleaned-up text to ~/notes/memo.md
 ```
 
-The agent sets `output_path` (and optionally `post_process_preset` or `post_process_prompt` to clean the text up first), the bridge writes the file, and only a short confirmation comes back — not the full transcript. The confirmation payload includes `ok`, the resolved `if_exists` mode, `written_to` (the resolved absolute path the file was written to), the file's `bytes`, the `engine`/`model`/`language` used, `latency_ms`, whether `post_processed` ran, a character count, a 200-character preview, and an optional `warning` field. The full transcript never enters the agent's context. If the file already exists the tool fails by default; the agent can pass `if_exists: "overwrite"` or `if_exists: "append"` (handy for a running notes file).
+The agent sets `output_path`. The agent can also set `post_process_preset` or `post_process_prompt` to clean the text first. The bridge then writes the file and returns a short confirmation, not the full transcript. The confirmation payload contains `ok`, the resolved `if_exists` mode, and `written_to` (the resolved absolute path of the file). It also contains the `bytes` of the file, the `engine`/`model`/`language` in use, `latency_ms`, the `post_processed` result, a character count, a 200-character preview, and an optional `warning` field. The full transcript never enters the context of the agent.
+
+If the file exists, the tool fails by default. The agent can pass `if_exists: "overwrite"` or `if_exists: "append"`. The append mode is useful for a notes file that grows.
 
 ## Troubleshooting
 
-**`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper, then toggle **Settings → Local API** on. Re-run the agent prompt.
+**`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper. Then turn **Settings → Local API** on. Run the agent prompt again.
 
-**`INVALID_REQUEST`** — a generic bad-request code, most commonly seen as an HTTP 401 when the bearer token in the discovery file no longer matches what the server expects (usually after **Regenerate token** in Settings — the bridge re-reads the file on every request, so the next agent call should succeed).
+**`INVALID_REQUEST`** — a general bad-request code. Usually the bearer token in the discovery file does not match the token that the server expects, and you see an HTTP 401. This mismatch occurs after you use **Regenerate token** in Settings. The bridge reads the discovery file again on each request, and the next agent call is successful.
 
-**`INVALID_ARGUMENTS`** — returned by the bridge itself (before the request reaches HyperWhisper) for malformed calls, such as a missing required field, passing `post_process_preset`/`post_process_prompt` to `transcribe` without `output_path`, or combining `timestamp_granularities` with `output_path`.
+**`INVALID_ARGUMENTS`** — the bridge returns this code for a bad call, before the request reaches HyperWhisper. Examples: a missing required field, `post_process_preset`/`post_process_prompt` on `transcribe` without `output_path`, or `timestamp_granularities` with `output_path`.
 
-**Connection refused** — the port in the discovery file is stale (the app was force-killed before it could clean up). Toggle the **Local API** switch off and back on to write a fresh `local-api.json`.
+**Connection refused** — a force-quit stopped the app before its cleanup, and the port in the discovery file is out of date. Turn the **Local API** switch off, then on again. This writes a new `local-api.json` file.
 
-**`npx` hangs on first run** — `npx -y` downloads the package the first time. Subsequent runs are instant. If your network blocks the npm registry, install once with `npm i -g @hyperwhisper/mcp` and replace `npx -y @hyperwhisper/mcp` with `hyperwhisper-mcp` in the config above.
+**`npx` hangs on first run** — `npx -y` downloads the package on the first run. Later runs start immediately. If your network blocks the npm registry, install the package one time with `npm i -g @hyperwhisper/mcp`. Then replace `npx -y @hyperwhisper/mcp` with `hyperwhisper-mcp` in the configuration examples in this page.
 
-**Other app-level error codes** — the app returns a closed set of error codes for tool calls: `MODEL_NOT_INSTALLED`, `MODEL_NOT_FOUND`, `ENGINE_UNAVAILABLE`, `MISSING_API_KEY`, `FILE_NOT_FOUND`, `FILE_ACCESS_DENIED`, `FILE_NOT_ALLOWED`, `AUDIO_DECODE_FAILED`, `TRANSCRIPTION_FAILED`, `MODE_NOT_FOUND`, `MODE_NAME_TAKEN`, `RATE_LIMITED`, and `TIMEOUT`. Each is returned with a human-readable message the agent can relay to you.
+**Other app-level error codes** — the app returns a fixed set of error codes for tool calls: `MODEL_NOT_INSTALLED`, `MODEL_NOT_FOUND`, `ENGINE_UNAVAILABLE`, `MISSING_API_KEY`, `FILE_NOT_FOUND`, `FILE_ACCESS_DENIED`, `FILE_NOT_ALLOWED`, `AUDIO_DECODE_FAILED`, `TRANSCRIPTION_FAILED`, `MODE_NOT_FOUND`, `MODE_NAME_TAKEN`, `RATE_LIMITED`, and `TIMEOUT`. Each code comes with a message in clear language that the agent can give to you.
