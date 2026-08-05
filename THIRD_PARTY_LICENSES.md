@@ -54,7 +54,7 @@ NAudio (MIT), and `silero_vad.onnx` (CC-BY-4.0). No Parakeet weights are bundled
 | swift-atomics | Apache-2.0 | Apple |
 | FlyingFox | MIT | Simon Whitty |
 | AXSwift | MIT | Tyler Mandry et al. |
-| KeyboardShortcuts | MIT | Sindre Sorhus |
+| KeyboardShortcuts (vendored at `app/macos/Vendor/KeyboardShortcuts`, 2.4.0 + macOS 26 recorder fixes) | MIT | Sindre Sorhus |
 | KeySender | MIT | Sindre Sorhus |
 | LaunchAtLogin-Modern | MIT | Sindre Sorhus |
 | SelectedTextKit | MIT | — |

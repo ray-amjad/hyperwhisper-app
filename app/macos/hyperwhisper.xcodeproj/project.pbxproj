@@ -337,7 +337,7 @@
 			mainGroup = 7142EF062E50808900DA9A2D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				716D3DE02E52B8910018DCF5 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				716D3DE02E52B8910018DCF5 /* XCLocalSwiftPackageReference "Vendor/KeyboardShortcuts" */,
 				719EC7CF2E53428100880D18 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				712082922E5409BB00212D08 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 				7118D5CA2E5E8E39000F525A /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
@@ -856,6 +856,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		716D3DE02E52B8910018DCF5 /* XCLocalSwiftPackageReference "Vendor/KeyboardShortcuts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Vendor/KeyboardShortcuts;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		7118D5CA2E5E8E39000F525A /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -871,14 +878,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 0.9.19;
-			};
-		};
-		716D3DE02E52B8910018DCF5 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.3.0;
 			};
 		};
 		718C2CFD2EDDE83A00A255D5 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */ = {
@@ -934,7 +933,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		716D3DE12E52B8910018DCF5 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 716D3DE02E52B8910018DCF5 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			package = 716D3DE02E52B8910018DCF5 /* XCLocalSwiftPackageReference "Vendor/KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
 		};
 		71805ACF2EDDE90D00E7A29A /* LaunchAtLogin */ = {
