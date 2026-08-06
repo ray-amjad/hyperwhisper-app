@@ -58,7 +58,7 @@ In a typical working day of push-to-talk dictation, you pay only for the minutes
 
 ## Accuracy by language
 
-For English, any tier gives good results. **Highest (ElevenLabs Scribe v2)** is the most accurate tier on accents, noisy audio, and technical vocabulary. For most users, **Medium (Deepgram Nova-3)** is sufficient for everyday dictation. The **High** and **Fast** tiers (xAI Grok, Groq Whisper Large v3 Turbo) cost less and have lower latency. They are a few percent less accurate.
+For English, any tier gives good results. **Highest (ElevenLabs Scribe v2)** is the most accurate tier on accents, noisy audio, and technical vocabulary. **Medium (Deepgram Nova-3)** and **Fast (Groq Whisper Large v3 Turbo)** share the same underlying accuracy rating — Fast is not less accurate than Medium, it is simply cheaper and lower-latency. The **High** tier (xAI Grok) costs a little more than Fast but less than Highest, and is a few percent less accurate than the top tier.
 
 <Note>
   xAI does not publish a table of WER values per language for Grok STT. HyperWhisper does not apply older third-party benchmark numbers to this tier, because those numbers measure a different provider.

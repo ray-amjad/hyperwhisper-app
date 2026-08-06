@@ -59,7 +59,7 @@ HyperWhisper always keeps the original audio on disk. It stores the trimmed copy
     The toggle takes effect immediately. If your next recording is 30 seconds long or longer, HyperWhisper trims it with VAD.
   </Tab>
   <Tab title="Windows">
-    Windows has no user-facing VAD toggle. The trimmed-file workflow on this page (a separate trimmed audio file and an Original/Trimmed toggle) does not apply to Windows. When you use a local model such as Parakeet, the Windows transcription daemon runs Silero VAD internally. The daemon includes this model and uses it to divide the speech into chunks during transcription. This is not a pre-processing step that you can turn on or off, and it makes no separate audio file.
+    Windows has no user-facing VAD toggle. The trimmed-file workflow on this page (a separate trimmed audio file and an Original/Trimmed toggle) does not apply to Windows. When you use a local model such as Parakeet or Qwen3 ASR, the Windows transcription daemon runs Silero VAD internally. The daemon includes this model and uses it to divide the speech into chunks during transcription. This is not a pre-processing step that you can turn on or off, and it makes no separate audio file. The Nemotron streaming model is the exception — it deliberately skips VAD, since its own streaming decoder handles segmentation.
   </Tab>
   <Tab title="iOS">
     iOS has no VAD toggle. A small silence trimmer that uses amplitude runs automatically on every recording. If the trimmer finds 0.5 seconds of silence or more, it removes the silence at the start and at the end before upload.

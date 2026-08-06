@@ -61,9 +61,12 @@ Each provider uses these entries differently:
 
 - **Deepgram** — HyperWhisper sends them as keyword boosting parameters, to a maximum of 100 terms. A warning appears if you go above this limit.
 - **ElevenLabs Scribe v2** — HyperWhisper sends them as keyterms, to a maximum of 100 terms. It removes terms of more than 50 characters.
-- **OpenAI Whisper, HyperWhisper Cloud, Gemini** — HyperWhisper sends them as prompt vocabulary. HyperWhisper Cloud keeps only the first 100 terms and shows no warning. Gemini gets the terms as free text in a natural-language prompt instruction, the same mechanism as OpenAI and HyperWhisper Cloud.
+- **OpenAI Whisper, Groq Whisper, HyperWhisper Cloud, Gemini** — HyperWhisper sends them as prompt vocabulary. HyperWhisper Cloud keeps only the first 100 terms and shows no warning. Gemini gets the terms as free text in a natural-language prompt instruction, the same mechanism as OpenAI, Groq, and HyperWhisper Cloud.
 - **Soniox** — HyperWhisper sends them as context vocabulary, in one comma-separated string.
 - **AssemblyAI** — HyperWhisper sends them as key-term context.
+- **Microsoft MAI-Transcribe** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing.
+- **Google Chirp 3** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing, to a maximum of 1000 terms.
+- **Mistral Voxtral** (via HyperWhisper Cloud) — HyperWhisper sends them as a structured `context_bias` list, to a maximum of 100 terms. This only applies when Voxtral is reached through HyperWhisper Cloud — with your own Mistral key, Voxtral does not support custom vocabulary and HyperWhisper does not send your entries.
 - **Local models on both platforms (Parakeet on macOS and Windows, Nemotron on macOS and Windows)** — HyperWhisper matches the terms by sound with the Beider-Morse algorithm. It excludes terms of two characters or less, because these cause false matches.
 - **All providers** — HyperWhisper puts the entries that have no replacement into the per-request user-message context for AI post-processing. This corrects errors that the raw transcript contains.
 
@@ -137,6 +140,8 @@ Both platforms clean the output of local Whisper automatically. The Whisper fami
   </Tab>
   <Tab title="Windows">
     HyperWhisper finds repetition loops in the output of local Whisper and collapses them. A repetition loop is a known failure: the model continues to write the same word or phrase. This correction keeps long runs of the same token out of your text.
+
+    Windows applies a separate cleanup pass to local Qwen3 ASR output: it strips replacement-character artifacts, collapses trailing decoder repetition, and flags wrong-script (CJK) hallucinations.
   </Tab>
 </Tabs>
 

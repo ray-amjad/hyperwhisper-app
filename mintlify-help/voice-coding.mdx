@@ -31,7 +31,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 | `list_models` | Returns the catalog of the available voice and post-processing models. |
 | `list_modes` | Lists your saved transcription Modes. |
 | `transcribe` | Transcribes the audio file at an absolute path. |
-| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`), or with your own instruction in the `prompt` field. Only `hyper` and `note` map to a real backend preset. The app does not recognize `email` and `commit`, and it gives Hyper-style output for them. |
+| `post_process` | Rewrites text with a preset (`hyper`, `note`, `email`, `commit`, `prompt`), or with your own instruction in the separate `prompt` field. Only `hyper` and `note` map to a real backend preset. The app does not recognize `email`, `commit`, or the `prompt` preset value, and it gives Hyper-style output for all three. |
 | `search_recordings` | Searches past transcripts for a substring. |
 | `get_recording` | Returns one transcript row by ID. |
 

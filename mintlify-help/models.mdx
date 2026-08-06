@@ -149,6 +149,10 @@ Supported providers for bring-your-own-key transcription:
   When you use your own key, you are responsible to opt your audio out of model training. Each provider has its own setting. [Data Privacy](/data-privacy) gives a prompt that you can copy to find the current opt-out for any provider.
 </Note>
 
+<Note>
+  Deepgram and AssemblyAI also expose medical-tuned model variants (Deepgram Nova-2 Medical and Nova-3 Medical, AssemblyAI Universal-2 Medical and Universal-3-Pro Medical) in the Model Library / Mode editor on both platforms, alongside their general-purpose models.
+</Note>
+
 # Post-processing models
 
 Post-processing is an optional second step. After transcription, an LLM removes filler words and corrects the punctuation and the capitalization. It also applies the formatting that your [mode](/transcription-modes) specifies. Post-processing is separate from the speech model, and you can combine any speech model with any post-processing model.

@@ -9,7 +9,7 @@ HyperWhisper has three transcription paths. Each path has a different effect on 
 
 | Path | Where audio goes | Who does the training opt-out |
 |------|------------------|----------------------------------------|
-| **Local models** (Whisper, Parakeet) | The audio stays on your device | You. The models are offline, so there is nothing to opt out of |
+| **Local models** (Whisper, Parakeet, Apple Speech Analyzer, Qwen3 ASR, Nemotron) | The audio stays on your device | You. The models are offline, so there is nothing to opt out of |
 | **HyperWhisper Cloud** | HyperWhisper sends the audio to a backing provider (Deepgram, Groq, ElevenLabs, Grok, OpenAI, Gemini, AssemblyAI, Mistral, Soniox, Azure, or Google) | HyperWhisper. We apply the strongest no-train / no-store control of each provider |
 | **Your own API key** (BYOK) | Your device sends the audio directly to the provider | **You**. Deepgram is the exception, because HyperWhisper opts out for you |
 

@@ -12,10 +12,11 @@ read this file to find the server, and they need no configuration.
 ## Discovery file
 
 ```
-~/Library/Application Support/HyperWhisper/local-api.json
+macOS:   ~/Library/Application Support/HyperWhisper/local-api.json
+Windows: %LOCALAPPDATA%\HyperWhisper\local-api.json
 ```
 
-The file has `chmod 600` permissions. It has this JSON shape:
+The file has `chmod 600` permissions on macOS. It has this JSON shape:
 
 ```json
 {
@@ -37,9 +38,11 @@ Authorization: Bearer <token>
 ```
 
 The server makes the token at the first start (32 random bytes,
-base64-url-encoded). The server keeps the token in the macOS Keychain. You can
-make a new token from Settings → Local API. The previous token then becomes
-invalid immediately.
+base64-url-encoded). On macOS, the server keeps the token in the Keychain. On
+Windows, it keeps the token in a DPAPI-protected blob at
+`%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. You can make a new token
+from Settings → Local API. The previous token then becomes invalid
+immediately.
 
 ## Response envelope
 

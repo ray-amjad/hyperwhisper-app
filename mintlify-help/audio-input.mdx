@@ -123,6 +123,6 @@ To change the input device that HyperWhisper records from, see [Select a Microph
     - If your recordings always start and end with speech, VAD adds a processing step with no benefit.
   </Tab>
   <Tab title="Windows">
-    Windows applies voice activity detection automatically with the local Parakeet model. There is no separate option in the Sound settings.
+    Windows applies voice activity detection automatically with local models — Parakeet and Qwen3 ASR. The Nemotron streaming model skips VAD deliberately, since its own streaming decoder handles segmentation. There is no separate option in the Sound settings.
   </Tab>
 </Tabs>
