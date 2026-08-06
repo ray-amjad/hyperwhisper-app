@@ -52,10 +52,10 @@ HyperWhisper runs natively on macOS and Windows. Select your platform below. Eac
     | App | Native | Native |
     | Whisper local models | Yes (Vulkan GPU) | Yes on **Windows 11+** (not supported on Windows 10 ARM64) |
     | Parakeet local models | Yes (DirectML GPU) | Yes (CPU only — DirectML is x64-only) |
-    | Local Gemma post-processing | Yes (CUDA on NVIDIA, otherwise the CPU) | **Not supported yet** |
+    | Local Gemma post-processing | Yes (CUDA on NVIDIA, otherwise the CPU) | Yes (CPU only — CUDA is x64-only) |
     | HyperWhisper Cloud | Yes | Yes |
 
-    On a **Snapdragon X / ARM64 Windows device**, you can use local transcription. **Parakeet v2** (English) and **Parakeet v3** (multilingual) run on the CPU. Whisper runs with GPU acceleration on Windows 11+. Whisper does not run on Windows 10 ARM64.
+    On a **Snapdragon X / ARM64 Windows device**, you can use local transcription. **Parakeet v2** (English) and **Parakeet v3** (multilingual) run on the CPU. Whisper runs with GPU acceleration on Windows 11+. Whisper does not run on Windows 10 ARM64. Local Gemma post-processing also runs, on the CPU only.
 
     ## GPU acceleration
 

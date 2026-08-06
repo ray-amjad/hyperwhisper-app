@@ -30,6 +30,10 @@ Use the Vocabulary workspace to keep domain terms, product names, and shorthand 
 
 The app sorts the list alphabetically, so you can find duplicates quickly. If you add a duplicate word, the app shows an alert and keeps the existing entry. The match ignores letter case.
 
+<Note>
+  Before any entry reaches a provider or an AI post-processing prompt, HyperWhisper strips `<` and `>` characters and caps it at 80 characters. This applies to every entry, not only the provider-specific limits described below.
+</Note>
+
 ## How HyperWhisper Uses Vocabulary
 
 Vocabulary entries work in three different ways. The behavior depends on the entry type and on the transcription provider.
@@ -39,16 +43,20 @@ Vocabulary entries work in three different ways. The behavior depends on the ent
 The app sends entries without a replacement as keyword hints to the cloud providers that support them. These hints move the model toward the correct spelling. They do not rewrite any other text in the output.
 
 - **Deepgram** — the app sends the terms as keyword boosting parameters. There is no limit on the number of terms. The app cuts each term to 80 characters, but it does not drop the term. If your list is more than 100 entries, the app shows a warning banner, because the Deepgram documentation recommends 100 terms or fewer. The app still sends the entries after the first 100.
-- **OpenAI Whisper, Soniox** — the app sends the terms as prompt vocabulary terms.
-- **HyperWhisper Cloud** — the app sends the terms as prompt vocabulary terms. The server keeps the first 100 terms and drops the other terms without a message. The same 100-entry warning banner applies here.
+- **OpenAI Whisper, Groq Whisper, Soniox** — the app sends the terms as prompt vocabulary terms.
+- **HyperWhisper Cloud** — the app sends the terms as prompt vocabulary terms. The server keeps the first 100 terms and drops the other terms without a message. The same 100-entry warning banner applies here. If the selected accuracy tier routes to Azure MAI-Transcribe or Google Chirp 3, the server does not send vocabulary hints at all — neither provider supports them through this route.
 - **Gemini** — the app sends the terms as free text in a natural-language prompt instruction. This is the same mechanism as the prompt vocabulary of OpenAI and HyperWhisper Cloud.
 - **ElevenLabs** — the app sends the terms as repeated `keyterms` multipart form fields. This applies to Scribe v2 only. The limit is 100 terms, and the app drops terms longer than 50 characters. Scribe v1 does not support vocabulary.
-- **AssemblyAI** — the app sends the terms as key-term context, up to 200 terms. The app drops phrases longer than 6 words.
+- **AssemblyAI** — the app sends the terms as key-term context, up to 200 terms for most models. The limit is 1000 terms for the Universal-3-Pro model. The app drops phrases longer than 6 words.
 - **Grok STT** — this provider does not support custom vocabulary hints. The app accepts your entries, but it does not send them.
 - **Mistral (BYOK)** — Voxtral does not support custom vocabulary. The app accepts your entries, but it does not send them, whatever you type. The internal route from HyperWhisper Cloud to Mistral is a different mechanism on the server, and this limit does not apply to it.
 
 <Note>
-  If the language of the mode is **Auto**, Deepgram vocabulary boosting does nothing. Nova-3 ignores keyword boosting parameters when language auto-detection is on. Boosting applies only when the mode has an explicit language.
+  If the language of the mode is **Auto**, Deepgram vocabulary boosting behavior depends on the model. Nova-3 ignores keyword boosting parameters when language auto-detection is on — boosting applies only when the mode has an explicit language. Nova-2, Nova-1, and the Enhanced models keep sending keyword boosting even under Auto.
+</Note>
+
+<Note>
+  Custom vocabulary applies to file and batch transcription. [Streaming mode](/streaming-settings) does not support it for every provider — for example, OpenAI and ElevenLabs Scribe v2 drop vocabulary hints when you use them as a streaming provider, even though they support it for regular transcription.
 </Note>
 
 **Local models run on both platforms**: Parakeet on macOS and Windows, and Nemotron on macOS and Windows. For these models, the shared Rust core matches entries without a replacement by sound, with the Beider-Morse algorithm. The core ignores words of two characters or fewer, to prevent false matches.

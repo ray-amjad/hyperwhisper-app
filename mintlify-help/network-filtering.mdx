@@ -143,16 +143,29 @@ If you configured **Grok** in Settings → API Keys, whitelist these domains:
 
 | Domain | Purpose |
 |--------|---------|
-| `api.x.ai` | Grok speech-to-text, text-to-speech, and model availability checks |
+| `api.x.ai` | Grok speech-to-text and model availability checks |
 | `console.x.ai` | API key management page (informational) |
 
 HyperWhisper uses these endpoints:
 - `https://api.x.ai/v1/stt` - Grok STT batch transcription
 - `wss://api.x.ai/v1/stt` - Grok STT streaming transcription
-- `https://api.x.ai/v1/tts` - Grok text-to-speech
-- `https://api.x.ai/v1/tts/voices` - Grok voice availability checks
 - `https://api.x.ai/v1/models` - Model availability checks
 - `https://api.x.ai/v1/chat/completions` - Grok post-processing
+
+### Google Gemini
+
+If you configured **Google Gemini** in Settings → API Keys for transcription, whitelist these domains:
+
+| Domain | Purpose |
+|--------|---------|
+| `generativelanguage.googleapis.com` | Gemini Files API upload/poll/delete, plus the `generateContent` call that produces the transcript |
+| `aistudio.google.com` | API key management page (informational) |
+
+HyperWhisper uses these endpoints:
+- `https://generativelanguage.googleapis.com/upload/v1beta/files` - starts a resumable upload of the audio file
+- `https://generativelanguage.googleapis.com/v1beta/{file.name}` - polls until the uploaded file is active, then deletes it afterward
+- `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` - produces the transcript from the uploaded file
+- `https://generativelanguage.googleapis.com/v1beta/models` - model availability checks
 
 ### Mistral Voxtral
 
