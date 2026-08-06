@@ -78,9 +78,6 @@ async function getLatestDownloadUrl(
 
     const latestUrl = new URL(match[1]);
 
-    // Serve via CDN for better performance
-    latestUrl.hostname = "builds-cdn.hyperwhisper.com";
-
     return latestUrl.toString();
   } catch (error) {
     console.error("Error parsing appcast:", error);
@@ -96,8 +93,8 @@ function normalizePlatform(input: string | null): Platform {
 /**
  * GET /api/download
  *
- * Derives the latest download URL from appcast.xml, swaps the
- * hostname to the CDN and issues a redirect.
+ * Derives the latest download URL from appcast.xml and issues a
+ * redirect.
  *
  * Query params:
  * - platform: "mac" (default) or "windows"
