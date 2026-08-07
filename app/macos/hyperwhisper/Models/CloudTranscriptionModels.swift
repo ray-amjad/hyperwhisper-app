@@ -695,10 +695,12 @@ struct CloudTranscriptionModels {
             return resolveElevenLabsModelAlias(id)
         case .deepgram:
             return resolveDeepgramModelAlias(id) ?? id
-        default:
+        case nil:
             return resolveDeepgramModelAlias(
                 resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
             ) ?? id
+        default:
+            return id
         }
     }
 

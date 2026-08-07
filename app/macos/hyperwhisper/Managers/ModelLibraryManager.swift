@@ -266,6 +266,7 @@ final class ModelLibraryManager: ObservableObject {
         "universal-3-5-pro":                 (2, 5),
         "universal-2-medical":               (2, 4),
         "universal-3-pro-medical":           (2, 5),
+        "universal-3-5-pro-medical":         (2, 5),
         // ElevenLabs
         "scribe_v1":                         (3, 5),
         "scribe_v2":                         (3, 5),

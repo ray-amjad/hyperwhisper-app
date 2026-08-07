@@ -196,7 +196,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "notes": "Now the AssemblyAI default (GA 2026-07-01, successor to universal-3-pro). Natively supports 18 languages per AssemblyAI's release material and falls back to universal-2 for the rest, but the exact 18-code list is not enumerated on AssemblyAI's public supported-languages page as of verification — supportedLanguages intentionally omitted rather than guessed; add once confirmed (see shared-app-classification/cloud-stt-catalog.json's assemblyAI.languages.notes)."
+      "supportedLanguages": ["ar", "da", "de", "en", "es", "fi", "fr", "he", "hi", "it", "ja", "nl", "no", "pt", "sv", "tr", "vi", "zh"],
+      "notes": "Now the AssemblyAI default (GA 2026-07-01, successor to universal-3-pro). Natively supports 18 languages with mid-sentence code-switching per AssemblyAI's public supported-languages docs (docs.assemblyai.com/docs/supported-languages); falls back to universal-2 for the rest."
     },
     {
       "provider": "assemblyAI",

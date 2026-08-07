@@ -68,7 +68,7 @@ pub const BASE_URL: &str = "https://api.assemblyai.com/v2";
 /// PARITY: macOS `defaultModel(for: .assemblyAI)` / Windows default = `universal-3-5-pro`.
 pub const DEFAULT_MODEL: &str = "universal-3-5-pro";
 
-/// Max `keyterms_prompt` terms for `universal-3-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
+/// Max `keyterms_prompt` terms for `universal-3-pro` and `universal-3-5-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
 pub const MAX_KEYTERMS_PRO: usize = 1000;
 /// Max `keyterms_prompt` terms for non-pro models.
 pub const MAX_KEYTERMS_DEFAULT: usize = 200;

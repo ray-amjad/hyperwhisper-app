@@ -659,7 +659,11 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.AssemblyAI => ResolveAssemblyAIModelAlias(modelId),
             CloudTranscriptionProvider.Deepgram => ResolveDeepgramModelAlias(modelId),
             CloudTranscriptionProvider.ElevenLabs => ResolveElevenLabsModelAlias(modelId),
-            null => ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(ResolveElevenLabsModelAlias(modelId))),
+            // CloudTranscriptionProvider.None is what FromIdentifier(...) returns for a
+            // missing/unrecognized provider string (it's a concrete enum value, not C#
+            // null), so real call sites land here rather than the `null` arm below —
+            // treat it identically to "provider unknown, chain everything".
+            null or CloudTranscriptionProvider.None => ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(ResolveElevenLabsModelAlias(modelId))),
             _ => modelId
         };
     }
