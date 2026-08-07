@@ -60,11 +60,23 @@ function hasSessionCookie(request: NextRequest): boolean {
  * for genuine failures.
  */
 async function getBetterAuthSession(request: NextRequest) {
+  // Cheap short-circuit: skip the dynamic import and DB-backed getSession
+  // call entirely when there's no session cookie to validate. getSession
+  // would return null for a missing cookie anyway, but anonymous/bot
+  // traffic to /user/customers shouldn't pay for the I/O.
+  if (!hasSessionCookie(request)) {
+    return null;
+  }
+
   try {
     const { auth } = await import("./src/lib/auth");
     const session = await auth.api.getSession({ headers: request.headers });
     return session?.user ?? null;
-  } catch {
+  } catch (error) {
+    console.error(
+      `getBetterAuthSession failed for ${request.nextUrl.pathname}:`,
+      error,
+    );
     return null;
   }
 }
