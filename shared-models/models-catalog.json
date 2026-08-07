@@ -216,6 +216,16 @@
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["de", "en", "es", "fr"]
     },
+    {
+      "provider": "assemblyAI",
+      "id": "universal-3-5-pro-medical",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos"],
+      "supportedLanguages": ["de", "en", "es", "fr"],
+      "notes": "Medical Mode add-on variant of universal-3-5-pro, mirroring universal-3-pro-medical. Added to macOS's CloudTranscriptionModels.swift catalog only (BYOK AssemblyAI model picker) — not yet added to the Windows registry, which was out of scope for this fix."
+    },
 
     {
       "provider": "elevenLabs",

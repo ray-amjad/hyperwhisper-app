@@ -84,7 +84,7 @@ final class ElevenLabsProvider: TranscriptionProvider {
         let rawModelId = (mode?.cloudTranscriptionModel?.isEmpty == false)
             ? (mode?.cloudTranscriptionModel ?? "")
             : ""
-        let modelId = rawModelId.isEmpty ? "" : CloudTranscriptionModels.resolveElevenLabsModelAlias(rawModelId)
+        let modelId = rawModelId.isEmpty ? "" : CloudTranscriptionModels.resolveModelAlias(rawModelId, provider: .elevenLabs)
         AppLogger.network.info("ElevenLabs transcription started · model=\(modelId.isEmpty ? "<default>" : modelId, privacy: .public) · file=\(audioURL.lastPathComponent, privacy: .public)")
 
         // Pass the natively-resolved mime (mp4/mov overrides preserved) explicitly

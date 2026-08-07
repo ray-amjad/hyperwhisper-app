@@ -383,7 +383,9 @@ struct CloudTranscriptionModels {
         CloudTranscriptionModel(
             id: "gpt-live-transcribe",
             displayName: "GPT Live Transcribe",
-            isAvailable: true,
+            isAvailable: false,  // Requires OpenAI's Realtime WebSocket API — no request path (this
+            // app's cloud/BYOK OpenAI transcription is REST/batch-only) actually serves it yet.
+            // Catalogued for pricing/metadata; flip once a Realtime session relay is wired.
             description: "OpenAI's realtime transcription model for the Realtime WebSocket API, billed per audio minute.",
             provider: .openai,
             pricePerSecond: 0.017 / 60.0
@@ -489,6 +491,14 @@ struct CloudTranscriptionModels {
             description: "Universal-3 Pro with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-3 Pro pricing.",
             provider: .assemblyAI,
             pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21/hr base — medical add-on billed separately
+        ),
+        CloudTranscriptionModel(
+            id: "universal-3-5-pro-medical",
+            displayName: "Universal-3.5 Pro (Medical)",
+            isAvailable: true,
+            description: "Universal-3.5 Pro with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-3.5 Pro pricing.",
+            provider: .assemblyAI,
+            pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21/hr base — same as Universal-3 Pro; medical add-on billed separately
         ),
 
         // ElevenLabs Models
@@ -667,6 +677,31 @@ struct CloudTranscriptionModels {
         return removedDeepgramModelIds.contains(id) ? "nova-3-general" : id
     }
 
+    /// Single dispatcher for resolving a (possibly legacy) model ID to its current
+    /// equivalent, scoped by provider. PARITY: Windows `ResolveModelAlias(modelId:provider:)`
+    /// (`CloudTranscriptionModel.cs`). Every call site that reads a Mode's stored model ID
+    /// — not just request-build time — should go through this so a Mode still holding a
+    /// retired ID (e.g. ElevenLabs `scribe_v1`) gets migrated wherever it's loaded, not
+    /// only where the wire request happens to be built.
+    ///
+    /// When `provider` is `nil` (the caller doesn't have it handy), all three per-provider
+    /// resolvers run in sequence — safe because each one's aliases are keyed by IDs scoped
+    /// to that provider and don't collide with another provider's model IDs.
+    static func resolveModelAlias(_ id: String, provider: CloudProvider?) -> String {
+        switch provider {
+        case .assemblyAI:
+            return resolveAssemblyAIModelAlias(id)
+        case .elevenLabs:
+            return resolveElevenLabsModelAlias(id)
+        case .deepgram:
+            return resolveDeepgramModelAlias(id) ?? id
+        default:
+            return resolveDeepgramModelAlias(
+                resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+            ) ?? id
+        }
+    }
+
     /// Splits a (possibly medical) model ID into the canonical AssemblyAI
     /// `speech_model` value and whether Medical Mode is enabled. Medical Mode
     /// is encoded as a `-medical` suffix on the model ID; the suffix never goes
@@ -684,7 +719,7 @@ struct CloudTranscriptionModels {
     /// - Parameter id: The model ID to look up
     /// - Returns: The CloudTranscriptionModel if found, nil otherwise
     static func model(withId id: String) -> CloudTranscriptionModel? {
-        let resolved = resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+        let resolved = resolveModelAlias(id, provider: nil)
         return availableModels.first { $0.id == resolved }
     }
     

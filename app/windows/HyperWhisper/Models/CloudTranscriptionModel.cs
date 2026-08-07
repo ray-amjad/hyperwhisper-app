@@ -110,12 +110,13 @@ public static class CloudTranscriptionModels
             // REST/batch client. Windows DOES have a WebSocket transport elsewhere
             // (Services/Streaming/OpenAIStreamingStrategy.cs), but that's a separate
             // live-dictation feature with its own hardcoded "gpt-realtime-whisper"
-            // model, not wired to this catalog. Selectable in the UI so the model is
-            // discoverable, but requests will fail until a REST or streaming path is
-            // built for it — same caveat macOS flagged for this model.
+            // model, not wired to this catalog. Marked unavailable so it can't be
+            // selected until a REST or streaming path is built for it — same caveat
+            // macOS flagged for this model. Kept in the catalog for pricing/metadata.
             Description = "OpenAI's realtime transcription model for the Realtime WebSocket API, billed per audio minute. Not yet functional in this app (REST-only integration).",
             Provider = CloudTranscriptionProvider.OpenAI,
-            PricePerMinute = 0.017m
+            PricePerMinute = 0.017m,
+            IsAvailable = false
         }
     };
 
