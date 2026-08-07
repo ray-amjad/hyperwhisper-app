@@ -73,23 +73,28 @@ public class LanguageModelInfo
         new("claude-haiku-4-5", "Claude 4.5 Haiku", PostProcessingProvider.Anthropic, "Fast and affordable"),
         new("claude-sonnet-4-0", "Claude 4 Sonnet", PostProcessingProvider.Anthropic, "Balanced quality"),
         new("claude-sonnet-4-5", "Claude 4.5 Sonnet", PostProcessingProvider.Anthropic, "High quality"),
-        new("claude-sonnet-4-6", "Claude 4.6 Sonnet", PostProcessingProvider.Anthropic, "Latest, most capable Sonnet"),
+        new("claude-sonnet-4-6", "Claude 4.6 Sonnet", PostProcessingProvider.Anthropic, "High quality, capable Sonnet model"),
+        new("claude-sonnet-5", "Claude Sonnet 5", PostProcessingProvider.Anthropic, "Latest, most capable Sonnet model"),
 
         // Groq Models
         // Ultra-fast inference via specialized hardware
         new("openai/gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Groq, "Fast, high quality"),
         new("openai/gpt-oss-20b", "GPT OSS 20B", PostProcessingProvider.Groq, "Fast, lightweight"),
         new("moonshotai/kimi-k2-instruct", "Kimi K2", PostProcessingProvider.Groq, "Strong agentic reasoning"),
+        new("qwen/qwen3.6-27b", "Qwen 3.6 27B", PostProcessingProvider.Groq, "Latest Qwen, strong quality-to-speed ratio"),
 
         // xAI Grok Models
         new("grok-4.3", "Grok 4.3", PostProcessingProvider.Grok, "xAI Grok 4.3 with reasoning disabled for low-latency text enhancement"),
+        new("grok-4.5", "Grok 4.5", PostProcessingProvider.Grok, "xAI Grok 4.5 with reasoning disabled for low-latency text enhancement"),
 
         // Google Gemini Models
         // Fast and efficient models via OpenAI-compatible endpoint
         new("gemini-3-flash-preview", "Gemini 3 Flash", PostProcessingProvider.Gemini, "Pro-level intelligence"),
         new("gemini-3.5-flash", "Gemini 3.5 Flash", PostProcessingProvider.Gemini, "Most intelligent flash, frontier agentic performance"),
+        new("gemini-3.6-flash", "Gemini 3.6 Flash", PostProcessingProvider.Gemini, "Latest flash model, frontier performance for agentic tasks"),
         new("gemini-2.5-flash", "Gemini 2.5 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
         new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
+        new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite", PostProcessingProvider.Gemini, "Latest lightweight flash, fast and cost-efficient"),
         new("gemini-2.0-flash", "Gemini 2.0 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
         new("gemini-2.0-flash-lite", "Gemini 2.0 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
         new("gemini-2.5-pro", "Gemini 2.5 Pro", PostProcessingProvider.Gemini, "High quality, advanced reasoning"),
@@ -100,6 +105,7 @@ public class LanguageModelInfo
         // Fast, multilingual models via OpenAI-compatible endpoint
         new("mistral-small-latest", "Mistral Small", PostProcessingProvider.Mistral, "Fast, multilingual"),
         new("open-mistral-nemo", "Mistral Nemo", PostProcessingProvider.Mistral, "Lightweight, multilingual"),
+        new("mistral-medium-3.5", "Mistral Medium 3.5", PostProcessingProvider.Mistral, "High quality, multilingual, balanced cost"),
 
         // Cerebras Models
         // Ultra-fast inference on custom silicon
@@ -145,6 +151,13 @@ public class LanguageModelInfo
         // Cerebras: llama-3.3-70b removed, llama-3.1-8b ID changed 2026-03-20
         "llama-3.3-70b" => "gpt-oss-120b",
         "llama-3.1-8b" => "llama3.1-8b",
+        // Cerebras: zai-glm-4.7 deprecates 2026-08-17. Cerebras has NOT published an
+        // official successor in the public Inference API catalog as of this writing —
+        // redirecting to gpt-oss-120b is a documented judgment call (not vendor-confirmed),
+        // matching the mapping used on macOS: gpt-oss-120b is the sole "Production"-tier
+        // general-purpose model in that catalog, and where every other non-Z.ai Cerebras
+        // deprecation in this table already redirects.
+        "zai-glm-4.7" => "gpt-oss-120b",
         // xAI Grok: all grok-4-* fast variants retired 2026-05-15, redirect to grok-4.3.
         "grok-4-1-fast-non-reasoning" => "grok-4.3",
         "grok-4.1-fast-non-reasoning" => "grok-4.3",

@@ -1156,7 +1156,7 @@ class BackupManager: ObservableObject {
     private func applyDefaultModelByMode(_ importedMap: [String: String], idRemap: [UUID: UUID]) {
         let settingsManager = SettingsManager.shared
         let resolvedImportedMap = Self.remapDefaultModelByMode(
-            importedMap.mapValues { CloudTranscriptionModels.resolveDeepgramModelAlias($0) ?? $0 },
+            importedMap.mapValues { CloudTranscriptionModels.resolveModelAlias($0, provider: nil) },
             using: idRemap
         )
 

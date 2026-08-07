@@ -405,7 +405,27 @@ public partial class ModeEditorWindow : Window
         }
 
         var showAll = CloudModelShowAllCheck.IsChecked == true;
-        var models = showAll ? allModels : CloudTranscriptionModels.GetPopularModelsForProvider(provider);
+        var selectableModels = (showAll ? allModels : CloudTranscriptionModels.GetPopularModelsForProvider(provider))
+            .Where(m => m.IsAvailable)
+            .ToList();
+
+        // Retired/unavailable models (e.g. ElevenLabs scribe_v1) are excluded from the
+        // "pick a new one" list above, but if the Mode's CURRENT selection is one of
+        // them, keep it visible here rather than silently falling through to
+        // SelectedIndex = 0 below and switching the user's mode to a different model
+        // out from under them.
+        if (!string.IsNullOrEmpty(canonicalPreferredModelId) &&
+            !selectableModels.Any(m => m.Id.Equals(canonicalPreferredModelId, StringComparison.OrdinalIgnoreCase)))
+        {
+            var currentModel = allModels.FirstOrDefault(
+                m => m.Id.Equals(canonicalPreferredModelId, StringComparison.OrdinalIgnoreCase));
+            if (currentModel != null)
+            {
+                selectableModels.Add(currentModel);
+            }
+        }
+
+        var models = selectableModels;
         foreach (var model in models)
         {
             var item = new ComboBoxItem

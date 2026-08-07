@@ -215,7 +215,10 @@ struct ModeData {
         self.language = LanguageData.canonicalLanguageCode(mode.language)
         self.model = mode.model ?? "base"
         self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
-        self.cloudTranscriptionModel = CloudTranscriptionModels.resolveAssemblyAIModelAlias(mode.cloudTranscriptionModel ?? "whisper-1")
+        self.cloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
+            mode.cloudTranscriptionModel ?? "whisper-1",
+            provider: CloudProvider(rawValue: self.cloudProvider)
+        )
         // Convert from Core Data Int16 to enum, default to cloud for backward compatibility
         let processingMode = isLegacyVoiceToText ? .off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
         self.postProcessingMode = processingMode

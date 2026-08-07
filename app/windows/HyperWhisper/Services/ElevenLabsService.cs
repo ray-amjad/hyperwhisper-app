@@ -21,6 +21,12 @@
 // - scribe_v2: Supports keyterms for custom vocabulary boosting
 // - scribe_v1: Does NOT support custom vocabulary
 //
+// scribe_v1 was retired by ElevenLabs 2026-07-09. Legacy "scribe_v1" IDs are resolved
+// to scribe_v2 via CloudTranscriptionModels.ResolveElevenLabsModelAlias, at Configure()
+// time below — the Rust shared core (hw-net's elevenlabs.rs) passes model_id straight
+// to the wire with no alias resolution of its own, so this is the only place the
+// redirect actually takes effect before the request is built.
+//
 // ERROR HANDLING:
 // - 401: Invalid API key
 // - 429: Rate limited
@@ -113,12 +119,12 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
     /// Must be called before transcription.
     /// </summary>
     /// <param name="apiKey">ElevenLabs API key.</param>
-    /// <param name="modelId">Model ID (scribe_v2 for keyterm support, scribe_v1 for legacy).</param>
+    /// <param name="modelId">Model ID (scribe_v2 for keyterm support, scribe_v1 for legacy). Legacy IDs are canonicalized automatically.</param>
     public void Configure(string apiKey, string modelId = "scribe_v2")
     {
         _apiKey = apiKey;
-        _modelId = modelId;
-        LoggingService.Info($"ElevenLabsService: Configured with model {modelId}");
+        _modelId = CloudTranscriptionModels.ResolveElevenLabsModelAlias(modelId);
+        LoggingService.Info($"ElevenLabsService: Configured with model {_modelId}");
     }
 
     // =========================================================================
