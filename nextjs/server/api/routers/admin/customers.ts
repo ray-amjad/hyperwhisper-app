@@ -9,6 +9,7 @@ import { TRPCError } from "@trpc/server";
 import Stripe from "stripe";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
+import { stripe } from "@/lib/clients/stripe";
 import {
   getAllAccountKeysWithCreditsForAdmin,
   searchAccountKeysByEmail,
@@ -29,11 +30,122 @@ import {
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailService } from "@/lib/services/email";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+// Pre-existing inline Stripe client, pinned to the API version the refund
+// flow (checkout.sessions.retrieve / refunds.create below) was built and
+// tested against. Deliberately kept separate from the shared client in
+// lib/clients/stripe.ts (which tracks a newer API version) so this PR's new
+// spend-fetching code doesn't change behavior for the existing, unrelated,
+// production money-handling refund flow. New code in this router should use
+// the shared `stripe` client instead.
+const legacyStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia" as any,
 });
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
+
+// How many distinct Stripe customer IDs to fetch net spend for concurrently.
+// The customer list has no UI pagination (up to 1000 rows, refetched on a
+// 300ms search debounce), so an unbounded Promise.all across every Stripe
+// customer ID would fan out too many concurrent requests.
+const STRIPE_SPEND_FETCH_CONCURRENCY = 10;
+
+/**
+ * Looks up the most recent dispute filed against a charge, so we can tell
+ * whether a disputed charge was ultimately won or lost rather than just
+ * knowing "disputed: true".
+ *
+ * Note: the `Charge` object used to expose an expandable `dispute` field,
+ * but Stripe removed it (only the `disputed` boolean remains) — so this
+ * can't be fetched via `expand` on `charges.list` and needs its own
+ * `disputes.list` call. It's only called for charges that are actually
+ * disputed, which should be rare, so the extra round trip is bounded.
+ * Disputes are returned most-recent-first, so `limit: 1` gets the current
+ * outcome even in the unusual case of more than one dispute on a charge.
+ */
+async function getLatestDisputeStatusForCharge(
+  chargeId: string,
+): Promise<Stripe.Dispute.Status | null> {
+  const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
+
+  return disputes.data[0]?.status ?? null;
+}
+
+/**
+ * Net lifetime spend (in cents) for a single Stripe customer: the sum of
+ * `amount - amount_refunded` across their succeeded charges that aren't
+ * currently/permanently in dispute, auto-paginated via the SDK's built-in
+ * helper. Mirrors the refund semantics already used elsewhere in this
+ * router (net of refunds, not gross).
+ *
+ * Returns `null` (rather than $0) if the Stripe fetch fails, so a genuine
+ * Stripe error is distinguishable from a customer who legitimately spent
+ * nothing. The error is still logged server-side either way.
+ */
+async function getNetSpendCentsForStripeCustomer(
+  stripeCustomerId: string
+): Promise<number | null> {
+  try {
+    const charges = await stripe.charges
+      .list({ customer: stripeCustomerId, limit: 100 })
+      .autoPagingToArray({ limit: 10_000 });
+
+    let totalCents = 0;
+
+    for (const charge of charges) {
+      if (charge.status !== "succeeded") continue;
+
+      if (charge.disputed) {
+        // `disputed` never reverts to false once a dispute has happened,
+        // even after it resolves in our favor — so it alone can't tell us
+        // whether to count this charge. Look up the actual outcome:
+        //   - lost: we don't get to keep the money, exclude entirely.
+        //   - won: we kept the funds, count it like any other charge.
+        //   - anything else (needs_response, under_review, warning_*, or
+        //     no dispute record found): still unresolved, exclude
+        //     conservatively for now. Unlike a lost dispute this exclusion
+        //     is temporary — it'll be re-evaluated next time spend is
+        //     fetched, once the dispute resolves.
+        const disputeStatus = await getLatestDisputeStatusForCharge(charge.id);
+
+        if (disputeStatus !== "won") continue;
+      }
+
+      totalCents += charge.amount - charge.amount_refunded;
+    }
+
+    return totalCents;
+  } catch (error) {
+    console.error(
+      `Failed to fetch Stripe charges for customer ${stripeCustomerId}:`,
+      error
+    );
+    return null;
+  }
+}
+
+/**
+ * Net lifetime spend (in cents) across a set of unique Stripe customer IDs,
+ * fetched with capped concurrency rather than one unbounded Promise.all.
+ * A `null` value means the fetch for that particular Stripe customer ID
+ * failed (see getNetSpendCentsForStripeCustomer).
+ */
+async function getNetSpendCentsForStripeCustomers(
+  stripeCustomerIds: string[]
+): Promise<Map<string, number | null>> {
+  const results = new Map<string, number | null>();
+
+  for (let i = 0; i < stripeCustomerIds.length; i += STRIPE_SPEND_FETCH_CONCURRENCY) {
+    const chunk = stripeCustomerIds.slice(i, i + STRIPE_SPEND_FETCH_CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map(async (id) => [id, await getNetSpendCentsForStripeCustomer(id)] as const)
+    );
+    for (const [id, cents] of chunkResults) {
+      results.set(id, cents);
+    }
+  }
+
+  return results;
+}
 
 export const customersRouter = createTRPCRouter({
   /**
@@ -72,6 +184,12 @@ export const customersRouter = createTRPCRouter({
             email: string;
             licenseCount: number;
             totalCredits: number;
+            // null = a Stripe fetch failed for at least one of this
+            // customer's Stripe customer IDs, so the total is unknown rather
+            // than a possibly-wrong number. Customers with no Stripe
+            // customer ID at all keep the default 0 here; the client tells
+            // that state apart from "$0 spent" via `licenses`.
+            totalSpentCents: number | null;
             created: number;
             licenses: Array<{
               id: string;
@@ -85,6 +203,11 @@ export const customersRouter = createTRPCRouter({
           }
         >();
 
+        // Distinct Stripe customer IDs per customer (userId), collected once
+        // here during the license-grouping pass rather than re-derived from
+        // customer.licenses again later.
+        const stripeCustomerIdsByUserId = new Map<string, Set<string>>();
+
         for (const l of licenses) {
           const created = Math.floor(l.createdAt.getTime() / 1000);
           let customer = customerMap.get(l.userId);
@@ -96,6 +219,7 @@ export const customersRouter = createTRPCRouter({
               email: (userMap.get(l.userId)?.email ?? l.email).toLowerCase(),
               licenseCount: 0,
               totalCredits: 0,
+              totalSpentCents: 0,
               created,
               licenses: [],
             };
@@ -117,6 +241,61 @@ export const customersRouter = createTRPCRouter({
             stripeCustomerId: l.stripeCustomerId,
             created,
           });
+
+          if (l.stripeCustomerId) {
+            let ids = stripeCustomerIdsByUserId.get(l.userId);
+
+            if (!ids) {
+              ids = new Set();
+              stripeCustomerIdsByUserId.set(l.userId, ids);
+            }
+            ids.add(l.stripeCustomerId);
+          }
+        }
+
+        // Attach each customer's net lifetime Stripe spend, summed across all
+        // distinct stripeCustomerIds among their licenses (a customer can have
+        // more than one, since some purchase flows use `customer_creation:
+        // "always"`). Customers with no Stripe customer ID at all are skipped
+        // entirely — no Stripe call, $0 spend.
+        const allStripeCustomerIds = Array.from(
+          new Set(
+            Array.from(stripeCustomerIdsByUserId.values()).flatMap((ids) =>
+              Array.from(ids)
+            )
+          )
+        );
+        const spendByStripeCustomerId = await getNetSpendCentsForStripeCustomers(
+          allStripeCustomerIds
+        );
+        for (const customer of Array.from(customerMap.values())) {
+          const customerStripeIds = stripeCustomerIdsByUserId.get(
+            customer.userId
+          );
+
+          if (!customerStripeIds || customerStripeIds.size === 0) {
+            // No Stripe customer ID on any of this customer's licenses —
+            // nothing was fetched. Leave the default 0; the client tells
+            // this state apart from "$0 spent" via customer.licenses.
+            continue;
+          }
+
+          let totalSpentCents = 0;
+          let hadFailedFetch = false;
+
+          for (const id of Array.from(customerStripeIds)) {
+            const cents = spendByStripeCustomerId.get(id);
+
+            if (cents === null || cents === undefined) {
+              hadFailedFetch = true;
+              break;
+            }
+            totalSpentCents += cents;
+          }
+          // If ANY of this customer's Stripe customer IDs failed to fetch,
+          // report the whole total as unknown rather than a possibly-wrong
+          // (too low) number.
+          customer.totalSpentCents = hadFailedFetch ? null : totalSpentCents;
         }
 
         return { customers: Array.from(customerMap.values()) };
@@ -307,7 +486,7 @@ export const customersRouter = createTRPCRouter({
       }
 
       // Retrieve the checkout session to get the payment intent
-      const session = await stripe.checkout.sessions.retrieve(license.stripeSessionId);
+      const session = await legacyStripe.checkout.sessions.retrieve(license.stripeSessionId);
       if (!session.payment_intent) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "No payment intent found for this session" });
       }
@@ -320,7 +499,7 @@ export const customersRouter = createTRPCRouter({
       // Create the refund. The idempotency key (keyed on the license, which maps
       // 1:1 to its refundable payment) makes a retried/double-clicked mutation
       // reuse the same refund instead of surfacing a raw Stripe error.
-      await stripe.refunds.create(
+      await legacyStripe.refunds.create(
         { payment_intent: paymentIntentId },
         { idempotencyKey: `admin-refund-${licenseKeyId}` }
       );
