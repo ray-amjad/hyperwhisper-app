@@ -91,6 +91,31 @@ public static class CloudTranscriptionModels
             Provider = CloudTranscriptionProvider.OpenAI,
             PricePerMinute = 0.006m,
             IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "gpt-transcribe",
+            DisplayName = "GPT Transcribe",
+            Description = "OpenAI's flat-rate transcription model billed per audio minute",
+            Provider = CloudTranscriptionProvider.OpenAI,
+            PricePerMinute = 0.0045m,
+            IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "gpt-live-transcribe",
+            DisplayName = "GPT Live Transcribe",
+            // Requires OpenAI's Realtime WebSocket API. NOT request-capable via this
+            // catalog today: OpenAIWhisperService (the consumer of this registry) is a
+            // REST/batch client. Windows DOES have a WebSocket transport elsewhere
+            // (Services/Streaming/OpenAIStreamingStrategy.cs), but that's a separate
+            // live-dictation feature with its own hardcoded "gpt-realtime-whisper"
+            // model, not wired to this catalog. Selectable in the UI so the model is
+            // discoverable, but requests will fail until a REST or streaming path is
+            // built for it — same caveat macOS flagged for this model.
+            Description = "OpenAI's realtime transcription model for the Realtime WebSocket API, billed per audio minute. Not yet functional in this app (REST-only integration).",
+            Provider = CloudTranscriptionProvider.OpenAI,
+            PricePerMinute = 0.017m
         }
     };
 
@@ -205,6 +230,15 @@ public static class CloudTranscriptionModels
         },
         new CloudTranscriptionModel
         {
+            Id = "universal-3-5-pro",
+            DisplayName = "Universal-3.5 Pro",
+            Description = "AssemblyAI's most accurate model. Natively covers 18 languages. Keyterms prompting up to 1000 terms.",
+            Provider = CloudTranscriptionProvider.AssemblyAI,
+            PricePerMinute = 0.0035m,  // $0.21/hour - same as Universal-3 Pro
+            IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
             Id = "universal-2-medical",
             DisplayName = "Universal-2 (Medical)",
             Description = "Universal-2 with Medical Mode add-on for clinical vocabulary. EN/ES/DE/FR only. Medical Mode is billed as a separate add-on on top of Universal-2 pricing.",
@@ -293,6 +327,14 @@ public static class CloudTranscriptionModels
             Id = "stt-async-v4",
             DisplayName = "STT Async v4",
             Description = "Async batch transcription with 60+ supported languages",
+            Provider = CloudTranscriptionProvider.Soniox,
+            IsPopular = true
+        },
+        new CloudTranscriptionModel
+        {
+            Id = "stt-async-v5",
+            DisplayName = "STT Async v5",
+            Description = "Soniox's latest async batch transcription model with 60+ supported languages",
             Provider = CloudTranscriptionProvider.Soniox,
             IsPopular = true
         }
@@ -518,6 +560,17 @@ public static class CloudTranscriptionModels
         };
 
     /// <summary>
+    /// Legacy ElevenLabs model IDs retired by ElevenLabs. Mapped transparently so existing
+    /// Modes and imported backups keep working. "scribe_v1" → "scribe_v2" (scribe_v1 retired
+    /// 2026-07-09; scribe_v2 is the direct successor).
+    /// </summary>
+    private static readonly Dictionary<string, string> LegacyElevenLabsAliases =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "scribe_v1", "scribe_v2" }
+        };
+
+    /// <summary>
     /// Legacy Windows Deepgram IDs used before the catalog mirrored macOS domain-specific IDs,
     /// plus the 25 IDs removed in the 2026-05 catalog cleanup. Removed IDs collapse to
     /// `nova-3-general` so existing modes, settings, and backups continue to resolve.
@@ -581,6 +634,17 @@ public static class CloudTranscriptionModels
     }
 
     /// <summary>
+    /// Resolve a legacy ElevenLabs model ID to its current equivalent. Non-ElevenLabs
+    /// and already-current IDs pass through unchanged. ElevenLabs-scoped by design —
+    /// do not add aliases for other providers here; give them their own resolver.
+    /// </summary>
+    public static string ResolveElevenLabsModelAlias(string modelId)
+    {
+        if (string.IsNullOrEmpty(modelId)) return modelId;
+        return LegacyElevenLabsAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
+    }
+
+    /// <summary>
     /// Resolve provider-specific model aliases before display, import, or request configuration.
     /// </summary>
     public static string ResolveModelAlias(string modelId, CloudTranscriptionProvider? provider = null)
@@ -591,7 +655,8 @@ public static class CloudTranscriptionModels
         {
             CloudTranscriptionProvider.AssemblyAI => ResolveAssemblyAIModelAlias(modelId),
             CloudTranscriptionProvider.Deepgram => ResolveDeepgramModelAlias(modelId),
-            null => ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(modelId)),
+            CloudTranscriptionProvider.ElevenLabs => ResolveElevenLabsModelAlias(modelId),
+            null => ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(ResolveElevenLabsModelAlias(modelId))),
             _ => modelId
         };
     }
@@ -638,7 +703,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.OpenAI => "whisper-1",
             CloudTranscriptionProvider.Groq => "whisper-large-v3-turbo",
             CloudTranscriptionProvider.Deepgram => "nova-3-general",
-            CloudTranscriptionProvider.AssemblyAI => "universal-2",
+            CloudTranscriptionProvider.AssemblyAI => "universal-3-5-pro",
             CloudTranscriptionProvider.ElevenLabs => "scribe_v2",
             CloudTranscriptionProvider.Mistral => "voxtral-mini-latest",
             CloudTranscriptionProvider.Soniox => "stt-async-v4",
