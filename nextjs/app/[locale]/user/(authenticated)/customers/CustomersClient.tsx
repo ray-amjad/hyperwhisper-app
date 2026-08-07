@@ -522,7 +522,10 @@ export default function CustomersClient() {
                         {!customer.licenses.some(
                           (license) => license.stripeCustomerId
                         ) ? (
-                          <span className="text-gray-500 text-sm font-medium">
+                          <span
+                            className="text-gray-500 text-sm font-medium"
+                            title="No Stripe purchase on file (may have paid via another method)"
+                          >
                             —
                           </span>
                         ) : customer.totalSpentCents === null ? (

@@ -50,10 +50,32 @@ const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
 const STRIPE_SPEND_FETCH_CONCURRENCY = 10;
 
 /**
+ * Looks up the most recent dispute filed against a charge, so we can tell
+ * whether a disputed charge was ultimately won or lost rather than just
+ * knowing "disputed: true".
+ *
+ * Note: the `Charge` object used to expose an expandable `dispute` field,
+ * but Stripe removed it (only the `disputed` boolean remains) — so this
+ * can't be fetched via `expand` on `charges.list` and needs its own
+ * `disputes.list` call. It's only called for charges that are actually
+ * disputed, which should be rare, so the extra round trip is bounded.
+ * Disputes are returned most-recent-first, so `limit: 1` gets the current
+ * outcome even in the unusual case of more than one dispute on a charge.
+ */
+async function getLatestDisputeStatusForCharge(
+  chargeId: string,
+): Promise<Stripe.Dispute.Status | null> {
+  const disputes = await stripe.disputes.list({ charge: chargeId, limit: 1 });
+
+  return disputes.data[0]?.status ?? null;
+}
+
+/**
  * Net lifetime spend (in cents) for a single Stripe customer: the sum of
- * `amount - amount_refunded` across their succeeded, non-disputed charges,
- * auto-paginated via the SDK's built-in helper. Mirrors the refund semantics
- * already used elsewhere in this router (net of refunds, not gross).
+ * `amount - amount_refunded` across their succeeded charges that aren't
+ * currently/permanently in dispute, auto-paginated via the SDK's built-in
+ * helper. Mirrors the refund semantics already used elsewhere in this
+ * router (net of refunds, not gross).
  *
  * Returns `null` (rather than $0) if the Stripe fetch fails, so a genuine
  * Stripe error is distinguishable from a customer who legitimately spent
@@ -71,15 +93,23 @@ async function getNetSpendCentsForStripeCustomer(
 
     for (const charge of charges) {
       if (charge.status !== "succeeded") continue;
-      // Exclude disputed charges entirely rather than trying to determine
-      // whether the dispute was won or lost: the Charge object only exposes
-      // a `disputed` boolean, not the dispute's outcome, and looking that up
-      // would mean an extra Stripe API call per disputed charge. Losing a
-      // dispute doesn't necessarily set amount_refunded on the charge, so
-      // counting disputed charges as spend risks overstating net spend for
-      // charges that may still be reversed. Conservative: don't count money
-      // that's in dispute.
-      if (charge.disputed) continue;
+
+      if (charge.disputed) {
+        // `disputed` never reverts to false once a dispute has happened,
+        // even after it resolves in our favor — so it alone can't tell us
+        // whether to count this charge. Look up the actual outcome:
+        //   - lost: we don't get to keep the money, exclude entirely.
+        //   - won: we kept the funds, count it like any other charge.
+        //   - anything else (needs_response, under_review, warning_*, or
+        //     no dispute record found): still unresolved, exclude
+        //     conservatively for now. Unlike a lost dispute this exclusion
+        //     is temporary — it'll be re-evaluated next time spend is
+        //     fetched, once the dispute resolves.
+        const disputeStatus = await getLatestDisputeStatusForCharge(charge.id);
+
+        if (disputeStatus !== "won") continue;
+      }
+
       totalCents += charge.amount - charge.amount_refunded;
     }
 
