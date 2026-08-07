@@ -32,7 +32,7 @@ A health probe retries with backoff (3 attempts maximum) before HyperWhisper mar
     The provider key sheet opens when you click **Add** or **Edit**. In this sheet, a status banner below the key input field gives a short explanation of the current state.
   </Tab>
   <Tab title="Windows">
-    The API Keys settings page (Settings → API Keys) shows a status label next to each provider. A green label shows that the key is configured. A gray label shows that no key is saved. The Models settings page shows the health status for each provider entry. `CloudProviderHealthService` controls the health probes separately. When you save or remove a key on the API Keys page, the label changes between configured and not configured. This action does not start a new health probe.
+    The API Keys page (Model Library → API Keys) shows a status label next to each provider. A green label shows that the key is configured. A gray label shows that no key is saved. The Model Library shows the health status for each provider entry. `CloudProviderHealthService` controls the health probes separately. When you save or remove a key on the API Keys page, the label changes between configured and not configured. This action does not start a new health probe.
   </Tab>
   <Tab title="iOS">
     The iOS app reads the provider health from the Local API of the macOS app (`GET /health`). It caches the result for 60 seconds, then reads the Local API again. iOS does not run its own probes. The macOS app must be reachable on your local network.
@@ -58,7 +58,7 @@ A health probe retries with backoff (3 attempts maximum) before HyperWhisper mar
   <Tab title="macOS">
     <Steps>
       <Step title="API Keys manager">
-        Click the menu bar icon, then go to **Settings → API Keys**. Each provider that you add shows a status pill on the right side of its row. To see the full status banner in the key sheet, click **Edit** next to a provider.
+        Click the menu bar icon, then go to **Model Library → API Keys**. Each provider that you add shows a status pill on the right side of its row. To see the full status banner in the key sheet, click **Edit** next to a provider.
       </Step>
       <Step title="Provider key sheet">
         The status banner below the key input field changes while HyperWhisper tests your key. The banner shows one of these three results:
@@ -70,7 +70,7 @@ A health probe retries with backoff (3 attempts maximum) before HyperWhisper mar
     </Steps>
   </Tab>
   <Tab title="Windows">
-    Open **Settings → API Keys**. Each provider row shows if a key is configured. To see the health status for each provider entry in the model list, open **Settings → Models**.
+    Open **Model Library → API Keys**. Each provider row shows if a key is configured. To see the health status for each provider entry in the model list, open **Model Library**.
   </Tab>
 </Tabs>
 

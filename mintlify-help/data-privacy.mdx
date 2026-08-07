@@ -39,7 +39,7 @@ As a HyperWhisper Cloud user, you do not configure anything. No provider in the 
 
 ## Your own API keys (BYOK)
 
-If you configure your own API key in **Settings → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
+If you configure your own API key in **Model Library → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
 
 <Warning>
 **With your own API keys, you are usually responsible for your own opt-out.** HyperWhisper cannot change dashboard-level settings on an account that HyperWhisper does not control. Each provider has its own default. Some providers do not train on API data. Other providers do train on API data until you opt out.
@@ -92,7 +92,7 @@ You can do these three things:
 
 1. **Opt out now.** Most providers stop the training use of new requests immediately after you change the setting. This applies even if they used your past requests.
 2. **Request a deletion.** Many providers accept deletion requests for content that you sent before. Use the same LLM prompt with this question: "how do I request deletion of past API data on `{PROVIDER}`?"
-3. **Rotate the key.** For a clean cut-off point, generate a new key on the provider dashboard. Then replace the old key in **Settings → API Keys**.
+3. **Rotate the key.** For a clean cut-off point, generate a new key on the provider dashboard. Then replace the old key in **Model Library → API Keys**.
 
 ## Summary
 
