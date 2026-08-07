@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-06-18",
+  "lastUpdated": "2026-08-07",
   "models": [
     {
       "provider": "appleSpeech",
@@ -91,6 +91,26 @@
       "platforms": ["macos", "windows"],
       "supportsAllLanguages": true
     },
+    {
+      "provider": "openai",
+      "id": "gpt-transcribe",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true,
+      "notes": "Launched 2026-07-29. Flat per-audio-minute billed ($0.0045/min) like whisper-1, NOT token-billed like gpt-4o-*. Routes through hyperwhisper-cloud's existing v1/audio/transcriptions adapter (same endpoint as gpt-4o-transcribe)."
+    },
+    {
+      "provider": "openai",
+      "id": "gpt-live-transcribe",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true,
+      "notes": "Launched 2026-07-29, $0.017/min flat. OpenAI's docs state its ONLY supported endpoint is a Realtime WebSocket transcription session — hyperwhisper-cloud's `providers/openai.ts` adapter only posts to the synchronous v1/audio/transcriptions REST endpoint, which does not serve this model. Registered in stt-models.ts's backend catalog per this ticket's instructions, but availableViaHyperWhisperCloud is left false here until a Realtime session relay is actually wired — flip once that lands and is verified end-to-end."
+    },
 
     {
       "provider": "groq",
@@ -166,7 +186,17 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "supportedLanguages": ["de", "en", "es", "fr", "it", "pt"]
+      "supportedLanguages": ["de", "en", "es", "fr", "it", "pt"],
+      "notes": "Superseded as the AssemblyAI default by universal-3-5-pro (GA 2026-07-01) but not retired — still a valid, billable model id."
+    },
+    {
+      "provider": "assemblyAI",
+      "id": "universal-3-5-pro",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "notes": "Now the AssemblyAI default (GA 2026-07-01, successor to universal-3-pro). Natively supports 18 languages per AssemblyAI's release material and falls back to universal-2 for the rest, but the exact 18-code list is not enumerated on AssemblyAI's public supported-languages page as of verification — supportedLanguages intentionally omitted rather than guessed; add once confirmed (see shared-app-classification/cloud-stt-catalog.json's assemblyAI.languages.notes)."
     },
     {
       "provider": "assemblyAI",
@@ -192,9 +222,10 @@
       "id": "scribe_v1",
       "kind": "voice",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": true,
+      "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
+      "supportsAllLanguages": true,
+      "notes": "Retired by ElevenLabs 2026-07-09 (see ElevenLabs changelog 2026-6-8) — successor is scribe_v2 (batch) or scribe_v2_realtime (realtime, not cataloged here). Removed from hyperwhisper-cloud's stt-models.ts registry (fail-closed, 400 on request), so availableViaHyperWhisperCloud is flipped false here per this catalog's own rule. Entry kept (not deleted) only so native-app alias/migration logic added in a later phase has a row to point at; still expected to be dropped from the Model Library UI or resolved to scribe_v2."
     },
     {
       "provider": "elevenLabs",
@@ -319,12 +350,30 @@
       "platforms": ["macos", "windows"]
     },
     {
+      "provider": "anthropic",
+      "id": "claude-sonnet-5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Launched 2026-06-30. BYOK-only native-app catalog addition (PostProcessingModels.swift / LanguageModelInfo.cs) — NOT routed through hyperwhisper-cloud's credit-billed llm-provider.ts, a separate business decision, so availableViaHyperWhisperCloud stays false. Do not add claude-opus-5 (explicit exclusion)."
+    },
+    {
       "provider": "groq",
       "id": "openai/gpt-oss-120b",
       "kind": "text",
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"]
+    },
+    {
+      "provider": "groq",
+      "id": "qwen/qwen3.6-27b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
     },
     {
       "provider": "cerebras",
@@ -343,6 +392,34 @@
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"]
     },
+    {
+      "provider": "grok",
+      "id": "grok-4.5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Launched 2026-07-08. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
+    },
+
+    {
+      "provider": "gemini",
+      "id": "gemini-3.6-flash",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Launched 2026-07-21 (GA). BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.5-flash-lite",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Launched 2026-07-21 (GA), alongside gemini-3.6-flash. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
+    },
 
     {
       "provider": "mistral",
@@ -352,6 +429,15 @@
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "notes": "Live via HyperWhisper Cloud (hyperwhisper-cloud hyperwhisper-fly#48 deployed 2026-06-19); kept in sync with cloud-pp-catalog.json mistral 'enabled':true."
+    },
+    {
+      "provider": "mistral",
+      "id": "mistral-medium-3.5",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Released 2026-04-29. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts (unlike mistral-small-latest / open-mistral-nemo above, which are cloud-routed)."
     },
 
     {

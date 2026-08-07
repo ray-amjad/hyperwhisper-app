@@ -193,13 +193,13 @@ describe('transcribeWithAssemblyAI — async request shape', () => {
   // Each case only needs the create-phase request body, captured before an
   // immediate create-phase error short-circuits the flow ahead of the poll
   // loop's real sleep.
-  test('an absent/auto language requests language_detection with the universal-3-pro fallback chain', async () => {
+  test('an absent/auto language requests language_detection with the universal-3-5-pro fallback chain', async () => {
     const calls = mockAsyncFlow({ pollBodies: [], createStatus: { status: 400, body: {} } });
     await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto')).rejects.toThrow(ProviderInputError);
     const createCall = calls.find((c) => c.url === CREATE_URL)!;
     expect(createCall.body).toMatchObject({
       language_detection: true,
-      speech_models: ['universal-3-pro', 'universal-2'],
+      speech_models: ['universal-3-5-pro', 'universal-2'],
     });
   });
 
@@ -209,6 +209,14 @@ describe('transcribeWithAssemblyAI — async request shape', () => {
       .rejects.toThrow(ProviderInputError);
     const createCall = calls.find((c) => c.url === CREATE_URL)!;
     expect(createCall.body).toMatchObject({ speech_models: ['universal-2'] });
+  });
+
+  test('an explicit legacy universal-3-pro request still gets its own fallback chain (not removed, just superseded as default)', async () => {
+    const calls = mockAsyncFlow({ pollBodies: [], createStatus: { status: 400, body: {} } });
+    await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto', undefined, { model: 'universal-3-pro' }))
+      .rejects.toThrow(ProviderInputError);
+    const createCall = calls.find((c) => c.url === CREATE_URL)!;
+    expect(createCall.body).toMatchObject({ speech_models: ['universal-3-pro', 'universal-2'] });
   });
 
   test('an explicit BCP-47 language is stripped to its bare ISO-639-1 subtag', async () => {
@@ -261,7 +269,7 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
       pollBodies: [{ status: 200, body: { status: 'completed', text: 'hola', audio_duration: 0, speech_model_used: 'some-future-model' } }],
     });
     const result = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto');
-    expect(result.model).toBe('universal-3-pro');
+    expect(result.model).toBe('universal-3-5-pro');
     expect(result.durationSeconds).toBe(6); // 48,000 bytes -> 6s estimate
   }, 10_000);
 
