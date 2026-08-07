@@ -2,6 +2,7 @@ using System.IO;
 using System.Net.Http;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services;
 
@@ -205,8 +206,8 @@ public class LocalLlmModelService
                 return Result.Success();
             }
 
-            var needed = FormatBytes(requiredBytes);
-            var available = FormatBytes(driveInfo.AvailableFreeSpace);
+            var needed = ByteSizeFormatter.FormatCompact(requiredBytes);
+            var available = ByteSizeFormatter.FormatCompact(driveInfo.AvailableFreeSpace);
             return Result.Failure(Loc.S("settings.models.localLlm.diskSpace", model.DisplayName, needed, available));
         }
         catch (Exception ex)
@@ -266,20 +267,5 @@ public class LocalLlmModelService
         using var stream = File.OpenRead(path);
         var bytesRead = stream.Read(header);
         return bytesRead == GgufMagic.Length && header.SequenceEqual(GgufMagic);
-    }
-
-    private static string FormatBytes(long bytes)
-    {
-        if (bytes >= 1024L * 1024 * 1024)
-        {
-            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
-        }
-
-        if (bytes >= 1024L * 1024)
-        {
-            return $"{bytes / (1024.0 * 1024):F0} MB";
-        }
-
-        return $"{bytes / 1024.0:F0} KB";
     }
 }

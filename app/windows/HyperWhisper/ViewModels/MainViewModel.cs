@@ -2674,7 +2674,7 @@ public partial class MainViewModel : ViewModelBase
         if (fileInfo.Length > maxSize)
         {
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
-                Loc.S("errors.fileTooLarge", FileTranscriptionService.FormatFileSize(maxSize)),
+                Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)),
                 showSettingsButton: false));
             return;
         }
