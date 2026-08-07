@@ -276,7 +276,8 @@ public static class CloudTranscriptionModels
             Id = "scribe_v1",
             DisplayName = "Scribe V1",
             Description = "Original flagship model (no vocabulary support)",
-            Provider = CloudTranscriptionProvider.ElevenLabs
+            Provider = CloudTranscriptionProvider.ElevenLabs,
+            IsAvailable = false  // Retired by ElevenLabs 2026-07-09 — resolved to scribe_v2 via LegacyElevenLabsAliases
         },
         new CloudTranscriptionModel
         {
@@ -318,7 +319,8 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// Soniox transcription models.
-    /// - stt-async-v4: Current async transcription model
+    /// - stt-async-v4: Previous async transcription model (still available; auto-routes to v5 upstream after 2026-06-30)
+    /// - stt-async-v5: Current default async transcription model
     /// </summary>
     public static readonly CloudTranscriptionModel[] Soniox = new[]
     {
@@ -706,7 +708,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.AssemblyAI => "universal-3-5-pro",
             CloudTranscriptionProvider.ElevenLabs => "scribe_v2",
             CloudTranscriptionProvider.Mistral => "voxtral-mini-latest",
-            CloudTranscriptionProvider.Soniox => "stt-async-v4",
+            CloudTranscriptionProvider.Soniox => "stt-async-v5",  // Parity with macOS + cloud default; v4 auto-routes to v5 upstream after 2026-06-30
             CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
             CloudTranscriptionProvider.HyperWhisperCloud => HyperWhisperCloudSentinel.Id,
             CloudTranscriptionProvider.Grok => "",
