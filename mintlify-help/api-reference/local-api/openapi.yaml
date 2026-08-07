@@ -432,6 +432,7 @@ components:
     TranscribeSegment:
       type: object
       properties:
+        id: { type: integer }
         text: { type: string }
         start: { type: number }
         end: { type: number }

@@ -26,7 +26,7 @@ In a code-focused mode, the prompt builder understands more spoken symbols and f
 
 - **Brackets & operators** — "open paren"/"close paren", "open bracket"/"close bracket", "open brace"/"close brace", "equals equals", "not equals", "arrow" (`->`), "fat arrow" (`=>`), "double ampersand", "double pipe". HyperWhisper changes these spoken names, and similar names, to their symbols.
 - **Case formatting** — "camel case", "pascal case", "snake case", "screaming snake" (or "constant case"), and "kebab case" change the case of the words that follow.
-- **Structure commands** — "indent" and "dedent" (or "outdent") change the indentation level. "new line" adds a line break. "space" and "no space" add or remove the space around the next word. "tab" adds a tab character.
+- **Structure commands** — "indent" and "dedent" (or "outdent") change the indentation level. "space" and "no space" add or remove the space around the next word. "tab" adds a tab character. "new line" and "new paragraph" start a new paragraph, as in [Quick Formatting Cues](#quick-formatting-cues) above.
 
 To read how HyperWhisper handles dictated code, go to [Voice Coding](/voice-coding).
 
@@ -37,4 +37,4 @@ To read how HyperWhisper handles dictated code, go to [Voice Coding](/voice-codi
 - "Can you email john at google dot com about this issue?" → `Can you email john@google.com about this issue?`
   *Source: URL and email format rule, and Example 3.*
 - "That's pretty cool exclamation mark actually, that's awesome" → `That's pretty cool! Actually, that's awesome.`
-  *Source: Punctuation-cue rule, and Example 2. HyperWhisper writes punctuation cues in place. It starts a new paragraph only when you say "new paragraph" (see [Quick Formatting Cues](#quick-formatting-cues) above).*
+  *Source: Punctuation-cue rule, and Example 2. HyperWhisper writes punctuation cues in place. It starts a new paragraph only when you say "new line" or "new paragraph" (see [Quick Formatting Cues](#quick-formatting-cues) above).*
