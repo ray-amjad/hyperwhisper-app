@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { routing } from "./src/i18n/routing";
 import { defaultLocale, locales } from "./src/i18n/locales";
 import { sanitizeReturnTo } from "./src/lib/license-key-redirect";
+import { auth } from "./src/lib/auth";
 
 const intlMiddleware = createMiddleware(routing);
 const localePattern = locales
@@ -38,30 +39,18 @@ function hasSessionCookie(request: NextRequest): boolean {
 }
 
 /**
- * Get full Better Auth session via API call.
+ * Get full Better Auth session via an in-process call to Better Auth.
  * Only used for admin routes that need the user's email.
+ *
+ * This calls `auth.api.getSession()` directly instead of making a
+ * self-referential HTTP fetch back to `/api/auth/get-session` - the
+ * previous implementation could silently treat a valid session as
+ * "not logged in" whenever that self-fetch hit a network hiccup,
+ * timeout, or non-2xx response.
  */
 async function getBetterAuthSession(request: NextRequest) {
-  const sessionCookie =
-    request.cookies.get("__Secure-better-auth.session_token") ||
-    request.cookies.get("better-auth.session_token");
-  if (!sessionCookie?.value) return null;
-
-  try {
-    const baseUrl = request.nextUrl.origin;
-    const response = await fetch(`${baseUrl}/api/auth/get-session`, {
-      headers: {
-        cookie: request.headers.get("cookie") || "",
-      },
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data?.user ?? null;
-  } catch {
-    return null;
-  }
+  const session = await auth.api.getSession({ headers: request.headers });
+  return session?.user ?? null;
 }
 
 /**
