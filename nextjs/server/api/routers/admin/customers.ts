@@ -6,9 +6,9 @@
  */
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import Stripe from "stripe";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
+import { stripe } from "@/lib/clients/stripe";
 import {
   getAllAccountKeysWithCreditsForAdmin,
   searchAccountKeysByEmail,
@@ -29,11 +29,79 @@ import {
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { emailService } from "@/lib/services/email";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia" as any,
-});
-
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
+
+// How many distinct Stripe customer IDs to fetch net spend for concurrently.
+// The customer list has no UI pagination (up to 1000 rows, refetched on a
+// 300ms search debounce), so an unbounded Promise.all across every Stripe
+// customer ID would fan out too many concurrent requests.
+const STRIPE_SPEND_FETCH_CONCURRENCY = 10;
+
+/**
+ * Net lifetime spend (in cents) for a single Stripe customer: the sum of
+ * `amount - amount_refunded` across their succeeded charges, auto-paginated.
+ * Mirrors the refund semantics already used elsewhere in this router (net of
+ * refunds, not gross).
+ *
+ * Never throws: a single customer's Stripe failure is logged and treated as
+ * $0 spend rather than 500ing the whole admin customers page.
+ */
+async function getNetSpendCentsForStripeCustomer(
+  stripeCustomerId: string
+): Promise<number> {
+  let totalCents = 0;
+  let startingAfter: string | undefined;
+
+  try {
+    do {
+      const page = await stripe.charges.list({
+        customer: stripeCustomerId,
+        limit: 100,
+        starting_after: startingAfter,
+      });
+
+      for (const charge of page.data) {
+        if (charge.status === "succeeded") {
+          totalCents += charge.amount - charge.amount_refunded;
+        }
+      }
+
+      startingAfter = page.has_more
+        ? page.data[page.data.length - 1]?.id
+        : undefined;
+    } while (startingAfter);
+  } catch (error) {
+    console.error(
+      `Failed to fetch Stripe charges for customer ${stripeCustomerId}:`,
+      error
+    );
+    return 0;
+  }
+
+  return totalCents;
+}
+
+/**
+ * Net lifetime spend (in cents) across a set of unique Stripe customer IDs,
+ * fetched with capped concurrency rather than one unbounded Promise.all.
+ */
+async function getNetSpendCentsForStripeCustomers(
+  stripeCustomerIds: string[]
+): Promise<Map<string, number>> {
+  const results = new Map<string, number>();
+
+  for (let i = 0; i < stripeCustomerIds.length; i += STRIPE_SPEND_FETCH_CONCURRENCY) {
+    const chunk = stripeCustomerIds.slice(i, i + STRIPE_SPEND_FETCH_CONCURRENCY);
+    const chunkResults = await Promise.all(
+      chunk.map(async (id) => [id, await getNetSpendCentsForStripeCustomer(id)] as const)
+    );
+    for (const [id, cents] of chunkResults) {
+      results.set(id, cents);
+    }
+  }
+
+  return results;
+}
 
 export const customersRouter = createTRPCRouter({
   /**
@@ -72,6 +140,7 @@ export const customersRouter = createTRPCRouter({
             email: string;
             licenseCount: number;
             totalCredits: number;
+            totalSpentCents: number;
             created: number;
             licenses: Array<{
               id: string;
@@ -96,6 +165,7 @@ export const customersRouter = createTRPCRouter({
               email: (userMap.get(l.userId)?.email ?? l.email).toLowerCase(),
               licenseCount: 0,
               totalCredits: 0,
+              totalSpentCents: 0,
               created,
               licenses: [],
             };
@@ -117,6 +187,36 @@ export const customersRouter = createTRPCRouter({
             stripeCustomerId: l.stripeCustomerId,
             created,
           });
+        }
+
+        // Attach each customer's net lifetime Stripe spend, summed across all
+        // distinct stripeCustomerIds among their licenses (a customer can have
+        // more than one, since some purchase flows use `customer_creation:
+        // "always"`). Customers with no Stripe customer ID at all are skipped
+        // entirely — no Stripe call, $0 spend.
+        const allStripeCustomerIds = Array.from(
+          new Set(
+            licenses
+              .map((l) => l.stripeCustomerId)
+              .filter((id): id is string => Boolean(id))
+          )
+        );
+        const spendByStripeCustomerId = await getNetSpendCentsForStripeCustomers(
+          allStripeCustomerIds
+        );
+        for (const customer of Array.from(customerMap.values())) {
+          const customerStripeIds = Array.from(
+            new Set(
+              customer.licenses
+                .map((l) => l.stripeCustomerId)
+                .filter((id): id is string => Boolean(id))
+            )
+          );
+          let totalSpentCents = 0;
+          for (const id of customerStripeIds) {
+            totalSpentCents += spendByStripeCustomerId.get(id) ?? 0;
+          }
+          customer.totalSpentCents = totalSpentCents;
         }
 
         return { customers: Array.from(customerMap.values()) };

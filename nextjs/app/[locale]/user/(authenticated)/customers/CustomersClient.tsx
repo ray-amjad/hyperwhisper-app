@@ -13,6 +13,15 @@ function formatCredits(credits: number) {
   });
 }
 
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+function formatCurrency(cents: number) {
+  return currencyFormatter.format(cents / 100);
+}
+
 export default function CustomersClient() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -274,6 +283,9 @@ export default function CustomersClient() {
                   Total
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Total Spend
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Created
                 </th>
               </tr>
@@ -282,7 +294,7 @@ export default function CustomersClient() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 4 }).map((_, j) => (
+                    {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-white/10 rounded w-24 animate-pulse" />
                       </td>
@@ -291,7 +303,7 @@ export default function CustomersClient() {
                 ))
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     No customers found.
                   </td>
                 </tr>
@@ -493,6 +505,18 @@ export default function CustomersClient() {
                       <td className="px-6 py-4">
                         <span className="text-blue-300 text-sm font-medium">
                           {customer.totalCredits.toLocaleString()}
+                        </span>
+                      </td>
+
+                      {/* Total Spend (net lifetime Stripe spend across all of this
+                          customer's Stripe customer IDs). No Stripe customer ID on
+                          any license at all -> show a dash rather than $0.00, since
+                          that customer never had a Stripe call made for them. */}
+                      <td className="px-6 py-4">
+                        <span className="text-emerald-300 text-sm font-medium">
+                          {customer.licenses.some((license) => license.stripeCustomerId)
+                            ? formatCurrency(customer.totalSpentCents)
+                            : "—"}
                         </span>
                       </td>
 
