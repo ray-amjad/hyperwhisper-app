@@ -220,7 +220,7 @@ class SonioxProvider: TranscriptionProvider {
                     // Transient errors on a status poll are non-fatal: the
                     // server-side job is still processing. Honor Retry-After and
                     // keep polling, clamped to the poll cap.
-                    let retryAfter = Self.retryAfterSeconds(from: response)
+                    let retryAfter = response.retryAfterSeconds
                     AppLogger.network.warning("Soniox poll transient (non-fatal) · attempt=\(attempt + 1, privacy: .public) · status=\(status, privacy: .public) · retryAfter=\(retryAfter.map(String.init) ?? "nil", privacy: .public)")
                     if let retryAfter, retryAfter > 1 {
                         let sleepSeconds = min(retryAfter, RetryConfiguration.maxPollRetryAfterSeconds)
@@ -294,14 +294,6 @@ class SonioxProvider: TranscriptionProvider {
         }
     }
 
-    /// Parse the integer `Retry-After` header from a core `HttpResponse`
-    /// (case-insensitive). Used only by the bespoke poll loop.
-    private static func retryAfterSeconds(from response: HttpResponse) -> Int? {
-        guard let value = response.headers.first(where: {
-            $0.name.caseInsensitiveCompare("Retry-After") == .orderedSame
-        })?.value else { return nil }
-        return Int(value.trimmingCharacters(in: .whitespaces))
-    }
 }
 
 extension SonioxProvider {

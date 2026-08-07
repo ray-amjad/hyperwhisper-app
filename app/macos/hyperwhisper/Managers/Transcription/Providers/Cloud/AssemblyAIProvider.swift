@@ -245,7 +245,7 @@ class AssemblyAIProvider: TranscriptionProvider {
                     // server-side job is still processing. Honor Retry-After and
                     // keep polling, clamped so one oversized header can't blow
                     // past the cap (the total deadline bounds the aggregate wait).
-                    let retryAfter = Self.retryAfterSeconds(from: response)
+                    let retryAfter = response.retryAfterSeconds
                     let sleepSeconds = min(max(1, retryAfter ?? 1), RetryConfiguration.maxPollRetryAfterSeconds)
                     AppLogger.network.warning("AssemblyAI poll transient (non-fatal) · attempt=\(attempts + 1, privacy: .public) · status=\(status, privacy: .public) · retryAfter=\(retryAfter.map(String.init) ?? "nil", privacy: .public) · sleptSeconds=\(sleepSeconds, privacy: .public)")
                     try await Task.sleep(nanoseconds: UInt64(sleepSeconds) * 1_000_000_000)
@@ -373,16 +373,6 @@ class AssemblyAIProvider: TranscriptionProvider {
             logger.warning("AssemblyAI sync parse failed (non-fatal): \(String(describing: err), privacy: .public) — falling back to async")
             return nil
         }
-    }
-
-    /// Parse the integer `Retry-After` header from a core `HttpResponse`
-    /// (case-insensitive). Used only by the bespoke poll loop, which doesn't go
-    /// through RustRetry's header parser.
-    private static func retryAfterSeconds(from response: HttpResponse) -> Int? {
-        guard let value = response.headers.first(where: {
-            $0.name.caseInsensitiveCompare("Retry-After") == .orderedSame
-        })?.value else { return nil }
-        return Int(value.trimmingCharacters(in: .whitespaces))
     }
 }
 
