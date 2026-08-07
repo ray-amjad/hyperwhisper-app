@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { routing } from "./src/i18n/routing";
 import { defaultLocale, locales } from "./src/i18n/locales";
 import { sanitizeReturnTo } from "./src/lib/license-key-redirect";
-import { auth } from "./src/lib/auth";
 
 const intlMiddleware = createMiddleware(routing);
 const localePattern = locales
@@ -47,10 +46,27 @@ function hasSessionCookie(request: NextRequest): boolean {
  * previous implementation could silently treat a valid session as
  * "not logged in" whenever that self-fetch hit a network hiccup,
  * timeout, or non-2xx response.
+ *
+ * The `auth` module is imported lazily (dynamic `import()`) so its
+ * transitive dependencies - a Drizzle DB connection pool, the Resend
+ * email client, and full server-env validation - only get pulled into
+ * the module graph for requests that actually reach `/user/customers`,
+ * not every page-route request that passes through this proxy.
+ *
+ * Any exception thrown by `getSession` (e.g. an `APIError` from a
+ * session-update race, a DB hiccup, or a corrupted session-cache
+ * cookie) is caught and treated as "not logged in", restoring the
+ * graceful-degradation behavior of the old self-fetch implementation
+ * for genuine failures.
  */
 async function getBetterAuthSession(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: request.headers });
-  return session?.user ?? null;
+  try {
+    const { auth } = await import("./src/lib/auth");
+    const session = await auth.api.getSession({ headers: request.headers });
+    return session?.user ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
