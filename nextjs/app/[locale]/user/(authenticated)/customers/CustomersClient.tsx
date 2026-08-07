@@ -509,15 +509,47 @@ export default function CustomersClient() {
                       </td>
 
                       {/* Total Spend (net lifetime Stripe spend across all of this
-                          customer's Stripe customer IDs). No Stripe customer ID on
-                          any license at all -> show a dash rather than $0.00, since
-                          that customer never had a Stripe call made for them. */}
+                          customer's Stripe customer IDs). Two distinct "no number"
+                          states, rendered differently so a real Stripe error isn't
+                          silently mistaken for "$0 spent":
+                          - No Stripe customer ID on any license at all -> dash,
+                            no Stripe call was ever made for this customer.
+                          - Has Stripe customer ID(s) but totalSpentCents is null ->
+                            a fetch failed server-side (logged there); show a
+                            distinct "error" indicator rather than a dash or $0.00.
+                          - Otherwise -> the real formatted currency amount. */}
                       <td className="px-6 py-4">
-                        <span className="text-emerald-300 text-sm font-medium">
-                          {customer.licenses.some((license) => license.stripeCustomerId)
-                            ? formatCurrency(customer.totalSpentCents)
-                            : "—"}
-                        </span>
+                        {!customer.licenses.some(
+                          (license) => license.stripeCustomerId
+                        ) ? (
+                          <span className="text-gray-500 text-sm font-medium">
+                            —
+                          </span>
+                        ) : customer.totalSpentCents === null ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-amber-300 text-sm font-medium"
+                            title="Failed to fetch Stripe spend for this customer"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                              />
+                            </svg>
+                            error
+                          </span>
+                        ) : (
+                          <span className="text-emerald-300 text-sm font-medium">
+                            {formatCurrency(customer.totalSpentCents)}
+                          </span>
+                        )}
                       </td>
 
                       {/* Created */}
