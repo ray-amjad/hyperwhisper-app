@@ -301,7 +301,7 @@ pub(crate) fn error_message(json: Option<&serde_json::Value>, raw: &str) -> Stri
 }
 
 /// Parse the `Retry-After` header (integer seconds) if present.
-fn retry_after(resp: &HttpResponse) -> Option<u64> {
+pub(crate) fn retry_after(resp: &HttpResponse) -> Option<u64> {
     resp.header("Retry-After")
         .and_then(|v| v.trim().parse::<u64>().ok())
 }

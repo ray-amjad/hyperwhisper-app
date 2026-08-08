@@ -45,7 +45,7 @@ use crate::contract::{
     Body, HttpMethod, HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime};
-use crate::providers::common::filename_of;
+use crate::providers::common::{filename_of, retry_after};
 
 /// Gemini API root. `params.base_url` overrides it (tests/staging).
 pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
@@ -433,9 +433,7 @@ fn classify_gemini(resp: &HttpResponse) -> TranscriptionError {
     match resp.status {
         400 | 401 | 403 => TranscriptionError::Unauthorized,
         429 => TranscriptionError::RateLimited {
-            retry_after_secs: resp
-                .header("Retry-After")
-                .and_then(|v| v.trim().parse::<u64>().ok()),
+            retry_after_secs: retry_after(resp),
         },
         500..=599 => TranscriptionError::ProviderUnavailable {
             status: resp.status,
