@@ -15,7 +15,6 @@ const USER_SIGN_IN_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/sign-in`)
 const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
   `^\\/(${localePattern})\\/user\\/auth\\/sign-out`,
 );
-const USER_CUSTOMERS_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/customers`);
 
 const getPathLocale = (pathname: string) => {
   const match = pathname.match(LOCALE_REGEX);
@@ -38,50 +37,6 @@ function hasSessionCookie(request: NextRequest): boolean {
 }
 
 /**
- * Get full Better Auth session via an in-process call to Better Auth.
- * Only used for admin routes that need the user's email.
- *
- * This calls `auth.api.getSession()` directly instead of making a
- * self-referential HTTP fetch back to `/api/auth/get-session` - the
- * previous implementation could silently treat a valid session as
- * "not logged in" whenever that self-fetch hit a network hiccup,
- * timeout, or non-2xx response.
- *
- * The `auth` module is imported lazily (dynamic `import()`) so its
- * transitive dependencies - a Drizzle DB connection pool, the Resend
- * email client, and full server-env validation - only get pulled into
- * the module graph for requests that actually reach `/user/customers`,
- * not every page-route request that passes through this proxy.
- *
- * Any exception thrown by `getSession` (e.g. an `APIError` from a
- * session-update race, a DB hiccup, or a corrupted session-cache
- * cookie) is caught and treated as "not logged in", restoring the
- * graceful-degradation behavior of the old self-fetch implementation
- * for genuine failures.
- */
-async function getBetterAuthSession(request: NextRequest) {
-  // Cheap short-circuit: skip the dynamic import and DB-backed getSession
-  // call entirely when there's no session cookie to validate. getSession
-  // would return null for a missing cookie anyway, but anonymous/bot
-  // traffic to /user/customers shouldn't pay for the I/O.
-  if (!hasSessionCookie(request)) {
-    return null;
-  }
-
-  try {
-    const { auth } = await import("./src/lib/auth");
-    const session = await auth.api.getSession({ headers: request.headers });
-    return session?.user ?? null;
-  } catch (error) {
-    console.error(
-      `getBetterAuthSession failed for ${request.nextUrl.pathname}:`,
-      error,
-    );
-    return null;
-  }
-}
-
-/**
  * Proxy (formerly middleware) that handles:
  * 1. next-intl locale routing (adds locale prefix)
  * 2. Better Auth session checking
@@ -100,39 +55,17 @@ export default async function proxy(request: NextRequest) {
   const isUserRoute = USER_ROUTE_REGEX.test(pathname);
   const isUserSignIn = USER_SIGN_IN_REGEX.test(pathname);
   const isUserAuthSignOut = USER_AUTH_SIGN_OUT_REGEX.test(pathname);
-  const isUserCustomers = USER_CUSTOMERS_REGEX.test(pathname);
 
   // =============================================================
   // USER ROUTES - Unified portal for customers and admins
   // =============================================================
 
-  // For /user/customers, require admin access
-  if (isUserCustomers) {
-    const user = await getBetterAuthSession(request);
-
-    // If not authenticated, redirect to user sign-in
-    if (!user) {
-      const locale = getPathLocale(pathname);
-      const signInUrl = new URL(`/${locale}/user/sign-in`, request.url);
-      signInUrl.searchParams.set("returnTo", pathname);
-      return NextResponse.redirect(signInUrl);
-    }
-
-    // Must be admin to access customers page
-    if (user.role !== "admin") {
-      const locale = getPathLocale(pathname);
-      return NextResponse.redirect(
-        new URL(`/${locale}/user/dashboard`, request.url)
-      );
-    }
-
-    // User is authenticated and is admin - run intl middleware
-    const response = intlMiddleware(request) as NextResponse;
-    response.headers.set("x-pathname", pathname);
-    return response;
-  }
-
-  // For other user routes (except sign-in, sign-out), check authentication via cookie presence
+  // For user routes (except sign-in, sign-out), check authentication via
+  // cookie presence. This includes /user/customers - its admin-only access
+  // is enforced server-side (with a real, DB-backed session check) by
+  // CustomersPage and adminProcedure, which redirect/reject non-admins.
+  // The proxy only needs to gate signed-out visitors here; doing a full
+  // session lookup at this layer too just duplicates that enforcement.
   if (
     isUserRoute &&
     !isUserSignIn &&
