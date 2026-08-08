@@ -38,6 +38,14 @@ import sys
 # the rules below leave it alone.
 GENERATED_SQL = re.compile(r"^\d{4}_")
 
+# A repository whose history already contains an ordering violation cannot fix
+# it: the entry has been applied and recorded, and re-stamping it would only
+# hide the entry from databases that already ran it. Without a way to record
+# such a case, the check stays red forever and can never be a required check,
+# which is the same as not having it. This file records those, one object per
+# entry, and each one must be reconciled against the live database first.
+BASELINE_PATH = ".github/drizzle-journal-baseline.json"
+
 # Wording reused by every history failure. All of them have the same fix.
 APPEND_ONLY_FIX = (
     "Migrations are append-only once they reach main. To undo a migration, add "
@@ -86,6 +94,40 @@ def discover_drizzle_dir():
     return found[0][: -len("/meta/_journal.json")], None
 
 
+def load_baseline():
+    """Read the recorded pre-existing violations. Returns (allowed, errors).
+
+    `allowed` maps (idx, tag, when) to the reason it was accepted. Keying on
+    all three means a later edit to the entry stops matching and fails again,
+    so this can wave through history without weakening the rule.
+    """
+    if not os.path.exists(BASELINE_PATH):
+        return {}, []
+
+    try:
+        with open(BASELINE_PATH, "r") as handle:
+            data = json.load(handle)
+    except json.JSONDecodeError as exc:
+        return {}, [f"{BASELINE_PATH} is not valid JSON: {exc}"]
+
+    listed = data.get("allow_out_of_order", [])
+    if not isinstance(listed, list):
+        return {}, [f"{BASELINE_PATH} needs `allow_out_of_order` to be a list."]
+
+    allowed, errors = {}, []
+    for item in listed:
+        missing = [k for k in ("idx", "tag", "when", "why") if not item.get(k)]
+        if missing:
+            errors.append(
+                f"{BASELINE_PATH} has an entry missing {missing}: {item}. Every "
+                "accepted violation needs `idx`, `tag`, `when` and a `why` "
+                "saying how it was reconciled against the live database."
+            )
+            continue
+        allowed[(item["idx"], item["tag"], item["when"])] = item["why"]
+    return allowed, errors
+
+
 def load_journal(raw, where):
     """Parse journal JSON and return (entries, errors)."""
     try:
@@ -104,9 +146,14 @@ def load_journal(raw, where):
     return entries, []
 
 
-def check_structure(entries):
-    """Rules that hold for the journal on its own, with no history."""
+def check_structure(entries, allowed):
+    """Rules that hold for the journal on its own, with no history.
+
+    Returns (errors, notes). A violation listed in the baseline file becomes a
+    note, so it stays visible without failing the check for ever.
+    """
     errors = []
+    notes = []
 
     # The watermark only ever moves forward, so each entry must beat the
     # highest `when` before it, not merely the one directly above it. One
@@ -116,6 +163,13 @@ def check_structure(entries):
         curr = entries[i]
         highest = max(entries[:i], key=lambda entry: entry["when"])
         if curr["when"] <= highest["when"]:
+            key = (curr["idx"], curr["tag"], curr["when"])
+            if key in allowed:
+                notes.append(
+                    f"idx={curr['idx']} ({curr['tag']}) is out of order and is "
+                    f"accepted by {BASELINE_PATH}: {allowed[key]}"
+                )
+                continue
             errors.append(
                 f"Entry idx={curr['idx']} ({curr['tag']}, when={curr['when']}) "
                 f"does not come after idx={highest['idx']} ({highest['tag']}, "
@@ -137,7 +191,7 @@ def check_structure(entries):
     if duplicates:
         errors.append(f"Duplicate `tag` values in the journal: {duplicates}")
 
-    return errors
+    return errors, notes
 
 
 def check_files_match(entries, drizzle_dir):
@@ -302,11 +356,19 @@ def main():
     with open(path, "r") as handle:
         entries, errors = load_journal(handle.read(), path)
 
+    allowed, baseline_errors = load_baseline()
+    errors += baseline_errors
+
+    notes = []
     if entries is not None:
-        errors += check_structure(entries)
+        structural, notes = check_structure(entries, allowed)
+        errors += structural
         errors += check_files_match(entries, drizzle_dir)
         if args.base:
             errors += check_history(entries, drizzle_dir, args.base)
+
+    for note in notes:
+        print(f"note: {note}")
 
     if errors:
         return report(errors)
