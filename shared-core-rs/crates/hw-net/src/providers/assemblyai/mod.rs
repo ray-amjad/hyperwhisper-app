@@ -42,7 +42,7 @@
 //!   one-element **array**; Windows sends `speech_model` as a **string**. We
 //!   follow macOS (the verified platform) and send `speech_models: [model]`.
 //!   AssemblyAI accepts both; this is a documented divergence from Windows.
-//! - **Model default / aliases**: empty model → `universal-2`. Legacy IDs
+//! - **Model default / aliases**: empty model → `universal-3-5-pro`. Legacy IDs
 //!   `universal` → `universal-2`, `slam-1` → `universal-3-pro` (both platforms).
 //!   A trailing `-medical` suffix is stripped and surfaces as
 //!   `domain: "medical-v1"` (Medical Mode add-on).
@@ -65,10 +65,10 @@ pub use sync_flow::*;
 pub const BASE_URL: &str = "https://api.assemblyai.com/v2";
 
 /// Default model when the caller leaves `params.model` empty.
-/// PARITY: macOS `defaultModel(for: .assemblyAI)` / Windows default = `universal-2`.
-pub const DEFAULT_MODEL: &str = "universal-2";
+/// PARITY: macOS `defaultModel(for: .assemblyAI)` / Windows default = `universal-3-5-pro`.
+pub const DEFAULT_MODEL: &str = "universal-3-5-pro";
 
-/// Max `keyterms_prompt` terms for `universal-3-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
+/// Max `keyterms_prompt` terms for `universal-3-pro` and `universal-3-5-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
 pub const MAX_KEYTERMS_PRO: usize = 1000;
 /// Max `keyterms_prompt` terms for non-pro models.
 pub const MAX_KEYTERMS_DEFAULT: usize = 200;

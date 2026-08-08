@@ -279,6 +279,16 @@ enum STTCapabilities {
                         notes: "Highest-accuracy model. Supports English, Spanish, German, French, Portuguese, and Italian. Keyterms prompting up to 1000 terms."
                     ),
                     STTModelSpec(
+                        id: "universal-3-5-pro",
+                        displayName: "Universal-3.5 Pro",
+                        languages: STTLanguageTemplates.codes([
+                            "auto",
+                            "en", "es", "fr", "de", "it", "pt",
+                            "ar", "da", "nl", "fi", "he", "hi", "ja", "no", "sv", "tr", "vi", "zh"
+                        ]),
+                        notes: "Default AssemblyAI model. Natively supports 18 languages with mid-sentence code-switching. Keyterms prompting up to 1000 terms."
+                    ),
+                    STTModelSpec(
                         id: "universal-2-medical",
                         displayName: "Universal-2 (Medical)",
                         languages: STTLanguageTemplates.codes([
@@ -293,6 +303,14 @@ enum STTCapabilities {
                             "auto", "en", "es", "de", "fr"
                         ]),
                         notes: "Universal-3 Pro with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
+                    ),
+                    STTModelSpec(
+                        id: "universal-3-5-pro-medical",
+                        displayName: "Universal-3.5 Pro (Medical)",
+                        languages: STTLanguageTemplates.codes([
+                            "auto", "en", "es", "de", "fr"
+                        ]),
+                        notes: "Universal-3.5 Pro with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
                     )
                 ]
             ),

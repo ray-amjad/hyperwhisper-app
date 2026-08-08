@@ -2422,12 +2422,17 @@ class PersistenceController: ObservableObject {
                 customInstructions: backupMode.customInstructions,
                 languageModel: backupMode.languageModel,
                 cloudProvider: normalized.provider,
-                // Resolve legacy AssemblyAI model IDs on restore so older backups map
-                // onto the current Universal-2 / Universal-3 Pro lineup, then collapse
-                // any removed Deepgram IDs onto Nova 3 General.
-                cloudTranscriptionModel: CloudTranscriptionModels.resolveDeepgramModelAlias(
-                    backupMode.cloudTranscriptionModel.map { CloudTranscriptionModels.resolveAssemblyAIModelAlias($0) }
-                ),
+                // Resolve legacy model IDs on restore, dispatched by provider, so older
+                // backups map onto the current lineup regardless of which provider
+                // retired the ID — e.g. AssemblyAI Universal-2 / Universal-3 Pro aliases,
+                // removed Deepgram IDs collapsing onto Nova 3 General, or ElevenLabs
+                // `scribe_v1` migrating to `scribe_v2`.
+                cloudTranscriptionModel: backupMode.cloudTranscriptionModel.map {
+                    CloudTranscriptionModels.resolveModelAlias(
+                        $0,
+                        provider: CloudProvider(rawValue: backupMode.cloudProvider)
+                    )
+                },
                 postProcessingMode: backupMode.postProcessingMode,
                 postProcessingProvider: backupMode.postProcessingProvider,
                 englishSpelling: backupMode.englishSpelling,

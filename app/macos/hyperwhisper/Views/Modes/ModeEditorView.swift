@@ -144,7 +144,10 @@ struct ModeEditorView: View {
             let processingMode = isLegacyVoiceToText ? PostProcessingMode.off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
             _postProcessingMode = State(initialValue: processingMode)
 
-            let initialCloudTranscriptionModel = CloudTranscriptionModels.resolveAssemblyAIModelAlias(mode.cloudTranscriptionModel ?? "whisper-1")
+            let initialCloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
+                mode.cloudTranscriptionModel ?? "whisper-1",
+                provider: CloudProvider(rawValue: mode.cloudProvider ?? "")
+            )
 
             // Azure MAI / Google Chirp legacy provider values are folded into
             // HyperWhisper Cloud accuracy tiers via the catalog. If the saved

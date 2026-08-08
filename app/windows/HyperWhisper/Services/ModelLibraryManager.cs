@@ -442,6 +442,8 @@ public sealed class ModelLibraryManager
         ["gpt-4o-transcribe"]                 = (4, 2),
         ["gpt-4o-mini-transcribe"]            = (4, 3),
         ["whisper-1"]                         = (3, 3),
+        ["gpt-transcribe"]                    = (4, 3),
+        ["gpt-live-transcribe"]               = (5, 3),
         // Groq
         ["whisper-large-v3-turbo"]            = (5, 4),
         ["whisper-large-v3"]                  = (5, 3),
@@ -453,6 +455,7 @@ public sealed class ModelLibraryManager
         // AssemblyAI
         ["universal-2"]                       = (3, 4),
         ["universal-3-pro"]                   = (2, 5),
+        ["universal-3-5-pro"]                 = (2, 5),
         ["universal-2-medical"]               = (2, 4),
         ["universal-3-pro-medical"]           = (2, 5),
         // ElevenLabs
@@ -462,6 +465,7 @@ public sealed class ModelLibraryManager
         ["voxtral-mini-latest"]               = (4, 2),
         // Soniox
         ["stt-async-v4"]                      = (1, 4),
+        ["stt-async-v5"]                      = (2, 5),
         // Gemini
         ["gemini-2.5-flash"]                  = (2, 4),
         ["gemini-2.5-flash-lite"]             = (3, 3),
@@ -513,12 +517,15 @@ public sealed class ModelLibraryManager
         ["gpt-5-nano"]                                    = (1, 4),
         ["gpt-4.1-nano"]                                  = (4, 4),
         ["claude-sonnet-4-6"]                             = (4, 5),
+        ["claude-sonnet-5"]                               = (4, 5),
         ["claude-sonnet-4-5"]                             = (3, 5),
         ["claude-sonnet-4-0"]                             = (3, 5),
         ["claude-haiku-4-5"]                              = (4, 4),
         ["gemini-2.5-flash"]                              = (2, 5),
         ["gemini-3.5-flash"]                              = (2, 5),
+        ["gemini-3.6-flash"]                              = (2, 5),
         ["gemini-2.5-flash-lite"]                         = (4, 5),
+        ["gemini-3.5-flash-lite"]                         = (5, 4),
         ["gemini-2.5-pro"]                                = (2, 4),
         ["gemini-3-flash-preview"]                        = (1, 4),
         ["gemini-3-pro-preview"]                          = (2, 3),
@@ -527,9 +534,12 @@ public sealed class ModelLibraryManager
         ["openai/gpt-oss-20b"]                            = (4, 4),
         ["meta-llama/llama-4-maverick-17b-128e-instruct"] = (2, 3),
         ["moonshotai/kimi-k2-instruct"]                   = (2, 3),
+        ["qwen/qwen3.6-27b"]                              = (4, 3),
         ["grok-4.3"]                                      = (2, 5),
+        ["grok-4.5"]                                      = (2, 5),
         ["mistral-small-latest"]                          = (2, 3),
         ["open-mistral-nemo"]                             = (2, 2),
+        ["mistral-medium-3.5"]                            = (2, 4),
         ["zai-glm-4.7"]                                   = (4, 5),
         ["gpt-oss-120b"]                                  = (5, 3),
         ["llama3.1-8b"]                                   = (2, 3),

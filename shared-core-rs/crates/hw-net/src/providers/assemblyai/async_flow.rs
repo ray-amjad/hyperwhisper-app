@@ -121,7 +121,7 @@ pub fn build_create_request(
     }
 
     // keyterms_prompt: shared sanitize/dedup, drop > 6-word phrases, cap by model.
-    let max_terms = if speech_model == "universal-3-pro" {
+    let max_terms = if speech_model == "universal-3-pro" || speech_model == "universal-3-5-pro" {
         MAX_KEYTERMS_PRO
     } else {
         MAX_KEYTERMS_DEFAULT
@@ -385,7 +385,7 @@ mod tests {
         let mut p = params();
         p.model = "".to_string();
         let j = body_json(&build_create_request(&p, "u").unwrap());
-        assert_eq!(j["speech_models"], serde_json::json!(["universal-2"]));
+        assert_eq!(j["speech_models"], serde_json::json!(["universal-3-5-pro"]));
     }
 
     #[test]
@@ -410,6 +410,21 @@ mod tests {
     fn create_request_pro_model_higher_cap() {
         let mut p = params();
         p.model = "slam-1".to_string(); // -> universal-3-pro
+        p.vocabulary = (0..1001).map(|i| format!("t{i}")).collect();
+        let j = body_json(&build_create_request(&p, "u").unwrap());
+        assert_eq!(
+            j["keyterms_prompt"].as_array().unwrap().len(),
+            MAX_KEYTERMS_PRO
+        );
+    }
+
+    #[test]
+    fn create_request_universal_3_5_pro_higher_cap() {
+        // universal-3-5-pro (the new default Pro-tier model) must get the same
+        // 1000-term cap as universal-3-pro, not silently fall back to the
+        // 200-term default cap.
+        let mut p = params();
+        p.model = "universal-3-5-pro".to_string();
         p.vocabulary = (0..1001).map(|i| format!("t{i}")).collect();
         let j = body_json(&build_create_request(&p, "u").unwrap());
         assert_eq!(

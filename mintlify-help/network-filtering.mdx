@@ -118,11 +118,13 @@ If you configured **AssemblyAI** in Model Library → API Keys, whitelist these 
 | Domain | Purpose |
 |--------|---------|
 | `api.assemblyai.com` | Async transcription API with advanced features |
+| `sync.assemblyai.com` | Sync transcription API — the fast path HyperWhisper tries first for clips under 120 seconds |
 | `www.assemblyai.com` | Website (informational) |
 
 HyperWhisper uses these endpoints:
-- `https://api.assemblyai.com/v2/upload` - Audio upload
-- `https://api.assemblyai.com/v2/transcript` - Transcription creation/polling
+- `https://sync.assemblyai.com/v1/transcribe` - Sync transcription (clips under 120 seconds)
+- `https://api.assemblyai.com/v2/upload` - Audio upload (async fallback)
+- `https://api.assemblyai.com/v2/transcript` - Transcription creation/polling (async fallback)
 
 ### ElevenLabs Scribe
 

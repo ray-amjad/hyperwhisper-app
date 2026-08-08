@@ -12,7 +12,10 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
-const DEFAULT_MODEL = 'stt-async-v4';
+// v4 auto-routed to v5 after 2026-06-30 (Soniox docs/changelog); v5 is now the
+// default, matching stt-models.ts's `soniox.defaultModel`. v4 stays a valid,
+// API-compatible id for any caller that pins it explicitly.
+const DEFAULT_MODEL = 'stt-async-v5';
 const POLL_INTERVAL_MS = 1_000;
 const POLL_DEADLINE_MS = 240_000;
 const MAX_CONTEXT_TERMS = 200;

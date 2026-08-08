@@ -113,9 +113,9 @@ describe('AssemblyAI bills the model that actually ran (speech_models fallback)'
   beforeEach(() => { process.env.ASSEMBLYAI_API_KEY = 'test-asm-key'; });
   afterEach(() => { globalThis.fetch = originalFetch; });
 
-  // universal-3-pro requested + keyterms, but the completed job reports it fell
+  // universal-3-5-pro requested + keyterms, but the completed job reports it fell
   // back to universal-2 → bill the universal-2 base rate with NO keyterms add-on.
-  test('a universal-2 fallback is billed at the universal-2 rate, not universal-3-pro + keyterms', async () => {
+  test('a universal-2 fallback is billed at the universal-2 rate, not universal-3-5-pro + keyterms', async () => {
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method || 'GET').toUpperCase();
@@ -142,11 +142,11 @@ describe('AssemblyAI bills the model that actually ran (speech_models fallback)'
     expect(response.status).toBe(200);
     // universal-2 base for 60s = $0.0025; keyterms are free on universal-2.
     expect(body.cost.usd).toBeCloseTo(0.15 / 60, 6);
-    // Must be strictly cheaper than universal-3-pro base + keyterms add-on,
+    // Must be strictly cheaper than universal-3-5-pro base + keyterms add-on,
     // which is what billing the REQUESTED model would have charged.
     expect(body.cost.usd).toBeLessThan((0.21 / 60) + (0.05 / 60));
     // The transcript ran on universal-2, so X-STT-Model must report that — not
-    // the requested universal-3-pro — so the label matches what was billed.
+    // the requested universal-3-5-pro — so the label matches what was billed.
     expect(response.headers.get('X-STT-Model')).toBe('universal-2');
   }, 10_000);
 
@@ -164,7 +164,7 @@ describe('AssemblyAI bills the model that actually ran (speech_models fallback)'
         if (url.endsWith('/v2/transcript/tid-2') && method === 'GET') {
           return Response.json({
             status: 'completed', text: 'hello', language_code: 'en',
-            audio_duration: 30, speech_model_used: 'universal-3-pro',
+            audio_duration: 30, speech_model_used: 'universal-3-5-pro',
           });
         }
         if (method === 'DELETE') return Response.json({});
@@ -422,12 +422,12 @@ describe('ElevenLabs keyterms (scribe_v2 only)', () => {
     expect(keytermValues).toEqual(['HyperWhisper', 'SwiftUI']);
   });
 
-  test('scribe_v1 does NOT send keyterms (no vocabulary biasing)', async () => {
-    let hasKeyterms = true;
-    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+  test('scribe_v1 is retired — rejected with 400 before any upstream call (fail-closed)', async () => {
+    let upstreamCalled = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('api.elevenlabs.io')) {
-        hasKeyterms = (init?.body as FormData).has('keyterms');
+        upstreamCalled = true;
         return ok();
       }
       if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
@@ -437,9 +437,12 @@ describe('ElevenLabs keyterms (scribe_v2 only)', () => {
     const response = await buildApp().fetch(
       request({ 'X-STT-Provider': 'elevenlabs', 'X-STT-Model': 'scribe_v1' }, '&initial_prompt=HyperWhisper,SwiftUI'),
     );
+    const body = await response.json() as { error: string; valid_models: string[] };
 
-    expect(response.status).toBe(200);
-    expect(hasKeyterms).toBe(false);
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid STT model');
+    expect(body.valid_models).not.toContain('scribe_v1');
+    expect(upstreamCalled).toBe(false);
   });
 });
 
@@ -711,8 +714,8 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
   // reservation tests below for that case.
   const sizeBytes = 5_000_000;
 
-  test('default model (universal-3-pro) with keyterms reserves more than without', () => {
-    // Omitting the model resolves to the provider default (universal-3-pro), which
+  test('default model (universal-3-5-pro) with keyterms reserves more than without', () => {
+    // Omitting the model resolves to the provider default (universal-3-5-pro), which
     // charges the keyterms add-on. The reservation must be larger when a prompt is present.
     const base = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', undefined, false, undefined);
     const withKeyterms = estimateCreditsForProviderFallbacks(sizeBytes, 'assemblyai', undefined, false, 'Foo,Bar');
@@ -727,14 +730,14 @@ describe('AssemblyAI keyterms preflight credit reservation', () => {
 
   test('a short non-medical clip with an explicit language reserves at least the sync rate, not just the (lower) async catalog rate', () => {
     // Sync always runs universal-3-5-pro at $0.0075/min — higher than either
-    // async tier (universal-2 $0.0025/min, universal-3-pro $0.0035/min). A
+    // async tier (universal-2 $0.0025/min, universal-3-5-pro $0.0035/min). A
     // short clip with an explicit language is exactly sync's target case, so
     // the reservation must cover the sync rate or a low-balance account could
     // be deducted more than was reserved when the request actually routes
     // through sync.
     const shortClipBytes = 2048; // well under the ~100s sync-eligibility threshold
     const universal2 = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-2', false, undefined, 'en');
-    const universal3Pro = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-3-pro', false, undefined, 'en');
+    const universal3Pro = estimateCreditsForProviderFallbacks(shortClipBytes, 'assemblyai', 'universal-3-5-pro', false, undefined, 'en');
     // 10s (the MIN_ESTIMATED_SECONDS floor) at $0.0075/min = 0.00125 USD =
     // 1.25 credits, rounded up to the nearest tenth.
     const minimumSyncRateCredits = 1.3;

@@ -35,16 +35,16 @@ describe('new STT provider cost functions', () => {
   });
 
   test('AssemblyAI medical add-on stacks on the base model', () => {
-    const base = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', false);
-    const medical = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', true);
+    const base = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', false);
+    const medical = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', true);
     expect(base).toBeCloseTo(0.0035, 6);
     expect(medical).toBeCloseTo(0.0060, 6); // 0.0035 + 0.0025 add-on
   });
 
-  test('AssemblyAI keyterms add-on charges for universal-3-pro but is free on universal-2', () => {
-    // universal-3-pro: keyterms layers the ~$0.05/hr prompt add-on on top of base.
-    const proBase = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', false, false);
-    const proKeyterms = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', false, true);
+  test('AssemblyAI keyterms add-on charges for universal-3-5-pro but is free on universal-2', () => {
+    // universal-3-5-pro: keyterms layers the ~$0.05/hr prompt add-on on top of base.
+    const proBase = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', false, false);
+    const proKeyterms = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', false, true);
     expect(proKeyterms).toBeGreaterThan(proBase);
     // 60s @ $0.05/hr = $0.05/60 ≈ $0.000833 add-on.
     expect(proKeyterms - proBase).toBeCloseTo(0.05 / 60, 6);
@@ -55,6 +55,15 @@ describe('new STT provider cost functions', () => {
     expect(u2Keyterms).toBe(u2Base);
   });
 
+  test('AssemblyAI universal-3-pro (legacy id) still bills at the same Pro-tier rate as universal-3-5-pro', () => {
+    // universal-3-pro was not removed from the registry — only superseded as the
+    // default — so it must keep billing at its (unchanged) published rate.
+    const legacy = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', false, false);
+    const current = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', false, false);
+    expect(legacy).toBeCloseTo(0.0035, 6);
+    expect(legacy).toBe(current);
+  });
+
   test('OpenAI whisper-1 is duration-billed; gpt-4o is token-billed', () => {
     expect(computeOpenAITranscriptionCost('whisper-1', { durationSeconds: 60 })).toBeCloseTo(0.006, 6);
 
@@ -62,6 +71,21 @@ describe('new STT provider cost functions', () => {
       durationSeconds: 60, inputTokens: 1_000_000, outputTokens: 0,
     });
     expect(gpt4o).toBeCloseTo(2.50, 6); // 1M input tokens @ $2.50/1M
+  });
+
+  test('OpenAI gpt-transcribe / gpt-live-transcribe are flat per-minute billed, not token-billed', () => {
+    // $0.0045/min and $0.017/min respectively — verified against OpenAI's
+    // pricing docs. A large (would-be-expensive-if-token-billed) input/output
+    // token count must NOT affect the bill for these two models.
+    const gptTranscribe = computeOpenAITranscriptionCost('gpt-transcribe', {
+      durationSeconds: 60, inputTokens: 1_000_000, outputTokens: 1_000_000,
+    });
+    expect(gptTranscribe).toBeCloseTo(0.0045, 6);
+
+    const gptLiveTranscribe = computeOpenAITranscriptionCost('gpt-live-transcribe', {
+      durationSeconds: 60,
+    });
+    expect(gptLiveTranscribe).toBeCloseTo(0.017, 6);
   });
 
   test('OpenAI gpt-4o fails closed to a per-minute floor when usage is missing', () => {
@@ -132,8 +156,10 @@ describe('new STT provider cost functions', () => {
     // OpenAI gpt-4o-transcribe: $2.50/1M input. mini: $1.25/1M.
     expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-transcribe', prompt)).toBeCloseTo(100 * (2.50 / 1e6), 9);
     expect(estimatePromptInputReservationUsd('openai', 'gpt-4o-mini-transcribe', prompt)).toBeCloseTo(100 * (1.25 / 1e6), 9);
-    // whisper-1 is duration-billed → no prompt-token charge.
+    // whisper-1, gpt-transcribe, gpt-live-transcribe are duration-billed → no prompt-token charge.
     expect(estimatePromptInputReservationUsd('openai', 'whisper-1', prompt)).toBe(0);
+    expect(estimatePromptInputReservationUsd('openai', 'gpt-transcribe', prompt)).toBe(0);
+    expect(estimatePromptInputReservationUsd('openai', 'gpt-live-transcribe', prompt)).toBe(0);
     // Soniox charges custom-context as async input-text tokens (~0.3 tok/char @ $3.50/1M).
     expect(estimatePromptInputReservationUsd('soniox', 'stt-async-v4', prompt))
       .toBeCloseTo(Math.ceil(prompt.length * 0.3) * (3.50 / 1e6), 9);

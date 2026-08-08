@@ -13,6 +13,15 @@ function formatCredits(credits: number) {
   });
 }
 
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+function formatCurrency(cents: number) {
+  return currencyFormatter.format(cents / 100);
+}
+
 export default function CustomersClient() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -274,6 +283,9 @@ export default function CustomersClient() {
                   Total
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Total Spend
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Created
                 </th>
               </tr>
@@ -282,7 +294,7 @@ export default function CustomersClient() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 4 }).map((_, j) => (
+                    {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-white/10 rounded w-24 animate-pulse" />
                       </td>
@@ -291,7 +303,7 @@ export default function CustomersClient() {
                 ))
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     No customers found.
                   </td>
                 </tr>
@@ -494,6 +506,53 @@ export default function CustomersClient() {
                         <span className="text-blue-300 text-sm font-medium">
                           {customer.totalCredits.toLocaleString()}
                         </span>
+                      </td>
+
+                      {/* Total Spend (net lifetime Stripe spend across all of this
+                          customer's Stripe customer IDs). Two distinct "no number"
+                          states, rendered differently so a real Stripe error isn't
+                          silently mistaken for "$0 spent":
+                          - No Stripe customer ID on any license at all -> dash,
+                            no Stripe call was ever made for this customer.
+                          - Has Stripe customer ID(s) but totalSpentCents is null ->
+                            a fetch failed server-side (logged there); show a
+                            distinct "error" indicator rather than a dash or $0.00.
+                          - Otherwise -> the real formatted currency amount. */}
+                      <td className="px-6 py-4">
+                        {!customer.licenses.some(
+                          (license) => license.stripeCustomerId
+                        ) ? (
+                          <span
+                            className="text-gray-500 text-sm font-medium"
+                            title="No Stripe purchase on file (may have paid via another method)"
+                          >
+                            —
+                          </span>
+                        ) : customer.totalSpentCents === null ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-amber-300 text-sm font-medium"
+                            title="Failed to fetch Stripe spend for this customer"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                              />
+                            </svg>
+                            error
+                          </span>
+                        ) : (
+                          <span className="text-emerald-300 text-sm font-medium">
+                            {formatCurrency(customer.totalSpentCents)}
+                          </span>
+                        )}
                       </td>
 
                       {/* Created */}

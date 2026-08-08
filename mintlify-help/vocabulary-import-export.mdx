@@ -109,7 +109,7 @@ This is the vocabulary section of a `.hwbackup.json` file:
 | `source` | string or null | Optional origin label. |
 
 <Note>
-On Windows, a `.hwbackup.json` export can contain settings, modes, and API keys with the vocabulary. On macOS today, only a **vocabulary-only** export uses this `.hwbackup.json` schemaVersion 2 format. That file has five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) and no settings, modes, or API keys sections. A macOS export that also contains Settings, Modes, or API keys uses the older schemaVersion 1 format above. On both platforms, an import of a `.hwbackup.json` file applies only the vocabulary section.
+On Windows, a `.hwbackup.json` export can contain settings, modes, and API keys with the vocabulary. On macOS today, only a **vocabulary-only** export uses this `.hwbackup.json` schemaVersion 2 format. That file has five top-level keys (`schemaVersion`, `exportDate`, `appVersion`, `platform`, `vocabulary`) and no settings, modes, or API keys sections. A macOS export that also contains Settings, Modes, or API keys uses the older schemaVersion 1 format above. An import of a `.hwbackup.json` file applies every section that the file contains — on Windows this can include settings, modes, and API keys along with vocabulary. On macOS, a vocabulary-only file (the only kind the app's own export produces) imports only the vocabulary section, but a full file such as one created on Windows also applies its settings and modes when imported on macOS.
 </Note>
 
 ### Export vocabulary (macOS)
