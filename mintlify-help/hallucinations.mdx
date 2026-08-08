@@ -41,7 +41,7 @@ VAD is the most direct correction for hallucinations that silence causes. When y
     **"No speech detected":** If VAD finds that the full recording is noise, it returns the original file for transcription. The result is then usually empty or unclear. The audio contained only noise. Record in a quieter place, or increase your microphone input level.
   </Tab>
   <Tab title="Windows">
-    On Windows, the local models (Parakeet, Nemotron, Qwen3 ASR) run Silero VAD internally, as part of the ASR segmentation. VAD passes over the silent chunks during the transcription. It does not trim the file before the transcription. Sound settings has no separate control for this. HyperWhisper does not make or keep a separate trimmed audio file.
+    On Windows, the local models Parakeet and Qwen3 ASR run Silero VAD internally, as part of the ASR segmentation. VAD passes over the silent chunks during the transcription. The Nemotron streaming model is the exception — it deliberately skips VAD, because its cache-aware streaming decoder carries state across chunks and segmenting on silence would drop the start and end of utterances. None of these models trim the file before the transcription. Sound settings has no separate control for this. HyperWhisper does not make or keep a separate trimmed audio file.
   </Tab>
 </Tabs>
 
