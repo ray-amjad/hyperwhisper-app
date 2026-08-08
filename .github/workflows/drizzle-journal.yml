@@ -21,6 +21,12 @@ jobs:
           # needs the history, not just the tip commit.
           fetch-depth: 0
 
+      # Runs first, on throwaway repositories, so a change that breaks a rule
+      # fails the pull request that makes it rather than one that trips over it
+      # months later.
+      - name: Test the check itself
+        run: bash .github/scripts/test_validate_drizzle_journal.sh
+
       - name: Validate the Drizzle journal
         env:
           BASE_REF: origin/${{ github.base_ref }}
