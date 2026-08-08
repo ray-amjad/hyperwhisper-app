@@ -15,7 +15,6 @@ const USER_SIGN_IN_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/sign-in`)
 const USER_AUTH_SIGN_OUT_REGEX = new RegExp(
   `^\\/(${localePattern})\\/user\\/auth\\/sign-out`,
 );
-const USER_CUSTOMERS_REGEX = new RegExp(`^\\/(${localePattern})\\/user\\/customers`);
 
 const getPathLocale = (pathname: string) => {
   const match = pathname.match(LOCALE_REGEX);
@@ -38,33 +37,6 @@ function hasSessionCookie(request: NextRequest): boolean {
 }
 
 /**
- * Get full Better Auth session via API call.
- * Only used for admin routes that need the user's email.
- */
-async function getBetterAuthSession(request: NextRequest) {
-  const sessionCookie =
-    request.cookies.get("__Secure-better-auth.session_token") ||
-    request.cookies.get("better-auth.session_token");
-  if (!sessionCookie?.value) return null;
-
-  try {
-    const baseUrl = request.nextUrl.origin;
-    const response = await fetch(`${baseUrl}/api/auth/get-session`, {
-      headers: {
-        cookie: request.headers.get("cookie") || "",
-      },
-    });
-
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    return data?.user ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Proxy (formerly middleware) that handles:
  * 1. next-intl locale routing (adds locale prefix)
  * 2. Better Auth session checking
@@ -83,39 +55,17 @@ export default async function proxy(request: NextRequest) {
   const isUserRoute = USER_ROUTE_REGEX.test(pathname);
   const isUserSignIn = USER_SIGN_IN_REGEX.test(pathname);
   const isUserAuthSignOut = USER_AUTH_SIGN_OUT_REGEX.test(pathname);
-  const isUserCustomers = USER_CUSTOMERS_REGEX.test(pathname);
 
   // =============================================================
   // USER ROUTES - Unified portal for customers and admins
   // =============================================================
 
-  // For /user/customers, require admin access
-  if (isUserCustomers) {
-    const user = await getBetterAuthSession(request);
-
-    // If not authenticated, redirect to user sign-in
-    if (!user) {
-      const locale = getPathLocale(pathname);
-      const signInUrl = new URL(`/${locale}/user/sign-in`, request.url);
-      signInUrl.searchParams.set("returnTo", pathname);
-      return NextResponse.redirect(signInUrl);
-    }
-
-    // Must be admin to access customers page
-    if (user.role !== "admin") {
-      const locale = getPathLocale(pathname);
-      return NextResponse.redirect(
-        new URL(`/${locale}/user/dashboard`, request.url)
-      );
-    }
-
-    // User is authenticated and is admin - run intl middleware
-    const response = intlMiddleware(request) as NextResponse;
-    response.headers.set("x-pathname", pathname);
-    return response;
-  }
-
-  // For other user routes (except sign-in, sign-out), check authentication via cookie presence
+  // For user routes (except sign-in, sign-out), check authentication via
+  // cookie presence. This includes /user/customers - its admin-only access
+  // is enforced server-side (with a real, DB-backed session check) by
+  // CustomersPage and adminProcedure, which redirect/reject non-admins.
+  // The proxy only needs to gate signed-out visitors here; doing a full
+  // session lookup at this layer too just duplicates that enforcement.
   if (
     isUserRoute &&
     !isUserSignIn &&
