@@ -42,6 +42,19 @@ Rotate or add a secret **in Infisical only** — never edit GitHub/Vercel/Fly di
 Update the shared backup schema and field mappings in `shared-backup/` in the same change — its `CLAUDE.md` documents the required edits.
 </important>
 
+<important if="you are adding, editing, or reverting a Drizzle migration in nextjs/drizzle">
+
+**Migrations are append-only once they are merged.** The migrator keeps one watermark and runs a migration only when its journal `when` is greater than the last applied one. So editing an already-merged migration's SQL never runs in production, and a new entry stamped with a `when` that is not past every entry above it is skipped for good. Both failures are silent.
+
+- To undo a migration, add a **new** one (next number, fresh `when` from `date +%s000`) that reverses it. Never edit, rename, delete, or re-stamp an existing entry.
+- CI enforces this on every pull request (`.github/workflows/drizzle-journal.yml`).
+- Run the same check locally before you push:
+
+```bash
+BASE_REF=origin/main python3 .github/scripts/validate_drizzle_journal.py
+```
+</important>
+
 <important if="you just deployed and are about to check or tail Vercel logs">
 
 Only tail Vercel logs when the change touched `nextjs/` or otherwise directly affects the Next.js/Vercel runtime. macOS / Windows / iOS / Fly.io backend / Mintlify docs / integrations / routines / shared schemas / CI-only changes don't hit Vercel — skip log monitoring for those.
