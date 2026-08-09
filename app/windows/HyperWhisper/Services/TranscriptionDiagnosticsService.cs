@@ -23,10 +23,15 @@ public static class TranscriptionDiagnosticsService
     // no-speech sample RmsDbfs -39.64 / NonSilentRatio 0.046 with
     // BackendNoSpeechDetected true was well within "no speech" territory but was
     // being captured as a full Sentry issue because the old thresholds were too
-    // strict). These still reject (capture) a clearly loud/anomalous case, e.g.
-    // RmsDbfs around -15 to -20dBFS with NonSilentRatio ~0.3+.
-    private const double LowSignalRmsDbfs = -35.0;
-    private const double LowSignalNonSilentRatio = 0.08;
+    // strict) to -38.0dBFS / 0.06 - a modest margin over that sample (~1.6dB /
+    // ~0.014 ratio) rather than doubling it, so a soft-spoken-user case with
+    // meaningfully more non-silent signal (e.g. NonSilentRatio 0.07, well above
+    // the incident sample's 0.046) still gets captured as a potential genuine
+    // backend-disagreement anomaly instead of being silently skipped too. These
+    // still reject (capture) a clearly loud/anomalous case, e.g. RmsDbfs around
+    // -15 to -20dBFS with NonSilentRatio ~0.3+.
+    private const double LowSignalRmsDbfs = -38.0;
+    private const double LowSignalNonSilentRatio = 0.06;
 
     public static void CaptureNoSpeechDiagnostic(
         Guid transcriptId,

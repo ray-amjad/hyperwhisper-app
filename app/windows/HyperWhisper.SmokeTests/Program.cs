@@ -450,7 +450,7 @@ internal static class Program
                 // The actual values from the HYPERWHISPER-PA/-QB/-VY Sentry sample: quiet
                 // room tone the backend correctly called "no speech", but the old -50dBFS /
                 // 0.02 thresholds were too strict to catch it, so it was captured as a full
-                // Sentry issue on every occurrence (34 users / 1430 events). This is the fix.
+                // Sentry issue on every occurrence. This is the fix.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: true,
                     DurationSeconds: 4.2,
@@ -463,6 +463,26 @@ internal static class Program
 
                 Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
                     "the real HYPERWHISPER-PA no-speech sample should now be skipped");
+            });
+
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
+            {
+                // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
+                // both thresholds must still be treated as low-signal and skipped, not
+                // captured. Boundary-exact regression guard, same shape as the
+                // AssemblyAI IsSyncEligible "AT the cap" boundary test above.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -30.0,
+                    RmsDbfs: -38.0,
+                    NonSilentRatio: 0.06);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "a reading exactly at the low-signal thresholds should be skipped (inclusive boundary)");
             });
 
             Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic still captures a loud backend-disagreement anomaly", () =>
