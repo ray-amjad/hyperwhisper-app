@@ -113,11 +113,20 @@ export default function CustomersClient() {
   // state) never disagrees with what was actually fetched — e.g. an admin
   // sitting on the last page when the result set shrinks out from under
   // them. Guarded by the equality check, so this settles rather than loops.
+  //
+  // Gated on !isFetching: while a new page/search request is in flight,
+  // keepPreviousData keeps `data` pointing at the PREVIOUS page's response,
+  // so data.page briefly disagrees with the just-clicked `page` even though
+  // nothing needs correcting — that's expected transient staleness, not a
+  // server clamp. Without this gate, clicking a new page would fire this
+  // effect on that intermediate render and immediately revert `page` back
+  // before the real response ever arrived. Only sync once the fetch settles
+  // and `data` is confirmed fresh for the current request.
   useEffect(() => {
-    if (data && data.page !== page) {
+    if (data && !isFetching && data.page !== page) {
       setPage(data.page);
     }
-  }, [data, page]);
+  }, [data, isFetching, page]);
 
   const [showGrant, setShowGrant] = useState(false);
   const [grantEmail, setGrantEmail] = useState("");
