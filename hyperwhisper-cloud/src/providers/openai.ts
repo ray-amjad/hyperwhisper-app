@@ -6,27 +6,20 @@
 // estimated from payload size for telemetry only.
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
-import { BYTES_PER_MINUTE_ESTIMATE, OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
+import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  estimateSecondsFromBytes,
+  fetchWithTimeout,
+  logProviderEvent,
+  readErrorBodyPreview,
+} from './utils';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'gpt-4o-transcribe';
-
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
-
-function estimateDurationSeconds(byteLength: number): number {
-  return (byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
-}
 
 interface OpenAIUsage {
   type?: string;
@@ -56,7 +49,7 @@ export async function transcribeWithOpenAI(
     throw new AudioTooLargeError('OpenAI', audio.byteLength, OPENAI_INLINE_MAX_BYTES);
   }
 
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
   const formData = new FormData();
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model', model);
@@ -126,7 +119,7 @@ export async function transcribeWithOpenAI(
   const rawWhisperDuration = data.duration ?? data.usage?.seconds ?? 0;
   let durationSeconds = isWhisper
     ? rawWhisperDuration
-    : estimateDurationSeconds(audio.byteLength);
+    : estimateSecondsFromBytes(audio.byteLength);
 
   if (!transcript || transcript.trim().length === 0) {
     logProviderEvent(provider, 'no_speech', {

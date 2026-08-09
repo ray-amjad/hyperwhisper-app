@@ -27,6 +27,53 @@ export function estimateSecondsFromBytes(byteLength: number): number {
   return (byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
 }
 
+/** Filename extensions the multipart adapters use for the audio part. */
+export type AudioExtension = 'wav' | 'mp3' | 'm4a' | 'aac' | 'webm' | 'ogg' | 'flac';
+
+/**
+ * Content-type substrings that identify each extension, in match order.
+ *
+ * Order matters and is the order every adapter already used: a content type
+ * carrying more than one hint (`audio/mp4; codecs=aac`) resolves to the first
+ * entry that matches, not the most specific one. Keep it stable — reordering
+ * silently renames the uploaded part for those inputs.
+ */
+const AUDIO_EXTENSION_HINTS: ReadonlyArray<{ ext: AudioExtension; hints: readonly string[] }> = [
+  { ext: 'wav', hints: ['wav'] },
+  { ext: 'mp3', hints: ['mp3', 'mpeg'] },
+  { ext: 'm4a', hints: ['m4a', 'mp4'] },
+  { ext: 'aac', hints: ['aac'] },
+  { ext: 'webm', hints: ['webm'] },
+  { ext: 'ogg', hints: ['ogg'] },
+  { ext: 'flac', hints: ['flac'] },
+];
+
+/** The container set the Whisper-style multipart adapters recognise. */
+export const DEFAULT_AUDIO_EXTENSIONS = ['wav', 'mp3', 'm4a', 'webm', 'ogg', 'flac'] as const;
+
+/**
+ * Resolve the filename extension for the multipart `file`/`audio` part from the
+ * request's Content-Type.
+ *
+ * `accepted` is the set of extensions the caller's upstream will take, so a
+ * provider that rejects a container (Azure MAI takes only wav/mp3/flac) never
+ * resolves to it; match order comes from AUDIO_EXTENSION_HINTS, not from the
+ * order of `accepted`. Returns undefined when nothing matches — callers decide
+ * whether that is a fallback extension or a hard rejection. Matching is
+ * case-sensitive; pass an already-lowercased content type to fold case.
+ */
+export function audioExtensionFromContentType<T extends AudioExtension>(
+  contentType: string,
+  accepted: readonly T[],
+): T | undefined {
+  for (const { ext, hints } of AUDIO_EXTENSION_HINTS) {
+    if (!(accepted as readonly AudioExtension[]).includes(ext)) continue;
+    if (hints.some((hint) => contentType.includes(hint))) return ext as T;
+  }
+
+  return undefined;
+}
+
 function resolveProviderTimeoutMs(): number {
   const configured = Number.parseInt(process.env.STT_PROVIDER_TIMEOUT_MS || '', 10);
   if (Number.isFinite(configured) && configured > 0) {

@@ -4,7 +4,13 @@
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  fetchWithTimeout,
+  logProviderEvent,
+  readErrorBodyPreview,
+} from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
 const SUPPORTED_FORMATTING_LANGUAGES = new Set([
@@ -35,16 +41,6 @@ const SUPPORTED_FORMATTING_LANGUAGES = new Set([
   'vi',
 ]);
 
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'mp3';
-}
-
 function normalizedFormattingLanguage(language?: string): string | undefined {
   if (!language || language.toLowerCase() === 'auto') {
     return undefined;
@@ -73,7 +69,7 @@ export async function transcribeWithXaiGrok(
   }
 
   const formattingLanguage = normalizedFormattingLanguage(language);
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'mp3';
   const formData = new FormData();
 
   if (formattingLanguage) {
