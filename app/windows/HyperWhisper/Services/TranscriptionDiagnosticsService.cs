@@ -15,8 +15,23 @@ public static class TranscriptionDiagnosticsService
     private const float SilenceThreshold = 0.01f;
     private const double MinimumDbfs = -120.0;
     private const double ConfirmedSilencePeakDbfs = -50.0;
-    private const double LowSignalRmsDbfs = -50.0;
-    private const double LowSignalNonSilentRatio = 0.02;
+
+    // Backend-confirmed low-signal skip: both conditions must hold (kept as && -
+    // an OR would let a single quiet reading skip capture on its own, risking
+    // suppression of genuine backend-disagreement anomalies this diagnostic exists
+    // to catch). Widened from -50.0dBFS / 0.02 (HYPERWHISPER-PA, -QB, -VY: the real
+    // no-speech sample RmsDbfs -39.64 / NonSilentRatio 0.046 with
+    // BackendNoSpeechDetected true was well within "no speech" territory but was
+    // being captured as a full Sentry issue because the old thresholds were too
+    // strict) to -38.0dBFS / 0.06 - a modest margin over that sample (~1.6dB /
+    // ~0.014 ratio) rather than doubling it, so a soft-spoken-user case with
+    // meaningfully more non-silent signal (e.g. NonSilentRatio 0.07, well above
+    // the incident sample's 0.046) still gets captured as a potential genuine
+    // backend-disagreement anomaly instead of being silently skipped too. These
+    // still reject (capture) a clearly loud/anomalous case, e.g. RmsDbfs around
+    // -15 to -20dBFS with NonSilentRatio ~0.3+.
+    private const double LowSignalRmsDbfs = -38.0;
+    private const double LowSignalNonSilentRatio = 0.06;
 
     public static void CaptureNoSpeechDiagnostic(
         Guid transcriptId,
@@ -226,7 +241,10 @@ public static class TranscriptionDiagnosticsService
         return $"{bucket}dbfs";
     }
 
-    private static bool ShouldCaptureNoSpeechDiagnostic(
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static bool ShouldCaptureNoSpeechDiagnostic(
         AudioAnalysisDiagnostics audioDiagnostics,
         TranscriptionProviderDiagnostics? providerDiagnostics)
     {
@@ -261,7 +279,10 @@ public static class TranscriptionDiagnosticsService
         return true;
     }
 
-    private sealed record AudioAnalysisDiagnostics(
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal sealed record AudioAnalysisDiagnostics(
         bool AnalysisSucceeded,
         double DurationSeconds,
         long FileSizeBytes,

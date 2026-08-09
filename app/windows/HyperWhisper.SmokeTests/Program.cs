@@ -426,6 +426,121 @@ internal static class Program
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
             });
 
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips confirmed dead silence", () =>
+            {
+                // NonSilentRatio == 0 with a very low peak is the "nothing was recorded
+                // at all" case - always benign, must always be skipped. Regression guard
+                // for the confirmed-dead-silence early-out.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 3.0,
+                    FileSizeBytes: 1024,
+                    PeakDbfs: -80.0,
+                    RmsDbfs: -90.0,
+                    NonSilentRatio: 0);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "confirmed dead silence should be skipped");
+            });
+
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips the real HYPERWHISPER-PA no-speech sample (fix for the widened low-signal thresholds)", () =>
+            {
+                // The actual values from the HYPERWHISPER-PA/-QB/-VY Sentry sample: quiet
+                // room tone the backend correctly called "no speech", but the old -50dBFS /
+                // 0.02 thresholds were too strict to catch it, so it was captured as a full
+                // Sentry issue on every occurrence. This is the fix.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -30.0,
+                    RmsDbfs: -39.64,
+                    NonSilentRatio: 0.046);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "the real HYPERWHISPER-PA no-speech sample should now be skipped");
+            });
+
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
+            {
+                // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
+                // both thresholds must still be treated as low-signal and skipped, not
+                // captured. Boundary-exact regression guard, same shape as the
+                // AssemblyAI IsSyncEligible "AT the cap" boundary test above.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -30.0,
+                    RmsDbfs: -38.0,
+                    NonSilentRatio: 0.06);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "a reading exactly at the low-signal thresholds should be skipped (inclusive boundary)");
+            });
+
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic still captures a loud backend-disagreement anomaly", () =>
+            {
+                // Anomaly-detection guard: loud audio (high RMS, high non-silent ratio) that
+                // the backend nonetheless flags as no-speech is exactly the genuine
+                // backend-disagreement case this diagnostic exists to catch - must not
+                // regress to being skipped just because the low-signal thresholds widened.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 5.0,
+                    FileSizeBytes: 131072,
+                    PeakDbfs: -5.0,
+                    RmsDbfs: -18.0,
+                    NonSilentRatio: 0.35);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "a loud backend-disagreement anomaly should still be captured");
+            });
+
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic always captures EmptyTranscriptWithoutFlag, unaffected by the threshold change", () =>
+            {
+                // A real bug class (backend/local mismatch) that must keep firing
+                // regardless of RMS/ratio values.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -30.0,
+                    RmsDbfs: -39.64,
+                    NonSilentRatio: 0.046);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true, EmptyTranscriptWithoutFlag: true);
+
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "EmptyTranscriptWithoutFlag should always be captured");
+            });
+
+            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic always captures a failed audio analysis, unaffected by the threshold change", () =>
+            {
+                // A real bug class (backend/local mismatch) that must keep firing
+                // regardless of RMS/ratio values.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: false,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -80.0,
+                    RmsDbfs: -90.0,
+                    NonSilentRatio: 0);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "a failed audio analysis should always be captured");
+            });
+
             Run("DeepgramStreamingStrategy.SessionStartsOnWebSocketOpen is true (regression for #100)", () =>
             {
                 // Deepgram never sends its only session-shaped message (Metadata) until
