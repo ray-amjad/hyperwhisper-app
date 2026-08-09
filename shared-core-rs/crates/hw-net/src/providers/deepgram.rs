@@ -49,6 +49,7 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::resolve_mime;
+use crate::providers::common::retry_after;
 use crate::providers::hyperwhisper_cloud::encode_query;
 
 /// Deepgram transcription endpoint.
@@ -288,9 +289,7 @@ fn classify_deepgram_http(resp: &HttpResponse, raw: &str) -> TranscriptionError 
         401 | 403 => TranscriptionError::Unauthorized,
         413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
-            retry_after_secs: resp
-                .header("Retry-After")
-                .and_then(|v| v.trim().parse::<u64>().ok()),
+            retry_after_secs: retry_after(resp),
         },
         500..=599 => TranscriptionError::ProviderUnavailable { status },
         _ => TranscriptionError::BadRequest {
