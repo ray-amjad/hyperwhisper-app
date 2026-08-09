@@ -11,8 +11,7 @@ import Stripe from "stripe";
 import { createTRPCRouter, adminProcedure } from "../../trpc";
 import { stripe } from "@/lib/clients/stripe";
 import {
-  getAllAccountKeysWithCreditsForAdmin,
-  searchAccountKeysByEmail,
+  getAccountKeyCustomerPage,
   getOrCreateUser,
   insertAccountKey,
   findAccountByKey,
@@ -43,10 +42,15 @@ const legacyStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
 
+// Distinct customers (by userId) per page of the admin Customers list.
+const CUSTOMERS_PAGE_SIZE = 100;
+
 // How many distinct Stripe customer IDs to fetch net spend for concurrently.
-// The customer list has no UI pagination (up to 1000 rows, refetched on a
-// 300ms search debounce), so an unbounded Promise.all across every Stripe
-// customer ID would fan out too many concurrent requests.
+// The customer list is paginated to CUSTOMERS_PAGE_SIZE distinct customers
+// per request (refetched on a 300ms search debounce and on page change), which
+// bounds the Stripe-fetch fan-out to at most one page's worth of customers —
+// but an unbounded Promise.all across even that many Stripe customer IDs
+// would still fan out too many concurrent requests.
 const STRIPE_SPEND_FETCH_CONCURRENCY = 10;
 
 /**
@@ -150,30 +154,42 @@ async function getNetSpendCentsForStripeCustomers(
 export const customersRouter = createTRPCRouter({
   /**
    * List customers, one row per customer (grouped by user), each carrying all
-   * of that customer's license keys. Supports optional email search filter.
+   * of that customer's license keys. Supports optional email search filter
+   * and is paginated at the distinct-customer (userId) level, CUSTOMERS_PAGE_SIZE
+   * per page.
    *
-   * A search matches individual license rows, but we then expand to each
-   * matched customer's FULL license set (via their userId) so the license
-   * count, total credits, and "moves all N licenses" copy reflect the true
-   * totals — not just the licenses whose email matched the search term.
+   * A search matches individual license rows, but the page of matching
+   * customers (by userId) is then expanded to each customer's FULL license
+   * set so the license count, total credits, and "moves all N licenses" copy
+   * reflect the true totals — not just the licenses whose email matched the
+   * search term.
    */
   list: adminProcedure
-    .input(z.object({ search: z.string().optional() }).optional())
+    .input(
+      z
+        .object({
+          search: z.string().optional(),
+          page: z.number().int().min(1).optional(),
+        })
+        .optional()
+    )
     .query(async ({ input }) => {
       try {
         const search = input?.search?.trim();
-        const matched = search
-          ? await searchAccountKeysByEmail(search)
-          : await getAllAccountKeysWithCreditsForAdmin(1000);
+        const page = input?.page ?? 1;
 
-        // Expand search matches to each customer's full license set so counts
-        // and credits are true totals. The no-search path already has every
-        // license. Then pull canonical user.email for display.
-        const userIds = Array.from(new Set(matched.map((l) => l.userId)));
-        const licenses = search
-          ? await getAccountKeysWithCreditsForUserIds(userIds)
-          : matched;
-        const userMap = await getUsersByIds(userIds);
+        const { userIds, totalCustomers } = await getAccountKeyCustomerPage({
+          search,
+          page,
+          pageSize: CUSTOMERS_PAGE_SIZE,
+        });
+
+        // Pull every license (with credit balance) for this page's customers,
+        // plus canonical user.email for display.
+        const [licenses, userMap] = await Promise.all([
+          getAccountKeysWithCreditsForUserIds(userIds),
+          getUsersByIds(userIds),
+        ]);
 
         // Group licenses by their owning user. The source rows are ordered
         // newest-first, so Map insertion order keeps customers in that order.
@@ -298,7 +314,13 @@ export const customersRouter = createTRPCRouter({
           customer.totalSpentCents = hadFailedFetch ? null : totalSpentCents;
         }
 
-        return { customers: Array.from(customerMap.values()) };
+        return {
+          customers: Array.from(customerMap.values()),
+          totalCustomers,
+          page,
+          pageSize: CUSTOMERS_PAGE_SIZE,
+          totalPages: Math.max(1, Math.ceil(totalCustomers / CUSTOMERS_PAGE_SIZE)),
+        };
       } catch (error) {
         console.error("Customers fetch error:", error);
         throw new TRPCError({

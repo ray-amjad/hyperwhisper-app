@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, and, desc, gte, inArray, count, sql, ilike } from "drizzle-orm";
+import { eq, and, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -191,14 +191,6 @@ export async function getAccountKeysByEmail(email: string): Promise<AccountKeyRo
   return rows.map(drizzleAccountKeyToRow);
 }
 
-export async function getAllAccountKeysForAdmin(limit = 1000): Promise<AccountKeyRow[]> {
-  const rows = await db.query.accountKeys.findMany({
-    orderBy: [desc(accountKeys.createdAt)],
-    limit,
-  });
-  return rows.map(drizzleAccountKeyToRow);
-}
-
 /**
  * Distinct normalized emails that hold at least one *granted* Account Key (from
  * the internal bundle or a paid purchase). Powers the ACS admin backfill, which
@@ -212,19 +204,6 @@ export async function getGrantedEmails(): Promise<string[]> {
   return rows
     .map((r) => r.email.toLowerCase().trim())
     .filter((email) => email.length > 0);
-}
-
-export async function searchAccountKeysByEmail(
-  email: string,
-  limit = 1000
-): Promise<Array<AccountKeyRow & { credits: number }>> {
-  const rows = await db.query.accountKeys.findMany({
-    where: ilike(accountKeys.email, `%${email}%`),
-    orderBy: [desc(accountKeys.createdAt)],
-    limit,
-  });
-  const licenses = rows.map(drizzleAccountKeyToRow);
-  return attachPooledCredits(licenses);
 }
 
 // Credits granted with each internal-bundle Account Key mint. $10 at the
@@ -767,17 +746,15 @@ export async function getPaidCreditGrantsForUsers(
   }));
 }
 
-export async function getAllAccountKeysWithCreditsForAdmin(limit = 1000): Promise<
-  Array<AccountKeyRow & { credits: number }>
-> {
-  const licenses = await getAllAccountKeysForAdmin(limit);
-  return attachPooledCredits(licenses);
-}
-
 /**
  * Fetch every license (with credit balance) belonging to the given users,
  * newest-first. Used by the admin list so that a customer's full license set
  * is shown even when a search only matched a subset of their licenses.
+ *
+ * Secondary sort on userId ties the ordering down to a deterministic tiebreak
+ * that matches the `user_id` tiebreak used by getAccountKeyCustomerPage's
+ * paginated query, so customers whose max(createdAt) collide sort the same
+ * way in both queries.
  */
 export async function getAccountKeysWithCreditsForUserIds(
   userIds: string[]
@@ -785,10 +762,57 @@ export async function getAccountKeysWithCreditsForUserIds(
   if (userIds.length === 0) return [];
   const rows = await db.query.accountKeys.findMany({
     where: inArray(accountKeys.userId, userIds),
-    orderBy: [desc(accountKeys.createdAt)],
+    orderBy: [desc(accountKeys.createdAt), accountKeys.userId],
   });
   const licenses = rows.map(drizzleAccountKeyToRow);
   return attachPooledCredits(licenses);
+}
+
+/**
+ * One page of distinct customers (grouped by user_id) from account_keys, plus
+ * the total distinct-customer count — powers server-side pagination on the
+ * admin Customers list. An optional email search filters the underlying
+ * license rows before grouping (same `ilike` semantics as the old
+ * searchAccountKeysByEmail), so a customer only appears in the page if at
+ * least one of their licenses matches.
+ *
+ * Ordered by each customer's most recent license (MAX(created_at) DESC),
+ * matching the order the router's in-memory grouping already produces from
+ * newest-first license rows, with `user_id` as a tiebreak for determinism.
+ */
+export async function getAccountKeyCustomerPage({
+  search,
+  page,
+  pageSize,
+}: {
+  search?: string;
+  page: number;
+  pageSize: number;
+}): Promise<{ userIds: string[]; totalCustomers: number }> {
+  const emailFilter = search ? ilike(accountKeys.email, `%${search}%`) : undefined;
+
+  const [countRows, pageRows] = await Promise.all([
+    db
+      .select({ total: countDistinct(accountKeys.userId) })
+      .from(accountKeys)
+      .where(emailFilter),
+    db
+      .select({
+        userId: accountKeys.userId,
+        maxCreatedAt: sql<Date>`max(${accountKeys.createdAt})`,
+      })
+      .from(accountKeys)
+      .where(emailFilter)
+      .groupBy(accountKeys.userId)
+      .orderBy(sql`max(${accountKeys.createdAt}) desc`, accountKeys.userId)
+      .limit(pageSize)
+      .offset((page - 1) * pageSize),
+  ]);
+
+  return {
+    userIds: pageRows.map((r) => r.userId),
+    totalCustomers: Number(countRows[0]?.total ?? 0),
+  };
 }
 
 // ---------------------------------------------------------------------------
