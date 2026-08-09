@@ -355,11 +355,39 @@ components:
         enableScreenOCR: { type: boolean, nullable: true }
         geminiCustomPrompt: { type: string, nullable: true }
         cloudPostProcessingModel: { type: string, nullable: true }
+        cloudTranscriptionDomain: { type: string, nullable: true }
 
     ModePatch:
-      description: Partial Mode. Any field omitted is left untouched on the server.
-      allOf:
-        - $ref: '#/components/schemas/Mode'
+      description: Partial Mode. Any field omitted is left untouched on the server. All fields are optional.
+      type: object
+      properties:
+        name: { type: string }
+        preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom" }
+        language: { type: string }
+        model: { type: string }
+        punctuation: { type: boolean }
+        capitalization: { type: boolean }
+        profanityFilter: { type: boolean }
+        customInstructions: { type: string, nullable: true }
+        userSystemPrompt: { type: string, nullable: true }
+        isDefault: { type: boolean, nullable: true }
+        isSystemProvided: { type: boolean, nullable: true }
+        sortOrder: { type: integer, nullable: true }
+        createdDate: { type: string, format: date-time, nullable: true }
+        modifiedDate: { type: string, format: date-time, nullable: true }
+        languageModel: { type: string, nullable: true }
+        cloudTranscriptionModel: { type: string, nullable: true }
+        cloudProvider: { type: string, nullable: true }
+        postProcessingMode: { type: integer, description: "0 = off, 1 = cloud, 2 = local" }
+        postProcessingProvider: { type: string, nullable: true }
+        englishSpelling: { type: string, nullable: true }
+        useStreamingTranscription: { type: boolean, nullable: true }
+        cloudAccuracyTier: { type: string, nullable: true }
+        removeTrailingPeriod: { type: boolean, nullable: true }
+        enableScreenOCR: { type: boolean, nullable: true }
+        geminiCustomPrompt: { type: string, nullable: true }
+        cloudPostProcessingModel: { type: string, nullable: true }
+        cloudTranscriptionDomain: { type: string, nullable: true }
 
     ModeResponse:
       type: object
