@@ -2430,7 +2430,7 @@ class PersistenceController: ObservableObject {
                 cloudTranscriptionModel: backupMode.cloudTranscriptionModel.map {
                     CloudTranscriptionModels.resolveModelAlias(
                         $0,
-                        provider: CloudProvider(rawValue: backupMode.cloudProvider)
+                        provider: backupMode.cloudProvider.flatMap { CloudProvider(rawValue: $0) }
                     )
                 },
                 postProcessingMode: backupMode.postProcessingMode,
