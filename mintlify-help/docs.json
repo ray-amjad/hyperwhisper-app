@@ -40,7 +40,8 @@
         "icon": "credit-card",
         "pages": [
           "licensing",
-          "cloud-credits"
+          "cloud-credits",
+          "going-open-source"
         ]
       },
       {
