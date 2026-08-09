@@ -507,8 +507,8 @@ internal static class Program
 
             Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic always captures EmptyTranscriptWithoutFlag, unaffected by the threshold change", () =>
             {
-                // From the prior HYPERWHISPER-PA fix (commit dc979be) - a real bug class
-                // that must keep firing regardless of RMS/ratio values.
+                // A real bug class (backend/local mismatch) that must keep firing
+                // regardless of RMS/ratio values.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: true,
                     DurationSeconds: 4.2,
@@ -525,8 +525,8 @@ internal static class Program
 
             Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic always captures a failed audio analysis, unaffected by the threshold change", () =>
             {
-                // From the prior HYPERWHISPER-PA fix (commit dc979be) - a real bug class
-                // that must keep firing regardless of RMS/ratio values.
+                // A real bug class (backend/local mismatch) that must keep firing
+                // regardless of RMS/ratio values.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: false,
                     DurationSeconds: 4.2,
