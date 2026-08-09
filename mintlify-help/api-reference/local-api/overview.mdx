@@ -4,7 +4,8 @@ description: HTTP API that HyperWhisper.app serves on 127.0.0.1 after you turn i
 ---
 
 HyperWhisper contains an HTTP server. You can turn on this server from
-**Settings → Local API**. The server listens on `127.0.0.1` only. It never
+**Settings → API Server** on macOS, or **Settings → Local API** on Windows.
+The server listens on `127.0.0.1` only. It never
 listens on the LAN. The server writes the bound port and a bearer token to a
 discovery file on disk. MCP wrappers, benchmark scripts, and shell automation
 read this file to find the server, and they need no configuration.
@@ -41,8 +42,8 @@ The server makes the token at the first start (32 random bytes,
 base64-url-encoded). On macOS, the server keeps the token in the Keychain. On
 Windows, it keeps the token in a DPAPI-protected blob at
 `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. You can make a new token
-from Settings → Local API. The previous token then becomes invalid
-immediately.
+from **Settings → API Server** (macOS) or **Settings → Local API** (Windows).
+The previous token then becomes invalid immediately.
 
 ## Response envelope
 

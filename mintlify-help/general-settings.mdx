@@ -26,7 +26,7 @@ If you enable this setting, HyperWhisper starts each time you log in to your com
 
 <Tabs>
   <Tab title="macOS">
-    The label is **Launch on login**. If macOS rejects the change, the toggle goes back to its actual state. Two conditions cause a rejection: the app is unsigned, or you denied the system prompt.
+    The label is **Launch on login**. If macOS rejects the change, the toggle goes back to its actual state. Two conditions cause a rejection: the app is unsigned, or you denied the system prompt. A third case is not a rejection: macOS may register the login item but require you to approve it in System Settings → Login Items & Extensions (for example, after Migration Assistant or an app rename). In that case, the toggle stays **on** and HyperWhisper opens the Login Items settings pane for you to finish approval.
   </Tab>
   <Tab title="Windows">
     The label is **Launch at startup**. If the change fails, the app shows an error message. The message tells you to examine your startup permissions.

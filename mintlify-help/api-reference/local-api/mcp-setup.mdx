@@ -8,7 +8,7 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 ## Prerequisites
 
 1. Install HyperWhisper for macOS or Windows, then open it one time. Both apps write the discovery file that the bridge reads.
-2. Turn **Settings → Local API** on. This setting writes the discovery file that the bridge reads.
+2. Turn on the local API server: **Settings → API Server** on macOS, or **Settings → Local API** on Windows. This setting writes the discovery file that the bridge reads.
 3. Put Node.js 18 or newer on your `PATH`. Run `node --version` to see the version number. If the command fails, install Node.js from [nodejs.org](https://nodejs.org). Node.js includes the `npx` command.
 
 You do not need a global installation of the bridge. The `npx -y @hyperwhisper/mcp` command downloads the bridge and runs it on demand. Each MCP client in this page uses that command directly.
@@ -97,7 +97,7 @@ If the file exists, the tool fails by default. The agent can pass `if_exists: "o
 
 ## Troubleshooting
 
-**`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper. Then turn **Settings → Local API** on. Run the agent prompt again.
+**`HYPERWHISPER_NOT_RUNNING`** — the discovery file is missing. Open HyperWhisper. Then turn on the local API server (**Settings → API Server** on macOS, **Settings → Local API** on Windows). Run the agent prompt again.
 
 **`INVALID_REQUEST`** — a general bad-request code. Usually the bearer token in the discovery file does not match the token that the server expects, and you see an HTTP 401. This mismatch occurs after you use **Regenerate token** in Settings. The bridge reads the discovery file again on each request, and the next agent call is successful.
 
