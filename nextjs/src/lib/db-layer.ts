@@ -4,7 +4,7 @@
  * All database operations go through Drizzle ORM (Neon/PlanetScale).
  */
 
-import { eq, and, desc, gte, inArray, count, sql, ilike } from "drizzle-orm";
+import { eq, and, desc, gte, inArray, count, countDistinct, sql, ilike } from "drizzle-orm";
 import { generateLicenseKey } from "@/lib/services/license-key";
 import { db } from "@/src/db";
 import {
@@ -191,14 +191,6 @@ export async function getAccountKeysByEmail(email: string): Promise<AccountKeyRo
   return rows.map(drizzleAccountKeyToRow);
 }
 
-export async function getAllAccountKeysForAdmin(limit = 1000): Promise<AccountKeyRow[]> {
-  const rows = await db.query.accountKeys.findMany({
-    orderBy: [desc(accountKeys.createdAt)],
-    limit,
-  });
-  return rows.map(drizzleAccountKeyToRow);
-}
-
 /**
  * Distinct normalized emails that hold at least one *granted* Account Key (from
  * the internal bundle or a paid purchase). Powers the ACS admin backfill, which
@@ -212,19 +204,6 @@ export async function getGrantedEmails(): Promise<string[]> {
   return rows
     .map((r) => r.email.toLowerCase().trim())
     .filter((email) => email.length > 0);
-}
-
-export async function searchAccountKeysByEmail(
-  email: string,
-  limit = 1000
-): Promise<Array<AccountKeyRow & { credits: number }>> {
-  const rows = await db.query.accountKeys.findMany({
-    where: ilike(accountKeys.email, `%${email}%`),
-    orderBy: [desc(accountKeys.createdAt)],
-    limit,
-  });
-  const licenses = rows.map(drizzleAccountKeyToRow);
-  return attachPooledCredits(licenses);
 }
 
 // Credits granted with each internal-bundle Account Key mint. $10 at the
@@ -767,28 +746,132 @@ export async function getPaidCreditGrantsForUsers(
   }));
 }
 
-export async function getAllAccountKeysWithCreditsForAdmin(limit = 1000): Promise<
-  Array<AccountKeyRow & { credits: number }>
-> {
-  const licenses = await getAllAccountKeysForAdmin(limit);
-  return attachPooledCredits(licenses);
-}
+// Hard cap on the number of license rows returned *per userId* by
+// getAccountKeysWithCreditsForUserIds. Defensive only: a page of customers is
+// bounded to CUSTOMERS_PAGE_SIZE distinct userIds, but a single userId can
+// carry an unbounded number of license rows (e.g. repeated admin grants —
+// `grant` has no idempotency guard), so without a ceiling here one admin
+// page-load could pull an unbounded result set for a single customer.
+//
+// This MUST be a per-user cap, not a flat cap on the whole batch: a flat
+// LIMIT applied to a batch of ~100 userIds means one customer with a large
+// license count can crowd out the row window entirely, silently dropping
+// OTHER customers from the result (they'd get zero rows back and vanish from
+// the page) while the "Showing X-Y of Z" count still claims the full total.
+// 100 per customer is generous enough that no realistic customer's real
+// license set should ever hit it, while guaranteeing every requested userId
+// gets at least some rows back.
+const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
 
 /**
  * Fetch every license (with credit balance) belonging to the given users,
  * newest-first. Used by the admin list so that a customer's full license set
  * is shown even when a search only matched a subset of their licenses.
+ *
+ * Capped at ACCOUNT_KEYS_PER_USER_ROW_LIMIT rows *per userId* (see constant
+ * doc) via a `ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at
+ * DESC)` window — every userId passed in gets its own bounded row budget, so
+ * one customer's outsized license count can never starve another customer in
+ * the same batch out of the result entirely.
+ *
+ * Display order for a page of customers is determined by the caller (the
+ * admin router reorders by the canonical page order returned from
+ * getAccountKeyCustomerPage) — this function's own ordering only needs to
+ * keep each customer's individual licenses newest-first.
  */
 export async function getAccountKeysWithCreditsForUserIds(
   userIds: string[]
 ): Promise<Array<AccountKeyRow & { credits: number }>> {
   if (userIds.length === 0) return [];
-  const rows = await db.query.accountKeys.findMany({
-    where: inArray(accountKeys.userId, userIds),
-    orderBy: [desc(accountKeys.createdAt)],
-  });
+
+  const rowNumber = sql<number>`row_number() over (partition by ${accountKeys.userId} order by ${accountKeys.createdAt} desc)`;
+
+  const ranked = db.$with("ranked_account_keys").as(
+    db
+      .select({
+        id: accountKeys.id,
+        key: accountKeys.key,
+        email: accountKeys.email,
+        userId: accountKeys.userId,
+        status: accountKeys.status,
+        polarLicenseKeyId: accountKeys.polarLicenseKeyId,
+        polarCustomerId: accountKeys.polarCustomerId,
+        stripeCustomerId: accountKeys.stripeCustomerId,
+        stripeSessionId: accountKeys.stripeSessionId,
+        createdAt: accountKeys.createdAt,
+        rowNumber: rowNumber.as("row_number"),
+      })
+      .from(accountKeys)
+      .where(inArray(accountKeys.userId, userIds))
+  );
+
+  const rows = await db
+    .with(ranked)
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rowNumber} <= ${ACCOUNT_KEYS_PER_USER_ROW_LIMIT}`)
+    .orderBy(desc(ranked.createdAt));
+
   const licenses = rows.map(drizzleAccountKeyToRow);
   return attachPooledCredits(licenses);
+}
+
+/**
+ * One page of distinct customers (grouped by user_id) from account_keys, plus
+ * the total distinct-customer count — powers server-side pagination on the
+ * admin Customers list. An optional email search filters the underlying
+ * license rows before grouping (same `ilike` semantics as the old
+ * searchAccountKeysByEmail), so a customer only appears in the page if at
+ * least one of their licenses matches.
+ *
+ * Ordered by each customer's most recent license (MAX(created_at) DESC),
+ * matching the order the router's in-memory grouping already produces from
+ * newest-first license rows, with `user_id` as a tiebreak for determinism.
+ *
+ * The requested `page` is clamped to the last valid page (given the count
+ * from this same call) BEFORE the paginated data query runs, so a stale page
+ * number (a search or mutation shrank the result set out from under it)
+ * never produces an empty `userIds` page against a nonzero total. The
+ * clamped page is returned alongside the data so the caller can echo back
+ * what was actually fetched.
+ */
+export async function getAccountKeyCustomerPage({
+  search,
+  page,
+  pageSize,
+}: {
+  search?: string;
+  page: number;
+  pageSize: number;
+}): Promise<{ userIds: string[]; totalCustomers: number; page: number }> {
+  const emailFilter = search ? ilike(accountKeys.email, `%${search}%`) : undefined;
+
+  const countRows = await db
+    .select({ total: countDistinct(accountKeys.userId) })
+    .from(accountKeys)
+    .where(emailFilter);
+
+  const totalCustomers = Number(countRows[0]?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalCustomers / pageSize));
+  const clampedPage = Math.min(page, totalPages);
+
+  const pageRows = await db
+    .select({
+      userId: accountKeys.userId,
+      maxCreatedAt: sql<Date>`max(${accountKeys.createdAt})`,
+    })
+    .from(accountKeys)
+    .where(emailFilter)
+    .groupBy(accountKeys.userId)
+    .orderBy(sql`max(${accountKeys.createdAt}) desc`, accountKeys.userId)
+    .limit(pageSize)
+    .offset((clampedPage - 1) * pageSize);
+
+  return {
+    userIds: pageRows.map((r) => r.userId),
+    totalCustomers,
+    page: clampedPage,
+  };
 }
 
 // ---------------------------------------------------------------------------
