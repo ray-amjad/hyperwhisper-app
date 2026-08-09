@@ -1,0 +1,33 @@
+---
+title: Going Open Source
+description: What changed when HyperWhisper went open source, what happened to old "Pro licenses," and why cloud credits can still run out.
+---
+
+HyperWhisper is free and open source. This page explains what that means if you bought HyperWhisper before, and why you might still see a credit balance and a "license key" in the app.
+
+## What changed
+
+On June 30, 2026, HyperWhisper went open source under Apache-2.0. The full source for the macOS, Windows, and iOS apps, the Cloud transcription backend, this documentation site, and the marketing site is public on [GitHub](https://github.com/ray-amjad/hyperwhisper-app).
+
+Before that date, HyperWhisper described its paid tier as a "Pro license" — a one-time purchase that unlocked unlimited local transcription and came bundled with 5,000 HyperWhisper Cloud credits (about $5 of value). HyperWhisper does not sell that "license" anymore, for one reason: **local transcription and every local model are free and unlimited for everyone now, with no purchase and no account.** There is nothing left to unlock with a license.
+
+The only thing that ever cost money is **HyperWhisper Cloud**, the optional hosted transcription service. That did not change. You still pay for HyperWhisper Cloud with prepaid credits, the same way a "Pro license" purchase worked before — you are just buying credits directly now, instead of buying a "license" that happened to include some.
+
+## What happened to your old license key
+
+Nothing. Your old license key **is** your HyperWhisper Cloud account key. It still activates the app, and it still holds whatever credit balance is on it. There is no migration step and nothing to convert — "license key" and "account key" have always referred to the same key. Paste it into **Settings → HyperWhisper Cloud** and it works exactly as before.
+
+## Why did my credits run out? I thought I had a license.
+
+This is the most common source of confusion, so it's worth stating plainly: **a HyperWhisper license never included unlimited cloud transcription.** When you bought a "Pro license," you paid once and received:
+
+- Unlimited local (on-device) transcription — this part really was permanent, and is still free for everyone today, license or not.
+- **5,000 HyperWhisper Cloud credits** (about $5 of value, roughly 15 hours of cloud transcription at the default tier) — a fixed, one-time amount, not a recurring or unlimited allowance.
+
+Once those 5,000 credits were spent, HyperWhisper Cloud stopped working until you bought more credits — the license itself never refilled the balance. That was true before HyperWhisper went open source, and it is still true now. If your cloud transcription stopped working and your balance shows zero, that is expected: you used the credits your purchase included, and HyperWhisper Cloud is a pay-as-you-go service, not a subscription.
+
+If you only use on-device transcription, none of this applies to you — local transcription has no credits, no license, and no limit.
+
+<Note>
+  Need cloud transcription again? See [How to buy HyperWhisper Cloud credits](/cloud-credits#buy-more-credits). Prefer not to pay at all? Any BYOK provider (your own OpenAI, Groq, or Deepgram key) does not use credits — see [Choosing a Provider](/choosing-a-provider).
+</Note>
