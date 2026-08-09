@@ -746,15 +746,27 @@ export async function getPaidCreditGrantsForUsers(
   }));
 }
 
+// Hard cap on the number of license rows a single
+// getAccountKeysWithCreditsForUserIds call can return. Defensive only: a page
+// of customers is bounded to CUSTOMERS_PAGE_SIZE distinct userIds, but a
+// single userId can carry an unbounded number of license rows (e.g. repeated
+// admin grants), so without a ceiling here one admin page-load could pull an
+// unbounded result set. 5000 is generous enough that no realistic customer's
+// real license set should ever hit it.
+const ACCOUNT_KEYS_FOR_USER_IDS_ROW_LIMIT = 5000;
+
 /**
  * Fetch every license (with credit balance) belonging to the given users,
  * newest-first. Used by the admin list so that a customer's full license set
  * is shown even when a search only matched a subset of their licenses.
  *
- * Secondary sort on userId ties the ordering down to a deterministic tiebreak
- * that matches the `user_id` tiebreak used by getAccountKeyCustomerPage's
- * paginated query, so customers whose max(createdAt) collide sort the same
- * way in both queries.
+ * Capped at ACCOUNT_KEYS_FOR_USER_IDS_ROW_LIMIT rows total (see constant doc)
+ * as a defensive ceiling against unbounded-fan-out accounts.
+ *
+ * Display order for a page of customers is determined by the caller (the
+ * admin router reorders by the canonical page order returned from
+ * getAccountKeyCustomerPage) — this function's own ordering only needs to
+ * keep each customer's individual licenses newest-first.
  */
 export async function getAccountKeysWithCreditsForUserIds(
   userIds: string[]
@@ -762,7 +774,8 @@ export async function getAccountKeysWithCreditsForUserIds(
   if (userIds.length === 0) return [];
   const rows = await db.query.accountKeys.findMany({
     where: inArray(accountKeys.userId, userIds),
-    orderBy: [desc(accountKeys.createdAt), accountKeys.userId],
+    orderBy: desc(accountKeys.createdAt),
+    limit: ACCOUNT_KEYS_FOR_USER_IDS_ROW_LIMIT,
   });
   const licenses = rows.map(drizzleAccountKeyToRow);
   return attachPooledCredits(licenses);
@@ -779,6 +792,13 @@ export async function getAccountKeysWithCreditsForUserIds(
  * Ordered by each customer's most recent license (MAX(created_at) DESC),
  * matching the order the router's in-memory grouping already produces from
  * newest-first license rows, with `user_id` as a tiebreak for determinism.
+ *
+ * The requested `page` is clamped to the last valid page (given the count
+ * from this same call) BEFORE the paginated data query runs, so a stale page
+ * number (a search or mutation shrank the result set out from under it)
+ * never produces an empty `userIds` page against a nonzero total. The
+ * clamped page is returned alongside the data so the caller can echo back
+ * what was actually fetched.
  */
 export async function getAccountKeyCustomerPage({
   search,
@@ -788,30 +808,34 @@ export async function getAccountKeyCustomerPage({
   search?: string;
   page: number;
   pageSize: number;
-}): Promise<{ userIds: string[]; totalCustomers: number }> {
+}): Promise<{ userIds: string[]; totalCustomers: number; page: number }> {
   const emailFilter = search ? ilike(accountKeys.email, `%${search}%`) : undefined;
 
-  const [countRows, pageRows] = await Promise.all([
-    db
-      .select({ total: countDistinct(accountKeys.userId) })
-      .from(accountKeys)
-      .where(emailFilter),
-    db
-      .select({
-        userId: accountKeys.userId,
-        maxCreatedAt: sql<Date>`max(${accountKeys.createdAt})`,
-      })
-      .from(accountKeys)
-      .where(emailFilter)
-      .groupBy(accountKeys.userId)
-      .orderBy(sql`max(${accountKeys.createdAt}) desc`, accountKeys.userId)
-      .limit(pageSize)
-      .offset((page - 1) * pageSize),
-  ]);
+  const countRows = await db
+    .select({ total: countDistinct(accountKeys.userId) })
+    .from(accountKeys)
+    .where(emailFilter);
+
+  const totalCustomers = Number(countRows[0]?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalCustomers / pageSize));
+  const clampedPage = Math.min(page, totalPages);
+
+  const pageRows = await db
+    .select({
+      userId: accountKeys.userId,
+      maxCreatedAt: sql<Date>`max(${accountKeys.createdAt})`,
+    })
+    .from(accountKeys)
+    .where(emailFilter)
+    .groupBy(accountKeys.userId)
+    .orderBy(sql`max(${accountKeys.createdAt}) desc`, accountKeys.userId)
+    .limit(pageSize)
+    .offset((clampedPage - 1) * pageSize);
 
   return {
     userIds: pageRows.map((r) => r.userId),
-    totalCustomers: Number(countRows[0]?.total ?? 0),
+    totalCustomers,
+    page: clampedPage,
   };
 }
 

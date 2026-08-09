@@ -56,20 +56,22 @@ function formatCurrency(cents: number) {
 export default function CustomersClient() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
   const [page, setPage] = useState(1);
 
   // A new search always starts back at page 1 — otherwise a search narrow
   // enough to have fewer pages than the current page number would request a
-  // page that no longer exists.
+  // page that no longer exists. Reset page in the SAME batch as the
+  // debouncedSearch update (rather than in a separate effect keyed off
+  // debouncedSearch) so there's never a render where the query sees the new
+  // search term paired with the stale page — that extra render was firing a
+  // wasted request (including the Stripe spend fan-out server-side).
   useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Timers that fire after a delay and call setState/refetch — tracked so they
   // can be cleared on unmount to avoid set-after-unmount warnings and wasted
@@ -87,6 +89,7 @@ export default function CustomersClient() {
   const {
     data,
     isLoading: loading,
+    isFetching,
     error: queryError,
     refetch,
   } = api.admin.customers.list.useQuery(
@@ -96,6 +99,13 @@ export default function CustomersClient() {
     // change — that flash is exactly what the pager is meant to avoid.
     { placeholderData: keepPreviousData }
   );
+
+  // True during any background refetch (page change, search, manual
+  // refresh) — including the keepPreviousData window where `loading` stays
+  // false and the table still shows the previous page's rows. Used to give a
+  // subtle in-flight signal so a page-button click doesn't look like it did
+  // nothing.
+  const isTransitioning = isFetching && !loading;
 
   const [showGrant, setShowGrant] = useState(false);
   const [grantEmail, setGrantEmail] = useState("");
@@ -312,7 +322,11 @@ export default function CustomersClient() {
       )}
 
       {/* Customers Table */}
-      <div className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
+      <div
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+          isTransitioning ? "opacity-50" : "opacity-100"
+        }`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -615,11 +629,35 @@ export default function CustomersClient() {
       {/* Customer Count + Pagination */}
       {data && data.totalCustomers > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-gray-400 text-sm">
-            Showing {(data.page - 1) * data.pageSize + 1}
-            &ndash;
-            {Math.min(data.page * data.pageSize, data.totalCustomers)} of{" "}
-            {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
+          <p className="text-gray-400 text-sm flex items-center gap-2">
+            <span>
+              Showing {(data.page - 1) * data.pageSize + 1}
+              &ndash;
+              {Math.min(data.page * data.pageSize, data.totalCustomers)} of{" "}
+              {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
+            </span>
+            {isTransitioning && (
+              <svg
+                className="w-3.5 h-3.5 animate-spin text-gray-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-label="Loading"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            )}
           </p>
 
           {data.totalPages > 1 && (

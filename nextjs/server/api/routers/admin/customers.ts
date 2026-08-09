@@ -176,11 +176,15 @@ export const customersRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         const search = input?.search?.trim();
-        const page = input?.page ?? 1;
+        const requestedPage = input?.page ?? 1;
 
-        const { userIds, totalCustomers } = await getAccountKeyCustomerPage({
+        // `page` here is the clamped, actually-fetched page — it may differ
+        // from `requestedPage` if the result set shrank (a search narrowed
+        // it, or a mutation changed who matches) since the page number was
+        // last chosen. See getAccountKeyCustomerPage for the clamping.
+        const { userIds, totalCustomers, page } = await getAccountKeyCustomerPage({
           search,
-          page,
+          page: requestedPage,
           pageSize: CUSTOMERS_PAGE_SIZE,
         });
 
@@ -191,8 +195,12 @@ export const customersRouter = createTRPCRouter({
           getUsersByIds(userIds),
         ]);
 
-        // Group licenses by their owning user. The source rows are ordered
-        // newest-first, so Map insertion order keeps customers in that order.
+        // Group licenses by their owning user. Display order is NOT derived
+        // from this Map's insertion order (see below, where we reorder by
+        // `userIds`) — a search filters which licenses match, so a
+        // customer's rank in `userIds` (based on their matching license's
+        // date) can disagree with the newest-first order of their full,
+        // unfiltered license rows here.
         const customerMap = new Map<
           string,
           {
@@ -314,8 +322,16 @@ export const customersRouter = createTRPCRouter({
           customer.totalSpentCents = hadFailedFetch ? null : totalSpentCents;
         }
 
+        // Reorder explicitly by the canonical page order `userIds` came back
+        // in (see getAccountKeyCustomerPage), rather than relying on Map
+        // insertion order — the two can disagree under search (see the
+        // comment above customerMap).
+        const customers = userIds
+          .map((userId) => customerMap.get(userId))
+          .filter((customer): customer is NonNullable<typeof customer> => customer !== undefined);
+
         return {
-          customers: Array.from(customerMap.values()),
+          customers,
           totalCustomers,
           page,
           pageSize: CUSTOMERS_PAGE_SIZE,
