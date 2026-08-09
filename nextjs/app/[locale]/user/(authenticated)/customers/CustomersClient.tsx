@@ -1,8 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
+
+/**
+ * Windowed list of page numbers to render in the pager: always page 1,
+ * the last page, the current page, and current±1, with "ellipsis" markers
+ * standing in for any gaps. Keeps the control a fixed, scannable width even
+ * when totalPages is large, instead of rendering every page number.
+ */
+function getPageNumbers(
+  currentPage: number,
+  totalPages: number
+): Array<number | "ellipsis"> {
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(totalPages);
+  for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+    if (p >= 1 && p <= totalPages) pages.add(p);
+  }
+
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+  const result: Array<number | "ellipsis"> = [];
+  let previous: number | null = null;
+  for (const p of sorted) {
+    if (previous !== null && p - previous > 1) {
+      result.push("ellipsis");
+    }
+    result.push(p);
+    previous = p;
+  }
+  return result;
+}
 
 const CREDITS_PER_MINUTE = 6.3;
 
@@ -31,6 +62,15 @@ export default function CustomersClient() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const [page, setPage] = useState(1);
+
+  // A new search always starts back at page 1 — otherwise a search narrow
+  // enough to have fewer pages than the current page number would request a
+  // page that no longer exists.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
   // Timers that fire after a delay and call setState/refetch — tracked so they
   // can be cleared on unmount to avoid set-after-unmount warnings and wasted
   // authenticated refetches.
@@ -50,7 +90,11 @@ export default function CustomersClient() {
     error: queryError,
     refetch,
   } = api.admin.customers.list.useQuery(
-    debouncedSearch ? { search: debouncedSearch } : undefined
+    { search: debouncedSearch || undefined, page },
+    // Keep showing the previous page's rows while a new page (or search)
+    // loads, instead of dropping to the loading skeleton on every page
+    // change — that flash is exactly what the pager is meant to avoid.
+    { placeholderData: keepPreviousData }
   );
 
   const [showGrant, setShowGrant] = useState(false);
@@ -568,11 +612,58 @@ export default function CustomersClient() {
         </div>
       </div>
 
-      {/* Customer Count */}
-      {!loading && customers.length > 0 && (
-        <p className="text-gray-400 text-sm">
-          Showing {customers.length} customer{customers.length !== 1 ? "s" : ""}
-        </p>
+      {/* Customer Count + Pagination */}
+      {data && data.totalCustomers > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-gray-400 text-sm">
+            Showing {(data.page - 1) * data.pageSize + 1}
+            &ndash;
+            {Math.min(data.page * data.pageSize, data.totalCustomers)} of{" "}
+            {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
+          </p>
+
+          {data.totalPages > 1 && (
+            <nav className="flex items-center gap-2" aria-label="Pagination">
+              <button
+                type="button"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg border border-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-sm"
+              >
+                Prev
+              </button>
+              {getPageNumbers(page, data.totalPages).map((entry, i) =>
+                entry === "ellipsis" ? (
+                  <span key={`ellipsis-${i}`} className="text-gray-500 px-1">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={entry}
+                    type="button"
+                    onClick={() => setPage(entry)}
+                    aria-current={entry === page ? "page" : undefined}
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                      entry === page
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10"
+                    }`}
+                  >
+                    {entry}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= data.totalPages}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg border border-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-sm"
+              >
+                Next
+              </button>
+            </nav>
+          )}
+        </div>
       )}
 
       {/* Refund Modal */}
