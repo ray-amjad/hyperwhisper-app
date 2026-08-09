@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Beállítások megnyitása";
 "home.accessibility.restart.after.permission" = "Alkalmazás újraindítása az engedély megadása után";
 "home.getting.started.completed" = "✓ Kész";
-"home.whatsnew.badge" = "ÚJ";
-"home.whatsnew.title" = "Mi újság?";
-"home.whatsnew.update1.date" = "Júl 3";
-"home.whatsnew.update1.title" = "Parakeet már elérhető";
-"home.whatsnew.update1.description" = "Töltsd le közvetlenül a Nyelvi modellek listából a Mód létrehozása során, hogy még ma kipróbáld.";
-"home.whatsnew.update2.date" = "Jún 5";
-"home.whatsnew.update2.title" = "Támogatás minden OpenAI-kompatibilis egyéni modellhez";
-"home.whatsnew.update2.description" = "Most már hozzáadhatsz bármilyen OpenAI kompatibilis API-t a modelljeid listájához.";
-"home.whatsnew.update3.date" = "Máj 27";
-"home.whatsnew.update3.title" = "Teljesen új Mini-felvételi ablak";
-"home.whatsnew.update3.description" = "Egy elegáns, minimális felvételi felület, ami nem zavar.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Legutóbbi frissítések";
@@ -821,10 +810,6 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "page.header.learnMore" = "Többet tudj meg";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Átírás kész";
-"recording.status.retrying" = "Átírás újrapróbálása…";
-"recording.status.postprocessing" = "Utófeldolgozás AI-val…";
-"recording.status.transcribing" = "Átírás…";
 "recording.success.pasted" = "Beillesztve!";
 "recording.loading.retrying" = "Újrapróbálás…";
 "recording.loading.postprocessing" = "Feldolgozás AI-val…";
@@ -852,39 +837,22 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "modes.provider.manageInLibrary" = "Kezelés a könyvtárban →";
 "streaming.loading.warming" = "Helyi modell bemelegítése...";
 "streaming.status.listening" = "Hallgat...";
-"streaming.status.streaming" = "Streamelés...";
 "streaming.status.disconnecting" = "Leállítás...";
 "streaming.loading.connecting" = "Csatlakozás a szerverhez...";
 "streaming.loading.ready" = "Audio inicializálása...";
 "streaming.loading.streaming" = "Várakozás beszédre...";
 "streaming.state.reconnecting" = "Újracsatlakozás...";
 "recording.stop.help" = "Felvétel leállítása (%@)";
-"recording.postprocessing.unavailable" = "Utófeldolgozás nem elérhető";
-"recording.postprocessing.missing.single" = "%@ kulcs hiányzik – felvétel utófeldolgozás nélkül";
-"recording.postprocessing.missing.multiple" = "API kulcsok hiányoznak – felvétel utófeldolgozás nélkül";
-"recording.postprocessing.addKey" = "Kulcs hozzáadása";
-"recording.offline.banner" = "Nincs internetkapcsolat. A felhő átírás sikertelen lesz, amíg online nem vagy.";
-"recording.offline.title" = "Nincs internetkapcsolat";
-"recording.offline.subtitle" = "Csatlakozz újra a folytatáshoz vagy válts offline módra.";
-"recording.error.network" = "Ellenőrizd az internetkapcsolatot és próbáld újra.";
-"recording.error.timeout" = "Időtúllépés. Ellenőrizd a kapcsolat sebességét és próbáld újra.";
-"recording.error.rateLimit" = "Túl sok kérést küldtél. Várj egy kicsit és próbáld újra.";
-"recording.error.credits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
-"recording.error.apiKey" = "Add hozzá a(z) %@ API kulcsodat a Beállításokban.";
-"recording.error.server" = "Az átírási szolgáltatás problémákat tapasztal. Kérlek próbáld újra egy pillanat múlva.";
 "recording.retry" = "Újra";
 "recording.retry.inProgress" = "Újrapróbálás…";
 "recording.retry.count" = "Újra (%d)";
 "recording.retry.failed.missing" = "Újrapróbálás sikertelen: Audio fájl nem található";
 "recording.retry.failed.error" = "Újrapróbálás sikertelen: %@";
 "recording.retry.pending" = "Kész az újrapróbálásra – kattints az átíráshoz";
-"recording.provider.unknown" = "felhő szolgáltató";
 "recording.cancel.dialog.title" = "Felvétel megszakítása?";
 "recording.cancel.dialog.message" = "Ez elveti a jelenlegi felvételt.";
 "recording.cancel.dialog.confirm" = "Felvétel megszakítása";
 "recording.cancel.dialog.resume" = "Folytatás";
-"recording.error.overlay.title" = "Hálózati kapcsolati hiba";
-"recording.error.overlay.message" = "Nyomd meg az 'Újra' gombot alul vagy válts offline módra a folytatáshoz.";
 "recording.mode.default" = "Alapértelmezett";
 "recording.dialog.window.title" = "Felvételi párbeszéd";
 "recording.button.start" = "Felvétel indítása";

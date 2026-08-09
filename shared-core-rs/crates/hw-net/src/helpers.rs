@@ -24,17 +24,6 @@ pub use hw_text::prompt::MAX_VOCABULARY_TERM_CHARS;
 /// beyond are silently dropped). Applied via [`normalize_vocabulary_capped`].
 pub const HW_CLOUD_MAX_VOCAB_TERMS: usize = 100;
 
-/// Normalize a vocabulary list: trim each term and drop empties, preserving the
-/// caller's order. **No lowercasing and no de-duplication** — matches the shipped
-/// platform behavior (vocabulary terms are often proper nouns where case matters).
-pub fn normalize_vocabulary(words: &[String]) -> Vec<String> {
-    words
-        .iter()
-        .map(|w| w.trim().to_string())
-        .filter(|w| !w.is_empty())
-        .collect()
-}
-
 /// Neutralize a vocabulary word for safe interpolation into a provider request
 /// field (e.g. the Soniox `context` string). Port of macOS
 /// `PromptBuilder.sanitizeVocabularyWord`, shared with `hw-text`'s prompt

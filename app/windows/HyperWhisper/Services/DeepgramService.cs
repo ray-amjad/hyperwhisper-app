@@ -67,13 +67,6 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
         { ".flac", "audio/flac" }
     };
 
-    // Models that support keyterm parameter (Nova-3)
-    private static readonly HashSet<string> KeytermSupportedModels = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "nova-3-general",
-        "nova-3-medical"
-    };
-
     // =========================================================================
     // STATE
     // =========================================================================

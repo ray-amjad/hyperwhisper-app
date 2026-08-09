@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Atidaryti nustatymus";
 "home.accessibility.restart.after.permission" = "Iš naujo paleisti programą po leidimo suteikimo";
 "home.getting.started.completed" = "✓ Atlikta";
-"home.whatsnew.badge" = "NAUJA";
-"home.whatsnew.title" = "Kas naujo?";
-"home.whatsnew.update1.date" = "Lie 3";
-"home.whatsnew.update1.title" = "Parakeet dabar prieinamas";
-"home.whatsnew.update1.description" = "Atsisiųskite jį tiesiai iš kalbų modelių sąrašo režimo kūrimui ir šiandien jį išbandykite.";
-"home.whatsnew.update2.date" = "Bir 5";
-"home.whatsnew.update2.title" = "Palaikymas bet kokiam OpenAI suderinamam pasirinktam modeliui";
-"home.whatsnew.update2.description" = "Dabar galite pridėti bet kokį OpenAI suderinamą API prie savo modelių sąrašo.";
-"home.whatsnew.update3.date" = "Geg 27";
-"home.whatsnew.update3.title" = "Visiškai naujas mini-įrašymo langas";
-"home.whatsnew.update3.description" = "Šmaikus, minimalus įrašymo sąsaja, kuri netrukdo jūsų darbui.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Nesenūs atnaujinimai";
@@ -821,10 +810,6 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "page.header.learnMore" = "Sužinoti daugiau";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Transkripija atlikta";
-"recording.status.retrying" = "Bandoma transkripija iš naujo…";
-"recording.status.postprocessing" = "Post apdorojimas su AI…";
-"recording.status.transcribing" = "Transkripcija…";
 "recording.success.pasted" = "Įklijuota!";
 "recording.loading.retrying" = "Bandau iš naujo…";
 "recording.loading.postprocessing" = "Apdorojimas su AI…";
@@ -852,39 +837,22 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "modes.provider.manageInLibrary" = "Valdyti bibliotekoje →";
 "streaming.loading.warming" = "Šildomas vietinis modelis...";
 "streaming.status.listening" = "Klausomasi...";
-"streaming.status.streaming" = "Srautinis...";
 "streaming.status.disconnecting" = "Sustabdomas...";
 "streaming.loading.connecting" = "Prisijungimas prie serverio...";
 "streaming.loading.ready" = "Audio inicializacija...";
 "streaming.loading.streaming" = "Laukimas kalbos...";
 "streaming.state.reconnecting" = "Iš naujo prijungiama...";
 "recording.stop.help" = "Sustabdyti įrašymą (%@)";
-"recording.postprocessing.unavailable" = "Post apdorojimas neprieinal";
-"recording.postprocessing.missing.single" = "%@ raktas šaltis – įrašymas be post apdorojimo";
-"recording.postprocessing.missing.multiple" = "API raktai šaltis – įrašymas be post apdorojimo";
-"recording.postprocessing.addKey" = "Pridėti raktą";
-"recording.offline.banner" = "Nėra interneto ryšio. Debesies transkripija nesiseks, kol jūs esate neprisijungę.";
-"recording.offline.title" = "Nėra interneto ryšio";
-"recording.offline.subtitle" = "Iš naujo prisijunkite, jei norite tęsti, arba perjunkitės į neprisijungusį režimą.";
-"recording.error.network" = "Patikrinkite savo interneto ryšį ir bandykite iš naujo.";
-"recording.error.timeout" = "Užklausos valanda baigėsi. Patikrinkite savo ryšio greitį ir bandykite iš naujo.";
-"recording.error.rateLimit" = "Padarėte per daug užklausų. Palaukite akimirkos ir bandykite iš naujo.";
-"recording.error.credits" = "Nepakanka kreditų. Pridėkite daugiau kreditų nustatymuose.";
-"recording.error.apiKey" = "Pridėkite savo %@ API raktą nustatymuose.";
-"recording.error.server" = "Transkriptsiniu paslauga patiria sunkumus. Bandykite dar kartą akimirkos.";
 "recording.retry" = "Bandyti iš naujo";
 "recording.retry.inProgress" = "Bandau iš naujo…";
 "recording.retry.count" = "Bandyti iš naujo (%d)";
 "recording.retry.failed.missing" = "Pakartojimas nepavyko: audio failas nerastas";
 "recording.retry.failed.error" = "Pakartojimas nepavyko: %@";
 "recording.retry.pending" = "Paruošta pakartoti – spustelėkite, jei norite transkripcijos";
-"recording.provider.unknown" = "debesies teikėjas";
 "recording.cancel.dialog.title" = "Atšaukti įrašymą?";
 "recording.cancel.dialog.message" = "Tai atsisakys dabarinio įrašymo.";
 "recording.cancel.dialog.confirm" = "Atšaukti įrašymą";
 "recording.cancel.dialog.resume" = "Tęsti";
-"recording.error.overlay.title" = "Tinklo ryšio klaida";
-"recording.error.overlay.message" = "Paspauskite 'Bandyti iš naujo' žemiau arba perjunkitės į neprisijungusį režimą tęsti.";
 "recording.mode.default" = "Numatytasis";
 "recording.dialog.window.title" = "Įrašymo dialogo langas";
 "recording.button.start" = "Pradėti įrašymą";

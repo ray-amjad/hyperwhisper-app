@@ -148,12 +148,6 @@ struct HyperWhisperApp: App {
 
     // One-time bootstrap flag to avoid duplicate initialization work
     @State private var didBootstrapModels: Bool = false
-
-    /// Tracks whether the active recording session was initiated via Push to Talk.
-    /// Prevents push-to-talk release handlers from interfering with manual recordings
-    /// and allows us to handle key-up events even if the recording hasn't started yet.
-    @State private var isPushToTalkSessionActive = false
-
     
     // MARK: - Initialization
     

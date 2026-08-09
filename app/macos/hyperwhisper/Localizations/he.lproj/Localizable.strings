@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "פתח הגדרות";
 "home.accessibility.restart.after.permission" = "הפעל מחדש את האפליקציה לאחר מתן הרשאה";
 "home.getting.started.completed" = "✓ הושלם";
-"home.whatsnew.badge" = "חדש";
-"home.whatsnew.title" = "מה חדש?";
-"home.whatsnew.update1.date" = "יולי 3";
-"home.whatsnew.update1.title" = "Parakeet זמין כעת";
-"home.whatsnew.update1.description" = "הורד אותו ישירות מרשימת מודלי השפה ביצירת מצב כדי לנסות אותו היום.";
-"home.whatsnew.update2.date" = "יוני 5";
-"home.whatsnew.update2.title" = "תמיכה בכל מודל מותאם אישי תואם OpenAI";
-"home.whatsnew.update2.description" = "כעת תוכל להוסיף כל API תואם OpenAI לרשימת המודלים שלך.";
-"home.whatsnew.update3.date" = "מאי 27";
-"home.whatsnew.update3.title" = "חלון הקלטה מיני חדש לגמרי";
-"home.whatsnew.update3.description" = "ממשק הקלטה אלגנטי ומינימלי שלא מפריע לך.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "עדכונים אחרונים";
@@ -821,10 +810,6 @@
 "page.header.learnMore" = "למד עוד";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "התמלול הושלם";
-"recording.status.retrying" = "מנסה שוב תמלול…";
-"recording.status.postprocessing" = "מעבד עם AI…";
-"recording.status.transcribing" = "מתמלל…";
 "recording.success.pasted" = "הודבק!";
 "recording.loading.retrying" = "מנסה שוב…";
 "recording.loading.postprocessing" = "מעבד עם AI…";
@@ -852,39 +837,22 @@
 "modes.provider.manageInLibrary" = "נהל בספרייה →";
 "streaming.loading.warming" = "מחמם את המודל המקומי...";
 "streaming.status.listening" = "מאזין...";
-"streaming.status.streaming" = "מזרים...";
 "streaming.status.disconnecting" = "עוצר...";
 "streaming.loading.connecting" = "מתחבר לשרת...";
 "streaming.loading.ready" = "מאתחל אודיו...";
 "streaming.loading.streaming" = "ממתין לדיבור...";
 "streaming.state.reconnecting" = "מתחבר מחדש...";
 "recording.stop.help" = "עצור הקלטה (%@)";
-"recording.postprocessing.unavailable" = "עיבוד לאחר לא זמין";
-"recording.postprocessing.missing.single" = "מפתח %@ חסר – מקליט ללא עיבוד לאחר";
-"recording.postprocessing.missing.multiple" = "מפתחות API חסרים – מקליט ללא עיבוד לאחר";
-"recording.postprocessing.addKey" = "הוסף מפתח";
-"recording.offline.banner" = "אין חיבור לאינטרנט. תמלול ענן ייכשל עד שתהיה מקוון.";
-"recording.offline.title" = "אין חיבור לאינטרנט";
-"recording.offline.subtitle" = "התחבר מחדש כדי להמשיך או עבור למצב לא מקוון.";
-"recording.error.network" = "בדוק את חיבור האינטרנט שלך ונסה שוב.";
-"recording.error.timeout" = "תם זמן הבקשה. בדוק את מהירות החיבור שלך ונסה שוב.";
-"recording.error.rateLimit" = "ביצעת יותר מדי בקשות. המתן רגע ונסה שוב.";
-"recording.error.credits" = "אין מספיק נקודות זכות. הוסף עוד נקודות זכות בהגדרות.";
-"recording.error.apiKey" = "הוסף את מפתח ה-API שלך ל-%@ בהגדרות.";
-"recording.error.server" = "שירות התמלול חווה בעיות. אנא נסה שוב בעוד רגע.";
 "recording.retry" = "נסה שוב";
 "recording.retry.inProgress" = "מנסה שוב…";
 "recording.retry.count" = "נסה שוב (%d)";
 "recording.retry.failed.missing" = "הניסיון החוזר נכשל: קובץ אודיו לא נמצא";
 "recording.retry.failed.error" = "הניסיון החוזר נכשל: %@";
 "recording.retry.pending" = "מוכן לנסות שוב – לחץ כדי לתמלל";
-"recording.provider.unknown" = "ספק ענן";
 "recording.cancel.dialog.title" = "לבטל הקלטה?";
 "recording.cancel.dialog.message" = "זה ישליך את ההקלטה הנוכחית.";
 "recording.cancel.dialog.confirm" = "בטל הקלטה";
 "recording.cancel.dialog.resume" = "המשך";
-"recording.error.overlay.title" = "שגיאת חיבור רשת";
-"recording.error.overlay.message" = "לחץ על 'נסה שוב' למטה או עבור למצב לא מקוון כדי להמשיך.";
 "recording.mode.default" = "ברירת מחדל";
 "recording.dialog.window.title" = "דיאלוג הקלטה";
 "recording.button.start" = "התחל הקלטה";

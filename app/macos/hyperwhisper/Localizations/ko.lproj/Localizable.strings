@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "설정 열기";
 "home.accessibility.restart.after.permission" = "권한 부여 후 앱 재시작";
 "home.getting.started.completed" = "✓ 완료됨";
-"home.whatsnew.badge" = "새로운 기능";
-"home.whatsnew.title" = "새로운 기능?";
-"home.whatsnew.update1.date" = "7월 3일";
-"home.whatsnew.update1.title" = "Parakeet을 사용할 수 있습니다";
-"home.whatsnew.update1.description" = "모드 생성의 언어 모델 목록에서 직접 다운로드하여 오늘 사용해 보세요.";
-"home.whatsnew.update2.date" = "6월 5일";
-"home.whatsnew.update2.title" = "모든 OpenAI 호환 사용자 정의 모델 지원";
-"home.whatsnew.update2.description" = "이제 OpenAI 호환 API를 모델 목록에 추가할 수 있습니다.";
-"home.whatsnew.update3.date" = "5월 27일";
-"home.whatsnew.update3.title" = "완전히 새로운 미니 녹음 창";
-"home.whatsnew.update3.description" = "방해가 되지 않는 세련되고 미니멀한 녹음 인터페이스입니다.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "최근 업데이트";
@@ -821,10 +810,6 @@
 "page.header.learnMore" = "자세히 알아보기";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "음성 인식 완료";
-"recording.status.retrying" = "음성 인식 재시도 중…";
-"recording.status.postprocessing" = "AI로 후처리 중…";
-"recording.status.transcribing" = "음성 인식 중…";
 "recording.success.pasted" = "붙여넣기 완료!";
 "recording.loading.retrying" = "재시도 중…";
 "recording.loading.postprocessing" = "AI로 처리 중…";
@@ -852,39 +837,22 @@
 "modes.provider.manageInLibrary" = "라이브러리에서 관리 →";
 "streaming.loading.warming" = "로컬 모델 예열 중...";
 "streaming.status.listening" = "듣는 중...";
-"streaming.status.streaming" = "스트리밍 중...";
 "streaming.status.disconnecting" = "중지 중...";
 "streaming.loading.connecting" = "서버에 연결 중...";
 "streaming.loading.ready" = "오디오 초기화 중...";
 "streaming.loading.streaming" = "음성 대기 중...";
 "streaming.state.reconnecting" = "재연결 중...";
 "recording.stop.help" = "녹음 중지 (%@)";
-"recording.postprocessing.unavailable" = "후처리를 사용할 수 없음";
-"recording.postprocessing.missing.single" = "%@ 키 누락 – 후처리 없이 녹음";
-"recording.postprocessing.missing.multiple" = "API 키 누락 – 후처리 없이 녹음";
-"recording.postprocessing.addKey" = "키 추가";
-"recording.offline.banner" = "인터넷 연결이 없습니다. 온라인 상태가 될 때까지 클라우드 음성 인식이 실패합니다.";
-"recording.offline.title" = "인터넷 연결 없음";
-"recording.offline.subtitle" = "계속하려면 다시 연결하거나 오프라인 모드로 전환하세요.";
-"recording.error.network" = "인터넷 연결을 확인하고 다시 시도하세요.";
-"recording.error.timeout" = "요청 시간 초과. 연결 속도를 확인하고 다시 시도하세요.";
-"recording.error.rateLimit" = "요청이 너무 많습니다. 잠시 기다린 후 다시 시도하세요.";
-"recording.error.credits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";
-"recording.error.apiKey" = "설정에서 %@ API 키를 추가하세요.";
-"recording.error.server" = "음성 인식 서비스에 문제가 있습니다. 잠시 후 다시 시도하세요.";
 "recording.retry" = "재시도";
 "recording.retry.inProgress" = "재시도 중…";
 "recording.retry.count" = "재시도 (%d)";
 "recording.retry.failed.missing" = "재시도 실패: 오디오 파일을 찾을 수 없음";
 "recording.retry.failed.error" = "재시도 실패: %@";
 "recording.retry.pending" = "재시도 준비 완료 – 클릭하여 음성 인식";
-"recording.provider.unknown" = "클라우드 제공자";
 "recording.cancel.dialog.title" = "녹음을 취소하시겠습니까?";
 "recording.cancel.dialog.message" = "현재 녹음을 삭제합니다.";
 "recording.cancel.dialog.confirm" = "녹음 취소";
 "recording.cancel.dialog.resume" = "재개";
-"recording.error.overlay.title" = "네트워크 연결 오류";
-"recording.error.overlay.message" = "아래 '재시도'를 누르거나 오프라인 모드로 전환하여 계속하세요.";
 "recording.mode.default" = "기본값";
 "recording.dialog.window.title" = "녹음 대화 상자";
 "recording.button.start" = "녹음 시작";

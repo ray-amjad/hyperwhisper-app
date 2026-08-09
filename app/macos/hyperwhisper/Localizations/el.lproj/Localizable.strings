@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Ανοίξτε τις Ρυθμίσεις";
 "home.accessibility.restart.after.permission" = "Επανεκκίνηση εφαρμογής μετά την δέσμευση άδειας";
 "home.getting.started.completed" = "✓ Ολοκληρώθηκε";
-"home.whatsnew.badge" = "ΝΕΟ";
-"home.whatsnew.title" = "Τι νέο υπάρχει;";
-"home.whatsnew.update1.date" = "3 Ιουλ";
-"home.whatsnew.update1.title" = "Το Parakeet είναι πλέον διαθέσιμο";
-"home.whatsnew.update1.description" = "Κάντε λήψη απευθείας από τη λίστα Μοντέλων Γλώσσας κατά τη δημιουργία Λειτουργίας για να το δοκιμάσετε σήμερα.";
-"home.whatsnew.update2.date" = "5 Ιουν";
-"home.whatsnew.update2.title" = "Υποστήριξη για κάθε προσαρμοσμένο μοντέλο συμβατό με OpenAI";
-"home.whatsnew.update2.description" = "Μπορείτε τώρα να προσθέσετε οποιοδήποτε API συμβατό με OpenAI στη λίστα των μοντέλων σας.";
-"home.whatsnew.update3.date" = "27 Μαΐ";
-"home.whatsnew.update3.title" = "Zupełnie nowe okno Mini-nagrywania";
-"home.whatsnew.update3.description" = "Λεπτό, ελάχιστο περιβάλλον εγγραφής που παραμένει εκτός του δρόμου.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Πρόσφατες Ενημερώσεις";
@@ -821,10 +810,6 @@
 "page.header.learnMore" = "Μάθετε περισσότερα";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Μεταγραφή Ολοκληρωθείσα";
-"recording.status.retrying" = "Δοκιμή Μεταγραφής ξανά…";
-"recording.status.postprocessing" = "Μετα-επεξεργασία με AI…";
-"recording.status.transcribing" = "Μεταγραφή…";
 "recording.success.pasted" = "Επικολλημένη!";
 "recording.loading.retrying" = "Δοκιμή ξανά…";
 "recording.loading.postprocessing" = "Επεξεργασία με AI…";
@@ -852,39 +837,22 @@
 "modes.provider.manageInLibrary" = "Διαχείριση στη Βιβλιοθήκη →";
 "streaming.loading.warming" = "Προθέρμανση τοπικού μοντέλου...";
 "streaming.status.listening" = "Ακούω...";
-"streaming.status.streaming" = "Ρευστοποίηση...";
 "streaming.status.disconnecting" = "Διακοπή...";
 "streaming.loading.connecting" = "Σύνδεση με διακομιστή...";
 "streaming.loading.ready" = "Αρχικοποίηση ήχου...";
 "streaming.loading.streaming" = "Αναμονή για ομιλία...";
 "streaming.state.reconnecting" = "Σύνδεση ξανά...";
 "recording.stop.help" = "Διακοπή Εγγραφής (%@)";
-"recording.postprocessing.unavailable" = "Μετα-επεξεργασία δεν είναι διαθέσιμη";
-"recording.postprocessing.missing.single" = "%@ κλειδί που λείπει – εγγραφή χωρίς μετα-επεξεργασία";
-"recording.postprocessing.missing.multiple" = "Κλειδιά API που λείπουν – εγγραφή χωρίς μετα-επεξεργασία";
-"recording.postprocessing.addKey" = "Προσθήκη Κλειδιού";
-"recording.offline.banner" = "Δεν υπάρχει σύνδεση στο διαδίκτυο. Η μεταγραφή cloud θα αποτύχει έως ότου είστε σε σύνδεση.";
-"recording.offline.title" = "Δεν υπάρχει σύνδεση στο διαδίκτυο";
-"recording.offline.subtitle" = "Συνδεθείτε ξανά για να συνεχίσετε ή επιλέξτε μια τοπική λειτουργία.";
-"recording.error.network" = "Ελέγξτε τη σύνδεσή σας στο διαδίκτυο και δοκιμάστε ξανά.";
-"recording.error.timeout" = "Το αίτημα έληξε. Ελέγξτε την ταχύτητα της σύνδεσης σας και δοκιμάστε ξανά.";
-"recording.error.rateLimit" = "Έχετε κάνει πάρα πολλά αιτήματα. Περιμένετε λίγο και δοκιμάστε ξανά.";
-"recording.error.credits" = "Ανεπαρκείς πιστώσεις. Προσθέστε περισσότερες πιστώσεις στις Ρυθμίσεις.";
-"recording.error.apiKey" = "Προσθέστε το κλειδί API %@ σας στις Ρυθμίσεις.";
-"recording.error.server" = "Η υπηρεσία μεταγραφής αντιμετωπίζει προβλήματα. Παρακαλώ δοκιμάστε ξανά σε λίγο.";
 "recording.retry" = "Δοκιμάστε ξανά";
 "recording.retry.inProgress" = "Δοκιμή ξανά…";
 "recording.retry.count" = "Δοκιμή (%d)";
 "recording.retry.failed.missing" = "Η δοκιμή απέτυχε: Το αρχείο ήχου δεν βρέθηκε";
 "recording.retry.failed.error" = "Η δοκιμή απέτυχε: %@";
 "recording.retry.pending" = "Έτοιμη για δοκιμή – κάντε κλικ για μεταγραφή";
-"recording.provider.unknown" = "πάροχος cloud";
 "recording.cancel.dialog.title" = "Ακύρωση Εγγραφής;";
 "recording.cancel.dialog.message" = "Αυτό θα απορρίψει την τρέχουσα εγγραφή.";
 "recording.cancel.dialog.confirm" = "Ακύρωση Εγγραφής";
 "recording.cancel.dialog.resume" = "Συνέχεια";
-"recording.error.overlay.title" = "Σφάλμα σύνδεσης δικτύου";
-"recording.error.overlay.message" = "Πατήστε 'Δοκιμάστε ξανά' παρακάτω ή επιλέξτε μια τοπική λειτουργία για να συνεχίσετε.";
 "recording.mode.default" = "Προεπιλεγμένο";
 "recording.dialog.window.title" = "Διάλογος Εγγραφής";
 "recording.button.start" = "Έναρξη Εγγραφής";

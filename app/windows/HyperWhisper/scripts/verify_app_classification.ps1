@@ -170,7 +170,8 @@ foreach ($fileName in $requiredPromptFiles) {
 
 $projectXml = Get-Content -LiteralPath $ProjectPath -Raw
 Assert-True ($projectXml.Contains("shared-app-classification\app-type-catalog.json")) "Windows project must embed app-type-catalog.json."
-Assert-True ($projectXml.Contains("shared-prompts\contextual")) "Windows project must embed shared contextual prompts."
+# The contextual prompt templates are embedded by the Rust shared core, not by
+# this project — the harness below verifies the assembled prompt instead.
 
 $HarnessRoot = Join-Path $RepoRoot "artifacts\windows-runtime-validation\app-aware-formatting-verifier"
 New-Item -ItemType Directory -Force -Path $HarnessRoot | Out-Null

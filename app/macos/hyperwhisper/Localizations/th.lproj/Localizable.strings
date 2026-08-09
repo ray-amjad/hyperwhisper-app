@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "เปิดการตั้งค่า";
 "home.accessibility.restart.after.permission" = "รีสตาร์ทแอปหลังจากให้สิทธิ์";
 "home.getting.started.completed" = "✓ เสร็จแล้ว";
-"home.whatsnew.badge" = "ใหม่";
-"home.whatsnew.title" = "มีอะไรใหม่?";
-"home.whatsnew.update1.date" = "3 กรกฎาคม";
-"home.whatsnew.update1.title" = "Parakeet พร้อมใช้งาน";
-"home.whatsnew.update1.description" = "ดาวน์โหลดได้โดยตรงจากรายการโมเดลภาษาในการสร้างโหมดเพื่อลองใช้วันนี้";
-"home.whatsnew.update2.date" = "5 มิถุนายน";
-"home.whatsnew.update2.title" = "รองรับทุกโมเดลที่เข้ากันได้กับ OpenAI";
-"home.whatsnew.update2.description" = "ตอนนี้คุณสามารถเพิ่ม API ที่เข้ากันได้กับ OpenAI ใด ๆ ลงในรายการโมเดลของคุณ";
-"home.whatsnew.update3.date" = "27 พฤษภาคม";
-"home.whatsnew.update3.title" = "หน้าต่างการบันทึกแบบมินิที่ใหม่ล่าสุด";
-"home.whatsnew.update3.description" = "อินเทอร์เฟซการบันทึกแบบสไตล์ที่นอนออกแบบอย่างสวยงามและน้อยที่สุด";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "อัปเดตล่าสุด";
@@ -821,10 +810,6 @@
 "page.header.learnMore" = "เรียนรู้เพิ่มเติม";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "สัญลักษณ์สมบูรณ์";
-"recording.status.retrying" = "กำลังลองสัญลักษณ์ใหม่…";
-"recording.status.postprocessing" = "หลังการประมวลผลด้วย AI…";
-"recording.status.transcribing" = "กำลังสัญลักษณ์…";
 "recording.success.pasted" = "วางแล้ว!";
 "recording.loading.retrying" = "กำลังลองใหม่…";
 "recording.loading.postprocessing" = "กำลังประมวลผลด้วย AI…";
@@ -852,39 +837,22 @@
 "modes.provider.manageInLibrary" = "จัดการในคลัง →";
 "streaming.loading.warming" = "กำลังอุ่นโมเดลในเครื่อง...";
 "streaming.status.listening" = "กำลังฟัง...";
-"streaming.status.streaming" = "กำลังสตรีม...";
 "streaming.status.disconnecting" = "กำลังหยุด...";
 "streaming.loading.connecting" = "กำลังเชื่อมต่อกับเซิร์ฟเวอร์...";
 "streaming.loading.ready" = "กำลังเริ่มต้นเสียง...";
 "streaming.loading.streaming" = "รอเสียงพูด...";
 "streaming.state.reconnecting" = "กำลังเชื่อมต่อใหม่...";
 "recording.stop.help" = "หยุดการบันทึก (%@)";
-"recording.postprocessing.unavailable" = "หลังการประมวลผลไม่พร้อมใช้งาน";
-"recording.postprocessing.missing.single" = "คีย์ %@ หายไป – กำลังบันทึกโดยไม่มีการประมวลผลหลังจาก";
-"recording.postprocessing.missing.multiple" = "คีย์ API หายไป – กำลังบันทึกโดยไม่มีการประมวลผลหลังจาก";
-"recording.postprocessing.addKey" = "เพิ่มคีย์";
-"recording.offline.banner" = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต การสัญลักษณ์คลาวด์จะล้มเหลวจนกว่าคุณจะออนไลน์";
-"recording.offline.title" = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต";
-"recording.offline.subtitle" = "เชื่อมต่อใหม่เพื่อดำเนินการต่อหรือสลับไปยังโหมดออฟไลน์";
-"recording.error.network" = "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่";
-"recording.error.timeout" = "หมดเวลาคำขอ ตรวจสอบความเร็วการเชื่อมต่อและลองใหม่";
-"recording.error.rateLimit" = "คุณทำการร้องขอจำนวนมากเกินไป รอสักครู่แล้วลองใหม่";
-"recording.error.credits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";
-"recording.error.apiKey" = "เพิ่มคีย์ API %@ ของคุณในการตั้งค่า";
-"recording.error.server" = "บริการการสัญลักษณ์กำลังประสบปัญหา โปรดลองใหม่ในอีกสักครู่";
 "recording.retry" = "ลองใหม่";
 "recording.retry.inProgress" = "กำลังลองใหม่…";
 "recording.retry.count" = "ลองใหม่ (%d)";
 "recording.retry.failed.missing" = "การลองใหม่ล้มเหลว: ไม่พบไฟล์เสียง";
 "recording.retry.failed.error" = "การลองใหม่ล้มเหลว: %@";
 "recording.retry.pending" = "พร้อมที่จะลองใหม่ – คลิกเพื่อสัญลักษณ์";
-"recording.provider.unknown" = "ผู้ให้บริการคลาวด์";
 "recording.cancel.dialog.title" = "ยกเลิกการบันทึก?";
 "recording.cancel.dialog.message" = "สิ่งนี้จะละทิ้งการบันทึกปัจจุบัน";
 "recording.cancel.dialog.confirm" = "ยกเลิกการบันทึก";
 "recording.cancel.dialog.resume" = "ดำเนินการต่อ";
-"recording.error.overlay.title" = "ข้อผิดพลาดการเชื่อมต่อเครือข่าย";
-"recording.error.overlay.message" = "กด 'ลองใหม่' ด้านล่างหรือสลับไปยังโหมดออฟไลน์เพื่อดำเนินการต่อ";
 "recording.mode.default" = "ค่าเริ่มต้น";
 "recording.dialog.window.title" = "หน้าต่างการบันทึก";
 "recording.button.start" = "เริ่มการบันทึก";

@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Отвори Настройки";
 "home.accessibility.restart.after.permission" = "Рестартирайте приложението след предоставяне на разрешение";
 "home.getting.started.completed" = "✓ Завършено";
-"home.whatsnew.badge" = "НОВО";
-"home.whatsnew.title" = "Какво ново?";
-"home.whatsnew.update1.date" = "3 юли";
-"home.whatsnew.update1.title" = "Parakeet вече е наличен";
-"home.whatsnew.update1.description" = "Изтеглете го директно от списъка с езикови модели при създаване на режим, за да го изпробвате днес.";
-"home.whatsnew.update2.date" = "5 юни";
-"home.whatsnew.update2.title" = "Поддръжка на всеки OpenAI-съвместим потребителски модел";
-"home.whatsnew.update2.description" = "Вече можете да добавите всякакви OpenAI-съвместими API към вашия списък с модели.";
-"home.whatsnew.update3.date" = "27 май";
-"home.whatsnew.update3.title" = "Изцяло нов мини прозорец за запис";
-"home.whatsnew.update3.description" = "Елегантен, минималистичен интерфейс за запис, който не ви пречи.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Последни актуализации";
@@ -821,10 +810,6 @@
 "page.header.learnMore" = "Научете повече";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Транскрипцията завършена";
-"recording.status.retrying" = "Повторен опит за транскрипция...";
-"recording.status.postprocessing" = "Последваща обработка с ИИ...";
-"recording.status.transcribing" = "Транскрибиране...";
 "recording.success.pasted" = "Поставено!";
 "recording.loading.retrying" = "Повторен опит...";
 "recording.loading.postprocessing" = "Обработка с ИИ...";
@@ -852,39 +837,22 @@
 "modes.provider.manageInLibrary" = "Управление в библиотеката →";
 "streaming.loading.warming" = "Загряване на локалния модел...";
 "streaming.status.listening" = "Слушане...";
-"streaming.status.streaming" = "Поточно предаване...";
 "streaming.status.disconnecting" = "Спиране...";
 "streaming.loading.connecting" = "Свързване със сървъра...";
 "streaming.loading.ready" = "Инициализиране на аудиото...";
 "streaming.loading.streaming" = "Очакване на реч...";
 "streaming.state.reconnecting" = "Повторно свързване...";
 "recording.stop.help" = "Спиране на записа (%@)";
-"recording.postprocessing.unavailable" = "Последващата обработка е недостъпна";
-"recording.postprocessing.missing.single" = "Липсва ключ за %@ – запис без последваща обработка";
-"recording.postprocessing.missing.multiple" = "Липсват API ключове – запис без последваща обработка";
-"recording.postprocessing.addKey" = "Добави ключ";
-"recording.offline.banner" = "Няма интернет връзка. Облачната транскрипция ще бъде неуспешна, докато не сте онлайн.";
-"recording.offline.title" = "Няма интернет връзка";
-"recording.offline.subtitle" = "Свържете се отново, за да продължите, или превключете на офлайн режим.";
-"recording.error.network" = "Проверете интернет връзката си и опитайте отново.";
-"recording.error.timeout" = "Заявката изтече. Проверете скоростта на връзката си и опитайте отново.";
-"recording.error.rateLimit" = "Направили сте твърде много заявки. Изчакайте малко и опитайте отново.";
-"recording.error.credits" = "Недостатъчно кредити. Добавете повече кредити в Настройки.";
-"recording.error.apiKey" = "Добавете вашия %@ API ключ в Настройки.";
-"recording.error.server" = "Услугата за транскрипция изпитва проблеми. Моля, опитайте отново след малко.";
 "recording.retry" = "Опитай отново";
 "recording.retry.inProgress" = "Повторен опит...";
 "recording.retry.count" = "Опитай отново (%d)";
 "recording.retry.failed.missing" = "Повторният опит е неуспешен: Аудио файлът не е намерен";
 "recording.retry.failed.error" = "Повторният опит е неуспешен: %@";
 "recording.retry.pending" = "Готов за повторен опит – натиснете за транскрибиране";
-"recording.provider.unknown" = "облачен доставчик";
 "recording.cancel.dialog.title" = "Отмяна на записа?";
 "recording.cancel.dialog.message" = "Това ще отхвърли текущия запис.";
 "recording.cancel.dialog.confirm" = "Отмяна на записа";
 "recording.cancel.dialog.resume" = "Продължи";
-"recording.error.overlay.title" = "Грешка в мрежовата връзка";
-"recording.error.overlay.message" = "Натиснете 'Опитай отново' по-долу или превключете на офлайн режим, за да продължите.";
 "recording.mode.default" = "По подразбиране";
 "recording.dialog.window.title" = "Диалог за запис";
 "recording.button.start" = "Стартиране на запис";

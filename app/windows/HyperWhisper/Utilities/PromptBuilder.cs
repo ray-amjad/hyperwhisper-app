@@ -13,10 +13,10 @@
 // or language catalog. focusedElement / focusedContent are pre-processed here
 // (mirrors macOS PromptBuilder.swift) so byte-for-byte behaviour is preserved.
 //
-// The embedded `SharedPrompts.*` resources are now DEAD (the core embeds the
-// templates) but are intentionally LEFT in the bundle — deleting them is a
-// separate cleanup. The loader helpers below are unused but retained for the
-// same reason.
+// The `SharedPrompts.*` resources are no longer embedded in this assembly and
+// the loader helpers that read them are gone — the shared core embeds the
+// templates itself. `shared-prompts/` remains the single source of truth,
+// consumed by hw-text at build time.
 //
 // - <<CLEANED>>...<<END>> output wrapping/extraction moved to the shared core's
 //   completion policy (see PostProcessingService.EvaluateLlmResponseJson /
@@ -24,8 +24,6 @@
 // - WrapTranscript stays native
 
 using System.Globalization;
-using System.IO;
-using System.Reflection;
 using System.Text;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
@@ -45,63 +43,6 @@ namespace HyperWhisper.Utilities;
 /// </summary>
 public static class PromptBuilder
 {
-    /// <summary>
-    /// Load a shared preset template from embedded resources.
-    /// </summary>
-    private static string LoadTemplate(string name)
-    {
-        var resourceName = $"HyperWhisper.SharedPrompts.presets.{name}.txt";
-        return LoadEmbeddedResource(resourceName);
-    }
-
-    /// <summary>
-    /// Load a shared prompt fragment from embedded resources.
-    /// </summary>
-    private static string LoadFragment(string name)
-    {
-        var resourceName = $"HyperWhisper.SharedPrompts.fragments.{name}.txt";
-        return LoadEmbeddedResource(resourceName);
-    }
-
-    /// <summary>
-    /// Load a shared app-aware formatting block from embedded resources.
-    /// </summary>
-    private static string LoadContextualBlock(string name)
-    {
-        var resourceName = $"HyperWhisper.SharedPrompts.contextual.{name}.txt";
-        string content;
-        try
-        {
-            content = LoadEmbeddedResource(resourceName);
-        }
-        catch (InvalidOperationException ex)
-        {
-            LoggingService.Warn($"PromptBuilder: Missing contextual prompt block '{name}': {ex.Message}");
-            return "";
-        }
-        return name == "email"
-            ? content.Replace("{{EMAIL_FORMATTING_RULES}}", LoadFragment("email-formatting-rules"))
-            : content;
-    }
-
-    /// <summary>
-    /// Load a shared mode flag from embedded resources.
-    /// </summary>
-    private static string LoadFlag(string name)
-    {
-        var resourceName = $"HyperWhisper.SharedPrompts.flags.{name}.txt";
-        return LoadEmbeddedResource(resourceName);
-    }
-
-    private static string LoadEmbeddedResource(string resourceName)
-    {
-        var assembly = Assembly.GetExecutingAssembly();
-        using var stream = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Missing embedded resource: {resourceName}");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
-
     /// <summary>
     /// Builds the complete static system prompt for the provided mode.
     /// Dynamic context (time, app context, vocabulary) is NOT included —

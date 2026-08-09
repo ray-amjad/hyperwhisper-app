@@ -35,8 +35,6 @@ struct MainAppView: View {
 
     // MARK: - State
     
-    /// Search text for filtering (if needed)
-    @State private var searchText: String = ""
     /// Controls the visibility of the split view columns
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     
