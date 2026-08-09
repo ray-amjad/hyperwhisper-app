@@ -746,22 +746,33 @@ export async function getPaidCreditGrantsForUsers(
   }));
 }
 
-// Hard cap on the number of license rows a single
-// getAccountKeysWithCreditsForUserIds call can return. Defensive only: a page
-// of customers is bounded to CUSTOMERS_PAGE_SIZE distinct userIds, but a
-// single userId can carry an unbounded number of license rows (e.g. repeated
-// admin grants), so without a ceiling here one admin page-load could pull an
-// unbounded result set. 5000 is generous enough that no realistic customer's
-// real license set should ever hit it.
-const ACCOUNT_KEYS_FOR_USER_IDS_ROW_LIMIT = 5000;
+// Hard cap on the number of license rows returned *per userId* by
+// getAccountKeysWithCreditsForUserIds. Defensive only: a page of customers is
+// bounded to CUSTOMERS_PAGE_SIZE distinct userIds, but a single userId can
+// carry an unbounded number of license rows (e.g. repeated admin grants —
+// `grant` has no idempotency guard), so without a ceiling here one admin
+// page-load could pull an unbounded result set for a single customer.
+//
+// This MUST be a per-user cap, not a flat cap on the whole batch: a flat
+// LIMIT applied to a batch of ~100 userIds means one customer with a large
+// license count can crowd out the row window entirely, silently dropping
+// OTHER customers from the result (they'd get zero rows back and vanish from
+// the page) while the "Showing X-Y of Z" count still claims the full total.
+// 100 per customer is generous enough that no realistic customer's real
+// license set should ever hit it, while guaranteeing every requested userId
+// gets at least some rows back.
+const ACCOUNT_KEYS_PER_USER_ROW_LIMIT = 100;
 
 /**
  * Fetch every license (with credit balance) belonging to the given users,
  * newest-first. Used by the admin list so that a customer's full license set
  * is shown even when a search only matched a subset of their licenses.
  *
- * Capped at ACCOUNT_KEYS_FOR_USER_IDS_ROW_LIMIT rows total (see constant doc)
- * as a defensive ceiling against unbounded-fan-out accounts.
+ * Capped at ACCOUNT_KEYS_PER_USER_ROW_LIMIT rows *per userId* (see constant
+ * doc) via a `ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at
+ * DESC)` window — every userId passed in gets its own bounded row budget, so
+ * one customer's outsized license count can never starve another customer in
+ * the same batch out of the result entirely.
  *
  * Display order for a page of customers is determined by the caller (the
  * admin router reorders by the canonical page order returned from
@@ -772,11 +783,35 @@ export async function getAccountKeysWithCreditsForUserIds(
   userIds: string[]
 ): Promise<Array<AccountKeyRow & { credits: number }>> {
   if (userIds.length === 0) return [];
-  const rows = await db.query.accountKeys.findMany({
-    where: inArray(accountKeys.userId, userIds),
-    orderBy: desc(accountKeys.createdAt),
-    limit: ACCOUNT_KEYS_FOR_USER_IDS_ROW_LIMIT,
-  });
+
+  const rowNumber = sql<number>`row_number() over (partition by ${accountKeys.userId} order by ${accountKeys.createdAt} desc)`;
+
+  const ranked = db.$with("ranked_account_keys").as(
+    db
+      .select({
+        id: accountKeys.id,
+        key: accountKeys.key,
+        email: accountKeys.email,
+        userId: accountKeys.userId,
+        status: accountKeys.status,
+        polarLicenseKeyId: accountKeys.polarLicenseKeyId,
+        polarCustomerId: accountKeys.polarCustomerId,
+        stripeCustomerId: accountKeys.stripeCustomerId,
+        stripeSessionId: accountKeys.stripeSessionId,
+        createdAt: accountKeys.createdAt,
+        rowNumber: rowNumber.as("row_number"),
+      })
+      .from(accountKeys)
+      .where(inArray(accountKeys.userId, userIds))
+  );
+
+  const rows = await db
+    .with(ranked)
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rowNumber} <= ${ACCOUNT_KEYS_PER_USER_ROW_LIMIT}`)
+    .orderBy(desc(ranked.createdAt));
+
   const licenses = rows.map(drizzleAccountKeyToRow);
   return attachPooledCredits(licenses);
 }

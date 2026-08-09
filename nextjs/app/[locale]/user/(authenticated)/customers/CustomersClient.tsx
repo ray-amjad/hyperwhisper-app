@@ -107,6 +107,18 @@ export default function CustomersClient() {
   // nothing.
   const isTransitioning = isFetching && !loading;
 
+  // The server clamps an out-of-range page to the last valid one and echoes
+  // the clamped value back as data.page. Sync local page state to that once
+  // a fetch completes, so the pager (highlighted page, Prev/Next disabled
+  // state) never disagrees with what was actually fetched — e.g. an admin
+  // sitting on the last page when the result set shrinks out from under
+  // them. Guarded by the equality check, so this settles rather than loops.
+  useEffect(() => {
+    if (data && data.page !== page) {
+      setPage(data.page);
+    }
+  }, [data, page]);
+
   const [showGrant, setShowGrant] = useState(false);
   const [grantEmail, setGrantEmail] = useState("");
   const [grantResult, setGrantResult] = useState<{ email: string; licenseKey: string } | null>(null);
@@ -115,6 +127,10 @@ export default function CustomersClient() {
     onSuccess: (data) => {
       setGrantResult(data);
       setGrantEmail("");
+      // A newly granted customer sorts first (newest createdAt wins page 1),
+      // so jump back to page 1 — otherwise an admin on page 3+ sees no
+      // visible change after granting.
+      setPage(1);
       refetch();
     },
   });
@@ -445,9 +461,10 @@ export default function CustomersClient() {
                             <button
                               type="button"
                               onClick={() => startEdit(customer.userId, customer.email)}
+                              disabled={isTransitioning}
                               title="Edit email"
                               aria-label="Edit email"
-                              className="text-gray-500 hover:text-emerald-300 transition-colors"
+                              className="text-gray-500 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
                             >
                               <svg
                                 className="h-3.5 w-3.5"
@@ -536,7 +553,8 @@ export default function CustomersClient() {
                                     credits: license.credits,
                                   })
                                 }
-                                className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium"
+                                disabled={isTransitioning}
+                                className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
                               >
                                 Add credits
                               </button>
@@ -549,7 +567,8 @@ export default function CustomersClient() {
                                       key: license.key,
                                     })
                                   }
-                                  className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded transition-colors text-[11px] font-medium"
+                                  disabled={isTransitioning}
+                                  className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-500/20"
                                 >
                                   Refund
                                 </button>
