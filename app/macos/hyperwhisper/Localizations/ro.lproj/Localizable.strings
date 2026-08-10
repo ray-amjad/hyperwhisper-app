@@ -1081,10 +1081,6 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "history.autoDelete.unit.minutes" = "Minute";
 "history.autoDelete.unit.hours" = "Ore";
 "history.autoDelete.unit.days" = "Zile";
-"history.autoDelete.unit.minutes.plural" = "minute";
-"history.autoDelete.unit.hours.plural" = "ore";
-"history.autoDelete.unit.days.plural" = "zile";
-"history.autoDelete.status.disabled" = "Ștergere automată este dezactivată";
 "history.autoDelete.status.enabled" = "Ștergeți înregistrări mai vechi decât %d %@";
 "history.autoDelete.cleanup.noItems" = "Nicio înregistrare de șters";
 "history.autoDelete.cleanup.summary" = "Șterse %d înregistrări și eliberate %@";

@@ -81,37 +81,6 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         }
     }
 
-    /// API endpoint for transcription
-    var transcriptionEndpoint: String {
-        switch self {
-        case .hyperwhisper:
-            return NetworkConfig.hyperwhisperCloudURL
-        case .openai:
-            return "https://api.openai.com/v1/audio/transcriptions"
-        case .groq:
-            return "https://api.groq.com/openai/v1/audio/transcriptions"
-        case .deepgram:
-            return "https://api.deepgram.com/v1/listen"
-        case .assemblyAI:
-            return "https://api.assemblyai.com/v2/transcript"
-        case .elevenLabs:
-            return "https://api.elevenlabs.io/v1/speech-to-text"
-        case .mistral:
-            return "https://api.mistral.ai/v1/audio/transcriptions"
-        case .soniox:
-            return "https://api.soniox.com/v1/transcriptions"
-        case .gemini:
-            return "https://generativelanguage.googleapis.com/v1beta/models"
-        case .grok:
-            return "https://api.x.ai/v1/stt"
-        case .microsoftAzureSpeech, .googleSpeech:
-            // Routed through HyperWhisper Cloud — the upstream URL is not
-            // user-facing. Returning the Fly endpoint keeps callers that
-            // inspect this string consistent across HW-Cloud-only providers.
-            return NetworkConfig.hyperwhisperCloudURL
-        }
-    }
-
     /// API key URL for getting keys
     var apiKeyURL: String {
         switch self {
@@ -197,18 +166,6 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // Inline V2 recognize caps near 10 MB (~1 min). GCS upload path is
             // out of scope for v1; cap matches the backend's 9.5 MB guard.
             return 9_500_000
-        }
-    }
-
-    /// Human-readable file size limit string for error messages
-    var maxFileSizeDisplay: String {
-        let bytes = maxFileSizeBytes
-        if bytes >= 1024 * 1024 * 1024 {
-            let gb = Double(bytes) / (1024.0 * 1024.0 * 1024.0)
-            return String(format: "%.1f GB", gb)
-        } else {
-            let mb = bytes / (1024 * 1024)
-            return "\(mb) MB"
         }
     }
 
@@ -736,12 +693,6 @@ struct CloudTranscriptionModels {
     /// - Returns: Array of model IDs that are marked as available
     static var availableModelIds: [String] {
         availableModels.filter { $0.isAvailable }.map { $0.id }
-    }
-    
-    /// Get all available models for UI pickers
-    /// - Returns: Array of available models
-    static var availableModelsForPicker: [CloudTranscriptionModel] {
-        availableModels.filter { $0.isAvailable }
     }
     
     /// Get models for a specific provider

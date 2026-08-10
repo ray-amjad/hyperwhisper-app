@@ -145,30 +145,6 @@ class AutoPasteHandler {
 
     // MARK: - Accessibility Helpers
 
-    /// Checks and optionally prompts for Accessibility permission
-    ///
-    /// **Parameters:**
-    /// - `prompt`: Whether to show system permission dialog if not granted
-    ///
-    /// **Returns:**
-    /// true if permission is already granted, false otherwise
-    func hasAccessibilityAccess(prompt: Bool = true) -> Bool {
-        return AccessibilityHelper.shared.checkAccessibilityPermission(prompt: prompt)
-    }
-
-    /// Copies text to the general pasteboard
-    ///
-    /// **Parameters:**
-    /// - `text`: The text to copy
-    /// - `autoRestore`: Whether to auto-restore previous clipboard (default: true)
-    func putOnPasteboard(_ text: String, autoRestore: Bool = true) {
-        if autoRestore {
-            AccessibilityHelper.shared.copyToClipboard(text, respectSettings: settingsManager)
-        } else {
-            AccessibilityHelper.shared.copyToClipboard(text)
-        }
-    }
-
     // MARK: - Alerts
 
     /// Shows an alert when Accessibility permission is missing

@@ -284,27 +284,6 @@ class LocalModelManager: NSObject, ObservableObject {
         }
     }
 
-    /// Force checksum validation for a model already on disk.
-    func validateChecksum(for modelId: String) {
-        guard let model = availableModels.first(where: { $0.id == modelId }),
-              let url = model.localURL else { return }
-        checksumStates[modelId] = .verifying
-        Task.detached { [weak self] in
-            guard let self else { return }
-            let result = self.computeChecksum(for: url)
-            await MainActor.run {
-                switch result {
-                case .success(let digest):
-                    self.updateChecksumState(for: modelId, expected: model.sha256, actual: digest)
-                case .failure(let error):
-                    self.logger.error("Checksum validation failed: \(error.localizedDescription, privacy: .public)")
-                    self.errorMessage = "Could not verify checksum for \(model.displayName)."
-                    self.checksumStates[modelId] = .invalid(expected: model.sha256, actual: "error")
-                }
-            }
-        }
-    }
-
     // MARK: Helpers
     private func createModelsDirectoryIfNeeded() {
         do {

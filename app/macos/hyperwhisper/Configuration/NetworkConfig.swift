@@ -36,12 +36,6 @@ struct NetworkConfig {
     /// device_id is provided - the backend records the validation.
     static let licenseValidateEndpoint = "/api/license/validate"
     
-    /// Endpoint for retrieving customer portal URL
-    /// POST /api/license/portal
-    /// Body: { customer_id: string }
-    /// Response: { portal_url: string }
-    static let customerPortalEndpoint = "/api/license/portal"
-
     // MARK: - HyperWhisper Cloud Endpoints
 
     /// Base URL for HyperWhisper Cloud transcription service (v2)
@@ -63,14 +57,6 @@ struct NetworkConfig {
 
     // MARK: - Streaming Endpoints (New)
 
-    /// Streaming transcription endpoint - zero-buffer audio streaming
-    /// POST /transcribe
-    /// Headers: Content-Type: audio/*, Content-Length: required
-    /// Query params: license_key OR device_id, language, mode, initial_prompt
-    /// Body: Raw binary audio (NOT multipart)
-    /// Response: { text, language, duration, cost: { usd, credits }, metadata }
-    static let hyperwhisperCloudTranscribeEndpoint = "/transcribe"
-
     /// Standalone post-processing endpoint - text correction without transcription
     /// POST /post-process
     /// Content-Type: application/json
@@ -88,9 +74,6 @@ struct NetworkConfig {
     
     /// Request timeout for standard API calls (in seconds)
     static let requestTimeout: TimeInterval = 30
-    
-    /// Extended timeout for file downloads (in seconds)
-    static let downloadTimeout: TimeInterval = 300
     
     /// Timeout for license validation calls (in seconds)
     /// Shorter timeout to prevent blocking UI

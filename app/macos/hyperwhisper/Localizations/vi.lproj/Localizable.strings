@@ -1081,10 +1081,6 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "history.autoDelete.unit.minutes" = "Phút";
 "history.autoDelete.unit.hours" = "Giờ";
 "history.autoDelete.unit.days" = "Ngày";
-"history.autoDelete.unit.minutes.plural" = "phút";
-"history.autoDelete.unit.hours.plural" = "giờ";
-"history.autoDelete.unit.days.plural" = "ngày";
-"history.autoDelete.status.disabled" = "Xóa tự động bị vô hiệu hóa";
 "history.autoDelete.status.enabled" = "Xóa các bản ghi âm cũ hơn %d %@";
 "history.autoDelete.cleanup.noItems" = "Không có bản ghi âm nào để xóa";
 "history.autoDelete.cleanup.summary" = "Đã xóa %d bản ghi âm và giải phóng %@";

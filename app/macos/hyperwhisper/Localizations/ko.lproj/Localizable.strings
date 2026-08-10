@@ -1081,10 +1081,6 @@
 "history.autoDelete.unit.minutes" = "분";
 "history.autoDelete.unit.hours" = "시간";
 "history.autoDelete.unit.days" = "일";
-"history.autoDelete.unit.minutes.plural" = "분";
-"history.autoDelete.unit.hours.plural" = "시간";
-"history.autoDelete.unit.days.plural" = "일";
-"history.autoDelete.status.disabled" = "자동 삭제가 비활성화됨";
 "history.autoDelete.status.enabled" = "%d %@보다 오래된 녹음 삭제";
 "history.autoDelete.cleanup.noItems" = "삭제할 녹음 없음";
 "history.autoDelete.cleanup.summary" = "%d개 녹음 삭제 및 %@ 확보";

@@ -85,16 +85,6 @@ class VADModelManager {
         return path
     }
 
-    /// Check if the VAD model is available in the app bundle.
-    ///
-    /// USAGE: Call this before enabling VAD to ensure the model is available.
-    /// If returns false, VAD should be disabled gracefully.
-    ///
-    /// - Returns: true if the model file exists in the bundle
-    func isModelAvailable() -> Bool {
-        return Bundle.main.url(forResource: "ggml-silero-v5.1.2", withExtension: "bin") != nil
-    }
-
     /// Clear the cached model path.
     ///
     /// Useful for testing or if the bundle is updated at runtime (unlikely).

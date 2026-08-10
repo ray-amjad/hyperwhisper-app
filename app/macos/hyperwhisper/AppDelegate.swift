@@ -212,14 +212,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updaterController.updater.automaticallyDownloadsUpdates = enabled
     }
     
-    func setAutomaticallyDownloadsUpdates(_ enabled: Bool) {
-        ensureUpdaterStarted()
-        logger.info("Configuring automatic downloads", context: [
-            "enabled": String(enabled)
-        ])
-        updaterController.updater.automaticallyDownloadsUpdates = enabled
-    }
-    
     func checkForUpdates() {
         ensureUpdaterStarted()
         logger.logUpdateCheckStarted(automatic: false)

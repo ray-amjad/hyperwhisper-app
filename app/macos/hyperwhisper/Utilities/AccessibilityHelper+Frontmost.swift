@@ -82,42 +82,4 @@ extension AccessibilityHelper {
         ]
         return remoteDesktopApps.contains(bundleId)
     }
-
-    // MARK: - Window Title Extraction
-
-    /// Get the title of the frontmost window
-    /// This is useful for detecting which project is open in an IDE
-    /// - Returns: The window title, or nil if unavailable
-    /// NOTE: This may require Screen Recording permission on macOS 10.15+
-    func getFrontmostWindowTitle() -> String? {
-        guard let frontApp = NSWorkspace.shared.frontmostApplication,
-              let pid = frontApp.processIdentifier as pid_t? else {
-            return nil
-        }
-
-        // Get all visible windows (correct API usage for getting all windows)
-        // Using .optionOnScreenOnly to get all windows that are currently visible
-        let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-
-        // Find windows belonging to the frontmost app
-        let appWindows = windowList.filter { windowInfo in
-            guard let windowPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t else { return false }
-            return windowPID == pid
-        }
-
-        // Get the main window (first one with a name)
-        // Note: Reading window titles may fail without Screen Recording permission
-        guard let mainWindow = appWindows.first(where: { info in
-            if let windowName = info[kCGWindowName as String] as? String {
-                return !windowName.isEmpty
-            }
-            return false
-        }) else {
-            // If we couldn't get the window title, it might be due to permissions
-            // Return nil gracefully if window title couldn't be read
-            return nil
-        }
-
-        return mainWindow[kCGWindowName as String] as? String
-    }
 }

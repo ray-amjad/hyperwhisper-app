@@ -89,12 +89,6 @@ class TranscriptionPipeline: ObservableObject {
         return false
     }
 
-    /// The current transcription progress (0.0 to 1.0).
-    var transcriptionProgress: Float {
-        if case .transcribing(_, let progress) = state { return progress }
-        return 0.0
-    }
-
     /// The current error message, if any.
     var errorMessage: String? {
         if case .error(let message) = state { return message }
