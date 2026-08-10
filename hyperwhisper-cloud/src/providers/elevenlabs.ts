@@ -4,7 +4,17 @@
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  audioExtensionFromContentType,
+  fetchWithTimeout,
+  logProviderEvent,
+  readErrorBodyPreview,
+} from './utils';
+
+// ElevenLabs treats mp3 as the *fallback* container rather than one it matches
+// on, so an `mp3`/`mpeg` hint never wins over another container named in the
+// same content type. Leaving mp3 out of the match set preserves that.
+const ELEVENLABS_AUDIO_EXTENSIONS = ['wav', 'm4a', 'webm', 'ogg', 'flac'] as const;
 
 // ElevenLabs `keyterms` limits (scribe_v2): 1000 terms / 50 chars / 5 words each.
 // We cap term count to the platform's 100-term client cap.
@@ -42,13 +52,7 @@ export async function transcribeWithElevenLabs(
     throw new Error('ELEVENLABS_API_KEY not configured');
   }
 
-  // Determine file extension from content type
-  let ext = 'mp3';
-  if (contentType.includes('wav')) ext = 'wav';
-  else if (contentType.includes('m4a') || contentType.includes('mp4')) ext = 'm4a';
-  else if (contentType.includes('webm')) ext = 'webm';
-  else if (contentType.includes('ogg')) ext = 'ogg';
-  else if (contentType.includes('flac')) ext = 'flac';
+  const ext = audioExtensionFromContentType(contentType, ELEVENLABS_AUDIO_EXTENSIONS) ?? 'mp3';
 
   const modelId = context.model || 'scribe_v2';
   const formData = new FormData();

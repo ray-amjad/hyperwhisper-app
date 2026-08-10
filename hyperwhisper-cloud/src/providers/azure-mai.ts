@@ -15,7 +15,13 @@ import { AZURE_MAI_MAX_BYTES } from '../lib/constants';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  audioExtensionFromContentType,
+  computeUploadTimeoutMs,
+  fetchWithTimeout,
+  logProviderEvent,
+  readErrorBodyPreview,
+} from './utils';
 
 const MAX_PHRASES = 100;
 const MAX_PHRASE_LEN = 50;
@@ -25,14 +31,6 @@ const MAX_PHRASE_LEN = 50;
 // client can re-encode.
 // Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe
 const AZURE_MAI_ACCEPTED_FORMATS = ['wav', 'mp3', 'flac'] as const;
-
-function getExtension(contentType: string): 'wav' | 'mp3' | 'flac' {
-  const lower = contentType.toLowerCase();
-  if (lower.includes('wav')) return 'wav';
-  if (lower.includes('mp3') || lower.includes('mpeg')) return 'mp3';
-  if (lower.includes('flac')) return 'flac';
-  throw new UnsupportedAudioFormatError('Azure MAI', contentType, AZURE_MAI_ACCEPTED_FORMATS);
-}
 
 function parsePhraseList(initialPrompt: string): string[] {
   return initialPrompt
@@ -98,17 +96,15 @@ export async function transcribeWithAzureMai(
     throw new AudioTooLargeError('Azure MAI', audio.byteLength, AZURE_MAI_MAX_BYTES);
   }
 
-  let ext: 'wav' | 'mp3' | 'flac';
-  try {
-    ext = getExtension(contentType);
-  } catch (error) {
-    if (error instanceof UnsupportedAudioFormatError) {
-      logProviderEvent(provider, 'unsupported_audio_format', {
-        contentType,
-        acceptedFormats: AZURE_MAI_ACCEPTED_FORMATS,
-      }, context);
-    }
-    throw error;
+  // MAI takes only wav/mp3/flac, so an unmatched content type is a hard 415
+  // rather than the fallback extension the multi-format adapters use.
+  const ext = audioExtensionFromContentType(contentType.toLowerCase(), AZURE_MAI_ACCEPTED_FORMATS);
+  if (!ext) {
+    logProviderEvent(provider, 'unsupported_audio_format', {
+      contentType,
+      acceptedFormats: AZURE_MAI_ACCEPTED_FORMATS,
+    }, context);
+    throw new UnsupportedAudioFormatError('Azure MAI', contentType, AZURE_MAI_ACCEPTED_FORMATS);
   }
 
   const azureRegion = pickAzureRegion();

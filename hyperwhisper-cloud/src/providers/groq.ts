@@ -4,20 +4,13 @@
 import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
-
-/**
- * Get file extension from content type
- */
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  fetchWithTimeout,
+  logProviderEvent,
+  readErrorBodyPreview,
+} from './utils';
 
 /**
  * Transcribe audio with Groq Whisper large-v3
@@ -36,7 +29,7 @@ export async function transcribeWithGroq(
     throw new Error('GROQ_API_KEY not configured');
   }
 
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
   const model = context.model || 'whisper-large-v3-turbo';
   const formData = new FormData();
 

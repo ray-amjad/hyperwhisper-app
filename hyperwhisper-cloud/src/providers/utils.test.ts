@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  computeUploadTimeoutMs,
+  estimateSecondsFromBytes,
+  fetchWithTimeout,
+  readErrorBodyPreview,
+} from './utils';
 import { ProviderUnavailableError } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
@@ -29,6 +36,59 @@ describe('estimateSecondsFromBytes (64kbps encoded-audio duration heuristic)', (
   test('scales linearly with byte length', () => {
     expect(estimateSecondsFromBytes(240_000)).toBe(30);
     expect(estimateSecondsFromBytes(0)).toBe(0);
+  });
+});
+
+describe('audioExtensionFromContentType (multipart filename extension)', () => {
+  test('maps each recognised container to its extension', () => {
+    const cases: Array<[string, (typeof DEFAULT_AUDIO_EXTENSIONS)[number]]> = [
+      ['audio/wav', 'wav'],
+      ['audio/x-wav', 'wav'],
+      ['audio/mp3', 'mp3'],
+      ['audio/mpeg', 'mp3'],
+      ['audio/m4a', 'm4a'],
+      ['audio/mp4', 'm4a'],
+      ['audio/webm', 'webm'],
+      ['audio/ogg', 'ogg'],
+      ['audio/flac', 'flac'],
+    ];
+
+    for (const [contentType, expected] of cases) {
+      expect(audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS)).toBe(expected);
+    }
+  });
+
+  test('returns undefined for an unrecognised container so the caller applies its own fallback', () => {
+    expect(audioExtensionFromContentType('application/octet-stream', DEFAULT_AUDIO_EXTENSIONS)).toBeUndefined();
+    expect(audioExtensionFromContentType('', DEFAULT_AUDIO_EXTENSIONS)).toBeUndefined();
+    // aac is not in the default set — only Voxtral names it.
+    expect(audioExtensionFromContentType('audio/aac', DEFAULT_AUDIO_EXTENSIONS)).toBeUndefined();
+  });
+
+  test('only resolves extensions the caller listed as accepted', () => {
+    // Azure MAI takes wav/mp3/flac only; everything else must miss so the
+    // adapter can raise UnsupportedAudioFormatError instead of uploading.
+    const azure = ['wav', 'mp3', 'flac'] as const;
+    expect(audioExtensionFromContentType('audio/flac', azure)).toBe('flac');
+    expect(audioExtensionFromContentType('audio/m4a', azure)).toBeUndefined();
+    expect(audioExtensionFromContentType('audio/webm', azure)).toBeUndefined();
+
+    const withAac = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
+    expect(audioExtensionFromContentType('audio/aac', withAac)).toBe('aac');
+  });
+
+  test('match order is fixed by the hint table, not by the accepted list', () => {
+    // A content type naming two containers resolves to the earlier hint —
+    // mp4 (m4a) beats the aac codec parameter, whichever order `accepted` is in.
+    const withAac = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
+    const reordered = ['aac', 'flac', 'ogg', 'webm', 'm4a', 'mp3', 'wav'] as const;
+    expect(audioExtensionFromContentType('audio/mp4; codecs=aac', withAac)).toBe('m4a');
+    expect(audioExtensionFromContentType('audio/mp4; codecs=aac', reordered)).toBe('m4a');
+  });
+
+  test('matching is case-sensitive — callers fold case themselves', () => {
+    expect(audioExtensionFromContentType('AUDIO/FLAC', DEFAULT_AUDIO_EXTENSIONS)).toBeUndefined();
+    expect(audioExtensionFromContentType('AUDIO/FLAC'.toLowerCase(), DEFAULT_AUDIO_EXTENSIONS)).toBe('flac');
   });
 });
 

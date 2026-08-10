@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v4 auto-routed to v5 after 2026-06-30 (Soniox docs/changelog); v5 is now the
@@ -44,16 +44,6 @@ const SONIOX_INPUT_ERROR_TYPES = new Set([
 
 function authHeader(apiKey: string): Record<string, string> {
   return { Authorization: `Bearer ${apiKey}` };
-}
-
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
 }
 
 function toContextTerms(initialPrompt: string): string[] {
@@ -143,8 +133,9 @@ export async function transcribeWithSoniox(
       model, audioBytes: audio.byteLength, contentType, language: language || 'auto',
     }, context);
 
+    const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
     const uploadForm = new FormData();
-    uploadForm.append('file', new Blob([audio], { type: contentType }), `audio.${getExtension(contentType)}`);
+    uploadForm.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
 
     const uploadResp = await fetchWithTimeout(provider, `${SONIOX_BASE}/v1/files`, {
       method: 'POST',

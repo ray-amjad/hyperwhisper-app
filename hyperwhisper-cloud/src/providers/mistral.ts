@@ -5,22 +5,21 @@
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  estimateSecondsFromBytes,
+  fetchWithTimeout,
+  logProviderEvent,
+  readErrorBodyPreview,
+} from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'voxtral-mini-latest';
 const MAX_CONTEXT_BIAS_TERMS = 100;
 
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('aac')) return 'aac';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
+/** Voxtral additionally takes raw AAC, which the other adapters don't name. */
+const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
 
 /** Split a comma/newline vocabulary prompt into ≤100 `context_bias` phrases. */
 function toContextBias(initialPrompt: string): string[] {
@@ -47,7 +46,7 @@ export async function transcribeWithMistral(
     throw new Error('MISTRAL_API_KEY not configured');
   }
 
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, MISTRAL_AUDIO_EXTENSIONS) ?? 'wav';
   const formData = new FormData();
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model', model);
