@@ -2,14 +2,14 @@
 // Fastest and cheapest STT - $0.00185/min using whisper-large-v3
 
 import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
+  providerHttpError,
 } from './utils';
 
 /**
@@ -76,29 +76,10 @@ export async function transcribeWithGroq(
   }
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs: Math.round(fetchMs),
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('Groq API key is invalid');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Groq', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Groq', `upstream 5xx: ${response.status}`);
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('Groq', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startTime, context, {
+      label: 'Groq',
+      authMessage: 'Groq API key is invalid',
+    });
   }
 
   let data: {

@@ -7,9 +7,9 @@
 
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -207,27 +207,13 @@ export async function transcribeWithGemini(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      model, elapsedMs, status: response.status, kind, bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('Gemini API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Gemini', 'rate limit exceeded');
-    }
-    if (response.status === 402) {
-      throw new ProviderUnavailableError('Gemini', 'insufficient funds');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Gemini', `upstream 5xx: ${response.status}`);
-    }
-    throw new ProviderInputError('Gemini', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Gemini',
+      authStatuses: [401, 403],
+      authMessage: 'Gemini API key is invalid or unauthorized',
+      failoverOn402: true,
+      logDetails: { model },
+    });
   }
 
   let data: {
