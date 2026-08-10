@@ -3,6 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:loc="clr-namespace:HyperWhisper.Localization"
       xmlns:controls="clr-namespace:HyperWhisper.Views.Controls"
+      xmlns:utilities="clr-namespace:HyperWhisper.Utilities"
       Title="{loc:Loc sidebar.home}" Background="{DynamicResource ContentBackgroundBrush}">
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource PagePadding}">
         <StackPanel MaxWidth="{StaticResource ContentMaxWidthWide}">
@@ -259,8 +260,9 @@
                                                    VerticalAlignment="Center" Margin="12,0,0,0"/>
                                     </StackPanel>
 
-                                    <!-- Release title -->
-                                    <TextBlock Text="{Binding ReleaseTitle}" FontSize="13" FontWeight="Medium"
+                                    <!-- Release title (<b>/<i> in the feed render as real emphasis) -->
+                                    <TextBlock utilities:InlineHtmlText.Source="{Binding ReleaseTitle}"
+                                               FontSize="13" FontWeight="Medium"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                TextWrapping="Wrap" Margin="0,0,0,0">
                                         <TextBlock.Style>
@@ -283,7 +285,8 @@
                                                     <TextBlock Text="&#x2022;" FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                Margin="0,0,6,0" VerticalAlignment="Top"/>
-                                                    <TextBlock Text="{Binding}" FontSize="12"
+                                                    <TextBlock utilities:InlineHtmlText.Source="{Binding}"
+                                                               FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                TextWrapping="Wrap"/>
                                                 </StackPanel>

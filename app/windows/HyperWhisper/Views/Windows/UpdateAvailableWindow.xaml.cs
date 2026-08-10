@@ -8,6 +8,7 @@ using NetSparkleUpdater.Events;
 using NetSparkleUpdater.Interfaces;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Views.Windows;
 
@@ -142,6 +143,8 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
     /// <summary>
     /// Parses simple HTML (h2, ul/li, p) into themed WPF TextBlocks.
     /// Handles the typical appcast release notes format without needing a WebBrowser.
+    /// Inline emphasis (&lt;b&gt;, &lt;i&gt;) is carried through to the TextBlock
+    /// rather than stripped, so a bold lead-in in the feed still reads as bold.
     /// </summary>
     private static void ParseHtmlToTextBlocks(string html, StackPanel container)
     {
@@ -153,14 +156,8 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
         // Process <p> paragraphs
         // Fall back to plain text lines
 
-        var lines = new List<(string text, bool isHeader, bool isBullet)>();
-
-        // Extract h2 headers
-        var h2Regex = new Regex(@"<h[23][^>]*>(.*?)</h[23]>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        // Extract li items
-        var liRegex = new Regex(@"<li[^>]*>(.*?)</li>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        // Extract p tags
-        var pRegex = new Regex(@"<p[^>]*>(.*?)</p>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        // Each entry keeps its inline markup; only block tags are consumed here.
+        var lines = new List<(string html, bool isHeader, bool isBullet)>();
 
         // Simple sequential parse: walk through the HTML and extract elements in order
         var elementRegex = new Regex(
@@ -174,9 +171,9 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
             foreach (Match match in matches)
             {
                 var tag = match.Groups[1].Value.ToLowerInvariant();
-                var content = StripHtmlTags(match.Groups[2].Value).Trim();
+                var content = match.Groups[2].Value;
 
-                if (string.IsNullOrWhiteSpace(content)) continue;
+                if (InlineHtml.PlainText(content).Length == 0) continue;
 
                 bool isHeader = tag.StartsWith("h");
                 bool isBullet = tag == "li";
@@ -187,7 +184,7 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
         else
         {
             // Fallback: treat as plain text, split by newlines
-            var plainText = StripHtmlTags(html);
+            var plainText = InlineHtml.PlainText(html, collapseWhitespace: false);
             foreach (var line in plainText.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
                 var trimmed = line.Trim();
@@ -207,8 +204,11 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
         }
     }
 
-    private static Border CreateReleaseNoteCard(string text, bool isHeader, bool isBullet)
+    private static Border CreateReleaseNoteCard(string html, bool isHeader, bool isBullet)
     {
+        // Glyph selection reads the wording, so it needs the text without markup.
+        var text = InlineHtml.PlainText(html);
+
         var badge = new Border
         {
             Width = 20,
@@ -232,13 +232,13 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
 
         var textBlock = new TextBlock
         {
-            Text = text,
             FontSize = isHeader ? 13 : 12,
             FontWeight = isHeader ? FontWeights.SemiBold : FontWeights.Normal,
             TextWrapping = TextWrapping.Wrap,
             VerticalAlignment = VerticalAlignment.Center
         };
         textBlock.SetResourceReference(ForegroundProperty, isHeader ? "TextPrimaryBrush" : "TextSecondaryBrush");
+        InlineHtmlText.Apply(textBlock, html);
 
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -281,20 +281,5 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
         }
 
         return isHeader || isBullet ? "+" : "~";
-    }
-
-    /// <summary>
-    /// Strips all HTML tags from a string, decodes common entities.
-    /// </summary>
-    private static string StripHtmlTags(string html)
-    {
-        var result = Regex.Replace(html, @"<[^>]+>", "");
-        result = result.Replace("&amp;", "&")
-                       .Replace("&lt;", "<")
-                       .Replace("&gt;", ">")
-                       .Replace("&quot;", "\"")
-                       .Replace("&#39;", "'")
-                       .Replace("&nbsp;", " ");
-        return result;
     }
 }
