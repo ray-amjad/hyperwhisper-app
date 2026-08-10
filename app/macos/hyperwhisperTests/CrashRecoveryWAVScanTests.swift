@@ -40,9 +40,7 @@ struct CrashRecoveryWAVScanTests {
         #expect(candidates.count == 1)
         let candidate = try #require(candidates.first)
         #expect(candidate.url.lastPathComponent == incompleteName)
-        #expect(candidate.path == candidate.url.path)
-        #expect(candidate.path.hasSuffix("/\(incompleteName)"))
-        #expect(FileManager.default.fileExists(atPath: candidate.path))
+        #expect(FileManager.default.fileExists(atPath: candidate.url.path))
         // Creation date drives the staleness guard, so it must survive the hop.
         #expect(candidate.creationDate != nil)
     }
