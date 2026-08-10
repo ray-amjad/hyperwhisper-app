@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.9.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.9.0 - ARM64 -->
+<item>
+<title>1.9.0 (ARM64)</title>
+<pubDate>Mon, 10 Aug 2026 02:03:15 +0000</pubDate>
+<sparkle:version>1.9.0</sparkle:version>
+<sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.9.0-arm64-Setup.exe"
+length="144003776"
+type="application/octet-stream"
+sparkle:edSignature="q9Nu4V2kskeL0AwRhvtnQdNbaol6EPVLLeKWTcoIlFi2mDKXLEZSEsjpGpgzbbe2/eAWcQXV/TlRcWrnUTvSDg=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.9.0</h2>
+<ul>
+<li>New models — OpenAI gpt-transcribe and gpt-live-transcribe, AssemblyAI Universal-3.5 Pro, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4.5, Mistral Medium 3.5 and more.</li><li>Live dictation with Deepgram now works properly — it no longer stops after 10 seconds or drops words mid-sentence.</li><li>Live dictation no longer loses a finished transcription, and starting a recording right after launch is now reliable.</li><li>Long dictations through Groq are now cleaned up properly instead of falling back to the raw transcript.</li><li>"Remove filler words" now applies to live dictation.</li><li>Fixed vocabulary replacements trimming your text when no vocabulary was set.</li><li>Fixed lost paragraph breaks in dictated text, and a crash when exporting backup settings.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.9.0 - x64 -->
+<item>
+<title>1.9.0 (x64)</title>
+<pubDate>Mon, 10 Aug 2026 02:03:15 +0000</pubDate>
+<sparkle:version>1.9.0</sparkle:version>
+<sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.9.0-x64-Setup.exe"
+length="181537048"
+type="application/octet-stream"
+sparkle:edSignature="dxDvK48NO/H2drDxfHMeCbYxpJAP7gukeFz6rSEjwzyOuOIAL0K+0TqSI/exxfG5oNcob8UQSseHoMLOdpfyCw=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.9.0</h2>
+<ul>
+<li>New models — OpenAI gpt-transcribe and gpt-live-transcribe, AssemblyAI Universal-3.5 Pro, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4.5, Mistral Medium 3.5 and more.</li><li>Live dictation with Deepgram now works properly — it no longer stops after 10 seconds or drops words mid-sentence.</li><li>Live dictation no longer loses a finished transcription, and starting a recording right after launch is now reliable.</li><li>Long dictations through Groq are now cleaned up properly instead of falling back to the raw transcript.</li><li>"Remove filler words" now applies to live dictation.</li><li>Fixed vocabulary replacements trimming your text when no vocabulary was set.</li><li>Fixed lost paragraph breaks in dictated text, and a crash when exporting backup settings.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.8.3 -->
 <!-- ================================================================== -->
 
