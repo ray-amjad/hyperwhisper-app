@@ -87,6 +87,32 @@ class CrashRecoveryManager {
     /// Size threshold for WAV to M4A conversion (25MB)
     private let wavToM4AThreshold: Int64 = 25 * 1024 * 1024
 
+    /// True while a `recoverOrphanedRecordings` pass is in flight.
+    ///
+    /// The recovery pass is NOT re-entrant. It is invoked from
+    /// `handleMainWindowAppear` in `hyperwhisperApp.swift` with no once-flag of its
+    /// own, and the main window can appear more than once per process (menu-bar
+    /// mode closes the window and `MainAppView.openMainWindow` re-opens it), so two
+    /// passes really can be started while the first is still suspended on one of
+    /// its `await`s.
+    ///
+    /// Two overlapping passes corrupt each other in two ways:
+    ///  - **Silent data loss.** Pass A suspends on the `isRecoverableWAV` probe;
+    ///    pass B finishes recovering the same session (moves the file to its final
+    ///    name and sets `endTime`); A's probe then fails against the now-moved
+    ///    `.incomplete_` path and A deletes the row B just recovered. The audio
+    ///    file survives but has lost its `.incomplete_` prefix, so no future sweep
+    ///    can ever see it again.
+    ///  - **Lost attempt counts.** `attemptCounts` is snapshotted from UserDefaults,
+    ///    mutated in memory across the loop's suspension points, then written back
+    ///    whole — so the later writer clobbers the earlier one's increments and the
+    ///    3-strike quarantine never engages.
+    ///
+    /// Because this class is `@MainActor`, the check-and-set below the entry point
+    /// is atomic as long as it happens before the first suspension point — so it
+    /// must stay at the very top of `recoverOrphanedRecordings`.
+    private var isRecovering = false
+
     /// UserDefaults key for tracking recovery attempt counts per session UUID
     private static let attemptCountsKey = "crashRecovery.attemptCounts"
 
@@ -181,11 +207,36 @@ class CrashRecoveryManager {
     /// **When to Call:**
     /// During app initialization to recover any crashed recordings
     ///
+    /// **Concurrency:**
+    /// Not re-entrant, and callers do not guarantee a single invocation per
+    /// process. A second call made while a pass is still in flight returns
+    /// immediately (see `isRecovering`) rather than running a parallel pass.
+    /// Dropping the second call — rather than queueing it — is safe because
+    /// recovery is idempotent and repeated: anything the dropped call would have
+    /// picked up is still an orphan afterwards, and the next `.onAppear` or the
+    /// next launch sweeps it. The early return is logged so it stays observable.
+    ///
     /// **Performance:**
     /// - Batch saves instead of per-session saves
     /// - Runs async to not block UI
-    /// - Uses nonisolated validation for parallel checks
+    /// - Validation is sequential — one awaited filesystem probe per orphan — but
+    ///   each probe runs off the main actor (`isRecoverableWAV`), as does the
+    ///   directory scan (`scanForUnclaimedWAVCandidates`), so the blocking I/O
+    ///   never lands on the main thread. There is no fan-out (no `TaskGroup`,
+    ///   `async let`, or `concurrentPerform`): the loop mutates `@MainActor` Core
+    ///   Data objects and a shared `attemptCounts` dictionary in between probes,
+    ///   which parallel checks would race.
     func recoverOrphanedRecordings(currentSessionID: UUID? = nil) async {
+        // IN-FLIGHT GUARD. Must stay above every `await` in this function: the
+        // class is `@MainActor`, so this check-and-set is atomic only while no
+        // suspension point can separate the read from the write.
+        guard !isRecovering else {
+            AppLogger.audio.info("Orphaned recording recovery already in progress; skipping duplicate pass")
+            return
+        }
+        isRecovering = true
+        defer { isRecovering = false }
+
         let recoveryStart = Date()
         // Sessions older than this 60s wall-clock window are always safe to recover.
         // The window only exists to avoid racing an *active* recording (see below).
@@ -234,7 +285,16 @@ class CrashRecoveryManager {
         // Track successfully recovered sessions for transcription
         var recoveredSessions: [(session: RecordingSession, audioURL: URL)] = []
 
-        // Load attempt counts once, mutate in-memory, save once at the end
+        // Load attempt counts once, mutate in-memory, save once at the end.
+        //
+        // This snapshot opens a read-modify-write that spans every suspension
+        // point in the loop below and is closed by the unconditional whole-
+        // dictionary write in STEP 4. It is safe ONLY because the in-flight guard
+        // at the top of this function makes passes mutually exclusive — two
+        // overlapping passes would both snapshot the same counts and the later
+        // writer would silently discard the earlier one's increments, so a session
+        // that fails forever would never reach the 3-strike quarantine. Do not
+        // remove that guard without replacing this with a merge on write.
         var attemptCounts = getAttemptCounts()
 
         // STEP 2: Attempt to recover each session
@@ -455,6 +515,10 @@ class CrashRecoveryManager {
             }
             AppLogger.audio.debug("Pruned \(staleKeys.count) stale recovery attempt count(s)")
         }
+        // Closes the read-modify-write opened by `getAttemptCounts()` above: a
+        // whole-dictionary overwrite with no merge, which also makes the prune
+        // above effective. Correct only under the in-flight guard, which is what
+        // guarantees no other pass wrote to this key since the snapshot.
         saveAttemptCounts(attemptCounts)
 
         // NOTE: Transcription is NOT auto-triggered here.
@@ -474,8 +538,10 @@ class CrashRecoveryManager {
     ///
     /// **Safety:** a file is only claimed if (a) no session row (orphaned or
     /// completed) references its path, and (b) its creation date predates
-    /// `staleSessionCutoff` — so the live recording of this process is never
-    /// touched. No sidecar marker files are needed: the WAV filename embeds the
+    /// `staleSessionCutoff`. Together those cover every live recording whose
+    /// record-start row exists; see the RESIDUAL GAP note in the loop body for the
+    /// one case they do not cover (a >60s live recording whose row insert failed).
+    /// No sidecar marker files are needed: the WAV filename embeds the
     /// session UUID, which the stub reuses so recovery attempt-counting stays
     /// stable across launches.
     private func synthesizeStubSessionsForUnclaimedWAVs(
@@ -516,9 +582,28 @@ class CrashRecoveryManager {
             //    `now - 60s`, and a file in the deferred-insert window is only
             //    milliseconds old, so it is still newer. Either way it is skipped.
             //  - a longer-lived live recording (older than the cutoff) is covered by
-            //    the `claimedPaths` set and the `count(for:)` query below: by then
-            //    the deferred record-start insert has landed its row, which claims
-            //    the path.
+            //    the `claimedPaths` set and the `count(for:)` query below ONLY IF
+            //    the deferred record-start insert succeeded. When it does,
+            //    `RecordingLifecycle.persistSessionForActiveRecording` passes the
+            //    same `.incomplete_<uuid>.wav` path as `audioFilePath`
+            //    (RecordingLifecycle.swift:426/485), so the row claims this exact
+            //    path and both checks hit it.
+            //
+            // RESIDUAL GAP (known, not closed here): the insert is allowed to fail.
+            // `RecordingSessionManager.createRecordingSession` returns nil and
+            // clears `currentRecordingSession` when the background save or
+            // `obtainPermanentIDs` fails — by design, "continuing without session
+            // tracking" (RecordingSessionManager.swift:139-153) — and recording
+            // keeps going. On that path a live recording has NO row at all, so
+            // `claimedPaths`, the `count(for:)` query, and the recovery loop's
+            // `currentSessionID` check (which reads the same nil-ed
+            // `currentRecordingSession`) all miss it. Once such a recording runs
+            // past `staleSessionCutoff` — i.e. longer than 60s, with the process up
+            // longer than 60s — the staleness guard stops protecting it too, and
+            // the sweep can synthesize a stub for a file still being written and
+            // move it out from under the live `AVAudioRecorder`. This requires a
+            // Core Data write failure first, so it is rare, but it is reachable.
+            //
             // The scan above is a suspension point but can't widen this race:
             // `staleSessionCutoff` was computed before it, so any delay only makes
             // candidates newer relative to the cutoff, never older.
