@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.42.0</title>
+            <pubDate>Mon, 10 Aug 2026 01:44:14 +0000</pubDate>
+            <sparkle:version>111</sparkle:version>
+            <sparkle:shortVersionString>2.42.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.42.0.dmg" length="33626299" type="application/octet-stream" sparkle:edSignature="fU7sEHL+aSIshVNTRTfCIumcerWjLfMfEVw8wrykuo+3g5qaT9vTTLoDdScScJZddwZ6BRfy8k40F8tr7BxrAQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Redesigned first-run setup</b> — a clearer 8-step walkthrough gets you dictating faster.</li><li><b>New models</b> — OpenAI gpt-transcribe, AssemblyAI Universal-3.5 Pro, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4.5, Mistral Medium 3.5 and more.</li><li><b>Punctuation control</b> — choose how much punctuation and automatic formatting you want in your dictation.</li><li>Short clips now transcribe much faster on AssemblyAI.</li><li>Fixed the app freezing during a live transcription.</li><li>Vocabulary replacements now apply when AI post-processing is off, and "Remove filler words" works in live mode.</li><li>All 39 languages are now fully translated, plus fixes to History search, license activation and Parakeet model downloads.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.41.0</title>
             <pubDate>Thu, 02 Jul 2026 04:27:40 +0000</pubDate>
             <sparkle:version>110</sparkle:version>
