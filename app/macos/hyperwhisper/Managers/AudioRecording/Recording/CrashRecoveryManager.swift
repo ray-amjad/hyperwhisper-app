@@ -10,6 +10,20 @@ import CoreData
 import AVFoundation
 import Darwin  // sysctl(KERN_PROC_PID) for this process's kernel start time
 
+/// One `.incomplete_*.wav` file found by the orphan-WAV directory scan.
+///
+/// Plain `Sendable` value type so the scan can run off the main actor and hand
+/// its results back without any Core Data object crossing the boundary. It is
+/// declared at file scope rather than nested inside `CrashRecoveryManager` so it
+/// does not pick up that type's `@MainActor` isolation.
+struct CrashRecoveryWAVCandidate: Sendable {
+    let url: URL
+    let path: String
+    /// Raw filesystem creation date; `nil` when it can't be read. The caller
+    /// applies the "unreadable ⇒ treat as brand new" fallback.
+    let creationDate: Date?
+}
+
 /// Recovers incomplete recordings from app crashes
 ///
 /// **Purpose:**
@@ -44,7 +58,9 @@ import Darwin  // sysctl(KERN_PROC_PID) for this process's kernel start time
 ///
 /// **Thread Safety:**
 /// Methods are @MainActor for Core Data safety, except isRecoverableWAV
-/// which is nonisolated for background validation.
+/// which is nonisolated for background validation, and
+/// scanForUnclaimedWAVCandidates, which runs its blocking directory scan on a
+/// detached task so a slow recordings volume can't stall the main thread.
 @MainActor
 class CrashRecoveryManager {
 
@@ -191,7 +207,7 @@ class CrashRecoveryManager {
         // Synthesize a stub session for each unclaimed, stale incomplete WAV and
         // let the existing validation/recovery/quarantine loop below handle it
         // unchanged.
-        orphans += synthesizeStubSessionsForUnclaimedWAVs(
+        orphans += await synthesizeStubSessionsForUnclaimedWAVs(
             existingOrphans: orphans,
             context: context,
             staleSessionCutoff: staleSessionCutoff
@@ -454,28 +470,20 @@ class CrashRecoveryManager {
         existingOrphans: [RecordingSession],
         context: NSManagedObjectContext,
         staleSessionCutoff: Date
-    ) -> [RecordingSession] {
-        let fm = FileManager.default
-        // options: [] (NOT .skipsHiddenFiles) — the incomplete files are
-        // dot-prefixed and would otherwise be invisible to the sweep.
-        guard let entries = try? fm.contentsOfDirectory(
-            at: recordingsDirectory,
-            includingPropertiesForKeys: [.creationDateKey],
-            options: []
-        ) else {
-            return []
-        }
-
-        let candidates = entries.filter {
-            $0.lastPathComponent.hasPrefix(".incomplete_") && $0.pathExtension.lowercased() == "wav"
-        }
+    ) async -> [RecordingSession] {
+        // `recordingsDirectory` is a MainActor-isolated computed property (it reads
+        // `settingsManager`), so resolve it here and hand only the plain URL to the
+        // detached scan.
+        let directory = recordingsDirectory
+        let candidates = await Self.scanForUnclaimedWAVCandidates(in: directory)
         guard !candidates.isEmpty else { return [] }
 
         let claimedPaths = Set(existingOrphans.compactMap { $0.audioFilePath })
         var stubs: [RecordingSession] = []
 
-        for url in candidates {
-            let path = url.path
+        for candidate in candidates {
+            let url = candidate.url
+            let path = candidate.path
             if claimedPaths.contains(path) { continue }
 
             // A non-orphaned row may still claim this file — cheap existence check.
@@ -485,7 +493,13 @@ class CrashRecoveryManager {
             if let count = try? context.count(for: claimCheck), count > 0 { continue }
 
             // Never touch a file that could belong to this process's live recording.
-            let creationDate = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
+            // An unreadable creation date falls back to "now", i.e. treated as too
+            // new to touch. The scan above is a suspension point, but it can't widen
+            // this race: `staleSessionCutoff` was computed before it and is never
+            // later than this process's launch time, so a WAV written by a live
+            // recording is always newer than the cutoff (and `currentSessionID` is
+            // the second guard, in the recovery loop).
+            let creationDate = candidate.creationDate ?? Date()
             guard creationDate <= staleSessionCutoff else { continue }
 
             // Filename is ".incomplete_<sessionUUID>.wav" — reuse that UUID.
@@ -529,6 +543,46 @@ class CrashRecoveryManager {
             )
         }
         return stubs
+    }
+
+    /// List the `.incomplete_*.wav` files in `directory`, off the main actor.
+    ///
+    /// **Why detached:** `contentsOfDirectory` and `resourceValues` are blocking
+    /// filesystem calls. When the recordings directory lives on a cloud-synced or
+    /// network-backed volume they can take many seconds, and running them on the
+    /// main actor hung the app at launch (HYPERWHISPER-VM, "App hanging for at
+    /// least 10000 ms"). `nonisolated` alone would not help — the only caller is
+    /// `@MainActor`, so the work has to be pushed onto a detached task to actually
+    /// leave the main thread.
+    ///
+    /// Returns an empty list if the directory can't be read (missing, unreadable).
+    nonisolated static func scanForUnclaimedWAVCandidates(
+        in directory: URL
+    ) async -> [CrashRecoveryWAVCandidate] {
+        await Task.detached(priority: .userInitiated) { () -> [CrashRecoveryWAVCandidate] in
+            let fm = FileManager.default
+            // options: [] (NOT .skipsHiddenFiles) — the incomplete files are
+            // dot-prefixed and would otherwise be invisible to the sweep.
+            guard let entries = try? fm.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.creationDateKey],
+                options: []
+            ) else {
+                return []
+            }
+
+            return entries
+                .filter {
+                    $0.lastPathComponent.hasPrefix(".incomplete_") && $0.pathExtension.lowercased() == "wav"
+                }
+                .map { url in
+                    CrashRecoveryWAVCandidate(
+                        url: url,
+                        path: url.path,
+                        creationDate: (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+                    )
+                }
+        }.value
     }
 
     // MARK: - Validation
