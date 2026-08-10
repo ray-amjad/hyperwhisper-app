@@ -252,15 +252,6 @@ class HyperWhisperCloudManager: ObservableObject {
             || Task.isCancelled
     }
 
-    /// Refreshes credit balance (bypasses cache)
-    func refreshCredits() async {
-        do {
-            _ = try await fetchCredits(forceRefresh: true)
-        } catch {
-            // Error already logged and stored in lastError
-        }
-    }
-
     /// Checks if user has sufficient credits for estimated audio duration
     ///
     /// - Parameter estimatedMinutes: Estimated audio duration in minutes

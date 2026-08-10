@@ -31,17 +31,6 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
         SpeechTranscriber.isAvailable
     }
 
-    // LOCALE SUPPORT CHECK:
-    // Returns true if the given locale identifier is supported by SpeechTranscriber
-    func isLocaleSupported(_ localeIdentifier: String) async -> Bool {
-        let locale = Locale(identifier: localeIdentifier)
-        if let _ = await SpeechTranscriber.supportedLocale(equivalentTo: locale) {
-            return true
-        }
-        logger.info("Locale not supported: \(localeIdentifier, privacy: .public)")
-        return false
-    }
-
     // PREPARE IF NEEDED:
     // Pre-downloads assets and preheats the analyzer for faster first transcription
     func prepareIfNeeded(language: String?, modelId: String? = nil) async throws {

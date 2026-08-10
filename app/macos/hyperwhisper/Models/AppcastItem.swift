@@ -56,13 +56,6 @@ struct AppcastItem: Identifiable, Equatable {
         return formatter.string(from: pubDate)
     }
 
-    /// Relative date string (e.g., "2 days ago", "Yesterday")
-    var relativeDateString: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: pubDate, relativeTo: Date())
-    }
-
     /// Extract the title from HTML release notes
     /// Looks for content between <b> and </b> tags
     var releaseTitle: String? {

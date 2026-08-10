@@ -1081,10 +1081,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "history.autoDelete.unit.minutes" = "Mínútur";
 "history.autoDelete.unit.hours" = "Klukkustundir";
 "history.autoDelete.unit.days" = "Dagar";
-"history.autoDelete.unit.minutes.plural" = "mínútur";
-"history.autoDelete.unit.hours.plural" = "klukkustundir";
-"history.autoDelete.unit.days.plural" = "dagar";
-"history.autoDelete.status.disabled" = "Sjálfvirk eyðing er óvirk";
 "history.autoDelete.status.enabled" = "Eyða upptökum eldri en %d %@";
 "history.autoDelete.cleanup.noItems" = "Engar upptökur til að eyða";
 "history.autoDelete.cleanup.summary" = "Eyddi %d upptöku(m) og losaði %@";

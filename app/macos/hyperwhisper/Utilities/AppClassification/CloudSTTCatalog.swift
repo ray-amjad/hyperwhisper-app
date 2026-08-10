@@ -110,7 +110,6 @@ struct CloudSTTCatalog: Decodable {
             self = .unverified
         }
 
-        var asInt: Int? { if case .int(let n) = self { return n } else { return nil } }
     }
 
     /// `autoDetect: true` or `autoDetect: "unverified"` — accept either.

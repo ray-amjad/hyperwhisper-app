@@ -940,20 +940,6 @@ class AudioRecordingManager: NSObject, ObservableObject {
         deviceManager.selectDevice(device)
     }
 
-    /// Refresh input volume metrics for the current device
-    ///
-    /// **What This Does:**
-    /// Reads the current system volume level for the active input device.
-    /// Updates inputVolumeScalar which is used for UI warnings.
-    ///
-    /// **When to Call:**
-    /// - After selecting a new device
-    /// - Periodically while recording dialog is open
-    /// - When user adjusts system volume
-    func refreshInputVolumeMetrics() {
-        deviceManager.updateInputVolumeMetrics()
-    }
-
     // MARK: - Public API: Onboarding Input-Level Preview
 
     /// Start a lightweight metering session so the onboarding microphone step can

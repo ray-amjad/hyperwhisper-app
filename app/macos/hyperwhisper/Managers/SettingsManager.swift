@@ -523,10 +523,6 @@ class SettingsManager: ObservableObject {
         defaultModelByMode[modeId]
     }
 
-    func setDefaultModel(_ modelId: String, forModeId modeId: String) {
-        defaultModelByMode[modeId] = modelId
-    }
-
     // MARK: - Private Methods
 
     private func validateSettings() {

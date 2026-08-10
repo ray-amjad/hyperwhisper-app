@@ -45,19 +45,6 @@ class TranscriptionResultCache {
 
     // MARK: - Public Methods
 
-    /// Retrieve cached transcription for an audio file
-    /// - Parameter audioURL: URL of the audio file
-    /// - Returns: Cached transcription text, or nil if not found
-    func getCachedTranscription(for audioURL: URL) -> String? {
-        guard let hash = calculateFileHash(audioURL) else {
-            return nil
-        }
-
-        return cacheQueue.sync {
-            return cache[hash]
-        }
-    }
-
     /// Cache a transcription result for future use
     /// CACHE MANAGEMENT FLOW:
     /// 1. Calculate hash of audio file

@@ -1081,10 +1081,6 @@
 "history.autoDelete.unit.minutes" = "मिनट";
 "history.autoDelete.unit.hours" = "घंटे";
 "history.autoDelete.unit.days" = "दिन";
-"history.autoDelete.unit.minutes.plural" = "मिनट";
-"history.autoDelete.unit.hours.plural" = "घंटे";
-"history.autoDelete.unit.days.plural" = "दिन";
-"history.autoDelete.status.disabled" = "स्वचालित हटाना अक्षम है";
 "history.autoDelete.status.enabled" = "%d %@ से पुरानी रिकॉर्डिंग हटाएं";
 "history.autoDelete.cleanup.noItems" = "हटाने के लिए कोई रिकॉर्डिंग नहीं";
 "history.autoDelete.cleanup.summary" = "%d रिकॉर्डिंग हटाई गई और %@ खाली किया गया";

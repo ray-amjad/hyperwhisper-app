@@ -70,49 +70,6 @@ extension AccessibilityHelper {
         }
     }
 
-    /// Force a fresh check of accessibility permission
-    /// This bypasses any potential caching
-    func forceCheckAccessibility() -> Bool {
-        logger.debug("🔄 Force checking accessibility permission...")
-
-        // Method 1: Direct check
-        let method1 = AXIsProcessTrusted()
-        logger.debug("   Method 1 (AXIsProcessTrusted): \(method1, privacy: .public)")
-
-        // Method 2: With options but no prompt
-        let promptKey = kAXTrustedCheckOptionPrompt.takeRetainedValue() as String
-        let options: NSDictionary = [promptKey: false]
-        let method2 = AXIsProcessTrustedWithOptions(options)
-        logger.debug("   Method 2 (AXIsProcessTrustedWithOptions no prompt): \(method2, privacy: .public)")
-
-        // Method 3: Try to create an accessibility element (will fail if not trusted)
-        let canCreateElement = testAccessibilityAPI()
-        logger.debug("   Method 3 (Can use AX API): \(canCreateElement, privacy: .public)")
-
-        return method1 || method2 || canCreateElement
-    }
-
-    /// Test if we can actually use the accessibility API
-    private func testAccessibilityAPI() -> Bool {
-        // Try to get the focused element - this will fail if we don't have permission
-        let systemWideElement = AXUIElementCreateSystemWide()
-        var focusedElement: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(
-            systemWideElement,
-            kAXFocusedUIElementAttribute as CFString,
-            &focusedElement
-        )
-
-        // If we can get the focused element, we have permission
-        let hasPermission = (result == .success || result == .noValue)
-
-        if !hasPermission {
-            logger.debug("      AX API test failed with error: \(result.rawValue, privacy: .public)")
-        }
-
-        return hasPermission
-    }
-
     /// Open System Settings to the Accessibility pane
     /// This is the standard way to guide users to enable accessibility
     func openAccessibilitySettings() {
@@ -129,61 +86,6 @@ extension AccessibilityHelper {
                 logger.info("   ℹ️ Enable the entry that matches: \(Bundle.main.bundlePath, privacy: .public)")
             }
         }
-    }
-
-    /// Request accessibility permission with a system prompt
-    /// This is the primary method for requesting access - shows native macOS dialog
-    /// - Returns: true if permission is granted, false otherwise
-    func requestAccessibilityPermission() -> Bool {
-        logger.info("🔐 Requesting accessibility permission with system prompt...")
-        return checkAccessibilityPermission(prompt: true)
-    }
-
-    /// Show an alert specifically for bare modifier mode accessibility requirement
-    /// - Returns: true if user clicked "Open Settings", false if cancelled
-    @discardableResult
-    func showBareModifierAccessibilityAlert(modifierName: String = "bare modifier") -> Bool {
-        let alert = NSAlert()
-        alert.messageText = "Accessibility Permission Required"
-        alert.informativeText = "HyperWhisper needs Accessibility permission to use \(modifierName) keys for Push to Talk recording.\n\nPlease enable HyperWhisper in System Settings > Privacy & Security > Accessibility."
-        alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "Cancel")
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            openAccessibilitySettings()
-            return true
-        }
-        return false
-    }
-
-    /// Show alert guiding user to enable accessibility permission
-    /// - Returns: true if user clicked "Open Settings", false if cancelled
-    @discardableResult
-    func showAccessibilityPermissionAlert() -> Bool {
-        let alert = NSAlert()
-        alert.messageText = "audio.alert.accessibility.title".localized
-
-        let currentPath = Bundle.main.bundlePath
-        let isXcodeBuild = currentPath.contains("DerivedData")
-        let locationDescription = isXcodeBuild
-            ? "accessibility.permission.location.debug".localized
-            : "accessibility.permission.location.installed".localized
-        let pathSuffix = currentPath.components(separatedBy: "/").suffix(3).joined(separator: "/")
-        var infoText = "accessibility.permission.info".localized(arguments: locationDescription, pathSuffix)
-
-        if isXcodeBuild {
-            infoText += "\n\n" + "accessibility.permission.xcodeNote".localized
-        }
-
-        alert.informativeText = infoText
-        alert.addButton(withTitle: "audio.alert.accessibility.open".localized)
-        alert.addButton(withTitle: "common.cancel".localized)
-
-        if alert.runModal() == .alertFirstButtonReturn {
-            openAccessibilitySettings()
-            return true
-        }
-        return false
     }
 
     /// Maximum time to keep polling for accessibility permission before giving up
