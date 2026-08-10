@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Открыть параметры";
 "home.accessibility.restart.after.permission" = "Перезагрузите приложение после предоставления разрешения";
 "home.getting.started.completed" = "✓ Завершено";
-"home.whatsnew.badge" = "НОВОЕ";
-"home.whatsnew.title" = "Что нового?";
-"home.whatsnew.update1.date" = "3 июля";
-"home.whatsnew.update1.title" = "Parakeet теперь доступен";
-"home.whatsnew.update1.description" = "Скачайте его прямо из списка языковых моделей при создании режима, чтобы попробовать сегодня.";
-"home.whatsnew.update2.date" = "5 июня";
-"home.whatsnew.update2.title" = "Поддержка всех пользовательских моделей, совместимых с OpenAI";
-"home.whatsnew.update2.description" = "Вы теперь можете добавлять любые API, совместимые с OpenAI, в свой список моделей.";
-"home.whatsnew.update3.date" = "27 мая";
-"home.whatsnew.update3.title" = "Совершенно новое мини-окно записи";
-"home.whatsnew.update3.description" = "Минималистичный интерфейс записи, который не отвлекает.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Недавние обновления";
@@ -821,10 +810,6 @@
 "page.header.learnMore" = "Узнайте больше";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Транскрипция завершена";
-"recording.status.retrying" = "Повтор транскрипции…";
-"recording.status.postprocessing" = "Постобработка с ИИ…";
-"recording.status.transcribing" = "Транскрипция…";
 "recording.success.pasted" = "Вставлено!";
 "recording.loading.retrying" = "Повтор…";
 "recording.loading.postprocessing" = "Обработка с ИИ…";
@@ -852,39 +837,22 @@
 "modes.provider.manageInLibrary" = "Управление в библиотеке →";
 "streaming.loading.warming" = "Прогрев локальной модели...";
 "streaming.status.listening" = "Слушание...";
-"streaming.status.streaming" = "Потоковая передача...";
 "streaming.status.disconnecting" = "Остановка...";
 "streaming.loading.connecting" = "Подключение к серверу...";
 "streaming.loading.ready" = "Инициализация аудио...";
 "streaming.loading.streaming" = "Ожидание речи...";
 "streaming.state.reconnecting" = "Переподключение...";
 "recording.stop.help" = "Остановить запись (%@)";
-"recording.postprocessing.unavailable" = "Постобработка недоступна";
-"recording.postprocessing.missing.single" = "Ключ %@ отсутствует – запись без постобработки";
-"recording.postprocessing.missing.multiple" = "Ключи API отсутствуют – запись без постобработки";
-"recording.postprocessing.addKey" = "Добавить ключ";
-"recording.offline.banner" = "Нет подключения к интернету. Облачная транскрипция будет работать неправильно, пока вы не будете в сети.";
-"recording.offline.title" = "Нет подключения к интернету";
-"recording.offline.subtitle" = "Переподключитесь для продолжения или переключитесь на локальный режим.";
-"recording.error.network" = "Проверьте подключение к интернету и повторите попытку.";
-"recording.error.timeout" = "Истекло время ожидания запроса. Проверьте скорость подключения и повторите попытку.";
-"recording.error.rateLimit" = "Вы сделали слишком много запросов. Подождите немного и повторите попытку.";
-"recording.error.credits" = "Недостаточно кредитов. Добавьте больше кредитов в Настройках.";
-"recording.error.apiKey" = "Добавьте ключ API %@ в параметры.";
-"recording.error.server" = "Служба транскрипции испытывает проблемы. Пожалуйста, повторите попытку позже.";
 "recording.retry" = "Повторить";
 "recording.retry.inProgress" = "Повтор…";
 "recording.retry.count" = "Повторить (%d)";
 "recording.retry.failed.missing" = "Ошибка повтора: аудиофайл не найден";
 "recording.retry.failed.error" = "Ошибка повтора: %@";
 "recording.retry.pending" = "Готов к повтору – щелкните для транскрипции";
-"recording.provider.unknown" = "облачный провайдер";
 "recording.cancel.dialog.title" = "Отмена записи?";
 "recording.cancel.dialog.message" = "Это отменит текущую запись.";
 "recording.cancel.dialog.confirm" = "Отмена записи";
 "recording.cancel.dialog.resume" = "Возобновить";
-"recording.error.overlay.title" = "Ошибка подключения к сети";
-"recording.error.overlay.message" = "Нажмите 'Повторить' ниже или переключитесь на локальный режим для продолжения.";
 "recording.mode.default" = "По умолчанию";
 "recording.dialog.window.title" = "Диалог записи";
 "recording.button.start" = "Начать запись";

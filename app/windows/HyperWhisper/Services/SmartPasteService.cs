@@ -133,14 +133,6 @@ public class SmartPasteService : IDisposable
         "Code", "Cursor", "Windsurf", "Simplenote"
     };
 
-    /// <summary>
-    /// JetBrains IDE process names.
-    /// </summary>
-    private static readonly HashSet<string> JetBrainsProcessNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "idea64", "rider64", "webstorm64", "pycharm64", "phpstorm64", "clion64", "goland64", "datagrip64", "rubymine64"
-    };
-
     // =========================================================================
     // CLIPBOARD FORMAT SUPPORT
     // =========================================================================

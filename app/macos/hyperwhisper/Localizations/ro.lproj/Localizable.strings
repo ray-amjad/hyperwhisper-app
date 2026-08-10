@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Deschideți Setări";
 "home.accessibility.restart.after.permission" = "Redeschideți aplicația după acordarea permisiunii";
 "home.getting.started.completed" = "✓ Finalizat";
-"home.whatsnew.badge" = "NOU";
-"home.whatsnew.title" = "Ce se întâmplă nou?";
-"home.whatsnew.update1.date" = "3 iul";
-"home.whatsnew.update1.title" = "Parakeet este acum disponibil";
-"home.whatsnew.update1.description" = "Descărcați-l direct din lista Modele lingvistice în crearea modurilor pentru a-l încerca azi.";
-"home.whatsnew.update2.date" = "5 iun";
-"home.whatsnew.update2.title" = "Suport pentru fiecare model personalizat compatibil cu OpenAI";
-"home.whatsnew.update2.description" = "Puteți adăuga acum orice API-uri compatibile cu OpenAI la lista modelelor.";
-"home.whatsnew.update3.date" = "27 mai";
-"home.whatsnew.update3.title" = "Fereastră Mini-recording complet nouă";
-"home.whatsnew.update3.description" = "O interfață de înregistrare elegantă și minimalistă care nu intrude.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Actualizări recente";
@@ -821,10 +810,6 @@ Editează acele moduri pentru a selecta un alt model înainte de a-l elimina.";
 "page.header.learnMore" = "Aflați mai multe";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Transcriere completă";
-"recording.status.retrying" = "Se reîncearcă transcriere...";
-"recording.status.postprocessing" = "Post-procesare cu AI...";
-"recording.status.transcribing" = "Se transcrie...";
 "recording.success.pasted" = "Lipit!";
 "recording.loading.retrying" = "Se reîncearcă...";
 "recording.loading.postprocessing" = "Se procesează cu AI...";
@@ -852,39 +837,22 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "modes.provider.manageInLibrary" = "Gestionați în Bibliotecă →";
 "streaming.loading.warming" = "Încălzirea modelului local...";
 "streaming.status.listening" = "Se ascultă...";
-"streaming.status.streaming" = "Se transmite...";
 "streaming.status.disconnecting" = "Se oprește...";
 "streaming.loading.connecting" = "Se conectează la server...";
 "streaming.loading.ready" = "Se inițializează audio...";
 "streaming.loading.streaming" = "Se așteaptă vorbire...";
 "streaming.state.reconnecting" = "Se reconectează...";
 "recording.stop.help" = "Opriți înregistrarea (%@)";
-"recording.postprocessing.unavailable" = "Post-procesare indisponibilă";
-"recording.postprocessing.missing.single" = "Cheie %@ lipsă – înregistrare fără post-procesare";
-"recording.postprocessing.missing.multiple" = "Chei API lipsă – înregistrare fără post-procesare";
-"recording.postprocessing.addKey" = "Adăugați cheia";
-"recording.offline.banner" = "Nicio conexiune internet. Transcriere cloud va eșua până nu sunteți online.";
-"recording.offline.title" = "Nicio conexiune internet";
-"recording.offline.subtitle" = "Reconectați pentru a continua sau comutați la un mod offline.";
-"recording.error.network" = "Verificați conexiunea internet și încercați din nou.";
-"recording.error.timeout" = "Cerere expirată. Verificați viteza conexiunii și reîncercați.";
-"recording.error.rateLimit" = "Ați făcut prea multe cereri. Așteptați o clipă și reîncercați.";
-"recording.error.credits" = "Credite insuficiente. Adăugați mai multe credite în Setări.";
-"recording.error.apiKey" = "Adăugați cheia API %@ în Setări.";
-"recording.error.server" = "Serviciul de transcriere are probleme. Vă rugăm încercați din nou în curând.";
 "recording.retry" = "Reîncercați";
 "recording.retry.inProgress" = "Se reîncearcă...";
 "recording.retry.count" = "Reîncercați (%d)";
 "recording.retry.failed.missing" = "Reîncercare eșuată: Fișier audio nu a fost găsit";
 "recording.retry.failed.error" = "Reîncercare eșuată: %@";
 "recording.retry.pending" = "Pregătit pentru reîncercare – faceți clic pentru a transcrie";
-"recording.provider.unknown" = "furnizor cloud";
 "recording.cancel.dialog.title" = "Anulați înregistrare?";
 "recording.cancel.dialog.message" = "Aceasta va renunța la înregistrarea curentă.";
 "recording.cancel.dialog.confirm" = "Anulați înregistrare";
 "recording.cancel.dialog.resume" = "Reluați";
-"recording.error.overlay.title" = "Eroare de conexiune la rețea";
-"recording.error.overlay.message" = "Apăsați 'Reîncercați' mai jos sau comutați la un mod offline pentru a continua.";
 "recording.mode.default" = "Implicit";
 "recording.dialog.window.title" = "Dialog de înregistrare";
 "recording.button.start" = "Porniți înregistrarea";

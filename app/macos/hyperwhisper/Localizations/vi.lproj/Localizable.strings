@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Mở Cài đặt";
 "home.accessibility.restart.after.permission" = "Khởi động lại ứng dụng sau khi cấp quyền";
 "home.getting.started.completed" = "✓ Hoàn thành";
-"home.whatsnew.badge" = "MỚI";
-"home.whatsnew.title" = "Có gì mới?";
-"home.whatsnew.update1.date" = "3 Tháng 7";
-"home.whatsnew.update1.title" = "Parakeet hiện đã có sẵn";
-"home.whatsnew.update1.description" = "Tải xuống trực tiếp từ danh sách Mô hình Ngôn ngữ trong tạo Chế độ để thử nó ngay hôm nay.";
-"home.whatsnew.update2.date" = "5 Tháng 6";
-"home.whatsnew.update2.title" = "Hỗ trợ cho mọi mô hình tùy chỉnh tương thích với OpenAI";
-"home.whatsnew.update2.description" = "Bây giờ bạn có thể thêm bất kỳ API tương thích OpenAI nào vào danh sách mô hình của bạn.";
-"home.whatsnew.update3.date" = "27 Tháng 5";
-"home.whatsnew.update3.title" = "Cửa sổ ghi âm Mini hoàn toàn mới";
-"home.whatsnew.update3.description" = "Giao diện ghi âm gọn gàng, tối thiểu lại khỏi đường của bạn.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Cập nhật Gần đây";
@@ -821,10 +810,6 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "page.header.learnMore" = "Tìm hiểu thêm";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Chuyển đổi Hoàn tất";
-"recording.status.retrying" = "Đang thử lại Chuyển đổi…";
-"recording.status.postprocessing" = "Đang xử lý sau bằng AI…";
-"recording.status.transcribing" = "Đang chuyển đổi…";
 "recording.success.pasted" = "Đã dán!";
 "recording.loading.retrying" = "Đang thử lại…";
 "recording.loading.postprocessing" = "Đang xử lý bằng AI…";
@@ -852,39 +837,22 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "modes.provider.manageInLibrary" = "Quản lý trong Thư viện →";
 "streaming.loading.warming" = "Đang khởi động mô hình cục bộ...";
 "streaming.status.listening" = "Đang nghe...";
-"streaming.status.streaming" = "Đang phát trực tiếp...";
 "streaming.status.disconnecting" = "Đang dừng...";
 "streaming.loading.connecting" = "Đang kết nối với máy chủ...";
 "streaming.loading.ready" = "Khởi tạo âm thanh...";
 "streaming.loading.streaming" = "Chờ đợi lời nói...";
 "streaming.state.reconnecting" = "Đang kết nối lại...";
 "recording.stop.help" = "Dừng Ghi âm (%@)";
-"recording.postprocessing.unavailable" = "Xử lý sau không có sẵn";
-"recording.postprocessing.missing.single" = "Khóa %@ bị thiếu – ghi âm mà không xử lý sau";
-"recording.postprocessing.missing.multiple" = "Khóa API bị thiếu – ghi âm mà không xử lý sau";
-"recording.postprocessing.addKey" = "Thêm Khóa";
-"recording.offline.banner" = "Không có kết nối internet. Chuyển đổi đám mây sẽ thất bại cho đến khi bạn trực tuyến.";
-"recording.offline.title" = "Không có kết nối internet";
-"recording.offline.subtitle" = "Kết nối lại để tiếp tục hoặc chuyển sang chế độ ngoại tuyến.";
-"recording.error.network" = "Kiểm tra kết nối internet của bạn và thử lại.";
-"recording.error.timeout" = "Yêu cầu hết thời gian chờ. Kiểm tra tốc độ kết nối của bạn và thử lại.";
-"recording.error.rateLimit" = "Bạn đã thực hiện quá nhiều yêu cầu. Chờ một lúc rồi thử lại.";
-"recording.error.credits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";
-"recording.error.apiKey" = "Thêm khóa API %@ của bạn trong Cài đặt.";
-"recording.error.server" = "Dịch vụ chuyển đổi đang gặp vấn đề. Vui lòng thử lại trong giây lát.";
 "recording.retry" = "Thử lại";
 "recording.retry.inProgress" = "Đang thử lại…";
 "recording.retry.count" = "Thử lại (%d)";
 "recording.retry.failed.missing" = "Thử lại không thành công: Tệp âm thanh không tìm thấy";
 "recording.retry.failed.error" = "Thử lại không thành công: %@";
 "recording.retry.pending" = "Sẵn sàng để thử lại – nhấp để chuyển đổi";
-"recording.provider.unknown" = "nhà cung cấp đám mây";
 "recording.cancel.dialog.title" = "Hủy Ghi âm?";
 "recording.cancel.dialog.message" = "Điều này sẽ loại bỏ bản ghi âm hiện tại.";
 "recording.cancel.dialog.confirm" = "Hủy Ghi âm";
 "recording.cancel.dialog.resume" = "Tiếp tục";
-"recording.error.overlay.title" = "Lỗi kết nối mạng";
-"recording.error.overlay.message" = "Nhấn 'Thử lại' dưới đây hoặc chuyển sang chế độ ngoại tuyến để tiếp tục.";
 "recording.mode.default" = "Mặc định";
 "recording.dialog.window.title" = "Hộp thoại Ghi âm";
 "recording.button.start" = "Bắt đầu Ghi âm";

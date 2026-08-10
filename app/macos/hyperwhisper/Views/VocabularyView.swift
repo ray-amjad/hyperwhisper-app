@@ -39,9 +39,6 @@ struct VocabularyView: View {
     
     // Removed bulk selection - no longer needed
     
-    /// Whether to show the add word sheet
-    @State private var showingAddWord = false
-
     /// Input for new word
     @State private var newWord = ""
     @State private var replacement = ""

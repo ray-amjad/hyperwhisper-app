@@ -50,7 +50,6 @@ class LocalModelManager: NSObject, ObservableObject {
 
     // MARK: Internal
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "LocalModelManager")
-    private static let staticLogger = Logger(subsystem: "com.hyperwhisper.app", category: "LocalModelManager")
 
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.default

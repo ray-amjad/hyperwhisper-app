@@ -1489,17 +1489,6 @@ private struct TranscriptDetailView: View {
         snapshot.isFailed
     }
 
-    /// True when the file is confirmed missing (not during checking state).
-    /// Returns false during .checking to avoid showing error prematurely.
-    private var audioFileMissing: Bool {
-        audioFileState == .missing
-    }
-
-    /// True when we're still checking if the audio file exists.
-    private var isCheckingAudioFile: Bool {
-        audioFileState == .checking
-    }
-
     /// True when the audio file is confirmed to exist.
     private var audioFileExists: Bool {
         audioFileState == .exists

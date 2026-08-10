@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Ouvrir les réglages";
 "home.accessibility.restart.after.permission" = "Redémarrez l’app après avoir accordé l’autorisation";
 "home.getting.started.completed" = "✓ Terminé";
-"home.whatsnew.badge" = "NOUVEAU";
-"home.whatsnew.title" = "Nouveautés";
-"home.whatsnew.update1.date" = "3 juil.";
-"home.whatsnew.update1.title" = "Parakeet est maintenant disponible";
-"home.whatsnew.update1.description" = "Téléchargez-le directement depuis la liste des modèles de langue lors de la création d’un mode pour l’essayer dès aujourd’hui.";
-"home.whatsnew.update2.date" = "5 juin";
-"home.whatsnew.update2.title" = "Support de tous les modèles personnalisés compatibles OpenAI";
-"home.whatsnew.update2.description" = "Vous pouvez désormais ajouter n’importe quelle API compatible OpenAI à votre liste de modèles.";
-"home.whatsnew.update3.date" = "27 mai";
-"home.whatsnew.update3.title" = "Nouvelle fenêtre mini-enregistrement";
-"home.whatsnew.update3.description" = "Une interface d’enregistrement élégante et minimale qui reste discrète.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Mises à jour récentes";
@@ -821,10 +810,6 @@ Modifiez ces modes pour sélectionner un modèle différent avant de le supprime
 "page.header.learnMore" = "En savoir plus";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Transcription terminée";
-"recording.status.retrying" = "Nouvelle tentative de transcription…";
-"recording.status.postprocessing" = "Post-traitement avec IA…";
-"recording.status.transcribing" = "Transcription…";
 "recording.success.pasted" = "Collé !";
 "recording.loading.retrying" = "Nouvelle tentative…";
 "recording.loading.postprocessing" = "Traitement avec IA…";
@@ -852,39 +837,22 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "modes.provider.manageInLibrary" = "Gérer dans la bibliothèque →";
 "streaming.loading.warming" = "Préchauffage du modèle local...";
 "streaming.status.listening" = "Écoute...";
-"streaming.status.streaming" = "Diffusion...";
 "streaming.status.disconnecting" = "Arrêt...";
 "streaming.loading.connecting" = "Connexion au serveur...";
 "streaming.loading.ready" = "Initialisation de l'audio...";
 "streaming.loading.streaming" = "En attente de parole...";
 "streaming.state.reconnecting" = "Reconnexion...";
 "recording.stop.help" = "Arrêter l'enregistrement (%@)";
-"recording.postprocessing.unavailable" = "Post-traitement indisponible";
-"recording.postprocessing.missing.single" = "Clé %@ manquante - enregistrement sans post-traitement";
-"recording.postprocessing.missing.multiple" = "Clés API manquantes - enregistrement sans post-traitement";
-"recording.postprocessing.addKey" = "Ajouter une clé";
-"recording.offline.banner" = "Aucune connexion Internet. La transcription cloud échouera tant que vous serez hors ligne.";
-"recording.offline.title" = "Aucune connexion Internet";
-"recording.offline.subtitle" = "Reconnectez-vous pour continuer ou passez à un mode hors ligne.";
-"recording.error.network" = "Vérifiez votre connexion Internet et réessayez.";
-"recording.error.timeout" = "La requête a expiré. Vérifiez votre vitesse de connexion et réessayez.";
-"recording.error.rateLimit" = "Vous avez effectué trop de requêtes. Attendez un instant puis réessayez.";
-"recording.error.credits" = "Crédits insuffisants. Ajoutez des crédits dans Réglages.";
-"recording.error.apiKey" = "Ajoutez votre clé API %@ dans Réglages.";
-"recording.error.server" = "Le service de transcription rencontre des problèmes. Réessayez dans un instant.";
 "recording.retry" = "Réessayer";
 "recording.retry.inProgress" = "Nouvelle tentative…";
 "recording.retry.count" = "Réessayer (%d)";
 "recording.retry.failed.missing" = "Nouvelle tentative échouée : fichier audio introuvable";
 "recording.retry.failed.error" = "Nouvelle tentative échouée : %@";
 "recording.retry.pending" = "Prêt à réessayer - cliquez pour transcrire";
-"recording.provider.unknown" = "fournisseur cloud";
 "recording.cancel.dialog.title" = "Annuler l'enregistrement ?";
 "recording.cancel.dialog.message" = "Cela supprimera l'enregistrement en cours.";
 "recording.cancel.dialog.confirm" = "Annuler l'enregistrement";
 "recording.cancel.dialog.resume" = "Reprendre";
-"recording.error.overlay.title" = "Erreur de connexion réseau";
-"recording.error.overlay.message" = "Appuyez sur « Réessayer » ci-dessous ou passez à un mode hors ligne pour continuer.";
 "recording.mode.default" = "Par défaut";
 "recording.dialog.window.title" = "Fenêtre d'enregistrement";
 "recording.button.start" = "Démarrer l'enregistrement";
