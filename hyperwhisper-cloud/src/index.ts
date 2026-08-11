@@ -11,6 +11,7 @@ import { assistantRoute } from './routes/assistant';
 import { usageRoute } from './routes/usage';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
 import { drainPendingDeductions } from './middleware/credits';
+import { drainPendingLatencyReports } from './lib/latency-report';
 
 const app = new Hono();
 
@@ -92,9 +93,18 @@ async function gracefulShutdown(signal: string): Promise<void> {
     shutdownAt: new Date().toISOString(),
   });
 
-  const drained = await drainPendingDeductions(SHUTDOWN_DRAIN_MS);
+  // Both drains are fire-and-forget writes made after the response is flushed,
+  // so they race the same SIGKILL. Run them together rather than in series —
+  // the grace period is one budget, not two.
+  const [drained, drainedReports] = await Promise.all([
+    drainPendingDeductions(SHUTDOWN_DRAIN_MS),
+    drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
+  ]);
   if (drained > 0) {
     console.log('machine.shutdown_drained_deductions', { count: drained });
+  }
+  if (drainedReports > 0) {
+    console.log('machine.shutdown_drained_latency_reports', { count: drainedReports });
   }
   process.exit(0);
 }

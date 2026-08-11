@@ -31,6 +31,11 @@ import {
   type SttProviderId,
 } from '../lib/stt-models';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
+import {
+  estimateSecondsFromBytes,
+  reportLatencySamples,
+  type LatencySample,
+} from '../lib/latency-report';
 import { rawQuery } from '../lib/query';
 import {
   FLY_REPLAY_MAX_BODY_BYTES,
@@ -483,6 +488,15 @@ export async function transcribeRoute(c: Context) {
     status?: number;
     attemptMs?: number;
   }> = [];
+  // Anonymous per-attempt timings for the public /latency page. Collected here
+  // and sent once, after the response is decided, so reporting never adds wall
+  // time to the latency it is measuring.
+  const latencySamples: LatencySample[] = [];
+  // Called on EVERY path out of the attempt loop, not just the happy one — a
+  // request where every provider failed is the most interesting row this page
+  // has, and returning early is exactly how it would be lost. Sending is
+  // fire-and-forget, so calling this before an errorResponse costs nothing.
+  const flushLatencySamples = () => reportLatencySamples(latencySamples);
 
   for (const [index, current] of chain.entries()) {
     // The chosen model + domain only apply to the provider the caller picked.
@@ -496,6 +510,11 @@ export async function transcribeRoute(c: Context) {
       model: attemptModel || 'default',
       attempt: index + 1,
     });
+
+    // logEvent's elapsedMs runs from REQUEST start, so it already includes
+    // upload, auth, credits, and every earlier attempt. This clock brackets
+    // this provider call alone — the number the /latency page reports.
+    const attemptStart = performance.now();
 
     try {
       result = await PROVIDER_FN[current](audioBuffer, contentType, language, initialPrompt, {
@@ -512,6 +531,7 @@ export async function transcribeRoute(c: Context) {
       if (current !== provider) {
         fallbackFrom = provider;
       }
+      const attemptMs = performance.now() - attemptStart;
       logEvent(requestId, startTime, 'transcribe.provider_attempt_done', {
         provider: current,
         model: attemptModel || 'default',
@@ -519,6 +539,16 @@ export async function transcribeRoute(c: Context) {
         upstreamRequestId: result.requestId,
         transcriptChars: result.text.length,
         resultSource: result.source,
+        attemptMs: Math.round(attemptMs),
+      });
+      latencySamples.push({
+        provider: current,
+        model: attemptModel || undefined,
+        latencyMs: attemptMs,
+        ok: true,
+        attempt: index + 1,
+        // A success knows the real clip length; only failures have to estimate.
+        audioSeconds: result.durationSeconds,
       });
       break;
     } catch (error) {
@@ -545,6 +575,17 @@ export async function transcribeRoute(c: Context) {
           status: error.status,
           attemptMs: error.elapsedMs,
         });
+        latencySamples.push({
+          provider: current,
+          model: attemptModel || undefined,
+          // The adapter already timed the call; fall back to our own clock when
+          // it did not report one.
+          latencyMs: error.elapsedMs ?? performance.now() - attemptStart,
+          ok: false,
+          failureKind: error.kind,
+          attempt: index + 1,
+          audioSeconds: estimateSecondsFromBytes(audioBuffer.byteLength),
+        });
         lastError = error;
         sawUnavailable = true;
         continue;
@@ -564,6 +605,15 @@ export async function transcribeRoute(c: Context) {
           message: error.message,
           nextProvider: next,
         });
+        latencySamples.push({
+          provider: current,
+          model: attemptModel || undefined,
+          latencyMs: performance.now() - attemptStart,
+          ok: false,
+          failureKind: 'input_rejected',
+          attempt: index + 1,
+          audioSeconds: estimateSecondsFromBytes(audioBuffer.byteLength),
+        });
         lastError = error;
         lastInputError = error;
         continue;
@@ -577,6 +627,7 @@ export async function transcribeRoute(c: Context) {
           actualBytes: error.actualBytes,
           maxBytes: error.maxBytes,
         });
+        flushLatencySamples();
         return errorResponse(413, 'Audio too large for provider',
           `${PROVIDER_NAMES[current]} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
           { requestId, provider: current, max_size_mb: Math.round(error.maxBytes / (1024 * 1024)), actual_size_mb: parseFloat((error.actualBytes / (1024 * 1024)).toFixed(2)) },
@@ -591,6 +642,7 @@ export async function transcribeRoute(c: Context) {
           receivedContentType: error.contentType,
           acceptedFormats: error.acceptedFormats,
         });
+        flushLatencySamples();
         return errorResponse(415, 'Unsupported audio format for provider',
           `${PROVIDER_NAMES[current]} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
           {
@@ -608,12 +660,14 @@ export async function transcribeRoute(c: Context) {
         kind: 'non_retryable',
         message: error instanceof Error ? error.message : String(error),
       });
+      flushLatencySamples();
       return errorResponse(500, 'Transcription failed', error instanceof Error ? error.message : String(error), { requestId });
     }
   }
 
   // All providers in the chain failed.
   if (!result) {
+    flushLatencySamples();
     // Every provider rejected the input with a non-auth 4xx and none was merely
     // unavailable — the input itself is the problem, so a retry won't help.
     // Surface a 400 with the upstream message instead of a misleading 429/502
@@ -692,6 +746,11 @@ export async function transcribeRoute(c: Context) {
     ).catch(console.error);
   }
 
+  // Fire-and-forget, like the deduction above: the whole attempt chain goes in
+  // one POST, and a slow or failing website must never delay a transcript. The
+  // SIGTERM handler drains anything still in flight.
+  flushLatencySamples();
+
   const response = {
     text: result.text,
     language: result.language,
@@ -727,6 +786,9 @@ export async function transcribeRoute(c: Context) {
     noSpeech,
     creditsUsed,
     flyMachineId: process.env.FLY_MACHINE_ID,
+    // Region on the outcome line makes the Axiom dataset queryable by region on
+    // its own, without joining against the machine id.
+    flyRegion: process.env.FLY_REGION || 'local',
     machineUptimeMs: machineUptimeMs(),
     rssMb: memUsageMb,
   });
