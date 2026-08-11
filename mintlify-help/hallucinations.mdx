@@ -60,12 +60,12 @@ When you speak an uncommon term, the model can write a different word with a sim
 Each provider uses these entries differently:
 
 - **Deepgram** — HyperWhisper sends them as keyword boosting parameters, to a maximum of 100 terms. A warning appears if you go above this limit.
-- **ElevenLabs Scribe v2** — HyperWhisper sends them as keyterms, to a maximum of 100 terms. It removes terms of more than 50 characters.
+- **ElevenLabs Scribe v2** — HyperWhisper sends them as keyterms, to a maximum of 100 terms. It removes terms of more than 50 characters. Through HyperWhisper Cloud, the server also removes terms of more than 5 words.
 - **OpenAI Whisper, Groq Whisper, HyperWhisper Cloud, Gemini** — HyperWhisper sends them as prompt vocabulary. HyperWhisper Cloud keeps only the first 100 terms and shows no warning. Gemini gets the terms as free text in a natural-language prompt instruction, the same mechanism as OpenAI, Groq, and HyperWhisper Cloud.
 - **Soniox** — HyperWhisper sends them as context vocabulary, in one comma-separated string.
 - **AssemblyAI** — HyperWhisper sends them as key-term context.
 - **Microsoft MAI-Transcribe** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing.
-- **Google Chirp 3** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing, to a maximum of 1000 terms.
+- **Google Chirp 3** (via HyperWhisper Cloud) — this provider does not accept vocabulary hints. The Chirp models do not support phrase-list biasing, thus the server drops your entries before the request. HyperWhisper shows no message when this occurs.
 - **Grok STT** (xAI) — this provider does not support custom vocabulary. HyperWhisper accepts your entries, but it does not send them.
 - **Mistral Voxtral** (via HyperWhisper Cloud) — HyperWhisper sends them as a structured `context_bias` list, to a maximum of 100 terms. This only applies when Voxtral is reached through HyperWhisper Cloud — with your own Mistral key, Voxtral does not support custom vocabulary and HyperWhisper does not send your entries.
 - **Local models on both platforms (Parakeet on macOS and Windows, Nemotron on macOS and Windows)** — HyperWhisper matches the terms by sound with the Beider-Morse algorithm. It excludes terms of two characters or less, because these cause false matches.
