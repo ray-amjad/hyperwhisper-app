@@ -67,15 +67,6 @@ class FileTranscriptionFlow {
     /// Current transcription task (for cancellation support)
     private var currentTranscriptionTask: Task<Void, Error>?
 
-    /// Identity of the in-flight file transcription run.
-    ///
-    /// Bumped when a run starts and when `cancelTranscription()` takes the popup
-    /// away, so a run whose cancellation arrives late can tell whether it still
-    /// owns the popup. `progressState.isCancelled` cannot answer that:
-    /// `cancelTranscription()` ends with `progressState.reset()`, which sets the
-    /// flag back to `false` before the cancelled task ever resumes.
-    private var runGeneration: Int = 0
-
     /// Path to the copied file (for cleanup on cancellation)
     private var currentCopiedFilePath: String?
 
@@ -158,10 +149,6 @@ class FileTranscriptionFlow {
         // Mark as cancelled
         progressState.cancel()
 
-        // This method performs the whole cleanup itself, so the cancelled run
-        // must not repeat it when it resumes.
-        runGeneration &+= 1
-
         // Cancel the running task
         currentTranscriptionTask?.cancel()
         currentTranscriptionTask = nil
@@ -240,9 +227,6 @@ class FileTranscriptionFlow {
     ///   - fileURL: URL of the selected audio file
     ///   - mode: The transcription mode to use
     private func processSelectedFile(_ fileURL: URL, mode: Mode) async {
-        runGeneration &+= 1
-        let generation = runGeneration
-
         // STEP 1: Show progress popup
         progressState.beginTranscription(
             fileName: fileURL.lastPathComponent,
@@ -425,26 +409,9 @@ class FileTranscriptionFlow {
             appState?.recordingState = .idle
 
         } catch is CancellationError {
+            // User cancelled - cleanup was already done by cancelTranscription()
             AppLogger.transcription.info("📂 File transcription cancelled")
-
-            // Two ways to get here. USER cancel: `cancelTranscription()` already
-            // dismissed the popup and cleaned everything up, and bumped the
-            // generation — repeating it would clobber whatever owns the popup now.
-            // PIPELINE cancel: `transcribeWithDetails` supersedes this run when the
-            // user starts a recording mid-import; nothing else cleans up then, and
-            // the popup has no auto-dismiss, so it would hang around forever.
-            guard generation == runGeneration else { return }
-
             currentTranscriptionTask = nil
-            FileTranscriptionPopupManager.shared.dismiss()
-            progressState.reset()
-            cleanupCopiedFile(reason: "superseded transcription")
-
-            // Only claim the shared recording state if nothing else has taken it:
-            // a supersede means another transcription is already running and owns it.
-            if transcriptionPipeline?.isTranscribing != true {
-                appState?.recordingState = .idle
-            }
         } catch let error as FileTranscriptionError {
             // Handle known errors with appropriate UI
             FileTranscriptionPopupManager.shared.dismiss()
