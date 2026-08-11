@@ -27,6 +27,46 @@ export function estimateSecondsFromBytes(byteLength: number): number {
   return (byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
 }
 
+/**
+ * Representative bytes-per-second per container, for the duration estimates that
+ * have to be roughly RIGHT rather than deliberately conservative — Chirp's
+ * inline/duration gate and missing-`totalBilledDuration` fallback, and the
+ * /latency page's clip-length bucketing.
+ *
+ * The desktop apps upload 16 kHz/16-bit mono WAV (32,000 B/s), so the flat
+ * 64 kbps assumption behind estimateSecondsFromBytes() overstates their clips
+ * by ~4×. Unknown or compressed containers fall back to 16,000 B/s (128 kbps),
+ * which is the middle of the range we actually receive.
+ *
+ * Match order is the order google-chirp.ts's if/else chain used before this
+ * moved here — a content type carrying two hints (`audio/mp4; codecs=opus`)
+ * resolves to the first entry that matches. Keep it stable.
+ */
+const BYTES_PER_SECOND_BY_CONTAINER: ReadonlyArray<{ hints: readonly string[]; bytesPerSecond: number }> = [
+  { hints: ['wav', 'pcm'], bytesPerSecond: 32_000 },
+  { hints: ['opus', 'webm'], bytesPerSecond: 8_000 },
+  { hints: ['flac', 'ogg'], bytesPerSecond: 32_000 },
+  { hints: ['mp3', 'mpeg'], bytesPerSecond: 16_000 },
+  { hints: ['m4a', 'mp4', 'aac'], bytesPerSecond: 16_000 },
+];
+
+const DEFAULT_BYTES_PER_SECOND = 16_000;
+
+/**
+ * Estimate audio duration (seconds) from byte length using the rate for the
+ * request's Content-Type. Over-estimates slightly on compressed audio and
+ * under-estimates slightly on raw — both preferable to being an order of
+ * magnitude out on the WAV every desktop client sends.
+ */
+export function estimateAudioSeconds(byteLength: number, contentType: string): number {
+  const lower = (contentType || '').toLowerCase();
+  const match = BYTES_PER_SECOND_BY_CONTAINER.find(({ hints }) =>
+    hints.some((hint) => lower.includes(hint)),
+  );
+
+  return byteLength / (match?.bytesPerSecond ?? DEFAULT_BYTES_PER_SECOND);
+}
+
 /** Filename extensions the multipart adapters use for the audio part. */
 export type AudioExtension = 'wav' | 'mp3' | 'm4a' | 'aac' | 'webm' | 'ogg' | 'flac';
 

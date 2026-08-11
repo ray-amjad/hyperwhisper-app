@@ -1,11 +1,42 @@
 /**
- * Shapes and constants shared by the /latency page's server query and its
- * client component. Kept out of `src/content/latency.ts` because that module is
- * `server-only` — a client component importing it fails the build.
+ * Shapes and constants shared by the /latency page's server query, its client
+ * component, and the ingest route that writes the rows. Kept out of
+ * `src/content/latency.ts` because that module is `server-only` — a client
+ * component importing it fails the build.
  */
 
-export const DURATION_BUCKETS = ["short", "medium", "long"] as const;
-export type DurationBucket = (typeof DURATION_BUCKETS)[number];
+/**
+ * The clip-length model: one bucket per entry, in ascending order, each with
+ * the human label the page prints for it and the largest whole second it holds
+ * (`maxSeconds: null` on the open-ended last one).
+ *
+ * This is the only place the boundaries and their wording are written down. The
+ * bucket ids, the labels, and the ingest's bucketing all derive from it, so a
+ * boundary change can never leave the page describing a cell it no longer
+ * contains.
+ */
+export const DURATION_BUCKET_MODEL = [
+  { id: "short", label: "Under 10 seconds", maxSeconds: 9 },
+  { id: "medium", label: "10 to 30 seconds", maxSeconds: 30 },
+  { id: "long", label: "Over 30 seconds", maxSeconds: null },
+] as const;
+
+export type DurationBucket = (typeof DURATION_BUCKET_MODEL)[number]["id"];
+
+export const DURATION_BUCKETS: readonly DurationBucket[] = DURATION_BUCKET_MODEL.map(
+  (bucket) => bucket.id,
+);
+
+/**
+ * Which bucket a clip length belongs to. Clip lengths are stored as whole
+ * seconds, so the inclusive `maxSeconds` boundaries above cover every value.
+ */
+export function bucketForSeconds(seconds: number): DurationBucket {
+  const match = DURATION_BUCKET_MODEL.find(
+    (bucket) => bucket.maxSeconds === null || seconds <= bucket.maxSeconds,
+  );
+  return (match ?? DURATION_BUCKET_MODEL[DURATION_BUCKET_MODEL.length - 1]).id;
+}
 
 /** The bucket most clips land in, so the page opens on the busiest data. */
 export const DEFAULT_BUCKET: DurationBucket = "short";
@@ -19,11 +50,9 @@ export const WINDOW_DAYS = 30;
  */
 export const MIN_SAMPLES_PER_CELL = 20;
 
-export const BUCKET_LABELS: Record<DurationBucket, string> = {
-  short: "Under 10 seconds",
-  medium: "10 to 30 seconds",
-  long: "Over 30 seconds",
-};
+export const BUCKET_LABELS: Record<DurationBucket, string> = Object.fromEntries(
+  DURATION_BUCKET_MODEL.map((bucket) => [bucket.id, bucket.label]),
+) as Record<DurationBucket, string>;
 
 export type LatencyCell = {
   provider: string;

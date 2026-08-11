@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import { latencyIngestRateLimiter } from "@/lib/rate-limit";
+import { bucketForSeconds } from "@/lib/latency/types";
 import { db } from "@/src/db";
 import { sttLatencySamples } from "@/src/db/schema/stt-latency-samples";
-import { MAX_SAMPLES_PER_REQUEST, validateBatch } from "./validation";
+import { MAX_SAMPLES_PER_REQUEST, coarseCreatedAt, validateBatch } from "./validation";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
+  // A dropped sample is a real signal, not routine noise: it usually means the
+  // edge service has learned a provider or failure kind this route has not. The
+  // reporter logs the same event on its side of the wire; without both, adding a
+  // provider silently deletes it from the public page.
+  if (result.skipped.length > 0) {
+    console.warn("latency ingest skipped samples:", {
+      skipped: result.skipped.length,
+      received: result.skipped.length + result.samples.length,
+      reasons: [...new Set(result.skipped.map((entry) => entry.reason))],
+    });
+  }
+
   // Keyed by region, not by IP: every machine in one Fly region shares an exit
   // address, so a per-IP limit would throttle the busiest region against itself.
   // This is a runaway-loop backstop, nothing more — the ceiling is far above
@@ -62,6 +75,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ inserted: 0, skipped: result.skipped });
   }
 
+  // Hour granularity, not `defaultNow()`: an exact transaction timestamp shared
+  // by every row of one multi-row INSERT is a request identifier in all but
+  // name. See coarseCreatedAt().
+  const createdAt = coarseCreatedAt();
+
   try {
     await db.insert(sttLatencySamples).values(
       result.samples.map((sample) => ({
@@ -69,11 +87,17 @@ export async function POST(request: NextRequest) {
         model: sample.model,
         flyRegion: sample.flyRegion,
         audioSeconds: sample.audioSeconds,
-        durationBucket: sample.durationBucket,
+        // Bucketed here rather than on the page: the boundaries and the labels
+        // that describe them live in one place (lib/latency/types.ts), and the
+        // aggregate never has to bucket at read time.
+        // audioSeconds is never null at this point — validateSample rejects a
+        // sample without a clip length, because it could not be compared.
+        durationBucket: bucketForSeconds(sample.audioSeconds ?? 0),
         latencyMs: sample.latencyMs,
         ok: sample.ok,
         failureKind: sample.failureKind,
         attempt: sample.attempt,
+        createdAt,
       })),
     );
   } catch (error) {

@@ -7,6 +7,10 @@ import test from "node:test";
 const MODULE_PATH = "../app/api/internal/latency/validation.ts";
 const load = () => import(MODULE_PATH);
 
+// The clip-length model the ingest and the page both derive from.
+const TYPES_MODULE_PATH = "../lib/latency/types.ts";
+const loadTypes = () => import(TYPES_MODULE_PATH);
+
 function goodSample(overrides: Record<string, unknown> = {}) {
   return {
     provider: "deepgram",
@@ -20,22 +24,42 @@ function goodSample(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("accepts a well-formed success sample and buckets it", async () => {
+test("accepts a well-formed success sample", async () => {
   const { validateSample } = await load();
   const result = validateSample(goodSample());
   assert.ok("sample" in result);
   assert.equal(result.sample.provider, "deepgram");
-  assert.equal(result.sample.durationBucket, "short");
+  assert.equal(result.sample.audioSeconds, 7);
   assert.equal(result.sample.failureKind, null);
 });
 
 test("buckets clip length at the documented boundaries", async () => {
-  const { bucketForSeconds } = await load();
+  const { bucketForSeconds } = await loadTypes();
   assert.equal(bucketForSeconds(0), "short");
   assert.equal(bucketForSeconds(9), "short");
   assert.equal(bucketForSeconds(10), "medium");
   assert.equal(bucketForSeconds(30), "medium");
   assert.equal(bucketForSeconds(31), "long");
+});
+
+test("the bucket labels describe the boundaries they are derived from", async () => {
+  const { BUCKET_LABELS, DURATION_BUCKETS, DURATION_BUCKET_MODEL, bucketForSeconds } =
+    await loadTypes();
+
+  // Ids, labels and thresholds all come from one declaration, so a boundary
+  // change cannot leave the page describing a cell it no longer contains.
+  assert.deepEqual([...DURATION_BUCKETS], ["short", "medium", "long"]);
+  assert.deepEqual(
+    DURATION_BUCKET_MODEL.map((bucket: { label: string }) => bucket.label),
+    ["Under 10 seconds", "10 to 30 seconds", "Over 30 seconds"],
+  );
+  for (const bucket of DURATION_BUCKET_MODEL) {
+    assert.equal(BUCKET_LABELS[bucket.id], bucket.label);
+    if (bucket.maxSeconds !== null) {
+      assert.equal(bucketForSeconds(bucket.maxSeconds), bucket.id);
+      assert.notEqual(bucketForSeconds(bucket.maxSeconds + 1), bucket.id);
+    }
+  }
 });
 
 test("rejects a provider that is not a backend id", async () => {
@@ -111,7 +135,7 @@ test("rejects an attempt outside the fallback chain length", async () => {
   });
 });
 
-test("rejects a region that is not a short lowercase code", async () => {
+test("rejects a region that is not a three-letter lowercase code", async () => {
   const { validateSample } = await load();
   assert.deepEqual(validateSample(goodSample({ flyRegion: "FRA" })), {
     reason: "invalid flyRegion",
@@ -119,15 +143,21 @@ test("rejects a region that is not a short lowercase code", async () => {
   assert.deepEqual(validateSample(goodSample({ flyRegion: "fr" })), {
     reason: "invalid flyRegion",
   });
+  assert.deepEqual(validateSample(goodSample({ flyRegion: "frankfurt" })), {
+    reason: "invalid flyRegion",
+  });
   assert.deepEqual(validateSample(goodSample({ flyRegion: 42 })), {
     reason: "invalid flyRegion",
   });
 });
 
-test("accepts the off-Fly region a local machine reports", async () => {
+test("rejects the off-Fly region a local machine reports", async () => {
   const { validateSample } = await load();
-  const result = validateSample(goodSample({ flyRegion: "local" }));
-  assert.ok("sample" in result);
+  // A developer's laptop must never raise a "Local machine" column on the
+  // public page.
+  assert.deepEqual(validateSample(goodSample({ flyRegion: "local" })), {
+    reason: "invalid flyRegion",
+  });
 });
 
 test("rejects a sample with no clip length, because it cannot be compared", async () => {
@@ -141,7 +171,7 @@ test("accepts a zero-length clip", async () => {
   const { validateSample } = await load();
   const result = validateSample(goodSample({ audioSeconds: 0 }));
   assert.ok("sample" in result);
-  assert.equal(result.sample.durationBucket, "short");
+  assert.equal(result.sample.audioSeconds, 0);
 });
 
 test("drops an empty model rather than storing an empty string", async () => {
@@ -167,6 +197,28 @@ test("rejects a malformed envelope outright", async () => {
   assert.equal(validateBatch({}).ok, false);
   assert.equal(validateBatch({ samples: "x" }).ok, false);
   assert.equal(validateBatch({ samples: [] }).ok, false);
+});
+
+test("stores the arrival hour, not the instant, so a chain cannot be reassembled", async () => {
+  const { coarseCreatedAt } = await load();
+  const at = Date.UTC(2026, 7, 4, 13, 47, 12, 345);
+
+  assert.equal(coarseCreatedAt(at).toISOString(), "2026-08-04T13:00:00.000Z");
+  // Every row of one multi-row INSERT lands on the same value as every other
+  // row written in that hour — there is nothing left to group a request by.
+  assert.equal(
+    coarseCreatedAt(at).getTime(),
+    coarseCreatedAt(Date.UTC(2026, 7, 4, 13, 0, 0, 0)).getTime(),
+  );
+  assert.equal(
+    coarseCreatedAt(at).getTime(),
+    coarseCreatedAt(Date.UTC(2026, 7, 4, 13, 59, 59, 999)).getTime(),
+  );
+  // The next hour is a different value, so a 30-day window still moves.
+  assert.notEqual(
+    coarseCreatedAt(at).getTime(),
+    coarseCreatedAt(Date.UTC(2026, 7, 4, 14, 0, 0, 0)).getTime(),
+  );
 });
 
 test("rejects a batch larger than one fallback chain could produce", async () => {

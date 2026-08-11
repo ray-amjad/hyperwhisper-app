@@ -3,6 +3,7 @@ import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   computeUploadTimeoutMs,
+  estimateAudioSeconds,
   estimateSecondsFromBytes,
   fetchWithTimeout,
   readErrorBodyPreview,
@@ -36,6 +37,40 @@ describe('estimateSecondsFromBytes (64kbps encoded-audio duration heuristic)', (
   test('scales linearly with byte length', () => {
     expect(estimateSecondsFromBytes(240_000)).toBe(30);
     expect(estimateSecondsFromBytes(0)).toBe(0);
+  });
+});
+
+describe('estimateAudioSeconds (content-type aware duration estimate)', () => {
+  test('16 kHz/16-bit mono WAV — what both desktop apps upload — is 32,000 B/s', () => {
+    expect(estimateAudioSeconds(96_000, 'audio/wav')).toBe(3);
+    expect(estimateAudioSeconds(320_000, 'audio/x-wav')).toBe(10);
+    expect(estimateAudioSeconds(96_000, 'audio/pcm; rate=16000')).toBe(3);
+  });
+
+  test('a 3-second WAV dictation is not reported as a 12-second clip', () => {
+    // The flat 64 kbps billing heuristic (BYTES_PER_MINUTE_ESTIMATE) is 4x out
+    // on raw PCM, which used to file failed short clips in the 'medium' bucket.
+    expect(estimateAudioSeconds(96_000, 'audio/wav')).toBeLessThan(10);
+    expect(estimateSecondsFromBytes(96_000)).toBeGreaterThan(10);
+  });
+
+  test('picks a representative rate per compressed container', () => {
+    expect(estimateAudioSeconds(80_000, 'audio/webm; codecs=opus')).toBe(10);
+    expect(estimateAudioSeconds(320_000, 'audio/flac')).toBe(10);
+    expect(estimateAudioSeconds(160_000, 'audio/mpeg')).toBe(10);
+    expect(estimateAudioSeconds(160_000, 'audio/mp4')).toBe(10);
+  });
+
+  test('falls back to 128 kbps for an unknown or missing content type', () => {
+    expect(estimateAudioSeconds(160_000, 'application/octet-stream')).toBe(10);
+    expect(estimateAudioSeconds(160_000, '')).toBe(10);
+  });
+
+  test('matches container hints in a stable order and folds case', () => {
+    // 'audio/mp4; codecs=opus' carries two hints; opus wins, as it did in the
+    // if/else chain this table replaced.
+    expect(estimateAudioSeconds(80_000, 'audio/mp4; codecs=opus')).toBe(10);
+    expect(estimateAudioSeconds(96_000, 'AUDIO/WAV')).toBe(3);
   });
 });
 

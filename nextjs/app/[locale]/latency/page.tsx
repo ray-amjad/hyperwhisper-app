@@ -104,9 +104,10 @@ export default async function LatencyPage({ params }: Props) {
             <dt className="font-medium text-gray-200">What we store</dt>
             <dd className="mt-1">
               A timing row carries the provider, the model, the region, the
-              rounded clip length, and whether the call worked. It carries no
-              account, no key, no request id, and no audio or text — nothing ties
-              two rows to the same person or the same transcription.
+              rounded clip length, which attempt in the chain it was, and whether
+              the call worked. It carries no account, no key, no request id, and
+              no audio or text, and its timestamp is stored only to the hour, so
+              nothing ties a row to a person or reassembles one transcription.
             </dd>
           </div>
         </dl>

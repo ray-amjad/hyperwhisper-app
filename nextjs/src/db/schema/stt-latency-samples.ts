@@ -8,8 +8,11 @@ import { boolean, index, integer, pgTable, text, timestamp, uuid } from "drizzle
  * Deliberately absent: user id, license key, request id, IP, transcript, and
  * character count. Leaving out the request id is what makes these rows
  * anonymous rather than pseudonymous — nothing joins two rows back into one
- * session. The cost is that a single request cannot be reconstructed from this
- * table; Axiom still holds that (short-retention, internal-only).
+ * session. `created_at` is written coarsened to the hour for the same reason:
+ * one transcription's chain arrives in a single multi-row INSERT, and an exact
+ * transaction timestamp would be a request identifier in all but name. The cost
+ * is that a single request cannot be reconstructed from this table; Axiom still
+ * holds that (short-retention, internal-only).
  *
  * Written by POST /api/internal/latency (x-internal-secret). Read only by the
  * public /latency page, which aggregates a trailing 30-day window. Rows are
@@ -25,7 +28,9 @@ export const sttLatencySamples = pgTable(
     provider: text("provider").notNull(),
     // The model actually attempted. Null when the provider takes no model id.
     model: text("model"),
-    // process.env.FLY_REGION of the machine that ran the attempt; 'local' off Fly.
+    // process.env.FLY_REGION of the machine that ran the attempt. Always a real
+    // three-letter Fly region: a machine off Fly does not report at all, and the
+    // ingest rejects anything else.
     flyRegion: text("fly_region").notNull(),
     // Rounded clip length. Measured for successes, estimated from byte size for
     // failures (a failed attempt returns no duration) — see latency-report.ts.
@@ -42,6 +47,10 @@ export const sttLatencySamples = pgTable(
     failureKind: text("failure_kind"),
     // 1-based position in the fallback chain.
     attempt: integer("attempt").notNull(),
+    // Written by the ingest route, truncated to the hour, so the rows of one
+    // transcription cannot be told apart from every other row in that hour and
+    // region. The default is a backstop for a direct write; nothing but the
+    // ingest route writes here.
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

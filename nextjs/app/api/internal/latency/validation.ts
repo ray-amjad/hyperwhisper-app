@@ -1,8 +1,31 @@
 /**
- * Pure validation for the anonymous STT latency ingest. Kept out of route.ts so
- * it is unit-testable with `node --test` (there is no render/route harness in
- * this repo). No database, no request, no env access here.
+ * Pure logic for the anonymous STT latency ingest — what a row must look like to
+ * be stored, and how its timestamp is coarsened. Kept out of route.ts so it is
+ * unit-testable with `node --test` (there is no render/route harness in this
+ * repo). No database, no request, no env access here.
  */
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * The `created_at` an ingested row is stored with: the hour it arrived in, not
+ * the instant.
+ *
+ * One transcription's whole fallback chain arrives in a single multi-row INSERT,
+ * and Postgres `now()` is the transaction timestamp — so the column default
+ * would stamp every row of one request with the same microsecond value.
+ * Grouping on that plus the region would reassemble each original request and
+ * its provider chain, which is exactly the correlation this table promises not
+ * to hold. At hour granularity a row is indistinguishable from every other row
+ * written in that hour and region.
+ *
+ * The page's only query is a 30-day window aggregate, so hour-level timestamps
+ * change nothing it reports; the retention prune deletes on age alone and is
+ * likewise unaffected.
+ */
+export function coarseCreatedAt(now: number = Date.now()): Date {
+  return new Date(Math.floor(now / HOUR_MS) * HOUR_MS);
+}
 
 /**
  * Backend provider ids, exactly as hyperwhisper-cloud's `SttProviderId` union
@@ -33,10 +56,6 @@ export const FAILURE_KINDS = [
   "unknown",
 ] as const;
 
-export const DURATION_BUCKETS = ["short", "medium", "long"] as const;
-
-export type DurationBucket = (typeof DURATION_BUCKETS)[number];
-
 /** One transcription runs at most a handful of fallback attempts. */
 export const MAX_SAMPLES_PER_REQUEST = 20;
 /** A provider call that takes longer than this is a bug, not a measurement. */
@@ -51,7 +70,6 @@ export type ValidSample = {
   model: string | null;
   flyRegion: string;
   audioSeconds: number | null;
-  durationBucket: DurationBucket;
   latencyMs: number;
   ok: boolean;
   failureKind: string | null;
@@ -62,28 +80,22 @@ export type ValidationResult =
   | { ok: true; samples: ValidSample[]; skipped: { index: number; reason: string }[] }
   | { ok: false; error: string };
 
-/**
- * Bucket boundaries are shared with the page's duration selector: a cell only
- * ever compares clips of comparable length, so a provider is never punished for
- * having been handed longer audio.
- */
-export function bucketForSeconds(seconds: number): DurationBucket {
-  if (seconds < 10) return "short";
-  if (seconds <= 30) return "medium";
-  return "long";
-}
-
 function isPositiveInt(value: unknown, max: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value > 0 && value <= max;
 }
 
 /**
- * Fly region codes are three lowercase letters (`fra`, `iad`). `local` is
- * accepted because a machine off Fly reports that, and rejecting it would make
- * local edge testing silently write nothing.
+ * Fly region codes are exactly three lowercase letters (`fra`, `iad`).
+ *
+ * Anything else is rejected, `local` included: a machine off Fly reports that,
+ * and the public page derives its region axis from whatever rows exist, so one
+ * developer running the edge service against production would raise a "Local
+ * machine" column on hyperwhisper.com. The edge service already declines to
+ * report when FLY_REGION is unset; this is the second half of the same rule, on
+ * the side that owns the table.
  */
 function isValidRegion(value: unknown): value is string {
-  return typeof value === "string" && /^[a-z]{3,12}$/.test(value);
+  return typeof value === "string" && /^[a-z]{3}$/.test(value);
 }
 
 /** Validates one sample. Returns the reason it is unusable, or null if it is fine. */
@@ -150,7 +162,6 @@ export function validateSample(raw: unknown): { sample: ValidSample } | { reason
       model,
       flyRegion: s.flyRegion,
       audioSeconds,
-      durationBucket: bucketForSeconds(audioSeconds),
       latencyMs: s.latencyMs,
       ok: s.ok,
       failureKind,

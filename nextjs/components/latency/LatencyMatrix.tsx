@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Pin } from "lucide-react";
 
 import {
@@ -48,9 +48,17 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const [homeRegion, setHomeRegion] = useState<string | null>(null);
   const [homeCity, setHomeCity] = useState<string | null>(null);
   const [pickingRegion, setPickingRegion] = useState(false);
+  // Once the visitor has chosen a region by hand, geolocation stops having an
+  // opinion — switching clip-length bucket must not quietly move them back.
+  const regionPickedByUser = useRef(false);
 
   const data = matrices[bucket];
   const { providers, regions, minSamplesPerCell } = data;
+  const hasData = regions.length > 0;
+  // The region list as a value, not an identity: each bucket's matrix builds its
+  // own array, and the props re-cross the RSC boundary, so keying the effect
+  // below on `regions` itself would re-run it on every bucket toggle.
+  const regionsKey = regions.join(",");
 
   const lookup = useMemo(() => {
     const map = new Map<string, CellValue>();
@@ -71,15 +79,17 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // data are offered as candidates, so the highlight can never land on an empty
   // column.
   useEffect(() => {
-    if (regions.length === 0) return;
+    if (regionsKey === "") return;
+    if (regionPickedByUser.current) return;
     const controller = new AbortController();
 
-    fetch(`/api/geo/nearest-region?regions=${encodeURIComponent(regions.join(","))}`, {
+    fetch(`/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`, {
       signal: controller.signal,
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((result) => {
-        if (!result?.region) return;
+        // The answer can land after a hand-pick; the visitor still wins.
+        if (regionPickedByUser.current || !result?.region) return;
         setHomeRegion(result.region);
         setHomeCity(result.city ?? regionCity(result.region));
       })
@@ -88,7 +98,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       });
 
     return () => controller.abort();
-  }, [regions]);
+  }, [regionsKey]);
 
   const cellFor = (provider: string, region: string): CellValue =>
     lookup.get(`${provider}|${region}`) ?? null;
@@ -153,17 +163,6 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const format = (value: number) =>
     metric === "errorRate" ? `${value.toFixed(1)}%` : `${Math.round(value)}`;
 
-  if (regions.length === 0) {
-    return (
-      <div className="mt-12 rounded-lg border border-gray-800 bg-gray-900/50 p-10 text-center">
-        <p className="text-lg text-gray-300">No measurements yet.</p>
-        <p className="mt-2 text-sm text-gray-500">
-          This page fills in as transcriptions run. Check back shortly.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-10">
       {/* Controls */}
@@ -210,186 +209,208 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-widest text-gray-500">
-            Row order
-          </span>
-          <button
-            className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
-            type="button"
-            onClick={() => setSortRegion(null)}
-          >
-            {sortRegion
-              ? `Sorted by ${regionCity(sortRegion)} — reset`
-              : "Sorted by global median"}
-          </button>
-        </div>
-      </div>
-
-      {/* Region highlight */}
-      <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
-        <MapPin className="h-4 w-4 text-purple-300" />
-        {homeRegion ? (
-          <span className="text-gray-300">
-            Showing <span className="font-semibold text-white">{homeCity}</span>
-          </span>
-        ) : (
-          <span className="text-gray-500">Pick the region closest to you</span>
-        )}
-        <button
-          className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
-          type="button"
-          onClick={() => setPickingRegion((open) => !open)}
-        >
-          {pickingRegion ? "close" : "change"}
-        </button>
-        {pickingRegion ? (
-          <div className="flex w-full flex-wrap gap-2 pt-2">
-            {regions.map((region) => (
-              <button
-                key={region}
-                className={`rounded-full border px-3 py-1 text-xs transition ${
-                  homeRegion === region
-                    ? "border-purple-500 bg-purple-600/30 text-white"
-                    : "border-gray-700 text-gray-400 hover:text-white"
-                }`}
-                type="button"
-                onClick={() => {
-                  setHomeRegion(region);
-                  setHomeCity(regionCity(region));
-                  setPickingRegion(false);
-                }}
-              >
-                {regionCity(region)}
-              </button>
-            ))}
+        {hasData ? (
+          <div className="flex flex-col gap-2">
+            <span className="text-xs uppercase tracking-widest text-gray-500">
+              Row order
+            </span>
+            <button
+              className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-2 text-sm text-gray-300 transition hover:text-white"
+              type="button"
+              onClick={() => setSortRegion(null)}
+            >
+              {sortRegion
+                ? `Sorted by ${regionCity(sortRegion)} — reset`
+                : "Sorted by global median"}
+            </button>
           </div>
         ) : null}
       </div>
 
-      {/* Matrix */}
-      <div className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-500">
-                Provider
-              </th>
-              {regions.map((region) => (
-                <th
-                  key={region}
-                  className={`px-3 py-3 text-center text-xs font-medium transition ${
-                    homeRegion === region
-                      ? "bg-purple-950/40 text-purple-200"
-                      : "text-gray-400"
-                  } ${hover?.region === region ? "bg-gray-900" : ""}`}
-                  scope="col"
-                >
+      {/* An empty bucket keeps every control above it: the clip-length selector
+          is the only way back to a populated one, and the page header counts
+          samples across all three buckets, so "no measurements yet" full stop
+          would contradict it. */}
+      {!hasData ? (
+        <div className="mt-8 rounded-lg border border-gray-800 bg-gray-900/50 p-10 text-center">
+          <p className="text-lg text-gray-300">
+            No measurements for this clip length yet.
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            Nothing has been recorded for &ldquo;{BUCKET_LABELS[bucket]}&rdquo; in
+            the last {data.windowDays} days. Pick another clip length above — this
+            page fills in as transcriptions run.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Region highlight */}
+          <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
+            <MapPin className="h-4 w-4 text-purple-300" />
+            {homeRegion ? (
+              <span className="text-gray-300">
+                Showing <span className="font-semibold text-white">{homeCity}</span>
+              </span>
+            ) : (
+              <span className="text-gray-500">Pick the region closest to you</span>
+            )}
+            <button
+              className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
+              type="button"
+              onClick={() => setPickingRegion((open) => !open)}
+            >
+              {pickingRegion ? "close" : "change"}
+            </button>
+            {pickingRegion ? (
+              <div className="flex w-full flex-wrap gap-2 pt-2">
+                {regions.map((region) => (
                   <button
-                    className="whitespace-nowrap transition hover:text-white"
-                    title={`Sort providers by ${regionCity(region)}`}
+                    key={region}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      homeRegion === region
+                        ? "border-purple-500 bg-purple-600/30 text-white"
+                        : "border-gray-700 text-gray-400 hover:text-white"
+                    }`}
                     type="button"
-                    onClick={() =>
-                      setSortRegion((current) => (current === region ? null : region))
-                    }
+                    onClick={() => {
+                      regionPickedByUser.current = true;
+                      setHomeRegion(region);
+                      setHomeCity(regionCity(region));
+                      setPickingRegion(false);
+                    }}
                   >
                     {regionCity(region)}
-                    <span className="block text-[10px] uppercase tracking-wider text-gray-600">
-                      {region}
-                    </span>
                   </button>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedProviders.map((provider) => {
-              const pinned = pinnedProvider === provider;
-              return (
-                <tr
-                  key={provider}
-                  className={
-                    pinned
-                      ? "bg-purple-950/20"
-                      : hover?.provider === provider
-                        ? "bg-gray-900/60"
-                        : ""
-                  }
-                >
-                  <th
-                    className={`sticky left-0 z-10 whitespace-nowrap px-4 py-2 text-left font-medium ${
-                      pinned ? "bg-purple-950/60 text-white" : "bg-gray-950 text-gray-200"
-                    }`}
-                    scope="row"
-                  >
-                    <button
-                      className="flex items-center gap-2 transition hover:text-purple-300"
-                      title="Pin this provider"
-                      type="button"
-                      onClick={() =>
-                        setPinnedProvider((current) =>
-                          current === provider ? null : provider,
-                        )
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/* Matrix */}
+          <div className="mt-6 overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-20 bg-gray-950 px-4 py-3 text-left text-xs uppercase tracking-widest text-gray-500">
+                    Provider
+                  </th>
+                  {regions.map((region) => (
+                    <th
+                      key={region}
+                      className={`px-3 py-3 text-center text-xs font-medium transition ${
+                        homeRegion === region
+                          ? "bg-purple-950/40 text-purple-200"
+                          : "text-gray-400"
+                      } ${hover?.region === region ? "bg-gray-900" : ""}`}
+                      scope="col"
+                    >
+                      <button
+                        className="whitespace-nowrap transition hover:text-white"
+                        title={`Sort providers by ${regionCity(region)}`}
+                        type="button"
+                        onClick={() =>
+                          setSortRegion((current) => (current === region ? null : region))
+                        }
+                      >
+                        {regionCity(region)}
+                        <span className="block text-[10px] uppercase tracking-wider text-gray-600">
+                          {region}
+                        </span>
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedProviders.map((provider) => {
+                  const pinned = pinnedProvider === provider;
+                  return (
+                    <tr
+                      key={provider}
+                      className={
+                        pinned
+                          ? "bg-purple-950/20"
+                          : hover?.provider === provider
+                            ? "bg-gray-900/60"
+                            : ""
                       }
                     >
-                      {pinned ? <Pin className="h-3 w-3" /> : null}
-                      {providerDisplayName(provider)}
-                    </button>
-                  </th>
-
-                  {regions.map((region) => {
-                    const cell = cellFor(provider, region);
-                    const isHome = homeRegion === region;
-
-                    if (!cell || !cell.enough) {
-                      return (
-                        <td
-                          key={region}
-                          className={`px-3 py-2 text-center text-gray-700 ${
-                            isHome ? "bg-purple-950/20" : ""
-                          }`}
-                          title={
-                            cell
-                              ? `${cell.samples} attempts — fewer than the ${minSamplesPerCell} needed`
-                              : "No attempts recorded"
-                          }
-                          onMouseEnter={() => setHover({ provider, region })}
-                          onMouseLeave={() => setHover(null)}
-                        >
-                          <span aria-label="not enough data">—</span>
-                        </td>
-                      );
-                    }
-
-                    return (
-                      <td
-                        key={region}
-                        className={`px-3 py-2 text-center font-mono tabular-nums ${
-                          isHome ? "ring-1 ring-inset ring-purple-500/40" : ""
+                      <th
+                        className={`sticky left-0 z-10 whitespace-nowrap px-4 py-2 text-left font-medium ${
+                          pinned ? "bg-purple-950/60 text-white" : "bg-gray-950 text-gray-200"
                         }`}
-                        style={cellStyle(cell.value)}
-                        title={`${providerDisplayName(provider)} in ${regionCity(region)} — ${cell.samples.toLocaleString()} attempts`}
-                        onMouseEnter={() => setHover({ provider, region })}
-                        onMouseLeave={() => setHover(null)}
+                        scope="row"
                       >
-                        {format(cell.value)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                        <button
+                          className="flex items-center gap-2 transition hover:text-purple-300"
+                          title="Pin this provider"
+                          type="button"
+                          onClick={() =>
+                            setPinnedProvider((current) =>
+                              current === provider ? null : provider,
+                            )
+                          }
+                        >
+                          {pinned ? <Pin className="h-3 w-3" /> : null}
+                          {providerDisplayName(provider)}
+                        </button>
+                      </th>
 
-      <p className="mt-4 text-sm text-gray-500">
-        {metric === "errorRate"
-          ? "Share of attempts that failed, including ones a fallback provider rescued."
-          : "Milliseconds, provider call only."}{" "}
-        A cell needs at least {minSamplesPerCell} attempts to show a number. Click a
-        region to sort by it, or a provider to pin its row.
-      </p>
+                      {regions.map((region) => {
+                        const cell = cellFor(provider, region);
+                        const isHome = homeRegion === region;
+
+                        if (!cell || !cell.enough) {
+                          return (
+                            <td
+                              key={region}
+                              className={`px-3 py-2 text-center text-gray-700 ${
+                                isHome ? "bg-purple-950/20" : ""
+                              }`}
+                              title={
+                                cell
+                                  ? `${cell.samples} attempts — fewer than the ${minSamplesPerCell} needed`
+                                  : "No attempts recorded"
+                              }
+                              onMouseEnter={() => setHover({ provider, region })}
+                              onMouseLeave={() => setHover(null)}
+                            >
+                              <span aria-label="not enough data">—</span>
+                            </td>
+                          );
+                        }
+
+                        return (
+                          <td
+                            key={region}
+                            className={`px-3 py-2 text-center font-mono tabular-nums ${
+                              isHome ? "ring-1 ring-inset ring-purple-500/40" : ""
+                            }`}
+                            style={cellStyle(cell.value)}
+                            title={`${providerDisplayName(provider)} in ${regionCity(region)} — ${cell.samples.toLocaleString()} attempts`}
+                            onMouseEnter={() => setHover({ provider, region })}
+                            onMouseLeave={() => setHover(null)}
+                          >
+                            {format(cell.value)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-4 text-sm text-gray-500">
+            {metric === "errorRate"
+              ? "Share of attempts that failed, including ones a fallback provider rescued."
+              : "Milliseconds, provider call only."}{" "}
+            A cell needs at least {minSamplesPerCell} attempts to show a number. Click a
+            region to sort by it, or a provider to pin its row.
+          </p>
+        </>
+      )}
     </div>
   );
 }
