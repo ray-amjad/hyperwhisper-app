@@ -108,17 +108,26 @@ These options apply in addition to the preset instructions:
 
 - **Punctuation** — Adds commas, periods, and other basic punctuation.
 - **Capitalization** — Applies sentence case automatically.
-- **Profanity filter** — Replaces explicit words in the transcript.
+- **Profanity filter** — Removes profanity from the transcript. The AI does not mask the words with symbols. If a sentence no longer makes sense without the word, the AI rewords that part slightly.
 - **Remove Trailing Period** — Deletes the period at the end of a transcription. Use this option for short phrases that you paste into search fields, chat inputs, or command lines, where a final period looks wrong.
 
 ### English Spelling Variants
 
 If your language is English and post-processing is on, you can select a spelling variant. The AI then uses the same spelling rules for all text:
 
-- **American** (default) — for example, *color*, *organize*, *favor*
-- **British** — for example, *colour*, *organise*, *favour*
-- **Australian** — for example, *colour*, *organise*, *favour* (Australian conventions)
-- **Canadian** — for example, *colour*, *organize*, *favour* (Canadian conventions)
+- **American** (default) — for example, *color*, *realize*, *organization*, *center*, *traveled*
+- **British** — for example, *colour*, *realise*, *organisation*, *centre*, *travelled*
+- **Australian** — for example, *colour*, *realise*, *organisation*, *centre*, *travelled*
+- **Canadian** — for example, *colour*, *realize*, *organization*, *centre*, *travelled*. Canadian English keeps the British *-our* and *-re* endings, but it uses the American *-ize* and *-ization* endings.
+
+The variant also sets the date format that the AI writes:
+
+| Variant | Date format |
+|---|---|
+| American | `MM/DD/YYYY` (for example, 12/25/2025) or "December 25, 2025" |
+| British | `DD/MM/YYYY` (for example, 25/12/2025) or "25 December 2025" |
+| Australian | `DD/MM/YYYY` (for example, 25/12/2025) or "25 December 2025" |
+| Canadian | `DD/MM/YYYY` or `YYYY-MM-DD` (for example, 25/12/2025 or 2025-12-25) or "25 December 2025" |
 
 HyperWhisper stores the variant for each mode. Thus a mode for UK client emails can use British, and your daily dictation mode can stay on American.
 

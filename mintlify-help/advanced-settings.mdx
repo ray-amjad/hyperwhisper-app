@@ -84,6 +84,19 @@ This setting does nothing now. No model-filter code reads it. The model selector
 
 ---
 
+### Filesync
+
+This stored preference is a feature flag for recording sync across devices.
+
+| Detail | Value |
+|---|---|
+| Default | Off |
+| Platform | macOS |
+
+This setting does nothing now. HyperWhisper has no device sync, and no part of the app reads the value. Only the backup export and the backup import move it. The backup file stores it under the `"storage"` object, with `storeAsM4A`, and not under `"advanced"`.
+
+---
+
 ## Change advanced settings with a backup file
 
 Most of these settings do not appear in a dedicated Settings panel. Thus, the backup workflow is the most reliable way to change them. You can also change max recording duration in **Settings → Storage**.
@@ -119,4 +132,4 @@ Most of these settings do not appear in a dedicated Settings panel. Thus, the ba
 
 ## Windows
 
-The settings on this page (`maxRecordingDuration`, `audioSampleRate`, `keepAudioFiles`, `historyRetentionDays`) are macOS-only. Windows does not implement them. The Windows UI does not show them. A Windows backup export does not write them. A Windows backup import does not apply them. If you import a macOS backup file on Windows, Windows ignores these fields without a message.
+The settings on this page (`maxRecordingDuration`, `audioSampleRate`, `keepAudioFiles`, `historyRetentionDays`, `filesyncEnabled`) are macOS-only. Windows does not implement them. The Windows UI does not show them. A Windows backup export does not write them. A Windows backup import does not apply them. If you import a macOS backup file on Windows, Windows ignores these fields without a message.
