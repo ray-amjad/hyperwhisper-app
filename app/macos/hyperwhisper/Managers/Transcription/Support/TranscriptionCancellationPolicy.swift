@@ -2,23 +2,13 @@
 //  TranscriptionCancellationPolicy.swift
 //  hyperwhisper
 //
-//  CANCELLATION VS FAILURE DECISION
-//  Decides whether an error thrown out of a transcription provider is a
-//  genuine caller-initiated cancellation (benign, no Sentry, no error toast)
-//  or a real provider failure that must stay visible.
+//  Decides whether an error thrown out of a transcription provider is a genuine
+//  caller-initiated cancellation (benign: no Sentry, no error toast) or a real
+//  provider failure that must stay visible.
 //
-//  Key Features:
-//  - Pure function: the task-cancellation flag is injected, never read here
-//  - `CancellationError` alone is NOT enough — the task must also be cancelled
-//  - Also treats `NSURLErrorCancelled` as a cancellation, for URL-backed work
-//
-//  Architecture Notes:
-//  - Deliberately a free namespace rather than a member of
-//    `AppleSpeechAnalyzerProvider`: that type is `@available(macOS 26.0, *)`
-//    inside `#if canImport(Speech)`, which would make this untestable.
-//  - `isTaskCancelled` must be read by the caller, at the point the error is
-//    caught: `Task.isCancelled` is task-local, so reading it in here would
-//    answer for the wrong task.
+//  A free namespace rather than a member of `AppleSpeechAnalyzerProvider`: that
+//  type is `@available(macOS 26.0, *)` inside `#if canImport(Speech)`, which
+//  would make this untestable.
 //
 
 import Foundation
@@ -26,24 +16,23 @@ import Foundation
 /// Classifies an error caught in a transcription provider as either a genuine
 /// cancellation or a provider failure.
 ///
-/// ## Why this is not `HyperWhisperCloudManager.isCancellationError(_:)`
+/// ## Why AND, not OR
 ///
-/// That helper (`Managers/HyperWhisperCloudManager.swift`) **ORs**
-/// `Task.isCancelled` in: `error is CancellationError` on its own already
-/// returns `true` there, regardless of whether anything actually cancelled the
-/// task. Those are exactly the semantics that produced **HYPERWHISPER-SQ**
-/// (`TranscriptionPipeline.transcribeWithDetails failed`, 8 users): a
-/// `CancellationError` can also surface with `Task.isCancelled == false` when
-/// the Apple Speech provider tears its own analyzer down via
-/// `cancelAndFinishNow()` while a consumer is still reading
-/// `transcriber.results`. That is a real failure — the user gets no transcript
-/// — and must not be swallowed.
+/// A `CancellationError` on its own does not mean the caller cancelled. Apple
+/// Speech tears its own analyzer down via `cancelAndFinishNow()` while a
+/// consumer is still reading `transcriber.results`, which ends that stream with
+/// a `CancellationError` on a task nobody cancelled. The user gets no transcript
+/// there, so it must stay reported — treating a bare `CancellationError` as
+/// benign is what hid **HYPERWHISPER-SQ**
+/// (`TranscriptionPipeline.transcribeWithDetails failed`, 8 users).
 ///
-/// This policy therefore **ANDs** the flag in: a bare `CancellationError` with
-/// a live (non-cancelled) task is a `.providerFailure`.
+/// So the task-cancellation flag is ANDed in, not ORed:
+/// `cancellationErrorOnALiveTaskIsStillAProviderFailure` locks that down.
 ///
-/// - Important: The two must **not** be "unified" later. The difference in
-///   boolean operator is the fix, not an inconsistency to clean up.
+/// - Note: The codebase has several cancellation classifiers with different
+///   semantics (e.g. `HyperWhisperCloudManager.isCancellationError(_:)`, which
+///   ORs). Consolidating them is a worthwhile follow-up — the tests here define
+///   the semantics any consolidation has to preserve.
 enum TranscriptionCancellationPolicy {
 
     /// The outcome of classifying a caught transcription error.
@@ -58,8 +47,9 @@ enum TranscriptionCancellationPolicy {
     ///
     /// - Parameters:
     ///   - error: The error caught in the provider's `catch` block.
-    ///   - isTaskCancelled: The value of `Task.isCancelled`, read once by the
-    ///     caller inside that same `catch` block.
+    ///   - isTaskCancelled: The value of `Task.isCancelled`. `Task.isCancelled`
+    ///     is task-local, so the caller must read it inside that same `catch`
+    ///     block; reading it here would answer for the wrong task.
     /// - Returns: `.genuineCancellation` only when the task really was
     ///   cancelled *and* the error is a cancellation error.
     static func outcome(for error: Error, isTaskCancelled: Bool) -> Outcome {

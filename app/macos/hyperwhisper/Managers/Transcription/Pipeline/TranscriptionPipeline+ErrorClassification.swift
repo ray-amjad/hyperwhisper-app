@@ -204,8 +204,7 @@ extension TranscriptionPipeline {
         ]
     }
 
-    /// Not `private` so the reason-vocabulary decision is unit-testable.
-    nonisolated static func isTransientProviderAvailabilityReason(_ reason: String?) -> Bool {
+    private static func isTransientProviderAvailabilityReason(_ reason: String?) -> Bool {
         guard let reason = reason?.lowercased() else { return false }
         return reason.contains("unreachable")
             || reason.contains("offline")

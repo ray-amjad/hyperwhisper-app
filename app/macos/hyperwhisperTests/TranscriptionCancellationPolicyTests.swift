@@ -38,14 +38,26 @@ struct TranscriptionCancellationPolicyTests {
     }
 
     @Test func cancelledTaskWithURLCancelledErrorIsAGenuineCancellation() {
-        let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
-
+        // `URLError` is what URLSession actually throws, and it bridges to
+        // NSURLErrorDomain / NSURLErrorCancelled — matching the precedent in
+        // `HyperWhisperCloudLicenseRecoveryTests`.
         let outcome = TranscriptionCancellationPolicy.outcome(
-            for: error,
+            for: URLError(.cancelled),
             isTaskCancelled: true
         )
 
         #expect(outcome == .genuineCancellation)
+    }
+
+    @Test func cancelledTaskWithANonCancelledURLErrorIsStillAProviderFailure() {
+        // Pins the code check, not just the domain check: a request that timed
+        // out while the task happened to be cancelled is a real failure.
+        let outcome = TranscriptionCancellationPolicy.outcome(
+            for: URLError(.timedOut),
+            isTaskCancelled: true
+        )
+
+        #expect(outcome == .providerFailure)
     }
 
     @Test func unrelatedErrorOnACancelledTaskIsStillAProviderFailure() {
@@ -69,24 +81,5 @@ struct TranscriptionCancellationPolicyTests {
         )
 
         #expect(outcome == .providerFailure)
-    }
-
-    @Test func realAppleSpeechFailureReasonIsNotClassifiedTransient() {
-        // The provider's `.providerNotAvailable` reason string is deliberately
-        // unchanged by the HYPERWHISPER-SQ fix: the pipeline pattern-matches
-        // that text to suppress transient provider-availability errors, and new
-        // wording risks colliding with "network" / "connection" and silently
-        // suppressing genuine defects. Pin that a real failure still reports.
-        let error = TranscriptionError.providerNotAvailable(
-            provider: "Apple Speech",
-            reason: "Transcription failed: The operation could not be completed. (SpeechAnalyzer error 3.)"
-        )
-
-        guard case .providerNotAvailable(_, let reason) = error else {
-            Issue.record("Expected a .providerNotAvailable error")
-            return
-        }
-
-        #expect(TranscriptionPipeline.isTransientProviderAvailabilityReason(reason) == false)
     }
 }

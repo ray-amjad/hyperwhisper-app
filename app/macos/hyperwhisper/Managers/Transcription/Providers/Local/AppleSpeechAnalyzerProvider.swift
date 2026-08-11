@@ -46,16 +46,6 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             try await analyzer.prepareToAnalyze(in: nil)
             logger.info("SpeechAnalyzer preheated for locale: \(locale.identifier, privacy: .public)")
         } catch {
-            // `Task.isCancelled` is task-local: read it here, at the catch site.
-            let isTaskCancelled = Task.isCancelled
-            if TranscriptionCancellationPolicy.outcome(
-                for: error,
-                isTaskCancelled: isTaskCancelled
-            ) == .genuineCancellation {
-                logger.info("SpeechAnalyzer preheat cancelled by the caller")
-                throw CancellationError()
-            }
-
             logger.error("Failed to preheat SpeechAnalyzer: \(error.localizedDescription, privacy: .public)")
             throw TranscriptionError.providerNotAvailable(
                 provider: "Apple Speech",
