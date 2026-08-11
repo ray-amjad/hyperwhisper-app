@@ -273,6 +273,13 @@ class TranscriptionModelManager: ObservableObject {
                 do {
                     try await provider.prepareIfNeeded(language: extractLanguage(from: mode))
                     modelReadyState = .ready(name: "Apple Speech")
+                } catch is CancellationError {
+                    // Preparation was superseded (mode switch, new preparation
+                    // generation) — not a failure, so don't toast the user.
+                    // Same treatment the Parakeet branch below already gives a
+                    // cancelled preparation. HYPERWHISPER-SQ.
+                    AppLogger.models.info("Speech Analyzer preparation cancelled")
+                    modelReadyState = .none
                 } catch {
                     AppLogger.models.error("Failed to prepare Speech Analyzer: \(error.localizedDescription, privacy: .public)")
                     modelReadyState = .none
