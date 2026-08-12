@@ -40,7 +40,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// .warning/.critical. Retained for the process lifetime; behavior-neutral
     /// when there is no pressure.
     private var memoryPressureMonitor: MemoryPressureMonitor?
-    
+
+    /// True once `applicationDidFinishLaunching` has run.
+    ///
+    /// `HyperWhisperApp.bootstrapAppServices()` now runs from the MenuBarExtra
+    /// label so a login-item launch still registers the global hotkeys without a
+    /// main window (issue #142). That bootstrap starts Sparkle and the Local API
+    /// server, so it waits on this flag rather than assuming scene setup always
+    /// follows launch completion.
+    static private(set) var didFinishLaunching = false
+
     // MARK: - Initialization
     
     override init() {
@@ -57,6 +66,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - NSApplicationDelegate
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppDelegate.didFinishLaunching = true
+
         // Initialize Sentry if DSN is configured and error logging is enabled
         let loggingEnabled = UserDefaults.standard.bool(forKey: "enableErrorLogging")
         if loggingEnabled {

@@ -344,37 +344,10 @@ struct MenuBarIconView: View {
 
                 // Handle app lifecycle events
                 .onAppear {
-                    // DEPENDENCY INJECTION: Connect the model manager to transcription manager
-                    // This must be done early to ensure LibWhisperProvider gets the shared instance
-                    transcriptionPipeline.setModelManager(whisperModelManager)
-                    transcriptionPipeline.setParakeetModelManager(parakeetModelManager)
-                    transcriptionPipeline.setQwen3AsrModelManager(qwen3AsrModelManager)
-                    transcriptionPipeline.setNemotronModelManager(nemotronModelManager)
-                    transcriptionPipeline.setLocalModelManager(localModelManager)
-                    transcriptionPipeline.setSpeechAnalyzerProvider()
-                    localModelManager.refreshCatalog()
-
-                    // Wire the Library aggregator to the live data sources.
-                    modelLibraryManager.configure(
-                        cloudHealth: cloudProviderHealthManager,
-                        apiKeys: settingsManager.apiKeys,
-                        whisperManager: whisperModelManager,
-                        parakeetManager: parakeetModelManager,
-                        qwen3AsrManager: qwen3AsrModelManager,
-                        nemotronManager: nemotronModelManager,
-                        localLLMManager: localModelManager
-                    )
-
-                    // Code that runs when the main window appears
+                    // Code that runs when the main window appears.
+                    // Launch work that must not wait for the window lives in
+                    // bootstrapAppServices(), which this calls first.
                     handleMainWindowAppear()
-
-                    // Initialize models and restore mode selection
-                    Task {
-                        await bootstrapModelsOnce()
-                        await MainActor.run {
-                            initializeSelectedModeLightweight()
-                        }
-                    }
                 }
                 .onChange(of: settingsManager.checkForUpdatesAutomatically) { _, newValue in
                     // Keep Sparkle's automatic checks in sync with user setting
@@ -477,6 +450,14 @@ struct MenuBarIconView: View {
             // The previous inline implementation couldn't properly observe appState changes
             // MenuBarIconView mirrors AppState updates so the status item refreshes reliably
             MenuBarIconView(appState: appState)
+                // LOGIN-ITEM SAFETY NET: the menu bar label is the only scene
+                // content macOS always renders. A login-item launch with
+                // `launchMinimized` on never renders the WindowGroup, so the
+                // window's .onAppear never fires (issue #142). Bootstrap here
+                // so the global hotkeys exist without the window.
+                .onAppear {
+                    bootstrapAppServices()
+                }
                 // Ensure overlay window opens/closes even when main window is closed
                 .onChange(of: appState.showRecordingDialog) { _, newValue in
                 if newValue {
@@ -513,8 +494,72 @@ struct MenuBarIconView: View {
         AppActivationPolicyController.apply(targetPolicy)
     }
     
-    /// Handles initial setup when the main window appears
-    private func handleMainWindowAppear() {
+    /// ONE-TIME LAUNCH BOOTSTRAP GUARD:
+    /// `bootstrapAppServices()` runs from two scenes (the menu bar label and the
+    /// main window). Static, not `@State`, so the guard survives any scene
+    /// re-evaluation — same reason `hotkeysConfigured` is static.
+    private static var didBootstrapAppServices = false
+
+    /// Launch work that must not depend on the main window existing.
+    ///
+    /// The main window is NOT guaranteed to be created at launch. When the app
+    /// starts as a login item with `launchMinimized` on, macOS 26 never renders
+    /// the `WindowGroup` content, so its `.onAppear` never fires. Everything
+    /// below used to live in that `.onAppear` — including `setupGlobalHotkeys()`
+    /// — so the record shortcut stayed dead until the user clicked the Dock icon
+    /// and forced the window into existence (issue #142).
+    ///
+    /// Callers: the `MenuBarExtra` label (always renders) and
+    /// `handleMainWindowAppear()`. The guard makes the second call a no-op.
+    private func bootstrapAppServices() {
+        guard !Self.didBootstrapAppServices else { return }
+
+        // The menu bar label can render before AppKit finishes launching. Sparkle
+        // and the Local API server below both expect a fully launched app, so
+        // wait for the delegate rather than assume an ordering.
+        guard AppDelegate.didFinishLaunching else {
+            AppLogger.ui.debug("⏳ Bootstrap requested before launch completed — deferring")
+            var token: NSObjectProtocol?
+            token = NotificationCenter.default.addObserver(
+                forName: NSApplication.didFinishLaunchingNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                if let token {
+                    NotificationCenter.default.removeObserver(token)
+                }
+                Task { @MainActor in
+                    self.bootstrapAppServices()
+                }
+            }
+            return
+        }
+
+        Self.didBootstrapAppServices = true
+
+        AppLogger.ui.debug("🚀 Bootstrapping app services")
+
+        // DEPENDENCY INJECTION: Connect the model manager to transcription manager
+        // This must be done early to ensure LibWhisperProvider gets the shared instance
+        transcriptionPipeline.setModelManager(whisperModelManager)
+        transcriptionPipeline.setParakeetModelManager(parakeetModelManager)
+        transcriptionPipeline.setQwen3AsrModelManager(qwen3AsrModelManager)
+        transcriptionPipeline.setNemotronModelManager(nemotronModelManager)
+        transcriptionPipeline.setLocalModelManager(localModelManager)
+        transcriptionPipeline.setSpeechAnalyzerProvider()
+        localModelManager.refreshCatalog()
+
+        // Wire the Library aggregator to the live data sources.
+        modelLibraryManager.configure(
+            cloudHealth: cloudProviderHealthManager,
+            apiKeys: settingsManager.apiKeys,
+            whisperManager: whisperModelManager,
+            parakeetManager: parakeetModelManager,
+            qwen3AsrManager: qwen3AsrModelManager,
+            nemotronManager: nemotronModelManager,
+            localLLMManager: localModelManager
+        )
+
         // Configure AudioRecordingManager with dependencies
         audioManager.configure(
             transcriptionPipeline: transcriptionPipeline,
@@ -566,48 +611,11 @@ struct MenuBarIconView: View {
             LocalAPIServer.shared.start()
         }
 
-        // Ensure the app is activated so global event monitors initialize properly.
-        // Without this, KeyboardShortcuts' NSEvent monitors don't receive events
-        // when the app launches as a login item with .accessory activation policy.
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Set up global hotkeys (must happen while app is activated)
-        // These work even when the app isn't focused
+        // Set up global hotkeys. These work even when the app isn't focused, and
+        // they do not need the app to be active: KeyboardShortcuts registers
+        // Carbon hotkeys, and the bare-modifier path uses a CGEvent tap. Both
+        // depend on Accessibility permission, not on activation.
         setupGlobalHotkeys()
-
-        // Resolve onboarding before launch-minimized behavior. Existing users may
-        // not have a persisted completion key because older builds defaulted it to
-        // true; marking them complete here ensures their first upgraded launch
-        // still honors the menu-bar-only preference.
-        if !hasCompletedOnboarding {
-            if PersistenceController.shared.didSeedDefaultModesOnLaunch {
-                onboardingPending = true
-            }
-            if onboardingPending {
-                // Small delay to ensure the main window is ready before showing sheet
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    appState.showOnboarding = true
-                }
-            } else {
-                // Existing user (modes already present): treat onboarding as done.
-                hasCompletedOnboarding = true
-            }
-        }
-
-        // LAUNCH MINIMIZED: Hide main window if preference is set
-        // This allows the app to run in menu bar only mode by default
-        // Users can still access the window via Menu Bar > Settings
-        if launchMinimized && hasCompletedOnboarding {
-            // Delay to ensure window is fully created and event monitors initialize before hiding
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let mainWindow = NSApplication.shared.windows.first {
-                    mainWindow.orderOut(nil)
-                    AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
-                    // Return focus to previous app after hiding our window
-                    NSApp.deactivate()
-                }
-            }
-        }
 
         // Note: Microphone permission is now requested only when user tries to record
         // This prevents the permission dialog from appearing on every app launch
@@ -725,6 +733,63 @@ struct MenuBarIconView: View {
             settingsManager.autoDelete.cleanupService = autoDeleteCleanupService
             autoDeleteCleanupService?.startPeriodicCleanup()
             AppLogger.ui.debug("🗑️ Auto-delete cleanup service started")
+        }
+
+        // Initialize models and restore mode selection
+        Task {
+            await bootstrapModelsOnce()
+            await MainActor.run {
+                initializeSelectedModeLightweight()
+            }
+        }
+    }
+
+    /// Handles setup that genuinely needs the main window to exist.
+    ///
+    /// Only onboarding (which presents a sheet in this window) and the
+    /// launch-minimized hide belong here. Everything else moved to
+    /// `bootstrapAppServices()`, which this calls first so a normal launch keeps
+    /// the original ordering.
+    private func handleMainWindowAppear() {
+        bootstrapAppServices()
+
+        // Ensure the app is activated so the window comes forward on a normal
+        // (non-minimized) launch. Hotkeys no longer depend on this — see
+        // setupGlobalHotkeys() in bootstrapAppServices().
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Resolve onboarding before launch-minimized behavior. Existing users may
+        // not have a persisted completion key because older builds defaulted it to
+        // true; marking them complete here ensures their first upgraded launch
+        // still honors the menu-bar-only preference.
+        if !hasCompletedOnboarding {
+            if PersistenceController.shared.didSeedDefaultModesOnLaunch {
+                onboardingPending = true
+            }
+            if onboardingPending {
+                // Small delay to ensure the main window is ready before showing sheet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    appState.showOnboarding = true
+                }
+            } else {
+                // Existing user (modes already present): treat onboarding as done.
+                hasCompletedOnboarding = true
+            }
+        }
+
+        // LAUNCH MINIMIZED: Hide main window if preference is set
+        // This allows the app to run in menu bar only mode by default
+        // Users can still access the window via Menu Bar > Settings
+        if launchMinimized && hasCompletedOnboarding {
+            // Delay to ensure window is fully created before hiding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if let mainWindow = NSApplication.shared.windows.first {
+                    mainWindow.orderOut(nil)
+                    AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
+                    // Return focus to previous app after hiding our window
+                    NSApp.deactivate()
+                }
+            }
         }
     }
 
