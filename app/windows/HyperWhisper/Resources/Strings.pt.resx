@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Compartilhar dados de velocidade anônimos</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mede quanto tempo cada provedor de nuvem leva e adiciona isso a uma comparação pública, para que todos possam ver qual modelo é o mais rápido onde estão. Uma medição contém o provedor, a região do servidor, a duração do trecho e o tempo levado — sem conta, sem chave, sem áudio e sem texto. Os modelos locais nunca enviam nada.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Ver a comparação de velocidade</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Atualização automática</value>
   </data>

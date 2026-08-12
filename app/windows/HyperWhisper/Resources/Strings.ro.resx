@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Distribuie date de viteză anonime</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Măsoară cât timp durează fiecare furnizor cloud și adaugă asta la o comparație publică, astfel încât toată lumea să poată vedea care model este cel mai rapid acolo unde se află. O măsurătoare conține furnizorul, regiunea serverului, durata clipului și timpul necesar — fără cont, fără cheie, fără audio și fără text. Modelele locale nu trimit niciodată nimic.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Vezi comparația de viteză</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Actualizare automată</value>
   </data>

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, ProviderUnavailableKind } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
@@ -25,6 +26,46 @@ export function computeUploadTimeoutMs(byteLength: number): number {
  */
 export function estimateSecondsFromBytes(byteLength: number): number {
   return (byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
+}
+
+/**
+ * Representative bytes-per-second per container, for the duration estimates that
+ * have to be roughly RIGHT rather than deliberately conservative — Chirp's
+ * inline/duration gate and missing-`totalBilledDuration` fallback, and the
+ * /latency page's clip-length bucketing.
+ *
+ * The desktop apps upload 16 kHz/16-bit mono WAV (32,000 B/s), so the flat
+ * 64 kbps assumption behind estimateSecondsFromBytes() overstates their clips
+ * by ~4×. Unknown or compressed containers fall back to 16,000 B/s (128 kbps),
+ * which is the middle of the range we actually receive.
+ *
+ * Match order is the order google-chirp.ts's if/else chain used before this
+ * moved here — a content type carrying two hints (`audio/mp4; codecs=opus`)
+ * resolves to the first entry that matches. Keep it stable.
+ */
+const BYTES_PER_SECOND_BY_CONTAINER: ReadonlyArray<{ hints: readonly string[]; bytesPerSecond: number }> = [
+  { hints: ['wav', 'pcm'], bytesPerSecond: 32_000 },
+  { hints: ['opus', 'webm'], bytesPerSecond: 8_000 },
+  { hints: ['flac', 'ogg'], bytesPerSecond: 32_000 },
+  { hints: ['mp3', 'mpeg'], bytesPerSecond: 16_000 },
+  { hints: ['m4a', 'mp4', 'aac'], bytesPerSecond: 16_000 },
+];
+
+const DEFAULT_BYTES_PER_SECOND = 16_000;
+
+/**
+ * Estimate audio duration (seconds) from byte length using the rate for the
+ * request's Content-Type. Over-estimates slightly on compressed audio and
+ * under-estimates slightly on raw — both preferable to being an order of
+ * magnitude out on the WAV every desktop client sends.
+ */
+export function estimateAudioSeconds(byteLength: number, contentType: string): number {
+  const lower = (contentType || '').toLowerCase();
+  const match = BYTES_PER_SECOND_BY_CONTAINER.find(({ hints }) =>
+    hints.some((hint) => lower.includes(hint)),
+  );
+
+  return byteLength / (match?.bytesPerSecond ?? DEFAULT_BYTES_PER_SECOND);
 }
 
 /** Filename extensions the multipart adapters use for the audio part. */
@@ -72,6 +113,53 @@ export function audioExtensionFromContentType<T extends AudioExtension>(
   }
 
   return undefined;
+}
+
+/**
+ * Whether one provider attempt ever opened a socket to its upstream.
+ *
+ * The /latency page may only publish an attempt the provider actually received.
+ * Every adapter runs its own gates first — a missing API key, a byte-length cap,
+ * a content-type check — and each of those throws in single-digit microseconds,
+ * which the page would otherwise render as that provider answering in 1 ms.
+ * Enumerating those throw sites is what failed twice (a whitelist of error types
+ * has to be extended by whoever adds the next gate, and nothing makes them).
+ *
+ * So the signal is taken from the one place that cannot be bypassed without
+ * noticing: the request actually leaving this process. `markProviderNetworkCall()`
+ * is called by fetchWithTimeout() below — every adapter's only route to an
+ * upstream — and by the GCS uploader on Chirp's large-file path, BEFORE the
+ * fetch, so a timeout or a connection reset still counts as a measurement. A new
+ * gate added above any of those calls is excluded automatically; a new gate
+ * added below one is, correctly, a real attempt.
+ *
+ * AsyncLocalStorage rather than a module-level flag: attempts from concurrent
+ * requests interleave on one event loop, and a shared flag would let one
+ * request's fetch mark another request's rejection as measured.
+ *
+ * One deliberate omission: lib/google-auth mints its Google token through
+ * google-auth-library's own HTTP client, so a Chirp attempt that dies there is
+ * not reported. That is the right answer — a bad or missing service-account
+ * credential is our configuration failing, not Google answering slowly.
+ */
+export type ProviderAttemptNetwork = { reachedProvider: boolean };
+
+const attemptNetworkStorage = new AsyncLocalStorage<ProviderAttemptNetwork>();
+
+/** Runs one provider attempt, recording into `state` whether it reached the wire. */
+export function runProviderAttempt<T>(
+  state: ProviderAttemptNetwork,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return attemptNetworkStorage.run(state, fn);
+}
+
+/** Called immediately before an upstream request leaves this process. */
+export function markProviderNetworkCall(): void {
+  const state = attemptNetworkStorage.getStore();
+  if (state) {
+    state.reachedProvider = true;
+  }
 }
 
 function resolveProviderTimeoutMs(): number {
@@ -123,6 +211,10 @@ export async function fetchWithTimeout(
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Before the fetch, not after: a timeout or a connection reset is a provider
+  // attempt the user waited on, so it has to count as a measurement. See
+  // ProviderAttemptNetwork above.
+  markProviderNetworkCall();
   logProviderEvent(provider, 'request_start', { timeoutMs }, context);
 
   try {

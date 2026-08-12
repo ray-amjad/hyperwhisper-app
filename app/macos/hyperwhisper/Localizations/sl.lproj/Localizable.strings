@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Beleženje napak";
 "settings.general.errorLogging.info" = "Samodejno zajemi in pošlji poročila o napakah za pomoč pri izboljšanju aplikacije.";
+"settings.general.shareSpeedData.title" = "Deli anonimne podatke o hitrosti";
+"settings.general.shareSpeedData.subtitle" = "Vsem pomaga videti, kateri oblačni model je najhitrejši na njihovi lokaciji.";
+"settings.general.shareSpeedData.info" = "Meri, koliko časa potrebuje vsak ponudnik v oblaku, in to doda javni primerjavi. Meritev vsebuje ponudnika, regijo strežnika, dolžino posnetka in porabljen čas — brez računa, brez ključa, brez zvoka in brez besedila. Izklopite to in HyperWhisper tega ne bo več pošiljal. Nič drugega se ne spremeni, lokalni modeli pa nikoli ničesar ne pošljejo.";
+"settings.general.shareSpeedData.link" = "Ogled primerjave hitrosti";
 "settings.general.autoUpdate.title" = "Samodejni posodobitve";
 "settings.general.autoUpdate.info" = "Samodejno preveri in prenesi nove različice HyperWhisper.";
 "settings.general.support.title" = "Potrebuješ pomoč?";

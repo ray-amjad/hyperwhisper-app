@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Vigade logimine";
 "settings.general.errorLogging.info" = "Hõiva ja saada automaatselt veaaruandeid rakenduse täiustamiseks.";
+"settings.general.shareSpeedData.title" = "Jaga anonüümseid kiirusandmeid";
+"settings.general.shareSpeedData.subtitle" = "Aitab kõigil näha, milline pilvemudel on nende asukohas kiireim.";
+"settings.general.shareSpeedData.info" = "Mõõdab, kui kaua iga pilveteenuse pakkuja aega võtab, ja lisab selle avalikku võrdlusesse. Mõõtmine sisaldab pakkujat, serveri piirkonda, klipi pikkust ja kulunud aega — ei kontot, ei võtit, ei heli ega teksti. Lülita see välja ja HyperWhisper lõpetab selle saatmise. Midagi muud ei muutu ning kohalikud mudelid ei saada kunagi midagi.";
+"settings.general.shareSpeedData.link" = "Vaata kiiruse võrdlust";
 "settings.general.autoUpdate.title" = "Automaatne uuendamine";
 "settings.general.autoUpdate.info" = "Kontrolli ja laadi automaatselt alla HyperWhisperi uusi versioone.";
 "settings.general.support.title" = "Vajate abi?";

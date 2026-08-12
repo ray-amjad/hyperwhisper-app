@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Deila nafnlausum hraðagögnum</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mælir hversu langan tíma hver skýjaþjónustuaðili tekur og bætir því við opinberan samanburð, svo allir geti séð hvaða líkan er hraðast þar sem þeir eru. Mæling inniheldur þjónustuaðilann, netþjónasvæðið, lengd klippsins og tímann sem tók — enginn reikningur, enginn lykill, ekkert hljóð og enginn texti. Staðbundin líkön senda aldrei neitt.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Skoða hraðasamanburðinn</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Sjálfvirk uppfærsla</value>
   </data>

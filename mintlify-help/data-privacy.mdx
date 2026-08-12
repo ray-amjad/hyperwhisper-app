@@ -37,6 +37,40 @@ Some providers store data for a short time for abuse monitoring. Grok and Mistra
 
 As a HyperWhisper Cloud user, you do not configure anything. No provider in the stack uses your audio for model training. No provider stores it, except in the limited cases in this section.
 
+### Timing measurements
+
+HyperWhisper Cloud times each provider call and stores the timing. These timings make the public [latency page](https://hyperwhisper.com/en/latency), which shows how fast each provider answers in each region.
+
+One stored row holds only these facts:
+
+- The provider, and the model. If the call worked, this is the model that ran. If it failed, no model ran, so it is the model the call asked for.
+- The server region that made the call.
+- Which clip-length group the audio is in: under 10 seconds, 10 to 30 seconds, or more than 30 seconds. The group comes from an estimate of the length, calculated from the size and the format of the audio. The length itself is not stored.
+- The position of the call in the fallback sequence: 1 for the first provider, 2 for the next one, and so on.
+- How long the provider took, in milliseconds.
+- Whether the call worked, and the failure type if it did not.
+- The hour in which the call happened. HyperWhisper stores the time rounded down to the hour, and no more accurately.
+
+If HyperWhisper stops a request before it sends anything to a provider, for example because the audio is too large or in a format that provider does not accept, it stores no row. The provider did not receive the call, so the measurement is not its own.
+
+A row holds **no account, no key, no request identifier, no IP address, no audio, and no text**. Nothing links a row to a person. Two facts stay out of the row on purpose, because each one would let a person group the rows of one transcription together: the exact time, and the exact length of the audio. Every attempt on one transcription sends the same audio, so an exact length works as a request identifier in the same way an exact timestamp does. HyperWhisper keeps the hour and the clip-length group only. HyperWhisper deletes these rows after 1 year. The public page shows only the last 30 days.
+
+Local models never send a timing measurement. Only HyperWhisper Cloud does.
+
+#### How to stop the measurements
+
+Open **Settings → General** and turn off **Share anonymous speed data**. The change applies to your next transcription.
+
+Your transcriptions do not change when you turn this off. The same providers run, at the same speed, and you get the same result. The only difference is that the server does not store the timing.
+
+Under the hood, the app adds one request header:
+
+```text
+X-Latency-Opt-Out: 1
+```
+
+The server reads this header and discards the measurement instead of storing it. If you call the HyperWhisper Cloud API directly, send the same header to get the same result.
+
 ## Your own API keys (BYOK)
 
 If you configure your own API key in **Model Library → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
@@ -97,7 +131,7 @@ You can do these three things:
 ## Summary
 
 - **Local**: the audio stays on your device.
-- **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade.
+- **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
 - **Your own API key**: the opt-out is mostly your responsibility. Deepgram is the exception, because HyperWhisper adds `mip_opt_out=true` to every request from the app.
 
 ---

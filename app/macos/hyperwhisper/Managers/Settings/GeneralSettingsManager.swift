@@ -92,6 +92,22 @@ class GeneralSettingsManager: ObservableObject {
         }
     }
 
+    /// Whether to contribute anonymous speed measurements to the public
+    /// latency page at hyperwhisper.com/en/latency.
+    ///
+    /// When enabled (the default), every HyperWhisper Cloud transcription adds
+    /// one anonymous row per provider attempt: which provider ran, from which
+    /// server region, how long the clip was, how long the provider took, and
+    /// whether it worked. No account, no key, no request id, no IP, no audio,
+    /// and no text — nothing that links two rows to the same person.
+    ///
+    /// When disabled, the app sends `X-Latency-Opt-Out: 1` and the server drops
+    /// the measurement instead of storing it. Nothing else about the request
+    /// changes: same providers, same speed, same result.
+    ///
+    /// Local transcription never reports anything, whatever this is set to.
+    @AppStorage("shareAnonymousSpeedData") var shareAnonymousSpeedData: Bool = true
+
     // MARK: - Voice Activity Detection Settings
 
     /// Whether to enable Voice Activity Detection (VAD) for silence trimming

@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Chia sẻ dữ liệu tốc độ ẩn danh</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Đo thời gian mỗi nhà cung cấp đám mây mất và thêm vào so sánh công khai, để mọi người có thể thấy mô hình nào nhanh nhất tại vị trí của họ. Một phép đo gồm nhà cung cấp, khu vực máy chủ, độ dài đoạn ghi âm và thời gian đã dùng — không tài khoản, không khóa, không âm thanh và không văn bản. Các mô hình cục bộ không bao giờ gửi bất cứ thứ gì.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Xem so sánh tốc độ</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Cập nhật tự động</value>
   </data>

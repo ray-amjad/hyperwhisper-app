@@ -85,6 +85,9 @@ public class UniversalGeneralSettings
     [JsonPropertyName("enableErrorLogging")]
     public bool? EnableErrorLogging { get; set; }
 
+    [JsonPropertyName("shareAnonymousSpeedData")]
+    public bool? ShareAnonymousSpeedData { get; set; }
+
     [JsonPropertyName("enableSoundEffects")]
     public bool? EnableSoundEffects { get; set; }
 }

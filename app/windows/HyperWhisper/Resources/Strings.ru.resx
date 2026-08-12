@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Делиться анонимными данными о скорости</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Измеряет, сколько времени занимает работа каждого облачного провайдера, и добавляет это в публичное сравнение, чтобы все могли увидеть, какая модель быстрее всего работает в их регионе. Измерение содержит провайдера, регион сервера, длину клипа и затраченное время — без аккаунта, без ключа, без аудио и без текста. Локальные модели никогда ничего не отправляют.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Посмотреть сравнение скорости</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Автоматическое обновление</value>
   </data>

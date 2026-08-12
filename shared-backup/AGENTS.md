@@ -46,6 +46,7 @@ key automatically round-trips into the correct category instead of drifting. See
 | `general.showRecordingWindow` | `GeneralSettingsManager.showRecordingWindow` | `SettingsData.ShowRecordingWindow` |
 | `general.checkForUpdatesAutomatically` | `GeneralSettingsManager.checkForUpdatesAutomatically` | `SettingsData.CheckForUpdatesAutomatically` |
 | `general.enableErrorLogging` | `GeneralSettingsManager.enableErrorLogging` | `SettingsData.EnableErrorLogging` |
+| `general.shareAnonymousSpeedData` | `GeneralSettingsManager.shareAnonymousSpeedData` | `SettingsData.ShareAnonymousSpeedData` |
 | `general.enableSoundEffects` | `AudioSettingsManager.enableSoundEffects` | `SettingsData.EnableSoundEffects` |
 | `textOutput.pasteResultText` | `SettingsManager.pasteResultText` | `SettingsData.AutoPasteEnabled` |
 | `textOutput.removeFillerWords` | `SettingsManager.removeFillerWords` | `SettingsData.RemoveFillerWords` |

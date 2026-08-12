@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "エラーログ";
 "settings.general.errorLogging.info" = "エラーレポートを自動的に収集し、アプリ改善に役立てます。";
+"settings.general.shareSpeedData.title" = "匿名の速度データを共有";
+"settings.general.shareSpeedData.subtitle" = "自分の地域でどのクラウドモデルが最速かをみんなが確認できるようにします。";
+"settings.general.shareSpeedData.info" = "各クラウドプロバイダーの所要時間を計測し、公開比較に追加します。計測にはプロバイダー、サーバーのリージョン、クリップの長さ、かかった時間が含まれます — アカウントもキーも音声もテキストも含まれません。オフにすると、HyperWhisperは送信を停止します。他は何も変わらず、ローカルモデルは常に何も送信しません。";
+"settings.general.shareSpeedData.link" = "速度比較を見る";
 "settings.general.autoUpdate.title" = "自動更新";
 "settings.general.autoUpdate.info" = "HyperWhisperの新しいバージョンを自動的にチェックしてダウンロードします。";
 "settings.general.support.title" = "お困りですか？";

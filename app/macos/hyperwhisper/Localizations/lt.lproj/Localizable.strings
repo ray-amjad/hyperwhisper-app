@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Klaidų žurnalai";
 "settings.general.errorLogging.info" = "Automatiškai užfiksuoti ir siųsti klaidų ataskaitas siekiant pagerinti programą.";
+"settings.general.shareSpeedData.title" = "Bendrinti anoniminius greičio duomenis";
+"settings.general.shareSpeedData.subtitle" = "Padeda visiems pamatyti, kuris debesijos modelis yra greičiausias jų vietovėje.";
+"settings.general.shareSpeedData.info" = "Matuoja, kiek laiko užtrunka kiekvienas debesijos paslaugų teikėjas, ir prideda tai prie viešo palyginimo. Matavimas apima teikėją, serverio regioną, klipo trukmę ir sugaištą laiką — jokios paskyros, jokio rakto, jokio garso ir jokio teksto. Išjunkite tai, ir HyperWhisper nustos jį siųsti. Niekas kitas nesikeičia, o vietiniai modeliai niekada nieko nesiunčia.";
+"settings.general.shareSpeedData.link" = "Žiūrėti greičio palyginimą";
 "settings.general.autoUpdate.title" = "Automatinis atnaujinimas";
 "settings.general.autoUpdate.info" = "Automatiškai patikrinti ir atsisiųsti naujus HyperWhisper versijas.";
 "settings.general.support.title" = "Reikalingas pagalbas?";

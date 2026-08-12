@@ -297,6 +297,11 @@ class SettingsManager: ObservableObject {
         set { general.enableErrorLogging = newValue }
     }
 
+    var shareAnonymousSpeedData: Bool {
+        get { general.shareAnonymousSpeedData }
+        set { general.shareAnonymousSpeedData = newValue }
+    }
+
     var enableVAD: Bool {
         get { general.enableVAD }
         set { general.enableVAD = newValue }
@@ -588,6 +593,7 @@ extension UserDefaults {
             "showRecordingWindow": true,
             "checkForUpdatesAutomatically": true,
             "enableErrorLogging": true,
+            "shareAnonymousSpeedData": true,
             "enableVAD": true,
             "autoIncreaseMicVolume": true,
             "keepMicrophoneWarm": false,

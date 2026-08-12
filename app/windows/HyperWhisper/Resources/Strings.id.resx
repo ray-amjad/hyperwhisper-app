@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Bagikan data kecepatan anonim</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mengukur berapa lama waktu yang dibutuhkan setiap penyedia cloud dan menambahkannya ke perbandingan publik, sehingga semua orang bisa melihat model mana yang tercepat di lokasi mereka. Satu pengukuran berisi penyedia, wilayah server, panjang klip, dan waktu yang dibutuhkan — tanpa akun, tanpa kunci, tanpa audio, dan tanpa teks. Model lokal tidak pernah mengirim apa pun.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Lihat perbandingan kecepatan</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Pembaruan otomatis</value>
   </data>

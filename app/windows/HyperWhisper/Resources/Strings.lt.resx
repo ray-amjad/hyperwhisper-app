@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Bendrinti anoniminius greičio duomenis</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Matuoja, kiek laiko užtrunka kiekvienas debesijos paslaugų teikėjas, ir prideda tai prie viešo palyginimo, kad visi galėtų pamatyti, kuris modelis yra greičiausias jų vietovėje. Matavimas apima teikėją, serverio regioną, klipo trukmę ir sugaištą laiką — jokios paskyros, jokio rakto, jokio garso ir jokio teksto. Vietiniai modeliai niekada nieko nesiunčia.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Žiūrėti greičio palyginimą</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automatinis atnaujinimas</value>
   </data>

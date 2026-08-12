@@ -487,6 +487,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>問題の解決に役立つクラッシュレポートを自動的に送信します。文字起こし内容は送信されません。</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>匿名の速度データを共有</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>各クラウドプロバイダーの所要時間を計測し、公開比較に追加することで、自分の地域でどのモデルが最速かをみんなが確認できるようにします。計測にはプロバイダー、サーバーのリージョン、クリップの長さ、かかった時間が含まれます — アカウントもキーも音声もテキストも含まれません。ローカルモデルは常に何も送信しません。</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>速度比較を見る</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>更新を自動的にチェック</value>
   </data>

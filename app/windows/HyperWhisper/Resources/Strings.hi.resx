@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>अनाम गति डेटा साझा करें</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>हर क्लाउड प्रदाता को कितना समय लगता है यह मापता है और इसे एक सार्वजनिक तुलना में जोड़ता है, ताकि सब देख सकें कि उनके स्थान पर कौन सा मॉडल सबसे तेज़ है। एक माप में प्रदाता, सर्वर क्षेत्र, क्लिप की लंबाई, और लगा समय शामिल होता है — कोई खाता नहीं, कोई कुंजी नहीं, कोई ऑडियो नहीं, और कोई टेक्स्ट नहीं। स्थानीय मॉडल कभी कुछ नहीं भेजते।</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>गति तुलना देखें</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>स्वचालित अपडेट</value>
   </data>

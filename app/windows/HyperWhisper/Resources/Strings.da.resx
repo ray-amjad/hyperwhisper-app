@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Del anonyme hastighedsdata</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Måler, hvor lang tid hver cloud-udbyder tager, og tilføjer det til en offentlig sammenligning, så alle kan se, hvilken model der er hurtigst, hvor de er. En måling indeholder udbyderen, serverregionen, klippets længde og den brugte tid — ingen konto, ingen nøgle, ingen lyd og ingen tekst. Lokale modeller sender aldrig noget.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Se hastighedssammenligningen</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automatisk opdatering</value>
   </data>

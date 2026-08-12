@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Ведение журнала ошибок";
 "settings.general.errorLogging.info" = "Автоматически фиксировать и отправлять отчеты об ошибках для улучшения приложения.";
+"settings.general.shareSpeedData.title" = "Делиться анонимными данными о скорости";
+"settings.general.shareSpeedData.subtitle" = "Помогает всем увидеть, какая облачная модель быстрее всего работает в их регионе.";
+"settings.general.shareSpeedData.info" = "Измеряет, сколько времени занимает работа каждого облачного провайдера, и добавляет это в публичное сравнение. Измерение содержит провайдера, регион сервера, длину клипа и затраченное время — без аккаунта, без ключа, без аудио и без текста. Отключите это, и HyperWhisper перестанет это отправлять. Больше ничего не меняется, а локальные модели никогда ничего не отправляют.";
+"settings.general.shareSpeedData.link" = "Посмотреть сравнение скорости";
 "settings.general.autoUpdate.title" = "Автоматическое обновление";
 "settings.general.autoUpdate.info" = "Автоматически проверять и загружать новые версии HyperWhisper.";
 "settings.general.support.title" = "Нужна помощь?";

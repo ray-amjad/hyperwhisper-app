@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Κοινοποίηση ανώνυμων δεδομένων ταχύτητας</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Μετρά πόσο χρόνο χρειάζεται κάθε πάροχος cloud και το προσθέτει σε μια δημόσια σύγκριση, ώστε όλοι να βλέπουν ποιο μοντέλο είναι το ταχύτερο εκεί που βρίσκονται. Μια μέτρηση περιέχει τον πάροχο, την περιοχή του διακομιστή, τη διάρκεια του κλιπ και τον χρόνο που χρειάστηκε — χωρίς λογαριασμό, χωρίς κλειδί, χωρίς ήχο και χωρίς κείμενο. Τα τοπικά μοντέλα δεν στέλνουν ποτέ τίποτα.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Δείτε τη σύγκριση ταχύτητας</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Αυτόματη ενημέρωση</value>
   </data>

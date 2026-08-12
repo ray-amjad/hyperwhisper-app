@@ -11,6 +11,10 @@ let cachedLicense: { isValid: boolean; credits: number; cachedAt: string } | nul
 };
 
 mock.module('../lib/redis', () => ({
+  // Process-wide mock: without this export the suites that reach
+  // lib/google-auth's static `import { redis }` fail to load. See
+  // post-process.test.ts.
+  redis: {},
   getCachedLicense: async () => cachedLicense,
   cacheLicense: async (licenseKey: string, license: { isValid: boolean; credits: number; cachedAt: string }) => {
     cacheWrites.push({ licenseKey, license });

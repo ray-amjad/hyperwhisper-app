@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Névtelen sebességadatok megosztása</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Méri, mennyi ideig tart minden felhőszolgáltatónak, és hozzáadja egy nyilvános összehasonlításhoz, hogy mindenki lássa, melyik modell a leggyorsabb az ő helyükön. Egy mérés tartalmazza a szolgáltatót, a szerver régióját, a klip hosszát és az eltelt időt — nincs fiók, nincs kulcs, nincs hang és nincs szöveg. A helyi modellek soha nem küldenek semmit.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Sebességösszehasonlítás megtekintése</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automatikus frissítés</value>
   </data>

@@ -31,6 +31,16 @@ import {
   type SttProviderId,
 } from '../lib/stt-models';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
+import {
+  reportLatencySamples,
+  type LatencyFailureKind,
+  type LatencySample,
+} from '../lib/latency-report';
+// Content-type aware, unlike the billing estimators: a failed attempt still has
+// to land in the right clip-length bucket on the public /latency page.
+// runProviderAttempt is how the same page learns whether an attempt ever reached
+// the provider at all.
+import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
 import { rawQuery } from '../lib/query';
 import {
   FLY_REPLAY_MAX_BODY_BYTES,
@@ -206,6 +216,56 @@ function extractModel(c: Context): string | undefined {
 function extractDomain(c: Context): string | undefined {
   const domain = c.req.header('X-STT-Domain')?.toLowerCase().trim();
   return domain || undefined;
+}
+
+/**
+ * Values that mean "the header is present but the client is NOT opting out".
+ * Everything else counts as an opt-out, including values we never documented —
+ * a client that bothers to send this header at all means to be excluded, so an
+ * unrecognised value fails toward privacy rather than toward more data.
+ */
+const LATENCY_OPT_IN_VALUES = new Set(['', '0', 'false', 'no', 'off']);
+
+/**
+ * True when the caller asked to be left out of the public latency statistics
+ * (`X-Latency-Opt-Out: 1`). The macOS and Windows apps send this when the user
+ * turns off "Share anonymous speed data" in settings.
+ *
+ * Opting out costs the user nothing and changes nothing else about the
+ * request — it only stops the anonymous timing row from being written. See
+ * lib/latency-report.ts for what that row holds.
+ */
+export function isLatencyOptOut(c: Context): boolean {
+  const header = c.req.header('X-Latency-Opt-Out');
+  if (header === undefined) return false;
+  return !LATENCY_OPT_IN_VALUES.has(header.toLowerCase().trim());
+}
+
+/**
+ * The public page's failure taxonomy for whatever the attempt threw. Keeps the
+ * mapping in one place so the catch arms below stay pure control flow.
+ */
+function failureKindFor(error: unknown): LatencyFailureKind {
+  if (error instanceof ProviderUnavailableError) return error.kind;
+  if (error instanceof ProviderInputError) return 'input_rejected';
+  // A revoked key or a bug in an adapter lands here. Without a sample the page
+  // would report a 0% error rate for a provider that fails every call.
+  return 'unknown';
+}
+
+/**
+ * How long a failed attempt cost the user, from the route's own clock.
+ *
+ * Deliberately NOT ProviderUnavailableError.elapsedMs: for the async providers
+ * (AssemblyAI, Soniox, Google Chirp) that field times only the single
+ * fetchWithTimeout that failed, while the upload, the job creation and every
+ * earlier poll are already spent — a 90-second wait reported as the 8 seconds
+ * of its last poll. The adapter's own number stays in the structured log, where
+ * "which call failed" is the question; the page answers "how long did this
+ * take", which is this one.
+ */
+function elapsedFor(attemptStart: number): number {
+  return performance.now() - attemptStart;
 }
 
 function validateStreamingHeaders(c: Context, provider: Provider):
@@ -483,132 +543,242 @@ export async function transcribeRoute(c: Context) {
     status?: number;
     attemptMs?: number;
   }> = [];
+  // Anonymous per-attempt timings for the public /latency page. Collected here
+  // and sent once, after the response is decided, so reporting never adds wall
+  // time to the latency it is measuring.
+  const latencySamples: LatencySample[] = [];
+  // Read once, up front: the header cannot change mid-request, and the send
+  // site below is the only thing that consults it.
+  const latencyOptOut = isLatencyOptOut(c);
+  // The clip length every row of this request is filed under — one estimate,
+  // from the bytes on the wire and the Content-Type describing them, used
+  // identically on success and on failure.
+  //
+  // Deliberately NOT the adapter's `result.durationSeconds`. That is a BILLING
+  // number, and when an upstream omits a duration the adapters fall back to
+  // estimateSecondsFromBytes() — a flat 64 kbps assumption that overstates the
+  // 16 kHz/16-bit mono WAV both desktop apps upload by ~4x. openai's default
+  // model (gpt-4o-transcribe) reports only tokens, so it takes that fallback on
+  // every call, and mistral/soniox/assemblyai take it whenever upstream omits a
+  // duration: a 3-second dictation would be stored as 12 seconds and bucketed
+  // 'medium'. Preferring it on success and estimating on failure also made the
+  // two incomparable, and put one clip in different buckets depending on
+  // whether the provider that answered happened to report a length. One
+  // estimator for every row is what makes a cell a like-for-like comparison.
+  const audioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
 
-  for (const [index, current] of chain.entries()) {
-    // The chosen model + domain only apply to the provider the caller picked.
-    // Fallback siblings run their own default model (the caller's model id is
-    // meaningless to them) and never inherit the medical add-on.
-    const attemptModel = current === provider ? model : getProviderDef(current).defaultModel;
-    const attemptDomain = current === provider ? domain : undefined;
-
-    logEvent(requestId, startTime, 'transcribe.provider_attempt_start', {
-      provider: current,
-      model: attemptModel || 'default',
-      attempt: index + 1,
+  // The one place an attempt becomes a sample. Every arm out of the loop below
+  // goes through it — success, retryable failure, and the failures that end the
+  // request outright — so "one row per attempt" holds by construction instead
+  // of by remembering to push. The loop is wrapped in a try/finally that sends
+  // whatever this collected, so an early return can no longer lose the most
+  // interesting rows this page has.
+  const recordAttempt = (sample: {
+    provider: Provider;
+    /**
+     * On success the model that actually ran (the adapter's, when it reports
+     * one); on a failure the model the attempt was made with, since none ran.
+     */
+    model?: string;
+    /** 0-based position in the chain; stored 1-based. */
+    index: number;
+    latencyMs: number;
+    /** Absent on success. */
+    failureKind?: LatencyFailureKind;
+  }) => {
+    latencySamples.push({
+      provider: sample.provider,
+      model: sample.model || undefined,
+      latencyMs: sample.latencyMs,
+      ok: sample.failureKind === undefined,
+      failureKind: sample.failureKind,
+      attempt: sample.index + 1,
+      audioSeconds,
     });
+  };
 
-    try {
-      result = await PROVIDER_FN[current](audioBuffer, contentType, language, initialPrompt, {
-        requestId,
-        attempt: index + 1,
-        model: attemptModel,
-        domain: attemptDomain,
-      });
-      // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
-      // universal-3-pro → universal-2 fallback for unsupported languages) so the
-      // X-STT-Model header and deduction metadata match what was billed; fall
-      // back to the attempted model when the adapter doesn't report one.
-      usedModel = result.model || attemptModel;
-      if (current !== provider) {
-        fallbackFrom = provider;
-      }
-      logEvent(requestId, startTime, 'transcribe.provider_attempt_done', {
+  try {
+    for (const [index, current] of chain.entries()) {
+      // The chosen model + domain only apply to the provider the caller picked.
+      // Fallback siblings run their own default model (the caller's model id is
+      // meaningless to them) and never inherit the medical add-on.
+      const attemptModel = current === provider ? model : getProviderDef(current).defaultModel;
+      const attemptDomain = current === provider ? domain : undefined;
+
+      logEvent(requestId, startTime, 'transcribe.provider_attempt_start', {
         provider: current,
         model: attemptModel || 'default',
         attempt: index + 1,
-        upstreamRequestId: result.requestId,
-        transcriptChars: result.text.length,
-        resultSource: result.source,
       });
-      break;
-    } catch (error) {
-      if (error instanceof ProviderUnavailableError) {
-        const next = chain[chain.indexOf(current) + 1];
-        fallbackCount += 1;
-        // `unavailableKind` distinguishes the root cause inline — `timeout`
-        // (we gave up; upstream may have been fine) vs `upstream_5xx` /
-        // `rate_limit` (upstream actually failed) vs `bad_response` (geo-block
-        // HTML / empty body) — instead of the old catch-all `provider_unavailable`.
-        logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-          provider: current,
+
+      // logEvent's elapsedMs runs from REQUEST start, so it already includes
+      // upload, auth, credits, and every earlier attempt. This clock brackets
+      // this provider call alone — the number the /latency page reports.
+      const attemptStart = performance.now();
+      // Flipped by the fetch helpers the instant this attempt's first request
+      // leaves the process. Until then the adapter has only run its own gates —
+      // a missing API key, a size cap, a content-type check — and those are our
+      // `if`s, not an upstream, so they are not measurements. See
+      // ProviderAttemptNetwork in providers/utils.ts for why the signal is taken
+      // at the wire rather than from a list of error types.
+      const network: ProviderAttemptNetwork = { reachedProvider: false };
+
+      try {
+        result = await runProviderAttempt(network, () => PROVIDER_FN[current](audioBuffer, contentType, language, initialPrompt, {
+          requestId,
           attempt: index + 1,
-          kind: 'provider_unavailable',
-          unavailableKind: error.kind,
-          upstreamStatus: error.status,
-          attemptMs: error.elapsedMs,
-          message: error.message,
-          nextProvider: next,
-        });
-        attemptFailures.push({
+          model: attemptModel,
+          domain: attemptDomain,
+        }));
+        // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
+        // universal-3-pro → universal-2 fallback for unsupported languages) so the
+        // X-STT-Model header and deduction metadata match what was billed; fall
+        // back to the attempted model when the adapter doesn't report one.
+        usedModel = result.model || attemptModel;
+        if (current !== provider) {
+          fallbackFrom = provider;
+        }
+        const attemptMs = performance.now() - attemptStart;
+        logEvent(requestId, startTime, 'transcribe.provider_attempt_done', {
           provider: current,
-          kind: error.kind,
-          status: error.status,
-          attemptMs: error.elapsedMs,
-        });
-        lastError = error;
-        sawUnavailable = true;
-        continue;
-      }
-      if (error instanceof ProviderInputError) {
-        // The provider rejected this specific input (e.g. ElevenLabs 400 on a
-        // language code it doesn't accept). A sibling provider may accept the
-        // same input, so continue the fallback chain instead of failing the
-        // whole request. (issue ray-amjad/hyperwhisper#333)
-        const next = chain[chain.indexOf(current) + 1];
-        fallbackCount += 1;
-        logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
-          provider: current,
+          model: attemptModel || 'default',
           attempt: index + 1,
-          kind: 'provider_input_rejected',
-          status: error.status,
-          message: error.message,
-          nextProvider: next,
+          upstreamRequestId: result.requestId,
+          transcriptChars: result.text.length,
+          resultSource: result.source,
+          attemptMs: Math.round(attemptMs),
         });
-        lastError = error;
-        lastInputError = error;
-        continue;
-      }
-      if (error instanceof AudioTooLargeError) {
-        logEvent(requestId, startTime, 'transcribe.request_fail', {
+        recordAttempt({
           provider: current,
-          attempt: index + 1,
-          kind: 'audio_too_large',
-          message: error.message,
-          actualBytes: error.actualBytes,
-          maxBytes: error.maxBytes,
+          model: usedModel,
+          index,
+          latencyMs: attemptMs,
         });
-        return errorResponse(413, 'Audio too large for provider',
-          `${PROVIDER_NAMES[current]} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
-          { requestId, provider: current, max_size_mb: Math.round(error.maxBytes / (1024 * 1024)), actual_size_mb: parseFloat((error.actualBytes / (1024 * 1024)).toFixed(2)) },
-        );
-      }
-      if (error instanceof UnsupportedAudioFormatError) {
-        logEvent(requestId, startTime, 'transcribe.request_fail', {
-          provider: current,
-          attempt: index + 1,
-          kind: 'unsupported_audio_format',
-          message: error.message,
-          receivedContentType: error.contentType,
-          acceptedFormats: error.acceptedFormats,
-        });
-        return errorResponse(415, 'Unsupported audio format for provider',
-          `${PROVIDER_NAMES[current]} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
-          {
-            requestId,
+        break;
+      } catch (error) {
+        // ONE row per attempt, recorded here before any branching: the arms
+        // below are pure control flow (log, fall back, or return) and none of
+        // them can forget a sample or file a second one.
+        //
+        // The single condition is whether the attempt ever reached the wire.
+        // Everything an adapter rejects on its own — a missing API key, a size
+        // cap, a content-type it can't take — throws in microseconds without
+        // calling anyone, and a row for it would publish that provider
+        // "answering" in 1 ms and failing a call it never received. Every real
+        // provider failure (timeout, 5xx, rate limit, an unusable 2xx, an
+        // upstream 4xx) happens strictly after the request went out, so it is
+        // still recorded — that direction is the bug this must not reintroduce.
+        if (network.reachedProvider) {
+          recordAttempt({
             provider: current,
-            received_content_type: error.contentType,
-            accepted_formats: error.acceptedFormats,
-          },
-        );
+            model: attemptModel,
+            index,
+            latencyMs: elapsedFor(attemptStart),
+            failureKind: failureKindFor(error),
+          });
+        }
+
+        if (error instanceof ProviderUnavailableError) {
+          const next = chain[chain.indexOf(current) + 1];
+          fallbackCount += 1;
+          // `unavailableKind` distinguishes the root cause inline — `timeout`
+          // (we gave up; upstream may have been fine) vs `upstream_5xx` /
+          // `rate_limit` (upstream actually failed) vs `bad_response` (geo-block
+          // HTML / empty body) — instead of the old catch-all `provider_unavailable`.
+          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'provider_unavailable',
+            unavailableKind: error.kind,
+            upstreamStatus: error.status,
+            attemptMs: error.elapsedMs,
+            message: error.message,
+            nextProvider: next,
+          });
+          attemptFailures.push({
+            provider: current,
+            kind: error.kind,
+            status: error.status,
+            attemptMs: error.elapsedMs,
+          });
+          lastError = error;
+          sawUnavailable = true;
+          continue;
+        }
+        if (error instanceof ProviderInputError) {
+          // The provider rejected this specific input (e.g. ElevenLabs 400 on a
+          // language code it doesn't accept). A sibling provider may accept the
+          // same input, so continue the fallback chain instead of failing the
+          // whole request. (issue ray-amjad/hyperwhisper#333)
+          const next = chain[chain.indexOf(current) + 1];
+          fallbackCount += 1;
+          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'provider_input_rejected',
+            status: error.status,
+            message: error.message,
+            nextProvider: next,
+          });
+          lastError = error;
+          lastInputError = error;
+          continue;
+        }
+        if (error instanceof AudioTooLargeError) {
+          logEvent(requestId, startTime, 'transcribe.request_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'audio_too_large',
+            message: error.message,
+            actualBytes: error.actualBytes,
+            maxBytes: error.maxBytes,
+          });
+          return errorResponse(413, 'Audio too large for provider',
+            `${PROVIDER_NAMES[current]} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
+            { requestId, provider: current, max_size_mb: Math.round(error.maxBytes / (1024 * 1024)), actual_size_mb: parseFloat((error.actualBytes / (1024 * 1024)).toFixed(2)) },
+          );
+        }
+        if (error instanceof UnsupportedAudioFormatError) {
+          logEvent(requestId, startTime, 'transcribe.request_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'unsupported_audio_format',
+            message: error.message,
+            receivedContentType: error.contentType,
+            acceptedFormats: error.acceptedFormats,
+          });
+          return errorResponse(415, 'Unsupported audio format for provider',
+            `${PROVIDER_NAMES[current]} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
+            {
+              requestId,
+              provider: current,
+              received_content_type: error.contentType,
+              accepted_formats: error.acceptedFormats,
+            },
+          );
+        }
+        // Non-retryable error (401 invalid key, etc.) — don't try fallbacks
+        logEvent(requestId, startTime, 'transcribe.request_fail', {
+          provider: current,
+          attempt: index + 1,
+          kind: 'non_retryable',
+          message: error instanceof Error ? error.message : String(error),
+        });
+        return errorResponse(500, 'Transcription failed', error instanceof Error ? error.message : String(error), { requestId });
       }
-      // Non-retryable error (401 invalid key, etc.) — don't try fallbacks
-      logEvent(requestId, startTime, 'transcribe.request_fail', {
-        provider: current,
-        attempt: index + 1,
-        kind: 'non_retryable',
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return errorResponse(500, 'Transcription failed', error instanceof Error ? error.message : String(error), { requestId });
+    }
+  } finally {
+    // Fire-and-forget, like the credit deduction below: the whole attempt chain
+    // goes in one POST, and a slow or failing website must never delay a
+    // transcript. In a finally so EVERY path out of the loop reports — the
+    // early returns above included — and so it happens exactly once.
+    //
+    // The opt-out is checked here rather than at recordAttempt: an opted-out
+    // request still collects samples, it just never sends them, so they die
+    // with the request. Gating the single send is what makes the opt-out
+    // impossible to leak past — there is no second way out of this loop.
+    if (!latencyOptOut) {
+      reportLatencySamples(latencySamples);
     }
   }
 
@@ -727,6 +897,12 @@ export async function transcribeRoute(c: Context) {
     noSpeech,
     creditsUsed,
     flyMachineId: process.env.FLY_MACHINE_ID,
+    // Region on the outcome line makes the Axiom dataset queryable by region on
+    // its own, without joining against the machine id.
+    flyRegion: process.env.FLY_REGION || 'local',
+    // Only present when the caller opted out, so the field's absence is the
+    // normal case. Without it, a thin /latency dataset looks like a bug.
+    ...(latencyOptOut ? { latencyOptOut: true } : {}),
     machineUptimeMs: machineUptimeMs(),
     rssMb: memUsageMb,
   });

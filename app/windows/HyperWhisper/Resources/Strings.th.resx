@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>แชร์ข้อมูลความเร็วแบบไม่ระบุตัวตน</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>วัดเวลาที่ผู้ให้บริการคลาวด์แต่ละรายใช้ และเพิ่มลงในการเปรียบเทียบสาธารณะ เพื่อให้ทุกคนเห็นว่าโมเดลใดเร็วที่สุดในตำแหน่งของพวกเขา การวัดประกอบด้วยผู้ให้บริการ ภูมิภาคของเซิร์ฟเวอร์ ความยาวคลิป และเวลาที่ใช้ — ไม่มีบัญชี ไม่มีคีย์ ไม่มีเสียง และไม่มีข้อความ โมเดลภายในเครื่องไม่เคยส่งอะไรเลย</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>ดูการเปรียบเทียบความเร็ว</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>อัปเดตอัตโนมัติ</value>
   </data>

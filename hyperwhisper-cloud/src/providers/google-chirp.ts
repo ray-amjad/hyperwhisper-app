@@ -26,7 +26,7 @@ import {
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -718,28 +718,4 @@ async function parseJsonBody<T>(
     }, context);
     throw new Error(`Google Speech returned non-JSON 200 body during ${phase} (content-type=${ct}, len=${raw.length}): ${raw.slice(0, 200)}`);
   }
-}
-
-/**
- * Estimate audio duration from byte length using a representative bytes-per-second
- * rate for the given content type. Used as a fallback when Google's
- * `totalBilledDuration` is missing from the response. Over-bills slightly on
- * compressed audio and under-bills slightly on raw — both preferable to
- * zero-billing a real transcription.
- */
-function estimateAudioSeconds(byteLength: number, contentType: string): number {
-  const lower = (contentType || '').toLowerCase();
-  let bytesPerSecond = 16_000;
-  if (lower.includes('wav') || lower.includes('pcm')) {
-    bytesPerSecond = 32_000;
-  } else if (lower.includes('opus') || lower.includes('webm')) {
-    bytesPerSecond = 8_000;
-  } else if (lower.includes('flac') || lower.includes('ogg')) {
-    bytesPerSecond = 32_000;
-  } else if (lower.includes('mp3') || lower.includes('mpeg')) {
-    bytesPerSecond = 16_000;
-  } else if (lower.includes('m4a') || lower.includes('mp4') || lower.includes('aac')) {
-    bytesPerSecond = 16_000;
-  }
-  return byteLength / bytesPerSecond;
 }

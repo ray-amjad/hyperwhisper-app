@@ -223,6 +223,7 @@ const MACOS_GENERAL_KEYS: &[&str] = &[
     "showRecordingWindow",
     "checkForUpdatesAutomatically",
     "enableErrorLogging",
+    "shareAnonymousSpeedData",
 ];
 const MACOS_TEXT_OUTPUT_KEYS: &[&str] = &[
     "pasteResultText",
@@ -241,7 +242,7 @@ const MACOS_TEXT_OUTPUT_KEYS: &[&str] = &[
 /// nothing.
 ///
 /// Promotion rules (universal ← macOS):
-/// - `general.{launchMinimized, showRecordingWindow, checkForUpdatesAutomatically, enableErrorLogging}` ← `general`
+/// - `general.{launchMinimized, showRecordingWindow, checkForUpdatesAutomatically, enableErrorLogging, shareAnonymousSpeedData}` ← `general`
 /// - `general.enableSoundEffects` ← `audio.enableSoundEffects`
 /// - `textOutput.*` ← `textOutput`
 /// - `storage.storeAsM4A` ← `storage.storeAsM4A`

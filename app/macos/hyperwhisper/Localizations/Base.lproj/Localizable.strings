@@ -416,6 +416,10 @@
 
 "settings.general.errorLogging.title" = "Error logging";
 "settings.general.errorLogging.info" = "Automatically capture and send error reports to help improve the app.";
+"settings.general.shareSpeedData.title" = "Share anonymous speed data";
+"settings.general.shareSpeedData.subtitle" = "Helps everyone see which cloud model is fastest where they are.";
+"settings.general.shareSpeedData.info" = "Times how long each cloud provider takes and adds it to a public comparison. A measurement holds the provider, the server region, the clip length, and the time taken — no account, no key, no audio, and no text. Turn this off and HyperWhisper stops sending it. Nothing else changes, and local models never send anything.";
+"settings.general.shareSpeedData.link" = "See the speed comparison";
 "settings.general.autoUpdate.title" = "Auto update";
 "settings.general.autoUpdate.info" = "Automatically check for and download new versions of HyperWhisper.";
 "settings.general.support.title" = "Need help?";

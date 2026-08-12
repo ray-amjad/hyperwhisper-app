@@ -9,6 +9,7 @@
       "showRecordingWindow": true,
       "checkForUpdatesAutomatically": true,
       "enableErrorLogging": true,
+      "shareAnonymousSpeedData": true,
       "enableSoundEffects": true
     },
     "textOutput": {

@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Foutregistratie";
 "settings.general.errorLogging.info" = "Vang fouten automatisch op en stuur foutmeldingen om de app te verbeteren.";
+"settings.general.shareSpeedData.title" = "Anonieme snelheidsgegevens delen";
+"settings.general.shareSpeedData.subtitle" = "Helpt iedereen zien welk cloudmodel het snelst is op hun locatie.";
+"settings.general.shareSpeedData.info" = "Meet hoe lang elke cloudaanbieder erover doet en voegt dit toe aan een openbare vergelijking. Een meting bevat de aanbieder, de serverregio, de cliplengte en de benodigde tijd — geen account, geen sleutel, geen audio en geen tekst. Zet dit uit en HyperWhisper stopt met verzenden. Verder verandert er niets, en lokale modellen versturen nooit iets.";
+"settings.general.shareSpeedData.link" = "Bekijk de snelheidsvergelijking";
 "settings.general.autoUpdate.title" = "Automatisch bijwerken";
 "settings.general.autoUpdate.info" = "Controleer automatisch op nieuwe versies van HyperWhisper en download deze.";
 "settings.general.support.title" = "Hulp nodig?";

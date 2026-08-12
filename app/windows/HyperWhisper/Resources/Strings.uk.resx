@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Поділитися анонімними даними про швидкість</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Вимірює, скільки часу займає робота кожного хмарного провайдера, і додає це до публічного порівняння, щоб усі бачили, яка модель найшвидша в їхньому регіоні. Вимірювання містить провайдера, регіон сервера, тривалість кліпу та витрачений час — без облікового запису, без ключа, без аудіо і без тексту. Локальні моделі ніколи нічого не надсилають.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Переглянути порівняння швидкості</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Автоматичне оновлення</value>
   </data>

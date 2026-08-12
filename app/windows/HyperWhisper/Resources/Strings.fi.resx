@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Jaa anonyymit nopeustiedot</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mittaa, kuinka kauan kukin pilvipalveluntarjoaja kestää, ja lisää sen julkiseen vertailuun, jotta kaikki näkevät, mikä malli on nopein heidän sijainnissaan. Mittaus sisältää palveluntarjoajan, palvelimen alueen, klipin pituuden ja kuluneen ajan — ei tiliä, ei avainta, ei ääntä eikä tekstiä. Paikalliset mallit eivät koskaan lähetä mitään.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Katso nopeusvertailu</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automaattiset päivitykset</value>
   </data>

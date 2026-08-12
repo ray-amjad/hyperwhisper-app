@@ -37,6 +37,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
+  // English only, like blog posts: the page 404s on every other locale, so it
+  // must stay out of the 40-locale loop above and carry no `alternates`.
+  sitemap.push({
+    url: `${baseUrl}/en/latency`,
+    lastModified: new Date(),
+    changeFrequency: "daily",
+    priority: 0.6,
+  });
+
   const blogPosts = await getAllBlogPosts();
   blogPosts.forEach((post) => {
     if (post.locale !== "en") return;

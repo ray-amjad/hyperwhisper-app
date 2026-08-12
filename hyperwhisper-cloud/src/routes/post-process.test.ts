@@ -10,6 +10,12 @@ let cachedLicense: { isValid: boolean; credits: number; cachedAt: string } | nul
 };
 
 mock.module('../lib/redis', () => ({
+  // mock.module is process-wide in bun, so an incomplete redis mock here breaks
+  // any OTHER suite in the run whose module graph reaches lib/google-auth's
+  // static `import { redis }` — transcribe.test.ts failed to load at all,
+  // silently, for exactly this reason. Keep the export even though nothing here
+  // uses it.
+  redis: {},
   isIPBlocked: async () => false,
   getCachedLicense: async () => cachedLicense,
   cacheLicense: async () => {},

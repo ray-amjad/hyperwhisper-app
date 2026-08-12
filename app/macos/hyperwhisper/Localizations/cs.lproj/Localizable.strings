@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Logovani chyb";
 "settings.general.errorLogging.info" = "Automaticky zachytavat a odesilat hlaseni o chybach pro zlepseni aplikace.";
+"settings.general.shareSpeedData.title" = "Sdílet anonymní data o rychlosti";
+"settings.general.shareSpeedData.subtitle" = "Pomáhá všem zjistit, který cloudový model je nejrychlejší v jejich oblasti.";
+"settings.general.shareSpeedData.info" = "Měří, jak dlouho trvá každému poskytovateli cloudu, a přidává to do veřejného srovnání. Měření obsahuje poskytovatele, oblast serveru, délku klipu a dobu trvání — žádný účet, žádný klíč, žádné audio ani text. Vypněte to a HyperWhisper to přestane odesílat. Nic jiného se nemění a lokální modely nikdy nic neodesílají.";
+"settings.general.shareSpeedData.link" = "Zobrazit srovnání rychlosti";
 "settings.general.autoUpdate.title" = "Automaticke aktualizace";
 "settings.general.autoUpdate.info" = "Automaticky kontrolovat a stahovat nove verze HyperWhisper.";
 "settings.general.support.title" = "Potrebujete pomoc?";

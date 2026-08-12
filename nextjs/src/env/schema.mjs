@@ -30,6 +30,16 @@ export const serverSchema = z.object({
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: z.string().optional(),
 
+  // Vercel cron bearer token. Vercel sends `Authorization: Bearer $CRON_SECRET`
+  // and cannot set a custom header, so the scheduled jobs in vercel.json
+  // (/api/internal/latency/prune) accept it alongside the internal secret.
+  // Required, not optional: unset, the nightly prune 401s in silence, rows
+  // never expire, and the 1-year retention data-privacy.mdx promises publicly
+  // stops being true. A failed build is the loud version of that failure.
+  // `.min(1)` because an empty string would satisfy a bare z.string() and
+  // authorize nothing.
+  CRON_SECRET: z.string().min(1),
+
   // Provider model inventory endpoint (/models and /api/internal/models)
   OPENAI_API_KEY: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
@@ -82,6 +92,9 @@ export const serverEnv = {
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: process.env.HYPERWHISPER_INTERNAL_SECRET,
+
+  // Vercel cron bearer token (see the schema above)
+  CRON_SECRET: process.env.CRON_SECRET,
 
   // Provider model inventory endpoint (/models and /api/internal/models)
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,

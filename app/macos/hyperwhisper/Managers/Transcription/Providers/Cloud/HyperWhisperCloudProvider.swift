@@ -331,6 +331,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 request.url = Self.appendingModeQuery(to: request.url, modeId: modeId.uuidString)
             }
             request.headers.append(Header(name: "User-Agent", value: userAgent))
+            // Opt-out only: absent means the user left anonymous speed sharing on.
+            LatencyOptOut.apply(to: &request)
 
             AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(contentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
 

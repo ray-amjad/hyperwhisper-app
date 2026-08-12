@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Comparteix dades de velocitat anònimes</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mesura quant triga cada proveïdor al núvol i ho afegeix a una comparació pública, perquè tothom pugui veure quin model és el més ràpid on són. Un mesurament conté el proveïdor, la regió del servidor, la durada del fragment i el temps trigat — sense compte, sense clau, sense àudio i sense text. Els models locals mai envien res.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Veure la comparació de velocitat</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Actualització automàtica</value>
   </data>
