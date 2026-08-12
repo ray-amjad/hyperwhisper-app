@@ -1,5 +1,5 @@
-import { ProviderUnavailableError } from './types';
-import type { ProviderRequestContext } from './types';
+import { ProviderInputError, ProviderUnavailableError } from './types';
+import type { ProviderRequestContext, ProviderUnavailableKind } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
@@ -169,6 +169,105 @@ export async function fetchWithTimeout(
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Per-provider knobs for {@link providerHttpError}. Everything NOT expressed
+ * here is identical across the synchronous STT adapters and lives in the
+ * helper: the `http_error` log line, the `kind` classification, the 429 /
+ * 5xx failover errors, and the "other 4xx → ProviderInputError so a sibling
+ * provider can try the same input" fallthrough.
+ */
+export interface ProviderHttpErrorPolicy {
+  /** Name used in the thrown error messages ('OpenAI', 'Grok', 'Deepgram', …). */
+  label: string;
+  /**
+   * Statuses that mean OUR credentials are wrong. These throw a plain `Error`
+   * (not a fallback signal) because retrying siblings can't fix a bad key.
+   * Defaults to `[401]`; adapters whose upstream also returns 403 for a bad or
+   * unauthorized key pass `[401, 403]`.
+   */
+  authStatuses?: readonly number[];
+  /** Message for the {@link ProviderHttpErrorPolicy.authStatuses} failure. */
+  authMessage: string;
+  /**
+   * When true, 402 fails over as `insufficient funds` — billing exhaustion on
+   * THIS provider only, siblings may still have budget. When false (default)
+   * a 402 falls through to the generic `ProviderInputError` branch, which is
+   * what the adapters whose upstream never returns 402 already did.
+   */
+  failoverOn402?: boolean;
+  /** Extra fields merged into the `http_error` log line (e.g. `{ model }`). */
+  logDetails?: Record<string, unknown>;
+  /**
+   * Attach `{ kind, status, elapsedMs }` to the thrown
+   * `ProviderUnavailableError`, so the route can log the root cause inline
+   * instead of correlating a separate provider log line by requestId.
+   */
+  attachUnavailableDetails?: boolean;
+}
+
+/**
+ * Read, log and classify a non-2xx response from a synchronous STT upstream,
+ * returning the error the caller should throw:
+ *
+ * ```ts
+ * if (!response.ok) {
+ *   throw await providerHttpError(provider, response, startedAt, context, { … });
+ * }
+ * ```
+ *
+ * Every adapter had grown its own copy of this block — same body preview, same
+ * `kind` ternary, same `http_error` log, same 401 / 429 / 5xx / other-4xx
+ * ladder — differing only in the knobs on {@link ProviderHttpErrorPolicy}. It
+ * returns the error rather than throwing so the `throw` stays visible at the
+ * call site and TypeScript keeps narrowing the code after it.
+ *
+ * `startedAt` is the adapter's `performance.now()` mark; `elapsedMs` is measured
+ * AFTER the body preview is read, matching what the inline blocks logged.
+ */
+export async function providerHttpError(
+  provider: string,
+  response: Response,
+  startedAt: number,
+  context: ProviderRequestContext,
+  policy: ProviderHttpErrorPolicy,
+): Promise<Error> {
+  const { label } = policy;
+  const status = response.status;
+  const errorText = await readErrorBodyPreview(response);
+  const elapsedMs = Math.round(performance.now() - startedAt);
+  const kind = status >= 500 ? 'upstream_5xx' : status === 429 ? 'rate_limit' : 'http_error';
+
+  logProviderEvent(provider, 'http_error', {
+    ...policy.logDetails,
+    elapsedMs,
+    status,
+    kind,
+    bodyPreview: errorText,
+  }, context);
+
+  // Only the failover branches below carry details, and each knows its own
+  // kind — `http_error` is a log label, not a ProviderUnavailableKind.
+  const details = (unavailableKind: ProviderUnavailableKind) =>
+    policy.attachUnavailableDetails ? { kind: unavailableKind, status, elapsedMs } : undefined;
+
+  if ((policy.authStatuses ?? [401]).includes(status)) {
+    return new Error(policy.authMessage);
+  }
+  if (status === 429) {
+    return new ProviderUnavailableError(label, 'rate limit exceeded', details('rate_limit'));
+  }
+  if (status === 402 && policy.failoverOn402) {
+    return new ProviderUnavailableError(label, 'insufficient funds', details('unknown'));
+  }
+  if (status >= 500) {
+    return new ProviderUnavailableError(label, `upstream 5xx: ${status}`, details('upstream_5xx'));
+  }
+
+  // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
+  // provider may accept this input, so let the chain fall through.
+  return new ProviderInputError(label, status, errorText || `HTTP ${status}`);
 }
 
 export async function readErrorBodyPreview(response: Response): Promise<string> {

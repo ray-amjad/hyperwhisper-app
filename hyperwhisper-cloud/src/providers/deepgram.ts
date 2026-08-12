@@ -2,9 +2,9 @@
 // Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -109,35 +109,11 @@ export async function transcribeWithDeepgram(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('Deepgram API key is invalid or expired');
-    }
-    if (response.status === 402) {
-      // Billing exhaustion on this provider only — siblings may still have
-      // budget, so fail over instead of hard-500ing the request.
-      throw new ProviderUnavailableError('Deepgram', 'insufficient funds');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Deepgram', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Deepgram', `upstream 5xx: ${response.status}`);
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('Deepgram', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Deepgram',
+      authMessage: 'Deepgram API key is invalid or expired',
+      failoverOn402: true,
+    });
   }
 
   let data: {

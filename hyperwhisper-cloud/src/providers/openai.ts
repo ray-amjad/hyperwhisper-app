@@ -7,7 +7,7 @@
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
@@ -15,7 +15,7 @@ import {
   estimateSecondsFromBytes,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
+  providerHttpError,
 } from './utils';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
@@ -83,27 +83,13 @@ export async function transcribeWithOpenAI(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      model, elapsedMs, status: response.status, kind, bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('OpenAI API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('OpenAI', 'rate limit exceeded');
-    }
-    if (response.status === 402) {
-      throw new ProviderUnavailableError('OpenAI', 'insufficient funds');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('OpenAI', `upstream 5xx: ${response.status}`);
-    }
-    throw new ProviderInputError('OpenAI', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'OpenAI',
+      authStatuses: [401, 403],
+      authMessage: 'OpenAI API key is invalid or unauthorized',
+      failoverOn402: true,
+      logDetails: { model },
+    });
   }
 
   let data: { text?: string; language?: string; duration?: number; usage?: OpenAIUsage };

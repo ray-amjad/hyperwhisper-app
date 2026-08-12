@@ -2,13 +2,13 @@
 // High accuracy STT - $0.00983/min using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   audioExtensionFromContentType,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
+  providerHttpError,
 } from './utils';
 
 // ElevenLabs treats mp3 as the *fallback* container rather than one it matches
@@ -112,38 +112,11 @@ export async function transcribeWithElevenLabs(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startTime);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('ElevenLabs API key is invalid');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('ElevenLabs', 'rate limit exceeded', {
-        kind: 'rate_limit',
-        status: 429,
-        elapsedMs,
-      });
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('ElevenLabs', `upstream 5xx: ${response.status}`, {
-        kind: 'upstream_5xx',
-        status: response.status,
-        elapsedMs,
-      });
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('ElevenLabs', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startTime, context, {
+      label: 'ElevenLabs',
+      authMessage: 'ElevenLabs API key is invalid',
+      attachUnavailableDetails: true,
+    });
   }
 
   // Bun's `response.json()` has been observed to throw "Failed to parse JSON"
