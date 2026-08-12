@@ -40,7 +40,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// .warning/.critical. Retained for the process lifetime; behavior-neutral
     /// when there is no pressure.
     private var memoryPressureMonitor: MemoryPressureMonitor?
-    
+
+    /// True once `applicationDidFinishLaunching` has run.
+    ///
+    /// `HyperWhisperApp.bootstrapAppServices()` now runs from the MenuBarExtra
+    /// label so a login-item launch still registers the global hotkeys without a
+    /// main window (issue #142). That bootstrap starts Sparkle and the Local API
+    /// server, so it waits on this flag rather than assuming scene setup always
+    /// follows launch completion.
+    static private(set) var didFinishLaunching = false
+
     // MARK: - Initialization
     
     override init() {
@@ -57,6 +66,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - NSApplicationDelegate
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppDelegate.didFinishLaunching = true
+
         // Initialize Sentry if DSN is configured and error logging is enabled
         let loggingEnabled = UserDefaults.standard.bool(forKey: "enableErrorLogging")
         if loggingEnabled {
@@ -96,6 +107,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // when macOS signals .warning/.critical pressure. Behavior-neutral when
         // there is no pressure; never evicts a model mid-transcription.
         memoryPressureMonitor = MemoryPressureMonitor()
+    }
+
+    /// The user clicked the Dock or Finder icon of the already-running app.
+    ///
+    /// This is a deliberate "show me the window", and on a login-item launch it
+    /// can be the FIRST main-window appearance of the process — which the
+    /// `launchMinimized` hide would otherwise treat as launch's own window and
+    /// order out 0.3s after it appears. Returning true keeps AppKit's default
+    /// re-open behavior unchanged.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+        return true
     }
 
     /// Cleanly shut down the Local API server so the port file is removed

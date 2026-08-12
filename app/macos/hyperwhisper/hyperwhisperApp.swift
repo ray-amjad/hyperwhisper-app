@@ -146,9 +146,6 @@ struct HyperWhisperApp: App {
     /// This service runs on app launch and periodically to clean up old transcripts
     @State private var autoDeleteCleanupService: AutoDeleteCleanupService?
 
-    // One-time bootstrap flag to avoid duplicate initialization work
-    @State private var didBootstrapModels: Bool = false
-    
     // MARK: - Initialization
     
     init() {
@@ -344,37 +341,10 @@ struct MenuBarIconView: View {
 
                 // Handle app lifecycle events
                 .onAppear {
-                    // DEPENDENCY INJECTION: Connect the model manager to transcription manager
-                    // This must be done early to ensure LibWhisperProvider gets the shared instance
-                    transcriptionPipeline.setModelManager(whisperModelManager)
-                    transcriptionPipeline.setParakeetModelManager(parakeetModelManager)
-                    transcriptionPipeline.setQwen3AsrModelManager(qwen3AsrModelManager)
-                    transcriptionPipeline.setNemotronModelManager(nemotronModelManager)
-                    transcriptionPipeline.setLocalModelManager(localModelManager)
-                    transcriptionPipeline.setSpeechAnalyzerProvider()
-                    localModelManager.refreshCatalog()
-
-                    // Wire the Library aggregator to the live data sources.
-                    modelLibraryManager.configure(
-                        cloudHealth: cloudProviderHealthManager,
-                        apiKeys: settingsManager.apiKeys,
-                        whisperManager: whisperModelManager,
-                        parakeetManager: parakeetModelManager,
-                        qwen3AsrManager: qwen3AsrModelManager,
-                        nemotronManager: nemotronModelManager,
-                        localLLMManager: localModelManager
-                    )
-
-                    // Code that runs when the main window appears
+                    // Code that runs when the main window appears.
+                    // Launch work that must not wait for the window lives in
+                    // bootstrapAppServices(), which this calls first.
                     handleMainWindowAppear()
-
-                    // Initialize models and restore mode selection
-                    Task {
-                        await bootstrapModelsOnce()
-                        await MainActor.run {
-                            initializeSelectedModeLightweight()
-                        }
-                    }
                 }
                 .onChange(of: settingsManager.checkForUpdatesAutomatically) { _, newValue in
                     // Keep Sparkle's automatic checks in sync with user setting
@@ -477,6 +447,14 @@ struct MenuBarIconView: View {
             // The previous inline implementation couldn't properly observe appState changes
             // MenuBarIconView mirrors AppState updates so the status item refreshes reliably
             MenuBarIconView(appState: appState)
+                // LOGIN-ITEM SAFETY NET: the menu bar label is the only scene
+                // content macOS always renders. A login-item launch with
+                // `launchMinimized` on never renders the WindowGroup, so the
+                // window's .onAppear never fires (issue #142). Bootstrap here
+                // so the global hotkeys exist without the window.
+                .onAppear {
+                    bootstrapAppServices()
+                }
                 // Ensure overlay window opens/closes even when main window is closed
                 .onChange(of: appState.showRecordingDialog) { _, newValue in
                 if newValue {
@@ -513,8 +491,132 @@ struct MenuBarIconView: View {
         AppActivationPolicyController.apply(targetPolicy)
     }
     
-    /// Handles initial setup when the main window appears
-    private func handleMainWindowAppear() {
+    /// ONE-TIME LAUNCH BOOTSTRAP GUARD:
+    /// `bootstrapAppServices()` runs from two scenes (the menu bar label and the
+    /// main window). Static, not `@State`, so the guard survives any scene
+    /// re-evaluation — same reason `hotkeysConfigured` is static.
+    private static var didBootstrapAppServices = false
+
+    /// PENDING-DEFERRAL MARKER:
+    /// Set the moment the pre-launch deferral below registers its observer.
+    /// Both callers can hit that path on the same cold launch, and without this
+    /// they would each register their own `didFinishLaunchingNotification`
+    /// observer. Static for the same reason as `didBootstrapAppServices`.
+    private static var didDeferBootstrap = false
+
+    /// Token for the deferral's `didFinishLaunchingNotification` observer.
+    /// Held statically so that whichever resumption path wins — the notification
+    /// or the backstop below — can unregister it; a callback that never runs
+    /// cannot clean itself up, and would keep the registration (and everything it
+    /// captured) alive for the process lifetime.
+    private static var deferredBootstrapObserver: NSObjectProtocol?
+
+    /// Re-arm budget for the deferral backstop. The backstop re-enqueues itself
+    /// while launch is still incomplete, so the defence-in-depth survives more
+    /// than one turn — bounded so a launch that never completes cannot spin the
+    /// main queue forever.
+    private static var deferredBootstrapRetries = 0
+    private static let maxDeferredBootstrapRetries = 20
+    private static let deferredBootstrapRetryDelay: TimeInterval = 0.1
+
+    /// Schedule one more pre-launch bootstrap re-check, within the retry budget.
+    private static func armDeferredBootstrapBackstop(_ recheck: @escaping () -> Void) {
+        guard deferredBootstrapRetries < maxDeferredBootstrapRetries else {
+            AppLogger.ui.warning("⚠️ Bootstrap backstop budget exhausted — waiting on didFinishLaunchingNotification alone")
+            return
+        }
+        deferredBootstrapRetries += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + deferredBootstrapRetryDelay) {
+            recheck()
+        }
+    }
+
+    /// Launch work that must not depend on the main window existing.
+    ///
+    /// The main window is NOT guaranteed to be created at launch. When the app
+    /// starts as a login item with `launchMinimized` on, macOS 26 never renders
+    /// the `WindowGroup` content, so its `.onAppear` never fires. Everything
+    /// below used to live in that `.onAppear` — including `setupGlobalHotkeys()`
+    /// — so the record shortcut stayed dead until the user clicked the Dock icon
+    /// and forced the window into existence (issue #142).
+    ///
+    /// Callers: the `MenuBarExtra` label (always renders) and
+    /// `handleMainWindowAppear()`. The guard makes the second call a no-op.
+    private func bootstrapAppServices() {
+        guard !Self.didBootstrapAppServices else { return }
+
+        // The menu bar label can render before AppKit finishes launching. Sparkle
+        // and the Local API server below both expect a fully launched app, so
+        // wait for the delegate rather than assume an ordering.
+        guard AppDelegate.didFinishLaunching else {
+            // Only ever arm the observer once — see didDeferBootstrap. Re-entry
+            // (the backstop, or the second caller) still re-arms the backstop
+            // below, so the notification never becomes the only way back in.
+            guard !Self.didDeferBootstrap else {
+                Self.armDeferredBootstrapBackstop { self.bootstrapAppServices() }
+                return
+            }
+            Self.didDeferBootstrap = true
+
+            AppLogger.ui.debug("⏳ Bootstrap requested before launch completed — deferring")
+            Self.deferredBootstrapObserver = NotificationCenter.default.addObserver(
+                forName: NSApplication.didFinishLaunchingNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    // The body below removes the observer for every path.
+                    self.bootstrapAppServices()
+                }
+            }
+
+            // MISSED-NOTIFICATION BACKSTOP:
+            // `didFinishLaunchingNotification` is one-shot and is the only
+            // resumption path above. An observer registered while AppKit is
+            // mid-dispatch of that notification is never called, which would
+            // leave a login-item launch with no hotkeys again (issue #142).
+            // Re-check on a later main-queue turn: by then the delegate has
+            // set its flag and this runs the body. Re-entry is harmless —
+            // whichever of the two arrives first sets didBootstrapAppServices
+            // and the other returns at the guard above.
+            Self.armDeferredBootstrapBackstop { self.bootstrapAppServices() }
+            return
+        }
+
+        Self.didBootstrapAppServices = true
+
+        // Tear the deferral down unconditionally: the notification callback is
+        // NOT guaranteed to be the path that got us here (the backstop may have
+        // won the race), and an observer that only unregisters from inside its
+        // own callback then leaks itself and everything it captured.
+        if let observer = Self.deferredBootstrapObserver {
+            NotificationCenter.default.removeObserver(observer)
+            Self.deferredBootstrapObserver = nil
+        }
+
+        AppLogger.ui.debug("🚀 Bootstrapping app services")
+
+        // DEPENDENCY INJECTION: Connect the model manager to transcription manager
+        // This must be done early to ensure LibWhisperProvider gets the shared instance
+        transcriptionPipeline.setModelManager(whisperModelManager)
+        transcriptionPipeline.setParakeetModelManager(parakeetModelManager)
+        transcriptionPipeline.setQwen3AsrModelManager(qwen3AsrModelManager)
+        transcriptionPipeline.setNemotronModelManager(nemotronModelManager)
+        transcriptionPipeline.setLocalModelManager(localModelManager)
+        transcriptionPipeline.setSpeechAnalyzerProvider()
+        localModelManager.refreshCatalog()
+
+        // Wire the Library aggregator to the live data sources.
+        modelLibraryManager.configure(
+            cloudHealth: cloudProviderHealthManager,
+            apiKeys: settingsManager.apiKeys,
+            whisperManager: whisperModelManager,
+            parakeetManager: parakeetModelManager,
+            qwen3AsrManager: qwen3AsrModelManager,
+            nemotronManager: nemotronModelManager,
+            localLLMManager: localModelManager
+        )
+
         // Configure AudioRecordingManager with dependencies
         audioManager.configure(
             transcriptionPipeline: transcriptionPipeline,
@@ -566,48 +668,11 @@ struct MenuBarIconView: View {
             LocalAPIServer.shared.start()
         }
 
-        // Ensure the app is activated so global event monitors initialize properly.
-        // Without this, KeyboardShortcuts' NSEvent monitors don't receive events
-        // when the app launches as a login item with .accessory activation policy.
-        NSApp.activate(ignoringOtherApps: true)
-
-        // Set up global hotkeys (must happen while app is activated)
-        // These work even when the app isn't focused
+        // Set up global hotkeys. These work even when the app isn't focused, and
+        // they do not need the app to be active: KeyboardShortcuts registers
+        // Carbon hotkeys, and the bare-modifier path uses a CGEvent tap. Both
+        // depend on Accessibility permission, not on activation.
         setupGlobalHotkeys()
-
-        // Resolve onboarding before launch-minimized behavior. Existing users may
-        // not have a persisted completion key because older builds defaulted it to
-        // true; marking them complete here ensures their first upgraded launch
-        // still honors the menu-bar-only preference.
-        if !hasCompletedOnboarding {
-            if PersistenceController.shared.didSeedDefaultModesOnLaunch {
-                onboardingPending = true
-            }
-            if onboardingPending {
-                // Small delay to ensure the main window is ready before showing sheet
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    appState.showOnboarding = true
-                }
-            } else {
-                // Existing user (modes already present): treat onboarding as done.
-                hasCompletedOnboarding = true
-            }
-        }
-
-        // LAUNCH MINIMIZED: Hide main window if preference is set
-        // This allows the app to run in menu bar only mode by default
-        // Users can still access the window via Menu Bar > Settings
-        if launchMinimized && hasCompletedOnboarding {
-            // Delay to ensure window is fully created and event monitors initialize before hiding
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let mainWindow = NSApplication.shared.windows.first {
-                    mainWindow.orderOut(nil)
-                    AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
-                    // Return focus to previous app after hiding our window
-                    NSApp.deactivate()
-                }
-            }
-        }
 
         // Note: Microphone permission is now requested only when user tries to record
         // This prevents the permission dialog from appearing on every app launch
@@ -616,9 +681,6 @@ struct MenuBarIconView: View {
         // This syncs Sparkle's state with the UserDefaults setting and performs
         // an immediate background check if auto-update is enabled
         appDelegate.initializeUpdater()
-
-        // Prepare recordings folder with a user-friendly permission flow
-        settingsManager.prepareRecordingsFolderIfNeeded()
 
         // GEMMA MIGRATION: Show one-time alert if user had Gemma selected or has leftover files
         if !didShowGemmaMigrationAlert {
@@ -726,6 +788,149 @@ struct MenuBarIconView: View {
             autoDeleteCleanupService?.startPeriodicCleanup()
             AppLogger.ui.debug("🗑️ Auto-delete cleanup service started")
         }
+
+        // Restore the selected mode. Deferred one turn so this appear pass isn't
+        // mutating AppState from inside it — that hop is all the removed
+        // `bootstrapModelsOnce()` await was buying, since its body was empty and
+        // only flipped a `@State` flag nothing else read.
+        //
+        // This covers the windowless login-item launch. `handleMainWindowAppear()`
+        // re-runs it on every LATER window appearance, because it is also the only
+        // repair for a dangling `currentModeId` — see the note there.
+        Task { @MainActor in
+            initializeSelectedModeLightweight()
+        }
+    }
+
+    /// Handles setup that genuinely needs the main window to exist.
+    ///
+    /// Only onboarding (which presents a sheet in this window) and the
+    /// launch-minimized hide belong here. Everything else moved to
+    /// `bootstrapAppServices()`, which this calls first so a normal launch keeps
+    /// the original ordering.
+    private func handleMainWindowAppear() {
+        // Whether the bootstrap had already run before this appear pass. Used at
+        // the end to avoid restoring the selected mode twice on a normal launch.
+        let wasAlreadyBootstrapped = Self.didBootstrapAppServices
+        bootstrapAppServices()
+
+        // Ensure the app is activated so the window comes forward on a normal
+        // (non-minimized) launch. Hotkeys no longer depend on this — see
+        // setupGlobalHotkeys() in bootstrapAppServices().
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Resolve onboarding before launch-minimized behavior. Existing users may
+        // not have a persisted completion key because older builds defaulted it to
+        // true; marking them complete here ensures their first upgraded launch
+        // still honors the menu-bar-only preference.
+        if !hasCompletedOnboarding {
+            if PersistenceController.shared.didSeedDefaultModesOnLaunch {
+                onboardingPending = true
+            }
+            if onboardingPending {
+                // Small delay to ensure the main window is ready before showing sheet
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    appState.showOnboarding = true
+                }
+            } else {
+                // Existing user (modes already present): treat onboarding as done.
+                hasCompletedOnboarding = true
+            }
+        }
+
+        // LAUNCH MINIMIZED: Hide main window if preference is set
+        // This allows the app to run in menu bar only mode by default
+        // Users can still access the window via Menu Bar > Settings
+        if launchMinimized && hasCompletedOnboarding && !Self.didResolveLaunchMinimizedHide {
+            // Delay to ensure window is fully created before hiding
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                // MainWindowStore, not NSApp.windows.first: hotkeys are now live
+                // before this window exists, so the recording overlay panel can
+                // already be in NSApp.windows and its order is unspecified.
+                // Identifier fallback for the same reason as
+                // MainAppView.openMainWindow(): MainWindowStore is published from
+                // WindowConfigurator's own deferred main-queue hop, which skips
+                // any turn where the NSView is not yet in a window hierarchy.
+                let mainWindow = MainWindowStore.window
+                    ?? NSApplication.shared.windows.first(where: { $0.identifier == .hyperwhisperMainWindow })
+                guard let mainWindow else {
+                    // Do NOT mark the hide resolved here: nothing was hidden, and
+                    // a later appearance must still be able to apply it. Both
+                    // lookups above fail together (WindowConfigurator sets the
+                    // store and the identifier in one closure), so this is a real
+                    // "no window yet", not a half-configured one.
+                    AppLogger.ui.warning("⚠️ launchMinimized: no main window found to hide — retrying on the next appearance")
+                    return
+                }
+                Self.didResolveLaunchMinimizedHide = true
+                mainWindow.orderOut(nil)
+                AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
+                // Return focus to previous app after hiding our window
+                NSApp.deactivate()
+            }
+        } else {
+            // Prepare the recordings folder with a user-friendly permission flow.
+            // ONLY on a pass where the window is staying: this can ask about
+            // Documents access via the SwiftUI `.alert` in MainAppView's window
+            // body, and raising that question 300ms before the branch above orders
+            // the same window out means the user sees a flash and is never asked.
+            // A launch that minimizes therefore doesn't ask at all — the next
+            // appearance (the user opening the window) takes this branch and asks
+            // then, and a recording started before that gets the window-independent
+            // presentStorageRecoveryPrompt() from its caller.
+            //
+            // canPresentInWindow: true because we ARE the window's appear pass.
+            // MainWindowStore.window is published from WindowConfigurator's own
+            // deferred hop and can still be nil right here, so the manager's
+            // visibility probe would otherwise wrongly skip the question.
+            settingsManager.prepareRecordingsFolderIfNeeded(canPresentInWindow: true)
+        }
+
+        // MODE REPAIR — per appearance, not once per process.
+        // `initializeSelectedModeLightweight()` is the only code that maps
+        // `settingsManager.currentModeId` onto `appState.selectedModeId`, and the
+        // only thing that repairs a `currentModeId` pointing at a mode that no
+        // longer exists — restoring a backup with `.replace` recreates every mode
+        // under new UUIDs, after which recording fails with
+        // `recording.error.modeMissing`. The `$selectedModeId` sinks in AppState
+        // react to changes but never repair a stale value, so this must not sit
+        // behind the bootstrap once-guard the way it did when it moved out of this
+        // `.onAppear`. `bootstrapAppServices()` runs it for the windowless
+        // login-item launch; this covers every later appearance, as origin/main's
+        // `.onAppear` did.
+        if wasAlreadyBootstrapped {
+            Task { @MainActor in
+                initializeSelectedModeLightweight()
+            }
+        }
+    }
+
+    /// Whether the launch-minimized hide has been settled for this process —
+    /// either because it ran, or because the user asked for the window and it must
+    /// never run.
+    ///
+    /// The main window can appear many times per process (menu-bar mode closes it,
+    /// `MainAppView.openMainWindow()` re-opens it) while
+    /// `launchMinimized`/`hasCompletedOnboarding` are `@AppStorage` and stay true
+    /// for the whole run. Static for the same reason as `didBootstrapAppServices`.
+    private static var didResolveLaunchMinimizedHide = false
+
+    /// Record that the user deliberately asked for the main window, so
+    /// `launchMinimized` will not take it away from them.
+    ///
+    /// The hide must only ever apply to the window LAUNCH created. On the
+    /// login-item launch this PR exists for, macOS never renders the
+    /// `WindowGroup`, so the FIRST main-window appearance of the process can be a
+    /// user-driven one minutes later — Menu Bar → Settings, a Dock click, or a
+    /// dropped audio file opening History — and hiding that is the misfire. There
+    /// is no wall-clock answer to this (a slow cold boot pushes the real launch
+    /// window past any bound, and a fast menu-bar click lands inside it), but the
+    /// app already knows: every deliberate open goes through a named function, and
+    /// those functions say so here.
+    static func suppressLaunchMinimizedHide() {
+        guard !didResolveLaunchMinimizedHide else { return }
+        didResolveLaunchMinimizedHide = true
+        AppLogger.ui.debug("🪟 Main window opened on request — launchMinimized hide no longer applies")
     }
 
     /// Lightweight initializer that restores selection state only.
@@ -770,16 +975,6 @@ struct MenuBarIconView: View {
         }
     }
 
-    /// Perform one-time model bootstrap work on startup.
-    /// Moves heavy installation/extraction off the main thread and avoids redundant rescans.
-    @MainActor
-    private func bootstrapModelsOnce() async {
-        guard !didBootstrapModels else { return }
-        didBootstrapModels = true
-        // Models are downloaded on demand when needed
-        // TranscriptionPipeline updates in response to download changes
-    }
-    
     /// DEBOUNCE MECHANISM: Track last toggle time to prevent rapid shortcut presses
     /// Problem: Users pressing shortcuts rapidly (within 300ms) could trigger multiple
     /// recording sessions before the first one initializes, causing file conflicts

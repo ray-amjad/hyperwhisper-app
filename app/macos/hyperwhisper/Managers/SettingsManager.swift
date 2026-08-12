@@ -390,8 +390,8 @@ class SettingsManager: ObservableObject {
         storage.ensureRecordingsFolderExists()
     }
 
-    func prepareRecordingsFolderIfNeeded() {
-        storage.prepareRecordingsFolderIfNeeded()
+    func prepareRecordingsFolderIfNeeded(canPresentInWindow: Bool = false) {
+        storage.prepareRecordingsFolderIfNeeded(canPresentInWindow: canPresentInWindow)
     }
 
     func prepareRecordingsFolderIfNeededAsync(timeoutSeconds: Double = 120) async -> Bool {
