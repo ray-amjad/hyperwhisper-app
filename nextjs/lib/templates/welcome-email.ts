@@ -1,9 +1,4 @@
-import {
-  card,
-  downloadButton,
-  emailDocument,
-  infoPanel,
-} from "./email-layout";
+import { card, downloadButton, emailDocument, infoPanel } from "./email-layout";
 import { escapeHtml } from "./escape-html";
 
 /**

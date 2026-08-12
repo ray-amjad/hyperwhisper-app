@@ -1,37 +1,37 @@
 import {
-    accountKeyBlock,
-    card,
-    downloadButton,
-    emailDocument,
-    infoPanel,
-    noticePanel,
-    purchaseFooterNote,
-    supportParagraph,
-    supportText,
+  accountKeyBlock,
+  card,
+  downloadButton,
+  emailDocument,
+  infoPanel,
+  noticePanel,
+  purchaseFooterNote,
+  supportParagraph,
+  supportText,
 } from "./email-layout";
 import { escapeHtml } from "./escape-html";
 
 export interface LicenseEmailData {
-    customerName: string;
-    customerEmail: string;
-    licenseKey: string;
-    productName: string;
-    downloadUrl?: string;
-    supportEmail: string;
+  customerName: string;
+  customerEmail: string;
+  licenseKey: string;
+  productName: string;
+  downloadUrl?: string;
+  supportEmail: string;
 }
 
 /** The license email links the portal to the receipt as well as the key. */
 const PORTAL_NOTE = " to access your Account Key, receipt, and invoice";
 
 export const licenseEmailHtml = (data: LicenseEmailData) => {
-    const { licenseKey, productName, downloadUrl, supportEmail } = data;
-    // Escape attacker-controllable values (e.g. Stripe customer_details.name)
-    // before embedding them in the email HTML to prevent markup injection.
-    const customerName = escapeHtml(data.customerName);
+  const { licenseKey, productName, downloadUrl, supportEmail } = data;
+  // Escape attacker-controllable values (e.g. Stripe customer_details.name)
+  // before embedding them in the email HTML to prevent markup injection.
+  const customerName = escapeHtml(data.customerName);
 
-    return emailDocument({
-        title: `Your ${productName} Account Key`,
-        content: `${card(`        <h1 style="color: #2563eb; margin-top: 0; margin-bottom: 16px; font-size: 24px;">Welcome to ${productName}!</h1>
+  return emailDocument({
+    title: `Your ${productName} Account Key`,
+    content: `${card(`        <h1 style="color: #2563eb; margin-top: 0; margin-bottom: 16px; font-size: 24px;">Welcome to ${productName}!</h1>
         <p style="margin-bottom: 8px; color: #4b5563;">Hi ${customerName},</p>
         <p style="margin-bottom: 16px; color: #4b5563;">Thank you for purchasing ${productName}! Your Account Key is ready and waiting for you below.</p>
 
@@ -53,20 +53,20 @@ ${accountKeyBlock(licenseKey)}
         ${downloadUrl ? downloadButton(downloadUrl, productName) : ""}
 
 ${noticePanel(
-            `            <p style="margin: 0; color: #92400e;"><strong>Pro Tip:</strong> You can enter your key in the app under <strong>Settings → License</strong> (the HyperWhisper Cloud panel).</p>`,
-            "#fef3c7",
-        )}`)}
+  `            <p style="margin: 0; color: #92400e;"><strong>Pro Tip:</strong> You can enter your key in the app under <strong>Settings → License</strong> (the HyperWhisper Cloud panel).</p>`,
+  "#fef3c7",
+)}`)}
 
 ${supportParagraph(supportEmail, PORTAL_NOTE)}`,
-        footerNote: purchaseFooterNote(data.customerEmail, productName),
-    });
+    footerNote: purchaseFooterNote(data.customerEmail, productName),
+  });
 };
 
 export const licenseEmailText = (data: LicenseEmailData) => {
-    const { customerName, licenseKey, productName, downloadUrl, supportEmail } =
-        data;
+  const { customerName, licenseKey, productName, downloadUrl, supportEmail } =
+    data;
 
-    return `
+  return `
 Welcome to ${productName}!
 
 Hi ${customerName},

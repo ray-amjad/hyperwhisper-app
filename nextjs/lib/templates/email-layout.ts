@@ -110,5 +110,8 @@ export const supportText = (supportEmail: string, portalNote = "") =>
 Email us at ${supportEmail} or visit our customer portal at ${PORTAL_URL}${portalNote}.`;
 
 /** The footer note shared by every email sent off the back of a purchase. */
-export const purchaseFooterNote = (customerEmail: string, productName: string) =>
+export const purchaseFooterNote = (
+  customerEmail: string,
+  productName: string,
+) =>
   `This email was sent to ${customerEmail} because a purchase was made for ${productName}.`;
