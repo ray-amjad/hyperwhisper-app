@@ -93,6 +93,18 @@ The Home page's stats bar estimates the time that dictation saves you, based on 
 
 If you do not want to share diagnostic data, you can turn off this setting at any time.
 
+### Share anonymous speed data
+
+The label is **Share anonymous speed data** on both platforms. This setting is **on** by default.
+
+If the setting is on, HyperWhisper Cloud measures how long each cloud provider takes and stores the measurement. These measurements make the public [latency page](https://www.hyperwhisper.com/en/latency), which shows how fast each provider answers in each server region. Both apps give a link to that page below the toggle.
+
+One measurement holds the provider, the server region, the clip-length group, and the time taken. It holds no account, no key, no IP address, no audio, and no text.
+
+If you turn the setting off, each cloud transcription sends the `X-Latency-Opt-Out: 1` header and the server stores no measurement. Your transcriptions do not change: the same providers run, at the same speed, and you get the same result. Local models never send a measurement, whatever this setting is.
+
+For the full list of the stored fields and the retention period, read [Data & Privacy](/data-privacy#timing-measurements).
+
 ### Auto update / Check for updates automatically
 
 <Tabs>

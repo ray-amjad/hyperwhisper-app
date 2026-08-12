@@ -42,10 +42,14 @@ macOS does not show an automatic prompt for Accessibility, unlike the Microphone
   <Step title="Unlock and add HyperWhisper">
     Click the lock icon and authenticate. Then turn on **HyperWhisper** in the list.
   </Step>
-  <Step title="Restart HyperWhisper">
-    Quit the app and start it again. The new permission then takes effect.
+  <Step title="Go back to HyperWhisper">
+    The new permission takes effect while the app runs. You do not need to start the app again. Auto-paste examines the permission at each use, so it works at your next transcription. Bare-modifier push-to-talk starts as soon as the app finds the grant.
   </Step>
 </Steps>
+
+<Note>
+  HyperWhisper watches for the Accessibility grant for 10 minutes after it finds the permission missing. If you take more than 10 minutes to grant it, select the push-to-talk mode again in **Settings → Shortcuts**, or start the app again.
+</Note>
 
 If the Accessibility permission is missing, HyperWhisper shows a banner on the home screen. The banner has a link to the correct pane in System Settings.
 
