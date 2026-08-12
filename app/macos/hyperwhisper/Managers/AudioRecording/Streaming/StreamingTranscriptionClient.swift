@@ -757,7 +757,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 ]
             )
             didInitiateClose = true
-            receiveTask?.cancel()
+            // Release the handle without cancelling it: this function only ever
+            // runs inside receiveTask, so a cancel here would cancel the task
+            // executing this very code. There is nothing to cancel — that loop
+            // breaks the moment we return. (Same invariant as the reconnect
+            // hand-over below; see the comment there for why it matters.)
             receiveTask = nil
             webSocketTask?.cancel(with: .abnormalClosure, reason: nil)
             webSocketTask = nil
@@ -817,18 +821,33 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         webSocketTask = makeWebSocketTask(url: url, config: config)
         webSocketTask?.resume()
 
-        // Cancel the old receive task before starting a new one.
-        // Without this, the old receiveLoop could still be running (blocked on receive())
-        // and we'd end up with two concurrent receive loops on different WebSocket tasks.
-        receiveTask?.cancel()
-        receiveTask = nil
-
         // Reset session ID so waitForSessionStarted can detect the new ready message
         await MainActor.run {
             self.sessionId = nil
         }
 
         disconnectedDuringReconnect = false
+
+        // HAND THE receiveTask SLOT OVER TO THE REPLACEMENT LOOP — DO NOT CANCEL
+        // THE OLD ONE.
+        //
+        // This function has exactly one caller (receiveLoop), so it always runs
+        // *inside* receiveTask — self.receiveTask is the task executing this very
+        // code. Cancelling it here cancelled the reconnect itself: every await
+        // below then ran cancelled, and waitForSessionStarted's task group spawns
+        // children that are born already-cancelled, so both throw immediately and
+        // group.next() rethrows. The reconnect could only ever fail with
+        // CancellationError, well before the 10s timeout (HYPERWHISPER-MG).
+        //
+        // There is also nothing to cancel: the old loop is not blocked on
+        // receive(), it is parked in this call and breaks the moment we return,
+        // so it can never race the replacement loop for the new socket.
+        //
+        // Keeping self.receiveTask pointed at the running task right up to the
+        // hand-over is deliberate: it is what lets stopSession() (and cancel())
+        // abort a reconnect that is still in flight, instead of cancelling a
+        // slot we already nil'd out.
+        receiveTask = nil
         startReceivingMessages()
 
         // Wait for session to be re-established
