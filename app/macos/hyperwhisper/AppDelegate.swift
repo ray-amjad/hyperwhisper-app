@@ -50,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// follows launch completion.
     static private(set) var didFinishLaunching = false
 
+    /// When `applicationDidFinishLaunching` ran, or `nil` if it has not yet.
+    ///
+    /// Lets scene code tell a launch-time window appearance from a
+    /// user-initiated one — see `HyperWhisperApp.handleMainWindowAppear()`.
+    static private(set) var didFinishLaunchingAt: Date?
+
     // MARK: - Initialization
     
     override init() {
@@ -67,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - NSApplicationDelegate
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.didFinishLaunching = true
+        AppDelegate.didFinishLaunchingAt = Date()
 
         // Initialize Sentry if DSN is configured and error logging is enabled
         let loggingEnabled = UserDefaults.standard.bool(forKey: "enableErrorLogging")

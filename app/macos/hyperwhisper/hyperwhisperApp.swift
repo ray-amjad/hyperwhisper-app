@@ -802,6 +802,12 @@ struct MenuBarIconView: View {
         }
     }
 
+    /// How long after `applicationDidFinishLaunching` a main-window appearance
+    /// still counts as part of launch. Generous on purpose: the only thing on the
+    /// other side of it is a window the user asked for by hand, which no plausible
+    /// launch takes this long to reach.
+    private static let launchAppearanceGracePeriod: TimeInterval = 10
+
     /// Handles setup that genuinely needs the main window to exist.
     ///
     /// Only onboarding (which presents a sheet in this window) and the
@@ -813,6 +819,23 @@ struct MenuBarIconView: View {
         // the end to avoid restoring the selected mode twice on a normal launch.
         let wasAlreadyBootstrapped = Self.didBootstrapAppServices
         bootstrapAppServices()
+
+        // Is this the window appearance that belongs to app launch?
+        //
+        // Since #182 the main window may be created for the first time long after
+        // launch — the user picks Settings from the menu bar and SwiftUI builds the
+        // WindowGroup right then. `didResolveLaunchMinimizedHide` does not catch
+        // that: a login-item launch never renders the window, so the hide is still
+        // unresolved and would fire on the window the user just asked for. Gate on
+        // elapsed time instead of on "first appearance", which would also cancel
+        // the retry the no-window-yet path below depends on.
+        let isLaunchAppearance: Bool
+        if let launchedAt = AppDelegate.didFinishLaunchingAt {
+            isLaunchAppearance = Date().timeIntervalSince(launchedAt) < Self.launchAppearanceGracePeriod
+        } else {
+            // Launch hasn't even finished — this can only be the launch window.
+            isLaunchAppearance = true
+        }
 
         // Ensure the app is activated so the window comes forward on a normal
         // (non-minimized) launch. Hotkeys no longer depend on this — see
@@ -841,7 +864,7 @@ struct MenuBarIconView: View {
         // LAUNCH MINIMIZED: Hide main window if preference is set
         // This allows the app to run in menu bar only mode by default
         // Users can still access the window via Menu Bar > Settings
-        if launchMinimized && hasCompletedOnboarding && !Self.didResolveLaunchMinimizedHide {
+        if isLaunchAppearance && launchMinimized && hasCompletedOnboarding && !Self.didResolveLaunchMinimizedHide {
             // Delay to ensure window is fully created before hiding
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 // MainWindowStore, not NSApp.windows.first: hotkeys are now live
