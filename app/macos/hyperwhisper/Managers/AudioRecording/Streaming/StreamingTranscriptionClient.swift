@@ -146,6 +146,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Track if we initiated the close (to distinguish user-initiated stop from unexpected disconnect)
     private var didInitiateClose = false
 
+    /// True once a terminal provider error (see `StreamingProviderErrorPolicy`)
+    /// has been surfaced for this session. Providers commonly repeat the error
+    /// frame before closing the socket; by then `onError` has already torn the
+    /// flow down, so a second frame would only re-report the same fault and
+    /// re-run the teardown. Reset alongside `didInitiateClose` in startSession.
+    private var didHandleTerminalProviderError = false
+
     /// The session config, stored for reconnect attempts.
     /// Saved when startSession is called so handleUnexpectedDisconnect can rebuild the connection.
     private var currentConfig: StreamingSessionConfig?
@@ -231,6 +238,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Reset state
         lastError = nil
         didInitiateClose = false
+        didHandleTerminalProviderError = false
         reconnectCount = 0
         connectionEstablishedAt = Date()
         didReceiveSessionComplete = false
@@ -566,8 +574,37 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             }
 
         case .error(let message):
+            // A terminal provider error (no credits, dead key) is followed by
+            // the provider closing the socket itself. Once onError below has
+            // torn the flow down, any further error frame on that dying socket
+            // is noise — reporting it again would double-count the same fault
+            // in Sentry and re-run the whole teardown.
+            if didHandleTerminalProviderError {
+                logger.info("Ignoring repeat provider error after a terminal one")
+                return
+            }
+
+            // Classified out here so the flag below can be the FIRST statement
+            // inside the main-actor block, ahead of every callback.
+            let outcome = StreamingProviderErrorPolicy.outcome(forProviderMessage: message)
+            let isTerminal = outcome == .terminal
+            let terminalTag = isTerminal ? "true" : "false"
+
             await MainActor.run {
-                self.logger.error("Provider error: \(message, privacy: .public)")
+                if isTerminal {
+                    // Claim the provider's impending close as expected. Without
+                    // this, receiveLoop sees didInitiateClose == false, reports
+                    // "WebSocket unexpected disconnect" (HYPERWHISPER-MH) and
+                    // starts a reconnect that can only fail the same way
+                    // (HYPERWHISPER-MG) — whose generic "reconnect failed" toast
+                    // then overwrites the actionable message this error is about
+                    // to show (HYPERWHISPER-RW). The user still gets that
+                    // message: onError below is unchanged.
+                    self.didInitiateClose = true
+                    self.didHandleTerminalProviderError = true
+                }
+
+                self.logger.error("Provider error: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)")
                 let error = StreamingError.serverError(message)
                 self.lastError = error
                 SentryService.capture(
@@ -577,7 +614,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     tags: [
                         "component": "StreamingTranscriptionClient",
                         "provider": self.strategy.transcriptionProviderLabel,
-                        "operation": "processServerMessage"
+                        "operation": "processServerMessage",
+                        // Lets account-state noise (no credits, dead key) be
+                        // filtered server-side without shipping a release, while
+                        // the capture itself stays — a terminal error is still
+                        // worth seeing, just not worth alerting on.
+                        "terminal": terminalTag
                     ]
                 )
                 self.onConnectionStateChange?(.error(message))
