@@ -46,15 +46,9 @@ export default async function LatencyPage({ params }: Props) {
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full py-16 md:py-24">
       <header className="mx-auto max-w-3xl text-center">
-        <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
-          HyperWhisper Cloud
-        </p>
-        <h1 className="mt-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold text-transparent md:text-6xl">
-          {TITLE}
-        </h1>
-        <p className="mx-auto mt-5 text-lg text-gray-400">
+        <p className="mx-auto text-lg text-gray-400">
           Every transcription we run times the provider that answered it. These
           are those timings — {totalSamples.toLocaleString()} provider attempts
           over the last {WINDOW_DAYS} days, grouped by the region that made the
