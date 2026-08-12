@@ -5,14 +5,18 @@ import { boolean, index, integer, pgTable, text, timestamp, uuid } from "drizzle
  * edge transcription service (hyperwhisper-cloud), not one user request: a
  * request that falls back from ElevenLabs to Deepgram writes two rows.
  *
- * Deliberately absent: user id, license key, request id, IP, transcript, and
- * character count. Leaving out the request id is what makes these rows
- * anonymous rather than pseudonymous — nothing joins two rows back into one
- * session. `created_at` is written coarsened to the hour for the same reason:
- * one transcription's chain arrives in a single multi-row INSERT, and an exact
- * transaction timestamp would be a request identifier in all but name. The cost
- * is that a single request cannot be reconstructed from this table; Axiom still
- * holds that (short-retention, internal-only).
+ * Deliberately absent: user id, license key, request id, IP, transcript,
+ * character count, and the clip's exact length. Leaving out the request id is
+ * what makes these rows anonymous rather than pseudonymous — nothing joins two
+ * rows back into one session. `created_at` is written coarsened to the hour for
+ * the same reason: one transcription's chain arrives in a single multi-row
+ * INSERT, and an exact transaction timestamp would be a request identifier in
+ * all but name. `audio_seconds` is left null on the same grounds — every
+ * attempt on one transcription measures the same audio, so a whole-second
+ * length beside the region and the hour is another way to group a chain back
+ * together. Only the three-value `duration_bucket` survives, which is all the
+ * page compares on. The cost is that a single request cannot be reconstructed
+ * from this table; Axiom still holds that (short-retention, internal-only).
  *
  * Written by POST /api/internal/latency (x-internal-secret). Read only by the
  * public /latency page, which aggregates a trailing 30-day window. Rows are
@@ -32,11 +36,14 @@ export const sttLatencySamples = pgTable(
     // three-letter Fly region: a machine off Fly does not report at all, and the
     // ingest rejects anything else.
     flyRegion: text("fly_region").notNull(),
-    // Rounded clip length. Measured for successes, estimated from byte size for
-    // failures (a failed attempt returns no duration) — see latency-report.ts.
+    // Always null: the reported clip length picks the bucket below and is then
+    // discarded, because a per-row length is a join key that would reassemble
+    // one transcription's chain (see the note above). Kept nullable rather than
+    // dropped so a future, deliberate use does not need a migration.
     audioSeconds: integer("audio_seconds"),
-    // 'short' <10s | 'medium' 10-30s | 'long' >30s. Denormalized at write time
-    // so the page's aggregate never has to bucket at read time.
+    // 'short' <10s | 'medium' 10-30s | 'long' >30s, from the edge service's
+    // estimate of the clip length. Denormalized at write time so the page's
+    // aggregate never has to bucket at read time.
     durationBucket: text("duration_bucket").notNull(),
     // The provider call alone. Excludes upload, auth, credit checks, and every
     // earlier attempt in the fallback chain.

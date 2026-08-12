@@ -9,6 +9,7 @@
 // stored shape and what is deliberately absent.
 
 import { DEFAULT_API_BASE_URL } from './constants';
+import type { ProviderUnavailableKind } from '../providers/types';
 
 /** How long the whole batch POST may take before we abandon it. */
 const REPORT_TIMEOUT_MS = 5_000;
@@ -16,41 +17,50 @@ const REPORT_TIMEOUT_MS = 5_000;
 /** Matches the ingest endpoint's ceiling; one chain never comes close. */
 const MAX_SAMPLES_PER_BATCH = 20;
 
-export type LatencyFailureKind =
-  | 'timeout'
-  | 'rate_limit'
-  | 'upstream_5xx'
-  | 'bad_response'
-  | 'network_error'
-  | 'input_rejected'
-  | 'unknown';
+/**
+ * Derived, not re-spelled: every reason a provider attempt can fail is already
+ * a ProviderUnavailableKind, plus the one case that is not an availability
+ * problem at all — an upstream that answered and rejected the input
+ * (ProviderInputError). Writing the members out again let the two drift.
+ *
+ * Note what is NOT here: our own pre-flight size/format rejections. Those never
+ * reach a provider, so they are never reported. See isPreflightRejection() in
+ * routes/transcribe.ts.
+ */
+export type LatencyFailureKind = ProviderUnavailableKind | 'input_rejected';
 
 export interface LatencySample {
   /** Backend provider id, e.g. 'deepgram'. */
   provider: string;
-  /** Model attempted, if the provider takes one. */
+  /** The model that actually ran, if the provider takes one. */
   model?: string;
-  /** The provider call alone — not upload, auth, or any earlier attempt. */
+  /**
+   * One attempt end to end, on the route's own clock: everything that attempt
+   * spent, upload to the provider and job polling included — and nothing
+   * before it, so no client upload, auth, credit check, or earlier attempt.
+   */
   latencyMs: number;
   ok: boolean;
   failureKind?: LatencyFailureKind;
   /** 1-based position in the fallback chain. */
   attempt: number;
-  /** Rounded clip length. Measured on success, estimated on failure. */
+  /** Estimated clip length, the same way for every attempt. */
   audioSeconds: number;
 }
 
-// Clip length for an attempt that FAILED — a failed provider call returns no
-// duration, but the sample still has to land in the right clip-length bucket to
-// be compared fairly — comes from estimateAudioSeconds() in providers/utils.ts.
-// That one is content-type aware: the desktop apps upload 16 kHz/16-bit mono WAV
-// (32,000 B/s), so the flat 64 kbps heuristic used for billing would report a
-// 3-second dictation as ~12 seconds and file it under 'medium'. Neither billing
-// estimator is used here: estimateSecondsFromBytes() has the wrong rate, and
-// middleware/credits.ts's estimateAudioSecondsFromSize() additionally clamps to
-// a 10-second floor so billing never under-charges, which would push every
-// failed short clip into 'medium'. Billing wants a floor; bucketing wants the
-// truth.
+// Clip length comes from estimateAudioSeconds() in providers/utils.ts, for
+// EVERY attempt — successes included, and never from the adapter's
+// `durationSeconds`. That estimator is content-type aware: the desktop apps
+// upload 16 kHz/16-bit mono WAV (32,000 B/s), so the flat 64 kbps heuristic
+// used for billing would report a 3-second dictation as ~12 seconds and file it
+// under 'medium'. Neither billing estimator is used here: estimateSecondsFromBytes()
+// has the wrong rate — and IS what the adapters fall back to when an upstream
+// omits a duration, which is why the adapter's number cannot be trusted as a
+// measurement — and middleware/credits.ts's estimateAudioSecondsFromSize()
+// additionally clamps to a 10-second floor so billing never under-charges,
+// which would push every short clip into 'medium'. Billing wants a floor;
+// bucketing wants the truth, applied identically to every row so a cell
+// compares like with like.
 
 // In-flight tracking for graceful shutdown. Reporting is fired without
 // awaiting so it never adds wall time to the very latency it measures — which

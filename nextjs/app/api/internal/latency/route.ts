@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqualSecret } from "@/lib/security/timing-safe-secret";
 import { latencyIngestRateLimiter } from "@/lib/rate-limit";
 import { bucketForSeconds } from "@/lib/latency/types";
+import { KNOWN_PROVIDERS } from "@/lib/latency/providers";
 import { db } from "@/src/db";
 import { sttLatencySamples } from "@/src/db/schema/stt-latency-samples";
 import { MAX_SAMPLES_PER_REQUEST, coarseCreatedAt, validateBatch } from "./validation";
@@ -44,7 +45,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const result = validateBatch(body);
+  // The page's display map is the one list of provider ids; a provider it can
+  // render is a provider this route stores. See lib/latency/providers.ts.
+  const result = validateBatch(body, KNOWN_PROVIDERS);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
@@ -88,12 +91,23 @@ export async function POST(request: NextRequest) {
         provider: sample.provider,
         model: sample.model,
         flyRegion: sample.flyRegion,
-        audioSeconds: sample.audioSeconds,
+        // The reported clip length is used to pick the bucket and then dropped:
+        // the whole-second value is a join key this table must not hold. Three
+        // attempts on one transcription carry the same audio, so they would
+        // share an exact `audio_seconds` — and with `fly_region` and the coarse
+        // hour beside it, grouping on those columns reassembles the request and
+        // its provider chain, which is the one correlation the row promises not
+        // to allow. Nothing reads the column (src/content/latency.ts selects
+        // provider, region, count, percentiles and error rate, and filters on
+        // duration_bucket), so it is stored as null rather than coarsened into
+        // a second spelling of the bucket. The column stays for a future,
+        // deliberate use.
+        audioSeconds: null,
         // Bucketed here rather than on the page: the boundaries and the labels
         // that describe them live in one place (lib/latency/types.ts), and the
-        // aggregate never has to bucket at read time.
-        // audioSeconds is never null at this point — validateSample rejects a
-        // sample without a clip length, because it could not be compared.
+        // aggregate never has to bucket at read time. `sample.audioSeconds` is
+        // never null here — validateSample rejects a sample with no clip
+        // length, because it could not be compared against one that has it.
         durationBucket: bucketForSeconds(sample.audioSeconds ?? 0),
         latencyMs: sample.latencyMs,
         ok: sample.ok,

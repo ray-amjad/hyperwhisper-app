@@ -25,6 +25,22 @@ export const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   soniox: "Soniox",
 };
 
+/**
+ * The provider ids the ingest route stores, derived from the display map rather
+ * than listed a second time.
+ *
+ * A hand-kept second copy drifts silently and asymmetrically: a provider added
+ * to the map above renders on the page while every row the edge service reports
+ * for it is rejected at ingest as an unknown provider, so the column stays
+ * permanently empty and nothing says why. Deriving makes "these two lists match
+ * 1:1" true by construction instead of by comment.
+ *
+ * The edge service keeps its own copy (hyperwhisper-cloud's `SttProviderId`) —
+ * that one is justified: it is a different deployable across a service
+ * boundary, which is exactly what the ingest is validating.
+ */
+export const KNOWN_PROVIDERS: readonly string[] = Object.keys(PROVIDER_DISPLAY_NAMES);
+
 export function providerDisplayName(id: string): string {
   return PROVIDER_DISPLAY_NAMES[id] ?? id;
 }

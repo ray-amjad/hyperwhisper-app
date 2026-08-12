@@ -28,6 +28,7 @@ export const FLY_REGIONS: Record<string, { city: string; lat: number; lon: numbe
   jnb: { city: "Johannesburg", lat: -26.13, lon: 28.24 },
   lax: { city: "Los Angeles", lat: 33.94, lon: -118.41 },
   lhr: { city: "London", lat: 51.47, lon: -0.45 },
+  maa: { city: "Chennai", lat: 12.99, lon: 80.17 },
   mad: { city: "Madrid", lat: 40.47, lon: -3.56 },
   mia: { city: "Miami", lat: 25.79, lon: -80.29 },
   nrt: { city: "Tokyo", lat: 35.55, lon: 140.39 },

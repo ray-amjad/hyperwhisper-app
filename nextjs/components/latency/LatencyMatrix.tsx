@@ -6,6 +6,7 @@ import { MapPin, Pin } from "lucide-react";
 import {
   BUCKET_LABELS,
   DURATION_BUCKETS,
+  minSamplesForMetric,
   type DurationBucket,
   type LatencyMatrixData,
 } from "@/lib/latency/types";
@@ -53,8 +54,11 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   const regionPickedByUser = useRef(false);
 
   const data = matrices[bucket];
-  const { providers, regions, minSamplesPerCell } = data;
+  const { providers, regions } = data;
   const hasData = regions.length > 0;
+  // p99 asks much more of a cell than p50 or p95 do, so the bar moves with the
+  // metric on screen rather than being one number for the whole page.
+  const minSamples = minSamplesForMetric(metric);
   // The region list as a value, not an identity: each bucket's matrix builds its
   // own array, and the props re-cross the RSC boundary, so keying the effect
   // below on `regions` itself would re-run it on every bucket toggle.
@@ -68,11 +72,11 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
       map.set(`${cell.provider}|${cell.region}`, {
         value,
         samples: cell.samples,
-        enough: cell.samples >= minSamplesPerCell,
+        enough: cell.samples >= minSamples,
       });
     }
     return map;
-  }, [data, metric, minSamplesPerCell]);
+  }, [data, metric, minSamples]);
 
   // Ask which region is nearest this visitor, once the page has painted. The
   // page itself is static, so it cannot know. Only regions that actually have
@@ -99,6 +103,16 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
     return () => controller.abort();
   }, [regionsKey]);
+
+  // The region to actually highlight. A pick is remembered across bucket
+  // switches — geolocation must not quietly undo it — but every bucket derives
+  // its own region axis from the rows it has, so the remembered region may not
+  // exist in the bucket on screen. Everything visual keys off this rather than
+  // off `homeRegion` being truthy: otherwise a sparser bucket leaves the header
+  // announcing "Showing Frankfurt" while no column, cell or picker entry
+  // matches, and nothing can ever reconcile the two. `homeRegion` itself is
+  // kept, so switching back to a bucket that has it restores the highlight.
+  const activeHomeRegion = homeRegion && regions.includes(homeRegion) ? homeRegion : null;
 
   const cellFor = (provider: string, region: string): CellValue =>
     lookup.get(`${provider}|${region}`) ?? null;
@@ -247,9 +261,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
           {/* Region highlight */}
           <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
             <MapPin className="h-4 w-4 text-purple-300" />
-            {homeRegion ? (
+            {activeHomeRegion ? (
               <span className="text-gray-300">
-                Showing <span className="font-semibold text-white">{homeCity}</span>
+                Showing{" "}
+                <span className="font-semibold text-white">
+                  {homeCity ?? regionCity(activeHomeRegion)}
+                </span>
               </span>
             ) : (
               <span className="text-gray-500">Pick the region closest to you</span>
@@ -267,7 +284,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                   <button
                     key={region}
                     className={`rounded-full border px-3 py-1 text-xs transition ${
-                      homeRegion === region
+                      activeHomeRegion === region
                         ? "border-purple-500 bg-purple-600/30 text-white"
                         : "border-gray-700 text-gray-400 hover:text-white"
                     }`}
@@ -298,7 +315,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                     <th
                       key={region}
                       className={`px-3 py-3 text-center text-xs font-medium transition ${
-                        homeRegion === region
+                        activeHomeRegion === region
                           ? "bg-purple-950/40 text-purple-200"
                           : "text-gray-400"
                       } ${hover?.region === region ? "bg-gray-900" : ""}`}
@@ -358,7 +375,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
                       {regions.map((region) => {
                         const cell = cellFor(provider, region);
-                        const isHome = homeRegion === region;
+                        const isHome = activeHomeRegion === region;
 
                         if (!cell || !cell.enough) {
                           return (
@@ -369,7 +386,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
                               }`}
                               title={
                                 cell
-                                  ? `${cell.samples} attempts — fewer than the ${minSamplesPerCell} needed`
+                                  ? `${cell.samples.toLocaleString()} attempts — fewer than the ${minSamples.toLocaleString()} this metric needs`
                                   : "No attempts recorded"
                               }
                               onMouseEnter={() => setHover({ provider, region })}
@@ -406,8 +423,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
             {metric === "errorRate"
               ? "Share of attempts that failed, including ones a fallback provider rescued."
               : "Milliseconds, provider call only."}{" "}
-            A cell needs at least {minSamplesPerCell} attempts to show a number. Click a
-            region to sort by it, or a provider to pin its row.
+            A cell needs at least {minSamples.toLocaleString()} attempts to show a
+            number
+            {metric === "p99"
+              ? " — p99 asks for more of them than the other metrics, because a 99th percentile drawn from a small sample is really just its slowest call"
+              : ""}
+            . Click a region to sort by it, or a provider to pin its row.
           </p>
         </>
       )}

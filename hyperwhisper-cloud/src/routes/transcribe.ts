@@ -239,6 +239,53 @@ export function isLatencyOptOut(c: Context): boolean {
   return !LATENCY_OPT_IN_VALUES.has(header.toLowerCase().trim());
 }
 
+/**
+ * True for the failures a provider never saw.
+ *
+ * AudioTooLargeError and UnsupportedAudioFormatError come from pure byte-length
+ * and content-type gates that run BEFORE any network call (azure-mai.ts:96/107,
+ * openai.ts:49, gemini.ts:176, soniox.ts:124, google-chirp.ts:149). Timing them
+ * measures our own `if`, not an upstream: the row would publish a ~1 ms
+ * "answer" and count a failure against a provider that was never called, so a
+ * client that stopped pre-converting m4a to WAV would sink Azure MAI's public
+ * error rate without Azure being involved. They are logged (transcribe.request_fail)
+ * and surfaced to the caller as 413/415; they are not measurements, so they are
+ * not reported.
+ *
+ * ProviderInputError is the opposite case — a real upstream 4xx, timed end to
+ * end — and is reported as 'input_rejected'.
+ */
+function isPreflightRejection(error: unknown): boolean {
+  return error instanceof AudioTooLargeError || error instanceof UnsupportedAudioFormatError;
+}
+
+/**
+ * The public page's failure taxonomy for whatever the attempt threw. Keeps the
+ * mapping in one place so the catch arms below stay pure control flow.
+ */
+function failureKindFor(error: unknown): LatencyFailureKind {
+  if (error instanceof ProviderUnavailableError) return error.kind;
+  if (error instanceof ProviderInputError) return 'input_rejected';
+  // A revoked key or a bug in an adapter lands here. Without a sample the page
+  // would report a 0% error rate for a provider that fails every call.
+  return 'unknown';
+}
+
+/**
+ * How long a failed attempt cost the user, from the route's own clock.
+ *
+ * Deliberately NOT ProviderUnavailableError.elapsedMs: for the async providers
+ * (AssemblyAI, Soniox, Google Chirp) that field times only the single
+ * fetchWithTimeout that failed, while the upload, the job creation and every
+ * earlier poll are already spent — a 90-second wait reported as the 8 seconds
+ * of its last poll. The adapter's own number stays in the structured log, where
+ * "which call failed" is the question; the page answers "how long did this
+ * take", which is this one.
+ */
+function elapsedFor(attemptStart: number): number {
+  return performance.now() - attemptStart;
+}
+
 function validateStreamingHeaders(c: Context, provider: Provider):
   | { ok: true; contentType: string; contentLength: number }
   | { ok: false; response: Response } {
@@ -521,22 +568,38 @@ export async function transcribeRoute(c: Context) {
   // Read once, up front: the header cannot change mid-request, and the send
   // site below is the only thing that consults it.
   const latencyOptOut = isLatencyOptOut(c);
+  // The clip length every row of this request is filed under — one estimate,
+  // from the bytes on the wire and the Content-Type describing them, used
+  // identically on success and on failure.
+  //
+  // Deliberately NOT the adapter's `result.durationSeconds`. That is a BILLING
+  // number, and when an upstream omits a duration the adapters fall back to
+  // estimateSecondsFromBytes() — a flat 64 kbps assumption that overstates the
+  // 16 kHz/16-bit mono WAV both desktop apps upload by ~4x. openai's default
+  // model (gpt-4o-transcribe) reports only tokens, so it takes that fallback on
+  // every call, and mistral/soniox/assemblyai take it whenever upstream omits a
+  // duration: a 3-second dictation would be stored as 12 seconds and bucketed
+  // 'medium'. Preferring it on success and estimating on failure also made the
+  // two incomparable, and put one clip in different buckets depending on
+  // whether the provider that answered happened to report a length. One
+  // estimator for every row is what makes a cell a like-for-like comparison.
+  const audioSeconds = estimateAudioSeconds(audioBuffer.byteLength, contentType);
+
   // The one place an attempt becomes a sample. Every arm out of the loop below
-  // goes through it — success, retryable failure, and the three failures that
-  // end the request outright — so "one row per attempt" holds by construction
-  // instead of by remembering to push. The loop is wrapped in a try/finally
-  // that sends whatever this collected, so an early return can no longer lose
-  // the most interesting rows this page has.
+  // goes through it — success, retryable failure, and the failures that end the
+  // request outright — so "one row per attempt" holds by construction instead
+  // of by remembering to push. The loop is wrapped in a try/finally that sends
+  // whatever this collected, so an early return can no longer lose the most
+  // interesting rows this page has.
   const recordAttempt = (sample: {
     provider: Provider;
+    /** The model that actually ran, when the adapter reports one. */
     model?: string;
     /** 0-based position in the chain; stored 1-based. */
     index: number;
     latencyMs: number;
     /** Absent on success. */
     failureKind?: LatencyFailureKind;
-    /** The adapter's measured clip length, when it reported one. */
-    durationSeconds?: number;
   }) => {
     latencySamples.push({
       provider: sample.provider,
@@ -545,11 +608,7 @@ export async function transcribeRoute(c: Context) {
       ok: sample.failureKind === undefined,
       failureKind: sample.failureKind,
       attempt: sample.index + 1,
-      // A measured duration wins. A failed call reports none, and every adapter
-      // hard-codes 0 on a no_speech result — both fall back to the estimate, so
-      // a 45-second silent clip is not filed as a 0-second one.
-      audioSeconds:
-        sample.durationSeconds || estimateAudioSeconds(audioBuffer.byteLength, contentType),
+      audioSeconds,
     });
   };
 
@@ -599,15 +658,28 @@ export async function transcribeRoute(c: Context) {
         });
         recordAttempt({
           provider: current,
-          model: attemptModel,
+          model: usedModel,
           index,
           latencyMs: attemptMs,
-          // A success normally knows the real clip length; a no_speech result
-          // reports 0 and falls back to the estimate inside recordAttempt.
-          durationSeconds: result.durationSeconds,
         });
         break;
       } catch (error) {
+        // ONE row per attempt, recorded here before any branching: the arms
+        // below are pure control flow (log, fall back, or return) and none of
+        // them can forget a sample or file a second one. The pre-flight
+        // rejections are the single, deliberate exception — the provider never
+        // received the call, so there is nothing to measure. See
+        // isPreflightRejection().
+        if (!isPreflightRejection(error)) {
+          recordAttempt({
+            provider: current,
+            model: attemptModel,
+            index,
+            latencyMs: elapsedFor(attemptStart),
+            failureKind: failureKindFor(error),
+          });
+        }
+
         if (error instanceof ProviderUnavailableError) {
           const next = chain[chain.indexOf(current) + 1];
           fallbackCount += 1;
@@ -631,15 +703,6 @@ export async function transcribeRoute(c: Context) {
             status: error.status,
             attemptMs: error.elapsedMs,
           });
-          recordAttempt({
-            provider: current,
-            model: attemptModel,
-            index,
-            // The adapter already timed the call; fall back to our own clock when
-            // it did not report one.
-            latencyMs: error.elapsedMs ?? performance.now() - attemptStart,
-            failureKind: error.kind,
-          });
           lastError = error;
           sawUnavailable = true;
           continue;
@@ -659,13 +722,6 @@ export async function transcribeRoute(c: Context) {
             message: error.message,
             nextProvider: next,
           });
-          recordAttempt({
-            provider: current,
-            model: attemptModel,
-            index,
-            latencyMs: performance.now() - attemptStart,
-            failureKind: 'input_rejected',
-          });
           lastError = error;
           lastInputError = error;
           continue;
@@ -678,13 +734,6 @@ export async function transcribeRoute(c: Context) {
             message: error.message,
             actualBytes: error.actualBytes,
             maxBytes: error.maxBytes,
-          });
-          recordAttempt({
-            provider: current,
-            model: attemptModel,
-            index,
-            latencyMs: performance.now() - attemptStart,
-            failureKind: 'input_rejected',
           });
           return errorResponse(413, 'Audio too large for provider',
             `${PROVIDER_NAMES[current]} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
@@ -699,13 +748,6 @@ export async function transcribeRoute(c: Context) {
             message: error.message,
             receivedContentType: error.contentType,
             acceptedFormats: error.acceptedFormats,
-          });
-          recordAttempt({
-            provider: current,
-            model: attemptModel,
-            index,
-            latencyMs: performance.now() - attemptStart,
-            failureKind: 'input_rejected',
           });
           return errorResponse(415, 'Unsupported audio format for provider',
             `${PROVIDER_NAMES[current]} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
@@ -723,15 +765,6 @@ export async function transcribeRoute(c: Context) {
           attempt: index + 1,
           kind: 'non_retryable',
           message: error instanceof Error ? error.message : String(error),
-        });
-        // A revoked key or a bug in an adapter lands here. Without a sample the
-        // page would report a 0% error rate for a provider that fails every call.
-        recordAttempt({
-          provider: current,
-          model: attemptModel,
-          index,
-          latencyMs: performance.now() - attemptStart,
-          failureKind: 'unknown',
         });
         return errorResponse(500, 'Transcription failed', error instanceof Error ? error.message : String(error), { requestId });
       }

@@ -5,11 +5,29 @@ import test from "node:test";
 // tests in this folder do: a static `.ts` import path is a type error under this
 // tsconfig, but `node --test --experimental-strip-types` needs the extension.
 const MODULE_PATH = "../app/api/internal/latency/validation.ts";
-const load = () => import(MODULE_PATH);
 
 // The clip-length model the ingest and the page both derive from.
 const TYPES_MODULE_PATH = "../lib/latency/types.ts";
 const loadTypes = () => import(TYPES_MODULE_PATH);
+
+// The one list of provider ids, derived from the page's display map. The ingest
+// takes it as an argument rather than importing it, so the tests exercise the
+// real list by handing it in the same way route.ts does.
+const PROVIDERS_MODULE_PATH = "../lib/latency/providers.ts";
+const loadProviders = () => import(PROVIDERS_MODULE_PATH);
+
+async function load() {
+  const [validation, providers] = await Promise.all([
+    import(MODULE_PATH),
+    loadProviders(),
+  ]);
+  const known = providers.KNOWN_PROVIDERS;
+  return {
+    ...validation,
+    validateSample: (raw: unknown) => validation.validateSample(raw, known),
+    validateBatch: (body: unknown) => validation.validateBatch(body, known),
+  };
+}
 
 function goodSample(overrides: Record<string, unknown> = {}) {
   return {
@@ -62,6 +80,24 @@ test("the bucket labels describe the boundaries they are derived from", async ()
   }
 });
 
+test("p99 needs far more attempts than the other metrics", async () => {
+  const { MIN_SAMPLES_PER_CELL, MIN_SAMPLES_FOR_P99, minSamplesForMetric } =
+    await loadTypes();
+
+  assert.equal(minSamplesForMetric("p50"), MIN_SAMPLES_PER_CELL);
+  assert.equal(minSamplesForMetric("p95"), MIN_SAMPLES_PER_CELL);
+  assert.equal(minSamplesForMetric("errorRate"), MIN_SAMPLES_PER_CELL);
+  assert.equal(minSamplesForMetric("p99"), MIN_SAMPLES_FOR_P99);
+
+  // percentile_cont(0.99) interpolates at index 0.99 x (n - 1): at the p50
+  // threshold that is the gap between the two slowest calls in the cell, so one
+  // timeout is the whole number. The p99 bar must leave several observations
+  // above the reported value.
+  const samplesAboveP99 = (n: number) => n - 1 - 0.99 * (n - 1);
+  assert.ok(samplesAboveP99(MIN_SAMPLES_PER_CELL) < 1);
+  assert.ok(samplesAboveP99(MIN_SAMPLES_FOR_P99) >= 4);
+});
+
 test("rejects a provider that is not a backend id", async () => {
   const { validateSample } = await load();
   // The catalog spells this provider `grokStt`; only the backend id is stored.
@@ -69,21 +105,17 @@ test("rejects a provider that is not a backend id", async () => {
   assert.deepEqual(result, { reason: "unknown provider" });
 });
 
-test("accepts every known backend provider id", async () => {
+test("accepts every provider the page can display", async () => {
   const { validateSample } = await load();
-  for (const provider of [
-    "deepgram",
-    "groq",
-    "elevenlabs",
-    "grok",
-    "azure-mai",
-    "google-chirp",
-    "openai",
-    "gemini",
-    "assemblyai",
-    "mistral",
-    "soniox",
-  ]) {
+  const { PROVIDER_DISPLAY_NAMES, KNOWN_PROVIDERS } = await loadProviders();
+
+  // The invariant this used to assert with a second hand-written list: a
+  // provider the page renders is a provider the ingest stores. Deriving one
+  // from the other is what makes it hold.
+  assert.deepEqual([...KNOWN_PROVIDERS], Object.keys(PROVIDER_DISPLAY_NAMES));
+  assert.equal(KNOWN_PROVIDERS.length, 11);
+
+  for (const provider of KNOWN_PROVIDERS) {
     const result = validateSample(goodSample({ provider }));
     assert.ok("sample" in result, `${provider} should be accepted`);
   }

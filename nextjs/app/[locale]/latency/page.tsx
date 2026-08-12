@@ -71,9 +71,11 @@ export default async function LatencyPage({ params }: Props) {
             <dt className="font-medium text-gray-200">What the number is</dt>
             <dd className="mt-1">
               The time one provider took to answer one call, measured at the edge
-              machine that made it. Upload, authentication, and our own credit
-              checks are excluded. So is the network between you and us — this is
-              the provider&apos;s time, not your round trip.
+              machine that made it — everything that attempt spent, including
+              handing the audio to the provider and waiting on a long-running
+              job. Your upload to us, authentication, and our own credit checks
+              are excluded. So is the network between you and us — this is the
+              provider&apos;s time, not your round trip.
             </dd>
           </div>
           <div>
@@ -82,7 +84,11 @@ export default async function LatencyPage({ params }: Props) {
               A provider that times out still spent your time, so its attempt is
               in the latency numbers. When one provider fails we fall back to
               another, and both attempts are recorded separately. The error-rate
-              metric shows how often that happens.
+              metric shows how often that happens. What is never counted is a
+              request we turn away ourselves before calling anyone — audio past
+              a provider&apos;s size cap, or in a format it does not accept:
+              that provider never received the call, so it is not charged for it
+              here.
             </dd>
           </div>
           <div>
@@ -90,7 +96,10 @@ export default async function LatencyPage({ params }: Props) {
             <dd className="mt-1">
               Longer audio takes longer to transcribe, so comparing a provider
               handed 5-second clips against one handed 5-minute files would say
-              nothing. Every cell compares clips of similar length.
+              nothing. Every cell compares clips of similar length, grouped by
+              an estimate taken from the audio&apos;s size and format — the same
+              estimate for every provider, so no cell is flattered by a provider
+              that measures its own audio differently.
             </dd>
           </div>
           <div>
@@ -103,11 +112,12 @@ export default async function LatencyPage({ params }: Props) {
           <div>
             <dt className="font-medium text-gray-200">What we store</dt>
             <dd className="mt-1">
-              A timing row carries the provider, the model, the region, the
-              rounded clip length, which attempt in the chain it was, and whether
-              the call worked. It carries no account, no key, no request id, and
-              no audio or text, and its timestamp is stored only to the hour, so
-              nothing ties a row to a person or reassembles one transcription.
+              A timing row carries the provider, the model, the region, which
+              clip-length group the audio fell in, which attempt in the chain it
+              was, and whether the call worked. It carries no account, no key,
+              no request id, and no audio or text. The clip&apos;s own length is
+              not kept, and the timestamp is stored only to the hour, so nothing
+              ties a row to a person or reassembles one transcription.
             </dd>
           </div>
           <div>

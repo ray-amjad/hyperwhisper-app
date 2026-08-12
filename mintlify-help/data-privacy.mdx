@@ -45,14 +45,15 @@ One stored row holds only these facts:
 
 - The provider and the model that ran.
 - The server region that made the call.
-- The length of the audio, in whole seconds. For a call that failed, this is an estimate from the size of the audio, because a failed call returns no length.
-- Which clip-length group the audio is in: under 10 seconds, 10 to 30 seconds, or more than 30 seconds.
+- Which clip-length group the audio is in: under 10 seconds, 10 to 30 seconds, or more than 30 seconds. The group comes from an estimate of the length, calculated from the size and the format of the audio. The length itself is not stored.
 - The position of the call in the fallback sequence: 1 for the first provider, 2 for the next one, and so on.
 - How long the provider took, in milliseconds.
 - Whether the call worked, and the failure type if it did not.
 - The hour in which the call happened. HyperWhisper stores the time rounded down to the hour, and no more accurately.
 
-A row holds **no account, no key, no request identifier, no IP address, no audio, and no text**. Nothing links a row to a person. The time is rounded to the hour on purpose: without it, the rows of one transcription would share an exact timestamp, and that timestamp would work as a request identifier. HyperWhisper deletes these rows after 1 year. The public page shows only the last 30 days.
+If HyperWhisper stops a request before it calls a provider, for example because the audio is too large for that provider, it stores no row. The provider did not do the work, so the measurement is not its own.
+
+A row holds **no account, no key, no request identifier, no IP address, no audio, and no text**. Nothing links a row to a person. Two facts stay out of the row on purpose, because each one would let a person group the rows of one transcription together: the exact time, and the exact length of the audio. Every attempt on one transcription sends the same audio, so an exact length works as a request identifier in the same way an exact timestamp does. HyperWhisper keeps the hour and the clip-length group only. HyperWhisper deletes these rows after 1 year. The public page shows only the last 30 days.
 
 Local models never send a timing measurement. Only HyperWhisper Cloud does.
 

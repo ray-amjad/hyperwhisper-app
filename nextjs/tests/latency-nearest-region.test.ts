@@ -71,3 +71,22 @@ test("region code falls back to itself when unknown", async () => {
   assert.equal(regionCity("fra"), "Frankfurt");
   assert.equal(regionCity("zzz"), "zzz");
 });
+
+test("every region the edge service runs in has a city and coordinates", async () => {
+  const { FLY_REGIONS, regionCity } = await load();
+  // fly.prod.toml runs all 17 Fly regions, and transcribe.ts names maa (Chennai)
+  // among the ElevenLabs geo-blocked ones. A region missing here renders as a
+  // bare code in the column header and, worse, is skipped by nearestRegion — so
+  // a visitor beside it gets highlighted to somewhere farther away.
+  for (const code of ["ams", "bom", "maa", "fra", "iad", "lhr", "nrt", "sin", "syd", "sjc"]) {
+    assert.ok(FLY_REGIONS[code], `${code} should be in the region table`);
+    assert.notEqual(regionCity(code), code, `${code} should render a city name`);
+  }
+});
+
+test("a visitor in Chennai is highlighted to Chennai, not Mumbai", async () => {
+  const { nearestRegion } = await load();
+  const result = nearestRegion({ lat: 13.08, lon: 80.27 }, ["bom", "maa", "sin"]);
+  assert.equal(result?.region, "maa");
+  assert.equal(result?.city, "Chennai");
+});

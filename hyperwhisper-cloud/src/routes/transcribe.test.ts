@@ -189,6 +189,22 @@ describe('transcribeRoute provider fallback', () => {
   });
 });
 
+/** One row of a reported batch, as the ingest endpoint receives it. */
+type ReportedSample = {
+  provider: string;
+  model?: string;
+  flyRegion: string;
+  latencyMs: number;
+  ok: boolean;
+  failureKind?: string;
+  attempt: number;
+  audioSeconds: number;
+};
+
+function samplesOf(batch: unknown): ReportedSample[] {
+  return (batch as { samples: ReportedSample[] }).samples;
+}
+
 // The public /latency page is built from these rows, so "the user said no" has
 // to hold on every path — including the paths where the transcription itself
 // fails, which is where an opt-out is easiest to lose.
@@ -304,7 +320,12 @@ describe('X-Latency-Opt-Out', () => {
     expect(await reportedBatches('')).toHaveLength(1);
   });
 
-  test('opting out also suppresses the failure rows', async () => {
+  /**
+   * Runs a transcription where every provider in the chain rejects the input
+   * with a 400 — the all-failed path, which returns early, so the `finally`
+   * block is the only thing that still reports it.
+   */
+  async function reportedFailureBatches(optOutHeader?: string): Promise<unknown[]> {
     const batches: unknown[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -318,27 +339,216 @@ describe('X-Latency-Opt-Out', () => {
         return Response.json({ success: true });
       }
 
-      // Every provider rejects the input: the all-failed path, which returns
-      // early — the finally block is what still reports it.
       return new Response('{"detail":"bad input"}', { status: 400 });
     }) as unknown as typeof fetch;
 
     const audio = new Uint8Array(2048);
+    const headers: Record<string, string> = {
+      'Content-Type': 'audio/wav',
+      'Content-Length': String(audio.byteLength),
+      'X-STT-Provider': 'elevenlabs',
+    };
+    if (optOutHeader !== undefined) {
+      headers['X-Latency-Opt-Out'] = optOutHeader;
+    }
+
     const response = await buildApp().fetch(
       new Request('http://localhost/transcribe?license_key=test-license&language=en', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'audio/wav',
-          'Content-Length': String(audio.byteLength),
-          'X-STT-Provider': 'elevenlabs',
-          'X-Latency-Opt-Out': '1',
-        },
+        headers,
         body: audio,
       }),
     );
 
     expect(response.status).toBe(400);
     await drainPendingLatencyReports(2_000);
+    return batches;
+  }
+
+  // The half that has to hold first: without it, "no rows when opted out"
+  // would pass just as happily if sample recording were deleted outright.
+  test('records one row per failed attempt when the client has not opted out', async () => {
+    const batches = await reportedFailureBatches();
+    expect(batches).toHaveLength(1);
+
+    // elevenlabs → deepgram → groq, each rejecting the input: three rows, in
+    // chain order, every one a failure attributed to the provider that ran it.
+    const samples = samplesOf(batches[0]);
+    expect(samples.map((sample) => sample.provider)).toEqual(['elevenlabs', 'deepgram', 'groq']);
+    expect(samples.map((sample) => sample.attempt)).toEqual([1, 2, 3]);
+    expect(samples.every((sample) => sample.ok === false)).toBe(true);
+    // A real upstream 4xx: the provider answered, so it is a measurement.
+    expect(samples.every((sample) => sample.failureKind === 'input_rejected')).toBe(true);
+    expect(samples.every((sample) => sample.latencyMs >= 1)).toBe(true);
+  });
+
+  test('opting out also suppresses the failure rows', async () => {
+    expect(await reportedFailureBatches('1')).toHaveLength(0);
+  });
+
+  // A provider that was never called cannot have a latency or an error rate.
+  test('reports nothing for a rejection thrown before any provider call', async () => {
+    const batches: unknown[] = [];
+    let upstreamCalled = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+
+      upstreamCalled = true;
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const audio = new Uint8Array(2048);
+    // Azure MAI takes only wav/mp3/flac, and rejects anything else from a pure
+    // content-type check above any fetch — a client that stopped pre-converting
+    // its m4a must not show up as Azure failing calls in ~1 ms.
+    const response = await buildApp().fetch(
+      new Request('http://localhost/transcribe?license_key=test-license&language=en', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/webm;codecs=opus',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'azure-mai',
+        },
+        body: audio,
+      }),
+    );
+
+    expect(response.status).toBe(415);
+    await drainPendingLatencyReports(2_000);
+    expect(upstreamCalled).toBe(false);
     expect(batches).toHaveLength(0);
+  });
+});
+
+// The clip length a row is filed under decides which cell it lands in, so it
+// has to describe the audio rather than whichever estimator the provider that
+// answered happens to use.
+describe('latency clip length and model', () => {
+  const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
+  const originalRegion = process.env.FLY_REGION;
+
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.ASSEMBLYAI_API_KEY = 'test-assemblyai-key';
+    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
+    process.env.FLY_REGION = 'fra';
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ASSEMBLYAI_API_KEY;
+    if (originalSecret === undefined) {
+      delete process.env.HYPERWHISPER_INTERNAL_SECRET;
+    } else {
+      process.env.HYPERWHISPER_INTERNAL_SECRET = originalSecret;
+    }
+    if (originalRegion === undefined) {
+      delete process.env.FLY_REGION;
+    } else {
+      process.env.FLY_REGION = originalRegion;
+    }
+  });
+
+  function buildApp(): Hono {
+    const app = new Hono();
+    app.post('/transcribe', transcribeRoute);
+    return app;
+  }
+
+  test('files a success by the content-type estimate, not the adapter duration', async () => {
+    const batches: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+      if (url.includes('api.openai.com')) {
+        // gpt-4o-transcribe (openai's default) returns tokens, never a
+        // duration, so the adapter bills against the flat 64 kbps estimate:
+        // 12 seconds for this buffer, four times its real length.
+        return Response.json({ text: 'hello', usage: { input_tokens: 10, output_tokens: 3 } });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    // 96,000 bytes of 16 kHz/16-bit mono WAV — exactly 3 seconds, the clip both
+    // desktop apps produce for a short dictation. 'short' (<10s), not 'medium'.
+    const audio = new Uint8Array(96_000);
+    const response = await buildApp().fetch(
+      new Request('http://localhost/transcribe?license_key=test-license&language=en', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'openai',
+        },
+        body: audio,
+      }),
+    );
+    expect(response.status).toBe(200);
+    await drainPendingLatencyReports(2_000);
+
+    expect(batches).toHaveLength(1);
+    const [sample] = samplesOf(batches[0]);
+    expect(sample.ok).toBe(true);
+    expect(sample.audioSeconds).toBe(3);
+  });
+
+  test('records the model that actually ran, not the one requested', async () => {
+    const batches: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+      if (url.includes('sync.assemblyai.com')) {
+        // AssemblyAI's sync fast path always runs universal-3-5-pro, whatever
+        // async model the caller asked for.
+        return Response.json({ text: 'hello', audio_duration_ms: 1_500 });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const audio = new Uint8Array(48_000);
+    const response = await buildApp().fetch(
+      new Request('http://localhost/transcribe?license_key=test-license&language=en', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'assemblyai',
+          'X-STT-Model': 'universal-2',
+        },
+        body: audio,
+      }),
+    );
+    expect(response.status).toBe(200);
+    await drainPendingLatencyReports(2_000);
+
+    expect(batches).toHaveLength(1);
+    const [sample] = samplesOf(batches[0]);
+    expect(sample.model).toBe('universal-3-5-pro');
   });
 });

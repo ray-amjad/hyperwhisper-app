@@ -50,6 +50,31 @@ export const WINDOW_DAYS = 30;
  */
 export const MIN_SAMPLES_PER_CELL = 20;
 
+/**
+ * p99 needs its own, far higher bar.
+ *
+ * `percentile_cont(0.99)` interpolates at index `0.99 × (n - 1)`, so at the p50
+ * threshold of 20 attempts it lands at 18.81 — between the two slowest calls the
+ * cell has ever made. Nineteen 300 ms calls and one 15-second timeout would
+ * print ≈12,200 ms as though it were a stable figure, and one more slow call the
+ * next day would move it by seconds. At 500 attempts the reported value has five
+ * observations above it, so a single outlier shifts it by tens of milliseconds
+ * rather than seconds. A cell that cannot clear this shows a dash under p99 and
+ * still shows its p50 and p95.
+ */
+export const MIN_SAMPLES_FOR_P99 = 500;
+
+/** The metrics the page can display, and the one dimension its cells vary on. */
+export type LatencyMetric = "p50" | "p95" | "p99" | "errorRate";
+
+/**
+ * How many attempts a cell needs before this metric is worth printing. Every
+ * metric but p99 rides on the same threshold; see MIN_SAMPLES_FOR_P99.
+ */
+export function minSamplesForMetric(metric: LatencyMetric): number {
+  return metric === "p99" ? MIN_SAMPLES_FOR_P99 : MIN_SAMPLES_PER_CELL;
+}
+
 export const BUCKET_LABELS: Record<DurationBucket, string> = Object.fromEntries(
   DURATION_BUCKET_MODEL.map((bucket) => [bucket.id, bucket.label]),
 ) as Record<DurationBucket, string>;
@@ -71,5 +96,4 @@ export type LatencyMatrixData = {
   regions: string[];
   totalSamples: number;
   windowDays: number;
-  minSamplesPerCell: number;
 };

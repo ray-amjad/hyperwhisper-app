@@ -27,25 +27,6 @@ export function coarseCreatedAt(now: number = Date.now()): Date {
   return new Date(Math.floor(now / HOUR_MS) * HOUR_MS);
 }
 
-/**
- * Backend provider ids, exactly as hyperwhisper-cloud's `SttProviderId` union
- * spells them. These are NOT the catalog ids (`grokStt`); the /latency page maps
- * these to display names through cloud-stt-catalog.json's `sttProvider` field.
- */
-export const KNOWN_PROVIDERS = [
-  "deepgram",
-  "groq",
-  "elevenlabs",
-  "grok",
-  "azure-mai",
-  "google-chirp",
-  "openai",
-  "gemini",
-  "assemblyai",
-  "mistral",
-  "soniox",
-] as const;
-
 export const FAILURE_KINDS = [
   "timeout",
   "rate_limit",
@@ -98,14 +79,26 @@ function isValidRegion(value: unknown): value is string {
   return typeof value === "string" && /^[a-z]{3}$/.test(value);
 }
 
-/** Validates one sample. Returns the reason it is unusable, or null if it is fine. */
-export function validateSample(raw: unknown): { sample: ValidSample } | { reason: string } {
+/**
+ * Validates one sample against the provider ids the site knows.
+ *
+ * `knownProviders` is passed in rather than imported so this module keeps no
+ * imports at all: `node --test --experimental-strip-types` loads it directly and
+ * resolves neither the `@/` alias nor an extensionless relative `.ts` path. The
+ * one list the ingest actually runs on is `KNOWN_PROVIDERS` in
+ * lib/latency/providers.ts, derived from the page's display map — route.ts
+ * hands it in, and the test loads the same export.
+ */
+export function validateSample(
+  raw: unknown,
+  knownProviders: readonly string[],
+): { sample: ValidSample } | { reason: string } {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return { reason: "not an object" };
   }
   const s = raw as Record<string, unknown>;
 
-  if (typeof s.provider !== "string" || !(KNOWN_PROVIDERS as readonly string[]).includes(s.provider)) {
+  if (typeof s.provider !== "string" || !knownProviders.includes(s.provider)) {
     return { reason: "unknown provider" };
   }
   if (!isValidRegion(s.flyRegion)) {
@@ -175,7 +168,10 @@ export function validateSample(raw: unknown): { sample: ValidSample } | { reason
  * index — one bad row never costs the caller the good rows beside it. Only a
  * malformed envelope fails the whole request.
  */
-export function validateBatch(body: unknown): ValidationResult {
+export function validateBatch(
+  body: unknown,
+  knownProviders: readonly string[],
+): ValidationResult {
   if (typeof body !== "object" || body === null) {
     return { ok: false, error: "body must be an object" };
   }
@@ -193,7 +189,7 @@ export function validateBatch(body: unknown): ValidationResult {
   const valid: ValidSample[] = [];
   const skipped: { index: number; reason: string }[] = [];
   samples.forEach((raw, index) => {
-    const result = validateSample(raw);
+    const result = validateSample(raw, knownProviders);
     if ("sample" in result) {
       valid.push(result.sample);
     } else {
