@@ -507,6 +507,33 @@ struct MenuBarIconView: View {
     /// observer. Static for the same reason as `didBootstrapAppServices`.
     private static var didDeferBootstrap = false
 
+    /// Token for the deferral's `didFinishLaunchingNotification` observer.
+    /// Held statically so that whichever resumption path wins — the notification
+    /// or the backstop below — can unregister it; a callback that never runs
+    /// cannot clean itself up, and would keep the registration (and everything it
+    /// captured) alive for the process lifetime.
+    private static var deferredBootstrapObserver: NSObjectProtocol?
+
+    /// Re-arm budget for the deferral backstop. The backstop re-enqueues itself
+    /// while launch is still incomplete, so the defence-in-depth survives more
+    /// than one turn — bounded so a launch that never completes cannot spin the
+    /// main queue forever.
+    private static var deferredBootstrapRetries = 0
+    private static let maxDeferredBootstrapRetries = 20
+    private static let deferredBootstrapRetryDelay: TimeInterval = 0.1
+
+    /// Schedule one more pre-launch bootstrap re-check, within the retry budget.
+    private static func armDeferredBootstrapBackstop(_ recheck: @escaping () -> Void) {
+        guard deferredBootstrapRetries < maxDeferredBootstrapRetries else {
+            AppLogger.ui.warning("⚠️ Bootstrap backstop budget exhausted — waiting on didFinishLaunchingNotification alone")
+            return
+        }
+        deferredBootstrapRetries += 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + deferredBootstrapRetryDelay) {
+            recheck()
+        }
+    }
+
     /// Launch work that must not depend on the main window existing.
     ///
     /// The main window is NOT guaranteed to be created at launch. When the app
@@ -525,21 +552,23 @@ struct MenuBarIconView: View {
         // and the Local API server below both expect a fully launched app, so
         // wait for the delegate rather than assume an ordering.
         guard AppDelegate.didFinishLaunching else {
-            // Only ever arm the deferral once — see didDeferBootstrap.
-            guard !Self.didDeferBootstrap else { return }
+            // Only ever arm the observer once — see didDeferBootstrap. Re-entry
+            // (the backstop, or the second caller) still re-arms the backstop
+            // below, so the notification never becomes the only way back in.
+            guard !Self.didDeferBootstrap else {
+                Self.armDeferredBootstrapBackstop { self.bootstrapAppServices() }
+                return
+            }
             Self.didDeferBootstrap = true
 
             AppLogger.ui.debug("⏳ Bootstrap requested before launch completed — deferring")
-            var token: NSObjectProtocol?
-            token = NotificationCenter.default.addObserver(
+            Self.deferredBootstrapObserver = NotificationCenter.default.addObserver(
                 forName: NSApplication.didFinishLaunchingNotification,
                 object: nil,
                 queue: .main
             ) { _ in
-                if let token {
-                    NotificationCenter.default.removeObserver(token)
-                }
                 Task { @MainActor in
+                    // The body below removes the observer for every path.
                     self.bootstrapAppServices()
                 }
             }
@@ -549,17 +578,24 @@ struct MenuBarIconView: View {
             // resumption path above. An observer registered while AppKit is
             // mid-dispatch of that notification is never called, which would
             // leave a login-item launch with no hotkeys again (issue #142).
-            // Re-check on the next main-queue turn: by then the delegate has
+            // Re-check on a later main-queue turn: by then the delegate has
             // set its flag and this runs the body. Re-entry is harmless —
             // whichever of the two arrives first sets didBootstrapAppServices
             // and the other returns at the guard above.
-            DispatchQueue.main.async {
-                self.bootstrapAppServices()
-            }
+            Self.armDeferredBootstrapBackstop { self.bootstrapAppServices() }
             return
         }
 
         Self.didBootstrapAppServices = true
+
+        // Tear the deferral down unconditionally: the notification callback is
+        // NOT guaranteed to be the path that got us here (the backstop may have
+        // won the race), and an observer that only unregisters from inside its
+        // own callback then leaks itself and everything it captured.
+        if let observer = Self.deferredBootstrapObserver {
+            NotificationCenter.default.removeObserver(observer)
+            Self.deferredBootstrapObserver = nil
+        }
 
         AppLogger.ui.debug("🚀 Bootstrapping app services")
 
@@ -801,28 +837,73 @@ struct MenuBarIconView: View {
         // LAUNCH MINIMIZED: Hide main window if preference is set
         // This allows the app to run in menu bar only mode by default
         // Users can still access the window via Menu Bar > Settings
-        if launchMinimized && hasCompletedOnboarding {
+        if launchMinimized && hasCompletedOnboarding && isLaunchWindowPass {
+            Self.didApplyLaunchMinimizedHide = true
             // Delay to ensure window is fully created before hiding
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 // MainWindowStore, not NSApp.windows.first: hotkeys are now live
                 // before this window exists, so the recording overlay panel can
                 // already be in NSApp.windows and its order is unspecified.
-                if let mainWindow = MainWindowStore.window {
-                    mainWindow.orderOut(nil)
-                    AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
-                    // Return focus to previous app after hiding our window
-                    NSApp.deactivate()
+                // Identifier fallback for the same reason as
+                // MainAppView.openMainWindow(): MainWindowStore is published from
+                // WindowConfigurator's own deferred main-queue hop, which skips
+                // any turn where the NSView is not yet in a window hierarchy.
+                let mainWindow = MainWindowStore.window
+                    ?? NSApplication.shared.windows.first(where: { $0.identifier == .hyperwhisperMainWindow })
+                guard let mainWindow else {
+                    AppLogger.ui.warning("⚠️ launchMinimized: no main window found to hide — it may stay on screen")
+                    return
                 }
+                mainWindow.orderOut(nil)
+                AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
+                // Return focus to previous app after hiding our window
+                NSApp.deactivate()
             }
         }
 
         // Prepare recordings folder with a user-friendly permission flow.
-        // WINDOW-DEPENDENT: this can raise `showDocumentsPermissionAlert`, whose
-        // only real presenter is the SwiftUI `.alert` in MainAppView's window
-        // body — MenuBarContentView renders as an NSMenu under
-        // `.menuBarExtraStyle(.menu)` and cannot host an alert. Running it from
-        // the windowless bootstrap would set a flag nothing could clear.
-        settingsManager.prepareRecordingsFolderIfNeeded()
+        // WINDOW-DEPENDENT: this can ask about Documents access, and the alert the
+        // user should see for that is the SwiftUI `.alert` in MainAppView's window
+        // body — MenuBarContentView binds the same flag but renders as an NSMenu
+        // under `.menuBarExtraStyle(.menu)` and cannot host an alert.
+        // Deferred one main-queue turn so `WindowConfigurator` (which publishes
+        // MainWindowStore.window from a hop of its own) has run: only then does
+        // StorageSettingsManager see a presenter and prefer the in-window alert
+        // over its windowless NSAlert fallback. It also keeps a possible modal out
+        // of SwiftUI's own appear pass. Either route asks the same question, so no
+        // consent is lost if the ordering ever changes.
+        DispatchQueue.main.async {
+            settingsManager.prepareRecordingsFolderIfNeeded()
+        }
+    }
+
+    /// ONE-TIME LAUNCH-MINIMIZED HIDE GUARD:
+    /// The hide above is launch-only by intent, but `handleMainWindowAppear()` has
+    /// no once-per-launch flag of its own — the main window can appear many times
+    /// per process (menu-bar mode closes it, `MainAppView.openMainWindow()`
+    /// re-opens it), while `launchMinimized`/`hasCompletedOnboarding` are
+    /// `@AppStorage` and stay true for the whole run. Static for the same reason as
+    /// `didBootstrapAppServices`.
+    private static var didApplyLaunchMinimizedHide = false
+
+    /// How long after `applicationDidFinishLaunching` a first main-window
+    /// appearance still counts as part of launch.
+    private static let launchWindowGracePeriod: TimeInterval = 10
+
+    /// Whether this main-window appearance is the launch one, and so the only one
+    /// that may be hidden by `launchMinimized`.
+    ///
+    /// The once-flag alone is not enough: on the login-item launch this PR exists
+    /// for, macOS never renders the `WindowGroup`, so the FIRST appearance can be
+    /// minutes later and user-driven (Menu Bar → Settings / Open HyperWhisper),
+    /// and hiding that window is exactly the misfire being fixed. Anchor on launch
+    /// time as well, which covers every open path (menu bar, Dock re-open, file
+    /// transcription) without having to enumerate them.
+    private var isLaunchWindowPass: Bool {
+        guard !Self.didApplyLaunchMinimizedHide else { return false }
+        // No launch timestamp yet means launch is still in flight — definitely it.
+        guard let launchedAt = AppDelegate.didFinishLaunchingAt else { return true }
+        return Date().timeIntervalSince(launchedAt) < Self.launchWindowGracePeriod
     }
 
     /// Lightweight initializer that restores selection state only.

@@ -220,6 +220,11 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Observer for Accessibility permission grants, used to re-arm Push to Talk
     private var accessibilityObserver: NSObjectProtocol?
 
+    /// True while we have a wait queued on `AccessibilityHelper`'s shared
+    /// permission poll. Keeps a re-run of `setupPushToTalk()` from queueing a
+    /// second completion (each call also restarts the shared deadline).
+    private var isAwaitingAccessibilityPermission = false
+
     /// Set when a Push to Talk reconfiguration is requested while a recording is
     /// in flight. Tearing down the active `BareModifierKeyMonitor` mid-recording
     /// would orphan a latched (double-tap locked) session and leave the user
@@ -397,6 +402,8 @@ class AudioRecordingManager: NSObject, ObservableObject {
         // without this observer Push to Talk stays dead until the next launch.
         // Re-running setupPushToTalk() is safe: it defers while `isRecording`
         // and `customPushToTalkHandlersConfigured` blocks duplicate handlers.
+        // The trigger for this notification is armed in setupPushToTalk() —
+        // see waitForAccessibilityPermissionIfNeeded().
         if let observer = accessibilityObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -570,6 +577,7 @@ class AudioRecordingManager: NSObject, ObservableObject {
                 }
             } else {
                 AppLogger.ui.warning("🚫 Bare modifier mode selected but Accessibility permission not granted")
+                waitForAccessibilityPermissionIfNeeded()
             }
         } else if pushToTalkMode == .custom {
             // CUSTOM SHORTCUT MODE
@@ -620,6 +628,39 @@ class AudioRecordingManager: NSObject, ObservableObject {
                     // (1.0 second minimum). Just stop and let the coordinator handle short recordings.
                     AppLogger.ui.info("⌨️ Push to Talk (custom) released - stopping recording (\(String(format: "%.2f", self.recordingDuration))s)")
                     self.stopPushToTalkRecordingWithTranscription()
+                }
+            }
+        }
+    }
+
+    /// Arm a window-independent trigger for the `.accessibilityPermissionGranted`
+    /// observer above.
+    ///
+    /// WINDOW-INDEPENDENT RE-ARM TRIGGER:
+    /// That notification is posted from exactly one place —
+    /// `AccessibilityHelper.finishPermissionPolling` — reachable only through
+    /// `waitForAccessibilityPermission`, whose other callers (HomeView's "Open
+    /// Settings" button, OnboardingView) both live inside the main `WindowGroup`.
+    /// On a login-item launch there is no window: nothing polls, nothing posts,
+    /// and bare-modifier Push to Talk would stay dead for the whole session even
+    /// after the user grants Accessibility in System Settings. Starting the same
+    /// shared poll from here gives the observer a trigger that needs no window.
+    ///
+    /// Not a permanent poller: the helper's loop stops the moment permission is
+    /// granted and otherwise gives up at its own 10-minute deadline, and
+    /// concurrent callers share the one loop rather than stacking timer chains.
+    private func waitForAccessibilityPermissionIfNeeded() {
+        guard !isAwaitingAccessibilityPermission else { return }
+        isAwaitingAccessibilityPermission = true
+
+        AppLogger.audio.info("Waiting for an Accessibility grant to arm Push to Talk")
+        AccessibilityHelper.shared.waitForAccessibilityPermission { [weak self] granted in
+            Task { @MainActor in
+                self?.isAwaitingAccessibilityPermission = false
+                // The grant path is handled by the .accessibilityPermissionGranted
+                // observer, which this poll is what posts.
+                if !granted {
+                    AppLogger.audio.info("Accessibility wait ended without a grant — Push to Talk stays unarmed until it is granted and re-selected")
                 }
             }
         }

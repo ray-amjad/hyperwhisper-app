@@ -77,6 +77,12 @@ class StorageSettingsManager: ObservableObject {
     /// Shows before triggering the system TCC prompt
     @Published var showDocumentsPermissionAlert: Bool = false
 
+    /// True while the windowless `NSAlert` version of the Documents explanation is
+    /// on screen. `runModal()` spins its own run loop, which keeps draining the
+    /// main queue, so a second caller (or the polling loop below) can re-enter
+    /// while the first alert is still up — this keeps them from stacking.
+    private var isPresentingDocumentsExplanation = false
+
     // MARK: - Feature Flags
 
     /// Whether Filesync is enabled
@@ -209,9 +215,9 @@ class StorageSettingsManager: ObservableObject {
             return
         }
 
-        // If it lives in Documents and we haven't explained yet, show alert first.
+        // If it lives in Documents and we haven't explained yet, ask first.
         if recordingsURL.path.hasPrefix(documentsURL.path) && !documentsPermissionExplained && !documentsAccessDenied {
-            showDocumentsPermissionAlert = true
+            requestDocumentsPermissionExplanation()
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
                     message: "Documents access explanation shown",
@@ -242,7 +248,9 @@ class StorageSettingsManager: ObservableObject {
     /// - Returns: True if folder is ready and writable
     func prepareRecordingsFolderIfNeededAsync(timeoutSeconds: Double = 120) async -> Bool {
         prepareRecordingsFolderIfNeeded()
-        let start = Date()
+        // `var` because the windowless fallback below is modal: the seconds the
+        // user spends answering it must not be charged to this timeout.
+        var start = Date()
         while Date().timeIntervalSince(start) < timeoutSeconds {
             let url = URL(fileURLWithPath: recordingsFolder)
             var isDir: ObjCBool = false
@@ -251,21 +259,23 @@ class StorageSettingsManager: ObservableObject {
                 return true
             }
             // NO-PRESENTER GUARD:
-            // Only wait on the explanation alert while a visible main window can
-            // actually show it. Its `.alert` lives in MainAppView's window body;
-            // MenuBarContentView binds the same flag but renders as an NSMenu
-            // under `.menuBarExtraStyle(.menu)` and cannot host an alert. On a
-            // login-item launch (no window at all) or once the window is ordered
-            // out, nothing would ever clear the flag and this loop would burn the
-            // full timeout before the caller's NSAlert recovery prompt. Drop the
-            // explanation instead and take the no-TCC fallback below.
+            // The explanation flag is only answerable while a visible main window
+            // can show its `.alert` — that alert lives in MainAppView's window
+            // body; MenuBarContentView binds the same flag but renders as an
+            // NSMenu under `.menuBarExtraStyle(.menu)` and cannot host an alert.
+            // With no window (login-item launch, or the window ordered out) this
+            // loop would otherwise burn the full timeout. It must NOT resolve that
+            // by dropping the flag and falling through to the fallbacks below:
+            // that relocates the user's recordings permanently, and without ever
+            // asking, since the App Support path is writable and every later
+            // `prepareRecordingsFolderIfNeeded()` then early-returns. Ask with the
+            // windowless NSAlert instead and keep waiting on the answer.
             if showDocumentsPermissionAlert {
-                if MainWindowStore.window?.isVisible == true {
-                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
-                    continue
+                if presentDocumentsPermissionExplanationWithoutWindow() {
+                    start = Date()
                 }
-                logger.warning("⚠️ Documents permission alert has no window to present it — using a fallback location")
-                showDocumentsPermissionAlert = false
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+                continue
             }
             // If we aren't showing an alert and not writable, try fallbacks
             if fallbackToBestAvailableLocation() {
@@ -357,6 +367,73 @@ class StorageSettingsManager: ObservableObject {
     }
 
     // MARK: - Private Methods
+
+    /// Whether the SwiftUI `.alert` bound to `showDocumentsPermissionAlert` can
+    /// actually be presented right now.
+    ///
+    /// That alert is attached to MainAppView's window body, so it needs a visible
+    /// main window. MenuBarContentView binds the same flag but renders as an
+    /// NSMenu under `.menuBarExtraStyle(.menu)` and cannot host an alert.
+    private var canPresentDocumentsPermissionAlertInWindow: Bool {
+        MainWindowStore.window?.isVisible == true
+    }
+
+    /// Ask the Documents-access question, by whichever route can actually reach
+    /// the user right now.
+    ///
+    /// CONSENT INVARIANT:
+    /// Every path out of this question must be a user decision — the recordings
+    /// location is sticky (`fallbackRecordingsLocationToAppSupport()` rewrites the
+    /// persisted `recordingsFolder`, and the next
+    /// `prepareRecordingsFolderIfNeeded()` early-returns because that folder is
+    /// writable), so answering it on the user's behalf silently moves where their
+    /// recordings live for good. Raising `showDocumentsPermissionAlert` with no
+    /// window to present it is therefore not enough on its own; fall back to the
+    /// windowless `NSAlert`, which asks the same question.
+    private func requestDocumentsPermissionExplanation() {
+        guard !canPresentDocumentsPermissionAlertInWindow else {
+            showDocumentsPermissionAlert = true
+            return
+        }
+        presentDocumentsPermissionExplanationWithoutWindow()
+    }
+
+    /// Window-independent version of the Documents-access explanation.
+    ///
+    /// Mirrors the SwiftUI alert in `MainAppView` (same title, message and
+    /// buttons) and routes into exactly the same two consent handlers, but as a
+    /// plain `NSAlert`, which needs no window at all — the same reason
+    /// `presentStorageRecoveryPrompt()` uses one.
+    ///
+    /// - Returns: True if the alert was shown and answered, false if a window can
+    ///   present the SwiftUI alert instead or one is already on screen.
+    @discardableResult
+    private func presentDocumentsPermissionExplanationWithoutWindow() -> Bool {
+        guard !canPresentDocumentsPermissionAlertInWindow else { return false }
+        guard !isPresentingDocumentsExplanation else { return false }
+
+        isPresentingDocumentsExplanation = true
+        defer { isPresentingDocumentsExplanation = false }
+
+        logger.warning("⚠️ No visible main window for the Documents explanation — asking with a standalone alert")
+
+        // The app may be running as a background login item; bring the alert forward.
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "alerts.documents.permission.title".localized
+        alert.informativeText = "app.recordings.location.message".localized
+        alert.addButton(withTitle: "common.continue".localized)
+        alert.addButton(withTitle: "alerts.documents.permission.use.another".localized)
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            proceedWithDocumentsAccess()
+        } else {
+            useAlternateStorageInstead()
+        }
+        return true
+    }
 
     /// Create app folder if it doesn't exist
     /// This is safe to call anytime - Application Support doesn't require TCC
