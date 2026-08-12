@@ -81,6 +81,14 @@ enum StreamingProviderErrorPolicy {
     /// digits — see the note on the type. Both the underscore and the spaced
     /// spelling are listed where providers are known to use both.
     private static let terminalMarkers: [String] = [
+        // The flagship case: HyperWhisper Cloud — the default provider — sends
+        // exactly `{"type":"error","message":"Credit balance exhausted"}` when a
+        // session outruns the account's balance. Without this marker the default
+        // path still produced the whole MH → MG → RW fan-out this policy exists
+        // to stop. `StreamingProviderErrorPolicyTests` feeds the literal strings
+        // this codebase's own providers emit, so a reworded frame fails there
+        // rather than in production.
+        "credit balance exhausted",
         "no credits remaining",
         "insufficient credits",
         "insufficient_quota",

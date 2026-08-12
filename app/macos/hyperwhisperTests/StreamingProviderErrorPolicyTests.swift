@@ -145,4 +145,113 @@ struct StreamingProviderErrorPolicyTests {
 
         #expect(outcome == .transient)
     }
+
+    // MARK: - Wording this codebase actually emits
+    //
+    // Everything above is hypothetical provider wording, which guards the
+    // matching rules but not the coupling that matters: the policy only helps if
+    // it recognises the exact strings the app's own providers put on the wire.
+    // The literals below are copied from the strategies and from the HyperWhisper
+    // Cloud error frames they parse, so rewording a message without revisiting
+    // this classification fails here instead of in production.
+
+    @Test func hyperWhisperCloudCreditExhaustionIsTerminal() {
+        // THE FLAGSHIP CASE, and the one the earlier marker list missed: the
+        // default provider's credit-exhaustion frame. Missing it meant the
+        // provider most users are on still produced the full
+        // HYPERWHISPER-MH → -MG → -RW fan-out from a single exhausted balance.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "Credit balance exhausted"
+        )
+
+        #expect(outcome == .terminal)
+    }
+
+    @Test func elevenLabsAuthErrorWordingIsTerminal() {
+        // ElevenLabsStreamingStrategy's `auth_error` message, verbatim. It also
+        // arrives before the session-started frame, which is the case that has
+        // to fail startup rather than wait out the connection timeout.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "ElevenLabs authentication failed. Please check your API key in Settings."
+        )
+
+        #expect(outcome == .terminal)
+    }
+
+    @Test func elevenLabsQuotaExceededWordingIsTerminal() {
+        // ElevenLabsStreamingStrategy's `quota_exceeded` message, verbatim.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "ElevenLabs quota exceeded. Please check your account billing."
+        )
+
+        #expect(outcome == .terminal)
+    }
+
+    @Test func elevenLabsRateLimitWordingIsTransient() {
+        // ElevenLabsStreamingStrategy's `rate_limited` message, verbatim — the
+        // live half of the rate-limit/quota asymmetry. Too many concurrent
+        // sockets from one key clears by itself, so the reconnect must survive.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "ElevenLabs rate limit reached. Please try again in a moment."
+        )
+
+        #expect(outcome == .transient)
+    }
+
+    @Test func openAIStrategyFallbackWordingIsTransient() {
+        // OpenAIStreamingStrategy's fallback when the error frame carries no
+        // message. It says nothing about the account, so it keeps its reconnect.
+        // OpenAI's real quota wording is covered by exceededCurrentQuotaIsTerminal.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "OpenAI Realtime transcription failed"
+        )
+
+        #expect(outcome == .transient)
+    }
+
+    @Test func xaiStrategyFallbackWordingIsTransient() {
+        // XAIStreamingStrategy's fallback when the error frame carries no message.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "xAI streaming transcription failed"
+        )
+
+        #expect(outcome == .transient)
+    }
+
+    @Test func hyperWhisperCloudStrategyFallbackWordingIsTransient() {
+        // HyperWhisperCloudStrategy's fallback for an error frame with no
+        // message body.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "Unknown server error"
+        )
+
+        #expect(outcome == .transient)
+    }
+
+    @Test func hyperWhisperCloudTransientFramesKeepTheirReconnect() {
+        // The rest of the HyperWhisper Cloud error frames. Every one of these is
+        // a service-side or in-flight condition that a fresh socket can recover
+        // from, so classifying any of them terminal would delete a working
+        // recovery path — the expensive direction of this split.
+        //
+        // "Deepgram API key not configured" names the *service's* upstream key,
+        // not the user's, so it is deliberately not treated as one of the
+        // user-fixable account states; it falls through to the conservative
+        // default and keeps today's behaviour.
+        let messages = [
+            "Transcription service error",
+            "Transcription service busy, audio dropped",
+            "Audio stream too large",
+            "Audio chunk too large",
+            "WebSocket error",
+            "Deepgram API key not configured"
+        ]
+
+        for message in messages {
+            #expect(
+                StreamingProviderErrorPolicy.outcome(forProviderMessage: message) == .transient,
+                "expected transient for \(message)"
+            )
+        }
+    }
 }

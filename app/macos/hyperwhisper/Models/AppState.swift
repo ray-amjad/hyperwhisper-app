@@ -385,13 +385,38 @@ class AppState: ObservableObject {
 
         errorMessage = message
 
-        // Determine if we should show settings button based on message content
-        // Show for errors that user can fix in settings (API keys, auth, credits)
-        let showSettings = message.localizedCaseInsensitiveContains("API key") ||
-                           message.localizedCaseInsensitiveContains("unauthorized") ||
-                           message.localizedCaseInsensitiveContains("invalid api key") ||
-                           message.localizedCaseInsensitiveContains("insufficient credits") ||
-                           message.localizedCaseInsensitiveContains("quota exceeded")
+        // Determine if we should show settings button based on message content.
+        // Show for errors the user can fix in settings (API keys, auth, credits,
+        // billing).
+        //
+        // Kept in step with `StreamingProviderErrorPolicy.terminalMarkers`: the
+        // streaming client classifies exactly these conditions as user-fixable
+        // and suppresses the reconnect on that basis, so the toast that replaces
+        // the retry has to offer the fix. Five hand-written predicates missed
+        // most of them — "exceeded your current quota" is not "quota exceeded" —
+        // which left the app deciding a fault was the user's to fix and then
+        // hiding where to fix it.
+        let settingsActionableMarkers = [
+            "api key",
+            "api_key",
+            "unauthorized",
+            "authentication failed",
+            "authentication_error",
+            "forbidden",
+            "permission denied",
+            "permission_denied",
+            "credit balance exhausted",
+            "no credits remaining",
+            "insufficient credits",
+            "insufficient quota",
+            "insufficient_quota",
+            "quota exceeded",
+            "exceeded your current quota",
+            "billing",
+            "payment required",
+            "account is not active"
+        ]
+        let showSettings = settingsActionableMarkers.contains { message.localizedCaseInsensitiveContains($0) }
 
         // Show the inline error toast (compact, auto-dismissing)
         // KEEP recording dialog open if it's visible - the toast appears ABOVE it
