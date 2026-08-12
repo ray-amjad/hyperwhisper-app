@@ -865,6 +865,12 @@ struct MenuBarItems: View {
     
     /// Opens the main window and brings the app to front
     private func openMainWindow() {
+        // The user asked for this window, so `launchMinimized` must not take it
+        // away 0.3s later. On a login-item launch the WindowGroup is never
+        // rendered, so THIS can be the first main-window appearance of the
+        // process — see HyperWhisperApp.suppressLaunchMinimizedHide().
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+
         // Activate the app
         NSApp.activate(ignoringOtherApps: true)
 

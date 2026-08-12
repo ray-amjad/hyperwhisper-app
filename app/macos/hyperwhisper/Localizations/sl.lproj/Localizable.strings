@@ -1085,10 +1085,6 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "history.autoDelete.unit.minutes" = "Minut";
 "history.autoDelete.unit.hours" = "Ur";
 "history.autoDelete.unit.days" = "Dni";
-"history.autoDelete.unit.minutes.plural" = "minut";
-"history.autoDelete.unit.hours.plural" = "ur";
-"history.autoDelete.unit.days.plural" = "dni";
-"history.autoDelete.status.disabled" = "Samodejno brisanje je onemogočeno";
 "history.autoDelete.status.enabled" = "Izbriši posnetke, starejše od %d %@";
 "history.autoDelete.cleanup.noItems" = "Ni posnetkov za brisanje";
 "history.autoDelete.cleanup.summary" = "Izbrisano %d posnetek(ov) in sprošćeno %@";

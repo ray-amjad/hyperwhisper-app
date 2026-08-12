@@ -385,45 +385,6 @@ class CoreAudioDeviceHelper {
 
     // MARK: - Device Validation
 
-    /// Check if an audio device ID is still valid and available
-    ///
-    /// **What This Does:**
-    /// Verifies that a device ID still exists in the system by attempting to read
-    /// its UID property. This is the minimal property query that CoreAudio supports.
-    ///
-    /// **Use Case:**
-    /// Before restoring a previously-saved device ID, we should verify the device
-    /// still exists. Devices can disappear if:
-    /// - Bluetooth devices disconnect
-    /// - USB devices are unplugged
-    /// - The system reassigns device IDs
-    ///
-    /// **Parameters:**
-    /// - `deviceID`: The device ID to validate
-    ///
-    /// **Returns:**
-    /// true if the device exists and is accessible, false otherwise
-    nonisolated static func isDeviceAvailable(_ deviceID: AudioDeviceID) -> Bool {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyDeviceUID,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        // Check if device exists by querying its UID property
-        var dataSize: UInt32 = 0
-        let status = AudioObjectGetPropertyDataSize(
-            deviceID,
-            &address,
-            0,
-            nil,
-            &dataSize
-        )
-
-        // Device exists if we can query its property size
-        return status == noErr && dataSize > 0
-    }
-
     // MARK: - Device Properties
 
     /// Read input volume scalar (0.0 - 1.0) for a device

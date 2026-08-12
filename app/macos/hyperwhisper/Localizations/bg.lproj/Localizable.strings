@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "Минути";
 "history.autoDelete.unit.hours" = "Часове";
 "history.autoDelete.unit.days" = "Дни";
-"history.autoDelete.unit.minutes.plural" = "минути";
-"history.autoDelete.unit.hours.plural" = "часове";
-"history.autoDelete.unit.days.plural" = "дни";
-"history.autoDelete.status.disabled" = "Автоматичното изтриване е деактивирано";
 "history.autoDelete.status.enabled" = "Изтриване на записи, по-стари от %d %@";
 "history.autoDelete.cleanup.noItems" = "Няма записи за изтриване";
 "history.autoDelete.cleanup.summary" = "Изтрити %d записа и освободени %@";

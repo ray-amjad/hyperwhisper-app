@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "分鐘";
 "history.autoDelete.unit.hours" = "小時";
 "history.autoDelete.unit.days" = "天";
-"history.autoDelete.unit.minutes.plural" = "分鐘";
-"history.autoDelete.unit.hours.plural" = "小時";
-"history.autoDelete.unit.days.plural" = "天";
-"history.autoDelete.status.disabled" = "自動刪除已停用";
 "history.autoDelete.status.enabled" = "刪除早於 %d %@ 的錄音";
 "history.autoDelete.cleanup.noItems" = "沒有錄音要刪除";
 "history.autoDelete.cleanup.summary" = "已刪除 %d 個錄音並釋放 %@";

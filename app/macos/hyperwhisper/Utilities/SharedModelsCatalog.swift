@@ -231,7 +231,4 @@ extension SharedModelsCatalog {
         }
     }
 
-    enum LocalProviderKey: String {
-        case appleSpeech, localWhisper, parakeet, qwen3ASR, nemotron
-    }
 }

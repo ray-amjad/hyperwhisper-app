@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "นาที";
 "history.autoDelete.unit.hours" = "ชั่วโมง";
 "history.autoDelete.unit.days" = "วัน";
-"history.autoDelete.unit.minutes.plural" = "นาที";
-"history.autoDelete.unit.hours.plural" = "ชั่วโมง";
-"history.autoDelete.unit.days.plural" = "วัน";
-"history.autoDelete.status.disabled" = "การลบอัตโนมัติถูกปิดใช้งาน";
 "history.autoDelete.status.enabled" = "ลบการบันทึกที่เก่ากว่า %d %@";
 "history.autoDelete.cleanup.noItems" = "ไม่มีการบันทึกที่จะลบ";
 "history.autoDelete.cleanup.summary" = "ลบ %d การบันทึก และปลดปล่อย %@";

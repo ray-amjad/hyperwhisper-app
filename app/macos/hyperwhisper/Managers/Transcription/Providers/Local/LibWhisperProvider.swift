@@ -478,18 +478,6 @@ class LibWhisperProvider: TranscriptionProvider {
     
     // MARK: - Model Management
     
-    /// Get list of available models
-    func getAvailableModels() -> [String] {
-        // IMPORTANT: Return the shared model manager's downloaded models
-        // This ensures consistency with the UI and prevents state drift
-        return modelManager.downloadedModels.map { $0.name }
-    }
-    
-    /// Get the currently loaded model name
-    func getCurrentModelName() -> String? {
-        return currentModel?.name
-    }
-    
     /// Preload a model exclusively (for compatibility)
     func preloadExclusively(_ model: WhisperModel, language: String?, preferEnglishOptimized: Bool) async throws {
         // In libwhisper.cpp, models load instantly so we just load the model

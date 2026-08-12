@@ -3,7 +3,7 @@
 // uses the structured `context_bias` list (≤100 phrases), not a free prompt.
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
@@ -11,7 +11,7 @@ import {
   estimateSecondsFromBytes,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
+  providerHttpError,
 } from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
@@ -90,27 +90,13 @@ export async function transcribeWithMistral(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      model, elapsedMs, status: response.status, kind, bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('Mistral API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Mistral', 'rate limit exceeded');
-    }
-    if (response.status === 402) {
-      throw new ProviderUnavailableError('Mistral', 'insufficient funds');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Mistral', `upstream 5xx: ${response.status}`);
-    }
-    throw new ProviderInputError('Mistral', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Mistral',
+      authStatuses: [401, 403],
+      authMessage: 'Mistral API key is invalid or unauthorized',
+      failoverOn402: true,
+      logDetails: { model },
+    });
   }
 
   let data: {

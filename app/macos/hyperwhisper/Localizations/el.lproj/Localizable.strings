@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "Λεπτά";
 "history.autoDelete.unit.hours" = "Ώρες";
 "history.autoDelete.unit.days" = "Ημέρες";
-"history.autoDelete.unit.minutes.plural" = "λεπτά";
-"history.autoDelete.unit.hours.plural" = "ώρες";
-"history.autoDelete.unit.days.plural" = "ημέρες";
-"history.autoDelete.status.disabled" = "Η αυτόματη διαγραφή είναι απενεργοποιημένη";
 "history.autoDelete.status.enabled" = "Διαγραφή εγγραφών παλιότερων από %d %@";
 "history.autoDelete.cleanup.noItems" = "Δεν υπάρχουν εγγραφές για διαγραφή";
 "history.autoDelete.cleanup.summary" = "Διαγράφηκε %d εγγραφή(έ) και ελευθερώθησε %@";

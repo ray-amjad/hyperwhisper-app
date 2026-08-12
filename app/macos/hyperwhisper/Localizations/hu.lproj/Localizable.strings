@@ -1085,10 +1085,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "history.autoDelete.unit.minutes" = "Perc";
 "history.autoDelete.unit.hours" = "Óra";
 "history.autoDelete.unit.days" = "Nap";
-"history.autoDelete.unit.minutes.plural" = "perc";
-"history.autoDelete.unit.hours.plural" = "óra";
-"history.autoDelete.unit.days.plural" = "nap";
-"history.autoDelete.status.disabled" = "Automatikus törlés letiltva";
 "history.autoDelete.status.enabled" = "Felvételek törlése %d %@ után";
 "history.autoDelete.cleanup.noItems" = "Nincs törlendő felvétel";
 "history.autoDelete.cleanup.summary" = "%d felvétel törölve és %@ felszabadítva";

@@ -2,14 +2,14 @@
 // xAI Speech to Text REST API - $0.10/hour
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   fetchWithTimeout,
   logProviderEvent,
-  readErrorBodyPreview,
+  providerHttpError,
 } from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
@@ -97,30 +97,11 @@ export async function transcribeWithXaiGrok(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('xAI API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Grok', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Grok', `upstream 5xx: ${response.status}`);
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('Grok', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Grok',
+      authStatuses: [401, 403],
+      authMessage: 'xAI API key is invalid or unauthorized',
+    });
   }
 
   let data: {

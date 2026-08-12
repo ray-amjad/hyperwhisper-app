@@ -43,44 +43,10 @@ enum WhisperModel: String, CaseIterable {
         }
     }
 
-    /// Model size in MB (approximate, based on API data)
-    var sizeInMB: Int {
-        switch self {
-        case .tiny: return 69
-        case .tinyEn: return 140
-        case .base: return 132
-        case .baseEn: return 133
-        case .small: return 445
-        case .smallEn: return 444
-        case .medium: return 1441
-        case .mediumEn: return 1441
-        case .largeV2: return 2918
-        case .largeV3: return 2918
-        case .largeV3Turbo: return 3010
-        }
-    }
-
-    /// Relative speed (1.0 = base speed)
-    /// English-only models are typically faster than multilingual equivalents
-    var relativeSpeed: Float {
-        switch self {
-        case .tiny, .tinyEn: return 4.0
-        case .base, .baseEn: return 2.0
-        case .small, .smallEn: return 1.0
-        case .medium, .mediumEn: return 0.5
-        case .largeV2, .largeV3: return 0.25
-        case .largeV3Turbo: return 0.3  // Turbo variant is optimized for speed
-        }
-    }
-    
     /// Check if this is an English-only model
     var isEnglishOnly: Bool {
         return rawValue.hasSuffix(".en")
     }
     
-    /// Check if this is a large model variant
-    var isLargeVariant: Bool {
-        return rawValue.hasPrefix("large")
-    }
 }
 

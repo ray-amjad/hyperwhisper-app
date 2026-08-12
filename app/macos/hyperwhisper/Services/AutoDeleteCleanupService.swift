@@ -184,13 +184,6 @@ class AutoDeleteCleanupService: ObservableObject {
         logger.info("Periodic cleanup started (interval: \(self.cleanupIntervalDescription, privacy: .public))")
     }
 
-    /// Reschedules the cleanup timer based on current settings
-    /// Call this when the user changes the time unit setting
-    func rescheduleCleanupTimer() {
-        scheduleCleanupTimer()
-        logger.info("Cleanup timer rescheduled (interval: \(self.cleanupIntervalDescription, privacy: .public))")
-    }
-
     /// Schedules the cleanup timer based on the current time unit setting
     ///
     /// INTERVAL LOGIC:
@@ -236,13 +229,6 @@ class AutoDeleteCleanupService: ObservableObject {
         case .days:
             return "every 1 hour"
         }
-    }
-
-    /// Stops periodic cleanup
-    func stopPeriodicCleanup() {
-        cleanupTimer?.invalidate()
-        cleanupTimer = nil
-        logger.info("Periodic cleanup stopped")
     }
 
     /// Performs a cleanup operation based on current settings
@@ -364,13 +350,6 @@ class AutoDeleteCleanupService: ObservableObject {
         }
 
         return stats
-    }
-
-    /// Forces a cleanup operation regardless of the timer schedule
-    /// Useful for testing or user-initiated cleanup
-    func forceCleanup() async -> CleanupStats? {
-        logger.info("Force cleanup requested")
-        return await performCleanup()
     }
 
     // MARK: - Private Methods

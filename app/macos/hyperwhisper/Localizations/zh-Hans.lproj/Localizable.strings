@@ -1086,10 +1086,6 @@
 "history.autoDelete.unit.minutes" = "分钟";
 "history.autoDelete.unit.hours" = "小时";
 "history.autoDelete.unit.days" = "天";
-"history.autoDelete.unit.minutes.plural" = "分钟";
-"history.autoDelete.unit.hours.plural" = "小时";
-"history.autoDelete.unit.days.plural" = "天";
-"history.autoDelete.status.disabled" = "自动删除已关闭";
 "history.autoDelete.status.enabled" = "删除早于 %d %@ 的录音";
 "history.autoDelete.cleanup.noItems" = "没有可删除的录音";
 "history.autoDelete.cleanup.summary" = "已删除 %d 条录音并释放 %@";

@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "Хвилин";
 "history.autoDelete.unit.hours" = "Годин";
 "history.autoDelete.unit.days" = "Днів";
-"history.autoDelete.unit.minutes.plural" = "хвилин";
-"history.autoDelete.unit.hours.plural" = "годин";
-"history.autoDelete.unit.days.plural" = "днів";
-"history.autoDelete.status.disabled" = "Автоматичне видалення відключено";
 "history.autoDelete.status.enabled" = "Видалити записи старіші за %d %@";
 "history.autoDelete.cleanup.noItems" = "Нема записів для видалення";
 "history.autoDelete.cleanup.summary" = "Видалено %d запис(ів) та звільнено %@";

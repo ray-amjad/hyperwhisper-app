@@ -6,9 +6,10 @@ import {
   estimateAudioSeconds,
   estimateSecondsFromBytes,
   fetchWithTimeout,
+  providerHttpError,
   readErrorBodyPreview,
 } from './utils';
-import { ProviderUnavailableError } from './types';
+import { ProviderInputError, ProviderUnavailableError } from './types';
 
 describe('computeUploadTimeoutMs (size-scaled audio-upload budget)', () => {
   test('small payloads get the 30s floor', () => {
@@ -223,5 +224,102 @@ describe('readErrorBodyPreview', () => {
   test('returns a placeholder when the body cannot be read', async () => {
     const unreadable = { text: () => { throw new Error('stream already used'); } } as unknown as Response;
     expect(await readErrorBodyPreview(unreadable)).toBe('<unreadable>');
+  });
+});
+
+describe('providerHttpError (shared non-2xx classification for the sync STT adapters)', () => {
+  const policy = { label: 'TestProvider', authMessage: 'TestProvider API key is invalid' };
+  const at = (status: number, body = 'boom') => new Response(body, { status });
+
+  test('auth statuses throw a plain Error (a sibling retry cannot fix a bad key)', async () => {
+    const err = await providerHttpError('test', at(401), performance.now(), {}, policy);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(ProviderUnavailableError);
+    expect(err.message).toBe('TestProvider API key is invalid');
+  });
+
+  test('403 is an auth failure only for adapters that opt in', async () => {
+    const plain = await providerHttpError('test', at(403), performance.now(), {}, policy);
+    expect(plain).toBeInstanceOf(ProviderInputError);
+
+    const optedIn = await providerHttpError('test', at(403), performance.now(), {}, {
+      ...policy,
+      authStatuses: [401, 403],
+    });
+    expect(optedIn).not.toBeInstanceOf(ProviderInputError);
+    expect(optedIn.message).toBe('TestProvider API key is invalid');
+  });
+
+  test('429 and 5xx fail over to the next provider', async () => {
+    const rateLimited = await providerHttpError('test', at(429), performance.now(), {}, policy);
+    expect(rateLimited).toBeInstanceOf(ProviderUnavailableError);
+    expect(rateLimited.message).toBe('TestProvider unavailable: rate limit exceeded');
+
+    const serverError = await providerHttpError('test', at(503), performance.now(), {}, policy);
+    expect(serverError).toBeInstanceOf(ProviderUnavailableError);
+    expect(serverError.message).toBe('TestProvider unavailable: upstream 5xx: 503');
+  });
+
+  test('402 fails over only when the adapter opts in, else it is an input error', async () => {
+    const notOptedIn = await providerHttpError('test', at(402), performance.now(), {}, policy);
+    expect(notOptedIn).toBeInstanceOf(ProviderInputError);
+
+    const optedIn = await providerHttpError('test', at(402), performance.now(), {}, {
+      ...policy,
+      failoverOn402: true,
+    });
+    expect(optedIn).toBeInstanceOf(ProviderUnavailableError);
+    expect(optedIn.message).toBe('TestProvider unavailable: insufficient funds');
+  });
+
+  test('other 4xx become a ProviderInputError carrying the body preview', async () => {
+    const err = await providerHttpError('test', at(400, 'bad language code'), performance.now(), {}, policy);
+    expect(err).toBeInstanceOf(ProviderInputError);
+    expect((err as ProviderInputError).status).toBe(400);
+    expect(err.message).toContain('bad language code');
+  });
+
+  test('an empty error body falls back to the bare status in the message', async () => {
+    const err = await providerHttpError('test', at(400, ''), performance.now(), {}, policy);
+    expect(err.message).toBe('TestProvider rejected input (400): HTTP 400');
+  });
+
+  test('attachUnavailableDetails carries kind/status through to the failover error', async () => {
+    const bare = await providerHttpError('test', at(500), performance.now(), {}, policy) as ProviderUnavailableError;
+    expect(bare.kind).toBe('unknown');
+    expect(bare.status).toBeUndefined();
+
+    const detailed = await providerHttpError('test', at(500), performance.now(), {}, {
+      ...policy,
+      attachUnavailableDetails: true,
+    }) as ProviderUnavailableError;
+    expect(detailed.kind).toBe('upstream_5xx');
+    expect(detailed.status).toBe(500);
+    expect(detailed.elapsedMs).toBeGreaterThanOrEqual(0);
+  });
+
+  test('logs one http_error event with the kind and any adapter-supplied details', async () => {
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    try {
+      await providerHttpError('test', at(429), performance.now(), { requestId: 'req-1' }, {
+        ...policy,
+        logDetails: { model: 'test-model' },
+      });
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(logged).toHaveLength(1);
+    expect(logged[0][0]).toBe('provider.http_error');
+    expect(logged[0][1]).toMatchObject({
+      provider: 'test',
+      requestId: 'req-1',
+      model: 'test-model',
+      status: 429,
+      kind: 'rate_limit',
+      bodyPreview: 'boom',
+    });
   });
 });

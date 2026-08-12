@@ -108,9 +108,6 @@ enum DesignConstants {
             endPoint: .trailing
         )
         
-        /// Standard background opacity for overlays
-        static let overlayBackgroundOpacity = 0.05
-        static let activeBackgroundOpacity = 0.1
     }
 }
 

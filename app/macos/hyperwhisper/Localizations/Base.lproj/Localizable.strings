@@ -1106,10 +1106,6 @@
 "history.autoDelete.unit.minutes" = "Minutes";
 "history.autoDelete.unit.hours" = "Hours";
 "history.autoDelete.unit.days" = "Days";
-"history.autoDelete.unit.minutes.plural" = "minutes";
-"history.autoDelete.unit.hours.plural" = "hours";
-"history.autoDelete.unit.days.plural" = "days";
-"history.autoDelete.status.disabled" = "Automatic deletion is disabled";
 "history.autoDelete.status.enabled" = "Delete recordings older than %d %@";
 "history.autoDelete.cleanup.noItems" = "No recordings to delete";
 "history.autoDelete.cleanup.summary" = "Deleted %d recording(s) and freed %@";

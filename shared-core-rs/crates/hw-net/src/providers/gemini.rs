@@ -54,11 +54,6 @@ pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
 /// PARITY: macOS/Windows default = `gemini-2.5-flash`.
 pub const DEFAULT_MODEL: &str = "gemini-2.5-flash";
 
-/// Gemini's inline-payload limit (20 MB). Exposed for callers that still want to
-/// reproduce the platform's transport decision; this module itself always uses
-/// the Files API path. PARITY: `inlineRequestLimitBytes` / `InlineRequestLimitBytes`.
-pub const INLINE_REQUEST_LIMIT_BYTES: u64 = 20 * 1024 * 1024;
-
 fn root(params: &TranscribeParams) -> String {
     params
         .base_url

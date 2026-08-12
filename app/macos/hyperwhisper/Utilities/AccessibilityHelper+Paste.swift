@@ -71,40 +71,6 @@ extension AccessibilityHelper {
         return true
     }
 
-    /// Send Control+Space to trigger autocomplete popup in Cursor/Windsurf
-    /// - Returns: true if the key combination was sent successfully
-    func sendControlSpace() -> Bool {
-        logger.info("🔤 Sending Control+Space to trigger autocomplete...")
-
-        guard AXIsProcessTrusted() else {
-            logger.error("❌ No accessibility permission")
-            return false
-        }
-
-        guard let src = CGEventSource(stateID: .hidSystemState) else {
-            logger.error("❌ Failed to create CGEventSource")
-            return false
-        }
-
-        // 0x31 is the virtual-key code for Space
-        guard let spaceDown = CGEvent(keyboardEventSource: src, virtualKey: 0x31, keyDown: true),
-              let spaceUp = CGEvent(keyboardEventSource: src, virtualKey: 0x31, keyDown: false) else {
-            logger.error("❌ Failed to create CGEvents")
-            return false
-        }
-
-        // Set Control modifier flag
-        spaceDown.flags = .maskControl
-        spaceUp.flags = .maskControl
-
-        spaceDown.post(tap: .cghidEventTap)
-        Thread.sleep(forTimeInterval: 0.01)
-        spaceUp.post(tap: .cghidEventTap)
-
-        logger.info("✅ Control+Space sent")
-        return true
-    }
-
     /// Send Tab key
     /// - Returns: true if the key was sent successfully
     func sendTab() -> Bool {

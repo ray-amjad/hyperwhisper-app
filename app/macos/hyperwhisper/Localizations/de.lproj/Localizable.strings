@@ -1085,10 +1085,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "history.autoDelete.unit.minutes" = "Minuten";
 "history.autoDelete.unit.hours" = "Std";
 "history.autoDelete.unit.days" = "Tage";
-"history.autoDelete.unit.minutes.plural" = "Minuten";
-"history.autoDelete.unit.hours.plural" = "Std.";
-"history.autoDelete.unit.days.plural" = "Tage";
-"history.autoDelete.status.disabled" = "Das automatische Löschen ist deaktiviert";
 "history.autoDelete.status.enabled" = "Aufnahmen löschen, die älter als %d %@ sind";
 "history.autoDelete.cleanup.noItems" = "Keine Aufnahmen zum Löschen vorhanden";
 "history.autoDelete.cleanup.summary" = "%d Aufnahme(n) gelöscht und %@ freigegeben";

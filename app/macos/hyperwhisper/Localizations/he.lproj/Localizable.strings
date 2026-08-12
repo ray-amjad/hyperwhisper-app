@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "דקות";
 "history.autoDelete.unit.hours" = "שעות";
 "history.autoDelete.unit.days" = "ימים";
-"history.autoDelete.unit.minutes.plural" = "דקות";
-"history.autoDelete.unit.hours.plural" = "שעות";
-"history.autoDelete.unit.days.plural" = "ימים";
-"history.autoDelete.status.disabled" = "מחיקה אוטומטית מושבתת";
 "history.autoDelete.status.enabled" = "מחק הקלטות ישנות מ-%d %@";
 "history.autoDelete.cleanup.noItems" = "אין הקלטות למחיקה";
 "history.autoDelete.cleanup.summary" = "נמחקו %d הקלטה/ות ושוחררו %@";

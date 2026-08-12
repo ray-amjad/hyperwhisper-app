@@ -40,9 +40,6 @@ class BackupManager: ObservableObject {
     /// Whether an export operation is in progress
     @Published var isExporting = false
 
-    /// Whether an import operation is in progress
-    @Published var isImporting = false
-
     /// Last error message (for display in UI)
     @Published var lastError: String?
 
@@ -445,32 +442,6 @@ class BackupManager: ObservableObject {
     }
 
     // MARK: - Import Methods
-
-    /// Imports settings from a file, presenting NSOpenPanel for file selection
-    /// - Parameter options: Import options (conflict resolution)
-    /// - Returns: ImportResult with statistics, or nil if user cancelled
-    func importWithDialog(options: ImportOptions) async -> ImportResult? {
-        isImporting = true
-        lastError = nil
-
-        defer { isImporting = false }
-
-        // Present open dialog
-        let panel = NSOpenPanel()
-        panel.title = NSLocalizedString("settings.backup.import.panel.title", value: "Import Settings", comment: "")
-        panel.allowedContentTypes = [.json]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-
-        let response = await panel.beginSheetModal(for: NSApp.keyWindow ?? NSApp.mainWindow ?? NSWindow())
-
-        guard response == .OK, let url = panel.url else {
-            // User cancelled
-            return nil
-        }
-
-        return await importSettings(from: url, options: options)
-    }
 
     /// Imports settings from a specific URL
     /// - Parameters:
@@ -1036,40 +1007,6 @@ class BackupManager: ObservableObject {
             }
         }
         return (newCount, conflictCount)
-    }
-
-    /// Validates a backup file without importing
-    /// - Parameter url: URL of the backup file
-    /// - Returns: BackupValidationResult with preview information
-    func validateBackupFile(at url: URL) -> BackupValidationResult {
-        guard let jsonData = try? Data(contentsOf: url) else {
-            return .failure(NSLocalizedString("settings.backup.import.error.read", value: "Failed to read backup file", comment: ""))
-        }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-
-        let backupData: BackupData
-        do {
-            backupData = try decoder.decode(BackupData.self, from: jsonData)
-        } catch {
-            AppLogger.settings.error("Failed to decode backup file: \(error.localizedDescription, privacy: .public)")
-            return .failure(Self.decodeErrorMessage(for: error))
-        }
-
-        if backupData.version > BackupData.currentVersion {
-            return .failure(NSLocalizedString("settings.backup.import.error.version", value: "Backup file is from a newer version", comment: ""))
-        }
-
-        return .success(
-            version: backupData.version,
-            exportDate: backupData.exportDate,
-            appVersion: backupData.appVersion,
-            modeCount: backupData.modes?.count ?? 0,
-            vocabularyCount: backupData.vocabulary?.count ?? 0,
-            hasAPIKeys: backupData.apiKeys?.hasAnyKey ?? false,
-            hasLicenseKey: backupData.licenseKey != nil && !backupData.licenseKey!.isEmpty
-        )
     }
 
     // MARK: - Private Helpers

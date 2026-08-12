@@ -121,15 +121,6 @@ enum RecordingState: Equatable {
         }
     }
     
-    /// Whether the app is currently busy (not idle)
-    var isBusy: Bool {
-        switch self {
-        case .idle, .complete, .error:
-            return false
-        case .recording, .processing, .transcribing, .postProcessing:
-            return true
-        }
-    }
 }
 
 // MARK: - Streaming Connection State Enum
@@ -197,9 +188,6 @@ class AppState: ObservableObject {
     @Published var showOnboarding: Bool = false {
         didSet { TextDeliveryGate.setSuppressed(showOnboarding) }
     }
-    
-    /// Current step in onboarding (for resuming if interrupted)
-    @Published var onboardingCurrentStep: Int = 0
     
     /// Track onboarding completion state
     @Published var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
@@ -372,30 +360,6 @@ class AppState: ObservableObject {
     func navigateToModelLibraryAPIKeys() {
         shouldOpenModelLibraryAPIKeys = true
         navigate(to: .modelLibrary)
-    }
-    
-    /// Update the recording state
-    /// - Parameter newState: The new recording state
-    func updateRecordingState(_ newState: RecordingState) {
-        // Use withAnimation for smooth UI updates
-        withAnimation(.easeInOut(duration: 0.3)) {
-            recordingState = newState
-        }
-        
-        // Handle state-specific actions
-        switch newState {
-        case .recording:
-            // Show mini window when recording starts
-            showMiniWindow = true
-        case .complete(let text):
-            // Store the transcription
-            lastTranscription = text
-        case .error(let message):
-            // Show error alert
-            showError(message)
-        default:
-            break
-        }
     }
     
     /// Show an error message to the user
@@ -636,29 +600,6 @@ class AppState: ObservableObject {
         return message
     }
     
-    /// Check API keys for the current selected mode
-    /// - Parameter settingsManager: The settings manager to use for checking
-    func checkAPIKeysForCurrentMode(settingsManager: SettingsManager) {
-        guard let snapshot = selectedModeSnapshot else {
-            missingAPIKeys = []
-            return
-        }
-        
-        missingAPIKeys = settingsManager.getMissingAPIKeys(for: snapshot)
-        
-        // Check if only post-processing keys are missing (non-blocking scenario)
-        postProcessingKeyMissing = SettingsManager.onlyPostProcessingKeysMissing(missingAPIKeys)
-        
-        // Show alert if there are missing keys that would block recording
-        if !missingAPIKeys.isEmpty && !postProcessingKeyMissing {
-            showAPIKeyAlert = true
-            
-            // Check if local default mode exists (for new installs)
-            // This determines whether to show "Use Local Mode" option in alert
-            showLocalModeSuggestion = PersistenceController.shared.fetchMode(withId: "00000000-0000-0000-0000-000000000002") != nil
-        }
-    }
-    
     /// Switch to the local default mode (for new installs)
     /// This is called when user chooses "Use Local Mode" from the API key alert
     func switchToLocalDefault() {
@@ -765,12 +706,6 @@ class AppState: ObservableObject {
         }
 
         AppLogger.ui.debug("📝 Selected mode: \(snapshot.name, privacy: .public) (persist: \(persist))")
-    }
-
-    func modeSnapshotForCurrentSession() -> ModeSnapshot? {
-        cachedSortedModeSnapshots.first { $0.id.uuidString == currentSessionModeId } ??
-        cachedSortedModeSnapshots.first { $0.name == currentSessionModeName } ??
-        selectedModeSnapshot
     }
 
     /// The mode currently relevant to the active recording/transcription session.

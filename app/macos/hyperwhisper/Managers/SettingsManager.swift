@@ -395,8 +395,8 @@ class SettingsManager: ObservableObject {
         storage.ensureRecordingsFolderExists()
     }
 
-    func prepareRecordingsFolderIfNeeded() {
-        storage.prepareRecordingsFolderIfNeeded()
+    func prepareRecordingsFolderIfNeeded(canPresentInWindow: Bool = false) {
+        storage.prepareRecordingsFolderIfNeeded(canPresentInWindow: canPresentInWindow)
     }
 
     func prepareRecordingsFolderIfNeededAsync(timeoutSeconds: Double = 120) async -> Bool {
@@ -526,10 +526,6 @@ class SettingsManager: ObservableObject {
 
     func defaultModel(forModeId modeId: String) -> String? {
         defaultModelByMode[modeId]
-    }
-
-    func setDefaultModel(_ modelId: String, forModeId modeId: String) {
-        defaultModelByMode[modeId] = modelId
     }
 
     // MARK: - Private Methods

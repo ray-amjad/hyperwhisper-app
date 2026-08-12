@@ -980,6 +980,45 @@ internal static class Program
                     $"expected Metadata, got {evt?.GetType().Name ?? "null"}");
             });
 
+            Run("InlineHtml turns release-note <b> into a bold run instead of literal markup", () =>
+            {
+                var runs = InlineHtml.Parse("<b>New models</b> &mdash; OpenAI gpt-transcribe and more.");
+
+                Assert(runs.Count == 2, $"expected 2 runs, got {runs.Count}");
+                Assert(runs[0] == new HtmlRun("New models", Bold: true, Italic: false),
+                    $"expected a bold lead-in, got '{runs[0]}'");
+                Assert(runs[1] == new HtmlRun(" — OpenAI gpt-transcribe and more.", Bold: false, Italic: false),
+                    $"expected the decoded remainder, got '{runs[1]}'");
+                Assert(!InlineHtml.PlainText("<b>x</b>").Contains('<'), "markup leaked into plain text");
+            });
+
+            Run("InlineHtml keeps text from tags it does not support and leaves unknown entities literal", () =>
+            {
+                Assert(InlineHtml.PlainText("<span class=\"x\">kept</span>") == "kept",
+                    "unsupported tag should be dropped but its text kept");
+                Assert(InlineHtml.PlainText("2 < 3") == "2 < 3",
+                    "an unterminated tag should be treated as text");
+                Assert(InlineHtml.PlainText("&bogus; stays") == "&bogus; stays",
+                    "an unknown entity should stay literal");
+                Assert(InlineHtml.PlainText("&lt;b&gt;escaped&lt;/b&gt;") == "<b>escaped</b>",
+                    "escaped markup must not be re-parsed as a tag");
+            });
+
+            Run("AppcastItem.BulletPoints keeps inline emphasis and drops empty items", () =>
+            {
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<ul><li><b>Bold lead</b> — detail.</li><li class=\"x\">  </li>"
+                                 + "<li>Plain bullet.</li></ul>"
+                };
+
+                Assert(item.BulletPoints.Count == 2, $"expected 2 bullets, got {item.BulletPoints.Count}");
+                Assert(InlineHtml.Parse(item.BulletPoints[0])[0].Bold,
+                    "first bullet should start with a bold run");
+                Assert(InlineHtml.PlainText(item.BulletPoints[1]) == "Plain bullet.",
+                    $"got '{InlineHtml.PlainText(item.BulletPoints[1])}'");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

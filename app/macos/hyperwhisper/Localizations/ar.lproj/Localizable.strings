@@ -1085,10 +1085,6 @@
 "history.autoDelete.unit.minutes" = "دقائق";
 "history.autoDelete.unit.hours" = "ساعات";
 "history.autoDelete.unit.days" = "أيام";
-"history.autoDelete.unit.minutes.plural" = "دقائق";
-"history.autoDelete.unit.hours.plural" = "ساعات";
-"history.autoDelete.unit.days.plural" = "أيام";
-"history.autoDelete.status.disabled" = "الحذف التلقائي معطّل";
 "history.autoDelete.status.enabled" = "حذف التسجيلات الأقدم من %d %@";
 "history.autoDelete.cleanup.noItems" = "لا توجد تسجيلات لحذفها";
 "history.autoDelete.cleanup.summary" = "تم حذف %d تسجيلات وتحرير %@";

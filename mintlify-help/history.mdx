@@ -177,6 +177,32 @@ If a transcription fails, the entry shows a **Failed** badge in the list. The de
   Retry needs the original audio file. If you deleted the file, or the app never saved it, the retry option is not available.
 </Note>
 
+## Interrupted Transcriptions
+
+If the app quits, crashes, or the computer restarts while a transcription runs, no worker stays alive to finish the job. Without a repair, the entry stays in the **Processing** state forever. Thus HyperWhisper repairs these entries the next time that it starts.
+
+<Tabs>
+  <Tab title="macOS">
+    At startup, each transcript that is still in the processing state changes to **Failed**. The text of the entry changes to "Transcription interrupted — the app quit before it finished".
+
+    If the audio file of the entry is still on the disk, the entry gets the standard **Retry** action. Select the entry, then click **Retry** to transcribe the same audio again.
+  </Tab>
+  <Tab title="Windows">
+    At startup, each transcript that is still in the processing state changes to **Failed**, with the reason "Interrupted — app was restarted while processing". The row stops showing the processing spinner, and it shows this reason in place of the "Processing audio..." placeholder text.
+
+    The entry then behaves as a normal failed entry, so you can retry it.
+  </Tab>
+</Tabs>
+
+### Recordings that stopped before the transcription started (macOS)
+
+If the app stopped during the recording itself, the transcription never started, and no History entry exists for it. At the next start, HyperWhisper examines your recordings folder for these unfinished recordings.
+
+- Audio that HyperWhisper can read stays in your recordings folder. A file of 25 MB or more becomes an M4A file. A smaller file stays a WAV file.
+- HyperWhisper does not transcribe the recovered audio automatically, and the audio does not become a History entry. To transcribe it, use [Transcribe a File](/file-transcription) and select the file from your recordings folder.
+- Audio that HyperWhisper cannot read is deleted, because it contains no usable speech.
+- If the recovery of the same recording fails three times, HyperWhisper stops the attempts for that recording.
+
 ## Automatic Deletion
 
 Both apps have an optional automatic-deletion setting. It deletes transcriptions that are older than an age that you set. To turn on this setting, go to **Settings → Storage → Enable automatic deletion**. On macOS, you can set the age limit in minutes, hours, or days. On Windows, the age limit is a whole number of days (1–365) — there is no minutes/hours picker. Automatic deletion runs in the background. It deletes the transcript record and the audio file.

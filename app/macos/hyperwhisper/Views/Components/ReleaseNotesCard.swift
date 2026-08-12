@@ -80,7 +80,7 @@ struct ReleaseNotesCard: View {
 
             // Release notes (if available)
             if release.hasReleaseNotes {
-                // Title (bold part from HTML)
+                // Title (heading that precedes the bullet list, if any)
                 if let title = release.releaseTitle {
                     Text(title)
                         .font(.system(size: 13, weight: .medium))
@@ -88,10 +88,10 @@ struct ReleaseNotesCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // Bullet points
+                // Bullet points (<b>/<i> in the feed render as real emphasis)
                 if !release.bulletPoints.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(release.bulletPoints, id: \.self) { point in
+                        ForEach(Array(release.bulletPoints.enumerated()), id: \.offset) { _, point in
                             HStack(alignment: .top, spacing: 8) {
                                 // Bullet point
                                 Circle()
