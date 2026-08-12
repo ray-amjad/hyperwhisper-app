@@ -33,10 +33,12 @@ export const serverSchema = z.object({
   // Vercel cron bearer token. Vercel sends `Authorization: Bearer $CRON_SECRET`
   // and cannot set a custom header, so the scheduled jobs in vercel.json
   // (/api/internal/latency/prune) accept it alongside the internal secret.
-  // Declared here so it is a named part of the environment rather than a bare
-  // process.env read: unset, the cron 401s every night and the retention this
-  // repo promises publicly never runs.
-  CRON_SECRET: z.string().optional(),
+  // Required, not optional: unset, the nightly prune 401s in silence, rows
+  // never expire, and the 1-year retention data-privacy.mdx promises publicly
+  // stops being true. A failed build is the loud version of that failure.
+  // `.min(1)` because an empty string would satisfy a bare z.string() and
+  // authorize nothing.
+  CRON_SECRET: z.string().min(1),
 
   // Provider model inventory endpoint (/models and /api/internal/models)
   OPENAI_API_KEY: z.string().optional(),
