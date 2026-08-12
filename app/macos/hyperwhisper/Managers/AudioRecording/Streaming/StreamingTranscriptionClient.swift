@@ -167,22 +167,41 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// re-run the teardown. Reset alongside `didInitiateClose` in startSession.
     private var didHandleTerminalProviderError = false
 
-    /// True while `startSession()` is parked in `waitForSessionStarted()`.
+    /// True for the WHOLE of `startSession()` — from before the socket exists
+    /// until the session is genuinely up — not merely while
+    /// `waitForSessionStarted()` is parked.
     ///
     /// A terminal provider error can arrive *before* the provider ever sends its
     /// session-started frame (ElevenLabs answers a dead key with `auth_error`
-    /// straight away). Startup has to know that, or it sits out the full 10s and
-    /// fails with a generic `connectionTimeout` whose "Failed to start" toast
-    /// overwrites the actionable provider message this classification exists to
-    /// preserve.
-    private var isAwaitingInitialSessionStart = false
+    /// straight away, OpenAI and xAI answer an exhausted balance while the
+    /// `startMessages` send is still suspended). Startup has to know that, or it
+    /// sits out the full 10s and fails with a generic `connectionTimeout` whose
+    /// "Failed to start" toast overwrites the actionable provider message this
+    /// classification exists to preserve.
+    ///
+    /// The span has to cover every suspension point in `startSession()`, at both
+    /// ends. Raised late, an error during the `startMessages` send takes the
+    /// ordinary terminal path and startup still times out. Lowered early — say
+    /// the moment `waitForSessionStarted()` returns — a terminal error landing
+    /// during the awaited `capture.start()` tears the session down while
+    /// `startSession()` goes on to return success: a session reported as started
+    /// that has no socket and no microphone.
+    ///
+    /// Owned by `startSession()` alone, which raises it before anything can
+    /// deliver an event and lowers it in a `defer`, so success, throw and
+    /// cancellation all leave it false.
+    private var isStartingSession = false
 
-    /// A terminal provider error that arrived while startup was still waiting.
+    /// A terminal provider error that arrived while `startSession()` was still
+    /// in flight.
     ///
     /// `waitForSessionStarted()` polls this alongside `sessionId` and throws it,
-    /// so `startSession()` fails immediately carrying the provider's own wording
-    /// instead of a timeout. Set only on the startup path — once the session is
-    /// established the terminal error is reported through `onError` as usual.
+    /// and `startSession()` checks it once more after `capture.start()`, so a
+    /// failed start carries the provider's own wording instead of a timeout — or
+    /// instead of being lost behind a false success. Set only on the startup
+    /// path; once the session is established the terminal error is reported
+    /// through `onError` as usual. Cleared at both ends of `startSession()` so a
+    /// failure from one session can never be observed by the next.
     private var pendingStartupFailure: StreamingError?
 
     /// The session config, stored for reconnect attempts.
@@ -271,11 +290,34 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         lastError = nil
         didInitiateClose = false
         didHandleTerminalProviderError = false
-        isAwaitingInitialSessionStart = false
         pendingStartupFailure = nil
         reconnectCount = 0
         connectionEstablishedAt = Date()
         didReceiveSessionComplete = false
+
+        // MARK STARTUP AS PENDING BEFORE ANYTHING CAN PRODUCE AN EVENT.
+        //
+        // Raised here, ahead of the socket and the receive loop, because the
+        // first thing a provider can answer is a terminal error: OpenAI and xAI
+        // report an exhausted balance while the `startMessages` send below is
+        // still suspended, long before STEP 4. With the flag still down at that
+        // moment, that error takes the ordinary terminal path — it tears the
+        // session down and fires `onError` — and STEP 4 then waits its full 10s
+        // on a `sessionId` that can never arrive and throws a generic
+        // `connectionTimeout`, whose "Failed to start" replaces the provider's
+        // actionable wording. That substitution is the whole thing this fast
+        // path exists to prevent.
+        //
+        // Lowered in a `defer` rather than at any earlier point, so the flag
+        // stays up across every suspension in this function — including
+        // `capture.start()` — and is cleared on every exit: success, throw and
+        // cancellation alike. `pendingStartupFailure` goes with it, so a failure
+        // belonging to this session can never be observed by the next one.
+        isStartingSession = true
+        defer {
+            isStartingSession = false
+            pendingStartupFailure = nil
+        }
 
         // STEP 1: Build WebSocket URL via strategy
         guard let url = strategy.buildWebSocketURL(config: config) else {
@@ -307,15 +349,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         // STEP 4: Wait for session started event.
         //
-        // Flagged so a terminal provider error frame arriving before the
-        // session-started frame can fail this wait immediately with the
-        // provider's own message (see `pendingStartupFailure`).
-        isAwaitingInitialSessionStart = true
+        // A terminal provider error frame arriving before the session-started
+        // frame fails this wait immediately with the provider's own message —
+        // see `pendingStartupFailure`, which `isStartingSession` (raised above)
+        // is what routes the error into.
         do {
             try await waitForSessionStarted()
-            isAwaitingInitialSessionStart = false
         } catch {
-            isAwaitingInitialSessionStart = false
             // CLEANUP ON FAILED CONNECTION:
             // The receiveLoop (started above) is still running on the dead socket.
             // If we don't suppress reconnect, it will hit an error → call
@@ -369,6 +409,38 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         }
 
         try await capture.start()
+
+        // DID A TERMINAL PROVIDER ERROR LAND WHILE capture.start() WAS AWAY?
+        //
+        // `StreamingAudioCapture` is not main-actor isolated, so awaiting its
+        // `start()` hops off this actor and back — a real suspension, and the
+        // last one before this function claims success. A terminal error frame
+        // arriving in that window is routed to `pendingStartupFailure` (the flag
+        // is still up) rather than to `onError`, and nothing else will ever read
+        // it: `waitForSessionStarted()` has already returned. Without this check
+        // startSession() would return normally on a session whose socket has
+        // been torn down — the flow would show a recording in progress that can
+        // never produce a transcript.
+        if let startupFailure = pendingStartupFailure {
+            logger.error("Terminal provider error during audio start — failing startup")
+
+            // Already true on the only path that sets pendingStartupFailure;
+            // restated so this exit can never leave a reconnect armed.
+            didInitiateClose = true
+            teardownSession(cancelReceiveTask: true, cancelReconnect: true)
+
+            // The teardown above ran while this engine was still coming up on
+            // another thread, so it released `audioCapture` before there was
+            // anything to stop. `capture` is the live handle — stopping it is
+            // what actually gives the microphone back. Safe twice over: stop()
+            // is a documented no-op once the engine is gone.
+            capture.onAudioData = nil
+            capture.stop()
+
+            // No onError here either: this throws, and the flow's catch is what
+            // reports and unwinds a failed start.
+            throw startupFailure
+        }
 
         isConnected = true
         isStreaming = true
@@ -664,10 +736,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
             await MainActor.run {
                 let error = StreamingError.serverError(message)
-                // Is startup still waiting on the provider's session-started
-                // frame? If so this error, not a 10-second timeout, is what
-                // should fail it.
-                let failsStartup = isTerminal && self.isAwaitingInitialSessionStart
+                // Is startSession() still in flight — at any point between
+                // opening the socket and reporting success? If so this error,
+                // not a 10-second timeout and not a silent teardown under a
+                // successful start, is what should fail it.
+                let failsStartup = isTerminal && self.isStartingSession
 
                 if isTerminal {
                     // Claim the provider's impending close as expected. Without
@@ -678,7 +751,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     // then overwrites the actionable message this error is about
                     // to show (HYPERWHISPER-RW). The user still gets that
                     // message, either through onError below or through the
-                    // startup failure handed to waitForSessionStarted().
+                    // startup failure handed to startSession().
                     self.didInitiateClose = true
                     self.didHandleTerminalProviderError = true
                 }
@@ -724,10 +797,15 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 self.onConnectionStateChange?(.error(message))
 
                 if failsStartup {
-                    // startSession() is still parked in waitForSessionStarted().
-                    // Hand it this error so it fails now, carrying the provider's
-                    // own wording, instead of timing out after 10s and reporting
-                    // a generic "Failed to start" over the top of it.
+                    // startSession() is still in flight. Hand it this error so it
+                    // fails now, carrying the provider's own wording, instead of
+                    // timing out after 10s and reporting a generic "Failed to
+                    // start" over the top of it — or, later in startup, instead
+                    // of reporting a success it no longer has.
+                    //
+                    // Both of its remaining suspension points read this:
+                    // waitForSessionStarted() polls it, and startSession() checks
+                    // it again after capture.start().
                     //
                     // No onError on this path: startSession() throws, and the
                     // flow's catch is what reports and unwinds a failed start.
