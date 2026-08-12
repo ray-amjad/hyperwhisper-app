@@ -1,5 +1,5 @@
 {
-  "id": "6f00022b-dca5-4f76-9f36-1d4b59f5a17f",
+  "id": "cfce8bbd-fffa-4206-b6f5-9133d3e343b4",
   "prevId": "7c01391e-5d01-42a0-8094-558e98cbb059",
   "version": "7",
   "dialect": "postgresql",
@@ -1301,13 +1301,13 @@
           "name": "stt_latency_samples_agg_idx",
           "columns": [
             {
-              "expression": "created_at",
+              "expression": "duration_bucket",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "duration_bucket",
+              "expression": "created_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

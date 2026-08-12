@@ -38,7 +38,9 @@ import {
 } from '../lib/latency-report';
 // Content-type aware, unlike the billing estimators: a failed attempt still has
 // to land in the right clip-length bucket on the public /latency page.
-import { estimateAudioSeconds } from '../providers/utils';
+// runProviderAttempt is how the same page learns whether an attempt ever reached
+// the provider at all.
+import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
 import { rawQuery } from '../lib/query';
 import {
   FLY_REPLAY_MAX_BODY_BYTES,
@@ -237,26 +239,6 @@ export function isLatencyOptOut(c: Context): boolean {
   const header = c.req.header('X-Latency-Opt-Out');
   if (header === undefined) return false;
   return !LATENCY_OPT_IN_VALUES.has(header.toLowerCase().trim());
-}
-
-/**
- * True for the failures a provider never saw.
- *
- * AudioTooLargeError and UnsupportedAudioFormatError come from pure byte-length
- * and content-type gates that run BEFORE any network call (azure-mai.ts:96/107,
- * openai.ts:49, gemini.ts:176, soniox.ts:124, google-chirp.ts:149). Timing them
- * measures our own `if`, not an upstream: the row would publish a ~1 ms
- * "answer" and count a failure against a provider that was never called, so a
- * client that stopped pre-converting m4a to WAV would sink Azure MAI's public
- * error rate without Azure being involved. They are logged (transcribe.request_fail)
- * and surfaced to the caller as 413/415; they are not measurements, so they are
- * not reported.
- *
- * ProviderInputError is the opposite case — a real upstream 4xx, timed end to
- * end — and is reported as 'input_rejected'.
- */
-function isPreflightRejection(error: unknown): boolean {
-  return error instanceof AudioTooLargeError || error instanceof UnsupportedAudioFormatError;
 }
 
 /**
@@ -593,7 +575,10 @@ export async function transcribeRoute(c: Context) {
   // interesting rows this page has.
   const recordAttempt = (sample: {
     provider: Provider;
-    /** The model that actually ran, when the adapter reports one. */
+    /**
+     * On success the model that actually ran (the adapter's, when it reports
+     * one); on a failure the model the attempt was made with, since none ran.
+     */
     model?: string;
     /** 0-based position in the chain; stored 1-based. */
     index: number;
@@ -630,14 +615,21 @@ export async function transcribeRoute(c: Context) {
       // upload, auth, credits, and every earlier attempt. This clock brackets
       // this provider call alone — the number the /latency page reports.
       const attemptStart = performance.now();
+      // Flipped by the fetch helpers the instant this attempt's first request
+      // leaves the process. Until then the adapter has only run its own gates —
+      // a missing API key, a size cap, a content-type check — and those are our
+      // `if`s, not an upstream, so they are not measurements. See
+      // ProviderAttemptNetwork in providers/utils.ts for why the signal is taken
+      // at the wire rather than from a list of error types.
+      const network: ProviderAttemptNetwork = { reachedProvider: false };
 
       try {
-        result = await PROVIDER_FN[current](audioBuffer, contentType, language, initialPrompt, {
+        result = await runProviderAttempt(network, () => PROVIDER_FN[current](audioBuffer, contentType, language, initialPrompt, {
           requestId,
           attempt: index + 1,
           model: attemptModel,
           domain: attemptDomain,
-        });
+        }));
         // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
         // universal-3-pro → universal-2 fallback for unsupported languages) so the
         // X-STT-Model header and deduction metadata match what was billed; fall
@@ -666,11 +658,17 @@ export async function transcribeRoute(c: Context) {
       } catch (error) {
         // ONE row per attempt, recorded here before any branching: the arms
         // below are pure control flow (log, fall back, or return) and none of
-        // them can forget a sample or file a second one. The pre-flight
-        // rejections are the single, deliberate exception — the provider never
-        // received the call, so there is nothing to measure. See
-        // isPreflightRejection().
-        if (!isPreflightRejection(error)) {
+        // them can forget a sample or file a second one.
+        //
+        // The single condition is whether the attempt ever reached the wire.
+        // Everything an adapter rejects on its own — a missing API key, a size
+        // cap, a content-type it can't take — throws in microseconds without
+        // calling anyone, and a row for it would publish that provider
+        // "answering" in 1 ms and failing a call it never received. Every real
+        // provider failure (timeout, 5xx, rate limit, an unusable 2xx, an
+        // upstream 4xx) happens strictly after the request went out, so it is
+        // still recorded — that direction is the bug this must not reintroduce.
+        if (network.reachedProvider) {
           recordAttempt({
             provider: current,
             model: attemptModel,

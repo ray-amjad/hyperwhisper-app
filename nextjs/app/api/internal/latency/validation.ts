@@ -39,9 +39,33 @@ export const FAILURE_KINDS = [
 
 /** One transcription runs at most a handful of fallback attempts. */
 export const MAX_SAMPLES_PER_REQUEST = 20;
-/** A provider call that takes longer than this is a bug, not a measurement. */
-export const MAX_LATENCY_MS = 15 * 60 * 1000;
-/** Longest clip we accept a length for. Anything above is a malformed report. */
+
+/**
+ * Ceiling on a reported attempt — a CLAMP, not a rejection.
+ *
+ * The two are not interchangeable. Rejecting drops the whole row, and the rows
+ * that would breach any plausible ceiling are exactly the slowest attempts the
+ * page exists to show: the "Over 30 seconds" bucket's percentiles deliberately
+ * include timeouts, and its error rate counts failures, so silently deleting
+ * the longest attempts biases p95, p99 AND the error rate downward at once.
+ * Clamping keeps the row and compresses only the very top of the tail.
+ *
+ * The value is set above anything the edge service can legitimately produce, so
+ * the clamp should never bind in practice. Its worst case is one attempt's
+ * upload budget: `computeUploadTimeoutMs` is max(30 s, 1 s per 100 KB) and the
+ * route accepts up to MAX_AUDIO_SIZE_BYTES = 2 GB, which is ~21,475 s of upload
+ * on its own, plus AssemblyAI/Soniox/Chirp job polling on top. Six hours covers
+ * that with room to spare; anything past it is a broken clock, and one clamped
+ * row is a better answer than a hole in the tail.
+ */
+export const MAX_LATENCY_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Ceiling on the reported clip length — likewise a clamp. 2 GB of Opus is over
+ * 70 hours, so a legitimate report can exceed a day; and since the value is only
+ * ever used to pick a bucket, and everything past 30 s is already 'long',
+ * clamping cannot move a row into the wrong cell.
+ */
 export const MAX_AUDIO_SECONDS = 24 * 60 * 60;
 export const MAX_ATTEMPT = 5;
 const MAX_MODEL_LENGTH = 120;
@@ -61,8 +85,15 @@ export type ValidationResult =
   | { ok: true; samples: ValidSample[]; skipped: { index: number; reason: string }[] }
   | { ok: false; error: string };
 
-function isPositiveInt(value: unknown, max: number): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 && value <= max;
+function isPositiveInt(value: unknown): value is number {
+  // Number.isInteger already excludes NaN and ±Infinity, so an unbounded check
+  // is still closed against garbage — it just no longer throws away the tail.
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+/** Keeps a row that overshoots a ceiling instead of dropping it. */
+function clamp(value: number, max: number): number {
+  return value > max ? max : value;
 }
 
 /**
@@ -104,10 +135,13 @@ export function validateSample(
   if (!isValidRegion(s.flyRegion)) {
     return { reason: "invalid flyRegion" };
   }
-  if (!isPositiveInt(s.latencyMs, MAX_LATENCY_MS)) {
+  if (!isPositiveInt(s.latencyMs)) {
     return { reason: "invalid latencyMs" };
   }
-  if (!isPositiveInt(s.attempt, MAX_ATTEMPT)) {
+  // `attempt` stays a rejection: it is a position in a fallback chain of at most
+  // four, so a value past MAX_ATTEMPT is a malformed report rather than a long
+  // one, and clamping it would file the row against the wrong attempt number.
+  if (!isPositiveInt(s.attempt) || s.attempt > MAX_ATTEMPT) {
     return { reason: "invalid attempt" };
   }
   if (typeof s.ok !== "boolean") {
@@ -119,12 +153,11 @@ export function validateSample(
     if (
       typeof s.audioSeconds !== "number" ||
       !Number.isInteger(s.audioSeconds) ||
-      s.audioSeconds < 0 ||
-      s.audioSeconds > MAX_AUDIO_SECONDS
+      s.audioSeconds < 0
     ) {
       return { reason: "invalid audioSeconds" };
     }
-    audioSeconds = s.audioSeconds;
+    audioSeconds = clamp(s.audioSeconds, MAX_AUDIO_SECONDS);
   }
 
   // A sample with no length cannot be compared fairly against one that has a
@@ -155,7 +188,7 @@ export function validateSample(
       model,
       flyRegion: s.flyRegion,
       audioSeconds,
-      latencyMs: s.latencyMs,
+      latencyMs: clamp(s.latencyMs, MAX_LATENCY_MS),
       ok: s.ok,
       failureKind,
       attempt: s.attempt,

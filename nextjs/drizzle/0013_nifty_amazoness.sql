@@ -12,5 +12,5 @@ CREATE TABLE "stt_latency_samples" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX "stt_latency_samples_agg_idx" ON "stt_latency_samples" USING btree ("created_at","duration_bucket","provider","fly_region");--> statement-breakpoint
+CREATE INDEX "stt_latency_samples_agg_idx" ON "stt_latency_samples" USING btree ("duration_bucket","created_at","provider","fly_region");--> statement-breakpoint
 CREATE INDEX "stt_latency_samples_created_at_idx" ON "stt_latency_samples" USING btree ("created_at");

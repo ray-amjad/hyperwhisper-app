@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 // Imported through a variable specifier inside each test, the way the other
 // tests in this folder do: a static `.ts` import path is a type error under this
@@ -107,17 +109,65 @@ test("rejects a provider that is not a backend id", async () => {
 
 test("accepts every provider the page can display", async () => {
   const { validateSample } = await load();
-  const { PROVIDER_DISPLAY_NAMES, KNOWN_PROVIDERS } = await loadProviders();
+  const { KNOWN_PROVIDERS } = await loadProviders();
 
-  // The invariant this used to assert with a second hand-written list: a
-  // provider the page renders is a provider the ingest stores. Deriving one
-  // from the other is what makes it hold.
-  assert.deepEqual([...KNOWN_PROVIDERS], Object.keys(PROVIDER_DISPLAY_NAMES));
   assert.equal(KNOWN_PROVIDERS.length, 11);
-
   for (const provider of KNOWN_PROVIDERS) {
     const result = validateSample(goodSample({ provider }));
     assert.ok("sample" in result, `${provider} should be accepted`);
+  }
+});
+
+test("the page's provider ids are the catalog's backend ids", async () => {
+  const { PROVIDER_DISPLAY_NAMES } = await loadProviders();
+
+  // KNOWN_PROVIDERS is `Object.keys(PROVIDER_DISPLAY_NAMES)`, so comparing the
+  // two only restates that line. The claim worth pinning is the one this app
+  // cannot enforce by construction: PROVIDER_DISPLAY_NAMES mirrors
+  // shared-app-classification/cloud-stt-catalog.json, which lives outside the
+  // Next.js build root and so is copied rather than imported. If the catalog
+  // gains a provider, or renames a backend id, the copy here goes stale — the
+  // page silently stops rendering that provider's column AND the ingest starts
+  // rejecting its rows as an unknown provider. Read as data, not imported: the
+  // point is precisely that the two deployables do not share a module system.
+  const catalogPath = fileURLToPath(
+    new URL("../../shared-app-classification/cloud-stt-catalog.json", import.meta.url),
+  );
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as {
+    providers: { sttProvider: string }[];
+  };
+  const catalogIds = catalog.providers.map((entry) => entry.sttProvider).sort();
+
+  assert.deepEqual(Object.keys(PROVIDER_DISPLAY_NAMES).sort(), catalogIds);
+});
+
+test("no display label names a model the cell does not isolate", async () => {
+  const { PROVIDER_DISPLAY_NAMES } = await loadProviders();
+
+  // src/content/latency.ts groups by provider and region, never by model, while
+  // users can pin a per-provider model in either desktop app. So a label naming
+  // a model makes a claim about the rows underneath it that the query does not
+  // — "Deepgram Nova 3" over a cell that also holds nova-2 timings, "OpenAI
+  // Whisper" over a cell that is mostly gpt-4o-transcribe. The catalog's own
+  // displayName carries those suffixes, which is exactly why this app keeps its
+  // own vendor-only labels instead of reusing them.
+  //
+  // Two shapes to catch: a version number ("Nova 3", "Scribe v2",
+  // "MAI-Transcribe 1.5"), and a bare model family name. `\b` keeps
+  // "MAI-Transcribe" out of the `scribe` case — that is a product name, not a
+  // model this page blends.
+  const version = /\d/;
+  const modelFamily = /\b(whisper|nova|voxtral|universal|scribe)/i;
+  const labels = PROVIDER_DISPLAY_NAMES as Record<string, string>;
+  for (const [id, label] of Object.entries(labels)) {
+    assert.ok(
+      !version.test(label),
+      `${id}: "${label}" names a model version, but the cell blends every model of that provider`,
+    );
+    assert.ok(
+      !modelFamily.test(label),
+      `${id}: "${label}" names a model family, but the cell blends every model of that provider`,
+    );
   }
 });
 
@@ -141,7 +191,7 @@ test("rejects a failure kind outside the known set", async () => {
   assert.deepEqual(result, { reason: "invalid failureKind" });
 });
 
-test("rejects non-positive, fractional, and oversized latency", async () => {
+test("rejects non-positive and fractional latency", async () => {
   const { validateSample } = await load();
   assert.deepEqual(validateSample(goodSample({ latencyMs: 0 })), {
     reason: "invalid latencyMs",
@@ -152,9 +202,33 @@ test("rejects non-positive, fractional, and oversized latency", async () => {
   assert.deepEqual(validateSample(goodSample({ latencyMs: 12.5 })), {
     reason: "invalid latencyMs",
   });
-  assert.deepEqual(validateSample(goodSample({ latencyMs: 60 * 60 * 1000 })), {
+  assert.deepEqual(validateSample(goodSample({ latencyMs: Number.POSITIVE_INFINITY })), {
     reason: "invalid latencyMs",
   });
+});
+
+test("keeps a very slow attempt instead of dropping the row", async () => {
+  const { validateSample, MAX_LATENCY_MS } = await load();
+
+  // A 300 MB clip's upload budget alone is ~50 minutes (max(30 s, 1 s/100 KB)),
+  // and the "Over 30 seconds" bucket's percentiles are meant to include exactly
+  // these. Rejecting dropped the whole row — the latency AND the ok/failed flag —
+  // so the slowest attempts vanished from the tail and from the error rate.
+  const slow = validateSample(goodSample({ latencyMs: 50 * 60 * 1000 }));
+  assert.ok("sample" in slow);
+  assert.equal(slow.sample.latencyMs, 50 * 60 * 1000);
+
+  // Past the ceiling the row still survives; only the value is clamped.
+  const absurd = validateSample(goodSample({ latencyMs: MAX_LATENCY_MS * 10 }));
+  assert.ok("sample" in absurd);
+  assert.equal(absurd.sample.latencyMs, MAX_LATENCY_MS);
+});
+
+test("clamps rather than drops a clip length past the ceiling", async () => {
+  const { validateSample, MAX_AUDIO_SECONDS } = await load();
+  const result = validateSample(goodSample({ audioSeconds: MAX_AUDIO_SECONDS * 4 }));
+  assert.ok("sample" in result);
+  assert.equal(result.sample.audioSeconds, MAX_AUDIO_SECONDS);
 });
 
 test("rejects an attempt outside the fallback chain length", async () => {

@@ -19,30 +19,72 @@ function toNumber(value: unknown): number {
 }
 
 /**
+ * True while `next build` is prerendering, false in the server that serves and
+ * revalidates the built page. Next sets NEXT_PHASE for the build and its render
+ * workers inherit it; the runtime never has it set to this value.
+ *
+ * The two moments need opposite behaviour on a database failure (see
+ * getLatencyMatrix), and this is the only thing that tells them apart from
+ * inside a `force-static` page — there is no request, no headers and no cache
+ * entry to consult. Read once at module load, which is already inside the
+ * worker that will do the rendering.
+ */
+const IS_BUILD_PRERENDER = process.env.NEXT_PHASE === "phase-production-build";
+
+/** The shape a bucket with no rows has. Also what a build-time failure renders. */
+function emptyMatrix(): LatencyMatrixData {
+  return { cells: [], providers: [], regions: [], totalSamples: 0, windowDays: WINDOW_DAYS };
+}
+
+/**
  * Aggregates the trailing 30-day window for one clip-length bucket, grouped by
  * provider and region. Postgres computes the percentiles — pulling raw rows into
  * the page and sorting them in JavaScript would not survive real volume. The
- * (created_at, duration_bucket, provider, fly_region) index matches this shape.
+ * (duration_bucket, created_at, provider, fly_region) index matches this shape.
  *
  * Percentiles cover every attempt, failed ones included: a timeout is time the
  * user actually waited, so excluding it would flatter the slowest providers. The
  * error-rate metric gives the other view.
  *
- * A database failure is deliberately allowed to propagate. The page is static
- * with an hourly revalidate, and Next treats a returned value — empty data
- * included — as a successful render: swallowing the error would cache "0
- * provider attempts over the last 30 days" for the next hour because Postgres
- * was briefly unreachable during one background revalidation. Throwing instead
- * leaves the last good page in the ISR cache, which is both correct and fresher
- * than anything this function could invent. (blog.ts catches, but it revalidates
- * 60x more often, so a bad render there ages out in a minute.)
+ * A database failure means two different things depending on when it happens,
+ * so it is handled two different ways:
  *
- * An empty TABLE is not a failure and does not throw: no rows means no cells,
- * and the page renders its "no measurements yet" state.
+ *  - During `next build`, /en/latency is prerendered like every other static
+ *    page. Throwing there fails `next build` outright — "Export encountered an
+ *    error, exiting the build" — and takes every unrelated page of the deploy
+ *    with it, for a page whose entire content is a 30-day average. A deploy must
+ *    not depend on Postgres being reachable from the builder, so at build time
+ *    the failure is logged and the page ships in its empty state; the first
+ *    revalidation an hour later fills it in.
+ *  - At runtime the error propagates. Next treats a returned value — empty data
+ *    included — as a successful render, so swallowing it during a background
+ *    revalidation would REPLACE a good page with "0 provider attempts over the
+ *    last 30 days" and cache that for an hour. Throwing leaves the last good
+ *    page in the ISR cache, which is both correct and fresher than anything this
+ *    function could invent, and Next retries on the next request.
+ *
+ * An empty TABLE is not a failure on either path: no rows means no cells, and
+ * the page renders its "no measurements yet" state.
  */
 export async function getLatencyMatrix(
   bucket: DurationBucket = DEFAULT_BUCKET,
 ): Promise<LatencyMatrixData> {
+  try {
+    return await queryLatencyMatrix(bucket);
+  } catch (error) {
+    if (!IS_BUILD_PRERENDER) {
+      throw error;
+    }
+    console.error(
+      `[latency] database unreachable while prerendering bucket "${bucket}"; ` +
+        "shipping the empty state and letting the hourly revalidate fill it in:",
+      error,
+    );
+    return emptyMatrix();
+  }
+}
+
+async function queryLatencyMatrix(bucket: DurationBucket): Promise<LatencyMatrixData> {
   const since = new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   const rows = await db

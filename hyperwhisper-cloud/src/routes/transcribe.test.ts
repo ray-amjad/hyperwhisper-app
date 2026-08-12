@@ -29,6 +29,13 @@ describe('estimateCreditsForProviderFallbacks', () => {
 // A valid, well-funded licensed user so auth + credit checks pass entirely
 // in-memory (no network) and the route reaches the provider fallback loop.
 mock.module('../lib/redis', () => ({
+  // Satisfies the static `import { redis }` in lib/google-auth, reached from
+  // this route via providers/google-chirp. mock.module is process-wide in bun,
+  // so a redis mock ANYWHERE in the run that omits this export makes this whole
+  // FILE fail to load with "Export named 'redis' not found" — which is what
+  // `bun test src` (i.e. CI) did until every such mock grew this line. Every
+  // assertion below was silently not running there.
+  redis: {},
   isIPBlocked: async () => false,
   getCachedLicense: async () => ({ isValid: true, credits: 1000, cachedAt: 'cached' }),
   cacheLicense: async () => {},
@@ -379,7 +386,11 @@ describe('X-Latency-Opt-Out', () => {
     expect(samples.every((sample) => sample.ok === false)).toBe(true);
     // A real upstream 4xx: the provider answered, so it is a measurement.
     expect(samples.every((sample) => sample.failureKind === 'input_rejected')).toBe(true);
-    expect(samples.every((sample) => sample.latencyMs >= 1)).toBe(true);
+    // Not `latencyMs >= 1`: sendBatch already clamps with Math.max(1, ...), so
+    // that holds for 0, for a negative, and for a wrong clock. What the value
+    // actually is, is pinned by 'times a failed attempt on the route's own
+    // clock' below, where the route's number and the error's differ.
+    expect(samples.every((sample) => Number.isInteger(sample.latencyMs))).toBe(true);
   });
 
   test('opting out also suppresses the failure rows', async () => {
@@ -550,5 +561,141 @@ describe('latency clip length and model', () => {
     expect(batches).toHaveLength(1);
     const [sample] = samplesOf(batches[0]);
     expect(sample.model).toBe('universal-3-5-pro');
+  });
+});
+
+// Which attempts become a row, and what the number on them means. Both of these
+// have been broken by a "safe" refactor once already, and neither is visible
+// from the response the caller gets — only from this batch.
+describe('what a latency row measures', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
+    process.env.FLY_REGION = 'fra';
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    process.env = { ...originalEnv };
+  });
+
+  function buildApp(): Hono {
+    const app = new Hono();
+    app.post('/transcribe', transcribeRoute);
+    return app;
+  }
+
+  function request(provider: string, query = ''): Request {
+    const audio = new Uint8Array(2048);
+    return new Request(`http://localhost/transcribe?license_key=test-license${query}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(audio.byteLength),
+        'X-STT-Provider': provider,
+      },
+      body: audio,
+    });
+  }
+
+  /**
+   * The number on a failed row is the route's clock over the WHOLE attempt, not
+   * ProviderUnavailableError.elapsedMs — which for the async providers times
+   * only the one call that failed.
+   *
+   * AssemblyAI's async path is the real shape of that: upload, create, poll.
+   * Here the upload takes 250 ms and the create then fails instantly, so the
+   * error carries an elapsedMs of ~0 while the attempt genuinely cost the user
+   * a quarter second. The assertion is on the pre-clamp value (250 ≫ the 1 ms
+   * floor sendBatch applies), so switching the route back to `error.elapsedMs`
+   * reports ~1 and fails here.
+   */
+  test("times a failed attempt on the route's own clock, not the error's elapsedMs", async () => {
+    process.env.ASSEMBLYAI_API_KEY = 'test-assemblyai-key';
+    const batches: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+      if (url.includes('/v2/upload')) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        return Response.json({ upload_url: 'https://cdn.assemblyai.com/upload/abc' });
+      }
+      if (url.includes('/v2/transcript')) {
+        // A reset connection on job creation: fetchWithTimeout turns this into
+        // ProviderUnavailableError with elapsedMs of its own call alone (~0).
+        throw new Error('connection reset');
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    // No `language` param: AssemblyAI's sync fast path needs an explicit
+    // language, so omitting it routes through upload → create → poll.
+    const response = await buildApp().fetch(request('assemblyai'));
+    expect(response.status).toBe(502);
+    await drainPendingLatencyReports(2_000);
+
+    expect(batches).toHaveLength(1);
+    const samples = samplesOf(batches[0]);
+    expect(samples).toHaveLength(1);
+    expect(samples[0].provider).toBe('assemblyai');
+    expect(samples[0].ok).toBe(false);
+    expect(samples[0].failureKind).toBe('network_error');
+    expect(samples[0].latencyMs).toBeGreaterThanOrEqual(200);
+  });
+
+  /**
+   * The other half: an attempt that never reached the provider is not a
+   * measurement, and one that did still is.
+   *
+   * Grok's missing-key check throws ProviderUnavailableError above its fetch, so
+   * the chain carries on to Deepgram and the user gets a transcript — while grok
+   * accrued a ~1 ms row on every single request, which is enough to render it
+   * the fastest provider in the region for the next 30 days.
+   */
+  test('reports nothing for a provider whose key is missing, but reports the one that ran', async () => {
+    delete process.env.XAI_API_KEY;
+    delete process.env.GROK_API_KEY;
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+
+    const batches: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: {
+            channels: [{ alternatives: [{ transcript: 'hello' }], detected_language: 'en' }],
+          },
+          metadata: { duration: 1, request_id: 'dg-req-nokey' },
+        });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request('grok', '&language=en'));
+    expect(response.status).toBe(200);
+    await drainPendingLatencyReports(2_000);
+
+    expect(batches).toHaveLength(1);
+    const samples = samplesOf(batches[0]);
+    expect(samples.map((sample) => sample.provider)).toEqual(['deepgram']);
+    expect(samples[0].ok).toBe(true);
   });
 });

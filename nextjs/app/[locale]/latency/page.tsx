@@ -92,6 +92,19 @@ export default async function LatencyPage({ params }: Props) {
             </dd>
           </div>
           <div>
+            <dt className="font-medium text-gray-200">
+              A row is a provider, not a model
+            </dt>
+            <dd className="mt-1">
+              Most of these providers offer several models, and HyperWhisper
+              lets you pin the one you want. A row covers whichever model of
+              that provider actually ran — its default for most people, plus
+              whatever anyone else picked — so read a row as &ldquo;how fast
+              this provider answers us&rdquo;, not as a benchmark of one named
+              model against another.
+            </dd>
+          </div>
+          <div>
             <dt className="font-medium text-gray-200">Why clip length matters</dt>
             <dd className="mt-1">
               Longer audio takes longer to transcribe, so comparing a provider

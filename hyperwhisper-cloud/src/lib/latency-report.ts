@@ -23,16 +23,20 @@ const MAX_SAMPLES_PER_BATCH = 20;
  * problem at all — an upstream that answered and rejected the input
  * (ProviderInputError). Writing the members out again let the two drift.
  *
- * Note what is NOT here: our own pre-flight size/format rejections. Those never
- * reach a provider, so they are never reported. See isPreflightRejection() in
- * routes/transcribe.ts.
+ * Note what is NOT here: our own pre-flight rejections — a missing API key, a
+ * size cap, an unsupported container. Those throw before the attempt has made a
+ * single network call, and an attempt that never reached the wire is never
+ * reported at all. See ProviderAttemptNetwork in providers/utils.ts.
  */
 export type LatencyFailureKind = ProviderUnavailableKind | 'input_rejected';
 
 export interface LatencySample {
   /** Backend provider id, e.g. 'deepgram'. */
   provider: string;
-  /** The model that actually ran, if the provider takes one. */
+  /**
+   * On success, the model that actually ran; on a failed attempt, the model it
+   * was attempted with, since none ran. Absent when the provider takes no model.
+   */
   model?: string;
   /**
    * One attempt end to end, on the route's own clock: everything that attempt

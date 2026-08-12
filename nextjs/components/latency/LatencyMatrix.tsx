@@ -114,6 +114,16 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
   // kept, so switching back to a bucket that has it restores the highlight.
   const activeHomeRegion = homeRegion && regions.includes(homeRegion) ? homeRegion : null;
 
+  // Exactly the same rule for the row-order pick, and for exactly the same
+  // reason: a sort region that this bucket's axis does not have scores every
+  // provider null, the comparator falls through to localeCompare, and the table
+  // silently re-orders by raw backend id ("azure-mai" between "assemblyai" and
+  // "deepgram") while the Row-order button still claims to be sorted by a city.
+  // Both the comparator and the label read this, never `sortRegion` directly;
+  // `sortRegion` is still remembered so returning to a bucket that has it
+  // restores the order.
+  const activeSortRegion = sortRegion && regions.includes(sortRegion) ? sortRegion : null;
+
   const cellFor = (provider: string, region: string): CellValue =>
     lookup.get(`${provider}|${region}`) ?? null;
 
@@ -130,18 +140,22 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
   const sortedProviders = useMemo(() => {
     const scored = providers.map((provider) => {
-      const score = sortRegion
-        ? (cellFor(provider, sortRegion)?.enough
-            ? cellFor(provider, sortRegion)!.value
+      const score = activeSortRegion
+        ? (cellFor(provider, activeSortRegion)?.enough
+            ? cellFor(provider, activeSortRegion)!.value
             : null)
         : globalValue(provider);
       return { provider, score };
     });
 
     // Providers with nothing to show sink to the bottom instead of sorting as 0.
+    // The tie-break runs on the DISPLAYED name, not the backend id: on p99 no
+    // cell clears the 500-attempt bar, so every score is null and this is the
+    // order the whole table gets — "azure-mai" between "assemblyai" and
+    // "deepgram" reads as no order at all next to the names on screen.
     scored.sort((a, b) => {
       if (a.score === null && b.score === null) {
-        return a.provider.localeCompare(b.provider);
+        return providerDisplayName(a.provider).localeCompare(providerDisplayName(b.provider));
       }
       if (a.score === null) return 1;
       if (b.score === null) return -1;
@@ -150,7 +164,7 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
 
     return scored.map((entry) => entry.provider);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [providers, regions, sortRegion, lookup]);
+  }, [providers, regions, activeSortRegion, lookup]);
 
   const scale = useMemo(() => {
     const values = Array.from(lookup.values())
@@ -233,8 +247,8 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
               type="button"
               onClick={() => setSortRegion(null)}
             >
-              {sortRegion
-                ? `Sorted by ${regionCity(sortRegion)} — reset`
+              {activeSortRegion
+                ? `Sorted by ${regionCity(activeSortRegion)} — reset`
                 : "Sorted by global median"}
             </button>
           </div>

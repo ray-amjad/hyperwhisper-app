@@ -22,6 +22,7 @@
 
 import { getGoogleAccessToken } from './google-auth';
 import { ProviderUnavailableError } from '../providers/types';
+import { markProviderNetworkCall } from '../providers/utils';
 
 const GCS_API_BASE = 'https://storage.googleapis.com';
 const UPLOAD_TIMEOUT_FLOOR_MS = 30_000;
@@ -85,6 +86,10 @@ function buildObjectName(ext: string): string {
 async function fetchWithTimeoutMs(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const handle = setTimeout(() => controller.abort(), timeoutMs);
+  // Chirp's large-file path spends most of its wall time here, before a single
+  // byte reaches Speech-to-Text. It is still the attempt leaving this process,
+  // so it marks the attempt as measurable — see providers/utils.ts.
+  markProviderNetworkCall();
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {

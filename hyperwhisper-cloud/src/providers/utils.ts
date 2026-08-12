@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
@@ -114,6 +115,53 @@ export function audioExtensionFromContentType<T extends AudioExtension>(
   return undefined;
 }
 
+/**
+ * Whether one provider attempt ever opened a socket to its upstream.
+ *
+ * The /latency page may only publish an attempt the provider actually received.
+ * Every adapter runs its own gates first — a missing API key, a byte-length cap,
+ * a content-type check — and each of those throws in single-digit microseconds,
+ * which the page would otherwise render as that provider answering in 1 ms.
+ * Enumerating those throw sites is what failed twice (a whitelist of error types
+ * has to be extended by whoever adds the next gate, and nothing makes them).
+ *
+ * So the signal is taken from the one place that cannot be bypassed without
+ * noticing: the request actually leaving this process. `markProviderNetworkCall()`
+ * is called by fetchWithTimeout() below — every adapter's only route to an
+ * upstream — and by the GCS uploader on Chirp's large-file path, BEFORE the
+ * fetch, so a timeout or a connection reset still counts as a measurement. A new
+ * gate added above any of those calls is excluded automatically; a new gate
+ * added below one is, correctly, a real attempt.
+ *
+ * AsyncLocalStorage rather than a module-level flag: attempts from concurrent
+ * requests interleave on one event loop, and a shared flag would let one
+ * request's fetch mark another request's rejection as measured.
+ *
+ * One deliberate omission: lib/google-auth mints its Google token through
+ * google-auth-library's own HTTP client, so a Chirp attempt that dies there is
+ * not reported. That is the right answer — a bad or missing service-account
+ * credential is our configuration failing, not Google answering slowly.
+ */
+export type ProviderAttemptNetwork = { reachedProvider: boolean };
+
+const attemptNetworkStorage = new AsyncLocalStorage<ProviderAttemptNetwork>();
+
+/** Runs one provider attempt, recording into `state` whether it reached the wire. */
+export function runProviderAttempt<T>(
+  state: ProviderAttemptNetwork,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return attemptNetworkStorage.run(state, fn);
+}
+
+/** Called immediately before an upstream request leaves this process. */
+export function markProviderNetworkCall(): void {
+  const state = attemptNetworkStorage.getStore();
+  if (state) {
+    state.reachedProvider = true;
+  }
+}
+
 function resolveProviderTimeoutMs(): number {
   const configured = Number.parseInt(process.env.STT_PROVIDER_TIMEOUT_MS || '', 10);
   if (Number.isFinite(configured) && configured > 0) {
@@ -163,6 +211,10 @@ export async function fetchWithTimeout(
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
 
+  // Before the fetch, not after: a timeout or a connection reset is a provider
+  // attempt the user waited on, so it has to count as a measurement. See
+  // ProviderAttemptNetwork above.
+  markProviderNetworkCall();
   logProviderEvent(provider, 'request_start', { timeoutMs }, context);
 
   try {
