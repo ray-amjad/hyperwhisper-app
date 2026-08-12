@@ -701,7 +701,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// 3. Wait 1 second before attempting reconnect
     /// 4. Rebuild WebSocket connection using the saved config
     /// 5. If successful: back to .streaming, audio data flows again
-    /// 6. If failed: stop audio capture, enter .error state
+    /// 6. If failed: stop audio capture, enter .error state — unless the
+    ///    reconnect was deliberately cancelled by stopSession()/cancel(), in
+    ///    which case it cleans up just as thoroughly but stays silent (see the
+    ///    TranscriptionCancellationPolicy split in the catch below)
     ///
     /// WHY ONLY ONE ATTEMPT:
     /// Multiple retries with backoff adds complexity and delays the inevitable.
@@ -900,6 +903,40 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 ]
             )
         } catch {
+            // SAMPLE Task.isCancelled FIRST — it is task-local, so it answers
+            // for whichever task is running *right now*. The `await MainActor.run`
+            // below is a suspension point, and reading the flag after it would
+            // be asking the wrong question about the wrong task.
+            // TranscriptionCancellationPolicy's doc comment demands exactly this.
+            let isTaskCancelled = Task.isCancelled
+
+            // WAS THIS RECONNECT ABORTED ON PURPOSE, OR DID IT REALLY FAIL?
+            //
+            // Since the receiveTask hand-over moved down to the line above
+            // startReceivingMessages() (HYPERWHISPER-MG), self.receiveTask keeps
+            // pointing at the task running this function for as long as the
+            // reconnect is in flight. That is what finally lets stopSession() —
+            // i.e. the user releasing the shortcut, or cancel() — genuinely abort
+            // a reconnect mid-flight. Such an abort is not a defect: the caller
+            // is already tearing the session down and driving its own UI, so both
+            // an error toast and a Sentry event would be lies about a deliberate
+            // stop.
+            //
+            // Reuse the existing policy instead of testing `error is
+            // CancellationError`: the AND with the task flag is the entire point.
+            // A CancellationError raised on a *live* task is still a provider
+            // failure (providers and URLSession raise one while tearing their own
+            // work down, with no transcript for the user), and treating that as
+            // benign is what hid HYPERWHISPER-SQ. That direction is pinned by
+            // TranscriptionCancellationPolicyTests
+            // .cancellationErrorOnALiveTaskIsStillAProviderFailure.
+            let outcome = TranscriptionCancellationPolicy.outcome(
+                for: error,
+                isTaskCancelled: isTaskCancelled
+            )
+            // Computed out here: privacy-aware interpolation can't nest a ternary.
+            let outcomeLabel = outcome == .genuineCancellation ? "cancelled-by-teardown" : "provider-failure"
+
             // Reconnect failed — prevent leftover receiveTask from triggering another cycle
             didInitiateClose = true
             receiveTask?.cancel()
@@ -907,28 +944,58 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             webSocketTask?.cancel(with: .abnormalClosure, reason: nil)
             webSocketTask = nil
 
-            // Clean up and surface error
+            // Clean up, and surface the error only if there is one to surface.
+            //
+            // RESOURCE cleanup below is unconditional — the session is over
+            // either way, and a "quiet" path that left the audio engine running
+            // or isStreaming true would be a far worse bug than a stray toast.
+            // Only the two USER-FACING callbacks are gated on the outcome.
             await MainActor.run {
                 self.audioCapture?.stop()
                 self.audioCapture = nil
                 self.isStreaming = false
                 self.onAudioLevel?(0)
-                self.onConnectionStateChange?(.error("Connection lost"))
-                self.onError?(StreamingError.serverError("Connection lost and reconnect failed"))
-                self.logger.error("Reconnect failed: \(error.localizedDescription, privacy: .public)")
+
+                // Unconditional: whatever we report upwards, the transition stays
+                // traceable in the local log.
+                self.logger.error(
+                    "Reconnect failed (\(outcomeLabel, privacy: .public)): \(error.localizedDescription, privacy: .public)"
+                )
+
+                switch outcome {
+                case .providerFailure:
+                    // A genuine failure stays exactly as loud as it has always been.
+                    self.onConnectionStateChange?(.error("Connection lost"))
+                    self.onError?(StreamingError.serverError("Connection lost and reconnect failed"))
+                case .genuineCancellation:
+                    // Deliberate stop — say nothing. The canceller (stopSession()
+                    // via stopStreamingTranscription, or cancel()) is already
+                    // mid-teardown and settles the UI to .idle itself. Firing
+                    // .error here would show the user a connection failure they
+                    // never hit, and RecordingTranscriptionFlow's onError handler
+                    // would tear the session state down underneath the stop that
+                    // is still running (it clears streamingService, resets
+                    // recordingState and shows an error alert).
+                    break
+                }
             }
 
-            // Capture reconnect failure to Sentry for diagnostics
-            SentryService.capture(
-                error: error,
-                message: "WebSocket reconnect failed",
-                extras: ["reconnectCount": "\(reconnectCount)"],
-                tags: [
-                    "component": "StreamingTranscriptionClient",
-                    "provider": strategy.transcriptionProviderLabel,
-                    "operation": "reconnect"
-                ]
-            )
+            // Same split for Sentry: a reconnect somebody deliberately aborted is
+            // not a defect, and reporting one buries the real reconnect failures
+            // it is grouped with (HYPERWHISPER-MG).
+            if outcome == .providerFailure {
+                // Capture reconnect failure to Sentry for diagnostics
+                SentryService.capture(
+                    error: error,
+                    message: "WebSocket reconnect failed",
+                    extras: ["reconnectCount": "\(reconnectCount)"],
+                    tags: [
+                        "component": "StreamingTranscriptionClient",
+                        "provider": strategy.transcriptionProviderLabel,
+                        "operation": "reconnect"
+                    ]
+                )
+            }
         }
     }
 
