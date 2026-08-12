@@ -500,6 +500,13 @@ struct MenuBarIconView: View {
     /// re-evaluation — same reason `hotkeysConfigured` is static.
     private static var didBootstrapAppServices = false
 
+    /// PENDING-DEFERRAL MARKER:
+    /// Set the moment the pre-launch deferral below registers its observer.
+    /// Both callers can hit that path on the same cold launch, and without this
+    /// they would each register their own `didFinishLaunchingNotification`
+    /// observer. Static for the same reason as `didBootstrapAppServices`.
+    private static var didDeferBootstrap = false
+
     /// Launch work that must not depend on the main window existing.
     ///
     /// The main window is NOT guaranteed to be created at launch. When the app
@@ -518,6 +525,10 @@ struct MenuBarIconView: View {
         // and the Local API server below both expect a fully launched app, so
         // wait for the delegate rather than assume an ordering.
         guard AppDelegate.didFinishLaunching else {
+            // Only ever arm the deferral once — see didDeferBootstrap.
+            guard !Self.didDeferBootstrap else { return }
+            Self.didDeferBootstrap = true
+
             AppLogger.ui.debug("⏳ Bootstrap requested before launch completed — deferring")
             var token: NSObjectProtocol?
             token = NotificationCenter.default.addObserver(
@@ -531,6 +542,19 @@ struct MenuBarIconView: View {
                 Task { @MainActor in
                     self.bootstrapAppServices()
                 }
+            }
+
+            // MISSED-NOTIFICATION BACKSTOP:
+            // `didFinishLaunchingNotification` is one-shot and is the only
+            // resumption path above. An observer registered while AppKit is
+            // mid-dispatch of that notification is never called, which would
+            // leave a login-item launch with no hotkeys again (issue #142).
+            // Re-check on the next main-queue turn: by then the delegate has
+            // set its flag and this runs the body. Re-entry is harmless —
+            // whichever of the two arrives first sets didBootstrapAppServices
+            // and the other returns at the guard above.
+            DispatchQueue.main.async {
+                self.bootstrapAppServices()
             }
             return
         }
@@ -624,9 +648,6 @@ struct MenuBarIconView: View {
         // This syncs Sparkle's state with the UserDefaults setting and performs
         // an immediate background check if auto-update is enabled
         appDelegate.initializeUpdater()
-
-        // Prepare recordings folder with a user-friendly permission flow
-        settingsManager.prepareRecordingsFolderIfNeeded()
 
         // GEMMA MIGRATION: Show one-time alert if user had Gemma selected or has leftover files
         if !didShowGemmaMigrationAlert {
@@ -783,7 +804,10 @@ struct MenuBarIconView: View {
         if launchMinimized && hasCompletedOnboarding {
             // Delay to ensure window is fully created before hiding
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let mainWindow = NSApplication.shared.windows.first {
+                // MainWindowStore, not NSApp.windows.first: hotkeys are now live
+                // before this window exists, so the recording overlay panel can
+                // already be in NSApp.windows and its order is unspecified.
+                if let mainWindow = MainWindowStore.window {
                     mainWindow.orderOut(nil)
                     AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
                     // Return focus to previous app after hiding our window
@@ -791,6 +815,14 @@ struct MenuBarIconView: View {
                 }
             }
         }
+
+        // Prepare recordings folder with a user-friendly permission flow.
+        // WINDOW-DEPENDENT: this can raise `showDocumentsPermissionAlert`, whose
+        // only real presenter is the SwiftUI `.alert` in MainAppView's window
+        // body — MenuBarContentView renders as an NSMenu under
+        // `.menuBarExtraStyle(.menu)` and cannot host an alert. Running it from
+        // the windowless bootstrap would set a flag nothing could clear.
+        settingsManager.prepareRecordingsFolderIfNeeded()
     }
 
     /// Lightweight initializer that restores selection state only.

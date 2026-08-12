@@ -250,10 +250,22 @@ class StorageSettingsManager: ObservableObject {
                FileManager.default.isWritableFile(atPath: url.path) {
                 return true
             }
-            // If alert is showing, wait for user to respond
+            // NO-PRESENTER GUARD:
+            // Only wait on the explanation alert while a visible main window can
+            // actually show it. Its `.alert` lives in MainAppView's window body;
+            // MenuBarContentView binds the same flag but renders as an NSMenu
+            // under `.menuBarExtraStyle(.menu)` and cannot host an alert. On a
+            // login-item launch (no window at all) or once the window is ordered
+            // out, nothing would ever clear the flag and this loop would burn the
+            // full timeout before the caller's NSAlert recovery prompt. Drop the
+            // explanation instead and take the no-TCC fallback below.
             if showDocumentsPermissionAlert {
-                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
-                continue
+                if MainWindowStore.window?.isVisible == true {
+                    try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+                    continue
+                }
+                logger.warning("⚠️ Documents permission alert has no window to present it — using a fallback location")
+                showDocumentsPermissionAlert = false
             }
             // If we aren't showing an alert and not writable, try fallbacks
             if fallbackToBestAvailableLocation() {

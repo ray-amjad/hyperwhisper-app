@@ -217,6 +217,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Observer for settings changes that affect microphone keep-warm
     private var keepWarmSettingsObserver: NSObjectProtocol?
 
+    /// Observer for Accessibility permission grants, used to re-arm Push to Talk
+    private var accessibilityObserver: NSObjectProtocol?
+
     /// Set when a Push to Talk reconfiguration is requested while a recording is
     /// in flight. Tearing down the active `BareModifierKeyMonitor` mid-recording
     /// would orphan a latched (double-tap locked) session and leave the user
@@ -280,6 +283,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = keepWarmSettingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = accessibilityObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         keepWarmManager.setEnabled(false)
@@ -379,6 +385,29 @@ class AudioRecordingManager: NSObject, ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.setupPushToTalk()
+            }
+        }
+
+        // ACCESSIBILITY RE-ARM:
+        // The bare-modifier CGEvent tap is only installed when Accessibility
+        // permission is already granted (see setupPushToTalk()). Nothing else
+        // re-runs that setup after a mid-session grant — configure() runs once
+        // per launch and no permission change posts .shortcutDidChange — so
+        // without this observer Push to Talk stays dead until the next launch.
+        // Re-running setupPushToTalk() is safe: it defers while `isRecording`
+        // and `customPushToTalkHandlersConfigured` blocks duplicate handlers.
+        if let observer = accessibilityObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        accessibilityObserver = NotificationCenter.default.addObserver(
+            forName: .accessibilityPermissionGranted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                AppLogger.audio.info("Accessibility permission granted — re-arming Push to Talk")
                 self?.setupPushToTalk()
             }
         }
