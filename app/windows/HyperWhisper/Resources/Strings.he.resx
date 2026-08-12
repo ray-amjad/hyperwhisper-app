@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>שיתוף נתוני מהירות אנונימיים</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>מודד כמה זמן לוקח לכל ספק ענן ומוסיף זאת להשוואה ציבורית, כך שכולם יכולים לראות איזה מודל הכי מהיר במיקום שלהם. מדידה כוללת את הספק, אזור השרת, אורך הקטע והזמן שנדרש — בלי חשבון, בלי מפתח, בלי אודיו ובלי טקסט. מודלים מקומיים אף פעם לא שולחים דבר.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>צפה בהשוואת המהירות</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>עדכון אוטומטי</value>
   </data>

@@ -162,7 +162,9 @@ internal static class HyperWhisperRoutedTranscriptionClient
         {
             response = await RustRetry.PerformAsync(
                 client,
-                buildRequest: () => BuildRoutedRequest(sttProviderHeader, coreParams),
+                // Opt-out only: absent means the user left anonymous speed
+                // sharing on (see LatencyOptOut).
+                buildRequest: () => LatencyOptOut.Apply(BuildRoutedRequest(sttProviderHeader, coreParams)),
                 parseError: resp => MapRoutedError(sttProviderHeader, providerDisplayName, resp),
                 cancellationToken: cancellationToken);
         }

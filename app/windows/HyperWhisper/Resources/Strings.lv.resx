@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Kopīgot anonīmus ātruma datus</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mēra, cik ilgu laiku patērē katrs mākoņpakalpojumu sniedzējs, un pievieno to publiskam salīdzinājumam, lai visi varētu redzēt, kurš modelis ir ātrākais viņu atrašanās vietā. Mērījumā ietilpst pakalpojumu sniedzējs, servera reģions, klipa garums un patērētais laiks — bez konta, bez atslēgas, bez audio un bez teksta. Vietējie modeļi nekad neko nesūta.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Skatīt ātruma salīdzinājumu</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automātisks atjaunināšana</value>
   </data>

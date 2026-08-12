@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Fejllogning";
 "settings.general.errorLogging.info" = "Registrer og send fejlrapporter automatisk for at hjælpe med at forbedre appen.";
+"settings.general.shareSpeedData.title" = "Del anonyme hastighedsdata";
+"settings.general.shareSpeedData.subtitle" = "Hjælper alle med at se, hvilken cloud-model der er hurtigst, hvor de er.";
+"settings.general.shareSpeedData.info" = "Måler, hvor lang tid hver cloud-udbyder tager, og tilføjer det til en offentlig sammenligning. En måling indeholder udbyderen, serverregionen, klippets længde og den brugte tid — ingen konto, ingen nøgle, ingen lyd og ingen tekst. Slå det fra, og HyperWhisper stopper med at sende det. Intet andet ændrer sig, og lokale modeller sender aldrig noget.";
+"settings.general.shareSpeedData.link" = "Se hastighedssammenligningen";
 "settings.general.autoUpdate.title" = "Automatisk opdatering";
 "settings.general.autoUpdate.info" = "Søg automatisk efter og download nye versioner af HyperWhisper.";
 "settings.general.support.title" = "Brug for hjælp?";

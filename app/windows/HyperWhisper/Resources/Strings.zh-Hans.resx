@@ -487,6 +487,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>自动发送崩溃报告以帮助我们修复问题。你的转写内容绝不会被发送。</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>分享匿名速度数据</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>测量每个云服务商所需的时间，并将其加入公开对比，让大家都能看到在自己所在地区哪个模型速度最快。一次测量包含服务商、服务器区域、片段长度和所用时间 — 不含账户、密钥、音频或文本。本地模型永远不会发送任何内容。</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>查看速度对比</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>自动检查更新</value>
   </data>

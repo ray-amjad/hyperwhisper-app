@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Villuskráning";
 "settings.general.errorLogging.info" = "Fangaðu sjálfkrafa og sendu villuskýrslur til að hjálpa til við að bæta forritið.";
+"settings.general.shareSpeedData.title" = "Deila nafnlausum hraðagögnum";
+"settings.general.shareSpeedData.subtitle" = "Hjálpar öllum að sjá hvaða skýjalíkan er hraðast þar sem þeir eru.";
+"settings.general.shareSpeedData.info" = "Mælir hversu langan tíma hver skýjaþjónustuaðili tekur og bætir því við opinberan samanburð. Mæling inniheldur þjónustuaðilann, netþjónasvæðið, lengd klippsins og tímann sem tók — enginn reikningur, enginn lykill, ekkert hljóð og enginn texti. Slökktu á þessu og HyperWhisper hættir að senda það. Ekkert annað breytist og staðbundin líkön senda aldrei neitt.";
+"settings.general.shareSpeedData.link" = "Skoða hraðasamanburðinn";
 "settings.general.autoUpdate.title" = "Sjálfvirk uppfærsla";
 "settings.general.autoUpdate.info" = "Athugaðu sjálfkrafa og sæktu nýjar útgáfur af HyperWhisper.";
 "settings.general.support.title" = "Þarftu hjálp?";

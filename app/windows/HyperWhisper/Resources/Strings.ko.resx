@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>익명 속도 데이터 공유</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>각 클라우드 제공업체가 걸리는 시간을 측정하여 공개 비교에 추가함으로써, 자신의 위치에서 어떤 모델이 가장 빠른지 모두가 알 수 있도록 합니다. 측정에는 제공업체, 서버 지역, 클립 길이, 소요 시간이 포함됩니다 — 계정도, 키도, 오디오도, 텍스트도 없습니다. 로컬 모델은 절대 아무것도 전송하지 않습니다.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>속도 비교 보기</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>자동 업데이트</value>
   </data>

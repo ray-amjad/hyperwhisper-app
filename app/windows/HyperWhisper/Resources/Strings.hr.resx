@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Podijeli anonimne podatke o brzini</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mjeri koliko vremena treba svakom pružatelju usluga u oblaku i dodaje to javnoj usporedbi, kako bi svi mogli vidjeti koji je model najbrži na njihovoj lokaciji. Mjerenje sadrži pružatelja usluga, regiju poslužitelja, duljinu isječka i utrošeno vrijeme — bez računa, bez ključa, bez zvuka i bez teksta. Lokalni modeli nikad ništa ne šalju.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Pogledaj usporedbu brzine</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automatsko ažuriranje</value>
   </data>

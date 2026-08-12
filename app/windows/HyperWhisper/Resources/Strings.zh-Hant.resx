@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>分享匿名速度資料</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>測量每個雲端服務供應商所需的時間，並將其加入公開比較，讓大家都能看到在自己所在地區哪個模型速度最快。一次測量包含供應商、伺服器區域、片段長度和所用時間 — 不含帳戶、金鑰、音訊或文字。本機模型永遠不會傳送任何內容。</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>查看速度比較</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>自動更新</value>
   </data>

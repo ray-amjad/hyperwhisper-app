@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Anonim hız verilerini paylaş</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Her bulut sağlayıcısının ne kadar sürdüğünü ölçer ve bunu genel bir karşılaştırmaya ekler, böylece herkes bulunduğu yerde hangi modelin en hızlı olduğunu görebilir. Bir ölçüm; sağlayıcıyı, sunucu bölgesini, klip uzunluğunu ve geçen süreyi içerir — hesap yok, anahtar yok, ses yok ve metin yok. Yerel modeller hiçbir zaman hiçbir şey göndermez.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Hız karşılaştırmasını gör</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Otomatik güncelleme</value>
   </data>

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { computeElevenLabsTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
+import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsFromSize } from '../middleware/credits';
 import { estimateCreditsForProviderFallbacks } from './transcribe';
 
@@ -185,5 +186,159 @@ describe('transcribeRoute provider fallback', () => {
     // Deepgram converts initial_prompt terms to repeated keyterm params,
     // percent-encoded — the + must survive as %2B, not become a space.
     expect(deepgramUrl).toContain('keyterm=C%2B%2B');
+  });
+});
+
+// The public /latency page is built from these rows, so "the user said no" has
+// to hold on every path — including the paths where the transcription itself
+// fails, which is where an opt-out is easiest to lose.
+describe('X-Latency-Opt-Out', () => {
+  const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
+  const originalRegion = process.env.FLY_REGION;
+
+  beforeEach(() => {
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    // Two things independently silence reporting, and either would make an
+    // opt-out assertion pass for the wrong reason: no ingest secret, and no
+    // FLY_REGION (off Fly nothing is reported, so a laptop never raises a
+    // column on the public page). Set both so the opt-out is the only variable.
+    process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
+    process.env.FLY_REGION = 'fra';
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    if (originalSecret === undefined) {
+      delete process.env.HYPERWHISPER_INTERNAL_SECRET;
+    } else {
+      process.env.HYPERWHISPER_INTERNAL_SECRET = originalSecret;
+    }
+    if (originalRegion === undefined) {
+      delete process.env.FLY_REGION;
+    } else {
+      process.env.FLY_REGION = originalRegion;
+    }
+  });
+
+  function buildApp(): Hono {
+    const app = new Hono();
+    app.post('/transcribe', transcribeRoute);
+    return app;
+  }
+
+  /** Runs one transcription and returns the latency batches it reported. */
+  async function reportedBatches(optOutHeader?: string): Promise<unknown[]> {
+    const batches: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: {
+            channels: [{ alternatives: [{ transcript: 'hello' }], detected_language: 'en' }],
+          },
+          metadata: { duration: 3, request_id: 'dg-req-optout' },
+        });
+      }
+
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const audio = new Uint8Array(2048);
+    const headers: Record<string, string> = {
+      'Content-Type': 'audio/wav',
+      'Content-Length': String(audio.byteLength),
+      'X-STT-Provider': 'deepgram',
+    };
+    if (optOutHeader !== undefined) {
+      headers['X-Latency-Opt-Out'] = optOutHeader;
+    }
+
+    const response = await buildApp().fetch(
+      new Request('http://localhost/transcribe?license_key=test-license&language=en', {
+        method: 'POST',
+        headers,
+        body: audio,
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    // Reporting is fired without awaiting, so the POST is still in flight when
+    // the response returns. Drain it the same way SIGTERM does.
+    await drainPendingLatencyReports(2_000);
+    return batches;
+  }
+
+  test('reports one sample when the header is absent', async () => {
+    const batches = await reportedBatches();
+    expect(batches).toHaveLength(1);
+    expect((batches[0] as { samples: unknown[] }).samples).toHaveLength(1);
+  });
+
+  test('reports nothing when the client opts out', async () => {
+    expect(await reportedBatches('1')).toHaveLength(0);
+  });
+
+  test('treats any unrecognised value as an opt-out', async () => {
+    expect(await reportedBatches('true')).toHaveLength(0);
+    expect(await reportedBatches('yes')).toHaveLength(0);
+    expect(await reportedBatches('please-dont')).toHaveLength(0);
+  });
+
+  test('an explicit negative value keeps reporting on', async () => {
+    expect(await reportedBatches('0')).toHaveLength(1);
+    expect(await reportedBatches('false')).toHaveLength(1);
+    // An empty header is what a client sends when a setting is unset, not a
+    // deliberate opt-out.
+    expect(await reportedBatches('')).toHaveLength(1);
+  });
+
+  test('opting out also suppresses the failure rows', async () => {
+    const batches: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.includes('/api/internal/latency')) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response('{"inserted":1}', { status: 200 });
+      }
+
+      if (url.includes('/api/license/credits')) {
+        return Response.json({ success: true });
+      }
+
+      // Every provider rejects the input: the all-failed path, which returns
+      // early — the finally block is what still reports it.
+      return new Response('{"detail":"bad input"}', { status: 400 });
+    }) as unknown as typeof fetch;
+
+    const audio = new Uint8Array(2048);
+    const response = await buildApp().fetch(
+      new Request('http://localhost/transcribe?license_key=test-license&language=en', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'elevenlabs',
+          'X-Latency-Opt-Out': '1',
+        },
+        body: audio,
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await drainPendingLatencyReports(2_000);
+    expect(batches).toHaveLength(0);
   });
 });

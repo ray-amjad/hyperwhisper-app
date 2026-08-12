@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Udostępnij anonimowe dane o szybkości</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mierzy, ile czasu zajmuje każdemu dostawcy chmury, i dodaje to do publicznego porównania, aby wszyscy mogli zobaczyć, który model jest najszybszy w ich lokalizacji. Pomiar zawiera dostawcę, region serwera, długość klipu i czas trwania — bez konta, bez klucza, bez dźwięku i bez tekstu. Modele lokalne nigdy niczego nie wysyłają.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Zobacz porównanie szybkości</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automatyczna aktualizacja</value>
   </data>

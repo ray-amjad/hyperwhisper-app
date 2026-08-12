@@ -73,6 +73,7 @@ public static class UniversalBackupMapper
                 ShowRecordingWindow = settings.ShowRecordingWindow,
                 CheckForUpdatesAutomatically = settings.CheckForUpdatesAutomatically,
                 EnableErrorLogging = settings.EnableErrorLogging,
+                ShareAnonymousSpeedData = settings.ShareAnonymousSpeedData,
                 EnableSoundEffects = settings.EnableSoundEffects
             },
             TextOutput = new UniversalTextOutputSettings
@@ -288,6 +289,8 @@ public static class UniversalBackupMapper
             if (g.ShowRecordingWindow.HasValue) settings.ShowRecordingWindow = g.ShowRecordingWindow.Value;
             if (g.CheckForUpdatesAutomatically.HasValue) settings.CheckForUpdatesAutomatically = g.CheckForUpdatesAutomatically.Value;
             if (g.EnableErrorLogging.HasValue) settings.EnableErrorLogging = g.EnableErrorLogging.Value;
+            // Absent means the backup predates the setting — keep what the user has.
+            if (g.ShareAnonymousSpeedData.HasValue) settings.ShareAnonymousSpeedData = g.ShareAnonymousSpeedData.Value;
             if (g.EnableSoundEffects.HasValue) settings.EnableSoundEffects = g.EnableSoundEffects.Value;
         }
 

@@ -382,6 +382,10 @@
 
 "settings.general.errorLogging.title" = "Καταγραφή σφαλμάτων";
 "settings.general.errorLogging.info" = "Καταγράψτε και αποστείλετε αυτόματα αναφορές σφαλμάτων για βελτίωση της εφαρμογής.";
+"settings.general.shareSpeedData.title" = "Κοινοποίηση ανώνυμων δεδομένων ταχύτητας";
+"settings.general.shareSpeedData.subtitle" = "Βοηθά όλους να δουν ποιο cloud μοντέλο είναι το ταχύτερο εκεί που βρίσκονται.";
+"settings.general.shareSpeedData.info" = "Μετρά πόσο χρόνο χρειάζεται κάθε πάροχος cloud και το προσθέτει σε μια δημόσια σύγκριση. Μια μέτρηση περιέχει τον πάροχο, την περιοχή του διακομιστή, τη διάρκεια του κλιπ και τον χρόνο που χρειάστηκε — χωρίς λογαριασμό, χωρίς κλειδί, χωρίς ήχο και χωρίς κείμενο. Απενεργοποιήστε το και το HyperWhisper σταματά να το στέλνει. Τίποτα άλλο δεν αλλάζει, και τα τοπικά μοντέλα δεν στέλνουν ποτέ τίποτα.";
+"settings.general.shareSpeedData.link" = "Δείτε τη σύγκριση ταχύτητας";
 "settings.general.autoUpdate.title" = "Αυτόματη ενημέρωση";
 "settings.general.autoUpdate.info" = "Ελέγξτε αυτόματα και κάντε λήψη των νέων εκδόσεων του HyperWhisper.";
 "settings.general.support.title" = "Χρειάζεστε βοήθεια;";

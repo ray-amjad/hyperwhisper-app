@@ -487,6 +487,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Enviar automáticamente informes de fallos para ayudarnos a solucionar problemas. Sus transcripciones nunca se envían.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Compartir datos de velocidad anónimos</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mide cuánto tarda cada proveedor en la nube y lo añade a una comparación pública, para que todos puedan ver qué modelo es el más rápido donde están. Una medición contiene el proveedor, la región del servidor, la duración del clip y el tiempo empleado — sin cuenta, sin clave, sin audio y sin texto. Los modelos locales nunca envían nada.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Ver la comparación de velocidad</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Buscar actualizaciones automáticamente</value>
   </data>

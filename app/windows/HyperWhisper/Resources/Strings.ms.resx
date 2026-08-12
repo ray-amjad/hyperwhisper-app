@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Kongsi data kelajuan tanpa nama</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mengukur berapa lama setiap penyedia awan mengambil masa dan menambahkannya ke perbandingan awam, supaya semua orang dapat melihat model mana yang paling pantas di lokasi mereka. Satu pengukuran mengandungi penyedia, rantau pelayan, panjang klip dan masa yang diambil — tiada akaun, tiada kunci, tiada audio dan tiada teks. Model tempatan tidak pernah menghantar apa-apa.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Lihat perbandingan kelajuan</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Kemas kini automatik</value>
   </data>

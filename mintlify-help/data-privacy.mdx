@@ -54,6 +54,22 @@ One stored row holds only these facts:
 
 A row holds **no account, no key, no request identifier, no IP address, no audio, and no text**. Nothing links a row to a person. The time is rounded to the hour on purpose: without it, the rows of one transcription would share an exact timestamp, and that timestamp would work as a request identifier. HyperWhisper deletes these rows after 1 year. The public page shows only the last 30 days.
 
+Local models never send a timing measurement. Only HyperWhisper Cloud does.
+
+#### How to stop the measurements
+
+Open **Settings → General** and turn off **Share anonymous speed data**. The change applies to your next transcription.
+
+Your transcriptions do not change when you turn this off. The same providers run, at the same speed, and you get the same result. The only difference is that the server does not store the timing.
+
+Under the hood, the app adds one request header:
+
+```text
+X-Latency-Opt-Out: 1
+```
+
+The server reads this header and discards the measurement instead of storing it. If you call the HyperWhisper Cloud API directly, send the same header to get the same result.
+
 ## Your own API keys (BYOK)
 
 If you configure your own API key in **Model Library → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
@@ -114,7 +130,7 @@ You can do these three things:
 ## Summary
 
 - **Local**: the audio stays on your device.
-- **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year.
+- **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
 - **Your own API key**: the opt-out is mostly your responsibility. Deepgram is the exception, because HyperWhisper adds `mip_opt_out=true` to every request from the app.
 
 ---

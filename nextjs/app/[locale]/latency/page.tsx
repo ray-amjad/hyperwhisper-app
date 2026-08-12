@@ -110,6 +110,20 @@ export default async function LatencyPage({ params }: Props) {
               nothing ties a row to a person or reassembles one transcription.
             </dd>
           </div>
+          <div>
+            <dt className="font-medium text-gray-200">How to opt out</dt>
+            <dd className="mt-1">
+              In the HyperWhisper app, turn off{" "}
+              <span className="text-gray-200">Share anonymous speed data</span>{" "}
+              under Settings → General. Your transcriptions work exactly the
+              same — the same providers, the same speed, the same result — we
+              just stop keeping the timing. Calling the API yourself? Send{" "}
+              <code className="rounded bg-gray-900 px-1.5 py-0.5 text-xs text-gray-300">
+                X-Latency-Opt-Out: 1
+              </code>
+              . Local models never send a timing at all.
+            </dd>
+          </div>
         </dl>
       </section>
     </div>

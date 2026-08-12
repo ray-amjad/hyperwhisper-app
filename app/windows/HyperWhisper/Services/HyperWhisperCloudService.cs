@@ -452,7 +452,10 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
                 // on the fresh pool (a plain HttpClient argument would pin the
                 // stale pre-rebuild client for the whole sequence).
                 () => Volatile.Read(ref _httpClient),
-                buildRequest: () => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams),
+                // Opt-out only: absent means the user left anonymous speed
+                // sharing on (see LatencyOptOut).
+                buildRequest: () => LatencyOptOut.Apply(
+                    HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams)),
                 parseError: MapCloudError,
                 cancellationToken: cancellationToken,
                 onTransportError: ex =>

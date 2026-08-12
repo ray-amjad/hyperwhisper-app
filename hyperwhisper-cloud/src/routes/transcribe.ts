@@ -216,6 +216,29 @@ function extractDomain(c: Context): string | undefined {
   return domain || undefined;
 }
 
+/**
+ * Values that mean "the header is present but the client is NOT opting out".
+ * Everything else counts as an opt-out, including values we never documented —
+ * a client that bothers to send this header at all means to be excluded, so an
+ * unrecognised value fails toward privacy rather than toward more data.
+ */
+const LATENCY_OPT_IN_VALUES = new Set(['', '0', 'false', 'no', 'off']);
+
+/**
+ * True when the caller asked to be left out of the public latency statistics
+ * (`X-Latency-Opt-Out: 1`). The macOS and Windows apps send this when the user
+ * turns off "Share anonymous speed data" in settings.
+ *
+ * Opting out costs the user nothing and changes nothing else about the
+ * request — it only stops the anonymous timing row from being written. See
+ * lib/latency-report.ts for what that row holds.
+ */
+export function isLatencyOptOut(c: Context): boolean {
+  const header = c.req.header('X-Latency-Opt-Out');
+  if (header === undefined) return false;
+  return !LATENCY_OPT_IN_VALUES.has(header.toLowerCase().trim());
+}
+
 function validateStreamingHeaders(c: Context, provider: Provider):
   | { ok: true; contentType: string; contentLength: number }
   | { ok: false; response: Response } {
@@ -495,6 +518,9 @@ export async function transcribeRoute(c: Context) {
   // and sent once, after the response is decided, so reporting never adds wall
   // time to the latency it is measuring.
   const latencySamples: LatencySample[] = [];
+  // Read once, up front: the header cannot change mid-request, and the send
+  // site below is the only thing that consults it.
+  const latencyOptOut = isLatencyOptOut(c);
   // The one place an attempt becomes a sample. Every arm out of the loop below
   // goes through it — success, retryable failure, and the three failures that
   // end the request outright — so "one row per attempt" holds by construction
@@ -715,7 +741,14 @@ export async function transcribeRoute(c: Context) {
     // goes in one POST, and a slow or failing website must never delay a
     // transcript. In a finally so EVERY path out of the loop reports — the
     // early returns above included — and so it happens exactly once.
-    reportLatencySamples(latencySamples);
+    //
+    // The opt-out is checked here rather than at recordAttempt: an opted-out
+    // request still collects samples, it just never sends them, so they die
+    // with the request. Gating the single send is what makes the opt-out
+    // impossible to leak past — there is no second way out of this loop.
+    if (!latencyOptOut) {
+      reportLatencySamples(latencySamples);
+    }
   }
 
   // All providers in the chain failed.
@@ -836,6 +869,9 @@ export async function transcribeRoute(c: Context) {
     // Region on the outcome line makes the Axiom dataset queryable by region on
     // its own, without joining against the machine id.
     flyRegion: process.env.FLY_REGION || 'local',
+    // Only present when the caller opted out, so the field's absence is the
+    // normal case. Without it, a thin /latency dataset looks like a bug.
+    ...(latencyOptOut ? { latencyOptOut: true } : {}),
     machineUptimeMs: machineUptimeMs(),
     rssMb: memUsageMb,
   });

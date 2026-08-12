@@ -519,6 +519,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Share anonymous speed data</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Times how long each cloud provider takes and adds it to a public comparison, so everyone can see which model is fastest where they are. A measurement holds the provider, the server region, the clip length, and the time taken — no account, no key, no audio, and no text. Local models never send anything.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>See the speed comparison</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Check for updates automatically</value>
   </data>

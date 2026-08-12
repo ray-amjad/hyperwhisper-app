@@ -145,7 +145,8 @@ class BackupManager: ObservableObject {
                 launchMinimized: settingsManager.launchMinimized,
                 showRecordingWindow: settingsManager.showRecordingWindow,
                 checkForUpdatesAutomatically: settingsManager.checkForUpdatesAutomatically,
-                enableErrorLogging: settingsManager.enableErrorLogging
+                enableErrorLogging: settingsManager.enableErrorLogging,
+                shareAnonymousSpeedData: settingsManager.shareAnonymousSpeedData
             ),
             audio: BackupAudioSettings(
                 autoIncreaseMicVolume: settingsManager.autoIncreaseMicVolume,
@@ -1085,6 +1086,11 @@ class BackupManager: ObservableObject {
         settingsManager.showRecordingWindow = settings.general.showRecordingWindow
         settingsManager.checkForUpdatesAutomatically = settings.general.checkForUpdatesAutomatically
         settingsManager.enableErrorLogging = settings.general.enableErrorLogging
+        // A backup from before this setting existed says nothing about it, so
+        // leave the current preference alone rather than resetting it.
+        if let shareAnonymousSpeedData = settings.general.shareAnonymousSpeedData {
+            settingsManager.shareAnonymousSpeedData = shareAnonymousSpeedData
+        }
 
         // Audio settings
         settingsManager.autoIncreaseMicVolume = settings.audio.autoIncreaseMicVolume

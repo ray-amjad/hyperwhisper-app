@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Споделяне на анонимни данни за скорост</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Измерва колко време отнема на всеки облачен доставчик и го добавя към публично сравнение, за да могат всички да видят кой модел е най-бърз при тях. Измерването съдържа доставчика, региона на сървъра, дължината на клипа и отнетото време — без акаунт, без ключ, без аудио и без текст. Локалните модели никога не изпращат нищо.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Виж сравнението на скоростта</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Автоматично актуализиране</value>
   </data>

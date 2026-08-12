@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Jaga anonüümseid kiirusandmeid</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Mõõdab, kui kaua iga pilveteenuse pakkuja aega võtab, ja lisab selle avalikku võrdlusesse, et kõik näeksid, milline mudel on nende asukohas kiireim. Mõõtmine sisaldab pakkujat, serveri piirkonda, klipi pikkust ja kulunud aega — ei kontot, ei võtit, ei heli ega teksti. Kohalikud mudelid ei saada kunagi midagi.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Vaata kiiruse võrdlust</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automaatne uuendamine</value>
   </data>

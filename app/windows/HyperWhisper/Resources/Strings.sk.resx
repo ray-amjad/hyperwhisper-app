@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Zdieľať anonymné údaje o rýchlosti</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Meria, ako dlho trvá každému poskytovateľovi cloudu, a pridáva to do verejného porovnania, aby všetci videli, ktorý model je najrýchlejší v ich oblasti. Meranie obsahuje poskytovateľa, oblasť servera, dĺžku klipu a strávený čas — žiadny účet, žiadny kľúč, žiadne audio ani text. Lokálne modely nikdy nič neodosielajú.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Zobraziť porovnanie rýchlosti</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Automatická aktualizácia</value>
   </data>

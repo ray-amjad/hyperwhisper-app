@@ -436,6 +436,15 @@
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
   </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>مشاركة بيانات السرعة المجهولة</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>يقيس المدة التي يستغرقها كل مزود سحابي ويضيفها إلى مقارنة عامة، ليتمكن الجميع من معرفة النموذج الأسرع في موقعهم. يتضمن القياس المزوّد، ومنطقة الخادم، وطول المقطع، والوقت المستغرق — بلا حساب، ولا مفتاح، ولا صوت، ولا نص. النماذج المحلية لا ترسل أي شيء أبداً.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>عرض مقارنة السرعة</value>
+  </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>التحديث التلقائي</value>
   </data>

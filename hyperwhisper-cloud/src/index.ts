@@ -20,7 +20,7 @@ const app = new Hono();
 // POST before it reaches the route (X-STT-* are non-simple request headers).
 app.use('*', cors({
   origin: '*',
-  allowHeaders: ['Content-Type', 'X-STT-Provider', 'X-STT-Model', 'X-STT-Domain'],
+  allowHeaders: ['Content-Type', 'X-STT-Provider', 'X-STT-Model', 'X-STT-Domain', 'X-Latency-Opt-Out'],
   allowMethods: ['GET', 'POST', 'OPTIONS'],
 }));
 
