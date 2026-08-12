@@ -106,6 +106,12 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
         }
 
         // STEP 6: Concurrently feed audio and collect results
+        // Tracks the self-inflicted teardown route: when `analyzeSequence` returns
+        // no last sample time we cancel the analyzer while `collectTranscriptionResults`
+        // is still consuming `transcriber.results`, which terminates that stream with
+        // a `CancellationError` even though nothing cancelled the task. Reported as a
+        // breadcrumb so Sentry can tell the two routes apart. HYPERWHISPER-SQ.
+        var didSelfCancelAnalyzer = false
         do {
             // Start analysis and result collection concurrently
             async let analysisTask: CMTime? = analyzer.analyzeSequence(from: audioFile)
@@ -118,6 +124,7 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             if let lastSampleTime = lastSampleTime {
                 try await analyzer.finalizeAndFinish(through: lastSampleTime)
             } else {
+                didSelfCancelAnalyzer = true
                 await analyzer.cancelAndFinishNow()
             }
 
@@ -136,6 +143,23 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             logger.info("Transcription complete: \(result.count) characters")
             return result
         } catch {
+            // `Task.isCancelled` is task-local: read it once here, at the catch
+            // site, and hand the value to the policy — the policy never reads it.
+            let isTaskCancelled = Task.isCancelled
+
+            // A cancellation that the caller actually asked for is benign: the
+            // pipeline already maps `CancellationError` to `.idle` without a
+            // Sentry capture. Re-wrapping it as `.providerNotAvailable` is what
+            // defeated that and produced HYPERWHISPER-SQ. Note this is NOT the
+            // same as a bare `CancellationError` — see TranscriptionCancellationPolicy.
+            if TranscriptionCancellationPolicy.outcome(
+                for: error,
+                isTaskCancelled: isTaskCancelled
+            ) == .genuineCancellation {
+                logger.info("SpeechAnalyzer transcription cancelled by the caller")
+                throw CancellationError()
+            }
+
             logger.error("SpeechAnalyzer transcription failed: \(String(describing: type(of: error))) - \(error.localizedDescription, privacy: .public)")
 
             SentryService.addBreadcrumb(
@@ -147,7 +171,8 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
                     "errorDescription": error.localizedDescription,
                     "locale": locale.identifier,
                     "audioFile": audioURL.lastPathComponent,
-                    "vocabularyCount": vocabulary.count
+                    "vocabularyCount": vocabulary.count,
+                    "analyzerSelfCancelled": didSelfCancelAnalyzer
                 ]
             )
 
