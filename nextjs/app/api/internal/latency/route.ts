@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
     console.warn("latency ingest skipped samples:", {
       skipped: result.skipped.length,
       received: result.skipped.length + result.samples.length,
-      reasons: [...new Set(result.skipped.map((entry) => entry.reason))],
+      // Array.from, not a spread: this tsconfig targets es5, where spreading a
+      // Set is a type error (TS2802) rather than a runtime one.
+      reasons: Array.from(new Set(result.skipped.map((entry) => entry.reason))),
     });
   }
 
