@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Models;
 
@@ -20,12 +21,21 @@ public class AppcastItem
         }
     }
 
+    /// <summary>
+    /// Inner HTML of every &lt;li&gt;, in document order. Inline emphasis is
+    /// kept here and turned into real bold/italic runs by InlineHtmlText when
+    /// the bullet is rendered.
+    /// </summary>
     public List<string> BulletPoints
     {
         get
         {
-            var matches = Regex.Matches(ReleaseNotes, @"<li>(.*?)</li>", RegexOptions.Singleline);
-            return matches.Select(m => m.Groups[1].Value.Trim()).ToList();
+            var matches = Regex.Matches(ReleaseNotes, @"<li[^>]*>(.*?)</li>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            return matches
+                .Select(m => m.Groups[1].Value)
+                .Where(content => InlineHtml.PlainText(content).Length > 0)
+                .ToList();
         }
     }
 
