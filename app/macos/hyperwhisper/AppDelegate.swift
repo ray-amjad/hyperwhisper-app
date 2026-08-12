@@ -50,13 +50,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// follows launch completion.
     static private(set) var didFinishLaunching = false
 
-    /// When `applicationDidFinishLaunching` ran, or nil if it hasn't yet.
-    ///
-    /// Used by `HyperWhisperApp` to tell a main window that appeared as part of
-    /// launch (which `launchMinimized` may hide) from one the user opened later
-    /// from the menu bar (which it must not).
-    static private(set) var didFinishLaunchingAt: Date?
-
     // MARK: - Initialization
     
     override init() {
@@ -74,7 +67,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - NSApplicationDelegate
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.didFinishLaunching = true
-        AppDelegate.didFinishLaunchingAt = Date()
 
         // Initialize Sentry if DSN is configured and error logging is enabled
         let loggingEnabled = UserDefaults.standard.bool(forKey: "enableErrorLogging")
@@ -115,6 +107,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // when macOS signals .warning/.critical pressure. Behavior-neutral when
         // there is no pressure; never evicts a model mid-transcription.
         memoryPressureMonitor = MemoryPressureMonitor()
+    }
+
+    /// The user clicked the Dock or Finder icon of the already-running app.
+    ///
+    /// This is a deliberate "show me the window", and on a login-item launch it
+    /// can be the FIRST main-window appearance of the process — which the
+    /// `launchMinimized` hide would otherwise treat as launch's own window and
+    /// order out 0.3s after it appears. Returning true keeps AppKit's default
+    /// re-open behavior unchanged.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+        return true
     }
 
     /// Cleanly shut down the Local API server so the port file is removed

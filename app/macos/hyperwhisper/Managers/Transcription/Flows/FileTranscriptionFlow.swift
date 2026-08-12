@@ -741,6 +741,14 @@ class FileTranscriptionFlow {
         let methodStart = CFAbsoluteTimeGetCurrent()
         AppLogger.transcription.debug("📋 [FileTranscription] openMainWindowWithHistory() started")
 
+        // A dropped/picked audio file is a deliberate request for the History
+        // window, so `launchMinimized` must not order it out 0.3s later — on a
+        // login-item launch this can be the first main-window appearance of the
+        // process. Marked here as well as in the STEP 3 callback because STEPs 1
+        // and 2 below re-use an existing window, which the pending launch hide
+        // would still take.
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+
         // Activate the app so it comes to foreground
         NSApp.activate(ignoringOtherApps: true)
         let activateElapsed = (CFAbsoluteTimeGetCurrent() - methodStart) * 1000

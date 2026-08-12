@@ -146,9 +146,6 @@ struct HyperWhisperApp: App {
     /// This service runs on app launch and periodically to clean up old transcripts
     @State private var autoDeleteCleanupService: AutoDeleteCleanupService?
 
-    // One-time bootstrap flag to avoid duplicate initialization work
-    @State private var didBootstrapModels: Bool = false
-    
     // MARK: - Initialization
     
     init() {
@@ -792,12 +789,16 @@ struct MenuBarIconView: View {
             AppLogger.ui.debug("🗑️ Auto-delete cleanup service started")
         }
 
-        // Initialize models and restore mode selection
-        Task {
-            await bootstrapModelsOnce()
-            await MainActor.run {
-                initializeSelectedModeLightweight()
-            }
+        // Restore the selected mode. Deferred one turn so this appear pass isn't
+        // mutating AppState from inside it — that hop is all the removed
+        // `bootstrapModelsOnce()` await was buying, since its body was empty and
+        // only flipped a `@State` flag nothing else read.
+        //
+        // This covers the windowless login-item launch. `handleMainWindowAppear()`
+        // re-runs it on every LATER window appearance, because it is also the only
+        // repair for a dangling `currentModeId` — see the note there.
+        Task { @MainActor in
+            initializeSelectedModeLightweight()
         }
     }
 
@@ -808,6 +809,9 @@ struct MenuBarIconView: View {
     /// `bootstrapAppServices()`, which this calls first so a normal launch keeps
     /// the original ordering.
     private func handleMainWindowAppear() {
+        // Whether the bootstrap had already run before this appear pass. Used at
+        // the end to avoid restoring the selected mode twice on a normal launch.
+        let wasAlreadyBootstrapped = Self.didBootstrapAppServices
         bootstrapAppServices()
 
         // Ensure the app is activated so the window comes forward on a normal
@@ -837,8 +841,7 @@ struct MenuBarIconView: View {
         // LAUNCH MINIMIZED: Hide main window if preference is set
         // This allows the app to run in menu bar only mode by default
         // Users can still access the window via Menu Bar > Settings
-        if launchMinimized && hasCompletedOnboarding && isLaunchWindowPass {
-            Self.didApplyLaunchMinimizedHide = true
+        if launchMinimized && hasCompletedOnboarding && !Self.didResolveLaunchMinimizedHide {
             // Delay to ensure window is fully created before hiding
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 // MainWindowStore, not NSApp.windows.first: hotkeys are now live
@@ -851,59 +854,83 @@ struct MenuBarIconView: View {
                 let mainWindow = MainWindowStore.window
                     ?? NSApplication.shared.windows.first(where: { $0.identifier == .hyperwhisperMainWindow })
                 guard let mainWindow else {
-                    AppLogger.ui.warning("⚠️ launchMinimized: no main window found to hide — it may stay on screen")
+                    // Do NOT mark the hide resolved here: nothing was hidden, and
+                    // a later appearance must still be able to apply it. Both
+                    // lookups above fail together (WindowConfigurator sets the
+                    // store and the identifier in one closure), so this is a real
+                    // "no window yet", not a half-configured one.
+                    AppLogger.ui.warning("⚠️ launchMinimized: no main window found to hide — retrying on the next appearance")
                     return
                 }
+                Self.didResolveLaunchMinimizedHide = true
                 mainWindow.orderOut(nil)
                 AppLogger.ui.debug("🪟 Main window hidden on launch (launchMinimized enabled)")
                 // Return focus to previous app after hiding our window
                 NSApp.deactivate()
             }
+        } else {
+            // Prepare the recordings folder with a user-friendly permission flow.
+            // ONLY on a pass where the window is staying: this can ask about
+            // Documents access via the SwiftUI `.alert` in MainAppView's window
+            // body, and raising that question 300ms before the branch above orders
+            // the same window out means the user sees a flash and is never asked.
+            // A launch that minimizes therefore doesn't ask at all — the next
+            // appearance (the user opening the window) takes this branch and asks
+            // then, and a recording started before that gets the window-independent
+            // presentStorageRecoveryPrompt() from its caller.
+            //
+            // canPresentInWindow: true because we ARE the window's appear pass.
+            // MainWindowStore.window is published from WindowConfigurator's own
+            // deferred hop and can still be nil right here, so the manager's
+            // visibility probe would otherwise wrongly skip the question.
+            settingsManager.prepareRecordingsFolderIfNeeded(canPresentInWindow: true)
         }
 
-        // Prepare recordings folder with a user-friendly permission flow.
-        // WINDOW-DEPENDENT: this can ask about Documents access, and the alert the
-        // user should see for that is the SwiftUI `.alert` in MainAppView's window
-        // body — MenuBarContentView binds the same flag but renders as an NSMenu
-        // under `.menuBarExtraStyle(.menu)` and cannot host an alert.
-        // Deferred one main-queue turn so `WindowConfigurator` (which publishes
-        // MainWindowStore.window from a hop of its own) has run: only then does
-        // StorageSettingsManager see a presenter and prefer the in-window alert
-        // over its windowless NSAlert fallback. It also keeps a possible modal out
-        // of SwiftUI's own appear pass. Either route asks the same question, so no
-        // consent is lost if the ordering ever changes.
-        DispatchQueue.main.async {
-            settingsManager.prepareRecordingsFolderIfNeeded()
+        // MODE REPAIR — per appearance, not once per process.
+        // `initializeSelectedModeLightweight()` is the only code that maps
+        // `settingsManager.currentModeId` onto `appState.selectedModeId`, and the
+        // only thing that repairs a `currentModeId` pointing at a mode that no
+        // longer exists — restoring a backup with `.replace` recreates every mode
+        // under new UUIDs, after which recording fails with
+        // `recording.error.modeMissing`. The `$selectedModeId` sinks in AppState
+        // react to changes but never repair a stale value, so this must not sit
+        // behind the bootstrap once-guard the way it did when it moved out of this
+        // `.onAppear`. `bootstrapAppServices()` runs it for the windowless
+        // login-item launch; this covers every later appearance, as origin/main's
+        // `.onAppear` did.
+        if wasAlreadyBootstrapped {
+            Task { @MainActor in
+                initializeSelectedModeLightweight()
+            }
         }
     }
 
-    /// ONE-TIME LAUNCH-MINIMIZED HIDE GUARD:
-    /// The hide above is launch-only by intent, but `handleMainWindowAppear()` has
-    /// no once-per-launch flag of its own — the main window can appear many times
-    /// per process (menu-bar mode closes it, `MainAppView.openMainWindow()`
-    /// re-opens it), while `launchMinimized`/`hasCompletedOnboarding` are
-    /// `@AppStorage` and stay true for the whole run. Static for the same reason as
-    /// `didBootstrapAppServices`.
-    private static var didApplyLaunchMinimizedHide = false
-
-    /// How long after `applicationDidFinishLaunching` a first main-window
-    /// appearance still counts as part of launch.
-    private static let launchWindowGracePeriod: TimeInterval = 10
-
-    /// Whether this main-window appearance is the launch one, and so the only one
-    /// that may be hidden by `launchMinimized`.
+    /// Whether the launch-minimized hide has been settled for this process —
+    /// either because it ran, or because the user asked for the window and it must
+    /// never run.
     ///
-    /// The once-flag alone is not enough: on the login-item launch this PR exists
-    /// for, macOS never renders the `WindowGroup`, so the FIRST appearance can be
-    /// minutes later and user-driven (Menu Bar → Settings / Open HyperWhisper),
-    /// and hiding that window is exactly the misfire being fixed. Anchor on launch
-    /// time as well, which covers every open path (menu bar, Dock re-open, file
-    /// transcription) without having to enumerate them.
-    private var isLaunchWindowPass: Bool {
-        guard !Self.didApplyLaunchMinimizedHide else { return false }
-        // No launch timestamp yet means launch is still in flight — definitely it.
-        guard let launchedAt = AppDelegate.didFinishLaunchingAt else { return true }
-        return Date().timeIntervalSince(launchedAt) < Self.launchWindowGracePeriod
+    /// The main window can appear many times per process (menu-bar mode closes it,
+    /// `MainAppView.openMainWindow()` re-opens it) while
+    /// `launchMinimized`/`hasCompletedOnboarding` are `@AppStorage` and stay true
+    /// for the whole run. Static for the same reason as `didBootstrapAppServices`.
+    private static var didResolveLaunchMinimizedHide = false
+
+    /// Record that the user deliberately asked for the main window, so
+    /// `launchMinimized` will not take it away from them.
+    ///
+    /// The hide must only ever apply to the window LAUNCH created. On the
+    /// login-item launch this PR exists for, macOS never renders the
+    /// `WindowGroup`, so the FIRST main-window appearance of the process can be a
+    /// user-driven one minutes later — Menu Bar → Settings, a Dock click, or a
+    /// dropped audio file opening History — and hiding that is the misfire. There
+    /// is no wall-clock answer to this (a slow cold boot pushes the real launch
+    /// window past any bound, and a fast menu-bar click lands inside it), but the
+    /// app already knows: every deliberate open goes through a named function, and
+    /// those functions say so here.
+    static func suppressLaunchMinimizedHide() {
+        guard !didResolveLaunchMinimizedHide else { return }
+        didResolveLaunchMinimizedHide = true
+        AppLogger.ui.debug("🪟 Main window opened on request — launchMinimized hide no longer applies")
     }
 
     /// Lightweight initializer that restores selection state only.
@@ -948,16 +975,6 @@ struct MenuBarIconView: View {
         }
     }
 
-    /// Perform one-time model bootstrap work on startup.
-    /// Moves heavy installation/extraction off the main thread and avoids redundant rescans.
-    @MainActor
-    private func bootstrapModelsOnce() async {
-        guard !didBootstrapModels else { return }
-        didBootstrapModels = true
-        // Models are downloaded on demand when needed
-        // TranscriptionPipeline updates in response to download changes
-    }
-    
     /// DEBOUNCE MECHANISM: Track last toggle time to prevent rapid shortcut presses
     /// Problem: Users pressing shortcuts rapidly (within 300ms) could trigger multiple
     /// recording sessions before the first one initializes, causing file conflicts
