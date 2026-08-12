@@ -703,7 +703,8 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// 5. If successful: back to .streaming, audio data flows again
     /// 6. If failed: stop audio capture, enter .error state — unless the
     ///    reconnect was deliberately cancelled by stopSession()/cancel(), in
-    ///    which case it cleans up just as thoroughly but stays silent (see the
+    ///    which case it cleans up just as thoroughly but stays silent (two such
+    ///    paths: the nil-currentConfig guard at step 4, and the
     ///    TranscriptionCancellationPolicy split in the catch below)
     ///
     /// WHY ONLY ONE ATTEMPT:
@@ -798,9 +799,48 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Wait before reconnect attempt
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
-        // Attempt to reconnect using saved config
-        guard let config = currentConfig,
-              let url = strategy.buildWebSocketURL(config: config) else {
+        // Attempt to reconnect using saved config.
+        //
+        // SPLIT INTO TWO GUARDS BECAUSE THE TWO CONDITIONS MEAN OPPOSITE THINGS.
+        // Folded together they shared one error toast, and the nil-config half is
+        // by far the commoner of the two.
+        //
+        // currentConfig is written in exactly two places: set in startSession(),
+        // nil'd in stopSession()'s cleanup. So nil here means one thing only —
+        // stopSession() ran while we were parked in the 1-second sleep above.
+        // That is the same deliberate teardown the catch below classifies with
+        // TranscriptionCancellationPolicy, and it surfaces here instead of there
+        // because `try? await Task.sleep` already swallowed the CancellationError
+        // raised by stopSession()'s receiveTask?.cancel(). Same idea, same rule:
+        // clean up just as thoroughly, but stay silent.
+        guard let config = currentConfig else {
+            // RESOURCE cleanup is identical to the failure path below — the
+            // session is over either way, and a "quiet" path that left the audio
+            // engine running or isStreaming true would be a far worse bug than a
+            // stray toast. Only the two USER-FACING callbacks are dropped.
+            await MainActor.run {
+                self.audioCapture?.stop()
+                self.audioCapture = nil
+                self.isStreaming = false
+                self.onAudioLevel?(0)
+
+                // No onConnectionStateChange(.error) / onError: the caller that
+                // stopped the session (stopSession() via
+                // stopStreamingTranscription, or cancel()) is already mid-teardown
+                // and settles the UI to .idle itself. Firing .error here would
+                // show the user a connection failure they never hit, and
+                // RecordingTranscriptionFlow's onError handler would tear the
+                // session state down underneath the stop that is still running.
+                // Logged so the transition stays traceable locally even though
+                // nothing is reported (HYPERWHISPER-MG).
+                self.logger.info("Reconnect abandoned (cancelled-by-teardown): session was stopped during the reconnect wait")
+            }
+            return
+        }
+
+        // A config that is still there but cannot produce a URL is a genuine
+        // failure, and stays exactly as loud as it has always been.
+        guard let url = strategy.buildWebSocketURL(config: config) else {
             await MainActor.run {
                 self.audioCapture?.stop()
                 self.audioCapture = nil
@@ -808,6 +848,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 self.onAudioLevel?(0)
                 self.onConnectionStateChange?(.error("Connection lost"))
                 self.onError?(StreamingError.serverError("Connection lost and reconnect failed"))
+                self.logger.error("Reconnect failed: could not build a WebSocket URL from the saved config")
             }
             return
         }
