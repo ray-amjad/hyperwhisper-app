@@ -343,19 +343,36 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Start receiving messages
         startReceivingMessages()
 
-        for message in strategy.startMessages(config: config) {
-            try await webSocketTask?.send(message)
-        }
-
-        // STEP 4: Wait for session started event.
+        // STEP 4: Send the start messages, then wait for the session-started
+        // event.
         //
         // A terminal provider error frame arriving before the session-started
-        // frame fails this wait immediately with the provider's own message —
+        // frame fails the wait immediately with the provider's own message —
         // see `pendingStartupFailure`, which `isStartingSession` (raised above)
         // is what routes the error into.
+        //
+        // The send shares this `catch` rather than throwing straight out,
+        // because a refused upgrade fails it too: on a 402/401/403 the socket is
+        // already dead by the time the first start message goes out, so `send`
+        // throws a generic transport error, and an unguarded rethrow leaves this
+        // function before the cleanup and the classification below can run.
         do {
+            for message in strategy.startMessages(config: config) {
+                try await webSocketTask?.send(message)
+            }
+
             try await waitForSessionStarted()
         } catch {
+            // CLASSIFY BEFORE TEARING DOWN.
+            //
+            // A wait that ended in a timeout on a socket the server refused
+            // outright is the timeout naming the wrong cause. The status is on
+            // the task's response — and `teardownSession` below nils the task,
+            // so this has to read it first. This is the last of the three doors
+            // a refusal can come through, and the one that catches an ordering
+            // nobody has predicted.
+            let reported = refusalDuringStartup(shadowing: error)
+
             // CLEANUP ON FAILED CONNECTION:
             // The receiveLoop (started above) is still running on the dead socket.
             // If we don't suppress reconnect, it will hit an error → call
@@ -367,12 +384,19 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             // task really is a different task and must be cancelled.
             teardownSession(cancelReceiveTask: true, cancelReconnect: true)
 
-            // Emit error state for connection timeout before rethrowing
-            if let streamingError = error as? StreamingError,
+            // Emit error state for connection timeout before rethrowing.
+            //
+            // Only the timeout needs this. Every route that turns `error` into a
+            // refusal or a terminal frame has already emitted its own `.error`
+            // state on the way to setting the failure this catch is rethrowing —
+            // `handleTerminalCondition` for the first, `processServerMessage`
+            // for the second — so repeating it here would publish the same state
+            // twice.
+            if let streamingError = reported as? StreamingError,
                case .connectionTimeout = streamingError {
                 onConnectionStateChange?(.error("Connection timed out"))
             }
-            throw error
+            throw reported
         }
 
         // STEP 5: Start audio capture and wire to WebSocket
@@ -591,6 +615,18 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 let message = try await task.receive()
                 await handleMessage(message)
             } catch {
+                // REFUSED UPGRADE (HTTP 402 no credits / 401 / 403):
+                // The socket never opened, so nothing here is a disconnect and
+                // nothing a reconnect can reach — every retry re-asks the same
+                // question and gets the same refusal. The status the server
+                // answered with is on the task's response; read it before the
+                // generic disconnect handling below, which cannot tell this
+                // apart from a dropped connection and used to report it as one.
+                if let refusal = terminalUpgradeRefusal(for: task) {
+                    handleRefusedUpgrade(refusal, task: task, cancelReceiveTask: false)
+                    break
+                }
+
                 // SERVER-INITIATED CLOSE (4001 credits exhausted / 4002 max duration):
                 // The didCloseWith delegate sets didInitiateClose via a separately
                 // enqueued Task { @MainActor in ... }, which can land AFTER this catch
@@ -603,6 +639,25 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 if rawCloseCode == 4001 || rawCloseCode == 4002 {
                     logger.info("Server-initiated close (code=\(rawCloseCode, privacy: .public)) — suppressing reconnect")
                     didInitiateClose = true
+                }
+
+                // 4001 IS AN OUT-OF-CREDITS STOP, AND HAS TO SAY SO.
+                // Suppressing the reconnect above is only half of it: the branch
+                // as it stood then fell through to `break` and the session ended
+                // in silence, with the microphone still live and the flow still
+                // believing it was recording. Report it exactly as a terminal
+                // provider error, so this close and the `Credit balance
+                // exhausted` frame that today's server sends alongside it land
+                // the user in the same place. `handleTerminalCondition` is
+                // idempotent, so whichever of the two arrives first wins and the
+                // other is dropped.
+                if rawCloseCode == 4001 {
+                    handleTerminalCondition(
+                        .insufficientCredits,
+                        detail: "close code 4001",
+                        cancelReceiveTask: false
+                    )
+                    break
                 }
 
                 if !didInitiateClose {
@@ -625,6 +680,145 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 break
             }
         }
+    }
+
+    /// The refusal a failed WebSocket task's HTTP response names, if the user
+    /// has to act on it.
+    ///
+    /// `URLSessionWebSocketTask` keeps the response that came back in place of
+    /// the `101 Switching Protocols` — the only record of *why* the socket never
+    /// opened, since the receive error itself is a generic transport failure.
+    /// A task that did upgrade has a 101 here and returns `nil` through
+    /// `upgradeRefusal(forStatus:)`, so this stays quiet for every mid-session
+    /// drop.
+    private func terminalUpgradeRefusal(
+        for task: URLSessionWebSocketTask
+    ) -> StreamingProviderErrorPolicy.UpgradeRefusal? {
+        guard let response = task.response as? HTTPURLResponse else { return nil }
+        return StreamingProviderErrorPolicy.upgradeRefusal(forStatus: response.statusCode)
+    }
+
+    /// The refusal the current socket's response names, or `error` unchanged.
+    ///
+    /// A startup failure on a socket the server refused outright *is* that
+    /// refusal, whatever shape the failure happened to arrive in — a send that
+    /// could not reach a dead socket, a 10-second poll that timed out waiting
+    /// for a session that was never going to start. Both name the wrong cause;
+    /// the response still carries the right one.
+    ///
+    /// A `CancellationError` is never shadowed: it is a user re-press, and
+    /// `RecordingTranscriptionFlow` has a quiet path for it. Reporting one as a
+    /// billing problem would put a toast on a screen the user just left.
+    ///
+    /// A `pendingStartupFailure` wins outright, because it is the more specific
+    /// answer to the same question — either the provider's own wording for a
+    /// terminal frame, or a refusal the receive loop classified first. That
+    /// second case is why this is returned rather than deferred to: the send and
+    /// the receive both fail on a refused socket with no guaranteed order, and
+    /// whichever loses would otherwise rethrow its own generic transport error
+    /// over an answer already sitting in hand.
+    ///
+    /// Reporting goes through `handleRefusedUpgrade` rather than being done
+    /// here, so a refusal is reported the same way — one Sentry capture, one
+    /// teardown — whichever door it came through. That also *claims* it, so the
+    /// loser of the race is dropped by `handleTerminalCondition`'s idempotence
+    /// guard instead of firing `onError` behind a `startSession()` that has
+    /// already thrown: one fault, one toast, either way round.
+    private func refusalDuringStartup(shadowing error: Error) -> Error {
+        if error is CancellationError { return error }
+        if let failure = pendingStartupFailure { return failure }
+        guard let task = webSocketTask,
+              let refusal = terminalUpgradeRefusal(for: task) else { return error }
+
+        // The caller's own task, not the receive loop — so that loop is a
+        // different task and cancelling it is what stops it reaching the
+        // generic disconnect handling on a socket already accounted for.
+        return handleRefusedUpgrade(refusal, task: task, cancelReceiveTask: true)
+    }
+
+    /// Report a refused upgrade, end the session, and hand back the error that
+    /// describes it.
+    ///
+    /// - Parameter cancelReceiveTask: `false` when the caller is the receive
+    ///   loop itself — the loop breaks the moment this returns.
+    @discardableResult
+    private func handleRefusedUpgrade(
+        _ refusal: StreamingProviderErrorPolicy.UpgradeRefusal,
+        task: URLSessionWebSocketTask,
+        cancelReceiveTask: Bool
+    ) -> StreamingError {
+        let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
+        let error: StreamingError = refusal == .insufficientCredits ? .insufficientCredits : .unauthorized
+        handleTerminalCondition(error, detail: "HTTP \(status)", cancelReceiveTask: cancelReceiveTask)
+        return error
+    }
+
+    /// Surface a terminal condition that arrived outside the provider's event
+    /// stream — a refused upgrade or a 4001 close — with the same guarantees the
+    /// terminal branch of `processServerMessage` gives.
+    ///
+    /// Those guarantees, in the order they have to happen:
+    /// 1. Claim the close as expected, so `receiveLoop` neither reports an
+    ///    unexpected disconnect nor starts a reconnect that cannot succeed.
+    /// 2. Release the microphone and the socket *before* reporting, because
+    ///    `StreamingClientProtocol.onError` promises the caller the session is
+    ///    already torn down and `RecordingTranscriptionFlow` takes it at its
+    ///    word — it never calls `stopSession()`.
+    /// 3. Fail an in-flight `startSession()` through `pendingStartupFailure`
+    ///    rather than through `onError`, so one fault produces one toast. The
+    ///    refused-upgrade case is nearly always this one: the server answers
+    ///    before the socket is up, so startup is still parked in
+    ///    `waitForSessionStarted()` and would otherwise sit out its full 10s and
+    ///    fail with a `connectionTimeout` naming the wrong problem.
+    ///
+    /// - Parameters:
+    ///   - error: The condition, already carrying the sentence the user reads.
+    ///   - detail: How it was detected, for the log and the Sentry payload.
+    ///   - cancelReceiveTask: `false` when the caller runs inside the receive
+    ///     task. See `teardownSession(cancelReceiveTask:cancelReconnect:)`.
+    private func handleTerminalCondition(
+        _ error: StreamingError,
+        detail: String,
+        cancelReceiveTask: Bool
+    ) {
+        // A terminal condition can be signalled twice for one fault — the
+        // provider's error frame and the close that follows it both mean "no
+        // credits". The first one already tore the session down and told the
+        // user; a second report would only overwrite that message with a copy
+        // of itself and re-run a teardown that has already happened.
+        guard !didHandleTerminalProviderError else {
+            logger.info("Terminal condition already handled — ignoring \(detail, privacy: .public)")
+            return
+        }
+        didInitiateClose = true
+        didHandleTerminalProviderError = true
+        lastError = error
+
+        let description = error.localizedDescription
+        logger.error("Terminal streaming condition (\(detail, privacy: .public)): \(description, privacy: .public)")
+        SentryService.capture(
+            error: error,
+            message: "Streaming session refused (terminal)",
+            extras: ["detail": detail],
+            tags: [
+                "component": "StreamingTranscriptionClient",
+                "provider": strategy.transcriptionProviderLabel,
+                "operation": "handleTerminalCondition",
+                // Same tag the provider-error path sets, so account-state noise
+                // can be filtered server-side in one rule rather than two.
+                "terminal": "true"
+            ]
+        )
+
+        teardownSession(cancelReceiveTask: cancelReceiveTask, cancelReconnect: true)
+        onConnectionStateChange?(.error(description))
+
+        if isStartingSession {
+            pendingStartupFailure = error
+            return
+        }
+
+        onError?(error)
     }
 
     /// Handle a received WebSocket message.
@@ -1346,6 +1540,24 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
                 didInitiateClose = true
             }
 
+            // Whichever of this delegate and receiveLoop's catch sees the 4001
+            // first reports it; handleTerminalCondition drops the second. Both
+            // doors are covered because URLSession gives no ordering guarantee
+            // between them — the comment in receiveLoop's catch is the same
+            // point from the other side.
+            //
+            // Unlike that caller, this runs on a task of its own, so the receive
+            // task is a different task and cancelling it is both safe and the
+            // thing that stops the loop.
+            if rawCode == 4001 {
+                handleTerminalCondition(
+                    .insufficientCredits,
+                    detail: "close code 4001 (delegate)",
+                    cancelReceiveTask: true
+                )
+                return
+            }
+
             if !didInitiateClose {
                 isConnected = false
                 isStreaming = false
@@ -1366,6 +1578,17 @@ enum StreamingError: LocalizedError {
     case connectionTimeout
     case serverError(String)
     case audioEngineError(String)
+    /// The account has no balance left — a 402 on the upgrade, or a 4001 close.
+    ///
+    /// Its own case rather than a `serverError(String)`: the server's own
+    /// wording for this is an HTTP status or a close code, so there is no
+    /// message to pass through, and the user needs a localized sentence naming
+    /// the fix. Wrapping it as a `serverError` would also read to the user as
+    /// "Server error: …" — the one description that is wrong here, because the
+    /// server is working exactly as designed.
+    case insufficientCredits
+    /// The key was refused — a 401/403 on the upgrade.
+    case unauthorized
 
     var errorDescription: String? {
         switch self {
@@ -1377,6 +1600,36 @@ enum StreamingError: LocalizedError {
             return "Server error: \(message)"
         case .audioEngineError(let message):
             return "Audio error: \(message)"
+        case .insufficientCredits:
+            // The same sentence the batch path shows for a 402
+            // (`TranscriptionError.insufficientCredits`). One condition, one
+            // wording, whichever path the user hit it on.
+            return "transcription.error.insufficientCredits".localized
+        case .unauthorized:
+            return "transcription.error.unauthorized.generic".localized
+        }
+    }
+
+    /// Whether this error names something only the user can fix — no credits, a
+    /// dead key, a billing hold.
+    ///
+    /// Callers use it to decide what to *report*, never what to *show*: the
+    /// user sees the same sentence either way.
+    ///
+    /// The two dedicated cases answer for themselves rather than through
+    /// `StreamingProviderErrorPolicy.outcome(forProviderMessage:)`, because
+    /// their descriptions are localized — matching the English markers against
+    /// a German toast would call an exhausted balance transient and put it back
+    /// in Sentry, in exactly the locales nobody checks.
+    var isTerminalForUser: Bool {
+        switch self {
+        case .insufficientCredits, .unauthorized:
+            return true
+        case .serverError(let message):
+            // The provider's own wording, passed through untranslated.
+            return StreamingProviderErrorPolicy.outcome(forProviderMessage: message) == .terminal
+        case .invalidURL, .connectionTimeout, .audioEngineError:
+            return false
         }
     }
 }

@@ -254,4 +254,116 @@ struct StreamingProviderErrorPolicyTests {
             )
         }
     }
+
+    // MARK: - Refused upgrades
+
+    @Test func paymentRequiredUpgradeIsInsufficientCredits() {
+        // The other half of running out of credits: the user who already has
+        // none. HyperWhisper Cloud needs 30 seconds of balance to open a
+        // streaming session and refuses the upgrade with 402 before a socket
+        // exists, so no error frame is ever sent and the message-based split
+        // above never gets a turn.
+        #expect(StreamingProviderErrorPolicy.upgradeRefusal(forStatus: 402) == .insufficientCredits)
+    }
+
+    @Test func refusedCredentialUpgradesAreUnauthorized() {
+        // 401 is what the same route answers for a missing or unknown account
+        // key. 403 is grouped with it: both mean the key will not open a session
+        // until the user changes something.
+        #expect(StreamingProviderErrorPolicy.upgradeRefusal(forStatus: 401) == .unauthorized)
+        #expect(StreamingProviderErrorPolicy.upgradeRefusal(forStatus: 403) == .unauthorized)
+    }
+
+    @Test func recoverableUpgradeStatusesKeepTheirReconnect() {
+        // The expensive direction again. A rate limit clears on its own, a 5xx
+        // is the service's problem and not the user's, and a proxy mangling the
+        // upgrade is exactly what the reconnect exists for. Nothing here should
+        // stop the retry.
+        let statuses = [0, 200, 400, 404, 408, 429, 500, 502, 503, 504]
+
+        for status in statuses {
+            #expect(
+                StreamingProviderErrorPolicy.upgradeRefusal(forStatus: status) == nil,
+                "expected no refusal for HTTP \(status)"
+            )
+        }
+    }
+
+    @Test func aSuccessfulUpgradeIsNotARefusal() {
+        // 101 is the status a socket that actually opened carries, so every
+        // mid-session drop reads its response and finds nothing here. Without
+        // this the refusal check would swallow ordinary disconnects.
+        #expect(StreamingProviderErrorPolicy.upgradeRefusal(forStatus: 101) == nil)
+    }
+}
+
+// MARK: - Reporting policy
+
+/// Pins what the recording flow does with a failure once it has one: which
+/// faults still earn a Sentry issue, and which sentence the user reads.
+struct StreamingErrorReportingPolicyTests {
+
+    @Test func exhaustedCreditsAreNotReportedTwice() {
+        // `StreamingTranscriptionClient` already captured this fault, tagged
+        // `terminal`. The flow's own capture titled it "Streaming WebSocket
+        // error" — an outage headline on a user who only has to top up.
+        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.insufficientCredits) == false)
+        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.unauthorized) == false)
+    }
+
+    @Test func aTerminalProviderFrameIsNotReportedTwice() {
+        // The mid-session half, which reaches the flow wrapped as a serverError
+        // carrying the provider's untranslated wording.
+        let error = StreamingError.serverError("Credit balance exhausted")
+
+        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(error) == false)
+    }
+
+    @Test func genuineFailuresAreStillReported() {
+        // The direction that must not regress: every fault the app itself owns
+        // keeps its Sentry issue.
+        let errors: [StreamingError] = [
+            .connectionTimeout,
+            .invalidURL,
+            .serverError("Transcription service error"),
+            .audioEngineError("Failed to install tap")
+        ]
+
+        for error in errors {
+            #expect(
+                StreamingErrorReportingPolicy.shouldCaptureInSentry(error),
+                "expected a capture for \(error)"
+            )
+        }
+    }
+
+    @Test func anUnfamiliarErrorKeepsItsReport() {
+        // The conservative default. A failure that never passed through the
+        // streaming client is unrecognised here, and unrecognised must mean
+        // "report it", not "drop it".
+        struct SomethingElse: Error {}
+
+        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(SomethingElse()))
+    }
+
+    @Test func aUserFixableFaultLeadsWithItsOwnMessage() {
+        // "Streaming error: Insufficient credits…" leads with the app's failure
+        // and buries the fix. The description already names both.
+        let message = StreamingErrorReportingPolicy.userMessage(
+            for: StreamingError.insufficientCredits,
+            context: "Streaming error: "
+        )
+
+        #expect(message == StreamingError.insufficientCredits.localizedDescription)
+        #expect(!message.hasPrefix("Streaming error: "))
+    }
+
+    @Test func anAppFaultKeepsItsFraming() {
+        let message = StreamingErrorReportingPolicy.userMessage(
+            for: StreamingError.connectionTimeout,
+            context: "Streaming error: "
+        )
+
+        #expect(message == "Streaming error: Connection timed out")
+    }
 }

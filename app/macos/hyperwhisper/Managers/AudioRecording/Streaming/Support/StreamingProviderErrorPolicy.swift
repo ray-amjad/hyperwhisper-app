@@ -124,4 +124,62 @@ enum StreamingProviderErrorPolicy {
         let isTerminal = terminalMarkers.contains { normalized.contains($0) }
         return isTerminal ? .terminal : .transient
     }
+
+    // MARK: - Refused upgrades
+
+    /// Why a server refused the WebSocket upgrade outright, when the refusal is
+    /// one the user has to act on.
+    ///
+    /// Distinct from the message-based classification above because it arrives
+    /// through a different door and carries a different signal. A frame is only
+    /// ever sent over a socket that opened; these statuses mean the socket never
+    /// opened at all, so no strategy ever gets to parse a message and the HTTP
+    /// status is the whole of what the server said.
+    enum UpgradeRefusal: Equatable {
+        /// HTTP 402. The account has no balance to open a session with.
+        case insufficientCredits
+        /// HTTP 401 / 403. The key is missing, wrong, revoked or not permitted.
+        case unauthorized
+    }
+
+    /// Classifies the HTTP status of a WebSocket upgrade that never reached 101.
+    ///
+    /// ## Why this exists
+    ///
+    /// The message-based classification above only covers a user who runs out of
+    /// credits *during* a session. The same user one keypress later hits a
+    /// different path entirely: HyperWhisper Cloud requires 30 seconds of
+    /// balance to open a streaming session at all
+    /// (`ws-streaming-deepgram.ts` — `validateCredits(…, minimumStreamingCredits())`),
+    /// and refuses the upgrade with 402 before any socket exists. `receive()`
+    /// then fails with a plain transport error carrying none of that: the client
+    /// read it as an unexpected disconnect, reported it, retried three times
+    /// into the same 402, reported the exhausted retries, and told the user
+    /// "Connection lost after multiple retries" — five Sentry events and a
+    /// message naming the wrong problem, repeated on every attempt until the
+    /// user tops up. The status is on `URLSessionWebSocketTask.response`; it was
+    /// simply never read.
+    ///
+    /// ## Why only these three statuses
+    ///
+    /// Each names a state the *user* changes (top up, fix the key), which is the
+    /// same bar `terminalMarkers` holds to. Everything else — 429, 5xx, a proxy
+    /// mangling the upgrade — keeps today's reconnect, because a retry a second
+    /// later is a reasonable answer to it. `nil` for an unrecognised status is
+    /// therefore the safe default, not a gap.
+    ///
+    /// - Parameter status: The HTTP status of the response that came back
+    ///   instead of a `101 Switching Protocols`.
+    /// - Returns: The refusal when the user has to act, `nil` when the ordinary
+    ///   reconnect path still applies.
+    static func upgradeRefusal(forStatus status: Int) -> UpgradeRefusal? {
+        switch status {
+        case 402:
+            return .insufficientCredits
+        case 401, 403:
+            return .unauthorized
+        default:
+            return nil
+        }
+    }
 }

@@ -562,18 +562,32 @@ extension RecordingTranscriptionFlow {
         service.onError = { [weak self] error in
             guard let self = self else { return }
             AppLogger.audio.error("❌ Streaming error: \(error.localizedDescription, privacy: .public)")
-            SentryService.capture(
-                error: error,
-                message: "Streaming WebSocket error",
-                extras: [
-                    "attemptId": self.currentRecordingAttemptId ?? "none"
-                ],
-                tags: [
-                    "component": "StreamingTranscription",
-                    "provider": provider,
-                    "operation": "onError"
-                ]
-            )
+
+            // AN ACCOUNT WITH NO CREDITS IS NOT A DEFECT.
+            //
+            // The client already captured this fault once, tagged `terminal`,
+            // carrying the provider label and the server's own wording. A second
+            // capture here says less about the same event and is the one that
+            // reads as an outage — "Streaming WebSocket error" on a user whose
+            // only problem is an empty balance. Everything the app cannot fix
+            // itself still comes through untouched.
+            //
+            // This decides what is *reported*, never what is *shown*: the toast
+            // below is unchanged.
+            if StreamingErrorReportingPolicy.shouldCaptureInSentry(error) {
+                SentryService.capture(
+                    error: error,
+                    message: "Streaming WebSocket error",
+                    extras: [
+                        "attemptId": self.currentRecordingAttemptId ?? "none"
+                    ],
+                    tags: [
+                        "component": "StreamingTranscription",
+                        "provider": provider,
+                        "operation": "onError"
+                    ]
+                )
+            }
 
             // Full cleanup to prevent zombie sessions:
             // Without this, isStreamingActive stays true, recordingState stays .recording,
@@ -601,7 +615,9 @@ extension RecordingTranscriptionFlow {
                 self.appState?.isStreamingShortcutTriggered = false
                 KeyboardShortcuts.disable(.cancelRecording)
                 StreamingPreviewWindowManager.shared.close()
-                self.appState?.showError("Streaming error: \(error.localizedDescription)")
+                self.appState?.showError(
+                    StreamingErrorReportingPolicy.userMessage(for: error, context: "Streaming error: ")
+                )
             }
         }
 
@@ -710,7 +726,9 @@ extension RecordingTranscriptionFlow {
                 appState?.showStreamingPreview = false
                 StreamingPreviewWindowManager.shared.close()
             }
-            await cancelRecordingWithError("Failed to start streaming: \(error.localizedDescription)")
+            await cancelRecordingWithError(
+                StreamingErrorReportingPolicy.userMessage(for: error, context: "Failed to start streaming: ")
+            )
         }
     }
 
