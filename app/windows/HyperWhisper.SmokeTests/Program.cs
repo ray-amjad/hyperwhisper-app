@@ -1258,6 +1258,118 @@ internal static class Program
                         == "https://ex.com/p?a=1&b=2", "&#38; stopped decoding in the href");
             });
 
+            Run("InlineHtml does not pair an unclosed value with a later tag's quote", () =>
+            {
+                // Skipping to the matching quote searched the whole fragment, so
+                // a value never closed inside its own tag paired up with the
+                // quote of a later one and everything between them — the label,
+                // its </a>, the next tag — was swallowed as one tag body.
+                const string html = "Read <a href=\"https://ex.com/latency>the page</a> for <b class=\"hl\">details</b>.";
+                var runs = InlineHtml.Parse(html);
+
+                Assert(InlineHtml.PlainText(html) == "Read the page for details.",
+                    $"text was swallowed: '{InlineHtml.PlainText(html)}'");
+                Assert(runs.TrueForAll(run => run.Link is null),
+                    $"an unterminated quote invented a destination: '{string.Join(", ", runs)}'");
+                Assert(runs.Exists(run => run.Text == "details" && run.Bold),
+                    $"the <b> after it never opened: '{string.Join(", ", runs)}'");
+                Assert(runs.TrueForAll(run => !run.Text.Contains('<') && !run.Text.Contains("href")),
+                    $"markup leaked into the text: '{string.Join(", ", runs)}'");
+
+                // A '>' inside a value that *is* closed still does not end the
+                // tag, and an apostrophe in a bare value is still ordinary text.
+                Assert(InlineHtml.PlainText("<a href=\"https://ex.com/?q=a>b\" title=\"t\">here</a>") == "here",
+                    "a '>' inside a quoted value truncated the tag");
+                Assert(InlineHtml.PlainText("<a href=it's>label</a> and <b>Ray's</b> note")
+                        == "label and Ray's note",
+                    "an apostrophe in a bare value ate the text after it");
+            });
+
+            Run("InlineHtml pops on a closing tag that also closes itself", () =>
+            {
+                // parseTag sets both flags for "</a/>", and the self-closing
+                // guard ran first, so nothing was ever popped and the rest of
+                // the note stayed linked, bold or italic.
+                const string anchor =
+                    "<a href=\"https://hyperwhisper.app/changelog\">changelog</a/>. Also faster startup.";
+                var runs = InlineHtml.Parse(anchor);
+
+                Assert(InlineHtml.PlainText(anchor) == "changelog. Also faster startup.",
+                    $"got '{InlineHtml.PlainText(anchor)}'");
+                Assert(runs.Exists(run => run.Text == "changelog" && run.Link is not null),
+                    $"the anchor's own label lost its link: '{string.Join(", ", runs)}'");
+                Assert(runs.TrueForAll(run => run.Link is null || run.Text == "changelog"),
+                    $"'</a/>' left the rest of the note linked: '{string.Join(", ", runs)}'");
+
+                const string bold = "<b>New:</b/> dictation is faster";
+                Assert(InlineHtml.Parse(bold).TrueForAll(run => !run.Bold || run.Text == "New:"),
+                    $"'</b/>' left the rest of the note bold: '{string.Join(", ", InlineHtml.Parse(bold))}'");
+                Assert(InlineHtml.Parse("<i>x</i/> y").TrueForAll(run => !run.Italic || run.Text == "x"),
+                    "'</i/>' left the rest of the note italic");
+                Assert(InlineHtml.Parse("<a href=\"https://x.example\">x</a />after")
+                        .TrueForAll(run => run.Link is null || run.Text == "x"),
+                    "'</a />' left the rest of the note linked");
+
+                // The opening self-closing forms still change no state.
+                Assert(InlineHtml.Parse("before <b/> after").TrueForAll(run => !run.Bold),
+                    "'<b/>' bolded the rest again");
+                Assert(InlineHtml.Parse("Before <a href=\"https://x.example\"/> after")
+                        .TrueForAll(run => run.Link is null),
+                    "'<a …/>' linked the rest again");
+                Assert(InlineHtml.PlainText("a<br/>b") == "a\nb", "'<br/>' stopped breaking the line");
+            });
+
+            Run("InlineHtml writes one space around an element that produces no text", () =>
+            {
+                // The pending space was committed on the opening tag and then
+                // re-armed from producedText, so an empty element was spelt with
+                // a space on each side of nothing.
+                foreach (var html in new[]
+                {
+                    "Read <a href=\"https://x.example\"><img src=\"badge.png\"></a> the docs",
+                    "Read <a href=\"https://x.example\"></a> the docs",
+                    "Read <a href=\"https://x.example\">   </a> the docs"
+                })
+                {
+                    Assert(InlineHtml.PlainText(html) == "Read the docs",
+                        $"'{html}' rendered as '{InlineHtml.PlainText(html)}'");
+                }
+
+                // Both space cases above still hold: the space in front of <a>
+                // stays outside the link, and so does the one in front of </a>.
+                const string opening = "<b>See</b> <a href=\"https://example.com\">here</a>";
+                Assert(InlineHtml.PlainText(opening) == "See here", "the opening-side space was lost");
+                Assert(InlineHtml.Parse(opening).TrueForAll(run => run.Link is null || !run.Text.StartsWith(' ')),
+                    "the opening-side space was swallowed into the link");
+
+                const string closing = "See <a href=\"https://x.example\"><b>the page</b> </a>now";
+                Assert(InlineHtml.PlainText(closing) == "See the page now", "the closing-side space was lost");
+                Assert(InlineHtml.Parse(closing).TrueForAll(run => run.Link is null || run.Text.Trim().Length > 0),
+                    "the closing-side space is inside the link again");
+            });
+
+            Run("InlineHtml keeps the element name when its own value is malformed", () =>
+            {
+                // The name was recorded after the value parse, so giving up on a
+                // malformed value on the first token discarded the element too.
+                Assert(InlineHtml.PlainText("line one<br = >line two") == "line one\nline two",
+                    $"the line break was dropped: '{InlineHtml.PlainText("line one<br = >line two")}'");
+                Assert(InlineHtml.PlainText("a<br = \"unterminated>b") == "a\nb",
+                    $"got '{InlineHtml.PlainText("a<br = \"unterminated>b")}'");
+            });
+
+            Run("InlineHtml collapses a CRLF and leaves a non-breaking space alone", () =>
+            {
+                // macOS reads text by grapheme, where "\r\n" is one Character
+                // equal to neither "\r" nor "\n". Both mirrors must agree here.
+                Assert(InlineHtml.PlainText("line one\r\nline two") == "line one line two",
+                    $"got '{InlineHtml.PlainText("line one\r\nline two")}'");
+                Assert(InlineHtml.PlainText("a\r\n\r\n  b") == "a b",
+                    "a run of CRLFs should collapse to one space");
+                Assert(InlineHtml.PlainText("a&nbsp;b") == "a\u00A0b",
+                    $"a non-breaking space is not collapsible: '{InlineHtml.PlainText("a&nbsp;b")}'");
+            });
+
             Run("InlineHtmlText renders an anchor containing emphasis as one link", () =>
             {
                 // Three runs, one destination: one Hyperlink, not three siblings

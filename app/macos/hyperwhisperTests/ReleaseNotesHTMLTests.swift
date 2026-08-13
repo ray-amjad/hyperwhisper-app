@@ -249,15 +249,102 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.plainText("<a href = 'https://ex.com/?q=a>b'>x</a>") == "x")
     }
 
+    /// Skipping to the matching quote searched the whole fragment, so a value
+    /// never closed inside its own tag paired up with the quote of a later one,
+    /// and everything between them — the label, its "</a>", the next tag — was
+    /// swallowed as one tag body.
+    @Test func aValueLeftOpenDoesNotPairWithALaterTagsQuote() {
+        let html = #"Read <a href="https://ex.com/latency>the page</a> for <b class="hl">details</b>."#
+        let runs = ReleaseNotesHTML.runs(in: html)
+
+        #expect(ReleaseNotesHTML.plainText(html) == "Read the page for details.")
+        #expect(runs.allSatisfy { $0.link == nil })
+        #expect(runs.contains { $0.text == "details" && $0.style.contains(.bold) })
+        #expect(runs.allSatisfy { !$0.text.contains("<") && !$0.text.contains("href") })
+
+        // A ">" inside a value that *is* closed still does not end the tag, and
+        // an apostrophe in a bare value is still an ordinary character.
+        #expect(ReleaseNotesHTML.plainText(#"<a href="https://ex.com/?q=a>b" title="t">here</a>"#) == "here")
+        #expect(ReleaseNotesHTML.plainText("<a href=it's>label</a> and <b>Ray's</b> note")
+                == "label and Ray's note")
+    }
+
+    /// parseTag sets both flags for "</a/>", and the self-closing guard ran
+    /// first, so nothing was ever popped and the rest of the note stayed
+    /// linked, bold or italic.
+    @Test func aClosingTagThatAlsoClosesItselfStillPops() {
+        let anchor = #"<a href="https://hyperwhisper.app/changelog">changelog</a/>. Also faster startup."#
+        let runs = ReleaseNotesHTML.runs(in: anchor)
+
+        #expect(ReleaseNotesHTML.plainText(anchor) == "changelog. Also faster startup.")
+        #expect(runs.contains { $0.text == "changelog" && $0.link != nil })
+        #expect(runs.allSatisfy { $0.link == nil || $0.text == "changelog" })
+
+        #expect(ReleaseNotesHTML.runs(in: "<b>New:</b/> dictation is faster")
+            .allSatisfy { !$0.style.contains(.bold) || $0.text == "New:" })
+        #expect(ReleaseNotesHTML.runs(in: "<i>x</i/> y")
+            .allSatisfy { !$0.style.contains(.italic) || $0.text == "x" })
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://x.example">x</a />after"#)
+            .allSatisfy { $0.link == nil || $0.text == "x" })
+
+        // The opening self-closing forms still change no state.
+        #expect(ReleaseNotesHTML.runs(in: "before <b/> after").allSatisfy { !$0.style.contains(.bold) })
+        #expect(ReleaseNotesHTML.runs(in: #"Before <a href="https://x.example"/> after"#)
+            .allSatisfy { $0.link == nil })
+        #expect(ReleaseNotesHTML.plainText("a<br/>b") == "a\nb")
+    }
+
+    /// The pending space was committed on the opening tag and then re-armed
+    /// from producedText, so an element that produces no text at all was spelt
+    /// with a space on each side of nothing.
+    @Test func anElementThatProducesNoTextIsWrittenWithOneSpaceAroundIt() {
+        for html in [
+            #"Read <a href="https://x.example"><img src="badge.png"></a> the docs"#,
+            #"Read <a href="https://x.example"></a> the docs"#,
+            #"Read <a href="https://x.example">   </a> the docs"#
+        ] {
+            #expect(ReleaseNotesHTML.plainText(html) == "Read the docs", "spacing: \(html)")
+        }
+
+        // Both space cases above still hold.
+        let opening = ReleaseNotesHTML.runs(in: #"<b>See</b> <a href="https://example.com">here</a>"#)
+        #expect(opening.map(\.text).joined() == "See here")
+        #expect(opening.allSatisfy { $0.link == nil || !$0.text.hasPrefix(" ") })
+
+        let closing = ReleaseNotesHTML.runs(in: #"See <a href="https://x.example"><b>the page</b> </a>now"#)
+        #expect(closing.map(\.text).joined() == "See the page now")
+        #expect(closing.allSatisfy { $0.link == nil || !$0.text.trimmingCharacters(in: .whitespaces).isEmpty })
+    }
+
+    /// The name was recorded after the value parse, so giving up on a malformed
+    /// value on the first token discarded the element with it.
+    @Test func aMalformedValueOnTheFirstTokenKeepsTheElementName() {
+        #expect(ReleaseNotesHTML.plainText("line one<br = >line two") == "line one\nline two")
+        #expect(ReleaseNotesHTML.plainText(#"a<br = "unterminated>b"#) == "a\nb")
+    }
+
+    /// "\r\n" is one Character, equal to neither "\r" nor "\n", so a CRLF used
+    /// to be appended literally where the C# mirror — which walks UTF-16 units
+    /// — collapsed it. A non-breaking space is not collapsible on either.
+    @Test func aCarriageReturnLineFeedCollapsesLikeAnyOtherWhitespace() {
+        #expect(ReleaseNotesHTML.plainText("line one\r\nline two") == "line one line two")
+        #expect(ReleaseNotesHTML.plainText("a\r\n\r\n  b") == "a b")
+        #expect(ReleaseNotesHTML.plainText("a&nbsp;b") == "a\u{00A0}b")
+    }
+
     /// The href used to be decoded by running it through the whole parser, which
     /// also stripped markup and comments out of it — a valid, allow-listed, but
-    /// different destination than the one in the feed.
+    /// different destination than the one in the feed. The destination is
+    /// pinned outright: an inequality on an Optional is also true when the link
+    /// was dropped altogether, so it could not fail.
     @Test func theHrefIsTheFeedsVerbatim() {
         let markup = #"<a href="https://ex.com/?q=<b>x</b>">Docs</a>"#
-        #expect(ReleaseNotesHTML.runs(in: markup).first?.link != URL(string: "https://ex.com/?q=x"))
+        #expect(ReleaseNotesHTML.runs(in: markup).first?.link?.absoluteString
+                == "https://ex.com/?q=%3Cb%3Ex%3C/b%3E")
         #expect(ReleaseNotesHTML.plainText(markup) == "Docs")
 
         let commented = #"<a href="https://ex.com/<!-- c -->path">Docs</a>"#
+        #expect(ReleaseNotesHTML.runs(in: commented).first?.link != nil)
         #expect(ReleaseNotesHTML.runs(in: commented).first?.link != URL(string: "https://ex.com/path"))
 
         // Entities in the href must still decode: feeds escape query separators,

@@ -117,6 +117,12 @@ enum ReleaseNotesHTML {
             if pendingSpace, !isClosing {
                 current.append(" ")
                 pendingSpace = false
+
+                // That space is now written, so whitespace straight after it
+                // collapses into it rather than arming a second one. Otherwise
+                // an element that produces no text at all — "a <a href=…><img
+                // …></a> b" — is spelt with a space on each side of nothing.
+                producedText = false
             }
 
             flush()
@@ -124,7 +130,12 @@ enum ReleaseNotesHTML {
 
         func append(_ text: String) {
             for character in text {
-                if character == " " || character == "\n" || character == "\r" || character == "\t" {
+                // "\r\n" is one Character, equal to neither "\r" nor "\n", so a
+                // CRLF needs naming to collapse like the run of whitespace it
+                // is. The set stays the C# mirror's: a non-breaking space is
+                // not collapsible whitespace on either platform.
+                if character == " " || character == "\n" || character == "\r"
+                    || character == "\r\n" || character == "\t" {
                     pendingSpace = producedText
                     continue
                 }
@@ -157,7 +168,11 @@ enum ReleaseNotesHTML {
             // no state at all. Acting on it would push a depth or a link entry
             // nothing ever pops, and the rest of the note would render bold,
             // italic or linked: "<a …/>", "<b/>", "<i/>".
-            if tag.isSelfClosing { return }
+            //
+            // "</a/>" is both closing and self-closing. It is the closing half
+            // that counts: skipping it would leave the depth or link entry its
+            // "<a>" pushed open, which is the very thing this guard is for.
+            if tag.isSelfClosing, !tag.isClosing { return }
 
             switch tag.name {
             case "b", "strong":
@@ -219,7 +234,9 @@ enum ReleaseNotesHTML {
     /// A quote only opens a value where `parseTag` would read one: straight
     /// after an "=". Anywhere else it is an ordinary character, so the
     /// apostrophe in a bare "href=it's" cannot pair up with a later one and run
-    /// the scan past the ">" that really ends the tag.
+    /// the scan past the ">" that really ends the tag. The closing quote has to
+    /// end a value too, so a value left open in its own tag cannot pair up with
+    /// the quote of a later one either.
     private static func tagEnd(in html: String, from start: String.Index) -> String.Index? {
         var index = html.index(after: start)
         var inValuePosition = false
@@ -228,7 +245,15 @@ enum ReleaseNotesHTML {
             let character = html[index]
 
             if inValuePosition, character == "\"" || character == "'" {
-                guard let quotedEnd = html[html.index(after: index)...].firstIndex(of: character) else { break }
+                // The quote that closes a value is followed by what may follow
+                // a value: another attribute, the tag's own "/" or ">". A quote
+                // followed by anything else is a quote in some later tag, or in
+                // the prose between them — this value is never closed inside
+                // its own tag, so fall back to the first ">" rather than eat
+                // everything up to that unrelated quote.
+                guard let quotedEnd = html[html.index(after: index)...].firstIndex(of: character),
+                      endsAttributeValue(in: html, at: html.index(after: quotedEnd)) else { break }
+
                 index = html.index(after: quotedEnd)
                 inValuePosition = false
                 continue
@@ -243,6 +268,16 @@ enum ReleaseNotesHTML {
         }
 
         return html[start...].firstIndex(of: ">")
+    }
+
+    /// Whether a quoted attribute value may end just before `index`: another
+    /// attribute, the tag's own "/" or ">", or the end of the fragment follows
+    /// it.
+    private static func endsAttributeValue(in html: String, at index: String.Index) -> Bool {
+        guard index < html.endIndex else { return true }
+
+        let character = html[index]
+        return character == ">" || character == "/" || character.isWhitespace
     }
 
     // MARK: - Links
@@ -326,6 +361,16 @@ enum ReleaseNotesHTML {
             }
             let tokenEnd = index
 
+            // The first token is the element name; every token after it is an
+            // attribute, valued or not. The name is taken before its own value
+            // is read, so a malformed one — "<br = >" — gives up on the rest of
+            // the tag without taking the element with it.
+            let isName = !haveName
+            if isName {
+                name = String(characters[tokenStart..<tokenEnd]).lowercased()
+                haveName = true
+            }
+
             while index < characters.count, characters[index].isWhitespace { index += 1 }
 
             var value: String?
@@ -348,13 +393,8 @@ enum ReleaseNotesHTML {
                 }
             }
 
-            // The first token is the element name; every token after it is an
-            // attribute, valued or not.
-            if !haveName {
-                name = String(characters[tokenStart..<tokenEnd]).lowercased()
-                haveName = true
-            } else if href == nil,
-                      String(characters[tokenStart..<tokenEnd]).caseInsensitiveCompare("href") == .orderedSame {
+            if !isName, href == nil,
+               String(characters[tokenStart..<tokenEnd]).caseInsensitiveCompare("href") == .orderedSame {
                 href = value
             }
         }
