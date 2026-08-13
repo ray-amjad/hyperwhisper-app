@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 import Testing
 @testable import HyperWhisper
 
@@ -42,6 +43,75 @@ struct ReleaseNotesHTMLTests {
 
         #expect(bold != nil)
         #expect(String(attributed.characters) == "Punctuation control — choose how much.")
+    }
+
+    // MARK: - Links
+
+    @Test func anchorBecomesALinkedRun() {
+        let runs = ReleaseNotesHTML.runs(in: #"See the <a href="https://example.com/latency">latency page</a> now."#)
+
+        #expect(runs == [
+            ReleaseNotesHTML.Run(text: "See the ", style: []),
+            ReleaseNotesHTML.Run(text: "latency page", style: [], link: URL(string: "https://example.com/latency")),
+            ReleaseNotesHTML.Run(text: " now.", style: [])
+        ])
+    }
+
+    @Test func linkedRunIsTintedAndUnderlinedSoItLooksClickable() {
+        let attributed = ReleaseNotesHTML.attributed(#"<a href="https://example.com">tap me</a>"#)
+        let linked = attributed.runs.first { $0.link != nil }
+
+        #expect(linked?.link == URL(string: "https://example.com"))
+        #expect(linked?[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] == .accentColor)
+        #expect(linked?[AttributeScopes.SwiftUIAttributes.UnderlineStyleAttribute.self] == .single)
+        #expect(String(attributed.characters) == "tap me")
+    }
+
+    @Test func emphasisInsideALinkKeepsBothTheStyleAndTheDestination() {
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://example.com"><b>bold link</b></a>"#) == [
+            ReleaseNotesHTML.Run(text: "bold link", style: .bold, link: URL(string: "https://example.com"))
+        ])
+    }
+
+    @Test func hrefAttributesAreReadWhateverTheirQuotingAndCase() {
+        let expected = URL(string: "https://example.com/a")
+
+        #expect(ReleaseNotesHTML.runs(in: #"<A HREF='https://example.com/a' class="x">x</A>"#).first?.link == expected)
+        #expect(ReleaseNotesHTML.runs(in: #"<a class="x" href=https://example.com/a>x</a>"#).first?.link == expected)
+        #expect(ReleaseNotesHTML.runs(in: #"<a href = "https://example.com/a">x</a>"#).first?.link == expected)
+    }
+
+    @Test func escapedQuerySeparatorsSurviveInTheDestination() {
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://example.com/p?a=1&amp;b=2">x</a>"#).first?.link
+                == URL(string: "https://example.com/p?a=1&b=2"))
+    }
+
+    /// A feed we do not control must not be able to produce a clickable
+    /// javascript: or data: URL — the label stays, the link does not.
+    @Test func onlyWebAndMailSchemesBecomeLinks() {
+        let hostile = [
+            #"<a href="javascript:alert(1)">x</a>"#,
+            #"<a href="data:text/html,<b>x</b>">x</a>"#,
+            #"<a href="file:///etc/passwd">x</a>"#,
+            #"<a href="/relative/path">x</a>"#,
+            #"<a data-href="https://example.com">x</a>"#,
+            "<a>x</a>"
+        ]
+
+        for html in hostile {
+            #expect(ReleaseNotesHTML.runs(in: html).allSatisfy { $0.link == nil }, "linked: \(html)")
+            #expect(ReleaseNotesHTML.plainText(html).contains("x"))
+        }
+
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="mailto:hi@example.com">mail</a>"#).first?.link
+                == URL(string: "mailto:hi@example.com"))
+    }
+
+    @Test func textAfterAnUnusableLinkIsNotLinkedEither() {
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="javascript:x">label</a> after"#) == [
+            ReleaseNotesHTML.Run(text: "label", style: []),
+            ReleaseNotesHTML.Run(text: " after", style: [])
+        ])
     }
 
     // MARK: - Robustness
@@ -102,8 +172,20 @@ struct ReleaseNotesHTMLTests {
             releaseNotes: "<b>Enhanced Audio Recording</b>\n<ul>\n<li>Improved stability</li>\n</ul>"
         )
 
-        #expect(item.releaseTitle == "Enhanced Audio Recording")
+        #expect(item.releaseTitle.map { String($0.characters) } == "Enhanced Audio Recording")
         #expect(item.bulletPoints.map { String($0.characters) } == ["Improved stability"])
+    }
+
+    /// A link in the heading is as clickable as one in a bullet.
+    @Test func headingKeepsItsLink() {
+        let item = AppcastItem(
+            version: "2.43.0",
+            buildNumber: "112",
+            pubDate: Date(),
+            releaseNotes: #"<b>See the <a href="https://example.com/latency">latency page</a></b><ul><li>x</li></ul>"#
+        )
+
+        #expect(item.releaseTitle?.runs.contains { $0.link != nil } == true)
     }
 
     @Test func listItemsWithAttributesAndEmptyItemsAreHandled() {

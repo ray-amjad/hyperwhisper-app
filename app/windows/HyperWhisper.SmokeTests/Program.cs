@@ -1004,6 +1004,67 @@ internal static class Program
                     "escaped markup must not be re-parsed as a tag");
             });
 
+            Run("InlineHtml turns <a href> into a linked run", () =>
+            {
+                var runs = InlineHtml.Parse("See the <a href=\"https://example.com/latency\">latency page</a> now.");
+
+                Assert(runs.Count == 3, $"expected 3 runs, got {runs.Count}");
+                Assert(runs[1] == new HtmlRun("latency page", Bold: false, Italic: false,
+                        Link: "https://example.com/latency"),
+                    $"expected a linked label, got '{runs[1]}'");
+                Assert(runs[0].Link is null && runs[2].Link is null,
+                    "text outside the anchor should not be linked");
+
+                var bold = InlineHtml.Parse("<a href=\"https://example.com\"><b>bold link</b></a>");
+                Assert(bold.Count == 1 && bold[0].Bold && bold[0].Link == "https://example.com",
+                    "emphasis inside a link should keep both the style and the destination");
+
+                var quoting = new[]
+                {
+                    "<A HREF='https://example.com/a' class=\"x\">x</A>",
+                    "<a class=\"x\" href=https://example.com/a>x</a>",
+                    "<a href = \"https://example.com/a\">x</a>"
+                };
+                foreach (var html in quoting)
+                {
+                    Assert(InlineHtml.Parse(html)[0].Link == "https://example.com/a",
+                        $"href not read from '{html}'");
+                }
+
+                Assert(InlineHtml.Parse("<a href=\"https://example.com/p?a=1&amp;b=2\">x</a>")[0].Link
+                        == "https://example.com/p?a=1&b=2",
+                    "escaped query separators should survive in the destination");
+            });
+
+            Run("InlineHtml links only web and mail schemes", () =>
+            {
+                var hostile = new[]
+                {
+                    "<a href=\"javascript:alert(1)\">x</a>",
+                    "<a href=\"data:text/html,<b>x</b>\">x</a>",
+                    "<a href=\"file:///etc/passwd\">x</a>",
+                    "<a href=\"/relative/path\">x</a>",
+                    "<a data-href=\"https://example.com\">x</a>",
+                    "<a>x</a>"
+                };
+
+                foreach (var html in hostile)
+                {
+                    Assert(InlineHtml.Parse(html).TrueForAll(run => run.Link is null),
+                        $"'{html}' should not produce a link");
+                    Assert(InlineHtml.PlainText(html).Contains('x'),
+                        $"'{html}' should keep its label");
+                }
+
+                Assert(InlineHtml.Parse("<a href=\"mailto:hi@example.com\">mail</a>")[0].Link
+                        == "mailto:hi@example.com",
+                    "mailto should stay clickable");
+
+                // An unusable href must not leak onto the text that follows it.
+                var after = InlineHtml.Parse("<a href=\"javascript:x\">label</a> after");
+                Assert(after.TrueForAll(run => run.Link is null), "link leaked past the anchor");
+            });
+
             Run("AppcastItem.BulletPoints keeps inline emphasis and drops empty items", () =>
             {
                 var item = new AppcastItem

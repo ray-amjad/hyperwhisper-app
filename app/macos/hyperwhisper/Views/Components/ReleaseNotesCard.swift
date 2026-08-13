@@ -88,7 +88,8 @@ struct ReleaseNotesCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // Bullet points (<b>/<i> in the feed render as real emphasis)
+                // Bullet points (<b>/<i> render as real emphasis, and <a href>
+                // as a tinted, underlined link that opens in the browser)
                 if !release.bulletPoints.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(release.bulletPoints.enumerated()), id: \.offset) { _, point in

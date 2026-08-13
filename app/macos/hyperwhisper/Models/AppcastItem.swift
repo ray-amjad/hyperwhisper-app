@@ -60,19 +60,19 @@ struct AppcastItem: Identifiable, Equatable {
     ///
     /// Only the markup *before* the list counts: a `<b>` inside the first
     /// `<li>` emphasises that bullet, it is not a title for the release.
-    var releaseTitle: String? {
+    var releaseTitle: AttributedString? {
         guard let html = releaseNotes else { return nil }
 
         let listStart = html.range(of: "<ul", options: .caseInsensitive)?.lowerBound
             ?? html.range(of: "<li", options: .caseInsensitive)?.lowerBound
         let heading = String(html[html.startIndex..<(listStart ?? html.endIndex)])
 
-        let title = ReleaseNotesHTML.plainText(heading)
-        return title.isEmpty ? nil : title
+        guard !ReleaseNotesHTML.plainText(heading).isEmpty else { return nil }
+        return ReleaseNotesHTML.attributed(heading)
     }
 
-    /// Bullet points from the release notes, one per `<li>` element,
-    /// with `<b>`/`<i>` emphasis preserved as styled runs
+    /// Bullet points from the release notes, one per `<li>` element, with
+    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs
     var bulletPoints: [AttributedString] {
         listItemHTML.map(ReleaseNotesHTML.attributed)
     }

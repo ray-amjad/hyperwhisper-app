@@ -6,12 +6,17 @@
 //  Converts the small slice of HTML the appcast feeds use for release notes
 //  into text SwiftUI can render.
 //
-//  Supported: <b>/<strong>, <i>/<em>, <br>, and character entities.
+//  Supported: <b>/<strong>, <i>/<em>, <a href>, <br>, and character entities.
 //  Everything else is dropped, keeping its text content — so a feed that grows
-//  a <span> or an <a> degrades to plain text instead of leaking markup into
-//  the UI, which is what used to happen with <b> in the Recent Updates cards.
+//  a <span> degrades to plain text instead of leaking markup into the UI,
+//  which is what used to happen with <b> in the Recent Updates cards.
+//
+//  Only http, https and mailto links are carried through. A javascript: or
+//  data: href keeps its label and loses the link, so a compromised feed cannot
+//  turn a release note into something the user can click into running code.
 
 import Foundation
+import SwiftUI
 
 enum ReleaseNotesHTML {
 
@@ -25,10 +30,12 @@ enum ReleaseNotesHTML {
         static let italic = Style(rawValue: 1 << 1)
     }
 
-    /// A stretch of text that shares one style.
+    /// A stretch of text that shares one style and, if it sits inside an
+    /// `<a href>`, one destination.
     struct Run: Equatable {
         let text: String
         let style: Style
+        var link: URL?
     }
 
     // MARK: - Public API
@@ -37,6 +44,8 @@ enum ReleaseNotesHTML {
     ///
     /// Emphasis is expressed as presentation intent rather than a concrete
     /// font, so the caller's `.font(...)` still decides size and base weight.
+    /// Links are the exception: colour and underline are set outright, because
+    /// a link that is not visibly a link is one nobody clicks.
     static func attributed(_ html: String) -> AttributedString {
         var result = AttributedString()
 
@@ -47,6 +56,12 @@ enum ReleaseNotesHTML {
             if run.style.contains(.bold) { intent.insert(.stronglyEmphasized) }
             if run.style.contains(.italic) { intent.insert(.emphasized) }
             if !intent.isEmpty { piece.inlinePresentationIntent = intent }
+
+            if let link = run.link {
+                piece.link = link
+                piece[AttributeScopes.SwiftUIAttributes.ForegroundColorAttribute.self] = .accentColor
+                piece[AttributeScopes.SwiftUIAttributes.UnderlineStyleAttribute.self] = .single
+            }
 
             result.append(piece)
         }
@@ -66,6 +81,11 @@ enum ReleaseNotesHTML {
         var boldDepth = 0
         var italicDepth = 0
 
+        // One entry per open <a>, nil when its href was missing or unusable —
+        // so the matching </a> still pops the right thing and the label
+        // survives as ordinary text.
+        var linkStack: [URL?] = []
+
         // HTML collapses whitespace, and feed entries are indented across
         // several lines, so a space is only emitted once real text follows it.
         var pendingSpace = false
@@ -78,15 +98,20 @@ enum ReleaseNotesHTML {
             return style
         }
 
+        func currentLink() -> URL? {
+            for entry in linkStack.reversed() where entry != nil { return entry }
+            return nil
+        }
+
         func flush() {
             guard !current.isEmpty else { return }
-            result.append(Run(text: current, style: currentStyle()))
+            result.append(Run(text: current, style: currentStyle(), link: currentLink()))
             current = ""
         }
 
-        /// Close the current run at a `<b>`/`<i>` boundary. A space waiting to
-        /// be written belongs to the text before the tag, so "bold <i>x</i>"
-        /// keeps its space outside the italic run.
+        /// Close the current run at a `<b>`/`<i>`/`<a>` boundary. A space
+        /// waiting to be written belongs to the text before the tag, so
+        /// "bold <i>x</i>" keeps its space outside the italic run.
         func flushAtTagBoundary() {
             if pendingSpace && !current.isEmpty {
                 current.append(" ")
@@ -133,6 +158,13 @@ enum ReleaseNotesHTML {
             case "i", "em":
                 flushAtTagBoundary()
                 italicDepth = isClosing ? max(0, italicDepth - 1) : italicDepth + 1
+            case "a":
+                flushAtTagBoundary()
+                if isClosing {
+                    if !linkStack.isEmpty { linkStack.removeLast() }
+                } else {
+                    linkStack.append(linkURL(inTag: raw))
+                }
             case "br":
                 appendLineBreak()
             default:
@@ -170,6 +202,84 @@ enum ReleaseNotesHTML {
 
         flush()
         return result
+    }
+
+    // MARK: - Links
+
+    /// Schemes we are willing to hand to `openURL`. Anything else — most of
+    /// all `javascript:` and `data:` — keeps its label and loses its link.
+    private static let allowedSchemes: Set<String> = ["http", "https", "mailto"]
+
+    /// Destination of an `<a …>` tag, or nil when it has no usable href.
+    /// `raw` is the tag's contents, without the angle brackets.
+    private static func linkURL(inTag raw: String) -> URL? {
+        guard let href = attributeValue("href", inTag: raw) else { return nil }
+
+        // Feeds escape query separators, so "?a=1&amp;b=2" has to be decoded
+        // before it is a URL.
+        let decoded = plainText(href).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let url = URL(string: decoded),
+              let scheme = url.scheme?.lowercased(),
+              allowedSchemes.contains(scheme) else { return nil }
+
+        return url
+    }
+
+    /// Value of an attribute inside a tag, quoted or bare.
+    /// Case-insensitive on the name, and the value keeps its own case.
+    private static func attributeValue(_ name: String, inTag raw: String) -> String? {
+        let characters = Array(raw)
+        let target = Array(name)
+        var index = 0
+
+        while index < characters.count {
+            // Attribute names start at a whitespace boundary — this keeps
+            // "data-href" from being read as "href".
+            guard index == 0 || characters[index - 1].isWhitespace,
+                  matchesName(target, in: characters, at: index) else {
+                index += 1
+                continue
+            }
+
+            var cursor = index + target.count
+            while cursor < characters.count, characters[cursor].isWhitespace { cursor += 1 }
+
+            guard cursor < characters.count, characters[cursor] == "=" else {
+                index += 1
+                continue
+            }
+
+            cursor += 1
+            while cursor < characters.count, characters[cursor].isWhitespace { cursor += 1 }
+            guard cursor < characters.count else { return nil }
+
+            let quote = characters[cursor]
+            if quote == "\"" || quote == "'" {
+                cursor += 1
+                var end = cursor
+                while end < characters.count, characters[end] != quote { end += 1 }
+                return String(characters[cursor..<end])
+            }
+
+            var end = cursor
+            while end < characters.count, !characters[end].isWhitespace { end += 1 }
+            return String(characters[cursor..<end])
+        }
+
+        return nil
+    }
+
+    /// Case-insensitive match of an attribute name at a position.
+    private static func matchesName(_ target: [Character], in characters: [Character], at index: Int) -> Bool {
+        guard index + target.count <= characters.count else { return false }
+
+        for offset in target.indices
+        where characters[index + offset].lowercased() != String(target[offset]) {
+            return false
+        }
+
+        return true
     }
 
     // MARK: - Entities
