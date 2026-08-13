@@ -24,14 +24,14 @@ jobs:
         working-directory: hyperwhisper-cloud
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: hyperwhisper-cloud/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run typecheck
+      # Bun, matching cloud-deploy.yml, cloud-ci.yml and the Dockerfile.
+      # This job used to run pnpm against a second lockfile: a dependency bump
+      # that updated pnpm-lock.yaml but not bun.lock passed here and then failed
+      # the bun install in cloud-deploy.yml, blocking every prod deploy behind
+      # it. There is now one lockfile and one package manager.
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
 
   # Stage 1: deploy to the staging app and smoke test it.
   staging:

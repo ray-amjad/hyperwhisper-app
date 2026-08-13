@@ -33,6 +33,15 @@ HyperWhisper Cloud — Bun + Hono transcription service on Fly.io. Routes audio 
 Iterate locally against dev; CI deploys staging as the pre-prod gate and smoke-tests it before promoting to prod.
 </important>
 
+<important if="you are adding, upgrading, or pinning a dependency here, or CI fails with `lockfile had changes, but lockfile is frozen`">
+
+**Bun is the only package manager in this folder, and `bun.lock` is the only lockfile.** The Dockerfile, `cloud-ci.yml`, `cloud-deploy.yml` and both deploy workflows all run `bun install --frozen-lockfile` against it.
+
+- After any change to `package.json`, run `bun install` and commit the updated `bun.lock` in the same commit.
+- Never add `pnpm-lock.yaml`, `package-lock.json`, or a `packageManager` field. A second lockfile is what broke this before: a Dependabot bump updated `pnpm-lock.yaml` and `package.json` but not `bun.lock`, the pnpm-based typecheck job stayed green, and every production deploy failed at the bun install for 9 days — silently, because nothing runs on the PR.
+- Never "fix" a red lockfile check by dropping `--frozen-lockfile`. Regenerate the lockfile instead.
+</important>
+
 <important if="you are about to set, change, rotate, or deploy Fly secrets / env vars on the staging or production apps, or a deploy is failing with `<VAR> not configured`">
 
 Don't touch them with `fly secrets set` / `fly secrets deploy`. The Fly secrets on `hyperwhisper-transcribe-staging` and `hyperwhisper-transcribe` (provider API keys, Upstash, Google SA, license API URL, etc.) are **synced automatically from Infisical** — a manual change drifts from the source of truth and gets overwritten on the next sync. To add or rotate a secret, change it in Infisical and re-sync; that stages and deploys it to the Fly apps. If a deploy 500s with `<VAR> not configured`, the secrets are staged-but-not-deployed or out of sync — re-sync from Infisical rather than running `fly secrets deploy` by hand.
