@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Kļūdu žurnalēšana";
 "settings.general.errorLogging.info" = "Automātiski uztvert un nosūtīt kļūdu pārskatus, lai palīdzētu uzlabot lietotni.";
 "settings.general.shareSpeedData.title" = "Kopīgot anonīmus ātruma datus";
-"settings.general.shareSpeedData.subtitle" = "Palīdz visiem redzēt, kurš mākoņa modelis ir ātrākais viņu atrašanās vietā.";
 "settings.general.shareSpeedData.info" = "Mēra, cik ilgu laiku patērē katrs mākoņpakalpojumu sniedzējs, un pievieno to publiskam salīdzinājumam. Mērījumā ietilpst pakalpojumu sniedzējs, servera reģions, klipa garums un patērētais laiks — bez konta, bez atslēgas, bez audio un bez teksta. Izslēdziet šo, un HyperWhisper pārstās to sūtīt. Nekas cits nemainās, un vietējie modeļi nekad neko nesūta.";
 "settings.general.shareSpeedData.link" = "Skatīt ātruma salīdzinājumu";
 "settings.general.autoUpdate.title" = "Automātisks atjaunināšana";

@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Registrazione errori";
 "settings.general.errorLogging.info" = "Acquisisci e invia automaticamente rapporti di errore per migliorare l'app.";
 "settings.general.shareSpeedData.title" = "Condividi dati di velocità anonimi";
-"settings.general.shareSpeedData.subtitle" = "Aiuta tutti a vedere quale modello cloud è il più veloce dove si trovano.";
 "settings.general.shareSpeedData.info" = "Misura quanto tempo impiega ogni provider cloud e lo aggiunge a un confronto pubblico. Una misurazione contiene il provider, la regione del server, la durata della clip e il tempo impiegato — nessun account, nessuna chiave, nessun audio e nessun testo. Disattivalo e HyperWhisper smetterà di inviarlo. Nient'altro cambia e i modelli locali non inviano mai nulla.";
 "settings.general.shareSpeedData.link" = "Vedi il confronto delle velocità";
 "settings.general.autoUpdate.title" = "Aggiornamento automatico";

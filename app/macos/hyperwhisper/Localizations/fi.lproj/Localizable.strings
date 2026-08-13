@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Virheiden kirjaus";
 "settings.general.errorLogging.info" = "Sieppaa ja lähetä virheraportteja automaattisesti sovelluksen parantamiseksi.";
 "settings.general.shareSpeedData.title" = "Jaa anonyymit nopeustiedot";
-"settings.general.shareSpeedData.subtitle" = "Auttaa kaikkia näkemään, mikä pilvimalli on nopein heidän sijainnissaan.";
 "settings.general.shareSpeedData.info" = "Mittaa, kuinka kauan kukin pilvipalveluntarjoaja kestää, ja lisää sen julkiseen vertailuun. Mittaus sisältää palveluntarjoajan, palvelimen alueen, klipin pituuden ja kuluneen ajan — ei tiliä, ei avainta, ei ääntä eikä tekstiä. Kytke tämä pois, niin HyperWhisper lopettaa sen lähettämisen. Mikään muu ei muutu, eivätkä paikalliset mallit koskaan lähetä mitään.";
 "settings.general.shareSpeedData.link" = "Katso nopeusvertailu";
 "settings.general.autoUpdate.title" = "Automaattiset päivitykset";
