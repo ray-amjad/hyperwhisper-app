@@ -48,7 +48,12 @@ function sanitize(value: string | undefined): string | undefined {
 
 // `HyperWhisper/2.41.0` → macos, `HyperWhisper-Windows/1.8.2` → windows.
 // Anything else (curl, a browser, an integration) stays unknown.
-const LEGACY_USER_AGENT = /^HyperWhisper(-(?<platform>[A-Za-z]+))?\/(?<version>[0-9][A-Za-z0-9._-]*)/;
+//
+// The version part is deliberately not required to start with a digit: a client
+// that cannot read its own version stamps a word there (Windows sends
+// `HyperWhisper-Windows/unknown`), and the platform half of that is still worth
+// keeping. The value is a log label, so a non-numeric version costs nothing.
+const LEGACY_USER_AGENT = /^HyperWhisper(-(?<platform>[A-Za-z]+))?\/(?<version>[A-Za-z0-9._-]+)/;
 
 function fromUserAgent(userAgent: string | undefined): ClientInfo | undefined {
   const match = userAgent?.trim().match(LEGACY_USER_AGENT);

@@ -34,6 +34,13 @@ describe('parseClientInfo', () => {
     });
   });
 
+  test('keeps the platform when the client could not read its own version', () => {
+    expect(parseClientInfo(undefined, undefined, 'HyperWhisper-Windows/unknown')).toEqual({
+      clientPlatform: 'windows',
+      clientVersion: 'unknown',
+    });
+  });
+
   test('reports unknown for a caller that is not the app', () => {
     expect(parseClientInfo(undefined, undefined, 'curl/8.4.0')).toEqual({
       clientPlatform: UNKNOWN_CLIENT,

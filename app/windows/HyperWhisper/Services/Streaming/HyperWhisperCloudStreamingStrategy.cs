@@ -56,8 +56,10 @@ public sealed class HyperWhisperCloudStreamingStrategy : IStreamingProviderStrat
     /// <summary>
     /// Carries the platform + app version headers into the WebSocket handshake.
     /// Auth stays in the query string (see BuildWebSocketUri); these headers
-    /// exist only so the streaming session is attributable to a platform and a
-    /// build in the backend logs, like the POST /transcribe path.
+    /// exist only so the handshake carries the same client identity as the
+    /// POST /transcribe path. Note the backend does not record it yet:
+    /// /ws/streaming-deepgram emits no structured log lines, so nothing calls
+    /// readClientInfo there.
     /// </summary>
     public void ConfigureWebSocket(ClientWebSocket webSocket, StreamingSessionConfig config)
     {

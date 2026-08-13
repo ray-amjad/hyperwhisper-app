@@ -144,8 +144,9 @@ class HyperWhisperCloudStrategy: StreamingProviderStrategy {
     /// Carry the platform + app version headers into the WebSocket handshake.
     ///
     /// Auth stays in the query string (see above); this request exists only so
-    /// the streaming session is attributable to a platform and a build in the
-    /// backend logs, exactly like the POST /transcribe path.
+    /// the handshake carries the same client identity as the POST /transcribe
+    /// path. Note the backend does not record it yet: `/ws/streaming-deepgram`
+    /// emits no structured log lines, so nothing calls `readClientInfo` there.
     ///
     /// - Parameters:
     ///   - url: The WebSocket URL from buildWebSocketURL
