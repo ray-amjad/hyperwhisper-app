@@ -38,6 +38,18 @@ HyperWhisper checks for updates automatically. You install a new version with on
   </Tab>
 </Tabs>
 
+## Recent updates on the home page (macOS)
+
+The macOS home page shows a **Recent Updates** section at the bottom, below the statistics bar. It reads the same appcast feed and shows the release notes of the 5 most recent versions. The newest version has a **NEW** badge. While the app reads the feed, a loading placeholder appears. If the feed does not answer, the section shows an error and a retry control.
+
+The Windows app has no equivalent section. On Windows, you read the release notes in the update notification window.
+
+## Links in release notes
+
+A release note can contain a link. HyperWhisper makes the link clickable: on macOS in the **Recent Updates** section, on Windows in the update notification window. Click the link to open the page in your browser.
+
+HyperWhisper opens `http`, `https`, and `mailto` links only. The appcast is remote content, thus a link with a different scheme keeps its text but does not become clickable.
+
 ## Release channels
 
 HyperWhisper ships one stable channel. There is no separate beta channel or insider channel. We do internal tests on each release before we send it to all users.
