@@ -55,6 +55,9 @@ public partial class ModeEditorWindow : Window
             PostProcessingMode = 1,
             PostProcessingProvider = PostProcessingProvider.HyperWhisperCloud.ToStringValue(),
             CloudPostProcessingModel = CloudPostProcessingModel.ClaudeHaiku.ToStorageValue(),
+            // Seed the spelling variant from the system region so a brand-new
+            // mode opens on the user's own variant instead of always American.
+            EnglishSpelling = EnglishSpellingRegionDefault.ForCurrentRegion(),
             CreatedDate = DateTime.UtcNow,
             ModifiedDate = DateTime.UtcNow
         };
@@ -1422,19 +1425,7 @@ public partial class ModeEditorWindow : Window
                 }
 
                 // Load English spelling
-                var spellingValue = mode.EnglishSpelling ?? "american";
-                foreach (ComboBoxItem item in EnglishSpellingCombo.Items)
-                {
-                    if (item.Tag?.ToString() == spellingValue)
-                    {
-                        EnglishSpellingCombo.SelectedItem = item;
-                        break;
-                    }
-                }
-                if (EnglishSpellingCombo.SelectedIndex == -1 && EnglishSpellingCombo.Items.Count > 0)
-                {
-                    EnglishSpellingCombo.SelectedIndex = 0; // Default to American
-                }
+                SelectEnglishSpelling(mode.EnglishSpelling);
 
                 ProfanityFilterCheck.IsChecked = mode.ProfanityFilter;
                 ScreenOCRCheck.IsChecked = mode.EnableScreenOCR;
@@ -1458,7 +1449,7 @@ public partial class ModeEditorWindow : Window
                 PostProcessingModelPanel.Visibility = Visibility.Collapsed;
                 CloudPostProcessingModelPanel.Visibility = Visibility.Visible;
 
-                EnglishSpellingCombo.SelectedIndex = 0; // American
+                SelectEnglishSpelling(mode.EnglishSpelling);
                 ProfanityFilterCheck.IsChecked = mode.ProfanityFilter;
                 ScreenOCRCheck.IsChecked = mode.EnableScreenOCR;
                 UserPromptCheck.IsChecked = false;
@@ -1656,6 +1647,46 @@ public partial class ModeEditorWindow : Window
         if (_isLoading) return;
         UpdateEnglishSpellingVisibility();
         UpdateNova3Warning();
+    }
+
+    /// <summary>
+    /// Selects the English spelling item for a mode. A mode that has no stored
+    /// value falls back to the system region's variant, so a new mode opens on
+    /// the user's own spelling instead of always American.
+    /// </summary>
+    private void SelectEnglishSpelling(string? storedValue)
+    {
+        if (EnglishSpellingCombo.Items.Count == 0)
+        {
+            return;
+        }
+
+        var value = string.IsNullOrWhiteSpace(storedValue)
+            ? EnglishSpellingRegionDefault.ForCurrentRegion()
+            : storedValue;
+
+        if (!TrySelectEnglishSpellingItem(value))
+        {
+            // Unrecognised stored value — fall back to the region default, then
+            // to the first item so the combo is never left unselected.
+            if (!TrySelectEnglishSpellingItem(EnglishSpellingRegionDefault.ForCurrentRegion()))
+            {
+                EnglishSpellingCombo.SelectedIndex = 0;
+            }
+        }
+    }
+
+    private bool TrySelectEnglishSpellingItem(string value)
+    {
+        foreach (ComboBoxItem item in EnglishSpellingCombo.Items)
+        {
+            if (item.Tag?.ToString() == value)
+            {
+                EnglishSpellingCombo.SelectedItem = item;
+                return true;
+            }
+        }
+        return false;
     }
 
     private void UpdateEnglishSpellingVisibility()
