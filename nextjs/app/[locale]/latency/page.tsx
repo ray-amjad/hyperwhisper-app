@@ -128,17 +128,24 @@ export default async function LatencyPage({ params }: Props) {
             </dd>
           </div>
           <div>
+            <dt className="font-medium text-gray-200">Who is counted</dt>
+            <dd className="mt-1">
+              Only the HyperWhisper apps, from the versions that carry the
+              setting below — macOS 2.43.0 and Windows 1.10.0 onward. Sharing is
+              on by default, and a default is only fair if you could have
+              changed it, so builds that shipped before the setting existed are
+              not measured at all. Neither is anything calling the API directly.
+            </dd>
+          </div>
+          <div>
             <dt className="font-medium text-gray-200">How to opt out</dt>
             <dd className="mt-1">
               In the HyperWhisper app, turn off{" "}
               <span className="text-gray-200">Share anonymous speed data</span>{" "}
               under Settings → General. Your transcriptions work exactly the
               same — the same providers, the same speed, the same result — we
-              just stop keeping the timing. Calling the API yourself? Send{" "}
-              <code className="rounded bg-gray-900 px-1.5 py-0.5 text-xs text-gray-300">
-                X-Latency-Opt-Out: 1
-              </code>
-              . Local models never send a timing at all.
+              just stop keeping the timing. Local models never send a timing at
+              all.
             </dd>
           </div>
         </dl>

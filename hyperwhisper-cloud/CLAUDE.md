@@ -137,3 +137,12 @@ Controls applied in this backend: Deepgram `mip_opt_out=true` per request (also 
 
 ElevenLabs zero-retention (`enable_logging=false`) is **enterprise-only** and gated behind `ELEVENLABS_ZERO_RETENTION` (default off) — we're on a standard plan, so it retains by default. Don't send the flag unconditionally; a standard account can have the request rejected. Grok and Mistral retain ~30 days with no self-serve opt-out (enterprise contract only).
 </important>
+
+<important if="you are releasing a new client platform, or wondering why /latency has fewer rows than the traffic suggests">
+
+Anonymous speed data is **on by default**, so it is only collected from clients that could have turned it off. `src/lib/latency-eligibility.ts` holds the whole policy: `MIN_OPT_OUT_VERSION` maps a platform to the first release that shipped the "Share anonymous speed data" switch (macOS `2.43.0`, Windows `1.10.0`). Anything else — an older build, an unlisted platform, an unparseable version, a direct API caller, the release smoke test — is not recorded.
+
+- A new client (iOS) contributes nothing until it is added to that map, and it should only be added once its own settings screen has the switch. Failing closed is the point.
+- When a request is not recorded, `transcribe.request_done` carries `latencySkipped: 'opted_out' | 'client_too_old'`. Query that before assuming ingest is broken.
+- The public copy that describes this lives in `mintlify-help/data-privacy.mdx`, `mintlify-help/general-settings.mdx`, and the "Who is counted" entry on `nextjs/app/[locale]/latency/page.tsx`. Change the map, change all four.
+</important>

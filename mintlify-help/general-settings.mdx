@@ -103,6 +103,8 @@ One measurement holds the provider, the server region, the clip-length group, an
 
 If you turn the setting off, each cloud transcription sends the `X-Latency-Opt-Out: 1` header and the server stores no measurement. Your transcriptions do not change: the same providers run, at the same speed, and you get the same result. Local models never send a measurement, whatever this setting is.
 
+The setting arrived in macOS 2.43.0 and Windows 1.10.0. Older versions have no switch, so the server measures nothing from them at all.
+
 For the full list of the stored fields and the retention period, read [Data & Privacy](/data-privacy#timing-measurements).
 
 ### Auto update / Check for updates automatically
