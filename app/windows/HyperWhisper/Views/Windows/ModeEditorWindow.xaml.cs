@@ -169,24 +169,56 @@ public partial class ModeEditorWindow : Window
         // Anthropic / Grok). Anthropic is tagged "(Recommended)".
         LoadCloudPostProcessingEngines();
 
-        // Tag the recommended transcription engine (ElevenLabs Scribe v2) in the
-        // accuracy/engine combo with "(Recommended)".
-        TagRecommendedTranscriptionEngine();
+        // Build the HyperWhisper Cloud Provider dropdown from the shared catalog.
+        LoadCloudTierProviders();
     }
 
     /// <summary>
-    /// Appends "(Recommended)" to the ElevenLabs Scribe v2 entry in the HyperWhisper
-    /// Cloud engine (accuracy tier) combo. Idempotent — only appends once.
+    /// Populates <see cref="CloudAccuracyCombo"/> with one row per company, read
+    /// from the shared catalog's vendor groups. The tag is the <c>vendor</c> key,
+    /// NOT a tier id — a company that owns several tiers (Google: Chirp + Gemini)
+    /// gets one row, and the tier is resolved from the selected model instead.
+    /// The company owning the recommended engine is tagged "(Recommended)".
     /// </summary>
-    private void TagRecommendedTranscriptionEngine()
+    private void LoadCloudTierProviders()
     {
-        var item = CloudAccuracyCombo.Items
-            .OfType<ComboBoxItem>()
-            .FirstOrDefault(i => i.Tag?.ToString() == "elevenLabsScribeV2");
-        if (item == null) return;
+        CloudAccuracyCombo.Items.Clear();
 
-        var baseLabel = Loc.S("modes.cloudAccuracy.elevenLabsScribeV2.label");
-        item.Content = Loc.S("mode.editor.engine.recommendedLabel", baseLabel);
+        foreach (var group in Services.AppClassification.CloudSttCatalog.Shared.CloudTierVendorGroups())
+        {
+            var isRecommended = group.Entries.Any(
+                e => string.Equals(e.Id, RecommendedCloudTierId, StringComparison.OrdinalIgnoreCase));
+
+            CloudAccuracyCombo.Items.Add(new ComboBoxItem
+            {
+                Content = isRecommended
+                    ? Loc.S("mode.editor.engine.recommendedLabel", group.DisplayName)
+                    : group.DisplayName,
+                Tag = group.VendorKey
+            });
+        }
+    }
+
+    /// <summary>The engine recommended for HyperWhisper Cloud transcription.</summary>
+    private const string RecommendedCloudTierId = "elevenLabsScribeV2";
+
+    /// <summary>
+    /// The cloud tier the current picker selection routes to. The Provider row is
+    /// a company, so the tier comes from the selected MODEL (each model item
+    /// carries its owning tier id in <c>DataContext</c>). Falls back to the
+    /// selected company's first tier before a model exists.
+    /// </summary>
+    private string? SelectedCloudTierId()
+    {
+        if ((CloudTierModelCombo.SelectedItem as ComboBoxItem)?.DataContext is string tierId
+            && !string.IsNullOrEmpty(tierId))
+        {
+            return tierId;
+        }
+
+        var vendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        return Services.AppClassification.CloudSttCatalog.Shared
+            .VendorGroupForVendorKey(vendorKey)?.DefaultEntry.Id;
     }
 
     // =========================================================================
@@ -567,7 +599,7 @@ public partial class ModeEditorWindow : Window
         // tier model combo. Otherwise it's a BYOK provider from CloudProviderCombo.
         if (SelectedTranscriptionSource() == "hwcloud")
         {
-            var tierId = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            var tierId = SelectedCloudTierId();
             var sttProvider = Services.AppClassification.CloudSttCatalog.Shared.SttProviderForId(tierId);
             provider = CloudTranscriptionProviderExtensions.FromIdentifier(sttProvider);
             modelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? string.Empty;
@@ -592,7 +624,7 @@ public partial class ModeEditorWindow : Window
 
         CloudAccuracyPanel.Visibility = Visibility.Visible;
 
-        var tierId = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var vendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
 
         // Toggling the Source segment away and back must NOT reseed the tier model
         // or clear the domain — the user's prior HW Cloud selection is still held in
@@ -602,7 +634,9 @@ public partial class ModeEditorWindow : Window
         var preservedModelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
         var preservedMedicalChecked = MedicalDomainCheck.IsChecked == true;
 
-        LoadCloudTierModels(tierId, preferredModelId: preservedModelId);
+        LoadCloudTierModels(vendorKey, preferredModelId: preservedModelId);
+
+        var tierId = SelectedCloudTierId();
         ApplyMedicalDomainVisibility(tierId, isCheckedFromStorage: preservedMedicalChecked);
         MedicalDomainCheck.IsChecked = preservedMedicalChecked
             && string.Equals(tierId, "assemblyAI", StringComparison.OrdinalIgnoreCase);
@@ -626,17 +660,11 @@ public partial class ModeEditorWindow : Window
             var providerTag = selected.Tag?.ToString();
             var provider = CloudTranscriptionProviderExtensions.FromIdentifier(providerTag);
 
-            if (provider == CloudTranscriptionProvider.Grok)
-            {
-                // Grok has a single implicit model — hide the model picker.
-                CloudModelPanel.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                CloudModelPanel.Visibility = Visibility.Visible;
-                SetCloudModelShowAll(false);
-                LoadCloudModels(provider);
-            }
+            // Every provider shows the model row, including Grok, whose single
+            // implicit model is listed as the one entry.
+            CloudModelPanel.Visibility = Visibility.Visible;
+            SetCloudModelShowAll(false);
+            LoadCloudModels(provider);
 
             // Show Gemini custom prompt panel only for Gemini provider
             GeminiCustomPromptPanel.Visibility = provider == CloudTranscriptionProvider.Gemini
@@ -654,11 +682,11 @@ public partial class ModeEditorWindow : Window
     {
         if (_isLoading) return;
 
-        // Switching tier resets the model to the tier's catalog default and
-        // clears any domain (medical) selection — they're tier-specific.
-        var tierId = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-        LoadCloudTierModels(tierId, preferredModelId: null);
-        ApplyMedicalDomainVisibility(tierId, isCheckedFromStorage: false);
+        // Switching company resets the model to that company's default and clears
+        // any domain (medical) selection — they're tier-specific.
+        var vendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        LoadCloudTierModels(vendorKey, preferredModelId: null);
+        ApplyMedicalDomainVisibility(SelectedCloudTierId(), isCheckedFromStorage: false);
 
         UpdateCloudAccuracyDescription();
         // Switching tiers can flip catalog vocab support (Deepgram → Chirp 3
@@ -671,20 +699,23 @@ public partial class ModeEditorWindow : Window
     }
 
     /// <summary>
-    /// Populates <see cref="CloudTierModelCombo"/> from the selected HyperWhisper
-    /// Cloud tier's catalog <c>models[]</c>. The default model is tagged "(Recommended)";
-    /// preview and no-custom-vocabulary models get an inline hint. Single-model
-    /// tiers (Grok, Azure MAI, Google Chirp) show one disabled entry. Tags carry
-    /// the X-STT-Model id (may be the empty string for Grok's implicit model).
+    /// Populates <see cref="CloudTierModelCombo"/> with every model the selected
+    /// COMPANY offers — spanning all of that company's tiers, so the merged
+    /// "Google" row lists Chirp and Gemini models together. Preview and
+    /// no-custom-vocabulary models get an inline hint. The combo stays an enabled
+    /// dropdown even with one item, so the row never changes shape. Tag carries
+    /// the X-STT-Model id (may be the empty string for Grok's implicit model);
+    /// DataContext carries the owning tier id, which is the X-STT-Provider source.
     /// </summary>
-    private void LoadCloudTierModels(string? tierId, string? preferredModelId)
+    private void LoadCloudTierModels(string? vendorKey, string? preferredModelId)
     {
         _isUpdatingCloudTierModels = true;
         try
         {
             CloudTierModelCombo.Items.Clear();
 
-            var models = Services.AppClassification.CloudSttCatalog.Shared.ModelsForId(tierId);
+            var catalog = Services.AppClassification.CloudSttCatalog.Shared;
+            var models = catalog.ModelsForVendorKey(vendorKey);
             if (models.Count == 0)
             {
                 CloudTierModelPanel.Visibility = Visibility.Collapsed;
@@ -694,11 +725,10 @@ public partial class ModeEditorWindow : Window
 
             CloudTierModelPanel.Visibility = Visibility.Visible;
 
-            foreach (var model in models)
+            foreach (var entry in models)
             {
+                var model = entry.Model;
                 var label = model.DisplayName;
-                if (model.IsDefault)
-                    label = Loc.S("mode.editor.cloudModel.defaultLabel", label);
                 if (model.PreviewStatus)
                     label = Loc.S("mode.editor.cloudModel.previewLabel", label);
                 if (!model.SupportsCustomVocabulary)
@@ -708,17 +738,17 @@ public partial class ModeEditorWindow : Window
                 {
                     Content = label,
                     // Empty-string ids (Grok) are preserved via Tag = "".
-                    Tag = model.Id
+                    Tag = model.Id,
+                    DataContext = entry.TierId
                 });
             }
 
-            // Single implicit model (e.g. Grok): show it but disable interaction.
-            CloudTierModelCombo.IsEnabled = models.Count > 1;
-
-            // Select preferred (saved) model, else the catalog default, else first.
+            // Select preferred (saved) model, else the company's default tier's
+            // default model, else the first entry.
             var targetId = !string.IsNullOrEmpty(preferredModelId)
                 ? preferredModelId
-                : Services.AppClassification.CloudSttCatalog.Shared.DefaultModelIdForId(tierId);
+                : catalog.DefaultModelIdForId(
+                    catalog.VendorGroupForVendorKey(vendorKey)?.DefaultEntry.Id);
 
             ComboBoxItem? match = null;
             foreach (ComboBoxItem item in CloudTierModelCombo.Items)
@@ -746,6 +776,9 @@ public partial class ModeEditorWindow : Window
         if (_isLoading || _isUpdatingCloudTierModels) return;
 
         UpdateCloudTierModelDescription();
+        // Under a merged company row the model also decides the tier (Chirp vs
+        // Gemini), so anything keyed on the tier has to follow the model.
+        ApplyMedicalDomainVisibility(SelectedCloudTierId(), isCheckedFromStorage: false);
         // Model can flip vocab support (scribe_v2 → scribe_v1) and the credits
         // caption is per-model, so refresh both.
         UpdateCloudAccuracyDescription();
@@ -758,7 +791,7 @@ public partial class ModeEditorWindow : Window
     /// <summary>Updates the per-model description line under the tier model combo.</summary>
     private void UpdateCloudTierModelDescription()
     {
-        var tierId = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var tierId = SelectedCloudTierId();
         var modelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
         var model = Services.AppClassification.CloudSttCatalog.Shared.GetModel(tierId, modelId);
 
@@ -808,7 +841,7 @@ public partial class ModeEditorWindow : Window
     /// </summary>
     private void UpdateCloudAccuracyDescription()
     {
-        if (CloudAccuracyCombo.SelectedItem is not ComboBoxItem selected)
+        if (CloudAccuracyCombo.SelectedItem is not ComboBoxItem)
         {
             CloudAccuracyCreditsPanel.Visibility = Visibility.Collapsed;
             CloudAccuracyDescText.Text = "";
@@ -816,7 +849,9 @@ public partial class ModeEditorWindow : Window
         }
 
         var catalog = Services.AppClassification.CloudSttCatalog.Shared;
-        var tier = selected.Tag?.ToString();
+        // The description and credits describe the tier the selected MODEL routes
+        // to, not the company row.
+        var tier = SelectedCloudTierId();
 
         // Prefer a localized description; fall back to the catalog display name
         // so the 6 new tiers render even before translation strings land.
@@ -1128,9 +1163,14 @@ public partial class ModeEditorWindow : Window
                 // legacy standalone provider was rewritten above).
                 var accuracyTierValue = CloudAccuracyTierExtensions
                     .FromString(migratedAccuracyTier ?? mode.CloudAccuracyTier).ToStorageValue();
+
+                // The combo holds companies, so select the company that owns the
+                // stored tier. Storage keeps the tier id — only the row is coarser.
+                var storedVendorKey = Services.AppClassification.CloudSttCatalog.Shared
+                    .VendorGroupForId(accuracyTierValue)?.VendorKey;
                 foreach (ComboBoxItem item in CloudAccuracyCombo.Items)
                 {
-                    if (item.Tag?.ToString() == accuracyTierValue)
+                    if (string.Equals(item.Tag?.ToString(), storedVendorKey, StringComparison.OrdinalIgnoreCase))
                     {
                         CloudAccuracyCombo.SelectedItem = item;
                         break;
@@ -1138,18 +1178,22 @@ public partial class ModeEditorWindow : Window
                 }
                 if (CloudAccuracyCombo.SelectedIndex == -1 && CloudAccuracyCombo.Items.Count > 0)
                 {
-                    // Default to the Deepgram Nova-3 tier via named lookup —
-                    // positional index 1 breaks silently if tier ordering changes.
+                    // Default to Deepgram via named lookup — a positional index
+                    // breaks silently if the catalog order changes.
+                    var deepgramVendorKey = Services.AppClassification.CloudSttCatalog.Shared
+                        .VendorGroupForId("deepgramNova3")?.VendorKey;
                     CloudAccuracyCombo.SelectedItem = CloudAccuracyCombo.Items
                         .OfType<ComboBoxItem>()
-                        .FirstOrDefault(item => (string?)item.Tag == "deepgramNova3")
+                        .FirstOrDefault(item => string.Equals(
+                            (string?)item.Tag, deepgramVendorKey, StringComparison.OrdinalIgnoreCase))
                         ?? CloudAccuracyCombo.Items[0];
                 }
 
-                // Load the saved per-tier model (empty/null → catalog default)
-                // and the saved domain (medical) for the resolved tier.
-                var resolvedTierId = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-                LoadCloudTierModels(resolvedTierId, mode.CloudTranscriptionModel);
+                // Load the saved model (empty/null → catalog default) and the
+                // saved domain (medical) for the tier that model resolves to.
+                var selectedVendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+                LoadCloudTierModels(selectedVendorKey, mode.CloudTranscriptionModel);
+                var resolvedTierId = SelectedCloudTierId();
 
                 var savedDomainIsMedical = string.Equals(mode.CloudTranscriptionDomain, "medical", StringComparison.OrdinalIgnoreCase);
                 ApplyMedicalDomainVisibility(resolvedTierId, isCheckedFromStorage: savedDomainIsMedical);
@@ -1157,15 +1201,6 @@ public partial class ModeEditorWindow : Window
                     && string.Equals(resolvedTierId, "assemblyAI", StringComparison.OrdinalIgnoreCase);
 
                 UpdateCloudAccuracyDescription();
-            }
-            else if (cloudProvider == CloudTranscriptionProvider.Grok)
-            {
-                // Grok has a single implicit model — hide both pickers
-                if (transcriptionSource == "yourprovider")
-                {
-                    CloudModelPanel.Visibility = Visibility.Collapsed;
-                    CloudAccuracyPanel.Visibility = Visibility.Collapsed;
-                }
             }
             else
             {
@@ -2010,10 +2045,12 @@ public partial class ModeEditorWindow : Window
                 _mode.CloudTranscriptionDomain = null;
             }
 
-            // Save the cloud accuracy tier (for HyperWhisper Cloud)
-            if (CloudAccuracyCombo.SelectedItem is ComboBoxItem accuracyItem)
+            // Save the cloud accuracy tier (for HyperWhisper Cloud). The Provider
+            // row is a company, so the tier comes from the selected model.
+            var selectedTierId = SelectedCloudTierId();
+            if (!string.IsNullOrEmpty(selectedTierId))
             {
-                _mode.CloudAccuracyTier = CloudAccuracyTierExtensions.FromString(accuracyItem.Tag?.ToString()).ToStorageValue();
+                _mode.CloudAccuracyTier = CloudAccuracyTierExtensions.FromString(selectedTierId).ToStorageValue();
             }
 
             // Save Gemini custom prompt
@@ -2182,7 +2219,7 @@ public partial class ModeEditorWindow : Window
                 ? "hyperwhisper"
                 : (CloudProviderCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             var cloudModel = (CloudModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-            var cloudAccuracyTier = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+            var cloudAccuracyTier = SelectedCloudTierId();
 
             // Standalone Grok BYOK: keyterm not plumbed through backend.
             // HW Cloud accuracy tiers: catalog flags whether the chosen tier +
@@ -2255,7 +2292,7 @@ public partial class ModeEditorWindow : Window
 
         bool show = providerType == "cloud"
             && ((cloudProvider == "deepgram" && cloudModel?.Contains("nova") == true)
-                || (isHyperWhisperCloud && (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "deepgramNova3"))
+                || (isHyperWhisperCloud && SelectedCloudTierId() == "deepgramNova3"))
             && (language == "auto" || string.IsNullOrEmpty(language));
 
         Nova3Warning.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
@@ -2533,7 +2570,7 @@ public partial class ModeEditorWindow : Window
             // ("unverified") sets return null and fall through to the full list.
             if (isHyperWhisperCloud)
             {
-                var tierId = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+                var tierId = SelectedCloudTierId();
                 var allowed = Services.AppClassification.CloudSttCatalog.Shared.PickerLanguageCodesForId(tierId);
                 if (allowed is { Count: > 0 })
                 {

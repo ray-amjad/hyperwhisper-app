@@ -440,14 +440,15 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// xAI Grok transcription. The API has no model parameter, so this is a
-    /// single placeholder. The model dropdown is hidden in the UI for Grok.
+    /// single entry. It is shown as a one-item dropdown so the Model row keeps
+    /// the same shape as every other provider's.
     /// </summary>
     public static readonly CloudTranscriptionModel[] Grok = new[]
     {
         new CloudTranscriptionModel
         {
             Id = "",
-            DisplayName = "Default",
+            DisplayName = "Grok Speech-to-Text",
             Description = "xAI Grok speech-to-text (single implicit model)",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
