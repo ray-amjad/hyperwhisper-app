@@ -629,11 +629,6 @@ public class HistoryService
         }
     }
 
-    /// <summary>
-    /// Gets the path to the audio folder.
-    /// </summary>
-    public static string GetAudioFolder() => StorageService.Instance.GetRecordingsFolder();
-
 }
 
 /// <summary>

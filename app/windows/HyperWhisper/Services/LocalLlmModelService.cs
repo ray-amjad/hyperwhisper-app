@@ -29,11 +29,6 @@ public class LocalLlmModelService
         return Path.Combine(ModelsDirectory, model.FileName);
     }
 
-    public LocalLlmModelInfo[] GetDownloadedModels()
-    {
-        return LocalLlmModelInfo.AllModels.Where(IsModelDownloaded).ToArray();
-    }
-
     public bool IsModelDownloaded(LocalLlmModelInfo model)
     {
         var modelPath = GetModelPath(model);

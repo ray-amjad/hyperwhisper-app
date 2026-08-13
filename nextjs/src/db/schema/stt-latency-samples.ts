@@ -101,5 +101,3 @@ export const sttLatencySamples = pgTable(
     index("stt_latency_samples_created_at_idx").on(table.createdAt),
   ],
 );
-
-export type SttLatencySampleRow = typeof sttLatencySamples.$inferSelect;
