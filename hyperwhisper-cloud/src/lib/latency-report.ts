@@ -18,6 +18,14 @@ const REPORT_TIMEOUT_MS = 5_000;
 const MAX_SAMPLES_PER_BATCH = 20;
 
 /**
+ * The only Fly app whose traffic belongs on the public page — `app` in
+ * fly.prod.toml. Staging holds the same HYPERWHISPER_INTERNAL_SECRET and
+ * NEXTJS_LICENSE_API_URL as prod (one Infisical value, synced to both), so
+ * without this it posts into the same public table.
+ */
+const PUBLISHING_FLY_APP = 'hyperwhisper-transcribe';
+
+/**
  * Derived, not re-spelled: every reason a provider attempt can fail is already
  * a ProviderUnavailableKind, plus the one case that is not an availability
  * problem at all — an upstream that answered and rejected the input
@@ -103,6 +111,14 @@ export function reportLatencySamples(samples: LatencySample[]): void {
   // on purpose: running off Fly is normal here, not a misconfiguration.
   const flyRegion = process.env.FLY_REGION;
   if (!flyRegion) return;
+
+  // ...and only the production app. Every release runs scripts/smoke-test.ts
+  // against staging first, which sends a real /transcribe per STT provider —
+  // short synthetic clips, spread evenly over providers, from wherever CI's
+  // machines happen to be. Those are not user transcriptions, and the page
+  // says they are. Silent for the same reason as the region guard: a staging
+  // machine is working correctly when it declines to publish.
+  if (process.env.FLY_APP_NAME !== PUBLISHING_FLY_APP) return;
 
   const secret = process.env.HYPERWHISPER_INTERNAL_SECRET;
   if (!secret) {

@@ -17,6 +17,12 @@
 //
 // Values are attacker-controlled — anyone can POST any header — so they are
 // logging labels only. Never gate auth, billing, or routing on them.
+//
+// One deliberate exception: lib/latency-eligibility.ts reads them to decide
+// whether a client is new enough to have shipped the anonymous-speed-data
+// opt-out switch. That is safe only because forging the value in either
+// direction gains the forger nothing — see the note there before adding a
+// second exception.
 
 import type { Context } from 'hono';
 

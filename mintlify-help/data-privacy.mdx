@@ -80,7 +80,12 @@ Under the hood, the app adds one request header:
 X-Latency-Opt-Out: 1
 ```
 
-The server reads this header and discards the measurement instead of storing it. If you call the HyperWhisper Cloud API directly, send the same header to get the same result.
+The server reads this header and discards the measurement instead of storing it.
+
+Two other things are never measured, whatever you send:
+
+- **App versions that predate this setting.** The switch arrived in macOS 2.43.0 and Windows 1.10.0. Sharing is on by default, and the server does not apply that default to a build that could not turn it off. Older versions are not measured at all. Update to take part.
+- **Direct calls to the HyperWhisper Cloud API.** A caller who is not one of the apps never saw the setting, so nothing it sends is stored. You do not need to send any header.
 
 ## Your own API keys (BYOK)
 

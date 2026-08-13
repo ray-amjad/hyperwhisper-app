@@ -31,6 +31,7 @@ import {
   type SttProviderId,
 } from '../lib/stt-models';
 import { readClientInfo } from '../lib/client-info';
+import { clientOffersLatencyOptOut } from '../lib/latency-eligibility';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
 import {
   reportLatencySamples,
@@ -551,9 +552,17 @@ export async function transcribeRoute(c: Context) {
   // and sent once, after the response is decided, so reporting never adds wall
   // time to the latency it is measuring.
   const latencySamples: LatencySample[] = [];
-  // Read once, up front: the header cannot change mid-request, and the send
-  // site below is the only thing that consults it.
+  // Read once, up front: neither input can change mid-request, and the send
+  // site below is the only thing that consults the result.
+  //
+  // Two independent reasons not to report, both resolved here. The header is
+  // the user's live answer. Eligibility is whether they were ever asked: the
+  // opt-out switch shipped in macOS 2.43.0 and Windows 1.10.0, and sharing is
+  // on by default, so recording an older build would apply that default to
+  // someone who had no way to decline it. See lib/latency-eligibility.ts.
   const latencyOptOut = isLatencyOptOut(c);
+  const latencyEligibleClient = clientOffersLatencyOptOut(clientPlatform, clientVersion);
+  const latencyReportable = !latencyOptOut && latencyEligibleClient;
   // The clip length every row of this request is filed under — one estimate,
   // from the bytes on the wire and the Content-Type describing them, used
   // identically on success and on failure.
@@ -777,11 +786,11 @@ export async function transcribeRoute(c: Context) {
     // transcript. In a finally so EVERY path out of the loop reports — the
     // early returns above included — and so it happens exactly once.
     //
-    // The opt-out is checked here rather than at recordAttempt: an opted-out
-    // request still collects samples, it just never sends them, so they die
-    // with the request. Gating the single send is what makes the opt-out
-    // impossible to leak past — there is no second way out of this loop.
-    if (!latencyOptOut) {
+    // Reportability is checked here rather than at recordAttempt: a request
+    // that must not be reported still collects samples, it just never sends
+    // them, so they die with the request. Gating the single send is what makes
+    // that impossible to leak past — there is no second way out of this loop.
+    if (latencyReportable) {
       reportLatencySamples(latencySamples);
     }
   }
@@ -906,9 +915,13 @@ export async function transcribeRoute(c: Context) {
     // Region on the outcome line makes the Axiom dataset queryable by region on
     // its own, without joining against the machine id.
     flyRegion: process.env.FLY_REGION || 'local',
-    // Only present when the caller opted out, so the field's absence is the
-    // normal case. Without it, a thin /latency dataset looks like a bug.
-    ...(latencyOptOut ? { latencyOptOut: true } : {}),
+    // Only present when this request contributed no timing, so the field's
+    // absence is the normal case. Without it a thin /latency dataset looks
+    // like a bug; with it, "how much of the installed base is still too old to
+    // be measured?" is one Axiom query.
+    ...(latencyReportable
+      ? {}
+      : { latencySkipped: latencyOptOut ? 'opted_out' : 'client_too_old' }),
     machineUptimeMs: machineUptimeMs(),
     rssMb: memUsageMb,
   });

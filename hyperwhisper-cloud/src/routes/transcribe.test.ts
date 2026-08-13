@@ -6,6 +6,17 @@ import { drainPendingLatencyReports } from '../lib/latency-report';
 import { estimateCreditsFromSize } from '../middleware/credits';
 import { estimateCreditsForProviderFallbacks } from './transcribe';
 
+/**
+ * A client new enough to carry the "Share anonymous speed data" switch, which
+ * is a precondition for being measured at all (lib/latency-eligibility.ts).
+ * Every latency test below sends these so the thing under test is the thing
+ * that varies, not eligibility.
+ */
+const ELIGIBLE_CLIENT_HEADERS = {
+  'X-HyperWhisper-Platform': 'macos',
+  'X-HyperWhisper-Version': '2.43.0',
+} as const;
+
 describe('estimateCreditsForProviderFallbacks', () => {
   test('validates grok requests against the most expensive fallback provider', () => {
     const blendedEstimate = estimateCreditsFromSize(BYTES_PER_MINUTE_ESTIMATE);
@@ -218,17 +229,21 @@ function samplesOf(batch: unknown): ReportedSample[] {
 describe('X-Latency-Opt-Out', () => {
   const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
   const originalRegion = process.env.FLY_REGION;
+  const originalApp = process.env.FLY_APP_NAME;
 
   beforeEach(() => {
     process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
     process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
     process.env.GROQ_API_KEY = 'test-groq-key';
-    // Two things independently silence reporting, and either would make an
-    // opt-out assertion pass for the wrong reason: no ingest secret, and no
+    // Three things independently silence reporting, and any of them would make
+    // an opt-out assertion pass for the wrong reason: no ingest secret, no
     // FLY_REGION (off Fly nothing is reported, so a laptop never raises a
-    // column on the public page). Set both so the opt-out is the only variable.
+    // column on the public page), and any app but production (staging shares
+    // the secret and must not publish). Set all three so the opt-out is the
+    // only variable.
     process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
     process.env.FLY_REGION = 'fra';
+    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
   });
 
   afterEach(async () => {
@@ -243,6 +258,11 @@ describe('X-Latency-Opt-Out', () => {
     } else {
       process.env.FLY_REGION = originalRegion;
     }
+    if (originalApp === undefined) {
+      delete process.env.FLY_APP_NAME;
+    } else {
+      process.env.FLY_APP_NAME = originalApp;
+    }
   });
 
   function buildApp(): Hono {
@@ -252,7 +272,10 @@ describe('X-Latency-Opt-Out', () => {
   }
 
   /** Runs one transcription and returns the latency batches it reported. */
-  async function reportedBatches(optOutHeader?: string): Promise<unknown[]> {
+  async function reportedBatches(
+    optOutHeader?: string,
+    clientHeaders: Record<string, string> = ELIGIBLE_CLIENT_HEADERS,
+  ): Promise<unknown[]> {
     const batches: unknown[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -283,6 +306,7 @@ describe('X-Latency-Opt-Out', () => {
       'Content-Type': 'audio/wav',
       'Content-Length': String(audio.byteLength),
       'X-STT-Provider': 'deepgram',
+      ...clientHeaders,
     };
     if (optOutHeader !== undefined) {
       headers['X-Latency-Opt-Out'] = optOutHeader;
@@ -327,6 +351,53 @@ describe('X-Latency-Opt-Out', () => {
     expect(await reportedBatches('')).toHaveLength(1);
   });
 
+  // Sharing is on by default, so the default may only be applied to a build
+  // that can turn it off. These are the versions that were live when the page
+  // launched: they were never asked, so they are never recorded — not even
+  // though they send no opt-out header at all.
+  test('reports nothing from a build that predates the opt-out switch', async () => {
+    expect(
+      await reportedBatches(undefined, {
+        'X-HyperWhisper-Platform': 'macos',
+        'X-HyperWhisper-Version': '2.42.0',
+      }),
+    ).toHaveLength(0);
+    expect(
+      await reportedBatches(undefined, {
+        'X-HyperWhisper-Platform': 'windows',
+        'X-HyperWhisper-Version': '1.9.0',
+      }),
+    ).toHaveLength(0);
+  });
+
+  test('reports nothing from a client it cannot identify', async () => {
+    expect(await reportedBatches(undefined, {})).toHaveLength(0);
+  });
+
+  test('reports nothing from an old build even when it says it opted in', async () => {
+    expect(
+      await reportedBatches('0', {
+        'X-HyperWhisper-Platform': 'macos',
+        'X-HyperWhisper-Version': '2.42.0',
+      }),
+    ).toHaveLength(0);
+  });
+
+  // The legacy User-Agent is the only identity a build older than the
+  // X-HyperWhisper-* headers sends, and it is exactly the population this gate
+  // exists for — so it has to be read, not treated as unidentifiable.
+  test('reads an old build from its User-Agent alone', async () => {
+    expect(
+      await reportedBatches(undefined, { 'User-Agent': 'HyperWhisper/2.41.0' }),
+    ).toHaveLength(0);
+    expect(
+      await reportedBatches(undefined, { 'User-Agent': 'HyperWhisper-Windows/1.8.2' }),
+    ).toHaveLength(0);
+    expect(
+      await reportedBatches(undefined, { 'User-Agent': 'HyperWhisper/2.43.0' }),
+    ).toHaveLength(1);
+  });
+
   /**
    * Runs a transcription where every provider in the chain rejects the input
    * with a 400 — the all-failed path, which returns early, so the `finally`
@@ -354,6 +425,7 @@ describe('X-Latency-Opt-Out', () => {
       'Content-Type': 'audio/wav',
       'Content-Length': String(audio.byteLength),
       'X-STT-Provider': 'elevenlabs',
+      ...ELIGIBLE_CLIENT_HEADERS,
     };
     if (optOutHeader !== undefined) {
       headers['X-Latency-Opt-Out'] = optOutHeader;
@@ -446,12 +518,14 @@ describe('X-Latency-Opt-Out', () => {
 describe('latency clip length and model', () => {
   const originalSecret = process.env.HYPERWHISPER_INTERNAL_SECRET;
   const originalRegion = process.env.FLY_REGION;
+  const originalApp = process.env.FLY_APP_NAME;
 
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.ASSEMBLYAI_API_KEY = 'test-assemblyai-key';
     process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
     process.env.FLY_REGION = 'fra';
+    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
   });
 
   afterEach(async () => {
@@ -467,6 +541,11 @@ describe('latency clip length and model', () => {
       delete process.env.FLY_REGION;
     } else {
       process.env.FLY_REGION = originalRegion;
+    }
+    if (originalApp === undefined) {
+      delete process.env.FLY_APP_NAME;
+    } else {
+      process.env.FLY_APP_NAME = originalApp;
     }
   });
 
@@ -508,6 +587,7 @@ describe('latency clip length and model', () => {
           'Content-Type': 'audio/wav',
           'Content-Length': String(audio.byteLength),
           'X-STT-Provider': 'openai',
+          ...ELIGIBLE_CLIENT_HEADERS,
         },
         body: audio,
       }),
@@ -551,6 +631,7 @@ describe('latency clip length and model', () => {
           'Content-Length': String(audio.byteLength),
           'X-STT-Provider': 'assemblyai',
           'X-STT-Model': 'universal-2',
+          ...ELIGIBLE_CLIENT_HEADERS,
         },
         body: audio,
       }),
@@ -573,6 +654,7 @@ describe('what a latency row measures', () => {
   beforeEach(() => {
     process.env.HYPERWHISPER_INTERNAL_SECRET = 'test-internal-secret';
     process.env.FLY_REGION = 'fra';
+    process.env.FLY_APP_NAME = 'hyperwhisper-transcribe';
   });
 
   afterEach(async () => {
@@ -594,6 +676,7 @@ describe('what a latency row measures', () => {
         'Content-Type': 'audio/wav',
         'Content-Length': String(audio.byteLength),
         'X-STT-Provider': provider,
+        ...ELIGIBLE_CLIENT_HEADERS,
       },
       body: audio,
     });
