@@ -37,6 +37,17 @@ Some providers store data for a short time for abuse monitoring. Grok and Mistra
 
 As a HyperWhisper Cloud user, you do not configure anything. No provider in the stack uses your audio for model training. No provider stores it, except in the limited cases in this section.
 
+### Which app made the request
+
+Every request to HyperWhisper Cloud says which app sent it, through two headers:
+
+```text
+X-HyperWhisper-Platform: macos
+X-HyperWhisper-Version: 2.41.0
+```
+
+The platform is `macos` or `windows`. The version is the app version you run. HyperWhisper writes both to the server log for the request, so a fault can be traced to one platform and one app version. Neither header names you, your device, or your account.
+
 ### Timing measurements
 
 HyperWhisper Cloud times each provider call and stores the timing. These timings make the public [latency page](https://hyperwhisper.com/en/latency), which shows how fast each provider answers in each region.
