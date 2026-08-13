@@ -1,13 +1,14 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
-  "version": 6,
-  "updated": "2026-08-07",
+  "version": 7,
+  "updated": "2026-08-13",
   "providers": [
     {
       "id": "groqWhisper",
       "displayName": "Groq Whisper",
       "displayModel": "whisper-large-v3-turbo",
       "vendor": "groq",
+      "vendorDisplayName": "Groq",
       "sttProvider": "groq",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -46,6 +47,7 @@
       "displayName": "Deepgram Nova 3",
       "displayModel": "nova-3",
       "vendor": "deepgram",
+      "vendorDisplayName": "Deepgram",
       "sttProvider": "deepgram",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -93,10 +95,11 @@
       "displayName": "Grok STT",
       "displayModel": "grok-stt",
       "vendor": "xai",
+      "vendorDisplayName": "xAI",
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "", "displayName": "Grok STT", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+        { "id": "", "displayName": "Grok Speech-to-Text", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
       "migrateFrom": ["grok", "grokstt"],
@@ -131,6 +134,7 @@
       "displayName": "Microsoft MAI-Transcribe 1.5",
       "displayModel": "mai-transcribe-1.5",
       "vendor": "azure",
+      "vendorDisplayName": "Microsoft",
       "sttProvider": "azure-mai",
       "access": { "cloudTierEligible": true, "byokEligible": false },
       "models": [
@@ -172,6 +176,7 @@
       "displayName": "Google Chirp 3",
       "displayModel": "chirp_3",
       "vendor": "google",
+      "vendorDisplayName": "Google",
       "sttProvider": "google-chirp",
       "access": { "cloudTierEligible": true, "byokEligible": false },
       "models": [
@@ -212,6 +217,7 @@
       "displayName": "ElevenLabs Scribe v2",
       "displayModel": "scribe_v2",
       "vendor": "elevenlabs",
+      "vendorDisplayName": "ElevenLabs",
       "sttProvider": "elevenlabs",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -258,6 +264,7 @@
       "displayName": "OpenAI Whisper",
       "displayModel": "whisper-1",
       "vendor": "openai",
+      "vendorDisplayName": "OpenAI",
       "sttProvider": "openai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -303,6 +310,7 @@
       "displayName": "AssemblyAI",
       "displayModel": "universal-2",
       "vendor": "assemblyai",
+      "vendorDisplayName": "AssemblyAI",
       "sttProvider": "assemblyai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -343,6 +351,7 @@
       "displayName": "Mistral Voxtral",
       "displayModel": "voxtral-mini-latest",
       "vendor": "mistral",
+      "vendorDisplayName": "Mistral",
       "sttProvider": "mistral",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -378,6 +387,7 @@
       "displayName": "Soniox",
       "displayModel": "soniox-async",
       "vendor": "soniox",
+      "vendorDisplayName": "Soniox",
       "sttProvider": "soniox",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -418,14 +428,15 @@
       "displayName": "Google Gemini",
       "displayModel": "gemini-2.5-flash",
       "vendor": "google",
+      "vendorDisplayName": "Google",
       "sttProvider": "gemini",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
         { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "creditsPerMinute": 0.8, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "creditsPerMinute": 7.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash (Preview)", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
-        { "id": "gemini-3.1-pro-preview", "displayName": "Gemini 3.1 Pro (Preview)", "creditsPerMinute": 10.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true }
+        { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
+        { "id": "gemini-3.1-pro-preview", "displayName": "Gemini 3.1 Pro", "creditsPerMinute": 10.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {
         "supported": true,
