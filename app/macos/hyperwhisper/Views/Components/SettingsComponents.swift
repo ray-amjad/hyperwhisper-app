@@ -19,6 +19,11 @@ import KeyboardShortcuts
 
 /// A standardized toggle row for settings
 /// Used throughout settings views for boolean preferences
+///
+/// `titleLink` hangs a small "open in browser" glyph next to the title, for a
+/// setting whose pay-off is a web page — the page stays reachable whether or
+/// not the toggle is on. Both link properties default to nothing, so rows that
+/// do not want one are unaffected.
 struct SettingsToggleRow: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
@@ -27,19 +32,40 @@ struct SettingsToggleRow: View {
     var standalone: Bool = true
     var titleFont: Font = .headline
     var subtitleFont: Font = .caption
-    
+    var titleLink: URL?
+    var titleLinkHelp: LocalizedStringKey?
+
+    /// The title-line link, or nothing at all. `.help` alone sets the
+    /// accessibility *hint*, so a glyph-only control needs an explicit label
+    /// too or VoiceOver announces an unnamed button.
+    @ViewBuilder
+    private var titleLinkGlyph: some View {
+        if let titleLink {
+            Link(destination: titleLink) {
+                Image(systemName: "arrow.up.forward.app")
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.accentColor)
+            .help(titleLinkHelp ?? "")
+            .accessibilityLabel(Text(titleLinkHelp ?? ""))
+        }
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(titleFont)
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(titleFont)
+                    titleLinkGlyph
+                }
                 if let subtitle {
                     Text(subtitle)
                         .font(subtitleFont)
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             Spacer(minLength: 12)
             Toggle("", isOn: $isOn)
                 .toggleStyle(.switch)

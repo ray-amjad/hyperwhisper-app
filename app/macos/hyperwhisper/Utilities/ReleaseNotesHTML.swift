@@ -83,7 +83,8 @@ enum ReleaseNotesHTML {
 
         // One entry per open <a>, nil when its href was missing or unusable —
         // so the matching </a> still pops the right thing and the label
-        // survives as ordinary text.
+        // survives as ordinary text. The innermost entry wins: a nested <a>
+        // with a rejected href must not inherit the outer destination.
         var linkStack: [URL?] = []
 
         // HTML collapses whitespace, and feed entries are indented across
@@ -98,25 +99,33 @@ enum ReleaseNotesHTML {
             return style
         }
 
-        func currentLink() -> URL? {
-            for entry in linkStack.reversed() where entry != nil { return entry }
-            return nil
-        }
-
         func flush() {
             guard !current.isEmpty else { return }
-            result.append(Run(text: current, style: currentStyle(), link: currentLink()))
+            result.append(Run(text: current, style: currentStyle(), link: linkStack.last ?? nil))
             current = ""
         }
 
         /// Close the current run at a `<b>`/`<i>`/`<a>` boundary. A space
         /// waiting to be written belongs to the text before the tag, so
-        /// "bold <i>x</i>" keeps its space outside the italic run.
+        /// "bold <i>x</i>" keeps its space outside the italic run — and
+        /// "<b>See</b> <a>here</a>" does not underline and tint the space in
+        /// front of the link.
         func flushAtTagBoundary() {
-            if pendingSpace && !current.isEmpty {
-                current.append(" ")
-                pendingSpace = false
+            guard pendingSpace else {
+                flush()
+                return
             }
+
+            if current.isEmpty {
+                // Nothing left to hang the space on, so it becomes its own run
+                // carrying the style and destination in force when it was read.
+                result.append(Run(text: " ", style: currentStyle(), link: linkStack.last ?? nil))
+                pendingSpace = false
+                return
+            }
+
+            current.append(" ")
+            pendingSpace = false
             flush()
         }
 
@@ -144,12 +153,17 @@ enum ReleaseNotesHTML {
         }
 
         func handleTag(_ raw: String) {
-            var name = raw.trimmingCharacters(in: .whitespaces).lowercased()
+            var name = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let isClosing = name.hasPrefix("/")
             if isClosing { name.removeFirst() }
 
+            // "<a …/>" opens and closes in one go, like "<br/>": it must not
+            // push an entry nothing will ever pop, or every remaining word in
+            // the note renders as part of the link.
+            let isSelfClosing = !isClosing && name.hasSuffix("/")
+
             // Keep the element name only: "br/" -> "br", "a href=…" -> "a".
-            name = String(name.prefix { $0 != "/" && $0 != " " && $0 != "\n" && $0 != "\t" })
+            name = String(name.prefix { $0 != "/" && $0 != " " && $0 != "\n" && $0 != "\r" && $0 != "\t" })
 
             switch name {
             case "b", "strong":
@@ -162,7 +176,7 @@ enum ReleaseNotesHTML {
                 flushAtTagBoundary()
                 if isClosing {
                     if !linkStack.isEmpty { linkStack.removeLast() }
-                } else {
+                } else if !isSelfClosing {
                     linkStack.append(linkURL(inTag: raw))
                 }
             case "br":
@@ -177,7 +191,7 @@ enum ReleaseNotesHTML {
             let character = html[index]
 
             if character == "<" {
-                guard let close = html[index...].firstIndex(of: ">") else {
+                guard let close = tagEnd(in: html, from: index) else {
                     // Unterminated tag: the rest is text, not markup.
                     append(String(html[index...]))
                     break
@@ -204,6 +218,32 @@ enum ReleaseNotesHTML {
         return result
     }
 
+    // MARK: - Tags
+
+    /// Index of the ">" that ends the tag opened at `start`, ignoring any ">"
+    /// inside a quoted attribute value — a URL may carry one in its query.
+    /// Returns nil when the tag is never closed. A quote that is never closed
+    /// falls back to the first ">", so one malformed attribute cannot swallow
+    /// the rest of the fragment as markup.
+    private static func tagEnd(in html: String, from start: String.Index) -> String.Index? {
+        var index = html.index(after: start)
+
+        while index < html.endIndex {
+            let character = html[index]
+
+            if character == "\"" || character == "'" {
+                guard let quotedEnd = html[html.index(after: index)...].firstIndex(of: character) else { break }
+                index = html.index(after: quotedEnd)
+                continue
+            }
+
+            if character == ">" { return index }
+            index = html.index(after: index)
+        }
+
+        return html[start...].firstIndex(of: ">")
+    }
+
     // MARK: - Links
 
     /// Schemes we are willing to hand to `openURL`. Anything else — most of
@@ -228,58 +268,56 @@ enum ReleaseNotesHTML {
 
     /// Value of an attribute inside a tag, quoted or bare.
     /// Case-insensitive on the name, and the value keeps its own case.
+    ///
+    /// The tag is walked attribute by attribute rather than searched for the
+    /// name, so a value that happens to contain "href=" — a title, say — can
+    /// never be mistaken for the attribute itself. An unterminated quote gives
+    /// up (nil) instead of inventing a value out of the rest of the tag.
     private static func attributeValue(_ name: String, inTag raw: String) -> String? {
         let characters = Array(raw)
-        let target = Array(name)
+        let targetLength = name.count
         var index = 0
 
         while index < characters.count {
-            // Attribute names start at a whitespace boundary — this keeps
-            // "data-href" from being read as "href".
-            guard index == 0 || characters[index - 1].isWhitespace,
-                  matchesName(target, in: characters, at: index) else {
+            while index < characters.count, characters[index].isWhitespace { index += 1 }
+            guard index < characters.count else { break }
+
+            // The element name is the first token and carries no "=", so it
+            // falls through the valueless-attribute path below.
+            let nameStart = index
+            while index < characters.count, !characters[index].isWhitespace, characters[index] != "=" {
                 index += 1
-                continue
             }
+            let nameEnd = index
 
-            var cursor = index + target.count
-            while cursor < characters.count, characters[cursor].isWhitespace { cursor += 1 }
+            while index < characters.count, characters[index].isWhitespace { index += 1 }
+            guard index < characters.count, characters[index] == "=" else { continue }
 
-            guard cursor < characters.count, characters[cursor] == "=" else {
-                index += 1
-                continue
-            }
+            index += 1
+            while index < characters.count, characters[index].isWhitespace { index += 1 }
+            guard index < characters.count else { return nil }
 
-            cursor += 1
-            while cursor < characters.count, characters[cursor].isWhitespace { cursor += 1 }
-            guard cursor < characters.count else { return nil }
+            // One case-folded comparison per attribute — the old per-character
+            // compare lowercased only the tag's side, so it silently required
+            // the caller to pass a lowercase name.
+            let isTarget = nameEnd - nameStart == targetLength
+                && String(characters[nameStart..<nameEnd]).caseInsensitiveCompare(name) == .orderedSame
 
-            let quote = characters[cursor]
+            let quote = characters[index]
             if quote == "\"" || quote == "'" {
-                cursor += 1
-                var end = cursor
-                while end < characters.count, characters[end] != quote { end += 1 }
-                return String(characters[cursor..<end])
+                index += 1
+                guard let quotedEnd = characters[index...].firstIndex(of: quote) else { return nil }
+                if isTarget { return String(characters[index..<quotedEnd]) }
+                index = quotedEnd + 1
+                continue
             }
 
-            var end = cursor
-            while end < characters.count, !characters[end].isWhitespace { end += 1 }
-            return String(characters[cursor..<end])
+            let valueStart = index
+            while index < characters.count, !characters[index].isWhitespace { index += 1 }
+            if isTarget { return String(characters[valueStart..<index]) }
         }
 
         return nil
-    }
-
-    /// Case-insensitive match of an attribute name at a position.
-    private static func matchesName(_ target: [Character], in characters: [Character], at index: Int) -> Bool {
-        guard index + target.count <= characters.count else { return false }
-
-        for offset in target.indices
-        where characters[index + offset].lowercased() != String(target[offset]) {
-            return false
-        }
-
-        return true
     }
 
     // MARK: - Entities

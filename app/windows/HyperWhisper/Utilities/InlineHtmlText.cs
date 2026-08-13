@@ -63,16 +63,12 @@ public static class InlineHtmlText
     /// underline and hand cursor, so it reads as clickable in either theme —
     /// the stock blue is close to invisible on the dark one.
     /// </summary>
-    private static Inline BuildHyperlink(Run text, string link)
+    private static Inline BuildHyperlink(Run text, Uri uri)
     {
-        // InlineHtml already vetted the scheme; anything it lets through
-        // parses, so a failure here means it changed under us.
-        if (!Uri.TryCreate(link, UriKind.Absolute, out var uri)) return text;
-
         var hyperlink = new Hyperlink(text)
         {
             NavigateUri = uri,
-            ToolTip = link
+            ToolTip = uri.AbsoluteUri
         };
 
         hyperlink.SetResourceReference(TextElement.ForegroundProperty, "AccentBrush");
@@ -87,7 +83,9 @@ public static class InlineHtmlText
 
         try
         {
-            Process.Start(new ProcessStartInfo(e.Uri.ToString()) { UseShellExecute = true });
+            // AbsoluteUri, not ToString(): ToString() decodes percent-escapes,
+            // so ".../whats%20new" would reach the shell as ".../whats new".
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
         }
         catch (Exception ex)
         {

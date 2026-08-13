@@ -27,7 +27,7 @@ namespace HyperWhisper.Utilities;
 /// Inline emphasis carried by a stretch of text, plus the destination of the
 /// &lt;a href&gt; it sits inside, if any.
 /// </summary>
-public readonly record struct HtmlRun(string Text, bool Bold, bool Italic, string? Link = null);
+public readonly record struct HtmlRun(string Text, bool Bold, bool Italic, Uri? Link = null);
 
 public static class InlineHtml
 {
@@ -91,35 +91,40 @@ public static class InlineHtml
 
         // One entry per open <a>, null when its href was missing or unusable —
         // so the matching </a> still pops the right thing and the label
-        // survives as ordinary text.
-        var linkStack = new List<string?>();
-
-        string? CurrentLink()
-        {
-            for (var depth = linkStack.Count - 1; depth >= 0; depth--)
-            {
-                if (linkStack[depth] is { } link) return link;
-            }
-            return null;
-        }
+        // survives as ordinary text. The innermost entry wins: a nested <a>
+        // with a rejected href must not inherit the outer destination.
+        var linkStack = new List<Uri?>();
 
         void Flush()
         {
             if (current.Length == 0) return;
-            runs.Add(new HtmlRun(current.ToString(), boldDepth > 0, italicDepth > 0, CurrentLink()));
+            runs.Add(new HtmlRun(current.ToString(), boldDepth > 0, italicDepth > 0, linkStack.LastOrDefault()));
             current.Clear();
         }
 
         // Close the current run at a <b>/<i>/<a> boundary. A space waiting to
         // be written belongs to the text before the tag, so "bold <i>x</i>"
-        // keeps its space outside the italic run.
+        // keeps its space outside the italic run — and "<b>See</b> <a>here</a>"
+        // does not underline and tint the space in front of the link.
         void FlushAtTagBoundary()
         {
-            if (pendingSpace && current.Length > 0)
+            if (!pendingSpace)
             {
-                current.Append(' ');
-                pendingSpace = false;
+                Flush();
+                return;
             }
+
+            if (current.Length == 0)
+            {
+                // Nothing left to hang the space on, so it becomes its own run
+                // carrying the style and destination in force when it was read.
+                runs.Add(new HtmlRun(" ", boldDepth > 0, italicDepth > 0, linkStack.LastOrDefault()));
+                pendingSpace = false;
+                return;
+            }
+
+            current.Append(' ');
+            pendingSpace = false;
             Flush();
         }
 
@@ -165,6 +170,11 @@ public static class InlineHtml
             var isClosing = name.StartsWith('/');
             if (isClosing) name = name[1..];
 
+            // "<a …/>" opens and closes in one go, like "<br/>": it must not
+            // push an entry nothing will ever pop, or every remaining word in
+            // the note renders as part of the link.
+            var isSelfClosing = !isClosing && name.EndsWith('/');
+
             // Keep the element name only: "br/" -> "br", "a href=…" -> "a".
             var end = name.IndexOfAny(TagNameDelimiters);
             if (end >= 0) name = name[..end];
@@ -187,7 +197,7 @@ public static class InlineHtml
                     {
                         if (linkStack.Count > 0) linkStack.RemoveAt(linkStack.Count - 1);
                     }
-                    else
+                    else if (!isSelfClosing)
                     {
                         linkStack.Add(LinkFromTag(raw));
                     }
@@ -205,7 +215,7 @@ public static class InlineHtml
 
             if (character == '<')
             {
-                var close = html.IndexOf('>', index);
+                var close = FindTagEnd(html, index);
                 if (close < 0)
                 {
                     // Unterminated tag: the rest is text, not markup.
@@ -239,10 +249,40 @@ public static class InlineHtml
     }
 
     /// <summary>
+    /// Index of the '&gt;' that ends the tag opened at <paramref name="start"/>,
+    /// ignoring any '&gt;' inside a quoted attribute value — a URL may carry one
+    /// in its query. Returns -1 when the tag is never closed. A quote that is
+    /// never closed falls back to the first '&gt;', so one malformed attribute
+    /// cannot swallow the rest of the fragment as markup.
+    /// </summary>
+    private static int FindTagEnd(string html, int start)
+    {
+        var index = start + 1;
+
+        while (index < html.Length)
+        {
+            var character = html[index];
+
+            if (character is '"' or '\'')
+            {
+                var quotedEnd = html.IndexOf(character, index + 1);
+                if (quotedEnd < 0) break;
+                index = quotedEnd + 1;
+                continue;
+            }
+
+            if (character == '>') return index;
+            index++;
+        }
+
+        return html.IndexOf('>', start);
+    }
+
+    /// <summary>
     /// Destination of an &lt;a …&gt; tag, or null when it has no usable href.
     /// <paramref name="raw"/> is the tag's contents, without the angle brackets.
     /// </summary>
-    private static string? LinkFromTag(string raw)
+    private static Uri? LinkFromTag(string raw)
     {
         if (AttributeValue(raw, "href") is not { } href) return null;
 
@@ -250,56 +290,59 @@ public static class InlineHtml
         // before it is a URL.
         var decoded = PlainText(href).Trim();
 
-        // The feed's own spelling is kept — Uri only decides whether it is a
-        // URL we are prepared to open, it does not get to rewrite it.
         if (!Uri.TryCreate(decoded, UriKind.Absolute, out var uri)) return null;
-        return AllowedSchemes.Contains(uri.Scheme) ? decoded : null;
+        return AllowedSchemes.Contains(uri.Scheme) ? uri : null;
     }
 
     /// <summary>
     /// Value of an attribute inside a tag, quoted or bare. Case-insensitive on
     /// the name; the value keeps its own case.
     /// </summary>
+    /// <remarks>
+    /// The tag is walked attribute by attribute rather than searched for the
+    /// name, so a value that happens to contain "href=" — a title, say — can
+    /// never be mistaken for the attribute itself. An unterminated quote gives
+    /// up (null) instead of inventing a value out of the rest of the tag.
+    /// </remarks>
     private static string? AttributeValue(string tag, string name)
     {
         var index = 0;
 
         while (index < tag.Length)
         {
-            // Attribute names start at a whitespace boundary — this keeps
-            // "data-href" from being read as "href".
-            var atBoundary = index == 0 || char.IsWhiteSpace(tag[index - 1]);
-            if (!atBoundary ||
-                string.Compare(tag, index, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) != 0)
-            {
-                index++;
-                continue;
-            }
+            while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
+            if (index >= tag.Length) break;
 
-            var cursor = index + name.Length;
-            while (cursor < tag.Length && char.IsWhiteSpace(tag[cursor])) cursor++;
+            // The element name is the first token and has no '=', so it falls
+            // through the valueless-attribute path below.
+            var nameStart = index;
+            while (index < tag.Length && !char.IsWhiteSpace(tag[index]) && tag[index] != '=') index++;
+            var nameLength = index - nameStart;
 
-            if (cursor >= tag.Length || tag[cursor] != '=')
-            {
-                index++;
-                continue;
-            }
+            while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
+            if (index >= tag.Length || tag[index] != '=') continue;   // valueless attribute
 
-            cursor++;
-            while (cursor < tag.Length && char.IsWhiteSpace(tag[cursor])) cursor++;
-            if (cursor >= tag.Length) return null;
+            index++;
+            while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
+            if (index >= tag.Length) return null;
 
-            var quote = tag[cursor];
+            var isTarget = nameLength == name.Length &&
+                string.Compare(tag, nameStart, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0;
+
+            var quote = tag[index];
             if (quote is '"' or '\'')
             {
-                cursor++;
-                var quotedEnd = tag.IndexOf(quote, cursor);
-                return quotedEnd < 0 ? tag[cursor..] : tag[cursor..quotedEnd];
+                index++;
+                var quotedEnd = tag.IndexOf(quote, index);
+                if (quotedEnd < 0) return null;   // unterminated: nothing here is trustworthy
+                if (isTarget) return tag[index..quotedEnd];
+                index = quotedEnd + 1;
+                continue;
             }
 
-            var end = cursor;
-            while (end < tag.Length && !char.IsWhiteSpace(tag[end])) end++;
-            return tag[cursor..end];
+            var valueStart = index;
+            while (index < tag.Length && !char.IsWhiteSpace(tag[index])) index++;
+            if (isTarget) return tag[valueStart..index];
         }
 
         return null;

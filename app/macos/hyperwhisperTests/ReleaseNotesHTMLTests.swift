@@ -100,7 +100,10 @@ struct ReleaseNotesHTMLTests {
 
         for html in hostile {
             #expect(ReleaseNotesHTML.runs(in: html).allSatisfy { $0.link == nil }, "linked: \(html)")
-            #expect(ReleaseNotesHTML.plainText(html).contains("x"))
+            // Exactly the label, nothing else: the data: case used to leak
+            // '">x' into the visible text, because the tag scan cut at the '>'
+            // inside the quoted href.
+            #expect(ReleaseNotesHTML.plainText(html) == "x", "text: \(html)")
         }
 
         #expect(ReleaseNotesHTML.runs(in: #"<a href="mailto:hi@example.com">mail</a>"#).first?.link
@@ -112,6 +115,76 @@ struct ReleaseNotesHTMLTests {
             ReleaseNotesHTML.Run(text: "label", style: []),
             ReleaseNotesHTML.Run(text: " after", style: [])
         ])
+    }
+
+    /// "Preceded by whitespace" is also true inside a quoted value, so a title
+    /// carrying "href=…" used to win over the real attribute.
+    @Test func anHrefInsideAnotherAttributesValueDoesNotWin() {
+        #expect(ReleaseNotesHTML.runs(in:
+            #"<a title="see href=http://evil.example more" href="https://real.example">Label</a>"#)
+            .first?.link == URL(string: "https://real.example"))
+
+        #expect(ReleaseNotesHTML.runs(in: #"<a title="use href=1" href="https://real">x</a>"#)
+            .first?.link == URL(string: "https://real"))
+
+        #expect(ReleaseNotesHTML.runs(in:
+            #"<a data-href="https://evil.example" href="https://real.example">x</a>"#)
+            .first?.link == URL(string: "https://real.example"))
+    }
+
+    /// A '>' in a query string used to truncate the tag, linking half the URL
+    /// and spilling the rest of the markup into the visible text. The
+    /// destination itself is left to `URL` — the two platforms' URL parsers
+    /// disagree about an unescaped '>', but neither may leak markup.
+    @Test func aGreaterThanInsideAQuotedAttributeDoesNotEndTheTag() {
+        let html = #"<li>Read <a href="https://ex.com/?q=a>b" title="t">here</a></li>"#
+
+        #expect(ReleaseNotesHTML.plainText(html) == "Read here")
+        #expect(ReleaseNotesHTML.runs(in: html).map(\.text) == ["Read ", "here"])
+    }
+
+    /// An href whose quote is never closed is not a destination — the scan
+    /// used to hand back the rest of the tag as if it were the value.
+    @Test func anUnterminatedQuoteProducesNoLinkAtAll() {
+        let html = #"<a href="https://example.com>label</a> after"#
+
+        #expect(ReleaseNotesHTML.runs(in: html).allSatisfy { $0.link == nil })
+        #expect(ReleaseNotesHTML.plainText(html) == "label after")
+    }
+
+    /// `<a …/>` used to push an entry nothing ever popped, so every remaining
+    /// word in the note rendered as part of the link.
+    @Test func aSelfClosingOrUnclosedAnchorDoesNotLinkWhatFollowsIt() {
+        #expect(ReleaseNotesHTML.runs(in: #"Before <a href="https://x.example"/> after and more"#)
+            .allSatisfy { $0.link == nil })
+
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://x.example"/>after"#) == [
+            ReleaseNotesHTML.Run(text: "after", style: [])
+        ])
+
+        // An <a> nobody closes is bounded by the end of the fragment.
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://x.example">unclosed"#) == [
+            ReleaseNotesHTML.Run(text: "unclosed", style: [], link: URL(string: "https://x.example"))
+        ])
+    }
+
+    /// The inner href is rejected, so its label must lose the link rather than
+    /// inherit the outer anchor's destination.
+    @Test func aNestedAnchorTakesTheInnermostDestination() {
+        #expect(ReleaseNotesHTML.runs(in:
+            #"<a href="https://ok.example">read <a href="javascript:x">this</a></a>"#) == [
+            ReleaseNotesHTML.Run(text: "read ", style: [], link: URL(string: "https://ok.example")),
+            ReleaseNotesHTML.Run(text: "this", style: [])
+        ])
+    }
+
+    /// A leading space inside the linked run is underlined, tinted and inside
+    /// the hit region — it belongs to the text it followed.
+    @Test func theSpaceInFrontOfALinkStaysOutsideTheLink() {
+        let runs = ReleaseNotesHTML.runs(in: #"<b>See</b> <a href="https://example.com">here</a>"#)
+
+        #expect(runs.map(\.text).joined() == "See here")
+        #expect(runs.allSatisfy { $0.link == nil || !$0.text.hasPrefix(" ") })
     }
 
     // MARK: - Robustness

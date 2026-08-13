@@ -1009,14 +1009,15 @@ internal static class Program
                 var runs = InlineHtml.Parse("See the <a href=\"https://example.com/latency\">latency page</a> now.");
 
                 Assert(runs.Count == 3, $"expected 3 runs, got {runs.Count}");
-                Assert(runs[1] == new HtmlRun("latency page", Bold: false, Italic: false,
-                        Link: "https://example.com/latency"),
+                Assert(runs[1].Text == "latency page" && !runs[1].Bold && !runs[1].Italic
+                        && runs[1].Link?.AbsoluteUri == "https://example.com/latency",
                     $"expected a linked label, got '{runs[1]}'");
                 Assert(runs[0].Link is null && runs[2].Link is null,
                     "text outside the anchor should not be linked");
 
+                // Uri normalization: a bare authority gains the empty path's slash.
                 var bold = InlineHtml.Parse("<a href=\"https://example.com\"><b>bold link</b></a>");
-                Assert(bold.Count == 1 && bold[0].Bold && bold[0].Link == "https://example.com",
+                Assert(bold.Count == 1 && bold[0].Bold && bold[0].Link?.AbsoluteUri == "https://example.com/",
                     "emphasis inside a link should keep both the style and the destination");
 
                 var quoting = new[]
@@ -1027,11 +1028,11 @@ internal static class Program
                 };
                 foreach (var html in quoting)
                 {
-                    Assert(InlineHtml.Parse(html)[0].Link == "https://example.com/a",
+                    Assert(InlineHtml.Parse(html)[0].Link?.AbsoluteUri == "https://example.com/a",
                         $"href not read from '{html}'");
                 }
 
-                Assert(InlineHtml.Parse("<a href=\"https://example.com/p?a=1&amp;b=2\">x</a>")[0].Link
+                Assert(InlineHtml.Parse("<a href=\"https://example.com/p?a=1&amp;b=2\">x</a>")[0].Link?.AbsoluteUri
                         == "https://example.com/p?a=1&b=2",
                     "escaped query separators should survive in the destination");
             });
@@ -1052,17 +1053,100 @@ internal static class Program
                 {
                     Assert(InlineHtml.Parse(html).TrueForAll(run => run.Link is null),
                         $"'{html}' should not produce a link");
-                    Assert(InlineHtml.PlainText(html).Contains('x'),
-                        $"'{html}' should keep its label");
+                    // Exactly the label, nothing else: the data: case used to leak
+                    // '">x' into the visible text because the tag scan cut at the
+                    // '>' inside the quoted href.
+                    Assert(InlineHtml.PlainText(html) == "x",
+                        $"'{html}' should render as its label alone, got '{InlineHtml.PlainText(html)}'");
                 }
 
-                Assert(InlineHtml.Parse("<a href=\"mailto:hi@example.com\">mail</a>")[0].Link
+                Assert(InlineHtml.Parse("<a href=\"mailto:hi@example.com\">mail</a>")[0].Link?.AbsoluteUri
                         == "mailto:hi@example.com",
                     "mailto should stay clickable");
 
                 // An unusable href must not leak onto the text that follows it.
                 var after = InlineHtml.Parse("<a href=\"javascript:x\">label</a> after");
                 Assert(after.TrueForAll(run => run.Link is null), "link leaked past the anchor");
+            });
+
+            Run("InlineHtml reads href only in attribute-name position", () =>
+            {
+                // "preceded by whitespace" is also true inside a quoted value, so a
+                // title carrying "href=..." used to win over the real attribute.
+                Assert(InlineHtml.Parse(
+                            "<a title=\"see href=http://evil.example more\" href=\"https://real.example\">Label</a>")[0]
+                        .Link?.AbsoluteUri == "https://real.example/",
+                    "an href inside another attribute's value must not win");
+                Assert(InlineHtml.Parse("<a title=\"use href=1\" href=\"https://real\">x</a>")[0]
+                        .Link?.AbsoluteUri == "https://real/",
+                    "the real href must still be found after a shadowing value");
+                Assert(InlineHtml.Parse("<a data-href=\"https://evil.example\" href=\"https://real.example\">x</a>")[0]
+                        .Link?.AbsoluteUri == "https://real.example/",
+                    "a longer attribute name ending in 'href' must not match");
+            });
+
+            Run("InlineHtml keeps a quoted '>' inside the tag, and invents nothing on an unterminated quote", () =>
+            {
+                // A '>' in a query string used to truncate the tag, linking half the
+                // URL and spilling the rest of the markup into the visible text.
+                const string quotedAngle = "<li>Read <a href=\"https://ex.com/?q=a>b\" title=\"t\">here</a></li>";
+                var runs = InlineHtml.Parse(quotedAngle);
+                Assert(InlineHtml.PlainText(quotedAngle) == "Read here",
+                    $"markup leaked into the text: '{InlineHtml.PlainText(quotedAngle)}'");
+                Assert(runs.Count == 2 && runs[1].Text == "here",
+                    $"expected the label alone in the linked run, got {runs.Count} runs");
+
+                // An href whose quote is never closed is not a destination.
+                const string unterminated = "<a href=\"https://example.com>label</a> after";
+                Assert(InlineHtml.Parse(unterminated).TrueForAll(run => run.Link is null),
+                    "an unterminated quote should yield no link at all");
+                Assert(InlineHtml.PlainText(unterminated) == "label after",
+                    $"got '{InlineHtml.PlainText(unterminated)}'");
+            });
+
+            Run("InlineHtml does not leave a self-closing or unclosed <a> on the link stack", () =>
+            {
+                // <a …/> pushed an entry nothing ever popped, so every remaining
+                // word in the note rendered as part of the link.
+                Assert(InlineHtml.Parse("Before <a href=\"https://x.example\"/> after and more")
+                        .TrueForAll(run => run.Link is null),
+                    "a self-closing anchor must not link the text that follows it");
+
+                var selfClosed = InlineHtml.Parse("<a href=\"https://x.example\"/>after");
+                Assert(selfClosed.Count == 1 && selfClosed[0] == new HtmlRun("after", Bold: false, Italic: false),
+                    $"expected one unlinked run, got '{string.Join(", ", selfClosed)}'");
+
+                // An <a> nobody closes is bounded by the end of the fragment.
+                var unclosed = InlineHtml.Parse("<a href=\"https://x.example\">unclosed");
+                Assert(unclosed.Count == 1 && unclosed[0].Text == "unclosed"
+                        && unclosed[0].Link?.AbsoluteUri == "https://x.example/",
+                    "an unclosed anchor should still link its own label");
+            });
+
+            Run("InlineHtml gives a nested <a> the innermost destination, not the outer one", () =>
+            {
+                // The inner href is rejected, so its label must lose the link
+                // rather than inherit the outer anchor's destination.
+                var runs = InlineHtml.Parse(
+                    "<a href=\"https://ok.example\">read <a href=\"javascript:x\">this</a></a>");
+
+                Assert(runs.Count == 2, $"expected 2 runs, got {runs.Count}");
+                Assert(runs[0].Text == "read " && runs[0].Link?.AbsoluteUri == "https://ok.example/",
+                    $"outer label lost its link: '{runs[0]}'");
+                Assert(runs[1].Text == "this" && runs[1].Link is null,
+                    $"inner label inherited the outer destination: '{runs[1]}'");
+            });
+
+            Run("InlineHtml leaves the space in front of a link outside the link", () =>
+            {
+                // A leading space inside the linked run is underlined, tinted and
+                // clickable — it belongs to the text it followed.
+                var runs = InlineHtml.Parse("<b>See</b> <a href=\"https://example.com\">here</a>");
+
+                Assert(InlineHtml.PlainText("<b>See</b> <a href=\"https://example.com\">here</a>") == "See here",
+                    "the space between the two runs was lost");
+                Assert(runs.TrueForAll(run => run.Link is null || !run.Text.StartsWith(' ')),
+                    $"the space was swallowed into the link run: '{string.Join(", ", runs)}'");
             });
 
             Run("AppcastItem.BulletPoints keeps inline emphasis and drops empty items", () =>

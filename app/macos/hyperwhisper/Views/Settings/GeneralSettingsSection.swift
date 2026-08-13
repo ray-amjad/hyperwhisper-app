@@ -114,7 +114,20 @@ struct GeneralSettingsSection: View {
                 // Sharing is the default. Turning this off makes every cloud
                 // transcription send `X-Latency-Opt-Out: 1` (see LatencyOptOut),
                 // and the server drops the measurement instead of storing it.
-                shareSpeedDataRow
+                //
+                // The comparison page is the pay-off for the toggle, so it sits
+                // on the title line and stays reachable whether or not sharing
+                // is on — someone who opted out can still read it, and seeing
+                // what it produces is the fairest way to present the choice.
+                SettingsToggleRow(
+                    title: "settings.general.shareSpeedData.title",
+                    subtitle: nil,
+                    info: "settings.general.shareSpeedData.info",
+                    isOn: $settingsManager.shareAnonymousSpeedData,
+                    standalone: false,
+                    titleLink: URL(string: "https://www.hyperwhisper.com/en/latency"),
+                    titleLinkHelp: "settings.general.shareSpeedData.link"
+                )
 
                 Divider()
 
@@ -127,38 +140,6 @@ struct GeneralSettingsSection: View {
                 )
             }
         }
-    }
-
-    /// Mirrors `SettingsToggleRow`, but carries the comparison link on the
-    /// title line. The page is the pay-off for the toggle, so it stays
-    /// reachable whether or not sharing is on — someone who opted out can
-    /// still read it, and seeing what it produces is the fairest way to
-    /// present the choice.
-    private var shareSpeedDataRow: some View {
-        HStack(alignment: .center, spacing: 12) {
-            HStack(spacing: 6) {
-                Text("settings.general.shareSpeedData.title")
-                    .font(.headline)
-
-                Link(destination: URL(string: "https://www.hyperwhisper.com/en/latency")!) {
-                    Image(systemName: "arrow.up.forward.app")
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.accentColor)
-                .help("settings.general.shareSpeedData.link")
-            }
-
-            Spacer(minLength: 12)
-
-            Toggle("", isOn: $settingsManager.shareAnonymousSpeedData)
-                .toggleStyle(.switch)
-                .tint(.blue)
-                .labelsHidden()
-
-            InfoTooltipButton(text: "settings.general.shareSpeedData.info")
-        }
-        .padding(DesignConstants.Spacing.rowPadding)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var updatesAndSupportCard: some View {
