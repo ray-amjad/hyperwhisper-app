@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "تسجيل الأخطاء";
 "settings.general.errorLogging.info" = "التقط تلقائياً وأرسل تقارير الأخطاء للمساعدة في تحسين التطبيق.";
 "settings.general.shareSpeedData.title" = "مشاركة بيانات السرعة المجهولة";
-"settings.general.shareSpeedData.subtitle" = "تساعد الجميع على معرفة نموذج السحابة الأسرع في موقعهم.";
 "settings.general.shareSpeedData.info" = "يقيس المدة التي يستغرقها كل مزود سحابي ويضيفها إلى مقارنة عامة. يتضمن القياس المزوّد، ومنطقة الخادم، وطول المقطع، والوقت المستغرق — بلا حساب، ولا مفتاح، ولا صوت، ولا نص. أوقف هذا الخيار ليتوقف HyperWhisper عن إرساله. لا شيء آخر يتغير، والنماذج المحلية لا ترسل أي شيء أبداً.";
 "settings.general.shareSpeedData.link" = "عرض مقارنة السرعة";
 "settings.general.autoUpdate.title" = "التحديث التلقائي";

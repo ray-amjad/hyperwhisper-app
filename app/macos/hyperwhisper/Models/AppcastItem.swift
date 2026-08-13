@@ -60,21 +60,25 @@ struct AppcastItem: Identifiable, Equatable {
     ///
     /// Only the markup *before* the list counts: a `<b>` inside the first
     /// `<li>` emphasises that bullet, it is not a title for the release.
-    var releaseTitle: String? {
+    var releaseTitle: AttributedString? {
         guard let html = releaseNotes else { return nil }
 
         let listStart = html.range(of: "<ul", options: .caseInsensitive)?.lowerBound
             ?? html.range(of: "<li", options: .caseInsensitive)?.lowerBound
         let heading = String(html[html.startIndex..<(listStart ?? html.endIndex)])
 
-        let title = ReleaseNotesHTML.plainText(heading)
-        return title.isEmpty ? nil : title
+        // Parsed once, not once to test for emptiness and again for the result:
+        // this is a computed property, re-read on every SwiftUI body pass.
+        let parsed = ReleaseNotesHTML.attributed(heading)
+        return parsed.characters.isEmpty ? nil : parsed
     }
 
-    /// Bullet points from the release notes, one per `<li>` element,
-    /// with `<b>`/`<i>` emphasis preserved as styled runs
+    /// Bullet points from the release notes, one per `<li>` element, with
+    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs.
+    /// An item that carries no text — an empty or whitespace-only `<li>` — is
+    /// dropped, which the parsed result already answers.
     var bulletPoints: [AttributedString] {
-        listItemHTML.map(ReleaseNotesHTML.attributed)
+        listItemHTML.map(ReleaseNotesHTML.attributed).filter { !$0.characters.isEmpty }
     }
 
     /// Inner HTML of every `<li>` element, in document order
@@ -88,11 +92,7 @@ struct AppcastItem: Identifiable, Equatable {
               let openEnd = remainder[openStart.upperBound...].firstIndex(of: ">"),
               let close = remainder.range(of: "</li", options: .caseInsensitive,
                                           range: openEnd..<remainder.endIndex) {
-            let content = String(remainder[remainder.index(after: openEnd)..<close.lowerBound])
-            if !ReleaseNotesHTML.plainText(content).isEmpty {
-                items.append(content)
-            }
-
+            items.append(String(remainder[remainder.index(after: openEnd)..<close.lowerBound]))
             remainder = remainder[close.upperBound...]
         }
 

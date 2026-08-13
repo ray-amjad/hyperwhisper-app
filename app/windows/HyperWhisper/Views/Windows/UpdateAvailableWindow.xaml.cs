@@ -183,17 +183,21 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
         }
         else
         {
-            // Fallback: treat as plain text, split by newlines
-            var plainText = InlineHtml.PlainText(html, collapseWhitespace: false);
-            foreach (var line in plainText.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            // Fallback: no block tags, so the note is a run of lines. Each line
+            // keeps its own markup and is parsed exactly once — by the card.
+            // Flattening the note here and parsing the result again there
+            // dropped every <a href> before it could be rendered, and turned
+            // markup a feed had escaped so it would *show* — "&lt;a href=…&gt;"
+            // — into a live link. A <br> ends a line here, as it did when the
+            // flattening pass turned it into one.
+            foreach (var line in Regex.Split(html, @"<br\s*/?>|\n", RegexOptions.IgnoreCase))
             {
                 var trimmed = line.Trim();
-                if (!string.IsNullOrWhiteSpace(trimmed))
-                {
-                    bool isBullet = trimmed.StartsWith("-") || trimmed.StartsWith("*");
-                    if (isBullet) trimmed = trimmed.TrimStart('-', '*', ' ');
-                    lines.Add((trimmed, false, isBullet));
-                }
+                if (InlineHtml.PlainText(trimmed).Trim().Length == 0) continue;
+
+                bool isBullet = trimmed.StartsWith("-") || trimmed.StartsWith("*");
+                if (isBullet) trimmed = trimmed.TrimStart('-', '*', ' ');
+                lines.Add((trimmed, false, isBullet));
             }
         }
 

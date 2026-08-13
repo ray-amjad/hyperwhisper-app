@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "오류 로깅";
 "settings.general.errorLogging.info" = "앱 개선에 도움이 되도록 오류 보고서를 자동으로 캡처하고 전송합니다.";
 "settings.general.shareSpeedData.title" = "익명 속도 데이터 공유";
-"settings.general.shareSpeedData.subtitle" = "자신의 위치에서 어떤 클라우드 모델이 가장 빠른지 모두가 알 수 있도록 도와줍니다.";
 "settings.general.shareSpeedData.info" = "각 클라우드 제공업체가 걸리는 시간을 측정하여 공개 비교에 추가합니다. 측정에는 제공업체, 서버 지역, 클립 길이, 소요 시간이 포함됩니다 — 계정도, 키도, 오디오도, 텍스트도 없습니다. 이 설정을 끄면 HyperWhisper가 전송을 중단합니다. 다른 것은 아무것도 바뀌지 않으며, 로컬 모델은 절대 아무것도 전송하지 않습니다.";
 "settings.general.shareSpeedData.link" = "속도 비교 보기";
 "settings.general.autoUpdate.title" = "자동 업데이트";
