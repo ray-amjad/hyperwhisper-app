@@ -179,6 +179,29 @@ class FileTranscriptionFlow {
     /// 8. Update transcript with results
     /// 9. Navigate to History view
     ///
+    /// **Why begin(completionHandler:) instead of runModal (HYPERWHISPER-SZ, 4 users):**
+    /// `runModal()` spins a nested modal run loop that blocks the main thread for as
+    /// long as the user browses for a file. While that nested loop runs, the main run
+    /// loop stops servicing normal-mode work, so the menu-bar app stops responding and
+    /// Sentry's app-hang tracker fires after 10 seconds.
+    ///
+    /// `begin(completionHandler:)` presents the panel and returns immediately; the
+    /// response is delivered on the main queue once the user picks a file or cancels.
+    ///
+    /// **Object lifetime — why `self` is captured strongly:**
+    /// The caller (`MenuBarItems.transcribeFile(with:)` in `MainAppView.swift`) creates this flow as a local
+    /// variable; with `runModal()` it stayed alive only because the call blocked until
+    /// the user was done. Now that `openFilePickerAndTranscribe(for:)` returns
+    /// immediately, the completion handler is the only thing keeping the flow alive, so
+    /// it captures `self` strongly. Without that the flow would be deallocated before
+    /// the user picks a file (picking would silently do nothing), and
+    /// `cancelTranscription()` would target a dead instance —
+    /// `FileTranscriptionPopupManager.show(onCancel:)` only captures the flow weakly.
+    ///
+    /// No permanent retain cycle: AppKit releases the completion handler after invoking
+    /// it, and the strong reference then lives on only in `currentTranscriptionTask`,
+    /// which releases the flow once `processSelectedFile` finishes (or is cancelled).
+    ///
     /// - Parameter mode: The transcription mode to use
     func openFilePickerAndTranscribe(for mode: Mode) {
         AppLogger.transcription.info("📂 Opening file picker for mode: \(mode.name ?? "unnamed")")
@@ -191,21 +214,34 @@ class FileTranscriptionFlow {
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
 
-        // Run panel (blocking on main thread for menu interaction)
-        guard panel.runModal() == .OK, let selectedURL = panel.url else {
-            AppLogger.transcription.info("📂 File picker cancelled")
-            return
-        }
+        // A modal panel is brought to the front by AppKit for free; a modeless one is
+        // not, and this is triggered from the menu-bar menu where the app is often not
+        // the active app. Activate first so the picker can't open behind other windows.
+        NSApp.activate(ignoringOtherApps: true)
 
-        AppLogger.transcription.info("📂 Selected file: \(selectedURL.lastPathComponent)")
+        // ASYNC PRESENTATION:
+        // begin() returns immediately, keeping the main thread free to process events
+        // while the panel is open. The completion handler runs on the main queue when
+        // the user clicks "Open" (.OK) or "Cancel" (.cancel).
+        //
+        // `[self]` is a deliberate STRONG capture: it is what keeps this flow alive
+        // between the panel opening and the user's choice (see doc comment above).
+        panel.begin { [self] response in
+            guard response == .OK, let selectedURL = panel.url else {
+                AppLogger.transcription.info("📂 File picker cancelled")
+                return
+            }
 
-        // STEP 2-8: Process the file
-        // Store the task in currentTranscriptionTask so user-initiated cancellation
-        // via cancelTranscription() can actually stop the running transcription.
-        // Without this, the cancel button would dismiss the popup but the
-        // transcription would continue running in the background.
-        currentTranscriptionTask = Task {
-            await processSelectedFile(selectedURL, mode: mode)
+            AppLogger.transcription.info("📂 Selected file: \(selectedURL.lastPathComponent)")
+
+            // STEP 2-8: Process the file
+            // Store the task in currentTranscriptionTask so user-initiated cancellation
+            // via cancelTranscription() can actually stop the running transcription.
+            // Without this, the cancel button would dismiss the popup but the
+            // transcription would continue running in the background.
+            self.currentTranscriptionTask = Task {
+                await self.processSelectedFile(selectedURL, mode: mode)
+            }
         }
     }
 
