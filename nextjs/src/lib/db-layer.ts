@@ -206,15 +206,18 @@ export async function getGrantedEmails(): Promise<string[]> {
     .filter((email) => email.length > 0);
 }
 
-// Credits granted with each internal-bundle Account Key mint. $10 at the
+// Credits granted with each internal-bundle Account Key mint. $5 at the
 // 1000-credits-per-dollar rate. This is the ACS member perk; only brand-new
 // emails receive it (an email that already has a granted key gets no top-up).
-const INTERNAL_BUNDLE_CREDITS = 10000;
+// The perk ran at $5, was bumped to $10 on 2026-07-02, and came back to $5 on
+// 2026-08-13. ACS shows each member what they truly got, keyed off their claim
+// date, so keep its `creditDollarsForClaim` eras in step with any change here.
+const INTERNAL_BUNDLE_CREDITS = 5000;
 
 /**
  * Mint a fresh internal-bundle license for an email: generate a collision-free
  * key, ensure the user exists, insert the license as "granted", and grant the
- * standard 10,000-credit ($10) internal bundle.
+ * standard 5,000-credit ($5) internal bundle.
  *
  * This is the single source of truth for the internal mint flow. Its only
  * caller is the grant-license endpoint (driven by the ACS claim flow), which
