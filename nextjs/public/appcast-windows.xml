@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.10.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.10.0 - ARM64 -->
+<item>
+<title>1.10.0 (ARM64)</title>
+<pubDate>Thu, 13 Aug 2026 03:29:20 +0000</pubDate>
+<sparkle:version>1.10.0</sparkle:version>
+<sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.10.0-arm64-Setup.exe"
+length="144021344"
+type="application/octet-stream"
+sparkle:edSignature="48WyeLJFK2wssnj5Yqf8g32QNQ+9UpzvVYvaU36XCj2vwoF0tOS/aw3w2rqEy7aiJ6XrXaxQ6Nclr3reNh7IAw=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.10.0</h2>
+<ul>
+<li><b>Find the fastest provider for you</b> — the new <a href="https://www.hyperwhisper.com/en/latency">latency page</a> shows how quickly every cloud provider actually answers, broken down by server region and clip length, from real transcriptions rather than vendor claims. Pick the fastest one for where you are. Your transcriptions help build it: <b>Share anonymous speed data</b> in Settings → General is on by default and stores only a timing — no account, no audio, no text. Turn it off any time.</li><li>Release notes now show bold text instead of raw tags.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.10.0 - x64 -->
+<item>
+<title>1.10.0 (x64)</title>
+<pubDate>Thu, 13 Aug 2026 03:29:20 +0000</pubDate>
+<sparkle:version>1.10.0</sparkle:version>
+<sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.10.0-x64-Setup.exe"
+length="181567080"
+type="application/octet-stream"
+sparkle:edSignature="nJqIm26zOPJ1H2hckcGecAYcRTObADW0A88KGv8NeI6rTh12YAGDxXuTSzZaXD1CmYf6rlRPNrFecSAu9IcICw=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.10.0</h2>
+<ul>
+<li><b>Find the fastest provider for you</b> — the new <a href="https://www.hyperwhisper.com/en/latency">latency page</a> shows how quickly every cloud provider actually answers, broken down by server region and clip length, from real transcriptions rather than vendor claims. Pick the fastest one for where you are. Your transcriptions help build it: <b>Share anonymous speed data</b> in Settings → General is on by default and stores only a timing — no account, no audio, no text. Turn it off any time.</li><li>Release notes now show bold text instead of raw tags.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.9.0 -->
 <!-- ================================================================== -->
 
