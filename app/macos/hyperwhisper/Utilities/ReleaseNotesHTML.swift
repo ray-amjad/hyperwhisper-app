@@ -153,17 +153,13 @@ enum ReleaseNotesHTML {
         }
 
         func handleTag(_ raw: String) {
-            var name = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let isClosing = name.hasPrefix("/")
-            if isClosing { name.removeFirst() }
-
-            // "<a …/>" opens and closes in one go, like "<br/>": it must not
-            // push an entry nothing will ever pop, or every remaining word in
-            // the note renders as part of the link.
-            let isSelfClosing = !isClosing && name.hasSuffix("/")
+            var body = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isClosing = body.hasPrefix("/")
+            if isClosing { body.removeFirst() }
 
             // Keep the element name only: "br/" -> "br", "a href=…" -> "a".
-            name = String(name.prefix { $0 != "/" && $0 != " " && $0 != "\n" && $0 != "\r" && $0 != "\t" })
+            let name = String(body.prefix { $0 != "/" && $0 != " " && $0 != "\n" && $0 != "\r" && $0 != "\t" })
+                .lowercased()
 
             switch name {
             case "b", "strong":
@@ -176,8 +172,13 @@ enum ReleaseNotesHTML {
                 flushAtTagBoundary()
                 if isClosing {
                     if !linkStack.isEmpty { linkStack.removeLast() }
-                } else if !isSelfClosing {
-                    linkStack.append(linkURL(inTag: raw))
+                } else {
+                    // One walk gives both the href and whether the tag closed
+                    // itself. "<a …/>" opens and closes in one go, like "<br/>":
+                    // it must not push an entry nothing will ever pop, or every
+                    // remaining word in the note renders as part of the link.
+                    let scan = scanTag(body, for: "href")
+                    if !scan.isSelfClosing { linkStack.append(linkURL(fromHref: scan.href)) }
                 }
             case "br":
                 appendLineBreak()
@@ -250,10 +251,10 @@ enum ReleaseNotesHTML {
     /// all `javascript:` and `data:` — keeps its label and loses its link.
     private static let allowedSchemes: Set<String> = ["http", "https", "mailto"]
 
-    /// Destination of an `<a …>` tag, or nil when it has no usable href.
-    /// `raw` is the tag's contents, without the angle brackets.
-    private static func linkURL(inTag raw: String) -> URL? {
-        guard let href = attributeValue("href", inTag: raw) else { return nil }
+    /// Destination for an `<a>`'s href, or nil when it is missing or is not a
+    /// scheme we are willing to open.
+    private static func linkURL(fromHref href: String?) -> URL? {
+        guard let href else { return nil }
 
         // Feeds escape query separators, so "?a=1&amp;b=2" has to be decoded
         // before it is a URL.
@@ -266,26 +267,51 @@ enum ReleaseNotesHTML {
         return url
     }
 
-    /// Value of an attribute inside a tag, quoted or bare.
+    /// What one walk over a tag's contents yields: the value of the attribute
+    /// asked for, and whether the tag closed itself.
+    private struct TagScan {
+        let href: String?
+        let isSelfClosing: Bool
+    }
+
+    /// Walk a tag attribute by attribute, picking up the value of `name` —
+    /// quoted or bare — and whether the tag ends with a "/" of its own.
     /// Case-insensitive on the name, and the value keeps its own case.
     ///
-    /// The tag is walked attribute by attribute rather than searched for the
-    /// name, so a value that happens to contain "href=" — a title, say — can
-    /// never be mistaken for the attribute itself. An unterminated quote gives
-    /// up (nil) instead of inventing a value out of the rest of the tag.
-    private static func attributeValue(_ name: String, inTag raw: String) -> String? {
-        let characters = Array(raw)
+    /// The tag is walked rather than searched, so a value that happens to
+    /// contain "href=" — a title, say — can never be mistaken for the attribute
+    /// itself, and a bare value that ends in "/" — most URLs — is not mistaken
+    /// for a self-closing tag. Only a "/" standing where a name may start, with
+    /// nothing but whitespace after it, closes the tag. An unterminated quote
+    /// gives up on the rest of the tag instead of inventing a value out of it.
+    private static func scanTag(_ tag: String, for name: String) -> TagScan {
+        let characters = Array(tag)
         let targetLength = name.count
+        var value: String?
+        var isSelfClosing = false
         var index = 0
 
         while index < characters.count {
             while index < characters.count, characters[index].isWhitespace { index += 1 }
             guard index < characters.count else { break }
 
+            // A "/" where a name could start is the tag closing itself — "<a/>",
+            // "<br />", "<a href=… />" — but only if nothing follows it, so the
+            // next token read clears this again. A "/" inside a bare value, on
+            // the other hand, is simply part of the URL.
+            if characters[index] == "/" {
+                isSelfClosing = true
+                index += 1
+                continue
+            }
+
+            isSelfClosing = false
+
             // The element name is the first token and carries no "=", so it
             // falls through the valueless-attribute path below.
             let nameStart = index
-            while index < characters.count, !characters[index].isWhitespace, characters[index] != "=" {
+            while index < characters.count, !characters[index].isWhitespace,
+                  characters[index] != "=", characters[index] != "/" {
                 index += 1
             }
             let nameEnd = index
@@ -295,29 +321,32 @@ enum ReleaseNotesHTML {
 
             index += 1
             while index < characters.count, characters[index].isWhitespace { index += 1 }
-            guard index < characters.count else { return nil }
+            guard index < characters.count else { break }   // "href=" with nothing after it
 
             // One case-folded comparison per attribute — the old per-character
             // compare lowercased only the tag's side, so it silently required
             // the caller to pass a lowercase name.
-            let isTarget = nameEnd - nameStart == targetLength
+            let isTarget = value == nil
+                && nameEnd - nameStart == targetLength
                 && String(characters[nameStart..<nameEnd]).caseInsensitiveCompare(name) == .orderedSame
 
             let quote = characters[index]
             if quote == "\"" || quote == "'" {
                 index += 1
-                guard let quotedEnd = characters[index...].firstIndex(of: quote) else { return nil }
-                if isTarget { return String(characters[index..<quotedEnd]) }
+                guard let quotedEnd = characters[index...].firstIndex(of: quote) else {
+                    break   // unterminated: nothing here is trustworthy
+                }
+                if isTarget { value = String(characters[index..<quotedEnd]) }
                 index = quotedEnd + 1
                 continue
             }
 
             let valueStart = index
             while index < characters.count, !characters[index].isWhitespace { index += 1 }
-            if isTarget { return String(characters[valueStart..<index]) }
+            if isTarget { value = String(characters[valueStart..<index]) }
         }
 
-        return nil
+        return TagScan(href: value, isSelfClosing: isSelfClosing)
     }
 
     // MARK: - Entities

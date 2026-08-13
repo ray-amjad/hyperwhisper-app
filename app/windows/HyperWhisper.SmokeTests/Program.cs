@@ -1123,6 +1123,41 @@ internal static class Program
                     "an unclosed anchor should still link its own label");
             });
 
+            Run("InlineHtml treats a '/' at the end of a bare href as part of the URL", () =>
+            {
+                // Deciding "self-closing" from the raw tag's last character read
+                // every bare href ending in '/' — most URLs — as "<a …/>", and
+                // silently dropped the link.
+                var bare = InlineHtml.Parse("<a href=https://example.com/>Home</a>");
+                Assert(bare.Count == 1 && bare[0].Text == "Home"
+                        && bare[0].Link?.AbsoluteUri == "https://example.com/",
+                    $"a bare href ending in '/' lost its link: '{string.Join(", ", bare)}'");
+
+                var quoted = InlineHtml.Parse("<a href=\"https://example.com/\">Home</a>");
+                Assert(quoted.Count == 1 && quoted[0].Text == "Home"
+                        && quoted[0].Link?.AbsoluteUri == "https://example.com/",
+                    $"a quoted href ending in '/' lost its link: '{string.Join(", ", quoted)}'");
+
+                // A '/' of the tag's own still closes it, even after a bare href
+                // that ends in one.
+                const string closed = "<a href=https://example.com/ />Home and the rest";
+                Assert(InlineHtml.Parse(closed).TrueForAll(run => run.Link is null),
+                    "a genuinely self-closing anchor must link nothing");
+                Assert(InlineHtml.PlainText(closed) == "Home and the rest",
+                    $"got '{InlineHtml.PlainText(closed)}'");
+
+                // A '/' that is not the last thing in the tag is not the tag's.
+                Assert(InlineHtml.Parse("<a / href=https://example.com/>L</a>")[0].Link?.AbsoluteUri
+                        == "https://example.com/",
+                    "a '/' before a real attribute must not close the tag");
+
+                foreach (var lineBreak in new[] { "a<br>b", "a<br/>b", "a<br />b" })
+                {
+                    Assert(InlineHtml.PlainText(lineBreak) == "a\nb",
+                        $"'{lineBreak}' should be a line break, got '{InlineHtml.PlainText(lineBreak)}'");
+                }
+            });
+
             Run("InlineHtml gives a nested <a> the innermost destination, not the outer one", () =>
             {
                 // The inner href is rejected, so its label must lose the link

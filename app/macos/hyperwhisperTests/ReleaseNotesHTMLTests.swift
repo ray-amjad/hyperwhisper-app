@@ -168,6 +168,33 @@ struct ReleaseNotesHTMLTests {
         ])
     }
 
+    /// Deciding "self-closing" from the raw tag's last character read every
+    /// bare href ending in "/" — most URLs — as "<a …/>", and silently dropped
+    /// the link.
+    @Test func aSlashEndingABareHrefBelongsToTheURLNotTheTag() {
+        #expect(ReleaseNotesHTML.runs(in: "<a href=https://example.com/>Home</a>") == [
+            ReleaseNotesHTML.Run(text: "Home", style: [], link: URL(string: "https://example.com/"))
+        ])
+
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://example.com/">Home</a>"#) == [
+            ReleaseNotesHTML.Run(text: "Home", style: [], link: URL(string: "https://example.com/"))
+        ])
+
+        // A "/" of the tag's own still closes it, even after a bare href that
+        // ends in one.
+        let closed = "<a href=https://example.com/ />Home and the rest"
+        #expect(ReleaseNotesHTML.runs(in: closed).allSatisfy { $0.link == nil })
+        #expect(ReleaseNotesHTML.plainText(closed) == "Home and the rest")
+
+        // A "/" that is not the last thing in the tag is not the tag's own.
+        #expect(ReleaseNotesHTML.runs(in: "<a / href=https://example.com/>L</a>").first?.link
+                == URL(string: "https://example.com/"))
+
+        for lineBreak in ["a<br>b", "a<br/>b", "a<br />b"] {
+            #expect(ReleaseNotesHTML.plainText(lineBreak) == "a\nb", "line break: \(lineBreak)")
+        }
+    }
+
     /// The inner href is rejected, so its label must lose the link rather than
     /// inherit the outer anchor's destination.
     @Test func aNestedAnchorTakesTheInnermostDestination() {

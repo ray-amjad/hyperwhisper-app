@@ -166,18 +166,13 @@ public static class InlineHtml
 
         void HandleTag(string raw)
         {
-            var name = raw.Trim();
-            var isClosing = name.StartsWith('/');
-            if (isClosing) name = name[1..];
-
-            // "<a …/>" opens and closes in one go, like "<br/>": it must not
-            // push an entry nothing will ever pop, or every remaining word in
-            // the note renders as part of the link.
-            var isSelfClosing = !isClosing && name.EndsWith('/');
+            var body = raw.Trim();
+            var isClosing = body.StartsWith('/');
+            if (isClosing) body = body[1..];
 
             // Keep the element name only: "br/" -> "br", "a href=…" -> "a".
-            var end = name.IndexOfAny(TagNameDelimiters);
-            if (end >= 0) name = name[..end];
+            var end = body.IndexOfAny(TagNameDelimiters);
+            var name = end >= 0 ? body[..end] : body;
 
             switch (name.ToLowerInvariant())
             {
@@ -197,9 +192,15 @@ public static class InlineHtml
                     {
                         if (linkStack.Count > 0) linkStack.RemoveAt(linkStack.Count - 1);
                     }
-                    else if (!isSelfClosing)
+                    else
                     {
-                        linkStack.Add(LinkFromTag(raw));
+                        // One walk gives both the href and whether the tag closed
+                        // itself. "<a …/>" opens and closes in one go, like
+                        // "<br/>": it must not push an entry nothing will ever
+                        // pop, or every remaining word in the note renders as
+                        // part of the link.
+                        var scan = ScanTag(body, "href");
+                        if (!scan.IsSelfClosing) linkStack.Add(LinkFrom(scan.Href));
                     }
                     break;
                 case "br":
@@ -279,12 +280,12 @@ public static class InlineHtml
     }
 
     /// <summary>
-    /// Destination of an &lt;a …&gt; tag, or null when it has no usable href.
-    /// <paramref name="raw"/> is the tag's contents, without the angle brackets.
+    /// Destination for an &lt;a&gt;'s href, or null when it is missing or is
+    /// not a scheme we are willing to open.
     /// </summary>
-    private static Uri? LinkFromTag(string raw)
+    private static Uri? LinkFrom(string? href)
     {
-        if (AttributeValue(raw, "href") is not { } href) return null;
+        if (href is null) return null;
 
         // Feeds escape query separators, so "?a=1&amp;b=2" has to be decoded
         // before it is a URL.
@@ -295,17 +296,29 @@ public static class InlineHtml
     }
 
     /// <summary>
-    /// Value of an attribute inside a tag, quoted or bare. Case-insensitive on
-    /// the name; the value keeps its own case.
+    /// What one walk over a tag's contents yields: the value of the attribute
+    /// asked for, and whether the tag closed itself.
+    /// </summary>
+    private readonly record struct TagScan(string? Href, bool IsSelfClosing);
+
+    /// <summary>
+    /// Walk a tag attribute by attribute, picking up the value of
+    /// <paramref name="name"/> — quoted or bare — and whether the tag ends with
+    /// a '/' of its own. Case-insensitive on the name; the value keeps its own
+    /// case.
     /// </summary>
     /// <remarks>
-    /// The tag is walked attribute by attribute rather than searched for the
-    /// name, so a value that happens to contain "href=" — a title, say — can
-    /// never be mistaken for the attribute itself. An unterminated quote gives
-    /// up (null) instead of inventing a value out of the rest of the tag.
+    /// The tag is walked rather than searched, so a value that happens to
+    /// contain "href=" — a title, say — can never be mistaken for the attribute
+    /// itself, and a bare value that ends in '/' — most URLs — is not mistaken
+    /// for a self-closing tag. Only a '/' standing where a name may start, with
+    /// nothing but whitespace after it, closes the tag. An unterminated quote
+    /// gives up on the rest of the tag instead of inventing a value out of it.
     /// </remarks>
-    private static string? AttributeValue(string tag, string name)
+    private static TagScan ScanTag(string tag, string name)
     {
+        string? value = null;
+        var isSelfClosing = false;
         var index = 0;
 
         while (index < tag.Length)
@@ -313,10 +326,24 @@ public static class InlineHtml
             while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
             if (index >= tag.Length) break;
 
+            // A '/' where a name could start is the tag closing itself — "<a/>",
+            // "<br />", "<a href=… />" — but only if nothing follows it, so the
+            // next token read clears this again. A '/' inside a bare value, on
+            // the other hand, is simply part of the URL.
+            if (tag[index] == '/')
+            {
+                isSelfClosing = true;
+                index++;
+                continue;
+            }
+
+            isSelfClosing = false;
+
             // The element name is the first token and has no '=', so it falls
             // through the valueless-attribute path below.
             var nameStart = index;
-            while (index < tag.Length && !char.IsWhiteSpace(tag[index]) && tag[index] != '=') index++;
+            while (index < tag.Length && !char.IsWhiteSpace(tag[index])
+                   && tag[index] != '=' && tag[index] != '/') index++;
             var nameLength = index - nameStart;
 
             while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
@@ -324,9 +351,9 @@ public static class InlineHtml
 
             index++;
             while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
-            if (index >= tag.Length) return null;
+            if (index >= tag.Length) break;   // "href=" with nothing after it
 
-            var isTarget = nameLength == name.Length &&
+            var isTarget = value is null && nameLength == name.Length &&
                 string.Compare(tag, nameStart, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0;
 
             var quote = tag[index];
@@ -334,18 +361,18 @@ public static class InlineHtml
             {
                 index++;
                 var quotedEnd = tag.IndexOf(quote, index);
-                if (quotedEnd < 0) return null;   // unterminated: nothing here is trustworthy
-                if (isTarget) return tag[index..quotedEnd];
+                if (quotedEnd < 0) break;   // unterminated: nothing here is trustworthy
+                if (isTarget) value = tag[index..quotedEnd];
                 index = quotedEnd + 1;
                 continue;
             }
 
             var valueStart = index;
             while (index < tag.Length && !char.IsWhiteSpace(tag[index])) index++;
-            if (isTarget) return tag[valueStart..index];
+            if (isTarget) value = tag[valueStart..index];
         }
 
-        return null;
+        return new TagScan(value, isSelfClosing);
     }
 
     /// <summary>
