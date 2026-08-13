@@ -904,9 +904,8 @@ struct MenuBarItems: View {
     /// 5. Navigation to History view (immediately, showing "Processing..." status)
     /// 6. Transcription and result handling
     ///
-    /// **Lifetime:** the flow is intentionally only a local here. `openFilePickerAndTranscribe(for:)`
-    /// presents the panel non-blockingly and its completion handler retains the flow until the
-    /// user's choice is handled — see the doc comment on that method (HYPERWHISPER-SZ).
+    /// **Lifetime:** the flow is intentionally only a local — see the "Object lifetime" note on
+    /// `FileTranscriptionFlow.openFilePickerAndTranscribe(for:)` (HYPERWHISPER-SZ).
     ///
     /// - Parameter mode: The transcription mode to use
     private func transcribeFile(with mode: Mode) {

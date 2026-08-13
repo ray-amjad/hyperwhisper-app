@@ -8,6 +8,7 @@
 import Foundation
 import AppKit
 import AVFoundation
+import CoreData
 import UniformTypeIdentifiers
 import SwiftUI
 
@@ -64,8 +65,22 @@ class FileTranscriptionFlow {
     /// Observable progress state for the file transcription popup
     let progressState = FileTranscriptionProgress()
 
-    /// Current transcription task (for cancellation support)
+    /// Current transcription task (cancellation handle only — see `openFilePickerAndTranscribe(for:)`)
     private var currentTranscriptionTask: Task<Void, Error>?
+
+    /// True while a file picker opened by `openFilePickerAndTranscribe(for:)` is on screen.
+    ///
+    /// The picker is presented with `begin(completionHandler:)`, which returns immediately,
+    /// so the menu-bar menu stays live and a second "Transcribe File" click would put a
+    /// second `NSOpenPanel` on top of the first. Both flows drive the shared
+    /// `FileTranscriptionPopupManager`, whose `show()` starts by dismissing whatever is on
+    /// screen, so the first flow's popup would be torn down and its work left invisible and
+    /// uncancellable.
+    ///
+    /// Type-level because the caller creates a fresh flow per click, so a per-instance flag
+    /// would never see the duplicate. MainActor-isolated, so no locking is needed.
+    @MainActor
+    private static var isFilePickerOpen = false
 
     /// Path to the copied file (for cleanup on cancellation)
     private var currentCopiedFilePath: String?
@@ -180,30 +195,37 @@ class FileTranscriptionFlow {
     /// 9. Navigate to History view
     ///
     /// **Why begin(completionHandler:) instead of runModal (HYPERWHISPER-SZ, 4 users):**
-    /// `runModal()` spins a nested modal run loop that blocks the main thread for as
-    /// long as the user browses for a file. While that nested loop runs, the main run
-    /// loop stops servicing normal-mode work, so the menu-bar app stops responding and
-    /// Sentry's app-hang tracker fires after 10 seconds.
+    /// `runModal()` spins a nested modal run loop that blocks the main thread for as long
+    /// as the user browses for a file, so the menu-bar app stops servicing normal-mode run
+    /// loop work and Sentry's app-hang tracker fires. `begin(completionHandler:)` presents
+    /// the panel and returns immediately; the response arrives on the main queue when the
+    /// user picks a file or cancels.
     ///
-    /// `begin(completionHandler:)` presents the panel and returns immediately; the
-    /// response is delivered on the main queue once the user picks a file or cancels.
+    /// **Object lifetime — what actually owns this flow:**
+    /// The caller (`MenuBarItems.transcribeFile(with:)` in `MainAppView.swift`) holds the
+    /// flow only in a local, so ownership passes to two closures in turn:
+    /// 1. While the panel is displayed it retains its completion handler, and that handler
+    ///    captures `self` strongly — which is why the capture list is `[self]`.
+    /// 2. On `.OK` the handler starts a `Task`; the Task's *operation closure* captures
+    ///    `self` strongly, and that executing closure frame is what keeps the flow alive
+    ///    until the work finishes.
     ///
-    /// **Object lifetime — why `self` is captured strongly:**
-    /// The caller (`MenuBarItems.transcribeFile(with:)` in `MainAppView.swift`) creates this flow as a local
-    /// variable; with `runModal()` it stayed alive only because the call blocked until
-    /// the user was done. Now that `openFilePickerAndTranscribe(for:)` returns
-    /// immediately, the completion handler is the only thing keeping the flow alive, so
-    /// it captures `self` strongly. Without that the flow would be deallocated before
-    /// the user picks a file (picking would silently do nothing), and
-    /// `cancelTranscription()` would target a dead instance —
-    /// `FileTranscriptionPopupManager.show(onCancel:)` only captures the flow weakly.
-    ///
-    /// No permanent retain cycle: AppKit releases the completion handler after invoking
-    /// it, and the strong reference then lives on only in `currentTranscriptionTask`,
-    /// which releases the flow once `processSelectedFile` finishes (or is cancelled).
+    /// `currentTranscriptionTask` is a cancellation handle, not the owner: it is a
+    /// `self -> Task` edge, so it cannot retain `self` (indeed `processSelectedFile` clears
+    /// it mid-flight and keeps using `self`). Nothing leaks either — AppKit releases the
+    /// handler after its single invocation, and the Task's frame goes away when the
+    /// operation returns.
     ///
     /// - Parameter mode: The transcription mode to use
     func openFilePickerAndTranscribe(for mode: Mode) {
+        // Re-entrancy guard: the panel is modeless, so the menu-bar menu stays live while
+        // it is open and a second click would present a second picker (with a second flow —
+        // the caller mints one per click) on top of this one.
+        guard !Self.isFilePickerOpen else {
+            AppLogger.transcription.info("📂 File picker already open — ignoring duplicate request")
+            return
+        }
+
         AppLogger.transcription.info("📂 Opening file picker for mode: \(mode.name ?? "unnamed")")
 
         // STEP 1: Show file picker
@@ -219,14 +241,16 @@ class FileTranscriptionFlow {
         // the active app. Activate first so the picker can't open behind other windows.
         NSApp.activate(ignoringOtherApps: true)
 
-        // ASYNC PRESENTATION:
-        // begin() returns immediately, keeping the main thread free to process events
-        // while the panel is open. The completion handler runs on the main queue when
-        // the user clicks "Open" (.OK) or "Cancel" (.cancel).
-        //
-        // `[self]` is a deliberate STRONG capture: it is what keeps this flow alive
-        // between the panel opening and the user's choice (see doc comment above).
+        Self.isFilePickerOpen = true
+
+        // begin() returns immediately, keeping the main thread free while the panel is
+        // open; the handler runs on the main queue on "Open" (.OK) or "Cancel" (.cancel).
+        // `[self]` is a deliberate STRONG capture — see the doc comment above.
         panel.begin { [self] response in
+            // Released first thing on every path: the handler runs exactly once, so the
+            // flag cannot get stuck true.
+            Self.isFilePickerOpen = false
+
             guard response == .OK, let selectedURL = panel.url else {
                 AppLogger.transcription.info("📂 File picker cancelled")
                 return
@@ -234,11 +258,18 @@ class FileTranscriptionFlow {
 
             AppLogger.transcription.info("📂 Selected file: \(selectedURL.lastPathComponent)")
 
+            // The rest of the UI stayed live while the user browsed, so the mode may have
+            // been deleted in the Modes screen in the meantime. Reading a property of a
+            // deleted-and-saved managed object raises NSObjectInaccessibleException, which
+            // Swift cannot catch, so bail out instead.
+            guard !mode.isDeleted, mode.managedObjectContext != nil else {
+                AppLogger.transcription.error("❌ Mode was deleted while the file picker was open — aborting import")
+                return
+            }
+
             // STEP 2-8: Process the file
-            // Store the task in currentTranscriptionTask so user-initiated cancellation
-            // via cancelTranscription() can actually stop the running transcription.
-            // Without this, the cancel button would dismiss the popup but the
-            // transcription would continue running in the background.
+            // Store the task in currentTranscriptionTask so cancelTranscription() has a
+            // handle on the running transcription.
             self.currentTranscriptionTask = Task {
                 await self.processSelectedFile(selectedURL, mode: mode)
             }
