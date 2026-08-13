@@ -688,9 +688,22 @@ public static class CloudTranscriptionModels
     /// <summary>
     /// Gets a model by its ID, optionally scoped to a provider.
     /// </summary>
+    /// <remarks>
+    /// A provider whose API takes no <c>model</c> parameter (Grok) registers its
+    /// single entry under the empty id, so a provider-scoped lookup for "" is a
+    /// real hit and must resolve. An unscoped lookup still returns null — ""
+    /// is ambiguous without a provider, and any provider left without a model
+    /// would otherwise resolve to Grok. Mirrors the macOS
+    /// <c>model(withId:provider:)</c> overload.
+    /// </remarks>
     public static CloudTranscriptionModel? GetById(string? modelId, CloudTranscriptionProvider? provider = null)
     {
-        if (string.IsNullOrEmpty(modelId)) return null;
+        if (string.IsNullOrEmpty(modelId))
+        {
+            return provider.HasValue
+                ? GetModelsForProvider(provider.Value).FirstOrDefault(m => m.Id.Length == 0)
+                : null;
+        }
 
         var canonical = ResolveModelAlias(modelId, provider);
 

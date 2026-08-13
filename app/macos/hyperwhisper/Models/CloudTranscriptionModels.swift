@@ -715,6 +715,17 @@ struct CloudTranscriptionModels {
     static func displayName(for id: String) -> String {
         model(withId: id)?.displayName ?? id
     }
+
+    /// Get the display name for a model ID within a known provider. Required for
+    /// providers whose model id is the empty string (Grok) — the id-only lookup
+    /// rejects "" and falls back to the id, which renders as a blank name.
+    /// - Parameters:
+    ///   - id: The model ID to look up
+    ///   - provider: The provider that owns the model
+    /// - Returns: The display name if found, or the ID itself as fallback
+    static func displayName(for id: String, provider: CloudProvider) -> String {
+        model(withId: id, provider: provider)?.displayName ?? id
+    }
     
     /// Get all available model IDs
     /// - Returns: Array of model IDs that are marked as available

@@ -67,4 +67,23 @@ struct CloudSttTierParityTests {
             )
         }
     }
+
+    /// Grok's API takes no `model` parameter, so its single registry entry is
+    /// stored under the empty id. The Model row is now a one-item dropdown like
+    /// every other provider's, so that id has to resolve through the
+    /// provider-scoped lookup or the name, the description and the mode card all
+    /// render blank. The Windows counterpart lives in HyperWhisper.SmokeTests
+    /// ("Grok's empty model id resolves through a provider-scoped lookup").
+    @Test("Grok's empty model id resolves through a provider-scoped lookup")
+    func grokEmptyModelIdResolves() {
+        let grok = CloudTranscriptionModels.model(withId: "", provider: .grok)
+        #expect(grok != nil, "the Grok Model row would render blank")
+        #expect(grok?.displayName == "Grok Speech-to-Text")
+        #expect(
+            CloudTranscriptionModels.displayName(for: "", provider: .grok) == "Grok Speech-to-Text")
+
+        // Unscoped, "" stays ambiguous: any provider left without a model would
+        // otherwise resolve to Grok.
+        #expect(CloudTranscriptionModels.model(withId: "") == nil)
+    }
 }

@@ -1044,6 +1044,23 @@ internal static class Program
                 }
             });
 
+            Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
+            {
+                // Grok's API takes no `model` parameter, so its single registry
+                // entry is stored under the empty id. The Model row is now a
+                // one-item dropdown like every other provider's, so that id has
+                // to resolve or the description, the price and the mode card's
+                // model name all render blank.
+                var grok = CloudTranscriptionModels.GetById("", CloudTranscriptionProvider.Grok);
+                Assert(grok != null, "GetById(\"\", Grok) returned null — the Grok Model row would render blank");
+                Assert(grok!.DisplayName == "Grok Speech-to-Text", $"got '{grok.DisplayName}'");
+                Assert(!string.IsNullOrEmpty(grok.Description), "Grok entry has no description to show");
+
+                // Unscoped, "" stays ambiguous: any provider left without a model
+                // would otherwise resolve to Grok.
+                Assert(CloudTranscriptionModels.GetById("") == null, "unscoped GetById(\"\") must stay null");
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
