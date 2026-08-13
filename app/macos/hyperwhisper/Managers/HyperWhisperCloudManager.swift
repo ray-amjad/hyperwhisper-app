@@ -181,6 +181,7 @@ class HyperWhisperCloudManager: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.setValue("HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
                            forHTTPHeaderField: "User-Agent")
+            HyperWhisperClientInfo.apply(to: &request)
 
             // Do NOT log the full URL: for licensed users the `identifier` query param is the
             // raw license key (a paid-service bearer credential), and `.public` os_log entries

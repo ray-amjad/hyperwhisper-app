@@ -109,6 +109,7 @@ enum HyperWhisperRoutedTranscription {
         }
         let userAgent = "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
         request.headers.append(Header(name: "User-Agent", value: userAgent))
+        HyperWhisperClientInfo.apply(to: &request)
         // Opt-out only: absent means the user left anonymous speed sharing on.
         LatencyOptOut.apply(to: &request)
 

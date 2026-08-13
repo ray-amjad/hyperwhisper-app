@@ -156,12 +156,18 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
     private static readonly Version PreferredHttpVersion = HttpVersion.Version20;
     private const HttpVersionPolicy PreferredVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 
+    // Also stamps the platform + app version headers, so every natively built
+    // request through this service is attributable in the backend logs.
     private static HttpRequestMessage CreateRequest(HttpMethod method, string url)
-        => new HttpRequestMessage(method, url)
+    {
+        var request = new HttpRequestMessage(method, url)
         {
             Version = PreferredHttpVersion,
             VersionPolicy = PreferredVersionPolicy,
         };
+        ClientInfoHeaders.Apply(request);
+        return request;
+    }
 
     // =========================================================================
     // CONNECTION PRE-WARM
@@ -455,7 +461,8 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
                 // Opt-out only: absent means the user left anonymous speed
                 // sharing on (see LatencyOptOut).
                 buildRequest: () => LatencyOptOut.Apply(
-                    HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams)),
+                    ClientInfoHeaders.Apply(
+                        HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams))),
                 parseError: MapCloudError,
                 cancellationToken: cancellationToken,
                 onTransportError: ex =>

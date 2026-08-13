@@ -1057,6 +1057,7 @@ class AIPostProcessor: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
                         forHTTPHeaderField: "User-Agent")
+        HyperWhisperClientInfo.apply(to: &request)
         request.timeoutInterval = 60
 
         let cloudPPModel = CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel)

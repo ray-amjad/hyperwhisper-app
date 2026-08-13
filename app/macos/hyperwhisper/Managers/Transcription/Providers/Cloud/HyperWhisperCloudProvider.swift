@@ -130,6 +130,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         var req = URLRequest(url: url)
         req.httpMethod = "HEAD"
         req.timeoutInterval = 5
+        HyperWhisperClientInfo.apply(to: &req)
 
         session.dataTask(with: req) { [weak self] _, response, error in
             if let error = error {
@@ -331,6 +332,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 request.url = Self.appendingModeQuery(to: request.url, modeId: modeId.uuidString)
             }
             request.headers.append(Header(name: "User-Agent", value: userAgent))
+            HyperWhisperClientInfo.apply(to: &request)
             // Opt-out only: absent means the user left anonymous speed sharing on.
             LatencyOptOut.apply(to: &request)
 
@@ -718,6 +720,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
                        forHTTPHeaderField: "User-Agent")
+        HyperWhisperClientInfo.apply(to: &request)
 
         let cloudPPModel = CloudPostProcessingModel.fromStorageValue(mode?.cloudPostProcessingModel)
         if let llmHeader = cloudPPModel.llmProviderHeader {

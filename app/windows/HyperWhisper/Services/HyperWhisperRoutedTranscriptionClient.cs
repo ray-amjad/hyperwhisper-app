@@ -164,7 +164,8 @@ internal static class HyperWhisperRoutedTranscriptionClient
                 client,
                 // Opt-out only: absent means the user left anonymous speed
                 // sharing on (see LatencyOptOut).
-                buildRequest: () => LatencyOptOut.Apply(BuildRoutedRequest(sttProviderHeader, coreParams)),
+                buildRequest: () => LatencyOptOut.Apply(
+                    ClientInfoHeaders.Apply(BuildRoutedRequest(sttProviderHeader, coreParams))),
                 parseError: resp => MapRoutedError(sttProviderHeader, providerDisplayName, resp),
                 cancellationToken: cancellationToken);
         }

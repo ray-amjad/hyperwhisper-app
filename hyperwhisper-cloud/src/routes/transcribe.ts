@@ -30,6 +30,7 @@ import {
   ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
   type SttProviderId,
 } from '../lib/stt-models';
+import { readClientInfo } from '../lib/client-info';
 import { generateRequestId, getClientIP, getFlyRequestId } from '../lib/request-id';
 import {
   reportLatencySamples,
@@ -435,8 +436,11 @@ export async function transcribeRoute(c: Context) {
   }
 
   const proxyOverheadMs = flyProxyOverheadMs(c.req.header('Fly-Request-Start'));
+  const { clientPlatform, clientVersion } = readClientInfo(c);
   logEvent(requestId, startTime, 'transcribe.request_start', {
     flyRequestId,
+    clientPlatform,
+    clientVersion,
     flyRegion: process.env.FLY_REGION || 'local',
     flyMachineId: process.env.FLY_MACHINE_ID,
     proxyOverheadMs,
@@ -888,6 +892,8 @@ export async function transcribeRoute(c: Context) {
 
   const memUsageMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
   logEvent(requestId, startTime, 'transcribe.request_done', {
+    clientPlatform,
+    clientVersion,
     finalProvider: providerName,
     fallbackCount,
     // On a degraded success (fallbackCount > 0) this names which provider(s)

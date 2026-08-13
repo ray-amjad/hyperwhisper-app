@@ -53,8 +53,15 @@ public sealed class HyperWhisperCloudStreamingStrategy : IStreamingProviderStrat
         return new Uri(query.Count == 0 ? StreamingEndpoint : $"{StreamingEndpoint}?{string.Join("&", query)}");
     }
 
+    /// <summary>
+    /// Carries the platform + app version headers into the WebSocket handshake.
+    /// Auth stays in the query string (see BuildWebSocketUri); these headers
+    /// exist only so the streaming session is attributable to a platform and a
+    /// build in the backend logs, like the POST /transcribe path.
+    /// </summary>
     public void ConfigureWebSocket(ClientWebSocket webSocket, StreamingSessionConfig config)
     {
+        ClientInfoHeaders.Apply(webSocket);
     }
 
     public (byte[] Data, WebSocketMessageType Type) EncodeAudioChunk(byte[] pcmData) =>

@@ -3,6 +3,7 @@
 
 import type { Context } from 'hono';
 import { defaultModelFor, extractLLMProvider, fallbackProviderFor, servedLLMName, callWithRetry, resolveLLMModel, shouldFallback, type LLMProvider } from '../lib/llm-provider';
+import { readClientInfo } from '../lib/client-info';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { buildTranscriptUserContent, extractCorrectedText, stripCleanMarkers } from '../lib/text-processing';
 import { buildCorrectionRequest } from '../providers/groq-llm';
@@ -98,8 +99,11 @@ export async function postProcessRoute(c: Context) {
   const provider = extractLLMProvider(c.req.raw);
   const model = resolveLLMModel(provider, c.req.raw);
 
+  const { clientPlatform, clientVersion } = readClientInfo(c);
   logEvent(requestId, startTime, 'post_process.request_start', {
     flyRegion: process.env.FLY_REGION || 'local',
+    clientPlatform,
+    clientVersion,
     provider,
     model,
     inputChars: text.length,

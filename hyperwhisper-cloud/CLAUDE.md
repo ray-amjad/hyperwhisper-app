@@ -51,6 +51,8 @@ Client entry points that terminate at `/transcribe`:
 
 Changes to query params (`account_key` / legacy `license_key`, `device_id`, `language`, `initial_prompt`, `mode`), `X-STT-Provider`, response shape, or error codes must land in clients in the same PR cycle.
 
+Every native request also carries `X-HyperWhisper-Platform` (`macos` / `windows`) and `X-HyperWhisper-Version` (app version). `src/lib/client-info.ts` reads them onto `transcribe.request_start`, `transcribe.request_done`, and `post_process.request_start` as `clientPlatform` / `clientVersion`, falling back to the `User-Agent` for builds shipped before the headers existed. They are caller-supplied labels for logs only — never gate auth, billing, or routing on them. Client side: `HyperWhisperClientInfo.swift` (macOS) and `ClientInfoHeaders.cs` (Windows).
+
 The auth credential is accepted under **two param names**: `account_key` (canonical, preferred) and `license_key` (legacy alias). Every entry point (`transcribe`, `assistant`, `post-process`, `usage`, `ws-streaming-deepgram`) reads `account_key` first, then falls back to `license_key`, so installed native apps that still send `license_key` keep working. Both carry the same key string — they're aliases, not different credentials.
 </important>
 

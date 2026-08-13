@@ -10,6 +10,7 @@ import { postProcessRoute } from './routes/post-process';
 import { assistantRoute } from './routes/assistant';
 import { usageRoute } from './routes/usage';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
+import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingLatencyReports } from './lib/latency-report';
 
@@ -18,9 +19,18 @@ const app = new Hono();
 // CORS — allow the custom STT selection headers so browser callers can set
 // provider/model/domain. Without these in allowHeaders the preflight blocks the
 // POST before it reaches the route (X-STT-* are non-simple request headers).
+// X-HyperWhisper-Platform / -Version are non-simple for the same reason.
 app.use('*', cors({
   origin: '*',
-  allowHeaders: ['Content-Type', 'X-STT-Provider', 'X-STT-Model', 'X-STT-Domain', 'X-Latency-Opt-Out'],
+  allowHeaders: [
+    'Content-Type',
+    'X-STT-Provider',
+    'X-STT-Model',
+    'X-STT-Domain',
+    'X-Latency-Opt-Out',
+    CLIENT_PLATFORM_HEADER,
+    CLIENT_VERSION_HEADER,
+  ],
   allowMethods: ['GET', 'POST', 'OPTIONS'],
 }));
 
