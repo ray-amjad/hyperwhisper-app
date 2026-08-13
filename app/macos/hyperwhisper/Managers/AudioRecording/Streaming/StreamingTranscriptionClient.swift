@@ -143,8 +143,66 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Task for receiving WebSocket messages
     private var receiveTask: Task<Void, Never>?
 
+    /// The task that owns an in-flight reconnect.
+    ///
+    /// `handleUnexpectedDisconnect()` runs *inside* the receive task, and part
+    /// way through it hands the `receiveTask` slot to the replacement listener
+    /// it starts. From that moment `receiveTask` no longer points at the task
+    /// performing the reconnect, so cancelling `receiveTask` alone cancels the
+    /// listener and leaves the reconnect running unattached — it then polls a
+    /// permanently-nil `sessionId` for the full 10s and reports a connection
+    /// failure long after a clean stop (HYPERWHISPER-MG). This second handle is
+    /// what `stopSession()` / `cancel()` cancel to genuinely abort a reconnect,
+    /// and it is what makes `Task.isCancelled` in the reconnect's `catch` mean
+    /// "teardown cancelled us" rather than "somebody cancelled our replacement".
+    private var reconnectOwnerTask: Task<Void, Never>?
+
     /// Track if we initiated the close (to distinguish user-initiated stop from unexpected disconnect)
     private var didInitiateClose = false
+
+    /// True once a terminal provider error (see `StreamingProviderErrorPolicy`)
+    /// has been surfaced for this session. Providers commonly repeat the error
+    /// frame before closing the socket; by then `onError` has already torn the
+    /// flow down, so a second frame would only re-report the same fault and
+    /// re-run the teardown. Reset alongside `didInitiateClose` in startSession.
+    private var didHandleTerminalProviderError = false
+
+    /// True for the WHOLE of `startSession()` — from before the socket exists
+    /// until the session is genuinely up — not merely while
+    /// `waitForSessionStarted()` is parked.
+    ///
+    /// A terminal provider error can arrive *before* the provider ever sends its
+    /// session-started frame (ElevenLabs answers a dead key with `auth_error`
+    /// straight away, OpenAI and xAI answer an exhausted balance while the
+    /// `startMessages` send is still suspended). Startup has to know that, or it
+    /// sits out the full 10s and fails with a generic `connectionTimeout` whose
+    /// "Failed to start" toast overwrites the actionable provider message this
+    /// classification exists to preserve.
+    ///
+    /// The span has to cover every suspension point in `startSession()`, at both
+    /// ends. Raised late, an error during the `startMessages` send takes the
+    /// ordinary terminal path and startup still times out. Lowered early — say
+    /// the moment `waitForSessionStarted()` returns — a terminal error landing
+    /// during the awaited `capture.start()` tears the session down while
+    /// `startSession()` goes on to return success: a session reported as started
+    /// that has no socket and no microphone.
+    ///
+    /// Owned by `startSession()` alone, which raises it before anything can
+    /// deliver an event and lowers it in a `defer`, so success, throw and
+    /// cancellation all leave it false.
+    private var isStartingSession = false
+
+    /// A terminal provider error that arrived while `startSession()` was still
+    /// in flight.
+    ///
+    /// `waitForSessionStarted()` polls this alongside `sessionId` and throws it,
+    /// and `startSession()` checks it once more after `capture.start()`, so a
+    /// failed start carries the provider's own wording instead of a timeout — or
+    /// instead of being lost behind a false success. Set only on the startup
+    /// path; once the session is established the terminal error is reported
+    /// through `onError` as usual. Cleared at both ends of `startSession()` so a
+    /// failure from one session can never be observed by the next.
+    private var pendingStartupFailure: StreamingError?
 
     /// The session config, stored for reconnect attempts.
     /// Saved when startSession is called so handleUnexpectedDisconnect can rebuild the connection.
@@ -231,9 +289,35 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Reset state
         lastError = nil
         didInitiateClose = false
+        didHandleTerminalProviderError = false
+        pendingStartupFailure = nil
         reconnectCount = 0
         connectionEstablishedAt = Date()
         didReceiveSessionComplete = false
+
+        // MARK STARTUP AS PENDING BEFORE ANYTHING CAN PRODUCE AN EVENT.
+        //
+        // Raised here, ahead of the socket and the receive loop, because the
+        // first thing a provider can answer is a terminal error: OpenAI and xAI
+        // report an exhausted balance while the `startMessages` send below is
+        // still suspended, long before STEP 4. With the flag still down at that
+        // moment, that error takes the ordinary terminal path — it tears the
+        // session down and fires `onError` — and STEP 4 then waits its full 10s
+        // on a `sessionId` that can never arrive and throws a generic
+        // `connectionTimeout`, whose "Failed to start" replaces the provider's
+        // actionable wording. That substitution is the whole thing this fast
+        // path exists to prevent.
+        //
+        // Lowered in a `defer` rather than at any earlier point, so the flag
+        // stays up across every suspension in this function — including
+        // `capture.start()` — and is cleared on every exit: success, throw and
+        // cancellation alike. `pendingStartupFailure` goes with it, so a failure
+        // belonging to this session can never be observed by the next one.
+        isStartingSession = true
+        defer {
+            isStartingSession = false
+            pendingStartupFailure = nil
+        }
 
         // STEP 1: Build WebSocket URL via strategy
         guard let url = strategy.buildWebSocketURL(config: config) else {
@@ -259,14 +343,36 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Start receiving messages
         startReceivingMessages()
 
-        for message in strategy.startMessages(config: config) {
-            try await webSocketTask?.send(message)
-        }
-
-        // STEP 4: Wait for session started event
+        // STEP 4: Send the start messages, then wait for the session-started
+        // event.
+        //
+        // A terminal provider error frame arriving before the session-started
+        // frame fails the wait immediately with the provider's own message —
+        // see `pendingStartupFailure`, which `isStartingSession` (raised above)
+        // is what routes the error into.
+        //
+        // The send shares this `catch` rather than throwing straight out,
+        // because a refused upgrade fails it too: on a 402/401/403 the socket is
+        // already dead by the time the first start message goes out, so `send`
+        // throws a generic transport error, and an unguarded rethrow leaves this
+        // function before the cleanup and the classification below can run.
         do {
+            for message in strategy.startMessages(config: config) {
+                try await webSocketTask?.send(message)
+            }
+
             try await waitForSessionStarted()
         } catch {
+            // CLASSIFY BEFORE TEARING DOWN.
+            //
+            // A wait that ended in a timeout on a socket the server refused
+            // outright is the timeout naming the wrong cause. The status is on
+            // the task's response — and `teardownSession` below nils the task,
+            // so this has to read it first. This is the last of the three doors
+            // a refusal can come through, and the one that catches an ordering
+            // nobody has predicted.
+            let reported = refusalDuringStartup(shadowing: error)
+
             // CLEANUP ON FAILED CONNECTION:
             // The receiveLoop (started above) is still running on the dead socket.
             // If we don't suppress reconnect, it will hit an error → call
@@ -274,17 +380,23 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             // → infinite cycle. Setting didInitiateClose prevents reconnect for
             // connections that were never successfully established.
             didInitiateClose = true
-            receiveTask?.cancel()
-            receiveTask = nil
-            webSocketTask?.cancel(with: .abnormalClosure, reason: nil)
-            webSocketTask = nil
+            // Runs on the caller's task, not the receive loop, so the receive
+            // task really is a different task and must be cancelled.
+            teardownSession(cancelReceiveTask: true, cancelReconnect: true)
 
-            // Emit error state for connection timeout before rethrowing
-            if let streamingError = error as? StreamingError,
+            // Emit error state for connection timeout before rethrowing.
+            //
+            // Only the timeout needs this. Every route that turns `error` into a
+            // refusal or a terminal frame has already emitted its own `.error`
+            // state on the way to setting the failure this catch is rethrowing —
+            // `handleTerminalCondition` for the first, `processServerMessage`
+            // for the second — so repeating it here would publish the same state
+            // twice.
+            if let streamingError = reported as? StreamingError,
                case .connectionTimeout = streamingError {
                 onConnectionStateChange?(.error("Connection timed out"))
             }
-            throw error
+            throw reported
         }
 
         // STEP 5: Start audio capture and wire to WebSocket
@@ -322,6 +434,38 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         try await capture.start()
 
+        // DID A TERMINAL PROVIDER ERROR LAND WHILE capture.start() WAS AWAY?
+        //
+        // `StreamingAudioCapture` is not main-actor isolated, so awaiting its
+        // `start()` hops off this actor and back — a real suspension, and the
+        // last one before this function claims success. A terminal error frame
+        // arriving in that window is routed to `pendingStartupFailure` (the flag
+        // is still up) rather than to `onError`, and nothing else will ever read
+        // it: `waitForSessionStarted()` has already returned. Without this check
+        // startSession() would return normally on a session whose socket has
+        // been torn down — the flow would show a recording in progress that can
+        // never produce a transcript.
+        if let startupFailure = pendingStartupFailure {
+            logger.error("Terminal provider error during audio start — failing startup")
+
+            // Already true on the only path that sets pendingStartupFailure;
+            // restated so this exit can never leave a reconnect armed.
+            didInitiateClose = true
+            teardownSession(cancelReceiveTask: true, cancelReconnect: true)
+
+            // The teardown above ran while this engine was still coming up on
+            // another thread, so it released `audioCapture` before there was
+            // anything to stop. `capture` is the live handle — stopping it is
+            // what actually gives the microphone back. Safe twice over: stop()
+            // is a documented no-op once the engine is gone.
+            capture.onAudioData = nil
+            capture.stop()
+
+            // No onError here either: this throws, and the flow's catch is what
+            // reports and unwinds a failed start.
+            throw startupFailure
+        }
+
         isConnected = true
         isStreaming = true
         onConnectionStateChange?(.streaming)
@@ -350,13 +494,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         logger.info("Stopping streaming session...")
 
         onConnectionStateChange?(.disconnecting)
-        isStreaming = false
         didInitiateClose = true
 
+        // STEP 0: Abort an in-flight reconnect.
+        //
+        // Cancelling `receiveTask` alone is not enough: once
+        // handleUnexpectedDisconnect() has handed that slot to its replacement
+        // listener, the task actually performing the reconnect is only reachable
+        // through `reconnectOwnerTask`. Without this, the reconnect survives the
+        // stop, polls a nil sessionId for its full 10s timeout and then reports
+        // "Connection lost and reconnect failed" — a toast and a Sentry event
+        // ~10 seconds after a clean stop (HYPERWHISPER-MG). Cancelling here is
+        // also what makes `Task.isCancelled` in that reconnect's catch honestly
+        // mean "teardown cancelled us".
+        reconnectOwnerTask?.cancel()
+        reconnectOwnerTask = nil
+
         // STEP 1: Stop audio capture first to prevent sending audio during shutdown
-        audioCapture?.stop()
-        audioCapture = nil
-        onAudioLevel?(0)
+        teardownAudioCapture()
 
         // STEP 2: Execute strategy's stop sequence with a bounded timeout.
         // Without a timeout, sending on a dead socket can hang for up to 30s → rainbow spinner.
@@ -412,15 +567,17 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         try? await stopTask.value
         timeoutTask.cancel()
 
-        // STEP 3: Clean up
-        webSocketTask = nil
+        // STEP 3: Clean up. A reconnect started while the stop sequence was
+        // running would have re-armed reconnectOwnerTask, so cancel it again.
+        reconnectOwnerTask?.cancel()
+        reconnectOwnerTask = nil
+        teardownWebSocket(closeCode: .normalClosure)
         receiveTask?.cancel()
         receiveTask = nil
         currentConfig = nil
 
         // Break URLSession → delegate retain cycle
-        urlSession?.invalidateAndCancel()
-        urlSession = nil
+        teardownURLSession()
 
         isConnected = false
         sessionId = nil
@@ -458,6 +615,18 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 let message = try await task.receive()
                 await handleMessage(message)
             } catch {
+                // REFUSED UPGRADE (HTTP 402 no credits / 401 / 403):
+                // The socket never opened, so nothing here is a disconnect and
+                // nothing a reconnect can reach — every retry re-asks the same
+                // question and gets the same refusal. The status the server
+                // answered with is on the task's response; read it before the
+                // generic disconnect handling below, which cannot tell this
+                // apart from a dropped connection and used to report it as one.
+                if let refusal = terminalUpgradeRefusal(for: task) {
+                    handleRefusedUpgrade(refusal, task: task, cancelReceiveTask: false)
+                    break
+                }
+
                 // SERVER-INITIATED CLOSE (4001 credits exhausted / 4002 max duration):
                 // The didCloseWith delegate sets didInitiateClose via a separately
                 // enqueued Task { @MainActor in ... }, which can land AFTER this catch
@@ -470,6 +639,25 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 if rawCloseCode == 4001 || rawCloseCode == 4002 {
                     logger.info("Server-initiated close (code=\(rawCloseCode, privacy: .public)) — suppressing reconnect")
                     didInitiateClose = true
+                }
+
+                // 4001 IS AN OUT-OF-CREDITS STOP, AND HAS TO SAY SO.
+                // Suppressing the reconnect above is only half of it: the branch
+                // as it stood then fell through to `break` and the session ended
+                // in silence, with the microphone still live and the flow still
+                // believing it was recording. Report it exactly as a terminal
+                // provider error, so this close and the `Credit balance
+                // exhausted` frame that today's server sends alongside it land
+                // the user in the same place. `handleTerminalCondition` is
+                // idempotent, so whichever of the two arrives first wins and the
+                // other is dropped.
+                if rawCloseCode == 4001 {
+                    handleTerminalCondition(
+                        .insufficientCredits,
+                        detail: "close code 4001",
+                        cancelReceiveTask: false
+                    )
+                    break
                 }
 
                 if !didInitiateClose {
@@ -492,6 +680,145 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 break
             }
         }
+    }
+
+    /// The refusal a failed WebSocket task's HTTP response names, if the user
+    /// has to act on it.
+    ///
+    /// `URLSessionWebSocketTask` keeps the response that came back in place of
+    /// the `101 Switching Protocols` — the only record of *why* the socket never
+    /// opened, since the receive error itself is a generic transport failure.
+    /// A task that did upgrade has a 101 here and returns `nil` through
+    /// `upgradeRefusal(forStatus:)`, so this stays quiet for every mid-session
+    /// drop.
+    private func terminalUpgradeRefusal(
+        for task: URLSessionWebSocketTask
+    ) -> StreamingProviderErrorPolicy.UpgradeRefusal? {
+        guard let response = task.response as? HTTPURLResponse else { return nil }
+        return StreamingProviderErrorPolicy.upgradeRefusal(forStatus: response.statusCode)
+    }
+
+    /// The refusal the current socket's response names, or `error` unchanged.
+    ///
+    /// A startup failure on a socket the server refused outright *is* that
+    /// refusal, whatever shape the failure happened to arrive in — a send that
+    /// could not reach a dead socket, a 10-second poll that timed out waiting
+    /// for a session that was never going to start. Both name the wrong cause;
+    /// the response still carries the right one.
+    ///
+    /// A `CancellationError` is never shadowed: it is a user re-press, and
+    /// `RecordingTranscriptionFlow` has a quiet path for it. Reporting one as a
+    /// billing problem would put a toast on a screen the user just left.
+    ///
+    /// A `pendingStartupFailure` wins outright, because it is the more specific
+    /// answer to the same question — either the provider's own wording for a
+    /// terminal frame, or a refusal the receive loop classified first. That
+    /// second case is why this is returned rather than deferred to: the send and
+    /// the receive both fail on a refused socket with no guaranteed order, and
+    /// whichever loses would otherwise rethrow its own generic transport error
+    /// over an answer already sitting in hand.
+    ///
+    /// Reporting goes through `handleRefusedUpgrade` rather than being done
+    /// here, so a refusal is reported the same way — one Sentry capture, one
+    /// teardown — whichever door it came through. That also *claims* it, so the
+    /// loser of the race is dropped by `handleTerminalCondition`'s idempotence
+    /// guard instead of firing `onError` behind a `startSession()` that has
+    /// already thrown: one fault, one toast, either way round.
+    private func refusalDuringStartup(shadowing error: Error) -> Error {
+        if error is CancellationError { return error }
+        if let failure = pendingStartupFailure { return failure }
+        guard let task = webSocketTask,
+              let refusal = terminalUpgradeRefusal(for: task) else { return error }
+
+        // The caller's own task, not the receive loop — so that loop is a
+        // different task and cancelling it is what stops it reaching the
+        // generic disconnect handling on a socket already accounted for.
+        return handleRefusedUpgrade(refusal, task: task, cancelReceiveTask: true)
+    }
+
+    /// Report a refused upgrade, end the session, and hand back the error that
+    /// describes it.
+    ///
+    /// - Parameter cancelReceiveTask: `false` when the caller is the receive
+    ///   loop itself — the loop breaks the moment this returns.
+    @discardableResult
+    private func handleRefusedUpgrade(
+        _ refusal: StreamingProviderErrorPolicy.UpgradeRefusal,
+        task: URLSessionWebSocketTask,
+        cancelReceiveTask: Bool
+    ) -> StreamingError {
+        let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
+        let error: StreamingError = refusal == .insufficientCredits ? .insufficientCredits : .unauthorized
+        handleTerminalCondition(error, detail: "HTTP \(status)", cancelReceiveTask: cancelReceiveTask)
+        return error
+    }
+
+    /// Surface a terminal condition that arrived outside the provider's event
+    /// stream — a refused upgrade or a 4001 close — with the same guarantees the
+    /// terminal branch of `processServerMessage` gives.
+    ///
+    /// Those guarantees, in the order they have to happen:
+    /// 1. Claim the close as expected, so `receiveLoop` neither reports an
+    ///    unexpected disconnect nor starts a reconnect that cannot succeed.
+    /// 2. Release the microphone and the socket *before* reporting, because
+    ///    `StreamingClientProtocol.onError` promises the caller the session is
+    ///    already torn down and `RecordingTranscriptionFlow` takes it at its
+    ///    word — it never calls `stopSession()`.
+    /// 3. Fail an in-flight `startSession()` through `pendingStartupFailure`
+    ///    rather than through `onError`, so one fault produces one toast. The
+    ///    refused-upgrade case is nearly always this one: the server answers
+    ///    before the socket is up, so startup is still parked in
+    ///    `waitForSessionStarted()` and would otherwise sit out its full 10s and
+    ///    fail with a `connectionTimeout` naming the wrong problem.
+    ///
+    /// - Parameters:
+    ///   - error: The condition, already carrying the sentence the user reads.
+    ///   - detail: How it was detected, for the log and the Sentry payload.
+    ///   - cancelReceiveTask: `false` when the caller runs inside the receive
+    ///     task. See `teardownSession(cancelReceiveTask:cancelReconnect:)`.
+    private func handleTerminalCondition(
+        _ error: StreamingError,
+        detail: String,
+        cancelReceiveTask: Bool
+    ) {
+        // A terminal condition can be signalled twice for one fault — the
+        // provider's error frame and the close that follows it both mean "no
+        // credits". The first one already tore the session down and told the
+        // user; a second report would only overwrite that message with a copy
+        // of itself and re-run a teardown that has already happened.
+        guard !didHandleTerminalProviderError else {
+            logger.info("Terminal condition already handled — ignoring \(detail, privacy: .public)")
+            return
+        }
+        didInitiateClose = true
+        didHandleTerminalProviderError = true
+        lastError = error
+
+        let description = error.localizedDescription
+        logger.error("Terminal streaming condition (\(detail, privacy: .public)): \(description, privacy: .public)")
+        SentryService.capture(
+            error: error,
+            message: "Streaming session refused (terminal)",
+            extras: ["detail": detail],
+            tags: [
+                "component": "StreamingTranscriptionClient",
+                "provider": strategy.transcriptionProviderLabel,
+                "operation": "handleTerminalCondition",
+                // Same tag the provider-error path sets, so account-state noise
+                // can be filtered server-side in one rule rather than two.
+                "terminal": "true"
+            ]
+        )
+
+        teardownSession(cancelReceiveTask: cancelReceiveTask, cancelReconnect: true)
+        onConnectionStateChange?(.error(description))
+
+        if isStartingSession {
+            pendingStartupFailure = error
+            return
+        }
+
+        onError?(error)
     }
 
     /// Handle a received WebSocket message.
@@ -566,9 +893,64 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             }
 
         case .error(let message):
+            // Classified out here so the flags below can be the FIRST statements
+            // inside the main-actor block, ahead of every callback.
+            let outcome = StreamingProviderErrorPolicy.outcome(forProviderMessage: message)
+            let isTerminal = outcome == .terminal
+            let terminalTag = isTerminal ? "true" : "false"
+
+            // A terminal provider error (no credits, dead key) is followed by
+            // the provider closing the socket itself, and providers commonly
+            // repeat the error frame on the way down. The first frame already
+            // tore the session down and told the user, so a repeat must not
+            // re-report to the user — but it still gets its own capture, tagged
+            // as a repeat: the second frame is not always the same fault, and
+            // dropping it silently deletes the only record of a distinct,
+            // actionable fault.
+            if didHandleTerminalProviderError {
+                let repeatError = StreamingError.serverError(message)
+                lastError = repeatError
+                logger.error(
+                    "Repeat provider error after a terminal one: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)"
+                )
+                SentryService.capture(
+                    error: repeatError,
+                    message: "WebSocket provider error (repeat after terminal)",
+                    extras: ["serverMessage": message],
+                    tags: [
+                        "component": "StreamingTranscriptionClient",
+                        "provider": strategy.transcriptionProviderLabel,
+                        "operation": "processServerMessage",
+                        "terminal": terminalTag,
+                        "repeatAfterTerminal": "true"
+                    ]
+                )
+                return
+            }
+
             await MainActor.run {
-                self.logger.error("Provider error: \(message, privacy: .public)")
                 let error = StreamingError.serverError(message)
+                // Is startSession() still in flight — at any point between
+                // opening the socket and reporting success? If so this error,
+                // not a 10-second timeout and not a silent teardown under a
+                // successful start, is what should fail it.
+                let failsStartup = isTerminal && self.isStartingSession
+
+                if isTerminal {
+                    // Claim the provider's impending close as expected. Without
+                    // this, receiveLoop sees didInitiateClose == false, reports
+                    // "WebSocket unexpected disconnect" (HYPERWHISPER-MH) and
+                    // starts a reconnect that can only fail the same way
+                    // (HYPERWHISPER-MG) — whose generic "reconnect failed" toast
+                    // then overwrites the actionable message this error is about
+                    // to show (HYPERWHISPER-RW). The user still gets that
+                    // message, either through onError below or through the
+                    // startup failure handed to startSession().
+                    self.didInitiateClose = true
+                    self.didHandleTerminalProviderError = true
+                }
+
+                self.logger.error("Provider error: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)")
                 self.lastError = error
                 SentryService.capture(
                     error: error,
@@ -577,10 +959,57 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     tags: [
                         "component": "StreamingTranscriptionClient",
                         "provider": self.strategy.transcriptionProviderLabel,
-                        "operation": "processServerMessage"
+                        "operation": "processServerMessage",
+                        // Lets account-state noise (no credits, dead key) be
+                        // filtered server-side without shipping a release, while
+                        // the capture itself stays — a terminal error is still
+                        // worth seeing, just not worth alerting on.
+                        "terminal": terminalTag
                     ]
                 )
+
+                if isTerminal {
+                    // RELEASE THE MICROPHONE AND THE SOCKET BEFORE REPORTING.
+                    //
+                    // StreamingClientProtocol.onError promises "the session is
+                    // already torn down", and RecordingTranscriptionFlow takes it
+                    // at its word: its handler only drops its reference to this
+                    // client, it never calls stopSession(). Nothing else will —
+                    // the client has no deinit and its own URLSession retains it
+                    // as the delegate. Before didInitiateClose was set here the
+                    // doomed reconnect happened to stop the audio engine on its
+                    // way out; suppressing that reconnect removed the only thing
+                    // that turned the microphone off, leaving the AVAudioEngine
+                    // tap installed (orange mic indicator lit until quit, a new
+                    // engine stacked on every later recording).
+                    //
+                    // Runs on the receive task, so its own handle must not be
+                    // cancelled here — the loop breaks as soon as we return.
+                    self.teardownSession(cancelReceiveTask: false, cancelReconnect: true)
+                }
+
                 self.onConnectionStateChange?(.error(message))
+
+                if failsStartup {
+                    // startSession() is still in flight. Hand it this error so it
+                    // fails now, carrying the provider's own wording, instead of
+                    // timing out after 10s and reporting a generic "Failed to
+                    // start" over the top of it — or, later in startup, instead
+                    // of reporting a success it no longer has.
+                    //
+                    // Both of its remaining suspension points read this:
+                    // waitForSessionStarted() polls it, and startSession() checks
+                    // it again after capture.start().
+                    //
+                    // No onError on this path: startSession() throws, and the
+                    // flow's catch is what reports and unwinds a failed start.
+                    // Firing both would report one fault in two toasts, with the
+                    // less useful one landing last.
+                    self.pendingStartupFailure = error
+                    self.logger.error("Terminal provider error before session start — failing startup")
+                    return
+                }
+
                 self.onError?(error)
             }
 
@@ -627,6 +1056,14 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// If the provider doesn't send a ready/session_started message within 10 seconds,
     /// throws StreamingError.connectionTimeout. This prevents hanging indefinitely
     /// if the server is unreachable or authentication fails silently.
+    ///
+    /// EARLY TERMINAL FAILURE:
+    /// The same poll also watches `pendingStartupFailure`. A provider that
+    /// answers a dead key or an exhausted balance before it ever sends a
+    /// session-started frame would otherwise leave startup sitting here for the
+    /// full timeout and then fail with a generic `connectionTimeout`, whose
+    /// "Failed to start" toast buries the actionable message the provider
+    /// actually sent (HYPERWHISPER-RW).
     private func waitForSessionStarted() async throws {
         let timeout: TimeInterval = 10
 
@@ -639,7 +1076,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
             // Wait for session started task
             group.addTask { [weak self] in
-                while await MainActor.run(body: { self?.sessionId }) == nil {
+                while true {
+                    if let failure = await MainActor.run(body: { self?.pendingStartupFailure }) {
+                        throw failure
+                    }
+                    if await MainActor.run(body: { self?.sessionId }) != nil {
+                        return
+                    }
                     try Task.checkCancellation()
                     try await Task.sleep(nanoseconds: 50_000_000) // 50ms poll interval
                 }
@@ -659,7 +1102,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// 3. Wait 1 second before attempting reconnect
     /// 4. Rebuild WebSocket connection using the saved config
     /// 5. If successful: back to .streaming, audio data flows again
-    /// 6. If failed: stop audio capture, enter .error state
+    /// 6. If failed: tear the session down, enter .error state — unless
+    ///    stopSession()/cancel() deliberately aborted this reconnect, in which
+    ///    case it tears down just as thoroughly but stays silent, because that
+    ///    caller is already mid-teardown and driving its own UI
     ///
     /// WHY ONLY ONE ATTEMPT:
     /// Multiple retries with backoff adds complexity and delays the inevitable.
@@ -689,6 +1135,16 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         isReconnecting = true
         defer { isReconnecting = false }
 
+        // CLAIM OWNERSHIP OF THIS RECONNECT.
+        //
+        // This function only ever runs inside the receive task, so `receiveTask`
+        // is the task executing this very code — right up until the hand-over
+        // below points that slot at the replacement listener. Recording the
+        // owner separately is what lets stopSession()/cancel() cancel the task
+        // actually performing the reconnect instead of its replacement.
+        reconnectOwnerTask = receiveTask
+        defer { reconnectOwnerTask = nil }
+
         // A connection that stayed up for a while before dropping is an isolated
         // network blip, not part of a flapping loop — reset the reconnect budget
         // so long sessions don't exhaust it after 3 lifetime blips (#246).
@@ -715,19 +1171,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 ]
             )
             didInitiateClose = true
-            receiveTask?.cancel()
-            receiveTask = nil
-            webSocketTask?.cancel(with: .abnormalClosure, reason: nil)
-            webSocketTask = nil
-            await MainActor.run {
-                self.audioCapture?.stop()
-                self.audioCapture = nil
-                self.isConnected = false
-                self.isStreaming = false
-                self.onAudioLevel?(0)
-                self.onConnectionStateChange?(.error("Connection lost after multiple retries"))
-                self.onError?(StreamingError.serverError("Connection lost after multiple retries"))
-            }
+            // Nothing has been handed over yet, so `receiveTask` is still the
+            // task running this code and `reconnectOwnerTask` is the same task
+            // again — cancelling either would cancel ourselves. Both loops end
+            // the moment we return.
+            teardownSession(cancelReceiveTask: false, cancelReconnect: false)
+            onConnectionStateChange?(.error("Connection lost after multiple retries"))
+            onError?(StreamingError.serverError("Connection lost after multiple retries"))
             return
         }
 
@@ -749,17 +1199,38 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // Wait before reconnect attempt
         try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
 
-        // Attempt to reconnect using saved config
+        // DID SOMEBODY DELIBERATELY STOP US WHILE WE SLEPT?
+        //
+        // `didInitiateClose`, not the nil-ness of `currentConfig`, is the honest
+        // test. stopSession() sets the flag FIRST and only nils the config after
+        // its stop sequence, which can take up to ~10s; the sleep above is 1s,
+        // so a config-only guard wakes inside that window, sails through and
+        // opens a fresh billable socket in the middle of a teardown.
+        //
+        // Quiet is correct here and only here: the caller that set the flag
+        // (stopSession() via stopStreamingTranscription, or cancel()) asked for
+        // this and settles the UI to .idle itself. Firing .error would show a
+        // connection failure the user never hit, and RecordingTranscriptionFlow's
+        // onError handler would tear the session state down underneath the stop
+        // that is still running. A drop the user did NOT ask for stays loud —
+        // that is the split the catch below re-applies (HYPERWHISPER-MG).
+        //
+        // Resources are released either way: a "quiet" path that left the audio
+        // engine running would be a far worse bug than a stray toast.
+        if didInitiateClose {
+            logger.info("Reconnect abandoned (cancelled-by-teardown): the session was stopped during the reconnect wait")
+            teardownSession(cancelReceiveTask: false, cancelReconnect: false)
+            return
+        }
+
+        // A live session whose config or URL is missing is a genuine failure,
+        // and stays exactly as loud as it has always been.
         guard let config = currentConfig,
               let url = strategy.buildWebSocketURL(config: config) else {
-            await MainActor.run {
-                self.audioCapture?.stop()
-                self.audioCapture = nil
-                self.isStreaming = false
-                self.onAudioLevel?(0)
-                self.onConnectionStateChange?(.error("Connection lost"))
-                self.onError?(StreamingError.serverError("Connection lost and reconnect failed"))
-            }
+            logger.error("Reconnect failed: no usable WebSocket URL for the saved config")
+            teardownSession(cancelReceiveTask: false, cancelReconnect: false)
+            onConnectionStateChange?(.error("Connection lost"))
+            onError?(StreamingError.serverError("Connection lost and reconnect failed"))
             return
         }
 
@@ -771,22 +1242,39 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // The callback is re-wired below once the session is re-established.
         audioCapture?.onAudioData = nil
 
-        // Rebuild WebSocket connection
+        // Rebuild WebSocket connection. Release the dead socket first — every
+        // other place in this file that replaces or drops webSocketTask cancels
+        // it, and dropping the last reference without cancelling leaks a
+        // URLSessionWebSocketTask that URLSession still holds.
+        teardownWebSocket()
         webSocketTask = makeWebSocketTask(url: url, config: config)
         webSocketTask?.resume()
 
-        // Cancel the old receive task before starting a new one.
-        // Without this, the old receiveLoop could still be running (blocked on receive())
-        // and we'd end up with two concurrent receive loops on different WebSocket tasks.
-        receiveTask?.cancel()
-        receiveTask = nil
-
         // Reset session ID so waitForSessionStarted can detect the new ready message
-        await MainActor.run {
-            self.sessionId = nil
-        }
-
+        sessionId = nil
         disconnectedDuringReconnect = false
+
+        // HAND THE receiveTask SLOT OVER TO THE REPLACEMENT LOOP — DO NOT CANCEL
+        // THE OLD ONE.
+        //
+        // This function has exactly one caller (receiveLoop), so it always runs
+        // *inside* receiveTask — self.receiveTask is the task executing this very
+        // code. Cancelling it here cancelled the reconnect itself: every await
+        // below then ran cancelled, and waitForSessionStarted's task group spawns
+        // children that are born already-cancelled, so both throw immediately and
+        // group.next() rethrows. The reconnect could only ever fail with
+        // CancellationError, well before the 10s timeout (HYPERWHISPER-MG).
+        //
+        // There is also nothing to cancel: the old loop is not blocked on
+        // receive(), it is parked in this call and breaks the moment we return,
+        // so it can never race the replacement loop for the new socket.
+        //
+        // From here on `receiveTask` is the REPLACEMENT listener, not this task.
+        // The handle that still points at the reconnect is `reconnectOwnerTask`,
+        // claimed at the top of this function — cancelling `receiveTask` alone
+        // from stopSession() would orphan the reconnect, which is exactly the
+        // ~10s-late "reconnect failed" report this file used to produce.
+        receiveTask = nil
         startReceivingMessages()
 
         // Wait for session to be re-established
@@ -839,25 +1327,81 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 ]
             )
         } catch {
-            // Reconnect failed — prevent leftover receiveTask from triggering another cycle
+            // SAMPLE Task.isCancelled FIRST — it is task-local, so it answers
+            // for whichever task is running *right now*, and any suspension
+            // point below would be asking the wrong question about the wrong
+            // task. TranscriptionCancellationPolicy's doc comment demands this.
+            let isTaskCancelled = Task.isCancelled
+
+            // ...and sample didInitiateClose before the line below sets it: it
+            // is only true at this point if somebody ELSE — stopSession() or
+            // cancel() — deliberately ended this session.
+            let wasDeliberatelyStopped = didInitiateClose
+
+            // WAS THIS RECONNECT ABORTED ON PURPOSE, OR DID IT REALLY FAIL?
+            //
+            // `reconnectOwnerTask` keeps pointing at the task running this
+            // function for as long as the reconnect is in flight, even after the
+            // receiveTask hand-over above. That is what lets stopSession() — the
+            // user releasing the shortcut, or cancel() — genuinely abort a
+            // reconnect mid-flight, and therefore what makes `Task.isCancelled`
+            // here mean "teardown cancelled us" instead of "somebody cancelled
+            // our replacement listener" (HYPERWHISPER-MG).
+            //
+            // Reuse the existing policy instead of testing `error is
+            // CancellationError`: the AND with the task flag is the entire point.
+            // A CancellationError raised on a *live* task is still a provider
+            // failure (providers and URLSession raise one while tearing their own
+            // work down, with no transcript for the user), and treating that as
+            // benign is what hid HYPERWHISPER-SQ. That direction is pinned by
+            // TranscriptionCancellationPolicyTests
+            // .cancellationErrorOnALiveTaskIsStillAProviderFailure.
+            let outcome = TranscriptionCancellationPolicy.outcome(
+                for: error,
+                isTaskCancelled: isTaskCancelled
+            )
+
+            // BOTH halves are required to go quiet, and that is the point.
+            //
+            // A cancelled task alone is not consent: this reconnect only exists
+            // because the connection dropped under a user who is still speaking,
+            // and the audio engine is deliberately kept warm across it, so
+            // whatever they said after the drop is already lost. Staying silent
+            // there hands them a truncated transcript with no toast, which is
+            // what stopStreamingTranscription's success path then pastes.
+            //
+            // The one case that genuinely warrants silence is a teardown the
+            // caller asked for: it set didInitiateClose, it is already unwinding
+            // and it drives its own UI to .idle. Reporting there would show a
+            // connection failure the user never hit, and
+            // RecordingTranscriptionFlow's onError handler would tear the session
+            // state down underneath the stop that is still running (it clears
+            // streamingService, resets recordingState and shows an error alert).
+            let isDeliberateTeardown = wasDeliberatelyStopped && outcome == .genuineCancellation
+            // Computed out here: privacy-aware interpolation can't nest a ternary.
+            let outcomeLabel = isDeliberateTeardown ? "cancelled-by-teardown" : "provider-failure"
+
+            // Reconnect failed — prevent the leftover replacement listener from
+            // triggering another cycle. `receiveTask` is that listener, not this
+            // task (the hand-over above), so cancelling it here is correct;
+            // `reconnectOwnerTask` IS this task and must not be cancelled.
             didInitiateClose = true
-            receiveTask?.cancel()
-            receiveTask = nil
-            webSocketTask?.cancel(with: .abnormalClosure, reason: nil)
-            webSocketTask = nil
+            teardownSession(cancelReceiveTask: true, cancelReconnect: false)
 
-            // Clean up and surface error
-            await MainActor.run {
-                self.audioCapture?.stop()
-                self.audioCapture = nil
-                self.isStreaming = false
-                self.onAudioLevel?(0)
-                self.onConnectionStateChange?(.error("Connection lost"))
-                self.onError?(StreamingError.serverError("Connection lost and reconnect failed"))
-                self.logger.error("Reconnect failed: \(error.localizedDescription, privacy: .public)")
-            }
+            // Unconditional: whatever we report upwards, the transition stays
+            // traceable in the local log.
+            logger.error(
+                "Reconnect failed (\(outcomeLabel, privacy: .public)): \(error.localizedDescription, privacy: .public)"
+            )
 
-            // Capture reconnect failure to Sentry for diagnostics
+            guard !isDeliberateTeardown else { return }
+
+            onConnectionStateChange?(.error("Connection lost"))
+            onError?(StreamingError.serverError("Connection lost and reconnect failed"))
+
+            // Same split for Sentry: a reconnect somebody deliberately aborted is
+            // not a defect, and reporting one buries the real reconnect failures
+            // it is grouped with (HYPERWHISPER-MG).
             SentryService.capture(
                 error: error,
                 message: "WebSocket reconnect failed",
@@ -885,6 +1429,79 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             return urlSession?.webSocketTask(with: url, protocols: subprotocols)
         }
         return urlSession?.webSocketTask(with: url)
+    }
+
+    // MARK: - Teardown
+
+    /// Stop the microphone and settle the audio-facing published state.
+    ///
+    /// One helper instead of the four hand-copied versions this used to be —
+    /// which had already drifted apart (only the retry-limit path reset
+    /// `isConnected`). Leaving the AVAudioEngine tap installed is the most
+    /// expensive bug in this file: the orange microphone indicator stays lit
+    /// until the app quits, and every later recording stacks another engine
+    /// on top of the abandoned one.
+    private func teardownAudioCapture() {
+        audioCapture?.onAudioData = nil
+        audioCapture?.stop()
+        audioCapture = nil
+        isStreaming = false
+        isConnected = false
+        onAudioLevel?(0)
+    }
+
+    /// Close and release the WebSocket.
+    ///
+    /// - Parameter closeCode: `.normalClosure` for a stop the user asked for,
+    ///   `.abnormalClosure` for a session ending on a fault.
+    private func teardownWebSocket(closeCode: URLSessionWebSocketTask.CloseCode = .abnormalClosure) {
+        webSocketTask?.cancel(with: closeCode, reason: nil)
+        webSocketTask = nil
+    }
+
+    /// Release the URLSession.
+    ///
+    /// `URLSession(configuration:delegate:delegateQueue:)` retains its delegate
+    /// and this client is its own delegate, so without this the client — and the
+    /// audio engine it owns — outlives every other reference to it.
+    private func teardownURLSession() {
+        urlSession?.invalidateAndCancel()
+        urlSession = nil
+    }
+
+    /// Release everything this session owns, for every exit that does not run
+    /// through `stopSession()`.
+    ///
+    /// `StreamingClientProtocol.onError` promises callers that "the session is
+    /// already torn down", and `RecordingTranscriptionFlow` takes that at its
+    /// word — its handler only drops its reference to the client, it never calls
+    /// `stopSession()`. So every path that fires `onError` has to come through
+    /// here first.
+    ///
+    /// - Parameters:
+    ///   - cancelReceiveTask: `false` when the caller is itself running inside
+    ///     the receive task — cancelling there cancels the caller. The receive
+    ///     loop ends on its own as soon as the socket is gone.
+    ///   - cancelReconnect: `false` when the caller is itself the in-flight
+    ///     reconnect, for the same reason.
+    private func teardownSession(cancelReceiveTask: Bool, cancelReconnect: Bool) {
+        teardownAudioCapture()
+
+        if cancelReceiveTask {
+            receiveTask?.cancel()
+        }
+        receiveTask = nil
+
+        if cancelReconnect {
+            reconnectOwnerTask?.cancel()
+            reconnectOwnerTask = nil
+        }
+
+        teardownWebSocket()
+        teardownURLSession()
+
+        currentConfig = nil
+        sessionId = nil
     }
 }
 
@@ -923,6 +1540,24 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
                 didInitiateClose = true
             }
 
+            // Whichever of this delegate and receiveLoop's catch sees the 4001
+            // first reports it; handleTerminalCondition drops the second. Both
+            // doors are covered because URLSession gives no ordering guarantee
+            // between them — the comment in receiveLoop's catch is the same
+            // point from the other side.
+            //
+            // Unlike that caller, this runs on a task of its own, so the receive
+            // task is a different task and cancelling it is both safe and the
+            // thing that stops the loop.
+            if rawCode == 4001 {
+                handleTerminalCondition(
+                    .insufficientCredits,
+                    detail: "close code 4001 (delegate)",
+                    cancelReceiveTask: true
+                )
+                return
+            }
+
             if !didInitiateClose {
                 isConnected = false
                 isStreaming = false
@@ -943,6 +1578,17 @@ enum StreamingError: LocalizedError {
     case connectionTimeout
     case serverError(String)
     case audioEngineError(String)
+    /// The account has no balance left — a 402 on the upgrade, or a 4001 close.
+    ///
+    /// Its own case rather than a `serverError(String)`: the server's own
+    /// wording for this is an HTTP status or a close code, so there is no
+    /// message to pass through, and the user needs a localized sentence naming
+    /// the fix. Wrapping it as a `serverError` would also read to the user as
+    /// "Server error: …" — the one description that is wrong here, because the
+    /// server is working exactly as designed.
+    case insufficientCredits
+    /// The key was refused — a 401/403 on the upgrade.
+    case unauthorized
 
     var errorDescription: String? {
         switch self {
@@ -954,6 +1600,36 @@ enum StreamingError: LocalizedError {
             return "Server error: \(message)"
         case .audioEngineError(let message):
             return "Audio error: \(message)"
+        case .insufficientCredits:
+            // The same sentence the batch path shows for a 402
+            // (`TranscriptionError.insufficientCredits`). One condition, one
+            // wording, whichever path the user hit it on.
+            return "transcription.error.insufficientCredits".localized
+        case .unauthorized:
+            return "transcription.error.unauthorized.generic".localized
+        }
+    }
+
+    /// Whether this error names something only the user can fix — no credits, a
+    /// dead key, a billing hold.
+    ///
+    /// Callers use it to decide what to *report*, never what to *show*: the
+    /// user sees the same sentence either way.
+    ///
+    /// The two dedicated cases answer for themselves rather than through
+    /// `StreamingProviderErrorPolicy.outcome(forProviderMessage:)`, because
+    /// their descriptions are localized — matching the English markers against
+    /// a German toast would call an exhausted balance transient and put it back
+    /// in Sentry, in exactly the locales nobody checks.
+    var isTerminalForUser: Bool {
+        switch self {
+        case .insufficientCredits, .unauthorized:
+            return true
+        case .serverError(let message):
+            // The provider's own wording, passed through untranslated.
+            return StreamingProviderErrorPolicy.outcome(forProviderMessage: message) == .terminal
+        case .invalidURL, .connectionTimeout, .audioEngineError:
+            return false
         }
     }
 }
