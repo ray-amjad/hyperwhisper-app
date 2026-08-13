@@ -1019,6 +1019,31 @@ internal static class Program
                     $"got '{InlineHtml.PlainText(item.BulletPoints[1])}'");
             });
 
+            Run("Every cloudTierEligible catalog id has a CloudAccuracyTier case", () =>
+            {
+                // shared-app-classification/AGENTS.md documents catalog edits as
+                // data-only, but the Provider dropdown is built straight from the
+                // catalog while persistence funnels through the CloudAccuracyTier
+                // enum, whose FromString fallback is DeepgramNova3. A 12th
+                // cloudTierEligible entry with no enum case would therefore be a
+                // selectable row that transcribes and bills as Deepgram. Fail here
+                // instead, on the PR that adds the entry.
+                var entries = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .CloudTierEligibleProviders();
+                Assert(entries.Count > 0, "cloud-stt-catalog.json exposed no cloudTierEligible providers");
+
+                foreach (var entry in entries)
+                {
+                    var roundTripped = CloudAccuracyTierExtensions.FromString(entry.Id).ToStorageValue();
+                    Assert(
+                        string.Equals(roundTripped, entry.Id, StringComparison.OrdinalIgnoreCase),
+                        $"catalog id '{entry.Id}' has no CloudAccuracyTier case — FromString falls back to "
+                            + $"'{roundTripped}', so that Provider row would silently route and bill as Deepgram. "
+                            + "Add the case to Models/CloudAccuracyTier.cs (and the macOS CloudAccuracyTier enum) "
+                            + "in the same change as the catalog entry.");
+                }
+            });
+
             Run("BackupExportSettingsPage initializes under WPF", () =>
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();

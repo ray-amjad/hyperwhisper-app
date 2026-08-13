@@ -234,11 +234,14 @@ extension CloudSTTCatalog {
         let id: String
         /// Plain company name shown in the dropdown.
         let displayName: String
-        /// The group's entries, in catalog order. Never empty.
+        /// The group's entries, in catalog order. Non-empty for every group the
+        /// catalog produces; only the UI's catalog-load-failure fallback rows
+        /// (`CloudAccuracyTier.pickerVendorGroups`) synthesize an empty one.
         let entries: [Entry]
 
-        /// The entry a fresh selection lands on — the first in catalog order.
-        var defaultEntry: Entry { entries[0] }
+        /// The entry a fresh selection lands on — the first in catalog order,
+        /// nil for a synthesized fallback row.
+        var defaultEntry: Entry? { entries.first }
 
         /// Every model in the group, each paired with the entry that owns it.
         /// Ordered by entry, then by the entry's own model order.

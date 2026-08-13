@@ -197,6 +197,27 @@ public partial class ModeEditorWindow : Window
                 Tag = group.VendorKey
             });
         }
+
+        if (CloudAccuracyCombo.Items.Count > 0) return;
+
+        // The catalog loader deliberately returns an EMPTY catalog rather than
+        // throwing (a TypeInitializationException would brick this window), so
+        // a failed load must not leave the Provider dropdown empty and the whole
+        // HyperWhisper Cloud path unselectable. Fall back to one row per
+        // CloudAccuracyTier case — the same safety net the 11 static XAML
+        // ComboBoxItems used to be. Without a catalog there is no vendor
+        // grouping, so each row is tagged with the tier id itself (exactly what
+        // the pre-catalog XAML tagged them with); SelectedCloudTierId reads that
+        // tag back directly.
+        foreach (CloudAccuracyTier tier in Enum.GetValues<CloudAccuracyTier>())
+        {
+            var tierId = tier.ToStorageValue();
+            CloudAccuracyCombo.Items.Add(new ComboBoxItem
+            {
+                Content = Loc.S($"modes.cloudAccuracy.{tierId}.label"),
+                Tag = tierId
+            });
+        }
     }
 
     /// <summary>The engine recommended for HyperWhisper Cloud transcription.</summary>
@@ -206,7 +227,9 @@ public partial class ModeEditorWindow : Window
     /// The cloud tier the current picker selection routes to. The Provider row is
     /// a company, so the tier comes from the selected MODEL (each model item
     /// carries its owning tier id in <c>DataContext</c>). Falls back to the
-    /// selected company's first tier before a model exists.
+    /// selected company's first tier before a model exists, and — when the
+    /// catalog failed to load and <see cref="LoadCloudTierProviders"/> built its
+    /// enum fallback rows — to the row's own tag, which is the tier id.
     /// </summary>
     private string? SelectedCloudTierId()
     {
@@ -217,8 +240,13 @@ public partial class ModeEditorWindow : Window
         }
 
         var vendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-        return Services.AppClassification.CloudSttCatalog.Shared
-            .VendorGroupForVendorKey(vendorKey)?.DefaultEntry.Id;
+        var group = Services.AppClassification.CloudSttCatalog.Shared.VendorGroupForVendorKey(vendorKey);
+        if (group != null) return group.DefaultEntry.Id;
+
+        // No vendor group for the tag: either nothing is selected (null) or the
+        // catalog is empty and the tag is already a tier id. Returning it keeps
+        // the save path writing a tier instead of silently skipping the field.
+        return string.IsNullOrEmpty(vendorKey) ? null : vendorKey;
     }
 
     // =========================================================================
@@ -632,9 +660,10 @@ public partial class ModeEditorWindow : Window
         // state so a non-default cloud model/domain isn't silently lost on a round-trip.
         // Only seed the catalog default when there was genuinely no prior selection.
         var preservedModelId = (CloudTierModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
+        var preservedTierId = SelectedCloudTierId();
         var preservedMedicalChecked = MedicalDomainCheck.IsChecked == true;
 
-        LoadCloudTierModels(vendorKey, preferredModelId: preservedModelId);
+        LoadCloudTierModels(vendorKey, preferredModelId: preservedModelId, persistedTierId: preservedTierId);
 
         var tierId = SelectedCloudTierId();
         ApplyMedicalDomainVisibility(tierId, isCheckedFromStorage: preservedMedicalChecked);
@@ -685,16 +714,30 @@ public partial class ModeEditorWindow : Window
         // Switching company resets the model to that company's default and clears
         // any domain (medical) selection — they're tier-specific.
         var vendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-        LoadCloudTierModels(vendorKey, preferredModelId: null);
-        ApplyMedicalDomainVisibility(SelectedCloudTierId(), isCheckedFromStorage: false);
+        LoadCloudTierModels(vendorKey, preferredModelId: null, persistedTierId: null);
+        RefreshCloudTierDependentUi();
+    }
 
+    /// <summary>
+    /// Everything downstream of "which cloud tier + model is selected". Both the
+    /// Provider and the Model combo can change the resolved tier (under a merged
+    /// company row the MODEL decides it), so both handlers end here rather than
+    /// each replaying the same tail — which is how the medical-domain refresh
+    /// went missing from the model handler in the first place.
+    /// </summary>
+    private void RefreshCloudTierDependentUi()
+    {
+        // A domain (medical) is tier-specific, so it follows the resolved tier.
+        ApplyMedicalDomainVisibility(SelectedCloudTierId(), isCheckedFromStorage: false);
+        UpdateCloudTierModelDescription();
+        // The credits caption and description are per-model.
         UpdateCloudAccuracyDescription();
-        // Switching tiers can flip catalog vocab support (Deepgram → Chirp 3
-        // hides the field; reverse re-shows it). Refresh the warning so the
-        // user doesn't enter terms that the send-path gate will drop.
+        // Tier/model can flip catalog vocab support (Deepgram → Chirp 3 hides the
+        // field; scribe_v2 → scribe_v1 likewise). Refresh the warning so the user
+        // doesn't enter terms that the send-path gate will drop.
         UpdateAllWarnings();
-        // The routed upstream provider (and thus its supported-language set)
-        // changes with the tier, so re-filter the language picker.
+        // The routed upstream provider (and the model within it) changes the
+        // supported-language set, so re-filter the language picker.
         UpdateLanguagesForSelectedModel();
     }
 
@@ -706,8 +749,16 @@ public partial class ModeEditorWindow : Window
     /// dropdown even with one item, so the row never changes shape. Tag carries
     /// the X-STT-Model id (may be the empty string for Grok's implicit model);
     /// DataContext carries the owning tier id, which is the X-STT-Provider source.
+    ///
+    /// <paramref name="persistedTierId"/> is the tier the mode was SAVED with. It
+    /// is authoritative when the saved model is missing or no longer in the
+    /// catalog: without it a merged company row would seed the vendor group's
+    /// first tier instead (Google → Chirp 3), silently re-tiering a stored
+    /// <c>gemini</c> mode on the next save — different X-STT-Provider, different
+    /// billing, custom vocabulary off. Pass null when the user is actively
+    /// switching company, where landing on the group default IS the intent.
     /// </summary>
-    private void LoadCloudTierModels(string? vendorKey, string? preferredModelId)
+    private void LoadCloudTierModels(string? vendorKey, string? preferredModelId, string? persistedTierId)
     {
         _isUpdatingCloudTierModels = true;
         try
@@ -743,22 +794,31 @@ public partial class ModeEditorWindow : Window
                 });
             }
 
-            // Select preferred (saved) model, else the company's default tier's
-            // default model, else the first entry.
+            // The tier to fall back on when there's no usable saved model: the
+            // PERSISTED tier if it's still one of this company's tiers, else the
+            // company's first tier. Resolving the persisted tier first is what
+            // keeps a stored `gemini` mode on Gemini instead of re-tiering it to
+            // the group default (Google Chirp 3).
+            var group = catalog.VendorGroupForVendorKey(vendorKey);
+            var fallbackTierId = group?.Entries
+                .FirstOrDefault(e => string.Equals(e.Id, persistedTierId, StringComparison.OrdinalIgnoreCase))?.Id
+                ?? group?.DefaultEntry.Id;
+
+            // Select preferred (saved) model, else the fallback tier's default model.
             var targetId = !string.IsNullOrEmpty(preferredModelId)
                 ? preferredModelId
-                : catalog.DefaultModelIdForId(
-                    catalog.VendorGroupForVendorKey(vendorKey)?.DefaultEntry.Id);
+                : catalog.DefaultModelIdForId(fallbackTierId);
 
-            ComboBoxItem? match = null;
-            foreach (ComboBoxItem item in CloudTierModelCombo.Items)
+            var match = FindCloudTierModelItem(targetId);
+            if (match == null && !string.IsNullOrEmpty(preferredModelId))
             {
-                if (string.Equals(item.Tag?.ToString() ?? "", targetId ?? "", StringComparison.OrdinalIgnoreCase))
-                {
-                    match = item;
-                    break;
-                }
+                // The saved model isn't offered by this company any more (retired
+                // id, or a BYOK leftover). Land on the fallback tier's default
+                // rather than the first item in the list, which for a merged row
+                // would belong to a different tier than the one that was saved.
+                match = FindCloudTierModelItem(catalog.DefaultModelIdForId(fallbackTierId));
             }
+
             CloudTierModelCombo.SelectedItem = match ?? (CloudTierModelCombo.Items.Count > 0
                 ? (ComboBoxItem)CloudTierModelCombo.Items[0]
                 : null);
@@ -771,21 +831,28 @@ public partial class ModeEditorWindow : Window
         UpdateCloudTierModelDescription();
     }
 
+    /// <summary>
+    /// The model combo item whose Tag is <paramref name="modelId"/>, or null.
+    /// Tag and id are compared as "" when null so Grok's empty-string implicit
+    /// model id still matches its item.
+    /// </summary>
+    private ComboBoxItem? FindCloudTierModelItem(string? modelId)
+    {
+        foreach (ComboBoxItem item in CloudTierModelCombo.Items)
+        {
+            if (string.Equals(item.Tag?.ToString() ?? "", modelId ?? "", StringComparison.OrdinalIgnoreCase))
+                return item;
+        }
+        return null;
+    }
+
     private void CloudTierModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_isLoading || _isUpdatingCloudTierModels) return;
 
-        UpdateCloudTierModelDescription();
         // Under a merged company row the model also decides the tier (Chirp vs
-        // Gemini), so anything keyed on the tier has to follow the model.
-        ApplyMedicalDomainVisibility(SelectedCloudTierId(), isCheckedFromStorage: false);
-        // Model can flip vocab support (scribe_v2 → scribe_v1) and the credits
-        // caption is per-model, so refresh both.
-        UpdateCloudAccuracyDescription();
-        UpdateAllWarnings();
-        // The model within a tier can narrow the language set (e.g. AssemblyAI
-        // universal-3-pro → 7 langs), so re-filter the language picker.
-        UpdateLanguagesForSelectedModel();
+        // Gemini), so everything keyed on the tier has to follow the model.
+        RefreshCloudTierDependentUi();
     }
 
     /// <summary>Updates the per-model description line under the tier model combo.</summary>
@@ -1166,8 +1233,10 @@ public partial class ModeEditorWindow : Window
 
                 // The combo holds companies, so select the company that owns the
                 // stored tier. Storage keeps the tier id — only the row is coarser.
+                // With an empty catalog there are no vendor groups and the rows are
+                // tagged with tier ids instead, so fall back to the tier id itself.
                 var storedVendorKey = Services.AppClassification.CloudSttCatalog.Shared
-                    .VendorGroupForId(accuracyTierValue)?.VendorKey;
+                    .VendorGroupForId(accuracyTierValue)?.VendorKey ?? accuracyTierValue;
                 foreach (ComboBoxItem item in CloudAccuracyCombo.Items)
                 {
                     if (string.Equals(item.Tag?.ToString(), storedVendorKey, StringComparison.OrdinalIgnoreCase))
@@ -1181,7 +1250,7 @@ public partial class ModeEditorWindow : Window
                     // Default to Deepgram via named lookup — a positional index
                     // breaks silently if the catalog order changes.
                     var deepgramVendorKey = Services.AppClassification.CloudSttCatalog.Shared
-                        .VendorGroupForId("deepgramNova3")?.VendorKey;
+                        .VendorGroupForId("deepgramNova3")?.VendorKey ?? "deepgramNova3";
                     CloudAccuracyCombo.SelectedItem = CloudAccuracyCombo.Items
                         .OfType<ComboBoxItem>()
                         .FirstOrDefault(item => string.Equals(
@@ -1189,10 +1258,14 @@ public partial class ModeEditorWindow : Window
                         ?? CloudAccuracyCombo.Items[0];
                 }
 
-                // Load the saved model (empty/null → catalog default) and the
-                // saved domain (medical) for the tier that model resolves to.
+                // Load the saved model (empty/null → the PERSISTED tier's catalog
+                // default, not the company's) and the saved domain (medical) for
+                // the tier that model resolves to.
                 var selectedVendorKey = (CloudAccuracyCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-                LoadCloudTierModels(selectedVendorKey, mode.CloudTranscriptionModel);
+                LoadCloudTierModels(
+                    selectedVendorKey,
+                    preferredModelId: mode.CloudTranscriptionModel,
+                    persistedTierId: accuracyTierValue);
                 var resolvedTierId = SelectedCloudTierId();
 
                 var savedDomainIsMedical = string.Equals(mode.CloudTranscriptionDomain, "medical", StringComparison.OrdinalIgnoreCase);
@@ -2046,7 +2119,12 @@ public partial class ModeEditorWindow : Window
             }
 
             // Save the cloud accuracy tier (for HyperWhisper Cloud). The Provider
-            // row is a company, so the tier comes from the selected model.
+            // row is a company, so the tier comes from the selected model. The
+            // Provider combo always has rows (LoadCloudTierProviders falls back to
+            // the CloudAccuracyTier cases when the catalog is empty), so this
+            // resolves for any selection; the guard only skips the "nothing
+            // selected at all" case, where keeping the stored tier beats
+            // overwriting it with FromString's Deepgram default.
             var selectedTierId = SelectedCloudTierId();
             if (!string.IsNullOrEmpty(selectedTierId))
             {

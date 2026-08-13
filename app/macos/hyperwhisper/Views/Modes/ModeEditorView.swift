@@ -144,9 +144,23 @@ struct ModeEditorView: View {
             let processingMode = isLegacyVoiceToText ? PostProcessingMode.off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
             _postProcessingMode = State(initialValue: processingMode)
 
+            // A mode can carry no transcription model at all (backup restore, or a
+            // ModesEndpoint PATCH that sets only cloudProvider). Seed the SAVED
+            // provider's own default rather than a blanket "whisper-1": Grok's
+            // single implicit model has the empty-string id, so "whisper-1" would
+            // match no picker tag and render the Model row as a blank menu button.
+            // Only fall back to "whisper-1" when the provider itself is unknown.
+            let savedCloudProviderEnum = CloudProvider(rawValue: mode.cloudProvider ?? "")
+            let savedCloudModel = mode.cloudTranscriptionModel?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let seededCloudModel: String = {
+                if let savedCloudModel, !savedCloudModel.isEmpty { return savedCloudModel }
+                guard let savedCloudProviderEnum else { return "whisper-1" }
+                return CloudTranscriptionModels.defaultModel(for: savedCloudProviderEnum)
+            }()
             let initialCloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
-                mode.cloudTranscriptionModel ?? "whisper-1",
-                provider: CloudProvider(rawValue: mode.cloudProvider ?? "")
+                seededCloudModel,
+                provider: savedCloudProviderEnum
             )
 
             // Azure MAI / Google Chirp legacy provider values are folded into
@@ -621,6 +635,17 @@ struct ModeEditorView: View {
                 if !showsMedicalDomainToggle {
                     cloudTranscriptionDomain = nil
                 }
+            } else if provider == .cloud,
+                      !CloudTranscriptionModels.models(for: currentCloudProvider)
+                          .contains(where: { $0.id == cloudTranscriptionModel }) {
+                // Same repair for the BYOK path: a stored model that this provider
+                // doesn't offer (retired id, leftover from another provider, or the
+                // "whisper-1" default landing on Grok, whose only model id is "")
+                // matches no picker tag, so SwiftUI logs "Picker: the selection is
+                // invalid" and renders an empty menu button. Checking the FULL model
+                // list — not the popular subset — so a valid but non-popular
+                // selection is left alone.
+                cloudTranscriptionModel = CloudTranscriptionModels.defaultModel(for: currentCloudProvider)
             }
         }
         .onChange(of: postProcessingMode) { _, newValue in
@@ -1090,7 +1115,7 @@ struct ModeEditorView: View {
                 Text(localized: "modes.field.provider")
                     .frame(width: 80, alignment: .leading)
                 Picker("", selection: hyperwhisperCloudVendorBinding) {
-                    ForEach(CloudSTTCatalog.shared.cloudTierVendorGroups) { group in
+                    ForEach(CloudAccuracyTier.pickerVendorGroups) { group in
                         Text(hyperwhisperCloudVendorLabel(group)).tag(group.id)
                     }
                 }
@@ -1176,8 +1201,6 @@ struct ModeEditorView: View {
         }
     }
 
-    /// Label for a HyperWhisper Cloud model row — tags the catalog default with
-    /// "(Recommended)" so users can see which model is the recommended default.
     /// Label for a Provider row — the plain company name, tagged
     /// "(Recommended)" for the company that owns the recommended engine
     /// (ElevenLabs Scribe v2). "(Recommended)" appears on this row only: on the

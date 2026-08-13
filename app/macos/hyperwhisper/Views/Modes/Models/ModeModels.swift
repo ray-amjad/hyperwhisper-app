@@ -429,18 +429,33 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
         CloudSTTCatalog.shared.entry(byId: rawValue)?.vendor ?? rawValue
     }
 
-    /// Plain company name for the Provider dropdown ("Deepgram", "xAI") — no
-    /// model family, no version. Those live in the Model dropdown.
-    var vendorDisplayName: String {
-        CloudSTTCatalog.shared.entry(byId: rawValue)?.vendorDisplayName ?? displayName
+    /// Rows of the Provider dropdown. Normally the catalog's vendor groups;
+    /// falls back to one row per tier if the catalog failed to load (its loader
+    /// returns an EMPTY catalog rather than throwing), so the UI never goes
+    /// empty — the guarantee the old `pickerOrder` fallback carried. The
+    /// fallback rows are keyed by the tier's own raw value, which is exactly
+    /// what `vendorKey` degrades to without a catalog, so the binding still
+    /// round-trips.
+    static var pickerVendorGroups: [CloudSTTCatalog.VendorGroup] {
+        let groups = CloudSTTCatalog.shared.cloudTierVendorGroups
+        if !groups.isEmpty { return groups }
+        return allCases.map {
+            CloudSTTCatalog.VendorGroup(id: $0.rawValue, displayName: $0.displayName, entries: [])
+        }
     }
 
     /// The tier a fresh Provider selection lands on: the vendor group's first
-    /// entry in catalog order. Nil when the vendor is unknown.
+    /// entry in catalog order. With no catalog the row's key IS a tier raw
+    /// value (see `pickerVendorGroups`), so fall back to parsing it — otherwise
+    /// the Provider row would render but refuse every selection. Nil only when
+    /// the key matches neither.
     static func defaultTier(forVendorKey vendor: String) -> CloudAccuracyTier? {
-        guard let group = CloudSTTCatalog.shared.cloudTierVendorGroups.first(where: { $0.id == vendor })
-        else { return nil }
-        return CloudAccuracyTier(rawValue: group.defaultEntry.id)
+        if let group = CloudSTTCatalog.shared.cloudTierVendorGroups.first(where: { $0.id == vendor }),
+           let entry = group.defaultEntry,
+           let tier = CloudAccuracyTier(rawValue: entry.id) {
+            return tier
+        }
+        return CloudAccuracyTier(rawValue: vendor)
     }
 
     /// The tier that owns `modelId` within this tier's vendor group. Selecting a
