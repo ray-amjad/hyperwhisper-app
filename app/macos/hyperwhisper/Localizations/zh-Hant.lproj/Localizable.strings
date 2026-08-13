@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "錯誤日誌";
 "settings.general.errorLogging.info" = "自動擷取並傳送錯誤報告以協助改進應用程式。";
 "settings.general.shareSpeedData.title" = "分享匿名速度資料";
-"settings.general.shareSpeedData.subtitle" = "幫助大家了解在自己所在地區，哪個雲端模型速度最快。";
 "settings.general.shareSpeedData.info" = "測量每個雲端服務供應商所需的時間，並將其加入公開比較。一次測量包含供應商、伺服器區域、片段長度和所用時間 — 不含帳戶、金鑰、音訊或文字。關閉此選項後，HyperWhisper 將停止傳送這些資料。其他一切保持不變，本機模型永遠不會傳送任何內容。";
 "settings.general.shareSpeedData.link" = "查看速度比較";
 "settings.general.autoUpdate.title" = "自動更新";

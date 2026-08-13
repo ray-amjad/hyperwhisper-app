@@ -69,6 +69,91 @@ public sealed class CloudSttCatalog
     // header value). `sttProvider` is the X-STT-Provider header value.
     // =========================================================================
 
+    /// <summary>All catalog entries flagged <c>access.cloudTierEligible == true</c>, in catalog order.</summary>
+    public IReadOnlyList<CloudSttCatalogEntry> CloudTierEligibleProviders()
+    {
+        var list = new List<CloudSttCatalogEntry>();
+        foreach (var entry in Providers)
+            if (entry.Access?.CloudTierEligible == true)
+                list.Add(entry);
+        return list;
+    }
+
+    /// <summary>
+    /// The Provider dropdown's rows: cloud-tier entries grouped by <c>vendor</c>
+    /// and sorted by company name, so the list reads alphabetically and each
+    /// company appears exactly once. Google owns two entries (Chirp + Gemini)
+    /// and so contributes one row whose model list spans both.
+    /// </summary>
+    public IReadOnlyList<CloudSttVendorGroup> CloudTierVendorGroups()
+    {
+        var order = new List<string>();
+        var byVendor = new Dictionary<string, List<CloudSttCatalogEntry>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in CloudTierEligibleProviders())
+        {
+            if (!byVendor.TryGetValue(entry.Vendor, out var entries))
+            {
+                entries = [];
+                byVendor[entry.Vendor] = entries;
+                order.Add(entry.Vendor);
+            }
+            entries.Add(entry);
+        }
+
+        var groups = new List<CloudSttVendorGroup>();
+        foreach (var vendor in order)
+        {
+            var entries = byVendor[vendor];
+            groups.Add(new CloudSttVendorGroup
+            {
+                VendorKey = vendor,
+                DisplayName = string.IsNullOrEmpty(entries[0].VendorDisplayName)
+                    ? entries[0].DisplayName
+                    : entries[0].VendorDisplayName!,
+                Entries = entries
+            });
+        }
+
+        groups.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
+        return groups;
+    }
+
+    /// <summary>The vendor group a cloud-tier id belongs to, or null if unknown.</summary>
+    public CloudSttVendorGroup? VendorGroupForId(string? tierId)
+    {
+        var vendor = GetById(tierId)?.Vendor;
+        if (string.IsNullOrEmpty(vendor)) return null;
+        return VendorGroupForVendorKey(vendor);
+    }
+
+    /// <summary>The vendor group with the given <c>vendor</c> key, or null if unknown.</summary>
+    public CloudSttVendorGroup? VendorGroupForVendorKey(string? vendorKey)
+    {
+        if (string.IsNullOrEmpty(vendorKey)) return null;
+        foreach (var group in CloudTierVendorGroups())
+            if (string.Equals(group.VendorKey, vendorKey, StringComparison.OrdinalIgnoreCase))
+                return group;
+        return null;
+    }
+
+    /// <summary>
+    /// Every model offered by a vendor group, each paired with the tier that owns
+    /// it. The owning tier is what becomes the X-STT-Provider header, so a merged
+    /// row (Google) can still route each model correctly.
+    /// </summary>
+    public IReadOnlyList<CloudSttVendorModel> ModelsForVendorKey(string? vendorKey)
+    {
+        var group = VendorGroupForVendorKey(vendorKey);
+        if (group == null) return [];
+
+        var models = new List<CloudSttVendorModel>();
+        foreach (var entry in group.Entries)
+            foreach (var model in entry.Models)
+                models.Add(new CloudSttVendorModel { TierId = entry.Id, Model = model });
+        return models;
+    }
+
     /// <summary>The X-STT-Provider header value for the given tier id, or null if unknown.</summary>
     // TODO-verify (Windows/CI): Rust shared-core swap.
     public string? SttProviderForId(string? id)
@@ -292,12 +377,46 @@ public sealed class CloudSttCatalog
     }
 }
 
+/// <summary>
+/// One row of the Provider dropdown: a company and every cloud-tier entry it
+/// owns. <see cref="Entries"/> is never empty and stays in catalog order.
+/// </summary>
+public sealed class CloudSttVendorGroup
+{
+    /// <summary>The catalog <c>vendor</c> key — the dropdown's selection tag.</summary>
+    public string VendorKey { get; init; } = string.Empty;
+
+    /// <summary>Plain company name shown in the dropdown.</summary>
+    public string DisplayName { get; init; } = string.Empty;
+
+    public IReadOnlyList<CloudSttCatalogEntry> Entries { get; init; } = [];
+
+    /// <summary>The entry a fresh selection lands on — the first in catalog order.</summary>
+    public CloudSttCatalogEntry DefaultEntry => Entries[0];
+}
+
+/// <summary>A model together with the cloud tier that owns it.</summary>
+public sealed class CloudSttVendorModel
+{
+    public string TierId { get; init; } = string.Empty;
+    public CloudSttModel Model { get; init; } = new();
+}
+
 public sealed class CloudSttCatalogEntry
 {
     public string Id { get; init; } = string.Empty;
     public string DisplayName { get; init; } = string.Empty;
     public string? DisplayModel { get; init; }
     public string Vendor { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Plain company name shown in the Provider dropdown ("Deepgram", "xAI").
+    /// Catalog v7+ — carries no model family or version, unlike
+    /// <see cref="DisplayName"/> ("Deepgram Nova 3"), which stays for tooltips
+    /// and diagnostics. Null on an older catalog; callers fall back to
+    /// <see cref="DisplayName"/>.
+    /// </summary>
+    public string? VendorDisplayName { get; init; }
 
     /// <summary>The <c>X-STT-Provider</c> header value the backend routes on (e.g. "openai", "azure-mai").</summary>
     public string? SttProvider { get; init; }

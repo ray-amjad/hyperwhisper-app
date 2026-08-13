@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Hibanaplózás";
 "settings.general.errorLogging.info" = "Automatikus hibajelentések rögzítése és küldése az alkalmazás fejlesztésének segítésére.";
 "settings.general.shareSpeedData.title" = "Névtelen sebességadatok megosztása";
-"settings.general.shareSpeedData.subtitle" = "Segít mindenkinek látni, melyik felhőmodell a leggyorsabb az ő helyükön.";
 "settings.general.shareSpeedData.info" = "Méri, mennyi ideig tart minden felhőszolgáltatónak, és hozzáadja egy nyilvános összehasonlításhoz. Egy mérés tartalmazza a szolgáltatót, a szerver régióját, a klip hosszát és az eltelt időt — nincs fiók, nincs kulcs, nincs hang és nincs szöveg. Kapcsold ki, és a HyperWhisper leáll a küldéssel. Semmi más nem változik, a helyi modellek pedig soha nem küldenek semmit.";
 "settings.general.shareSpeedData.link" = "Sebességösszehasonlítás megtekintése";
 "settings.general.autoUpdate.title" = "Automatikus frissítés";

@@ -582,6 +582,20 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: 0.016 / 60.0
         ),
+
+        // xAI Grok — one implicit model. The API takes no model parameter, so
+        // the id is the empty string (matching `defaultModel(for: .grok)`). It
+        // is listed so the Model row is a one-item dropdown like every other
+        // provider, instead of a read-only label.
+        CloudTranscriptionModel(
+            id: "",
+            displayName: "Grok Speech-to-Text",
+            isAvailable: true,
+            description: "xAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
+            provider: .grok,
+            isPopular: true,
+            pricePerSecond: nil
+        ),
     ]
     
     /// Legacy AssemblyAI model IDs that have been retired. Resolved transparently to their
@@ -678,8 +692,21 @@ struct CloudTranscriptionModels {
     /// - Parameter id: The model ID to look up
     /// - Returns: The CloudTranscriptionModel if found, nil otherwise
     static func model(withId id: String) -> CloudTranscriptionModel? {
+        // Grok's entry has an empty id (its API takes no model parameter), so an
+        // id-only lookup must reject "" — otherwise any provider left without a
+        // model would resolve to Grok. Callers that know the provider should use
+        // `model(withId:provider:)`.
+        guard !id.isEmpty else { return nil }
         let resolved = resolveModelAlias(id, provider: nil)
         return availableModels.first { $0.id == resolved }
+    }
+
+    /// Look up a model within a known provider. Required for providers whose
+    /// model id is the empty string, and safer than the id-only lookup wherever
+    /// the provider is already in hand.
+    static func model(withId id: String, provider: CloudProvider) -> CloudTranscriptionModel? {
+        let resolved = resolveModelAlias(id, provider: provider)
+        return availableModels.first { $0.provider == provider && $0.id == resolved }
     }
     
     /// Get the display name for a model ID
@@ -687,6 +714,17 @@ struct CloudTranscriptionModels {
     /// - Returns: The display name if found, or the ID itself as fallback
     static func displayName(for id: String) -> String {
         model(withId: id)?.displayName ?? id
+    }
+
+    /// Get the display name for a model ID within a known provider. Required for
+    /// providers whose model id is the empty string (Grok) — the id-only lookup
+    /// rejects "" and falls back to the id, which renders as a blank name.
+    /// - Parameters:
+    ///   - id: The model ID to look up
+    ///   - provider: The provider that owns the model
+    /// - Returns: The display name if found, or the ID itself as fallback
+    static func displayName(for id: String, provider: CloudProvider) -> String {
+        model(withId: id, provider: provider)?.displayName ?? id
     }
     
     /// Get all available model IDs

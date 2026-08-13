@@ -150,13 +150,23 @@ struct ModeCard: View {
                                         .font(.system(size: 11))
 
                                     // Show cloud model if available (unless it's HyperWhisper Cloud which uses fixed model)
+                                    // Resolve through the provider when we can:
+                                    // Grok's single model is registered under the
+                                    // empty id, and the id-only lookup rejects ""
+                                    // and falls back to the id — which would draw
+                                    // a dangling separator with no model name.
                                     if let cloudModel = mode.cloudTranscriptionModel,
                                        provider != "hyperwhisper" {
-                                        Text("·")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(.secondary)
-                                        Text(CloudTranscriptionModels.displayName(for: cloudModel))
-                                            .font(.system(size: 11))
+                                        let modelName = CloudProvider(rawValue: provider).map {
+                                            CloudTranscriptionModels.displayName(for: cloudModel, provider: $0)
+                                        } ?? CloudTranscriptionModels.displayName(for: cloudModel)
+                                        if !modelName.isEmpty {
+                                            Text("·")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(.secondary)
+                                            Text(modelName)
+                                                .font(.system(size: 11))
+                                        }
                                     }
                                 }
                                 .foregroundColor(.blue)
