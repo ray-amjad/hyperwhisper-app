@@ -904,6 +904,9 @@ struct MenuBarItems: View {
     /// 5. Navigation to History view (immediately, showing "Processing..." status)
     /// 6. Transcription and result handling
     ///
+    /// **Lifetime:** the flow is intentionally only a local — see the "Object lifetime" note on
+    /// `FileTranscriptionFlow.openFilePickerAndTranscribe(for:)` (HYPERWHISPER-SZ).
+    ///
     /// - Parameter mode: The transcription mode to use
     private func transcribeFile(with mode: Mode) {
         let fileTranscriptionFlow = FileTranscriptionFlow(
