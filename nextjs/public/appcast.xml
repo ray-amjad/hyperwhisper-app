@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.43.0</title>
+            <pubDate>Thu, 13 Aug 2026 03:09:10 +0000</pubDate>
+            <sparkle:version>112</sparkle:version>
+            <sparkle:shortVersionString>2.43.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.43.0.dmg" length="33660309" type="application/octet-stream" sparkle:edSignature="2ap/8VHMUySpDPe0lUCyHJ8whlqhnqEB4F1rkZnmD/y63tloARrYtY7C2QhfH1MToBZiFb4G4r4xzTYkENEzDQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Find the fastest provider for you</b> — the new <a href="https://www.hyperwhisper.com/en/latency">latency page</a> shows how quickly every cloud provider actually answers, broken down by server region and clip length, from real transcriptions rather than vendor claims. Pick the fastest one for where you are. Your transcriptions help build it: <b>Share anonymous speed data</b> in Settings → General is on by default and stores only a timing — no account, no audio, no text. Turn it off any time.</li><li>Global hotkeys now work when the main window has never been opened.</li><li>Launching minimized no longer hides a window you just opened yourself.</li><li>Cancelling a live Apple Speech dictation is no longer reported as a failure.</li><li>Release notes now show bold text instead of raw tags.</li><li>Faster launch — the startup recording scan no longer blocks the interface.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.42.0</title>
             <pubDate>Mon, 10 Aug 2026 01:44:14 +0000</pubDate>
             <sparkle:version>111</sparkle:version>
