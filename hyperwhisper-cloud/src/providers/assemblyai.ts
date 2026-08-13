@@ -44,7 +44,7 @@ import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionC
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -137,10 +137,7 @@ function capKeytermsByTotalChars(terms: string[], budget: number): string[] {
  * actual request. */
 function trimExplicitLanguage(language: string | undefined): string | undefined {
   const trimmed = language?.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'auto') {
-    return undefined;
-  }
-  return trimmed;
+  return isExplicitLanguage(trimmed) ? trimmed : undefined;
 }
 
 /** `true` when `language` is an explicit, non-"auto" language — the only case
@@ -240,7 +237,7 @@ async function transcribeWithAssemblyAISync(
     // Sync's `config.language_codes` has no `language_detection` sibling flag
     // like async's create body — omitting it entirely IS auto-detection, so
     // there's no explicit "auto" branch to send here (unlike async).
-    const code = explicitLanguage.toLowerCase().split(/[-_]/)[0];
+    const code = explicitLanguageSubtag(explicitLanguage);
     if (code) {
       config.language_codes = [code];
     }
@@ -454,15 +451,16 @@ export async function transcribeWithAssemblyAI(
     audio_url: uploadUrl,
     speech_models: speechModels,
   };
-  if (language && language.toLowerCase() !== 'auto') {
-    // AssemblyAI's `language_code` expects a bare ISO-639-1 code (e.g. "en",
-    // "es", "pt"), NOT a hyphenated BCP-47 locale: "en-US" → "en-us" is rejected
-    // at job creation. AssemblyAI does support a few underscore English variants
-    // (en_us / en_uk), but converting hyphens to underscores wholesale would
-    // synthesize unsupported region codes (es_es, fr_fr), so — like the OpenAI
-    // and Soniox adapters — we strip the region to the always-valid primary
-    // subtag. This self-only provider has no sibling to recover a bad code.
-    createBody.language_code = language.toLowerCase().split(/[-_]/)[0];
+  // AssemblyAI's `language_code` expects a bare ISO-639-1 code (e.g. "en",
+  // "es", "pt"), NOT a hyphenated BCP-47 locale: "en-US" → "en-us" is rejected
+  // at job creation. AssemblyAI does support a few underscore English variants
+  // (en_us / en_uk), but converting hyphens to underscores wholesale would
+  // synthesize unsupported region codes (es_es, fr_fr), so — like the OpenAI
+  // and Soniox adapters — we strip the region to the always-valid primary
+  // subtag. This self-only provider has no sibling to recover a bad code.
+  const languageCode = explicitLanguageSubtag(language);
+  if (languageCode !== undefined) {
+    createBody.language_code = languageCode;
   } else {
     createBody.language_detection = true;
   }

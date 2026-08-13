@@ -7,6 +7,7 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
+  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -37,11 +38,11 @@ export async function transcribeWithGroq(
   formData.append('model', model);
   formData.append('response_format', 'verbose_json');
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // Groq's Whisper API expects a bare ISO-639-1 code ("en"), not a hyphenated
-    // BCP-47 locale — strip to the primary subtag like the other Whisper-family
-    // adapters. (Deepgram is the exception: it accepts BCP-47 region codes.)
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // Groq's Whisper API expects a bare ISO-639-1 code ("en"), not a hyphenated
+  // BCP-47 locale — strip to the primary subtag like the other Whisper-family
+  // adapters. (Deepgram is the exception: it accepts BCP-47 region codes.)
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language', langCode);
   }
   if (initialPrompt) {

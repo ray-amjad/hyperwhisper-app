@@ -8,6 +8,7 @@ import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-ca
 import { validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { isIPBlocked } from '../lib/redis';
+import { isExplicitLanguage } from '../providers/utils';
 
 interface DeepgramLiveResponse {
   type: string;
@@ -106,7 +107,7 @@ function buildDeepgramUrl(language?: string, vocabulary?: string): string {
   });
 
   const normalizedLanguage = language?.toLowerCase();
-  if (normalizedLanguage && normalizedLanguage !== 'auto') {
+  if (isExplicitLanguage(normalizedLanguage)) {
     params.set('language', normalizedLanguage);
     if (vocabulary) {
       // Nova-3 `keyterm` takes ONE repeated query value per term — `keyterm=a&

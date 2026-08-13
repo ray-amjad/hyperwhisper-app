@@ -9,7 +9,7 @@ import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
+import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-flash';
@@ -50,7 +50,7 @@ function thinkingConfig(model: string): Record<string, unknown> {
 
 function buildPrompt(language?: string, initialPrompt?: string): string {
   let prompt = 'Transcribe the speech in this audio verbatim. Output only the transcript text with no commentary, labels, timestamps, or preamble.';
-  if (language && language.toLowerCase() !== 'auto') {
+  if (isExplicitLanguage(language)) {
     prompt += ` The audio is in language code "${language.toLowerCase()}"; transcribe it in that language.`;
   }
   if (initialPrompt) {
