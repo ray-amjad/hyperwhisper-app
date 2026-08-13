@@ -226,6 +226,30 @@ The Model Library sorts models by the sum of Speed + Accuracy, from high to low.
   A model with Speed 5 and Accuracy 3 gets the same rank as a model with Speed 3 and Accuracy 5. If you have a strong preference, look at the two bars and not only at the position in the list.
 </Tip>
 
+# Find a model in the library
+
+The library holds every model: cloud and on-device, speech-to-text and post-processing. Use the search box and the filters at the top of **Model Library** to make the list shorter. Both platforms have the same set.
+
+| Control | What it does |
+| --- | --- |
+| Search box | Matches the model name, the provider name, and the tag of the model. On Windows it also matches the description line |
+| **Language** | Keeps the voice models that support the language that you select. The default is **Any language** |
+| **Voice models** / **Language models** | Keeps the speech-to-text models, or the post-processing models |
+| **Cloud** / **Offline** | Keeps the cloud models, or the on-device models |
+| **Supports custom vocabulary** | Keeps the models that accept your [custom vocabulary](/vocabulary) |
+| **Available on HyperWhisper Cloud** | Keeps the models that run with no API key of your own |
+| Provider menu | Keeps one provider, for example OpenAI or Deepgram. The default is **All providers** |
+
+The language filter applies only to the voice models. The post-processing models always stay in the list, because they work on text and not on audio.
+
+When you select a language, a count shows below the filters: for example `12 of 20 support Spanish`. Click **Show all** to clear the language filter.
+
+<Note>
+  HyperWhisper remembers the **Language** filter and applies it the next time that you open the Model Library. It does not remember the other filters — they clear when you close the library.
+</Note>
+
+By default the list gives the voice models first, then the post-processing models, and then the local LLM models. Each of these two first groups is in the rating order that the [Rating scale](#rating-scale) section describes. To sort the whole list instead, click a column header: name, type, rating, or location. Click the same header again to change the direction.
+
 # How to use on-device models
 
 ## Download and storage

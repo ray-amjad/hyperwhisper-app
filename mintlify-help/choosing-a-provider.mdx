@@ -11,6 +11,10 @@ HyperWhisper Cloud is built in. You do not need an API key or a separate account
 
 Each provider has an accuracy rating of **Highest**, **High**, or **Medium**. The rating and the cost are independent: two providers with the same rating can have very different costs per minute.
 
+<Tip>
+  For speed, read the public [latency page](https://www.hyperwhisper.com/en/latency). It gives the measured p50, p95, and p99 times of each provider in each server region, from the last 30 days of real HyperWhisper Cloud requests. A cell with fewer than 20 measurements shows a dash. These measurements come from the users who leave **Share anonymous speed data** on — read [General Settings](/general-settings#share-anonymous-speed-data) for that setting.
+</Tip>
+
 <Note>
   These four providers are the featured providers. If one provider fails, HyperWhisper Cloud sends the request to a backup provider. The full HyperWhisper Cloud picker gives all 11 supported providers with no key. The list includes Soniox, Azure MAI-Transcribe, and Google Chirp 3. Providers outside the featured four do not get automatic failover. The [Provider Health](/provider-health) page describes the failover chains.
 </Note>
