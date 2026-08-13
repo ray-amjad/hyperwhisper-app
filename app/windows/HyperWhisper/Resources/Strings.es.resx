@@ -1075,12 +1075,6 @@
   </data>
 
   <!-- History - Retry -->
-  <data name="history.retry.attemptSingular" xml:space="preserve">
-    <value>1 intento</value>
-  </data>
-  <data name="history.retry.attemptPlural" xml:space="preserve">
-    <value>{0} intentos</value>
-  </data>
   <data name="history.context.retryAgain" xml:space="preserve">
     <value>Reintentar de nuevo</value>
   </data>

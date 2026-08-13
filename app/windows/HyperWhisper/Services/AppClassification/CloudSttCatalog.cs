@@ -69,16 +69,6 @@ public sealed class CloudSttCatalog
     // header value). `sttProvider` is the X-STT-Provider header value.
     // =========================================================================
 
-    /// <summary>All catalog entries flagged <c>access.cloudTierEligible == true</c>, in catalog order.</summary>
-    public IReadOnlyList<CloudSttCatalogEntry> CloudTierEligibleProviders()
-    {
-        var list = new List<CloudSttCatalogEntry>();
-        foreach (var entry in Providers)
-            if (entry.Access?.CloudTierEligible == true)
-                list.Add(entry);
-        return list;
-    }
-
     /// <summary>The X-STT-Provider header value for the given tier id, or null if unknown.</summary>
     // TODO-verify (Windows/CI): Rust shared-core swap.
     public string? SttProviderForId(string? id)

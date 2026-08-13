@@ -82,11 +82,6 @@ public sealed class CloudPpCatalog
         return null;
     }
 
-    /// <summary>The <c>X-LLM-Provider</c> header value for an engine id, or null if unknown.</summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap.
-    public string? LlmProviderForId(string? id)
-        => string.IsNullOrEmpty(id) ? null : HyperwhisperCoreMethods.CloudPpLlmProvider(id);
-
     // NOTE (kept native): GetById / GetModel / DefaultModelForId / ModelsForId /
     // PickerProviders return the rich UI-bound CloudPpModel / CloudPpProvider
     // records consumed directly by CloudPostProcessingModel.cs and the mode editor.

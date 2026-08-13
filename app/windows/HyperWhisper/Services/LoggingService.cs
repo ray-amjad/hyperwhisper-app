@@ -408,56 +408,6 @@ public static class LoggingService
         Info("================================================================");
     }
 
-    /// <summary>
-    /// Checks if a specific DLL can be loaded using NativeLibrary.TryLoad.
-    /// Useful for diagnosing which specific DLL is failing to load.
-    /// </summary>
-    public static void TestDllLoading(string dllPath)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"========== TESTING DLL LOAD: {Path.GetFileName(dllPath)} ==========");
-        sb.AppendLine($"  Full Path: {dllPath}");
-        sb.AppendLine($"  File Exists: {File.Exists(dllPath)}");
-
-        if (File.Exists(dllPath))
-        {
-            var fileInfo = new FileInfo(dllPath);
-            sb.AppendLine($"  File Size: {fileInfo.Length:N0} bytes");
-            sb.AppendLine($"  Last Modified: {fileInfo.LastWriteTime}");
-
-            try
-            {
-                // Try to load the DLL using NativeLibrary
-                if (System.Runtime.InteropServices.NativeLibrary.TryLoad(dllPath, out var handle))
-                {
-                    sb.AppendLine("  Result: SUCCESS - DLL loaded successfully");
-                    sb.AppendLine($"  Handle: 0x{handle:X}");
-
-                    // Free the handle
-                    System.Runtime.InteropServices.NativeLibrary.Free(handle);
-                    sb.AppendLine("  Handle freed successfully");
-                }
-                else
-                {
-                    sb.AppendLine("  Result: FAILED - NativeLibrary.TryLoad returned false");
-                }
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"  Result: EXCEPTION - {ex.GetType().Name}");
-                sb.AppendLine($"  Message: {ex.Message}");
-                sb.AppendLine($"  StackTrace: {ex.StackTrace}");
-            }
-        }
-        else
-        {
-            sb.AppendLine("  Result: FILE NOT FOUND");
-        }
-
-        sb.AppendLine("========================================");
-        Info(sb.ToString());
-    }
-
     // =========================================================================
     // CORE LOG WRITING
     // =========================================================================
@@ -840,21 +790,6 @@ public static class LoggingService
         }
 
         return false;
-    }
-
-    /// <summary>
-    /// Gets the current log file contents.
-    /// </summary>
-    public static string GetCurrentLogContents()
-    {
-        if (File.Exists(CurrentLogPath))
-        {
-            lock (_writeLock)
-            {
-                return File.ReadAllText(CurrentLogPath);
-            }
-        }
-        return string.Empty;
     }
 
     /// <summary>

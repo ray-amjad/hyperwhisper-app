@@ -330,10 +330,4 @@ public partial class TranscriptViewModel : ObservableObject
     /// </summary>
     public bool HasRetryInfo => RetryCount > 0;
 
-    /// <summary>
-    /// Formatted retry info text (e.g., "1 attempt" or "3 attempts").
-    /// </summary>
-    public string RetryInfoText => RetryCount == 1
-        ? Loc.S("history.retry.attemptSingular")
-        : Loc.S("history.retry.attemptPlural", RetryCount);
 }
