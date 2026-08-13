@@ -67,14 +67,18 @@ struct AppcastItem: Identifiable, Equatable {
             ?? html.range(of: "<li", options: .caseInsensitive)?.lowerBound
         let heading = String(html[html.startIndex..<(listStart ?? html.endIndex)])
 
-        guard !ReleaseNotesHTML.plainText(heading).isEmpty else { return nil }
-        return ReleaseNotesHTML.attributed(heading)
+        // Parsed once, not once to test for emptiness and again for the result:
+        // this is a computed property, re-read on every SwiftUI body pass.
+        let parsed = ReleaseNotesHTML.attributed(heading)
+        return parsed.characters.isEmpty ? nil : parsed
     }
 
     /// Bullet points from the release notes, one per `<li>` element, with
-    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs
+    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs.
+    /// An item that carries no text — an empty or whitespace-only `<li>` — is
+    /// dropped, which the parsed result already answers.
     var bulletPoints: [AttributedString] {
-        listItemHTML.map(ReleaseNotesHTML.attributed)
+        listItemHTML.map(ReleaseNotesHTML.attributed).filter { !$0.characters.isEmpty }
     }
 
     /// Inner HTML of every `<li>` element, in document order
@@ -88,11 +92,7 @@ struct AppcastItem: Identifiable, Equatable {
               let openEnd = remainder[openStart.upperBound...].firstIndex(of: ">"),
               let close = remainder.range(of: "</li", options: .caseInsensitive,
                                           range: openEnd..<remainder.endIndex) {
-            let content = String(remainder[remainder.index(after: openEnd)..<close.lowerBound])
-            if !ReleaseNotesHTML.plainText(content).isEmpty {
-                items.append(content)
-            }
-
+            items.append(String(remainder[remainder.index(after: openEnd)..<close.lowerBound]))
             remainder = remainder[close.upperBound...]
         }
 

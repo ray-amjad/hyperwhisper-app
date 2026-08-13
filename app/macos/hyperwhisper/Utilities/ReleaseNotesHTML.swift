@@ -106,26 +106,19 @@ enum ReleaseNotesHTML {
         }
 
         /// Close the current run at a `<b>`/`<i>`/`<a>` boundary. A space
-        /// waiting to be written belongs to the text before the tag, so
-        /// "bold <i>x</i>" keeps its space outside the italic run — and
+        /// waiting to be written belongs *outside* the element: with the text
+        /// before an opening tag, and with the text after a closing one. So
         /// "<b>See</b> <a>here</a>" does not underline and tint the space in
-        /// front of the link.
-        func flushAtTagBoundary() {
-            guard pendingSpace else {
-                flush()
-                return
-            }
-
-            if current.isEmpty {
-                // Nothing left to hang the space on, so it becomes its own run
-                // carrying the style and destination in force when it was read.
-                result.append(Run(text: " ", style: currentStyle(), link: linkStack.last ?? nil))
+        /// front of the link, and "<a><b>the page</b> </a>now" does not leave a
+        /// linked space behind either. Appending to an empty buffer makes that
+        /// space its own run, carrying the style and destination in force where
+        /// it is emitted.
+        func flushAtTagBoundary(isClosing: Bool) {
+            if pendingSpace, !isClosing {
+                current.append(" ")
                 pendingSpace = false
-                return
             }
 
-            current.append(" ")
-            pendingSpace = false
             flush()
         }
 
@@ -153,35 +146,33 @@ enum ReleaseNotesHTML {
         }
 
         func handleTag(_ raw: String) {
-            var body = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            let isClosing = body.hasPrefix("/")
-            if isClosing { body.removeFirst() }
+            let tag = parseTag(raw)
 
-            // Keep the element name only: "br/" -> "br", "a href=…" -> "a".
-            let name = String(body.prefix { $0 != "/" && $0 != " " && $0 != "\n" && $0 != "\r" && $0 != "\t" })
-                .lowercased()
+            if tag.name == "br" {
+                appendLineBreak()
+                return
+            }
 
-            switch name {
+            // A tag that closes itself opens and closes in one go, so it changes
+            // no state at all. Acting on it would push a depth or a link entry
+            // nothing ever pops, and the rest of the note would render bold,
+            // italic or linked: "<a …/>", "<b/>", "<i/>".
+            if tag.isSelfClosing { return }
+
+            switch tag.name {
             case "b", "strong":
-                flushAtTagBoundary()
-                boldDepth = isClosing ? max(0, boldDepth - 1) : boldDepth + 1
+                flushAtTagBoundary(isClosing: tag.isClosing)
+                boldDepth = tag.isClosing ? max(0, boldDepth - 1) : boldDepth + 1
             case "i", "em":
-                flushAtTagBoundary()
-                italicDepth = isClosing ? max(0, italicDepth - 1) : italicDepth + 1
+                flushAtTagBoundary(isClosing: tag.isClosing)
+                italicDepth = tag.isClosing ? max(0, italicDepth - 1) : italicDepth + 1
             case "a":
-                flushAtTagBoundary()
-                if isClosing {
+                flushAtTagBoundary(isClosing: tag.isClosing)
+                if tag.isClosing {
                     if !linkStack.isEmpty { linkStack.removeLast() }
                 } else {
-                    // One walk gives both the href and whether the tag closed
-                    // itself. "<a …/>" opens and closes in one go, like "<br/>":
-                    // it must not push an entry nothing will ever pop, or every
-                    // remaining word in the note renders as part of the link.
-                    let scan = scanTag(body, for: "href")
-                    if !scan.isSelfClosing { linkStack.append(linkURL(fromHref: scan.href)) }
+                    linkStack.append(linkURL(fromHref: tag.href))
                 }
-            case "br":
-                appendLineBreak()
             default:
                 break
             }
@@ -203,11 +194,9 @@ enum ReleaseNotesHTML {
                 continue
             }
 
-            if character == "&",
-               let semicolon = html[index...].prefix(entityScanLimit).firstIndex(of: ";"),
-               let decoded = decodeEntity(String(html[html.index(after: index)..<semicolon])) {
-                append(decoded)
-                index = html.index(after: semicolon)
+            if character == "&", let entity = decodeEntity(in: html, at: index) {
+                append(entity.text)
+                index = entity.end
                 continue
             }
 
@@ -226,19 +215,30 @@ enum ReleaseNotesHTML {
     /// Returns nil when the tag is never closed. A quote that is never closed
     /// falls back to the first ">", so one malformed attribute cannot swallow
     /// the rest of the fragment as markup.
+    ///
+    /// A quote only opens a value where `parseTag` would read one: straight
+    /// after an "=". Anywhere else it is an ordinary character, so the
+    /// apostrophe in a bare "href=it's" cannot pair up with a later one and run
+    /// the scan past the ">" that really ends the tag.
     private static func tagEnd(in html: String, from start: String.Index) -> String.Index? {
         var index = html.index(after: start)
+        var inValuePosition = false
 
         while index < html.endIndex {
             let character = html[index]
 
-            if character == "\"" || character == "'" {
+            if inValuePosition, character == "\"" || character == "'" {
                 guard let quotedEnd = html[html.index(after: index)...].firstIndex(of: character) else { break }
                 index = html.index(after: quotedEnd)
+                inValuePosition = false
                 continue
             }
 
             if character == ">" { return index }
+
+            // Whitespace between "=" and the value is allowed, so it leaves the
+            // position alone rather than ending it.
+            if !character.isWhitespace { inValuePosition = character == "=" }
             index = html.index(after: index)
         }
 
@@ -256,9 +256,12 @@ enum ReleaseNotesHTML {
     private static func linkURL(fromHref href: String?) -> URL? {
         guard let href else { return nil }
 
-        // Feeds escape query separators, so "?a=1&amp;b=2" has to be decoded
-        // before it is a URL.
-        let decoded = plainText(href).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Entities only: feeds escape query separators, so "?a=1&amp;b=2" has to
+        // be decoded before it is a URL. Nothing else about the href may change —
+        // running it through the whole parser stripped markup and collapsed
+        // whitespace inside it, quietly opening a different address than the
+        // feed asked for.
+        let decoded = decodeEntities(href).trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let url = URL(string: decoded),
               let scheme = url.scheme?.lowercased(),
@@ -267,16 +270,20 @@ enum ReleaseNotesHTML {
         return url
     }
 
-    /// What one walk over a tag's contents yields: the value of the attribute
-    /// asked for, and whether the tag closed itself.
-    private struct TagScan {
-        let href: String?
+    // MARK: - Tokenizer
+
+    /// One tag, tokenized: the element name (lowercased), whether it closes an
+    /// element, whether it closes itself, and its href if it has one.
+    private struct Tag {
+        let name: String
+        let isClosing: Bool
         let isSelfClosing: Bool
+        let href: String?
     }
 
-    /// Walk a tag attribute by attribute, picking up the value of `name` —
-    /// quoted or bare — and whether the tag ends with a "/" of its own.
-    /// Case-insensitive on the name, and the value keeps its own case.
+    /// Walk a tag's body once — a leading "/", the element name, then attribute
+    /// by attribute — and report everything the caller needs to know about it.
+    /// The first href wins; its value keeps its own case.
     ///
     /// The tag is walked rather than searched, so a value that happens to
     /// contain "href=" — a title, say — can never be mistaken for the attribute
@@ -284,21 +291,26 @@ enum ReleaseNotesHTML {
     /// for a self-closing tag. Only a "/" standing where a name may start, with
     /// nothing but whitespace after it, closes the tag. An unterminated quote
     /// gives up on the rest of the tag instead of inventing a value out of it.
-    private static func scanTag(_ tag: String, for name: String) -> TagScan {
-        let characters = Array(tag)
-        let targetLength = name.count
-        var value: String?
-        var isSelfClosing = false
+    private static func parseTag(_ raw: String) -> Tag {
+        let characters = Array(raw.trimmingCharacters(in: .whitespacesAndNewlines))
         var index = 0
+
+        let isClosing = characters.first == "/"
+        if isClosing { index += 1 }
+
+        var name = ""
+        var haveName = false
+        var isSelfClosing = false
+        var href: String?
 
         while index < characters.count {
             while index < characters.count, characters[index].isWhitespace { index += 1 }
             guard index < characters.count else { break }
 
             // A "/" where a name could start is the tag closing itself — "<a/>",
-            // "<br />", "<a href=… />" — but only if nothing follows it, so the
-            // next token read clears this again. A "/" inside a bare value, on
-            // the other hand, is simply part of the URL.
+            // "<br />", "<a href=… />" — but only if nothing but whitespace
+            // follows it, so the next token read clears this again. A "/" inside
+            // a bare value, on the other hand, is simply part of the URL.
             if characters[index] == "/" {
                 isSelfClosing = true
                 index += 1
@@ -307,46 +319,47 @@ enum ReleaseNotesHTML {
 
             isSelfClosing = false
 
-            // The element name is the first token and carries no "=", so it
-            // falls through the valueless-attribute path below.
-            let nameStart = index
+            let tokenStart = index
             while index < characters.count, !characters[index].isWhitespace,
                   characters[index] != "=", characters[index] != "/" {
                 index += 1
             }
-            let nameEnd = index
+            let tokenEnd = index
 
             while index < characters.count, characters[index].isWhitespace { index += 1 }
-            guard index < characters.count, characters[index] == "=" else { continue }
 
-            index += 1
-            while index < characters.count, characters[index].isWhitespace { index += 1 }
-            guard index < characters.count else { break }   // "href=" with nothing after it
-
-            // One case-folded comparison per attribute — the old per-character
-            // compare lowercased only the tag's side, so it silently required
-            // the caller to pass a lowercase name.
-            let isTarget = value == nil
-                && nameEnd - nameStart == targetLength
-                && String(characters[nameStart..<nameEnd]).caseInsensitiveCompare(name) == .orderedSame
-
-            let quote = characters[index]
-            if quote == "\"" || quote == "'" {
+            var value: String?
+            if index < characters.count, characters[index] == "=" {
                 index += 1
-                guard let quotedEnd = characters[index...].firstIndex(of: quote) else {
-                    break   // unterminated: nothing here is trustworthy
+                while index < characters.count, characters[index].isWhitespace { index += 1 }
+                guard index < characters.count else { break }   // "href=" with nothing after it
+
+                let quote = characters[index]
+                if quote == "\"" || quote == "'" {
+                    guard let quotedEnd = characters[(index + 1)...].firstIndex(of: quote) else {
+                        break   // unterminated: nothing here is trustworthy
+                    }
+                    value = String(characters[(index + 1)..<quotedEnd])
+                    index = quotedEnd + 1
+                } else {
+                    let valueStart = index
+                    while index < characters.count, !characters[index].isWhitespace { index += 1 }
+                    value = String(characters[valueStart..<index])
                 }
-                if isTarget { value = String(characters[index..<quotedEnd]) }
-                index = quotedEnd + 1
-                continue
             }
 
-            let valueStart = index
-            while index < characters.count, !characters[index].isWhitespace { index += 1 }
-            if isTarget { value = String(characters[valueStart..<index]) }
+            // The first token is the element name; every token after it is an
+            // attribute, valued or not.
+            if !haveName {
+                name = String(characters[tokenStart..<tokenEnd]).lowercased()
+                haveName = true
+            } else if href == nil,
+                      String(characters[tokenStart..<tokenEnd]).caseInsensitiveCompare("href") == .orderedSame {
+                href = value
+            }
         }
 
-        return TagScan(href: value, isSelfClosing: isSelfClosing)
+        return Tag(name: name, isClosing: isClosing, isSelfClosing: isSelfClosing, href: href)
     }
 
     // MARK: - Entities
@@ -365,6 +378,39 @@ enum ReleaseNotesHTML {
         "ndash": "–",
         "hellip": "…"
     ]
+
+    /// Decode every character entity in a fragment, leaving all other text —
+    /// markup included — exactly as it was.
+    private static func decodeEntities(_ text: String) -> String {
+        guard text.contains("&") else { return text }
+
+        var result = ""
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            if text[index] == "&", let entity = decodeEntity(in: text, at: index) {
+                result.append(entity.text)
+                index = entity.end
+                continue
+            }
+
+            result.append(text[index])
+            index = text.index(after: index)
+        }
+
+        return result
+    }
+
+    /// Decode the entity starting at `start` (an "&"), and report where it ends.
+    /// Returns nil when there is no complete, recognised entity there, in which
+    /// case the "&" stays literal text.
+    private static func decodeEntity(in text: String, at start: String.Index) -> (text: String, end: String.Index)? {
+        guard let semicolon = text[start...].prefix(entityScanLimit).firstIndex(of: ";"),
+              let decoded = decodeEntity(String(text[text.index(after: start)..<semicolon]))
+        else { return nil }
+
+        return (decoded, text.index(after: semicolon))
+    }
 
     /// Decode the body of an entity ("amp", "#8212", "#x2014").
     /// Returns nil for anything unrecognised, so it stays literal text.

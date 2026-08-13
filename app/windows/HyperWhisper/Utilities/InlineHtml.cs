@@ -34,9 +34,6 @@ public static class InlineHtml
     /// <summary>Longest entity we look ahead for, including '&amp;' and ';'.</summary>
     private const int EntityScanLimit = 12;
 
-    /// <summary>Characters that end an element name inside a tag.</summary>
-    private static readonly char[] TagNameDelimiters = ['/', ' ', '\n', '\r', '\t'];
-
     /// <summary>
     /// Schemes we are willing to hand to the shell. Anything else — most of
     /// all javascript: and data: — keeps its label and loses its link.
@@ -102,29 +99,21 @@ public static class InlineHtml
             current.Clear();
         }
 
-        // Close the current run at a <b>/<i>/<a> boundary. A space waiting to
-        // be written belongs to the text before the tag, so "bold <i>x</i>"
-        // keeps its space outside the italic run — and "<b>See</b> <a>here</a>"
-        // does not underline and tint the space in front of the link.
-        void FlushAtTagBoundary()
+        // Close the current run at a <b>/<i>/<a> boundary. A space waiting to be
+        // written belongs *outside* the element: with the text before an opening
+        // tag, and with the text after a closing one. So "<b>See</b> <a>here</a>"
+        // does not underline and tint the space in front of the link, and
+        // "<a><b>the page</b> </a>now" does not leave a linked space behind
+        // either. Appending to an empty buffer makes that space its own run,
+        // carrying the style and destination in force where it is emitted.
+        void FlushAtTagBoundary(bool isClosing)
         {
-            if (!pendingSpace)
+            if (pendingSpace && !isClosing)
             {
-                Flush();
-                return;
-            }
-
-            if (current.Length == 0)
-            {
-                // Nothing left to hang the space on, so it becomes its own run
-                // carrying the style and destination in force when it was read.
-                runs.Add(new HtmlRun(" ", boldDepth > 0, italicDepth > 0, linkStack.LastOrDefault()));
+                current.Append(' ');
                 pendingSpace = false;
-                return;
             }
 
-            current.Append(' ');
-            pendingSpace = false;
             Flush();
         }
 
@@ -166,45 +155,42 @@ public static class InlineHtml
 
         void HandleTag(string raw)
         {
-            var body = raw.Trim();
-            var isClosing = body.StartsWith('/');
-            if (isClosing) body = body[1..];
+            var tag = ParseTag(raw);
 
-            // Keep the element name only: "br/" -> "br", "a href=…" -> "a".
-            var end = body.IndexOfAny(TagNameDelimiters);
-            var name = end >= 0 ? body[..end] : body;
+            if (tag.Name == "br")
+            {
+                AppendLineBreak();
+                return;
+            }
 
-            switch (name.ToLowerInvariant())
+            // A tag that closes itself opens and closes in one go, so it changes
+            // no state at all. Acting on it would push a depth or a link entry
+            // nothing ever pops, and the rest of the note would render bold,
+            // italic or linked: "<a …/>", "<b/>", "<i/>".
+            if (tag.IsSelfClosing) return;
+
+            switch (tag.Name)
             {
                 case "b":
                 case "strong":
-                    FlushAtTagBoundary();
-                    boldDepth = isClosing ? Math.Max(0, boldDepth - 1) : boldDepth + 1;
+                    FlushAtTagBoundary(tag.IsClosing);
+                    boldDepth = tag.IsClosing ? Math.Max(0, boldDepth - 1) : boldDepth + 1;
                     break;
                 case "i":
                 case "em":
-                    FlushAtTagBoundary();
-                    italicDepth = isClosing ? Math.Max(0, italicDepth - 1) : italicDepth + 1;
+                    FlushAtTagBoundary(tag.IsClosing);
+                    italicDepth = tag.IsClosing ? Math.Max(0, italicDepth - 1) : italicDepth + 1;
                     break;
                 case "a":
-                    FlushAtTagBoundary();
-                    if (isClosing)
+                    FlushAtTagBoundary(tag.IsClosing);
+                    if (tag.IsClosing)
                     {
                         if (linkStack.Count > 0) linkStack.RemoveAt(linkStack.Count - 1);
                     }
                     else
                     {
-                        // One walk gives both the href and whether the tag closed
-                        // itself. "<a …/>" opens and closes in one go, like
-                        // "<br/>": it must not push an entry nothing will ever
-                        // pop, or every remaining word in the note renders as
-                        // part of the link.
-                        var scan = ScanTag(body, "href");
-                        if (!scan.IsSelfClosing) linkStack.Add(LinkFrom(scan.Href));
+                        linkStack.Add(LinkFrom(tag.Href));
                     }
-                    break;
-                case "br":
-                    AppendLineBreak();
                     break;
             }
         }
@@ -229,16 +215,11 @@ public static class InlineHtml
                 continue;
             }
 
-            if (character == '&')
+            if (character == '&' && DecodeEntityAt(html, index, out var afterEntity) is { } decoded)
             {
-                var limit = Math.Min(html.Length, index + EntityScanLimit);
-                var semicolon = html.IndexOf(';', index, limit - index);
-                if (semicolon > index && DecodeEntity(html[(index + 1)..semicolon]) is { } decoded)
-                {
-                    Append(decoded);
-                    index = semicolon + 1;
-                    continue;
-                }
+                Append(decoded);
+                index = afterEntity;
+                continue;
             }
 
             Append(character.ToString());
@@ -256,23 +237,35 @@ public static class InlineHtml
     /// never closed falls back to the first '&gt;', so one malformed attribute
     /// cannot swallow the rest of the fragment as markup.
     /// </summary>
+    /// <remarks>
+    /// A quote only opens a value where <see cref="ParseTag"/> would read one:
+    /// straight after an '='. Anywhere else it is an ordinary character, so the
+    /// apostrophe in a bare "href=it's" cannot pair up with a later one and run
+    /// the scan past the '&gt;' that really ends the tag.
+    /// </remarks>
     private static int FindTagEnd(string html, int start)
     {
         var index = start + 1;
+        var inValuePosition = false;
 
         while (index < html.Length)
         {
             var character = html[index];
 
-            if (character is '"' or '\'')
+            if (inValuePosition && character is '"' or '\'')
             {
                 var quotedEnd = html.IndexOf(character, index + 1);
                 if (quotedEnd < 0) break;
                 index = quotedEnd + 1;
+                inValuePosition = false;
                 continue;
             }
 
             if (character == '>') return index;
+
+            // Whitespace between '=' and the value is allowed, so it leaves the
+            // position alone rather than ending it.
+            if (!char.IsWhiteSpace(character)) inValuePosition = character == '=';
             index++;
         }
 
@@ -287,25 +280,27 @@ public static class InlineHtml
     {
         if (href is null) return null;
 
-        // Feeds escape query separators, so "?a=1&amp;b=2" has to be decoded
-        // before it is a URL.
-        var decoded = PlainText(href).Trim();
+        // Entities only: feeds escape query separators, so "?a=1&amp;b=2" has to
+        // be decoded before it is a URL. Nothing else about the href may change —
+        // running it through the whole parser stripped markup and collapsed
+        // whitespace inside it, quietly opening a different address than the
+        // feed asked for.
+        var decoded = DecodeEntities(href).Trim();
 
         if (!Uri.TryCreate(decoded, UriKind.Absolute, out var uri)) return null;
         return AllowedSchemes.Contains(uri.Scheme) ? uri : null;
     }
 
     /// <summary>
-    /// What one walk over a tag's contents yields: the value of the attribute
-    /// asked for, and whether the tag closed itself.
+    /// One tag, tokenized: the element name (lower-cased), whether it closes an
+    /// element, whether it closes itself, and its href if it has one.
     /// </summary>
-    private readonly record struct TagScan(string? Href, bool IsSelfClosing);
+    private readonly record struct Tag(string Name, bool IsClosing, bool IsSelfClosing, string? Href);
 
     /// <summary>
-    /// Walk a tag attribute by attribute, picking up the value of
-    /// <paramref name="name"/> — quoted or bare — and whether the tag ends with
-    /// a '/' of its own. Case-insensitive on the name; the value keeps its own
-    /// case.
+    /// Walk a tag's body once — a leading '/', the element name, then attribute
+    /// by attribute — and report everything the caller needs to know about it.
+    /// The first href wins; its value keeps its own case.
     /// </summary>
     /// <remarks>
     /// The tag is walked rather than searched, so a value that happens to
@@ -315,22 +310,29 @@ public static class InlineHtml
     /// nothing but whitespace after it, closes the tag. An unterminated quote
     /// gives up on the rest of the tag instead of inventing a value out of it.
     /// </remarks>
-    private static TagScan ScanTag(string tag, string name)
+    private static Tag ParseTag(string raw)
     {
-        string? value = null;
-        var isSelfClosing = false;
+        var body = raw.Trim();
         var index = 0;
 
-        while (index < tag.Length)
+        var isClosing = body.StartsWith('/');
+        if (isClosing) index++;
+
+        var name = string.Empty;
+        var haveName = false;
+        var isSelfClosing = false;
+        string? href = null;
+
+        while (index < body.Length)
         {
-            while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
-            if (index >= tag.Length) break;
+            while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
+            if (index >= body.Length) break;
 
             // A '/' where a name could start is the tag closing itself — "<a/>",
-            // "<br />", "<a href=… />" — but only if nothing follows it, so the
-            // next token read clears this again. A '/' inside a bare value, on
-            // the other hand, is simply part of the URL.
-            if (tag[index] == '/')
+            // "<br />", "<a href=… />" — but only if nothing but whitespace
+            // follows it, so the next token read clears this again. A '/' inside
+            // a bare value, on the other hand, is simply part of the URL.
+            if (body[index] == '/')
             {
                 isSelfClosing = true;
                 index++;
@@ -339,40 +341,97 @@ public static class InlineHtml
 
             isSelfClosing = false;
 
-            // The element name is the first token and has no '=', so it falls
-            // through the valueless-attribute path below.
-            var nameStart = index;
-            while (index < tag.Length && !char.IsWhiteSpace(tag[index])
-                   && tag[index] != '=' && tag[index] != '/') index++;
-            var nameLength = index - nameStart;
+            var tokenStart = index;
+            while (index < body.Length && !char.IsWhiteSpace(body[index])
+                   && body[index] != '=' && body[index] != '/') index++;
+            var tokenEnd = index;
 
-            while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
-            if (index >= tag.Length || tag[index] != '=') continue;   // valueless attribute
+            while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
 
-            index++;
-            while (index < tag.Length && char.IsWhiteSpace(tag[index])) index++;
-            if (index >= tag.Length) break;   // "href=" with nothing after it
-
-            var isTarget = value is null && nameLength == name.Length &&
-                string.Compare(tag, nameStart, name, 0, name.Length, StringComparison.OrdinalIgnoreCase) == 0;
-
-            var quote = tag[index];
-            if (quote is '"' or '\'')
+            string? value = null;
+            if (index < body.Length && body[index] == '=')
             {
                 index++;
-                var quotedEnd = tag.IndexOf(quote, index);
-                if (quotedEnd < 0) break;   // unterminated: nothing here is trustworthy
-                if (isTarget) value = tag[index..quotedEnd];
-                index = quotedEnd + 1;
+                while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
+                if (index >= body.Length) break;   // "href=" with nothing after it
+
+                var quote = body[index];
+                if (quote is '"' or '\'')
+                {
+                    var quotedEnd = body.IndexOf(quote, index + 1);
+                    if (quotedEnd < 0) break;   // unterminated: nothing here is trustworthy
+                    value = body[(index + 1)..quotedEnd];
+                    index = quotedEnd + 1;
+                }
+                else
+                {
+                    var valueStart = index;
+                    while (index < body.Length && !char.IsWhiteSpace(body[index])) index++;
+                    value = body[valueStart..index];
+                }
+            }
+
+            // The first token is the element name; every token after it is an
+            // attribute, valued or not.
+            if (!haveName)
+            {
+                name = body[tokenStart..tokenEnd].ToLowerInvariant();
+                haveName = true;
+            }
+            else if (href is null &&
+                     body.AsSpan(tokenStart, tokenEnd - tokenStart).Equals("href", StringComparison.OrdinalIgnoreCase))
+            {
+                href = value;
+            }
+        }
+
+        return new Tag(name, isClosing, isSelfClosing, href);
+    }
+
+    /// <summary>
+    /// Decode every character entity in a fragment, leaving all other text —
+    /// markup included — exactly as it was.
+    /// </summary>
+    private static string DecodeEntities(string text)
+    {
+        if (!text.Contains('&')) return text;
+
+        var result = new StringBuilder(text.Length);
+        var index = 0;
+
+        while (index < text.Length)
+        {
+            if (text[index] == '&' && DecodeEntityAt(text, index, out var afterEntity) is { } decoded)
+            {
+                result.Append(decoded);
+                index = afterEntity;
                 continue;
             }
 
-            var valueStart = index;
-            while (index < tag.Length && !char.IsWhiteSpace(tag[index])) index++;
-            if (isTarget) value = tag[valueStart..index];
+            result.Append(text[index]);
+            index++;
         }
 
-        return new TagScan(value, isSelfClosing);
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Decode the entity starting at <paramref name="start"/> (an '&amp;'), and
+    /// report where it ends. Null when there is no complete, recognised entity
+    /// there, in which case the '&amp;' stays literal text.
+    /// </summary>
+    private static string? DecodeEntityAt(string text, int start, out int end)
+    {
+        end = start;
+
+        var limit = Math.Min(text.Length, start + EntityScanLimit);
+        var semicolon = text.IndexOf(';', start, limit - start);
+        if (semicolon <= start) return null;
+
+        if (DecodeEntity(text[(start + 1)..semicolon]) is not { } decoded) return null;
+
+        end = semicolon + 1;
+        return decoded;
     }
 
     /// <summary>

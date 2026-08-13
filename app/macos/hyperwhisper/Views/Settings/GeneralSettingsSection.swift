@@ -125,8 +125,9 @@ struct GeneralSettingsSection: View {
                     info: "settings.general.shareSpeedData.info",
                     isOn: $settingsManager.shareAnonymousSpeedData,
                     standalone: false,
-                    titleLink: URL(string: "https://www.hyperwhisper.com/en/latency"),
-                    titleLinkHelp: "settings.general.shareSpeedData.link"
+                    titleLink: URL(string: "https://www.hyperwhisper.com/en/latency").map {
+                        SettingsRowLink(url: $0, label: "settings.general.shareSpeedData.link")
+                    }
                 )
 
                 Divider()

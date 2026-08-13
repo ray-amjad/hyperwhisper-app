@@ -1172,16 +1172,119 @@ internal static class Program
                     $"inner label inherited the outer destination: '{runs[1]}'");
             });
 
-            Run("InlineHtml leaves the space in front of a link outside the link", () =>
+            Run("InlineHtml leaves the space on either side of a link outside the link", () =>
             {
-                // A leading space inside the linked run is underlined, tinted and
-                // clickable — it belongs to the text it followed.
-                var runs = InlineHtml.Parse("<b>See</b> <a href=\"https://example.com\">here</a>");
+                // A space inside the linked run is underlined, tinted and
+                // clickable — it belongs outside the anchor, on whichever side
+                // of it the space was written.
+                const string opening = "<b>See</b> <a href=\"https://example.com\">here</a>";
+                var runs = InlineHtml.Parse(opening);
 
-                Assert(InlineHtml.PlainText("<b>See</b> <a href=\"https://example.com\">here</a>") == "See here",
+                Assert(InlineHtml.PlainText(opening) == "See here",
                     "the space between the two runs was lost");
                 Assert(runs.TrueForAll(run => run.Link is null || !run.Text.StartsWith(' ')),
                     $"the space was swallowed into the link run: '{string.Join(", ", runs)}'");
+
+                // The closing side: the space in front of </a> used to be emitted
+                // as its own run still carrying the link — an extra Hyperlink with
+                // a hand cursor and a tooltip, for one blank character.
+                const string closing = "See <a href=\"https://x.example\"><b>the page</b> </a>now";
+                var closingRuns = InlineHtml.Parse(closing);
+
+                Assert(InlineHtml.PlainText(closing) == "See the page now",
+                    $"got '{InlineHtml.PlainText(closing)}'");
+                Assert(closingRuns.TrueForAll(run => run.Link is null || run.Text.Trim().Length > 0),
+                    $"a blank run still carries the link: '{string.Join(", ", closingRuns)}'");
+            });
+
+            Run("InlineHtml does not style the rest of the note after a self-closing <b/> or <i/>", () =>
+            {
+                // Self-closing was consulted for <a> only, so "<b/>" pushed a depth
+                // nothing ever popped and emboldened everything after it.
+                Assert(InlineHtml.Parse("before <b/> after").TrueForAll(run => !run.Bold),
+                    $"'<b/>' bolded the rest: '{string.Join(", ", InlineHtml.Parse("before <b/> after"))}'");
+                Assert(InlineHtml.Parse("before <i/> after").TrueForAll(run => !run.Italic),
+                    $"'<i/>' italicised the rest: '{string.Join(", ", InlineHtml.Parse("before <i/> after"))}'");
+                Assert(InlineHtml.Parse("x<strong />y").TrueForAll(run => !run.Bold),
+                    "'<strong />' bolded the rest");
+                Assert(InlineHtml.Parse("x<em />y").TrueForAll(run => !run.Italic),
+                    "'<em />' italicised the rest");
+
+                // The paired forms still style what they wrap.
+                Assert(InlineHtml.Parse("<b>still bold</b>")[0].Bold, "a real <b> stopped working");
+            });
+
+            Run("InlineHtml reads an apostrophe in a bare value as an ordinary character", () =>
+            {
+                // Skipping quoted values in the tag-end scan entered quote mode on
+                // any apostrophe, so the one in a bare "href=it's" paired up with
+                // the next one in the text and swallowed everything between them.
+                const string html = "<a href=it's>label</a> and <b>Ray's</b> note";
+                Assert(InlineHtml.PlainText(html) == "label and Ray's note",
+                    $"text between two apostrophes was eaten: '{InlineHtml.PlainText(html)}'");
+                Assert(InlineHtml.PlainText("<b>Ray's</b> and <i>don't</i>") == "Ray's and don't",
+                    $"got '{InlineHtml.PlainText("<b>Ray's</b> and <i>don't</i>")}'");
+
+                // A quote in value position — with or without whitespace after the
+                // '=' — still shields a '>' sitting inside the value.
+                Assert(InlineHtml.PlainText("<a href=\"https://ex.com/?q=a>b\" title=\"t\">here</a>") == "here",
+                    "a '>' inside a quoted value truncated the tag");
+                Assert(InlineHtml.PlainText("<a href = 'https://ex.com/?q=a>b'>x</a>") == "x",
+                    "a '>' inside a spaced-out quoted value truncated the tag");
+            });
+
+            Run("InlineHtml keeps the feed's href verbatim, decoding entities only", () =>
+            {
+                // The href used to be run through the whole parser to decode
+                // "&amp;", which also stripped tags and comments out of it — a
+                // valid, allow-listed, but different destination.
+                var markup = InlineHtml.Parse("<a href=\"https://ex.com/?q=<b>x</b>\">Docs</a>");
+                Assert(markup[0].Link?.AbsoluteUri != "https://ex.com/?q=x",
+                    "markup was stripped out of the destination");
+                Assert(Uri.UnescapeDataString(markup[0].Link?.AbsoluteUri ?? "") == "https://ex.com/?q=<b>x</b>",
+                    $"destination not preserved verbatim: '{markup[0].Link?.AbsoluteUri}'");
+                Assert(InlineHtml.PlainText("<a href=\"https://ex.com/?q=<b>x</b>\">Docs</a>") == "Docs",
+                    "the label changed");
+
+                var commented = InlineHtml.Parse("<a href=\"https://ex.com/<!-- c -->path\">Docs</a>");
+                Assert(commented[0].Link?.AbsoluteUri != "https://ex.com/path",
+                    "a comment was stripped out of the destination");
+
+                // Entities in the href must still decode: feeds escape query
+                // separators, and "?a=1&amp;b=2" is not a URL until they do.
+                Assert(InlineHtml.Parse("<a href=\"https://ex.com/p?a=1&amp;b=2\">x</a>")[0].Link?.AbsoluteUri
+                        == "https://ex.com/p?a=1&b=2", "&amp; stopped decoding in the href");
+                Assert(InlineHtml.Parse("<a href=\"https://ex.com/p?a=1&#38;b=2\">x</a>")[0].Link?.AbsoluteUri
+                        == "https://ex.com/p?a=1&b=2", "&#38; stopped decoding in the href");
+            });
+
+            Run("InlineHtmlText renders an anchor containing emphasis as one link", () =>
+            {
+                // Three runs, one destination: one Hyperlink, not three siblings
+                // with three tab stops, three tooltips and three hyperlink nodes
+                // announced to a screen reader. macOS renders this anchor as one
+                // contiguous link too.
+                const string html = "before <a href=\"https://x.com\">see <b>this</b> page</a> after";
+                var runs = InlineHtml.Parse(html);
+                Assert(runs.FindAll(run => run.Link is not null).Count == 3,
+                    $"expected 3 linked runs, got '{string.Join(", ", runs)}'");
+
+                var textBlock = new System.Windows.Controls.TextBlock();
+                InlineHtmlText.Apply(textBlock, html);
+
+                var inlines = textBlock.Inlines.ToList();
+                Assert(inlines.Count == 3, $"expected 3 inlines, got {inlines.Count}");
+                Assert(inlines[1] is System.Windows.Documents.Hyperlink,
+                    $"expected the anchor to be one Hyperlink, got {inlines[1].GetType().Name}");
+
+                var hyperlink = (System.Windows.Documents.Hyperlink)inlines[1];
+                Assert(hyperlink.NavigateUri?.AbsoluteUri == "https://x.com/",
+                    $"wrong destination: '{hyperlink.NavigateUri}'");
+                Assert(hyperlink.Inlines.Count == 3,
+                    $"expected the three runs inside one link, got {hyperlink.Inlines.Count}");
+                Assert(hyperlink.Inlines.ToList()[1] is System.Windows.Documents.Run bolded
+                        && bolded.FontWeight == FontWeights.Bold,
+                    "emphasis inside the link was lost");
             });
 
             Run("AppcastItem.BulletPoints keeps inline emphasis and drops empty items", () =>

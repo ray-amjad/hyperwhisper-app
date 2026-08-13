@@ -205,13 +205,67 @@ struct ReleaseNotesHTMLTests {
         ])
     }
 
-    /// A leading space inside the linked run is underlined, tinted and inside
-    /// the hit region — it belongs to the text it followed.
-    @Test func theSpaceInFrontOfALinkStaysOutsideTheLink() {
-        let runs = ReleaseNotesHTML.runs(in: #"<b>See</b> <a href="https://example.com">here</a>"#)
+    /// A space at either edge of a link is underlined, tinted and inside the hit
+    /// region — it belongs outside the anchor, on whichever side it was written.
+    @Test func theSpacesAroundALinkStayOutsideIt() {
+        let opening = ReleaseNotesHTML.runs(in: #"<b>See</b> <a href="https://example.com">here</a>"#)
 
-        #expect(runs.map(\.text).joined() == "See here")
-        #expect(runs.allSatisfy { $0.link == nil || !$0.text.hasPrefix(" ") })
+        #expect(opening.map(\.text).joined() == "See here")
+        #expect(opening.allSatisfy { $0.link == nil || !$0.text.hasPrefix(" ") })
+
+        // The closing side: the space in front of </a> used to become a run of
+        // its own, still tinted, underlined and inside the hit region.
+        let closing = ReleaseNotesHTML.runs(in: #"See <a href="https://x.example"><b>the page</b> </a>now"#)
+
+        #expect(closing.map(\.text).joined() == "See the page now")
+        #expect(closing.allSatisfy { $0.link == nil || !$0.text.trimmingCharacters(in: .whitespaces).isEmpty })
+    }
+
+    /// Self-closing was consulted in the `<a>` branch only, so "<b/>" pushed a
+    /// depth nothing ever popped and emboldened every remaining word.
+    @Test func aSelfClosingEmphasisTagDoesNotStyleTheRestOfTheNote() {
+        #expect(ReleaseNotesHTML.runs(in: "before <b/> after").allSatisfy { !$0.style.contains(.bold) })
+        #expect(ReleaseNotesHTML.plainText("before <b/> after") == "before after")
+
+        #expect(ReleaseNotesHTML.runs(in: "before <i/> after").allSatisfy { !$0.style.contains(.italic) })
+        #expect(ReleaseNotesHTML.runs(in: "x<strong />y").allSatisfy { !$0.style.contains(.bold) })
+        #expect(ReleaseNotesHTML.runs(in: "x<em />y").allSatisfy { !$0.style.contains(.italic) })
+
+        // The paired forms still style what they wrap.
+        #expect(ReleaseNotesHTML.runs(in: "<b>still bold</b>").first?.style.contains(.bold) == true)
+    }
+
+    /// Skipping quoted values while looking for the tag's ">" entered quote mode
+    /// on any apostrophe, so the one in a bare "href=it's" paired up with the
+    /// next one in the text and everything between them was swallowed as markup.
+    @Test func anApostropheInABareValueIsAnOrdinaryCharacter() {
+        #expect(ReleaseNotesHTML.plainText("<a href=it's>label</a> and <b>Ray's</b> note")
+                == "label and Ray's note")
+        #expect(ReleaseNotesHTML.plainText("<b>Ray's</b> and <i>don't</i>") == "Ray's and don't")
+
+        // A quote in value position — with or without whitespace after the "=" —
+        // still shields a ">" sitting inside the value.
+        #expect(ReleaseNotesHTML.plainText(#"<a href="https://ex.com/?q=a>b" title="t">here</a>"#) == "here")
+        #expect(ReleaseNotesHTML.plainText("<a href = 'https://ex.com/?q=a>b'>x</a>") == "x")
+    }
+
+    /// The href used to be decoded by running it through the whole parser, which
+    /// also stripped markup and comments out of it — a valid, allow-listed, but
+    /// different destination than the one in the feed.
+    @Test func theHrefIsTheFeedsVerbatim() {
+        let markup = #"<a href="https://ex.com/?q=<b>x</b>">Docs</a>"#
+        #expect(ReleaseNotesHTML.runs(in: markup).first?.link != URL(string: "https://ex.com/?q=x"))
+        #expect(ReleaseNotesHTML.plainText(markup) == "Docs")
+
+        let commented = #"<a href="https://ex.com/<!-- c -->path">Docs</a>"#
+        #expect(ReleaseNotesHTML.runs(in: commented).first?.link != URL(string: "https://ex.com/path"))
+
+        // Entities in the href must still decode: feeds escape query separators,
+        // and "?a=1&amp;b=2" is not a URL until they do.
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://ex.com/p?a=1&amp;b=2">x</a>"#).first?.link
+                == URL(string: "https://ex.com/p?a=1&b=2"))
+        #expect(ReleaseNotesHTML.runs(in: #"<a href="https://ex.com/p?a=1&#38;b=2">x</a>"#).first?.link
+                == URL(string: "https://ex.com/p?a=1&b=2"))
     }
 
     // MARK: - Robustness

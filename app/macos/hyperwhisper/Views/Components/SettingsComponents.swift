@@ -15,6 +15,20 @@
 import SwiftUI
 import KeyboardShortcuts
 
+// MARK: - Settings Row Link
+
+/// The title-line link of a settings row: where it goes, and the words that
+/// name it.
+///
+/// One value rather than two optionals, because a destination without a label
+/// renders a glyph with an empty tooltip and an unnamed VoiceOver link —
+/// `.help()` sets the accessibility *hint*, not the label, so a glyph-only
+/// control needs both. Supplying half of that must not compile.
+struct SettingsRowLink {
+    let url: URL
+    let label: LocalizedStringKey
+}
+
 // MARK: - Settings Toggle Row
 
 /// A standardized toggle row for settings
@@ -22,8 +36,8 @@ import KeyboardShortcuts
 ///
 /// `titleLink` hangs a small "open in browser" glyph next to the title, for a
 /// setting whose pay-off is a web page — the page stays reachable whether or
-/// not the toggle is on. Both link properties default to nothing, so rows that
-/// do not want one are unaffected.
+/// not the toggle is on. It defaults to nothing, so rows that do not want one
+/// are unaffected.
 struct SettingsToggleRow: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
@@ -32,22 +46,19 @@ struct SettingsToggleRow: View {
     var standalone: Bool = true
     var titleFont: Font = .headline
     var subtitleFont: Font = .caption
-    var titleLink: URL?
-    var titleLinkHelp: LocalizedStringKey?
+    var titleLink: SettingsRowLink?
 
-    /// The title-line link, or nothing at all. `.help` alone sets the
-    /// accessibility *hint*, so a glyph-only control needs an explicit label
-    /// too or VoiceOver announces an unnamed button.
+    /// The title-line link, or nothing at all.
     @ViewBuilder
     private var titleLinkGlyph: some View {
         if let titleLink {
-            Link(destination: titleLink) {
+            Link(destination: titleLink.url) {
                 Image(systemName: "arrow.up.forward.app")
             }
             .buttonStyle(.plain)
             .foregroundColor(.accentColor)
-            .help(titleLinkHelp ?? "")
-            .accessibilityLabel(Text(titleLinkHelp ?? ""))
+            .help(titleLink.label)
+            .accessibilityLabel(Text(titleLink.label))
         }
     }
 

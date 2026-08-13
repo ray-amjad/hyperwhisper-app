@@ -45,6 +45,12 @@ public static class InlineHtmlText
     /// <summary>Replace a TextBlock's inlines with the parsed fragment.</summary>
     public static void Apply(TextBlock textBlock, string? html)
     {
+        // The anchor open across the runs being added, so that "<a>see <b>this</b>
+        // page</a>" — three runs, one destination — becomes one link region
+        // rather than three siblings: one tab stop, one tooltip, one hyperlink
+        // announced to a screen reader. macOS renders that anchor as one link too.
+        Hyperlink? openLink = null;
+
         foreach (var run in InlineHtml.Parse(html))
         {
             var text = new Run(run.Text);
@@ -54,7 +60,21 @@ public static class InlineHtmlText
             if (run.Bold) text.FontWeight = FontWeights.Bold;
             if (run.Italic) text.FontStyle = FontStyles.Italic;
 
-            textBlock.Inlines.Add(run.Link is { } link ? BuildHyperlink(text, link) : text);
+            if (run.Link is not { } link)
+            {
+                openLink = null;
+                textBlock.Inlines.Add(text);
+                continue;
+            }
+
+            if (openLink is { NavigateUri: { } open } && open.AbsoluteUri == link.AbsoluteUri)
+            {
+                openLink.Inlines.Add(text);
+                continue;
+            }
+
+            openLink = BuildHyperlink(text, link);
+            textBlock.Inlines.Add(openLink);
         }
     }
 
@@ -63,7 +83,7 @@ public static class InlineHtmlText
     /// underline and hand cursor, so it reads as clickable in either theme —
     /// the stock blue is close to invisible on the dark one.
     /// </summary>
-    private static Inline BuildHyperlink(Run text, Uri uri)
+    private static Hyperlink BuildHyperlink(Run text, Uri uri)
     {
         var hyperlink = new Hyperlink(text)
         {
