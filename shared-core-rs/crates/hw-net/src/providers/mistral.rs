@@ -47,6 +47,7 @@ fn spec() -> OpenAiStyleSpec {
         auth: Auth::XApiKey,
         vocabulary: VocabularyMode::None,
         send_model: true,
+        keywords_models: &[],
         // Mistral returns { "text" } without a response_format field.
         send_response_format: false,
     }

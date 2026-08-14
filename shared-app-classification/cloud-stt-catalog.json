@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 6,
-  "updated": "2026-08-07",
+  "updated": "2026-08-13",
   "providers": [
     {
       "id": "groqWhisper",
@@ -271,7 +271,7 @@
         "supported": true,
         "fieldName": "prompt",
         "maxTokens": 224,
-        "caveats": "Whisper uses a custom tokenizer; only the final 224 tokens of the prompt are considered. Not a keyterm list — functions as style/context priming. gpt-transcribe / gpt-live-transcribe (launched 2026-07-29) instead take free-form context + keyword hints per OpenAI's docs; both are flat per-audio-minute billed (like whisper-1), NOT token-billed like gpt-4o-*. gpt-live-transcribe's only supported endpoint is a Realtime WebSocket transcription session — hyperwhisper-cloud's synchronous REST adapter does not yet serve it, so it is cataloged here but not yet actually reachable via HyperWhisper Cloud (see shared-models/models-catalog.json)."
+        "caveats": "Whisper uses a custom tokenizer; only the final 224 tokens of the prompt are considered. Not a keyterm list — functions as style/context priming. gpt-transcribe / gpt-live-transcribe (launched 2026-07-29) instead take free-form context + keyword hints per OpenAI's docs — for `gpt-transcribe` we send the terms as a structured `keywords[]` list and leave `prompt` for the user's own instructions; both are flat per-audio-minute billed (like whisper-1), NOT token-billed like gpt-4o-*. gpt-live-transcribe's only supported endpoint is a Realtime WebSocket transcription session — hyperwhisper-cloud's synchronous REST adapter does not yet serve it, so it is cataloged here but not yet actually reachable via HyperWhisper Cloud (see shared-models/models-catalog.json)."
       },
       "languages": {
         "count": 100,

@@ -21,6 +21,32 @@ import {
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'gpt-4o-transcribe';
 
+// Models that accept a structured keyword list. gpt-live-transcribe is
+// realtime-only and never reaches this synchronous adapter.
+const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
+// OpenAI encodes array parameters on this endpoint with a trailing `[]`, one
+// field per element — the same shape as the documented
+// `timestamp_granularities[]`.
+const KEYWORDS_FIELD = 'keywords[]';
+const MAX_KEYWORDS = 100;
+
+/** Split a comma/newline vocabulary prompt into `keywords[]` values. */
+function toKeywords(initialPrompt: string): string[] {
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+  for (const raw of initialPrompt.split(/[,\n;]+/)) {
+    // OpenAI documents that a keyword must be one line with no `<`, `>`, CR or LF.
+    const keyword = raw.trim().replace(/^[-*]\s*/, '').replace(/[<>\r\n]/g, '');
+    if (keyword.length === 0) continue;
+    const key = keyword.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keywords.push(keyword);
+    if (keywords.length === MAX_KEYWORDS) break;
+  }
+  return keywords;
+}
+
 interface OpenAIUsage {
   type?: string;
   seconds?: number;
@@ -64,7 +90,15 @@ export async function transcribeWithOpenAI(
     const langCode = language.toLowerCase().split(/[-_]/)[0];
     formData.append('language', langCode);
   }
-  if (initialPrompt) {
+  // gpt-transcribe takes a STRUCTURED keyword list; every other model only has
+  // the free-text `prompt`. Sending the terms as keywords keeps them hints
+  // rather than part of the instruction.
+  const useKeywords = KEYWORDS_MODELS.has(model);
+  const keywords = useKeywords && initialPrompt ? toKeywords(initialPrompt) : [];
+  for (const keyword of keywords) {
+    formData.append(KEYWORDS_FIELD, keyword);
+  }
+  if (initialPrompt && !useKeywords) {
     formData.append('prompt', initialPrompt);
   }
 
@@ -73,7 +107,8 @@ export async function transcribeWithOpenAI(
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
-    hasPrompt: Boolean(initialPrompt),
+    hasPrompt: Boolean(initialPrompt) && !useKeywords,
+    keywordCount: keywords.length,
   }, context);
 
   const response = await fetchWithTimeout(provider, OPENAI_URL, {

@@ -125,6 +125,38 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
     expect(without.form?.has('prompt')).toBe(false);
   });
 
+  test('sends the vocabulary as keywords[] on gpt-transcribe, not as prompt', async () => {
+    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper, Drizzle', {
+      model: 'gpt-transcribe',
+    });
+    expect(captured.form?.getAll('keywords[]')).toEqual(['HyperWhisper', 'Drizzle']);
+    expect(captured.form?.has('prompt')).toBe(false);
+  });
+
+  test('de-duplicates keywords, strips angle brackets, and caps the list at 100', async () => {
+    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const terms = ['<b>Bold', 'Kept', 'kept', ...Array.from({ length: 120 }, (_, i) => `term${i}`)];
+
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, terms.join(', '), {
+      model: 'gpt-transcribe',
+    });
+    const sent = captured.form?.getAll('keywords[]') as string[];
+    expect(sent.length).toBe(100);
+    expect(sent[0]).toBe('bBold');
+    expect(sent.filter((k) => k.toLowerCase() === 'kept').length).toBe(1);
+  });
+
+  test('keeps the prompt path for whisper-1 and the gpt-4o models', async () => {
+    for (const model of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe']) {
+      const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+      await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'HyperWhisper', { model });
+      expect(captured.form?.get('prompt')).toBe('HyperWhisper');
+      expect(captured.form?.has('keywords[]')).toBe(false);
+    }
+  });
+
   test('names the file part from the content type, falling back to .wav', async () => {
     const mp3 = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
     await transcribeWithOpenAI(audio(), 'audio/mpeg');

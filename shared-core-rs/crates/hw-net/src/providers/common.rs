@@ -32,6 +32,11 @@ pub enum VocabularyMode {
     None,
 }
 
+/// Multipart field name for a structured keyword list. OpenAI encodes array
+/// parameters on this endpoint with a trailing `[]` (same shape as the
+/// documented `timestamp_granularities[]`), one field per element.
+pub const KEYWORDS_FIELD: &str = "keywords[]";
+
 /// Declarative description of an OpenAI-style multipart transcription provider.
 pub struct OpenAiStyleSpec {
     pub endpoint: &'static str,
@@ -43,6 +48,12 @@ pub struct OpenAiStyleSpec {
     /// Whether to send `response_format=json` (OpenAI / Groq). Mistral / Grok
     /// return `{ "text" }` without this field, so they omit it.
     pub send_response_format: bool,
+    /// Models on this provider that take a STRUCTURED keyword list instead of
+    /// vocabulary-in-`prompt`. For a model listed here the terms go out as
+    /// repeated [`KEYWORDS_FIELD`] parts and `prompt` carries only the caller's
+    /// own instructions. Every other model keeps the framed-prompt behavior.
+    /// Empty for providers with no such model.
+    pub keywords_models: &'static [&'static str],
 }
 
 /// Build an OpenAI-compatible multipart request from a spec.
@@ -68,14 +79,15 @@ pub fn build_openai_style(
         filename_of(&params.audio_path),
     ));
 
+    let model = if params.model.trim().is_empty() {
+        spec.default_model.to_string()
+    } else {
+        params.model.clone()
+    };
+
     // model
     if spec.send_model {
-        let model = if params.model.trim().is_empty() {
-            spec.default_model.to_string()
-        } else {
-            params.model.clone()
-        };
-        parts.push(multipart_field("model", model));
+        parts.push(multipart_field("model", model.clone()));
     }
 
     // language — omitted when absent / empty / "auto" (case-insensitive).
@@ -95,12 +107,30 @@ pub fn build_openai_style(
         }
     }
 
-    // prompt — vocabulary CSV (when supported) followed by the caller's custom
-    // instructions (`params.prompt`). Either may be empty.
+    // vocabulary + prompt.
+    //
+    // A model listed in `spec.keywords_models` takes the terms as a structured
+    // `keywords[]` list, so the framing preamble is NOT applied and `prompt`
+    // carries only the caller's own instructions. Every other model keeps the
+    // historical framed-prompt behavior.
     if spec.vocabulary == VocabularyMode::Prompt {
-        let prompt = build_prompt(params);
-        if !prompt.is_empty() {
-            parts.push(multipart_field("prompt", prompt));
+        if spec.keywords_models.contains(&model.as_str()) {
+            for term in keyword_boost_terms(&params.vocabulary, None) {
+                parts.push(multipart_field(KEYWORDS_FIELD, term));
+            }
+            if let Some(custom) = params
+                .prompt
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
+                parts.push(multipart_field("prompt", custom));
+            }
+        } else {
+            let prompt = build_prompt(params);
+            if !prompt.is_empty() {
+                parts.push(multipart_field("prompt", prompt));
+            }
         }
     }
 
@@ -359,6 +389,7 @@ mod tests {
             auth: Auth::Bearer,
             vocabulary: VocabularyMode::Prompt,
             send_model: true,
+            keywords_models: &[],
             send_response_format: true,
         }
     }
