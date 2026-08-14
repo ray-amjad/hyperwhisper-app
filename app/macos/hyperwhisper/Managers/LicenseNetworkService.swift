@@ -16,7 +16,7 @@
 //
 //  NETWORK RESILIENCE (HYPERWHISPER-F4):
 //  - validateLicense() retries a NETWORK failure (timeout/no connection/DNS/
-//    connection refused) with a short bounded backoff before giving up — a real
+//    connection refused) with a short bounded backoff before giving up — a
 //    non-2xx server verdict is never retried (see licenseHttpErrorOutcome).
 //  - The launch-time revalidation (LicenseManager.loadStoredLicense(), passing
 //    isLaunchValidation: true) uses both a tighter retry budget AND a much
@@ -29,6 +29,14 @@
 //    (never a fabricated one) for the key on file, within its 7-day grace, and
 //    let the app proceed — no hard error shown to the user. Only the "no usable
 //    cache" case gets a distinct diagnostic signal.
+//
+//  ERROR REPORTING (HYPERWHISPER-SP / HYPERWHISPER-FM):
+//  - A 400 carrying `{"valid":false,"error":"…"}` is an ORDINARY license verdict
+//    — key not found, revoked, expired, or simply mistyped on Activate — not a
+//    server fault. It is LOGGED (AppLogger.network.warning), never captured to
+//    Sentry, so a lapsed license no longer files a production error on every
+//    launch-time revalidation. Every OTHER non-200 is still captured.
+//    See `isLicenseVerdictResponse`.
 //
 
 import Foundation
@@ -265,17 +273,42 @@ class LicenseNetworkService: LicenseNetworkServing {
                         statusCode: UInt16(httpResponse.statusCode),
                         body: data
                     )
-                    if AppLogger.isErrorLoggingEnabled {
-                        let err = NSError(
-                            domain: "LicenseHTTP",
-                            code: httpResponse.statusCode,
-                            userInfo: [NSLocalizedDescriptionKey: outcome.errorMessage ?? "Server error"]
-                        )
-                        SentryService.capture(
-                            error: err,
-                            message: "License validation server error",
-                            extras: ["endpoint": NetworkConfig.licenseValidateEndpoint, "status": httpResponse.statusCode],
-                            tags: ["component": "license"]
+                    // HYPERWHISPER-SP / HYPERWHISPER-FM: a 400 carrying
+                    // `{"valid":false,"error":"…"}` is an ordinary license verdict
+                    // (key not found, revoked, expired, or mistyped on Activate) —
+                    // a NORMAL outcome the backend reports with 400, not a server
+                    // fault. Capturing it filed a production Sentry error on every
+                    // launch-time revalidation for anyone whose license had lapsed.
+                    // Log those instead; every other non-200 is still captured.
+                    //
+                    // Note: the route returns 400 + this same body shape for
+                    // "Invalid request body" / "License key is required" too
+                    // (nextjs/app/api/license/validate/route.ts ~72-91), so those
+                    // would be suppressed as well. Both are unreachable from this
+                    // client — an empty key is rejected before the request is made
+                    // and the body is built by the Rust core — but a future reader
+                    // shouldn't be surprised by it.
+                    if !Self.isLicenseVerdictResponse(statusCode: httpResponse.statusCode, body: data) {
+                        if AppLogger.isErrorLoggingEnabled {
+                            let err = NSError(
+                                domain: "LicenseHTTP",
+                                code: httpResponse.statusCode,
+                                userInfo: [NSLocalizedDescriptionKey: outcome.errorMessage ?? "Server error"]
+                            )
+                            SentryService.capture(
+                                error: err,
+                                message: "License validation server error",
+                                extras: ["endpoint": NetworkConfig.licenseValidateEndpoint, "status": httpResponse.statusCode],
+                                tags: ["component": "license"]
+                            )
+                        }
+                    } else {
+                        // The core already extracted the server's `error` field into
+                        // `outcome.errorMessage` — don't re-decode, and never log the
+                        // license key itself.
+                        let serverMessage = outcome.errorMessage ?? "no message"
+                        AppLogger.network.warning(
+                            "License validation rejected by server · status=\(httpResponse.statusCode) · message=\(serverMessage)"
                         )
                     }
                     return Self.adapt(outcome)
@@ -413,11 +446,13 @@ class LicenseNetworkService: LicenseNetworkServing {
             } else {
                 // No usable cached fallback (never validated yet, or the 7-day
                 // grace has elapsed) — the user is genuinely stuck offline with no
-                // safety net. Worth its own distinct signal: unlike the 200-path
-                // "License validation server error" above (a real, non-2xx server
-                // verdict), this is a pure connectivity failure with nothing to
-                // fall back on. Tagged distinctly so it doesn't get lumped in with
-                // either of those.
+                // safety net. Worth its own distinct signal: unlike the non-200
+                // "License validation server error" above (which now covers only
+                // genuine server faults — a 400 carrying `{"valid":false,"error"}`
+                // is an ordinary license verdict, not found / revoked / expired, and
+                // is LOGGED rather than captured; see `isLicenseVerdictResponse`),
+                // this is a pure connectivity failure with nothing to fall back on.
+                // Tagged distinctly so it doesn't get lumped in with either of those.
                 //
                 // `failure_kind` further splits this signal by `isNetworkFailure`:
                 // a genuine connectivity failure (dead network, DNS, etc.) is a
@@ -592,6 +627,46 @@ class LicenseNetworkService: LicenseNetworkServing {
         let nsError = error as NSError
         guard nsError.domain == NSURLErrorDomain else { return false }
         return TranscriptionPipeline.transientURLErrorCodes.contains(URLError.Code(rawValue: nsError.code))
+    }
+
+    /// The backend's ordinary "this key isn't entitled" reply body.
+    ///
+    /// Plain lowercase keys, deliberately: this file's only snake_case is on the
+    /// REQUEST side (`ProbeRequest.CodingKeys`), so no `convertFromSnakeCase`
+    /// here. Both fields are optional so a body that omits `valid` decodes to
+    /// nil (and is then rejected below) rather than throwing ambiguously.
+    private struct LicenseVerdictBody: Decodable {
+        let valid: Bool?
+        let error: String?
+    }
+
+    /// Whether a non-200 response is an ordinary license verdict — the backend
+    /// reports "key not found" and "License is revoked/expired/disabled" as
+    /// HTTP 400 with `{"valid":false,"error":"…"}` (see `checkLicenseKey` in
+    /// nextjs/src/lib/license-validation.ts). Those are NORMAL outcomes for a
+    /// lapsed license or a mistyped key, so they are logged rather than captured
+    /// to Sentry. HYPERWHISPER-SP / HYPERWHISPER-FM.
+    ///
+    /// Deliberately narrow: the status must be exactly 400, the body must decode
+    /// as that shape, `valid` must be present and false, and `error` must be a
+    /// non-empty message. Anything else — a different status, an HTML
+    /// captive-portal page, an empty body, `valid: true`, a missing `valid`, a
+    /// blank message — is still a genuine anomaly and is still captured.
+    ///
+    /// This changes ONLY whether a Sentry event is sent. The verdict returned to
+    /// callers is unaffected: the core's outcome is still `.invalid`, with the
+    /// same user-facing message.
+    static func isLicenseVerdictResponse(statusCode: Int, body: Data) -> Bool {
+        guard statusCode == 400 else { return false }
+        guard let decoded = try? JSONDecoder().decode(LicenseVerdictBody.self, from: body) else {
+            return false
+        }
+        guard decoded.valid == false else { return false }
+        guard let message = decoded.error,
+              !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+        return true
     }
 
     // MARK: - ValidationOutcome → app-type adapters
