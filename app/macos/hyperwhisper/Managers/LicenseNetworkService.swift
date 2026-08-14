@@ -31,12 +31,8 @@
 //    cache" case gets a distinct diagnostic signal.
 //
 //  ERROR REPORTING (HYPERWHISPER-SP / HYPERWHISPER-FM):
-//  - A 400 carrying `{"valid":false,"error":"…"}` is an ORDINARY license verdict
-//    — key not found, revoked, expired, or simply mistyped on Activate — not a
-//    server fault. It is LOGGED (AppLogger.network.warning), never captured to
-//    Sentry, so a lapsed license no longer files a production error on every
-//    launch-time revalidation. Every OTHER non-200 is still captured.
-//    See `isLicenseVerdictResponse`.
+//  - An ordinary "this license isn't entitled" reply is logged, not captured to
+//    Sentry — see `isLicenseVerdictResponse` for the rule and why.
 //
 
 import Foundation
@@ -273,42 +269,27 @@ class LicenseNetworkService: LicenseNetworkServing {
                         statusCode: UInt16(httpResponse.statusCode),
                         body: data
                     )
-                    // HYPERWHISPER-SP / HYPERWHISPER-FM: a 400 carrying
-                    // `{"valid":false,"error":"…"}` is an ordinary license verdict
-                    // (key not found, revoked, expired, or mistyped on Activate) —
-                    // a NORMAL outcome the backend reports with 400, not a server
-                    // fault. Capturing it filed a production Sentry error on every
-                    // launch-time revalidation for anyone whose license had lapsed.
-                    // Log those instead; every other non-200 is still captured.
-                    //
-                    // Note: the route returns 400 + this same body shape for
-                    // "Invalid request body" / "License key is required" too
-                    // (nextjs/app/api/license/validate/route.ts ~72-91), so those
-                    // would be suppressed as well. Both are unreachable from this
-                    // client — an empty key is rejected before the request is made
-                    // and the body is built by the Rust core — but a future reader
-                    // shouldn't be surprised by it.
-                    if !Self.isLicenseVerdictResponse(statusCode: httpResponse.statusCode, body: data) {
-                        if AppLogger.isErrorLoggingEnabled {
-                            let err = NSError(
-                                domain: "LicenseHTTP",
-                                code: httpResponse.statusCode,
-                                userInfo: [NSLocalizedDescriptionKey: outcome.errorMessage ?? "Server error"]
-                            )
-                            SentryService.capture(
-                                error: err,
-                                message: "License validation server error",
-                                extras: ["endpoint": NetworkConfig.licenseValidateEndpoint, "status": httpResponse.statusCode],
-                                tags: ["component": "license"]
-                            )
-                        }
-                    } else {
+                    if Self.isLicenseVerdictResponse(statusCode: httpResponse.statusCode, body: data) {
                         // The core already extracted the server's `error` field into
                         // `outcome.errorMessage` — don't re-decode, and never log the
-                        // license key itself.
+                        // license key itself. `.public` on every interpolation: an
+                        // os.Logger redacts by default, which would throw away the
+                        // only record of a rejection we deliberately don't capture.
                         let serverMessage = outcome.errorMessage ?? "no message"
                         AppLogger.network.warning(
-                            "License validation rejected by server · status=\(httpResponse.statusCode) · message=\(serverMessage)"
+                            "License validation rejected by server · status=\(httpResponse.statusCode, privacy: .public) · reason=not_entitled · message=\(serverMessage, privacy: .public)"
+                        )
+                    } else if AppLogger.isErrorLoggingEnabled {
+                        let err = NSError(
+                            domain: "LicenseHTTP",
+                            code: httpResponse.statusCode,
+                            userInfo: [NSLocalizedDescriptionKey: outcome.errorMessage ?? "Server error"]
+                        )
+                        SentryService.capture(
+                            error: err,
+                            message: "License validation server error",
+                            extras: ["endpoint": NetworkConfig.licenseValidateEndpoint, "status": httpResponse.statusCode],
+                            tags: ["component": "license"]
                         )
                     }
                     return Self.adapt(outcome)
@@ -447,12 +428,9 @@ class LicenseNetworkService: LicenseNetworkServing {
                 // No usable cached fallback (never validated yet, or the 7-day
                 // grace has elapsed) — the user is genuinely stuck offline with no
                 // safety net. Worth its own distinct signal: unlike the non-200
-                // "License validation server error" above (which now covers only
-                // genuine server faults — a 400 carrying `{"valid":false,"error"}`
-                // is an ordinary license verdict, not found / revoked / expired, and
-                // is LOGGED rather than captured; see `isLicenseVerdictResponse`),
-                // this is a pure connectivity failure with nothing to fall back on.
-                // Tagged distinctly so it doesn't get lumped in with either of those.
+                // "License validation server error" above, this is a pure
+                // connectivity failure with nothing to fall back on. Tagged
+                // distinctly so it doesn't get lumped in with that one.
                 //
                 // `failure_kind` further splits this signal by `isNetworkFailure`:
                 // a genuine connectivity failure (dead network, DNS, etc.) is a
@@ -629,29 +607,42 @@ class LicenseNetworkService: LicenseNetworkServing {
         return TranscriptionPipeline.transientURLErrorCodes.contains(URLError.Code(rawValue: nsError.code))
     }
 
-    /// The backend's ordinary "this key isn't entitled" reply body.
+    /// The one field of the backend's invalid-license reply that this classifier
+    /// reads. Everything else in that body (`valid`, `error`) is the core's job.
     ///
-    /// Plain lowercase keys, deliberately: this file's only snake_case is on the
+    /// Plain lowercase key, deliberately: this file's only snake_case is on the
     /// REQUEST side (`ProbeRequest.CodingKeys`), so no `convertFromSnakeCase`
-    /// here. Both fields are optional so a body that omits `valid` decodes to
-    /// nil (and is then rejected below) rather than throwing ambiguously.
+    /// here. Optional so a body that omits `reason` decodes to nil (and is then
+    /// rejected below) rather than throwing ambiguously.
     private struct LicenseVerdictBody: Decodable {
-        let valid: Bool?
-        let error: String?
+        let reason: String?
     }
 
-    /// Whether a non-200 response is an ordinary license verdict — the backend
-    /// reports "key not found" and "License is revoked/expired/disabled" as
-    /// HTTP 400 with `{"valid":false,"error":"…"}` (see `checkLicenseKey` in
-    /// nextjs/src/lib/license-validation.ts). Those are NORMAL outcomes for a
-    /// lapsed license or a mistyped key, so they are logged rather than captured
-    /// to Sentry. HYPERWHISPER-SP / HYPERWHISPER-FM.
+    /// Whether a non-200 response is an ordinary license verdict — a license
+    /// that exists and simply isn't entitled (revoked, expired, disabled). Those
+    /// are NORMAL for a lapsed subscription, so they are logged rather than
+    /// captured to Sentry. HYPERWHISPER-SP / HYPERWHISPER-FM.
     ///
-    /// Deliberately narrow: the status must be exactly 400, the body must decode
-    /// as that shape, `valid` must be present and false, and `error` must be a
-    /// non-empty message. Anything else — a different status, an HTML
-    /// captive-portal page, an empty body, `valid: true`, a missing `valid`, a
-    /// blank message — is still a genuine anomaly and is still captured.
+    /// True only when the status is exactly 400 AND the body decodes AND its
+    /// `reason` is `"not_entitled"`. `reason` is the discriminator, because the
+    /// body SHAPE cannot decide this: the backend answers 400 with the same
+    /// `{"valid":false,"error":"…"}` for genuine infrastructure faults too, and
+    /// an unknown key is reported with the *identical* error string as a Polar
+    /// outage (`"Failed to validate with Polar"`). Matching on shape would have
+    /// gone silent during exactly the incident we most need to see. So the
+    /// server — the only side that knows which branch it took — classifies:
+    /// `not_entitled` (verdict), `lookup_failed` (we couldn't find out) or
+    /// `bad_request`. See `checkLicenseKey` / `probeLicenseKeyReadOnly`.
+    ///
+    /// Anything else is still captured: a different status, `lookup_failed`,
+    /// `bad_request`, an unrecognised reason, a body with NO `reason` (an older
+    /// backend, an HTML captive-portal page, an empty body). Missing-means-report
+    /// is the safe default, and it is also accurate — one backend serves every
+    /// client, so `reason` is present from the moment it deploys.
+    ///
+    /// Known, accepted gap: a bad migration that flipped every license to
+    /// not-granted would be reported as `not_entitled` and stay silent here.
+    /// That belongs in backend metrics, not in a client-side Sentry event.
     ///
     /// This changes ONLY whether a Sentry event is sent. The verdict returned to
     /// callers is unaffected: the core's outcome is still `.invalid`, with the
@@ -661,12 +652,7 @@ class LicenseNetworkService: LicenseNetworkServing {
         guard let decoded = try? JSONDecoder().decode(LicenseVerdictBody.self, from: body) else {
             return false
         }
-        guard decoded.valid == false else { return false }
-        guard let message = decoded.error,
-              !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return false
-        }
-        return true
+        return decoded.reason == "not_entitled"
     }
 
     // MARK: - ValidationOutcome → app-type adapters

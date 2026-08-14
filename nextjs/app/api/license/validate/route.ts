@@ -32,6 +32,18 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * If valid via Polar, imports the license to the database with 5000 credits.
  * (Lookup + fallback + status check live in src/lib/license-validation.ts,
  * shared with the legacy /activate endpoint.)
+ *
+ * INVALID REPLIES CARRY A `reason` (LicenseInvalidReason):
+ * Every `{ valid: false }` body from this route also carries a machine-readable
+ * `reason` — `not_entitled` (a real entitlement verdict), `lookup_failed` (we
+ * could not establish the license's state) or `bad_request`. Clients cannot
+ * derive this from the status code or the `error` text: an unknown key and a
+ * Polar outage are both a 400 reading "Failed to validate with Polar". The
+ * macOS app uses it to decide whether a rejection is ordinary (log it) or an
+ * incident (report it) — see `isLicenseVerdictResponse` in
+ * app/macos/hyperwhisper/Managers/LicenseNetworkService.swift.
+ * Purely additive: `valid`, `error` and the status codes are unchanged, and
+ * existing readers that ignore the field are unaffected.
  */
 
 /**
@@ -70,7 +82,7 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json(
-      { valid: false, error: "Invalid request body" },
+      { valid: false, error: "Invalid request body", reason: "bad_request" },
       { status: 400 },
     );
   }
@@ -86,7 +98,11 @@ export async function POST(req: NextRequest) {
 
   if (!license_key) {
     return NextResponse.json(
-      { valid: false, error: "License key is required" },
+      {
+        valid: false,
+        error: "License key is required",
+        reason: "bad_request",
+      },
       { status: 400 },
     );
   }
@@ -96,7 +112,7 @@ export async function POST(req: NextRequest) {
       const result = await probeLicenseKey(license_key);
       if (!result.valid) {
         return NextResponse.json(
-          { valid: false, error: result.error },
+          { valid: false, error: result.error, reason: result.reason },
           { status: result.status },
         );
       }
@@ -108,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     if (!result.valid) {
       return NextResponse.json(
-        { valid: false, error: result.error },
+        { valid: false, error: result.error, reason: result.reason },
         { status: result.status },
       );
     }
