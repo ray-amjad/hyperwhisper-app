@@ -10,13 +10,15 @@
 //  every launch-time revalidation. A 400 is not a server error.
 //
 //  The body SHAPE cannot split those two cases: the backend uses the same 400 +
-//  `{valid:false,error}` for real infrastructure faults, and an unknown key is
-//  reported with the *identical* error string as a Polar outage ("Failed to
-//  validate with Polar"). So the backend now sends a machine-readable `reason`
-//  (`not_entitled` / `lookup_failed` / `bad_request`) and
-//  `LicenseNetworkService.isLicenseVerdictResponse` keys off that. It is a pure
-//  static specifically so this classifier can be tested without a live
-//  URLSession, a Sentry transport, or the Rust core.
+//  `{valid:false,error}` for an ordinary lapsed license, for a key that does not
+//  exist, and for real infrastructure faults. So the backend now sends a
+//  machine-readable `reason` (`not_entitled` / `lookup_failed` / `bad_request`)
+//  and `LicenseNetworkService.licenseVerdictReason` reads it. The full rationale
+//  is documented once on `LicenseInvalidReason` in
+//  nextjs/src/lib/license-validation-probe.ts — this header does not restate it.
+//
+//  It is a pure static specifically so this classifier can be tested without a
+//  live URLSession, a Sentry transport, or the Rust core.
 //
 //  These tests pin BOTH halves of it:
 //    - `reason: "not_entitled"` at 400 is recognized (→ logged, not captured), and
@@ -24,7 +26,11 @@
 //      a body with no `reason` at all, a captive-portal HTML page, an empty body,
 //      a different status code — is NOT, so genuine faults keep reaching Sentry.
 //
-//  This predicate only gates the Sentry capture. It does not touch the verdict
+//  …and that the reason is returned VERBATIM rather than thrown away, because
+//  the capture path tags the Sentry event with it. Without that, `lookup_failed`,
+//  `bad_request` and an unrecognised reason are one undifferentiated pile.
+//
+//  This classifier only gates the Sentry capture. It does not touch the verdict
 //  returned to callers: an invalid license stays `.invalid`, with the same
 //  user-facing message, whichever way this answers.
 //
@@ -35,12 +41,19 @@ import Foundation
 
 struct LicenseNetworkVerdictReportingTests {
 
-    /// Small helper so each case reads as "this body, this status → verdict?".
-    private func isVerdict(_ statusCode: Int, _ json: String) -> Bool {
-        LicenseNetworkService.isLicenseVerdictResponse(
+    /// The decoded reason, exactly as the call site sees it.
+    private func reason(_ statusCode: Int, _ json: String) -> String? {
+        LicenseNetworkService.licenseVerdictReason(
             statusCode: statusCode,
             body: Data(json.utf8)
         )
+    }
+
+    /// Small helper so each case reads as "this body, this status → verdict?".
+    /// Mirrors the call site's branch exactly: it logs instead of capturing for
+    /// this one value and captures for everything else.
+    private func isVerdict(_ statusCode: Int, _ json: String) -> Bool {
+        reason(statusCode, json) == LicenseNetworkService.notEntitledReason
     }
 
     // MARK: - Ordinary license verdicts (must NOT be captured to Sentry)
@@ -70,10 +83,19 @@ struct LicenseNetworkVerdictReportingTests {
 
     @Test func lookupFailedIsNotAVerdict() {
         // The whole point of the field. "Failed to validate with Polar" covers a
-        // Polar outage, a rotated token AND a genuinely unknown key — we could
-        // not establish the license's state, so this must still reach Sentry.
+        // Polar outage and a rotated token — we could not establish the license's
+        // state, so this must still reach Sentry. (A key Polar positively does
+        // not have is NOT in this bucket: the backend classifies that
+        // `not_entitled`, with the message "License key not found".)
         #expect(!isVerdict(400, #"{"valid":false,"error":"Failed to validate with Polar","reason":"lookup_failed"}"#))
         #expect(!isVerdict(400, #"{"valid":false,"error":"Failed to get or create user","reason":"lookup_failed"}"#))
+    }
+
+    @Test func aKeyPolarDoesNotHaveIsAnOrdinaryVerdict() {
+        // The commonest rejection there is — a mistyped or non-existent key.
+        // The backend used to lump it in with a Polar outage as `lookup_failed`,
+        // which is precisely why HYPERWHISPER-SP / -FM kept firing.
+        #expect(isVerdict(400, #"{"valid":false,"error":"License key not found","reason":"not_entitled"}"#))
     }
 
     @Test func badRequestIsNotAVerdict() {
@@ -121,11 +143,11 @@ struct LicenseNetworkVerdictReportingTests {
         <!DOCTYPE html><html><head><title>Sign in to continue</title></head>\
         <body><h1>Network login required</h1></body></html>
         """
-        #expect(!LicenseNetworkService.isLicenseVerdictResponse(statusCode: 400, body: Data(html.utf8)))
+        #expect(LicenseNetworkService.licenseVerdictReason(statusCode: 400, body: Data(html.utf8)) == nil)
     }
 
     @Test func emptyBodyIsNotAVerdict() {
-        #expect(!LicenseNetworkService.isLicenseVerdictResponse(statusCode: 400, body: Data()))
+        #expect(LicenseNetworkService.licenseVerdictReason(statusCode: 400, body: Data()) == nil)
     }
 
     @Test func nonObjectJsonIsNotAVerdict() {
@@ -156,5 +178,44 @@ struct LicenseNetworkVerdictReportingTests {
         // Belt and braces: the 200 path never reaches this predicate, but if it
         // ever did, a 200 is not an error verdict.
         #expect(!isVerdict(200, #"{"valid":false,"error":"License is revoked","reason":"not_entitled"}"#))
+    }
+
+    // MARK: - The reason is returned, not discarded
+
+    @Test func theServerReasonIsReturnedVerbatim() {
+        // The capture path tags the Sentry event with this value, so the three
+        // non-verdict cases stay separable in triage instead of collapsing into
+        // one undifferentiated pile under a single issue title.
+        #expect(reason(400, #"{"valid":false,"error":"Failed to validate with Polar","reason":"lookup_failed"}"#) == "lookup_failed")
+        #expect(reason(400, #"{"valid":false,"error":"License key is required","reason":"bad_request"}"#) == "bad_request")
+        #expect(reason(400, #"{"valid":false,"error":"License is revoked","reason":"not_entitled"}"#) == "not_entitled")
+    }
+
+    @Test func anUnrecognisedReasonIsReturnedRatherThanFlattened() {
+        // A reason this client build has never heard of is still worth seeing in
+        // Sentry verbatim — that is how a backend/client skew gets noticed. It
+        // is reported (not a verdict) AND identifiable.
+        #expect(reason(400, #"{"valid":false,"error":"…","reason":"quota_exceeded"}"#) == "quota_exceeded")
+        #expect(!isVerdict(400, #"{"valid":false,"error":"…","reason":"quota_exceeded"}"#))
+    }
+
+    @Test func anUnstatedReasonIsNilSoTheCallSiteCanLabelIt() {
+        // nil is what the call site turns into `unstatedReason` for the Sentry
+        // tag. An empty string counts as unstated: it would be a useless tag
+        // value, and it is not a reason the backend can legitimately send.
+        #expect(reason(400, #"{"valid":false,"error":"License is revoked"}"#) == nil)
+        #expect(reason(400, #"{"valid":false,"error":"License is revoked","reason":null}"#) == nil)
+        #expect(reason(400, #"{"valid":false,"error":"License is revoked","reason":""}"#) == nil)
+        #expect(reason(400, "{}") == nil)
+    }
+
+    @Test func theTwoReasonConstantsAreTheWireValues() {
+        // `notEntitledReason` is compared against the backend's JSON, so it must
+        // stay the exact wire string. `unstatedReason` must not collide with any
+        // real reason, or an unclassified reply would masquerade as a stated one.
+        #expect(LicenseNetworkService.notEntitledReason == "not_entitled")
+        #expect(LicenseNetworkService.unstatedReason != "not_entitled")
+        #expect(LicenseNetworkService.unstatedReason != "lookup_failed")
+        #expect(LicenseNetworkService.unstatedReason != "bad_request")
     }
 }

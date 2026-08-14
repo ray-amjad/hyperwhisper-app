@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { checkLicenseKey } from "@/src/lib/license-validation";
+import {
+  checkLicenseKey,
+  invalidLicenseResponse,
+} from "@/src/lib/license-validation";
 import { licenseValidateRateLimiter } from "@/lib/rate-limit";
 import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
 
@@ -21,6 +24,14 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * NEW FLOW:
  * - New app versions just call /validate with device_id
  * - No activation/deactivation - fair usage policy instead
+ *
+ * INVALID REPLIES CARRY A `reason` (LicenseInvalidReason):
+ * This endpoint is backed by the same `checkLicenseKey` as /validate, so its
+ * rejections carry the same machine-readable `reason` and are serialized by the
+ * same `invalidLicenseResponse`. Keep it that way — one function behind two
+ * endpoints that answer differently is how the wire contract drifts. What the
+ * field means is documented once on `LicenseInvalidReason` in
+ * src/lib/license-validation-probe.ts.
  */
 export async function POST(req: NextRequest) {
   // Rate limit by IP before any DB lookup or Polar fallback. Like /validate,
@@ -30,39 +41,44 @@ export async function POST(req: NextRequest) {
   const { success } = await licenseValidateRateLimiter.limit(clientIP);
 
   if (!success) {
-    return NextResponse.json(
-      { valid: false, error: "Too many requests. Please try again later." },
-      { status: 429 }
-    );
+    // `lookup_failed`, not `bad_request`: the request was well-formed, we
+    // simply declined to establish the license's state. Never a verdict.
+    return invalidLicenseResponse({
+      valid: false,
+      error: "Too many requests. Please try again later.",
+      status: 429,
+      reason: "lookup_failed",
+    });
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { valid: false, error: "Invalid request body" },
-      { status: 400 }
-    );
+    return invalidLicenseResponse({
+      valid: false,
+      error: "Invalid request body",
+      status: 400,
+      reason: "bad_request",
+    });
   }
 
   const { license_key } = (body ?? {}) as { license_key?: string };
 
   if (!license_key) {
-    return NextResponse.json(
-      { valid: false, error: "License key is required" },
-      { status: 400 }
-    );
+    return invalidLicenseResponse({
+      valid: false,
+      error: "License key is required",
+      status: 400,
+      reason: "bad_request",
+    });
   }
 
   try {
     const result = await checkLicenseKey(license_key);
 
     if (!result.valid) {
-      return NextResponse.json(
-        { valid: false, error: result.error },
-        { status: result.status }
-      );
+      return invalidLicenseResponse(result);
     }
 
     // Old apps expect an activation_id, so we generate a UUID
@@ -74,9 +90,13 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("License activation error:", error);
 
-    return NextResponse.json(
-      { valid: false, error: "Failed to validate license. Please try again later." },
-      { status: 500 }
-    );
+    // An unexpected fault: we could not establish the license's state, which is
+    // exactly `lookup_failed`. Not a verdict — the client must keep reporting it.
+    return invalidLicenseResponse({
+      valid: false,
+      error: "Failed to validate license. Please try again later.",
+      status: 500,
+      reason: "lookup_failed",
+    });
   }
 }

@@ -32,7 +32,7 @@
 //
 //  ERROR REPORTING (HYPERWHISPER-SP / HYPERWHISPER-FM):
 //  - An ordinary "this license isn't entitled" reply is logged, not captured to
-//    Sentry — see `isLicenseVerdictResponse` for the rule and why.
+//    Sentry — see `licenseVerdictReason` for the rule and why.
 //
 
 import Foundation
@@ -269,7 +269,17 @@ class LicenseNetworkService: LicenseNetworkServing {
                         statusCode: UInt16(httpResponse.statusCode),
                         body: data
                     )
-                    if Self.isLicenseVerdictResponse(statusCode: httpResponse.statusCode, body: data) {
+                    // The server's own classification of this rejection, or nil
+                    // if it did not state one. Decoded once and used for BOTH
+                    // the verdict decision and the diagnostic that follows, so
+                    // the two can never disagree about what the server said.
+                    let verdictReason = Self.licenseVerdictReason(
+                        statusCode: httpResponse.statusCode,
+                        body: data
+                    )
+                    let reasonForDiagnostics = verdictReason ?? Self.unstatedReason
+
+                    if verdictReason == Self.notEntitledReason {
                         // The core already extracted the server's `error` field into
                         // `outcome.errorMessage` — don't re-decode, and never log the
                         // license key itself. `.public` on every interpolation: an
@@ -277,7 +287,7 @@ class LicenseNetworkService: LicenseNetworkServing {
                         // only record of a rejection we deliberately don't capture.
                         let serverMessage = outcome.errorMessage ?? "no message"
                         AppLogger.network.warning(
-                            "License validation rejected by server · status=\(httpResponse.statusCode, privacy: .public) · reason=not_entitled · message=\(serverMessage, privacy: .public)"
+                            "License validation rejected by server · status=\(httpResponse.statusCode, privacy: .public) · reason=\(reasonForDiagnostics, privacy: .public) · message=\(serverMessage, privacy: .public)"
                         )
                     } else if AppLogger.isErrorLoggingEnabled {
                         let err = NSError(
@@ -285,11 +295,27 @@ class LicenseNetworkService: LicenseNetworkServing {
                             code: httpResponse.statusCode,
                             userInfo: [NSLocalizedDescriptionKey: outcome.errorMessage ?? "Server error"]
                         )
+                        // `license_reason` as a TAG, not just an extra: everything
+                        // that reaches here shares one issue title, so without it
+                        // `lookup_failed` (a real backend incident), `bad_request`
+                        // (a client bug), an unrecognised reason and an unstated
+                        // one are one undifferentiated pile. As a tag it is
+                        // searchable and chartable, which is what triage needs.
+                        // Grouping is deliberately NOT changed — no fingerprint
+                        // override — so existing HYPERWHISPER-SP / -FM history
+                        // stays intact.
                         SentryService.capture(
                             error: err,
                             message: "License validation server error",
-                            extras: ["endpoint": NetworkConfig.licenseValidateEndpoint, "status": httpResponse.statusCode],
-                            tags: ["component": "license"]
+                            extras: [
+                                "endpoint": NetworkConfig.licenseValidateEndpoint,
+                                "status": httpResponse.statusCode,
+                                "license_reason": reasonForDiagnostics
+                            ],
+                            tags: [
+                                "component": "license",
+                                "license_reason": reasonForDiagnostics
+                            ]
                         )
                     }
                     return Self.adapt(outcome)
@@ -613,46 +639,62 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// Plain lowercase key, deliberately: this file's only snake_case is on the
     /// REQUEST side (`ProbeRequest.CodingKeys`), so no `convertFromSnakeCase`
     /// here. Optional so a body that omits `reason` decodes to nil (and is then
-    /// rejected below) rather than throwing ambiguously.
+    /// treated as unstated below) rather than throwing ambiguously.
     private struct LicenseVerdictBody: Decodable {
         let reason: String?
     }
 
-    /// Whether a non-200 response is an ordinary license verdict — a license
-    /// that exists and simply isn't entitled (revoked, expired, disabled). Those
-    /// are NORMAL for a lapsed subscription, so they are logged rather than
-    /// captured to Sentry. HYPERWHISPER-SP / HYPERWHISPER-FM.
+    /// The one `reason` value that means "ordinary verdict — log it, don't
+    /// report it". Named rather than spelled out at each use so the predicate,
+    /// the call site's branch and its log line cannot drift apart.
+    static let notEntitledReason = "not_entitled"
+
+    /// Stand-in used in diagnostics when the server stated no usable reason, so
+    /// "the backend didn't classify this" is searchable in Sentry instead of
+    /// being an absent tag.
+    static let unstatedReason = "unstated"
+
+    /// The backend's machine-readable classification of a non-200 invalid-license
+    /// reply — `not_entitled`, `lookup_failed`, `bad_request`, or whatever else
+    /// it may add later — returned verbatim. Nil when the status is not 400, the
+    /// body does not decode, or it states no non-empty `reason`.
     ///
-    /// True only when the status is exactly 400 AND the body decodes AND its
-    /// `reason` is `"not_entitled"`. `reason` is the discriminator, because the
-    /// body SHAPE cannot decide this: the backend answers 400 with the same
-    /// `{"valid":false,"error":"…"}` for genuine infrastructure faults too, and
-    /// an unknown key is reported with the *identical* error string as a Polar
-    /// outage (`"Failed to validate with Polar"`). Matching on shape would have
-    /// gone silent during exactly the incident we most need to see. So the
-    /// server — the only side that knows which branch it took — classifies:
-    /// `not_entitled` (verdict), `lookup_failed` (we couldn't find out) or
-    /// `bad_request`. See `checkLicenseKey` / `probeLicenseKeyReadOnly`.
+    /// The full rationale for the field, and what each value means, lives on
+    /// `LicenseInvalidReason` in nextjs/src/lib/license-validation-probe.ts. The
+    /// short version: the response SHAPE cannot decide this, because the backend
+    /// answers 400 with the same `{"valid":false,"error":"…"}` for an ordinary
+    /// lapsed license, for a key that doesn't exist, and for genuine
+    /// infrastructure faults. Only the server knows which branch it took, so it
+    /// says so.
     ///
-    /// Anything else is still captured: a different status, `lookup_failed`,
-    /// `bad_request`, an unrecognised reason, a body with NO `reason` (an older
-    /// backend, an HTML captive-portal page, an empty body). Missing-means-report
-    /// is the safe default, and it is also accurate — one backend serves every
-    /// client, so `reason` is present from the moment it deploys.
+    /// Callers treat exactly one value — `notEntitledReason` — as an ordinary
+    /// verdict to log rather than capture (HYPERWHISPER-SP / HYPERWHISPER-FM).
+    /// A lapsed subscription, and now also a mistyped or non-existent key, hit
+    /// that on every launch-time revalidation; neither is a server fault.
+    ///
+    /// Everything else is still captured, and the value returned here is
+    /// attached to the Sentry event so the cases stay separable: a different
+    /// status, `lookup_failed`, `bad_request`, an unrecognised reason, or a body
+    /// with no `reason` at all (an older backend, an HTML captive-portal page,
+    /// an empty body). Nil-means-report is the safe default, and it is also
+    /// accurate — one backend serves every client, and every invalid reply from
+    /// it is serialized through `invalidLicenseResponse`, so `reason` is present
+    /// on all of them from the moment it deploys.
     ///
     /// Known, accepted gap: a bad migration that flipped every license to
     /// not-granted would be reported as `not_entitled` and stay silent here.
     /// That belongs in backend metrics, not in a client-side Sentry event.
     ///
-    /// This changes ONLY whether a Sentry event is sent. The verdict returned to
-    /// callers is unaffected: the core's outcome is still `.invalid`, with the
-    /// same user-facing message.
-    static func isLicenseVerdictResponse(statusCode: Int, body: Data) -> Bool {
-        guard statusCode == 400 else { return false }
+    /// This changes ONLY whether a Sentry event is sent, and what it is tagged
+    /// with. The verdict returned to callers is unaffected: the core's outcome
+    /// is still `.invalid`, with the same user-facing message.
+    static func licenseVerdictReason(statusCode: Int, body: Data) -> String? {
+        guard statusCode == 400 else { return nil }
         guard let decoded = try? JSONDecoder().decode(LicenseVerdictBody.self, from: body) else {
-            return false
+            return nil
         }
-        return decoded.reason == "not_entitled"
+        guard let reason = decoded.reason, !reason.isEmpty else { return nil }
+        return reason
     }
 
     // MARK: - ValidationOutcome → app-type adapters

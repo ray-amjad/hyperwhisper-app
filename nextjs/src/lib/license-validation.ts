@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+
 import { polarClient, POLAR_ORGANIZATION_ID } from "@/lib/clients/polar";
 import {
   findAccountByKey,
@@ -10,11 +12,11 @@ import {
 } from "@/src/lib/db-layer";
 import {
   probeLicenseKeyReadOnly,
+  type LicenseInvalid,
   type LicenseInvalidReason,
   type ReadOnlyLicenseProbeResult,
 } from "@/src/lib/license-validation-probe";
-
-export type { LicenseInvalidReason };
+import { isPolarKeyNotFoundError } from "./polar-errors";
 
 /**
  * Shared license key validation logic.
@@ -23,6 +25,22 @@ export type { LicenseInvalidReason };
  * every entry point performs a real database check (with Polar fallback)
  * instead of trusting the key blindly.
  */
+
+/**
+ * The one way either license route serializes a rejection.
+ *
+ * Both routes are backed by `checkLicenseKey`, so a field added to the invalid
+ * result has to reach both replies or the two endpoints disagree on the wire
+ * contract. Routing every invalid exit through here makes that structural: the
+ * argument is a `LicenseInvalid`, so a rejection cannot be serialized without
+ * its `reason` (see `LicenseInvalidReason` for what the field is for).
+ */
+export function invalidLicenseResponse(result: LicenseInvalid): NextResponse {
+  return NextResponse.json(
+    { valid: false, error: result.error, reason: result.reason },
+    { status: result.status },
+  );
+}
 
 /**
  * Import a license from Polar into the local database.
@@ -125,10 +143,19 @@ async function importLicenseFromPolar(licenseKey: string): Promise<
 
     return { success: true, licenseId: license.id };
   } catch (err) {
+    // The SDK THROWS for a key Polar has never heard of, so this catch sees
+    // both an unknown key (an ordinary verdict — the single commonest
+    // rejection, e.g. a typo) and a Polar outage (an incident). Split them;
+    // anything unrecognised stays `lookup_failed`. See `isPolarKeyNotFoundError`.
+    if (isPolarKeyNotFoundError(err)) {
+      return {
+        success: false,
+        error: "License key not found",
+        reason: "not_entitled",
+      };
+    }
+
     console.error("Polar license import error:", err);
-    // This single catch covers a Polar outage, a rotated token AND a genuinely
-    // unknown key — they are indistinguishable here, so none of them may be
-    // reported as an entitlement verdict.
     return {
       success: false,
       error: "Failed to validate with Polar",
@@ -139,12 +166,7 @@ async function importLicenseFromPolar(licenseKey: string): Promise<
 
 export type LicenseCheckResult =
   | { valid: true; license: AccountKeyRow }
-  | {
-      valid: false;
-      error: string;
-      status: number;
-      reason: LicenseInvalidReason;
-    };
+  | LicenseInvalid;
 
 /**
  * Read-only license check for UI that presents Test separately from Activate.
@@ -183,10 +205,7 @@ export async function checkLicenseKey(
 
     if (!polarImport.success) {
       // Forward the import's own classification rather than inventing one:
-      // only IT knows whether Polar answered "not granted" (a verdict) or
-      // could not be reached at all (an incident). Note that an unknown key
-      // is NOT distinguishable here — it surfaces as `lookup_failed` from the
-      // Polar catch, together with an outage.
+      // only IT knows which branch it took. See `LicenseInvalidReason`.
       return {
         valid: false,
         error: polarImport.error,
