@@ -348,17 +348,44 @@ components:
         cloudProvider: { type: string, nullable: true }
         postProcessingMode: { type: integer, description: "0 = off, 1 = cloud, 2 = local" }
         postProcessingProvider: { type: string, nullable: true }
-        englishSpelling: { type: string, nullable: true }
+        englishSpelling:
+          type: string
+          nullable: true
+          description: >-
+            american | british | australian | canadian. On create, an omitted
+            value is seeded from the system region (Canada → canadian,
+            Australia → australian, UK/IE/IN/SG/ZA/NZ and other British-English
+            regions → british, everything else and an unknown region →
+            american).
         useStreamingTranscription: { type: boolean, nullable: true }
-        cloudAccuracyTier: { type: string, nullable: true }
+        cloudAccuracyTier:
+          type: string
+          nullable: true
+          description: "On create, an omitted or empty value resolves to `elevenLabsScribeV2`."
         removeTrailingPeriod: { type: boolean, nullable: true }
         enableScreenOCR: { type: boolean, nullable: true }
         geminiCustomPrompt: { type: string, nullable: true }
-        cloudPostProcessingModel: { type: string, nullable: true }
+        cloudPostProcessingModel:
+          type: string
+          nullable: true
+          description: "On create, an omitted or empty value resolves to `anthropic:claude-haiku-4-5`."
         cloudTranscriptionDomain: { type: string, nullable: true }
+        localEngine: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it. Defaults to `whisper` on create." }
+        localParakeetModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
+        localPostProcessingModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
+        customVocabulary:
+          type: array
+          nullable: true
+          items: { type: string }
+          description: "Windows only. macOS ignores this key and never returns it."
+        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key and never returns it." }
 
     ModePatch:
-      description: Partial Mode. Any field omitted is left untouched on the server. All fields are optional.
+      description: >-
+        Partial Mode. Any field omitted is left untouched on the server. All
+        fields are optional. `id`, `isSystemProvided`, `createdDate` and
+        `modifiedDate` are read-only: the server ignores them here, and sets
+        `modifiedDate` itself on each patch.
       type: object
       properties:
         name: { type: string }
@@ -371,16 +398,13 @@ components:
         customInstructions: { type: string, nullable: true }
         userSystemPrompt: { type: string, nullable: true }
         isDefault: { type: boolean, nullable: true }
-        isSystemProvided: { type: boolean, nullable: true }
         sortOrder: { type: integer, nullable: true }
-        createdDate: { type: string, format: date-time, nullable: true }
-        modifiedDate: { type: string, format: date-time, nullable: true }
         languageModel: { type: string, nullable: true }
         cloudTranscriptionModel: { type: string, nullable: true }
         cloudProvider: { type: string, nullable: true }
         postProcessingMode: { type: integer, description: "0 = off, 1 = cloud, 2 = local" }
         postProcessingProvider: { type: string, nullable: true }
-        englishSpelling: { type: string, nullable: true }
+        englishSpelling: { type: string, nullable: true, description: "american | british | australian | canadian" }
         useStreamingTranscription: { type: boolean, nullable: true }
         cloudAccuracyTier: { type: string, nullable: true }
         removeTrailingPeriod: { type: boolean, nullable: true }
@@ -388,6 +412,15 @@ components:
         geminiCustomPrompt: { type: string, nullable: true }
         cloudPostProcessingModel: { type: string, nullable: true }
         cloudTranscriptionDomain: { type: string, nullable: true }
+        localEngine: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
+        localParakeetModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
+        localPostProcessingModel: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
+        customVocabulary:
+          type: array
+          nullable: true
+          items: { type: string }
+          description: "Windows only. macOS ignores this key."
+        providerType: { type: string, nullable: true, description: "Windows only. macOS ignores this key." }
 
     ModeResponse:
       type: object

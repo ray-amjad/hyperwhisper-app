@@ -120,10 +120,14 @@ These options apply in addition to the preset instructions:
 
 If your language is English and post-processing is on, you can select a spelling variant. The AI then uses the same spelling rules for all text:
 
-- **American** (default) — for example, *color*, *realize*, *organization*, *center*, *traveled*
+- **American** — for example, *color*, *realize*, *organization*, *center*, *traveled*
 - **British** — for example, *colour*, *realise*, *organisation*, *centre*, *travelled*
 - **Australian** — for example, *colour*, *realise*, *organisation*, *centre*, *travelled*
 - **Canadian** — for example, *colour*, *realize*, *organization*, *centre*, *travelled*. Canadian English keeps the British *-our* and *-re* endings, but it uses the American *-ize* and *-ization* endings.
+
+A new mode starts on the variant of your system region. A machine set to Canada starts on **Canadian**. A machine set to Australia starts on **Australian**. A machine set to the United Kingdom, Ireland, India, Singapore, South Africa, New Zealand, or another region that writes British English starts on **British**. All other regions start on **American**. An unknown region also starts on **American**.
+
+The region gives the first value only. HyperWhisper does not change the variant of a mode that already holds one. Thus a mode that you edited, and a mode that you restored from a backup, keep the value that they have.
 
 The variant also sets the date format that the AI writes:
 
