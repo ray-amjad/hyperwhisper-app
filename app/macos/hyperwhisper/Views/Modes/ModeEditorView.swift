@@ -453,8 +453,7 @@ struct ModeEditorView: View {
         let isGrokDirect = provider == .cloud && currentCloudProvider == .grok
         // Cloud accuracy tiers under HyperWhisper Cloud where the shared
         // catalog flags vocabulary as unsupported (e.g. Grok SST — backend
-        // doesn't forward initial_prompt; Google Chirp 3 — Speech V2
-        // adaptation 404s on chirp_3).
+        // doesn't forward initial_prompt).
         let isUnsupportedCloudTier: Bool = {
             guard provider == .cloud, currentCloudProvider == .hyperwhisper else { return false }
             // Model-aware: follows the SELECTED model's catalog vocab flag.

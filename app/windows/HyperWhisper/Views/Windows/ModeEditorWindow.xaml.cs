@@ -2186,7 +2186,7 @@ public partial class ModeEditorWindow : Window
 
             // Standalone Grok BYOK: keyterm not plumbed through backend.
             // HW Cloud accuracy tiers: catalog flags whether the chosen tier +
-            // model supports custom vocabulary (Grok SST and Chirp 3 do not;
+            // model supports custom vocabulary (Grok SST does not;
             // ElevenLabs scribe_v1 doesn't while scribe_v2 does). Prefer the
             // per-model flag so the warning matches the send-path gate. If the
             // tier string is null/empty (initial render, catalog load failure)

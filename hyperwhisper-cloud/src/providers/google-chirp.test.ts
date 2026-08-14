@@ -182,6 +182,64 @@ describe('transcribeWithGoogleChirp — inline sync recognize path', () => {
   });
 });
 
+describe('transcribeWithGoogleChirp — phrase-list adaptation', () => {
+  test('sends the vocabulary as an inline phrase set', async () => {
+    let sentBody: any;
+    fetchHandler = (_url, init) => {
+      sentBody = JSON.parse(init.body as string);
+      return syncRecognizeResponse('hi');
+    };
+
+    await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav', 'en-US', 'HyperWhisper, Drizzle');
+    expect(sentBody.config.adaptation).toEqual({
+      phraseSets: [{ inlinePhraseSet: { phrases: [{ value: 'HyperWhisper' }, { value: 'Drizzle' }] } }],
+    });
+  });
+
+  test('omits adaptation entirely when there is no vocabulary', async () => {
+    let sentBody: any;
+    fetchHandler = (_url, init) => {
+      sentBody = JSON.parse(init.body as string);
+      return syncRecognizeResponse('hi');
+    };
+
+    await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav');
+    expect(sentBody.config.adaptation).toBeUndefined();
+  });
+
+  test('retries once without adaptation when Google rejects the phrase set, and keeps the transcript', async () => {
+    const bodies: any[] = [];
+    fetchHandler = (_url, init) => {
+      const body = JSON.parse(init.body as string);
+      bodies.push(body);
+      if (body.config.adaptation) {
+        return new Response('{"error":{"status":"NOT_FOUND"}}', { status: 404 });
+      }
+      return syncRecognizeResponse('kept the transcript');
+    };
+
+    const result = await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav', 'en-US', 'HyperWhisper');
+    expect(result.text).toBe('kept the transcript');
+    expect(bodies.length).toBe(2);
+    expect(bodies[0].config.adaptation).toBeDefined();
+    expect(bodies[1].config.adaptation).toBeUndefined();
+    // the retry keeps every other config field.
+    expect(bodies[1].config.model).toBe('chirp_3');
+    expect(bodies[1].config.languageCodes).toEqual(['en-US']);
+  });
+
+  test('does not retry a rejection when there was no vocabulary to drop', async () => {
+    let calls = 0;
+    fetchHandler = () => {
+      calls += 1;
+      return new Response('bad request', { status: 400 });
+    };
+
+    await expect(transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav')).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
+});
+
 describe('transcribeWithGoogleChirp — sync recognize error mapping', () => {
   test('401 maps to a plain Error (invalid/expired credentials)', async () => {
     fetchHandler = () => new Response('unauthorized', { status: 401 });
@@ -263,6 +321,39 @@ describe('transcribeWithGoogleChirp — GCS + batchRecognize path', () => {
     expect(deleteCalls).toEqual([{ bucket: 'test-bucket', objectName: 'stt-temp/audio.wav' }]);
     // batchRecognize submit + at least 2 polls (done:false then done:true).
     expect((globalThis.fetch as any).mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('re-submits the batch operation without adaptation when the phrase set is rejected', async () => {
+    const submitted: any[] = [];
+    fetchHandler = (url, init) => {
+      if (url.includes(':batchRecognize')) {
+        const body = JSON.parse(init.body as string);
+        submitted.push(body);
+        if (body.config.adaptation) {
+          return new Response('{"error":{"status":"NOT_FOUND"}}', { status: 404 });
+        }
+        return Response.json({ name: 'operations/op-3' });
+      }
+      return Response.json({
+        done: true,
+        response: {
+          results: {
+            [uploadResult.gcsUri]: {
+              transcript: { results: [{ alternatives: [{ transcript: 'batched anyway' }] }] },
+              metadata: { totalBilledDuration: '30s' },
+            },
+          },
+        },
+      });
+    };
+
+    const result = await transcribeWithGoogleChirp(bigAudio(), 'audio/wav', 'en-US', 'HyperWhisper');
+    expect(result.text).toBe('batched anyway');
+    expect(submitted.length).toBe(2);
+    expect(submitted[0].config.adaptation).toBeDefined();
+    expect(submitted[1].config.adaptation).toBeUndefined();
+    // one upload only — the retry re-uses the same GCS object.
+    expect(uploadCalls.length).toBe(1);
   });
 
   test('audio that fits the byte cap but fails the duration gate is routed to GCS+batch instead of erroring', async () => {

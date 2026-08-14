@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 6,
-  "updated": "2026-08-07",
+  "updated": "2026-08-13",
   "providers": [
     {
       "id": "groqWhisper",
@@ -175,15 +175,16 @@
       "sttProvider": "google-chirp",
       "access": { "cloudTierEligible": true, "byokEligible": false },
       "models": [
-        { "id": "chirp_3", "displayName": "Chirp 3", "creditsPerMinute": 16.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+        { "id": "chirp_3", "displayName": "Chirp 3", "creditsPerMinute": 16.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 16.0 },
       "migrateFrom": ["googlespeech", "googleSpeech", "chirp", "google-chirp", "googlechirp", "googlechirp3"],
       "legacyCloudProviderAliases": ["googlespeech", "googleSpeech"],
       "customVocabulary": {
-        "supported": false,
-        "fieldName": "unverified",
-        "caveats": "Empirically confirmed: Speech V2 adaptation returns 404 NOT_FOUND on chirp_3 (`Requested entity was not found`). The Speech V2 adaptation doc doesn't explicitly list chirp_3 as supported — all examples use the `short` model. Treat as unsupported until Google formally documents chirp_3 adaptation. Fix shipped in backend PR #15."
+        "supported": true,
+        "fieldName": "adaptation.phraseSets",
+        "maxPhrases": 1000,
+        "caveats": "Sent as an inline phrase set on `config.adaptation`. Google now documents Speech adaptation (biasing) as GA for Chirp 3 with a dictionary of up to 1,000 phrases, and recommends fewer entries to avoid hurting accuracy on non-listed terms. History: an earlier integration got 404 NOT_FOUND from this exact field (backend PR #15), so `google-chirp.ts` retries a rejected request once WITHOUT adaptation — biasing can be lost, the transcript cannot."
       },
       "languages": {
         "count": 111,
