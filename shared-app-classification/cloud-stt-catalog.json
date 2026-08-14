@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 6,
-  "updated": "2026-08-07",
+  "updated": "2026-08-13",
   "providers": [
     {
       "id": "groqWhisper",
@@ -96,15 +96,15 @@
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "", "displayName": "Grok STT", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+        { "id": "", "displayName": "Grok STT", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
       "migrateFrom": ["grok", "grokstt"],
       "customVocabulary": {
-        "supported": false,
+        "supported": true,
         "fieldName": "keyterm",
         "maxPhrases": 100,
-        "caveats": "xAI docs claim `keyterm` support (max 100 terms, 50 chars each), but the HyperWhisper backend (`xai-stt.ts:88`) does NOT forward `initial_prompt` to xAI. Flip to true if/when wired."
+        "caveats": "One repeated `keyterm` field per term (max 100 terms, 50 chars each). Wired on all four request sites: `hyperwhisper-cloud/src/providers/xai-stt.ts`, the Rust core `grok::keyterms`, and both WebSocket streaming strategies. Terms longer than 50 chars are dropped, not truncated. There is no free-text `prompt` field on this endpoint."
       },
       "languages": {
         "count": 25,

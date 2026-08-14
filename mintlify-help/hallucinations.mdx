@@ -66,7 +66,7 @@ Each provider uses these entries differently:
 - **AssemblyAI** — HyperWhisper sends them as key-term context.
 - **Microsoft MAI-Transcribe** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing.
 - **Google Chirp 3** (via HyperWhisper Cloud) — this provider does not accept vocabulary hints. The Chirp models do not support phrase-list biasing, thus the server drops your entries before the request. HyperWhisper shows no message when this occurs.
-- **Grok STT** (xAI) — this provider does not support custom vocabulary. HyperWhisper accepts your entries, but it does not send them.
+- **Grok STT** (xAI) — HyperWhisper sends them as `keyterm` hints, to a maximum of 100 terms. It removes terms of more than 50 characters.
 - **Mistral Voxtral** (via HyperWhisper Cloud) — HyperWhisper sends them as a structured `context_bias` list, to a maximum of 100 terms. This only applies when Voxtral is reached through HyperWhisper Cloud — with your own Mistral key, Voxtral does not support custom vocabulary and HyperWhisper does not send your entries.
 - **Local models on both platforms (Parakeet on macOS and Windows, Nemotron on macOS and Windows)** — HyperWhisper matches the terms by sound with the Beider-Morse algorithm. It excludes terms of two characters or less, because these cause false matches.
 - **All providers** — HyperWhisper puts the entries that have no replacement into the per-request user-message context for AI post-processing. This corrects errors that the raw transcript contains.

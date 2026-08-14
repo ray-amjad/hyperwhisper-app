@@ -449,12 +449,9 @@ struct ModeEditorView: View {
         let isElevenLabsV1 = provider == .cloud && currentCloudProvider == .elevenLabs && cloudTranscriptionModel == "scribe_v1"
         // Mistral doesn't support custom vocabulary or prompt parameters
         let isMistral = provider == .cloud && currentCloudProvider == .mistral
-        // xAI Grok STT has no documented vocabulary, prompt, keyword, or phrase-hint parameter
-        let isGrokDirect = provider == .cloud && currentCloudProvider == .grok
         // Cloud accuracy tiers under HyperWhisper Cloud where the shared
-        // catalog flags vocabulary as unsupported (e.g. Grok SST — backend
-        // doesn't forward initial_prompt; Google Chirp 3 — Speech V2
-        // adaptation 404s on chirp_3).
+        // catalog flags vocabulary as unsupported (e.g. Google Chirp 3 —
+        // Speech V2 adaptation 404s on chirp_3).
         let isUnsupportedCloudTier: Bool = {
             guard provider == .cloud, currentCloudProvider == .hyperwhisper else { return false }
             // Model-aware: follows the SELECTED model's catalog vocab flag.
@@ -464,7 +461,7 @@ struct ModeEditorView: View {
         let isDeepgramBase = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("base")
         // Deepgram Whisper models don't support keywords or keyterms
         let isDeepgramWhisper = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("whisper")
-        return isQwen3Asr || isElevenLabsV1 || isMistral || isGrokDirect || isUnsupportedCloudTier || isDeepgramBase || isDeepgramWhisper
+        return isQwen3Asr || isElevenLabsV1 || isMistral || isUnsupportedCloudTier || isDeepgramBase || isDeepgramWhisper
     }
 
     /// Returns true when Deepgram Nova-3 is selected with auto-detect language.

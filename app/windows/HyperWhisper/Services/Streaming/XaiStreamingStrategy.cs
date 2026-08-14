@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -16,7 +17,7 @@ public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
     private string _committedTranscript = string.Empty;
 
     public string TranscriptionProviderLabel => "xAI (Streaming)";
-    public bool SupportsVocabulary => false;
+    public bool SupportsVocabulary => true;
     public bool SessionStartsOnWebSocketOpen => false;
     public int AudioSampleRate => 16000;
     public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) => [];
@@ -41,6 +42,13 @@ public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
         if (!string.IsNullOrWhiteSpace(language))
         {
             query.Add($"language={Uri.EscapeDataString(language)}");
+        }
+
+        // keyterm is repeated once per term — max 100 terms, 50 chars each.
+        // Ref: docs.x.ai speech-to-text (WebSocket query parameters).
+        foreach (var term in Keyterms(config.Vocabulary))
+        {
+            query.Add($"keyterm={Uri.EscapeDataString(term)}");
         }
 
         return new Uri($"wss://api.x.ai/v1/stt?{string.Join("&", query)}");
@@ -157,6 +165,25 @@ public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
 
     private static string? SupportedFormattingLanguage(string? code) =>
         XaiFormattingLanguages.TryGetSupportedCode(code, out var supportedCode) ? supportedCode : null;
+
+    // xAI keyterm caps: 100 terms, 50 characters each. Mirrors the batch path in
+    // the Rust core (`grok::keyterms`), which applies the same two limits.
+    private const int MaxKeyterms = 100;
+    private const int MaxKeytermChars = 50;
+
+    private static IEnumerable<string> Keyterms(string? vocabulary)
+    {
+        if (string.IsNullOrWhiteSpace(vocabulary))
+        {
+            return [];
+        }
+
+        return vocabulary
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(term => term.Length <= MaxKeytermChars)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(MaxKeyterms);
+    }
 
     private static StreamingStopStep TextStep(string json) =>
         new(StreamingStopAction.SendMessage, Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text);

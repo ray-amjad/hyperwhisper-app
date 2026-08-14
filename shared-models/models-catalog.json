@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-08-07",
+  "lastUpdated": "2026-08-13",
   "models": [
     {
       "provider": "appleSpeech",
@@ -345,7 +345,7 @@
       "provider": "grok",
       "id": "",
       "kind": "voice",
-      "supportsCustomVocabulary": false,
+      "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["windows"],
       "supportsAllLanguages": true,

@@ -8,9 +8,10 @@
 //  through the Rust shared core (`grokBuild/ParseTranscribeResponse`). The core
 //  bakes the `Authorization: Bearer` header, the conditional `language` +
 //  `format=true` fields (coupled, gated on xAI's supported-formatting set with
-//  the `tl`→`fil` alias), the `file` part, and the NoSpeech-on-empty parse. Grok
-//  STT has no model parameter and no custom-vocabulary support — both are owned
-//  (dropped) by the core. This file keeps the platform-owned shell: key config,
+//  the `tl`→`fil` alias), the repeated `keyterm` fields (max 100 terms, 50 chars
+//  each), the `file` part, and the NoSpeech-on-empty parse. Grok STT has no model
+//  parameter — that is owned (dropped) by the core.
+//  This file keeps the platform-owned shell: key config,
 //  the long-timeout URLSession, preflight, retry, logging, health.
 //
 
@@ -78,19 +79,20 @@ final class GrokSTTProvider: TranscriptionProvider {
         }
 
         if !vocabulary.isEmpty {
-            AppLogger.network.info("Grok STT does not support custom vocabulary · \(vocabulary.count, privacy: .public) term(s) will be ignored")
+            AppLogger.network.info("Grok vocabulary sent as keyterm fields · \(vocabulary.count, privacy: .public) term(s) before capping")
         }
 
         AppLogger.network.info("Grok transcription started · file=\(audioURL.lastPathComponent, privacy: .public) · language=\(language ?? "auto", privacy: .public)")
 
-        // Grok has no model param and no vocab support — both owned (dropped) by
-        // the core. Pass the natively-resolved mime (mp4/mkv overrides) explicitly.
+        // Grok has no model param — that stays owned (dropped) by the core. Pass
+        // the RAW vocabulary terms; the core caps them into `keyterm` fields.
+        // Pass the natively-resolved mime (mp4/mkv overrides) explicitly.
         let contentType = mimeType(for: audioURL)
         let params = RustCoreMapping.transcribeParams(
             audioPath: audioURL.path,
             audioMime: contentType,
             language: language,
-            vocabulary: [],
+            vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             apiKey: apiKey
         )
 

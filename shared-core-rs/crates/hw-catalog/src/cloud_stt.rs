@@ -532,19 +532,19 @@ mod tests {
         assert!(c.supports_custom_vocabulary("groqWhisper"));
     }
 
-    // --- Golden: vocab NOT supported (grokStt — backend doesn't forward) ----
+    // --- Golden: vocab supported via a repeated field (grokStt) -------------
 
     #[test]
-    fn grok_stt_vocab_unsupported_despite_field_name() {
+    fn grok_stt_vocab_supported_through_keyterm() {
         let c = catalog();
-        // grokStt.customVocabulary.supported == false (backend doesn't forward).
-        assert!(!c.supports_custom_vocabulary("grokStt"));
-        // The field name is still present in the catalog ("keyterm").
+        // grokStt.customVocabulary.supported == true — every request site
+        // (backend, Rust core, both streaming strategies) forwards keyterms.
+        assert!(c.supports_custom_vocabulary("grokStt"));
         assert_eq!(c.custom_vocabulary_field_name("grokStt"), Some("keyterm"));
         let e = c.entry("grokStt").unwrap();
         assert_eq!(
             e.custom_vocabulary.as_ref().map(|cv| cv.supported),
-            Some(VocabSupport::No)
+            Some(VocabSupport::Yes)
         );
     }
 

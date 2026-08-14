@@ -228,8 +228,6 @@ public static class CloudTranscriptionProviderExtensions
     {
         // ElevenLabs: Scribe v2 supports vocabulary, v1 doesn't (model-specific check in UI)
         CloudTranscriptionProvider.Mistral => false,
-        // Grok STT has no prompt or keyterm parameter
-        CloudTranscriptionProvider.Grok => false,
         // Azure MAI + Google Chirp 3 are surfaced as HW Cloud accuracy tiers
         // since PR #521; they no longer appear in the standalone BYOK list.
         // Any un-migrated mode that still hits the BYOK path with these

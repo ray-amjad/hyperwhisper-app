@@ -362,7 +362,7 @@ struct StreamingView: View {
     /// - HyperWhisper Cloud: Default, no API key needed, routes through Fly.io backend
     /// - Deepgram: Direct WebSocket, requires API key, supports model selection
     /// - ElevenLabs: Direct WebSocket, requires API key, no vocabulary support
-    /// - xAI: Direct WebSocket, requires Grok/xAI API key, no vocabulary support
+    /// - xAI: Direct WebSocket, requires Grok/xAI API key, vocabulary via keyterm
     private var providerSection: some View {
         HStack(spacing: 12) {
             Image(systemName: "cloud")
