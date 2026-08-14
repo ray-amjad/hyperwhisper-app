@@ -34,8 +34,6 @@ pub enum VocabularyMode {
         name: &'static str,
         max_terms: usize,
     },
-    /// Provider does not accept vocabulary; terms are dropped (Grok's `prompt`).
-    None,
 }
 
 /// Declarative description of an OpenAI-style multipart transcription provider.
@@ -116,7 +114,6 @@ pub fn build_openai_style(
                 parts.push(multipart_field(name, term));
             }
         }
-        VocabularyMode::None => {}
     }
 
     if spec.send_response_format {
