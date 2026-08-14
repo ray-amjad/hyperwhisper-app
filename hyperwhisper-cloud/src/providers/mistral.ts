@@ -9,6 +9,7 @@ import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   estimateSecondsFromBytes,
+  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -51,10 +52,10 @@ export async function transcribeWithMistral(
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model', model);
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
-    // locale — strip to the primary subtag like the sibling adapters.
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
+  // locale — strip to the primary subtag like the sibling adapters.
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language', langCode);
   }
 

@@ -7,6 +7,7 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
+  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -42,14 +43,14 @@ const SUPPORTED_FORMATTING_LANGUAGES = new Set([
 ]);
 
 function normalizedFormattingLanguage(language?: string): string | undefined {
-  if (!language || language.toLowerCase() === 'auto') {
-    return undefined;
-  }
-
   // Strip any BCP-47 region ("en-US" → "en") to the primary subtag before the
   // supported-set check, so a region-tagged locale still matches instead of
   // silently dropping the formatting language.
-  const primary = language.toLowerCase().split(/[-_]/)[0];
+  const primary = explicitLanguageSubtag(language);
+  if (primary === undefined) {
+    return undefined;
+  }
+
   const normalized = primary === 'tl' ? 'fil' : primary;
   return SUPPORTED_FORMATTING_LANGUAGES.has(normalized) ? normalized : undefined;
 }
