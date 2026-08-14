@@ -447,8 +447,6 @@ struct ModeEditorView: View {
         let isQwen3Asr = provider == .local && model == Qwen3AsrModelManager.Constants.modelId
         // ElevenLabs Scribe v1 doesn't support custom vocabulary (v2 supports keyterms)
         let isElevenLabsV1 = provider == .cloud && currentCloudProvider == .elevenLabs && cloudTranscriptionModel == "scribe_v1"
-        // Mistral doesn't support custom vocabulary or prompt parameters
-        let isMistral = provider == .cloud && currentCloudProvider == .mistral
         // xAI Grok STT has no documented vocabulary, prompt, keyword, or phrase-hint parameter
         let isGrokDirect = provider == .cloud && currentCloudProvider == .grok
         // Cloud accuracy tiers under HyperWhisper Cloud where the shared
@@ -464,7 +462,7 @@ struct ModeEditorView: View {
         let isDeepgramBase = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("base")
         // Deepgram Whisper models don't support keywords or keyterms
         let isDeepgramWhisper = provider == .cloud && currentCloudProvider == .deepgram && cloudTranscriptionModel.hasPrefix("whisper")
-        return isQwen3Asr || isElevenLabsV1 || isMistral || isGrokDirect || isUnsupportedCloudTier || isDeepgramBase || isDeepgramWhisper
+        return isQwen3Asr || isElevenLabsV1 || isGrokDirect || isUnsupportedCloudTier || isDeepgramBase || isDeepgramWhisper
     }
 
     /// Returns true when Deepgram Nova-3 is selected with auto-detect language.

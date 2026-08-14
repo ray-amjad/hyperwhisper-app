@@ -28,7 +28,13 @@ pub enum Auth {
 pub enum VocabularyMode {
     /// Inject comma-separated terms into the `prompt` field (OpenAI / Groq).
     Prompt,
-    /// Provider does not accept vocabulary; terms are dropped (Mistral / Grok).
+    /// Send one field per term under `name`, capped at `max_terms`
+    /// (Mistral `context_bias`).
+    Terms {
+        name: &'static str,
+        max_terms: usize,
+    },
+    /// Provider does not accept vocabulary; terms are dropped (Grok's `prompt`).
     None,
 }
 
@@ -95,13 +101,22 @@ pub fn build_openai_style(
         }
     }
 
-    // prompt — vocabulary CSV (when supported) followed by the caller's custom
-    // instructions (`params.prompt`). Either may be empty.
-    if spec.vocabulary == VocabularyMode::Prompt {
-        let prompt = build_prompt(params);
-        if !prompt.is_empty() {
-            parts.push(multipart_field("prompt", prompt));
+    // vocabulary — either folded into `prompt` with the framing preamble
+    // (followed by the caller's custom instructions), or sent as one field per
+    // term. Either may be empty.
+    match spec.vocabulary {
+        VocabularyMode::Prompt => {
+            let prompt = build_prompt(params);
+            if !prompt.is_empty() {
+                parts.push(multipart_field("prompt", prompt));
+            }
         }
+        VocabularyMode::Terms { name, max_terms } => {
+            for term in keyword_boost_terms(&params.vocabulary, Some(max_terms)) {
+                parts.push(multipart_field(name, term));
+            }
+        }
+        VocabularyMode::None => {}
     }
 
     if spec.send_response_format {

@@ -327,7 +327,7 @@ public class TranscriptionOrchestrator : IDisposable
         }
 
         // Perform transcription
-        // Note: Mistral doesn't support vocabulary, handled in the service
+        // Note: per-provider vocabulary field handling lives in each service
         var effectiveVocabulary = providerType.SupportsVocabulary() ? vocabulary : null;
 
         string result;

@@ -2211,11 +2211,6 @@ public partial class ModeEditorWindow : Window
                 showWarning = true;
                 warningText = Loc.S("mode.editor.warning.vocabularyUnsupported.elevenlabs");
             }
-            else if (cloudProvider == "mistral")
-            {
-                showWarning = true;
-                warningText = Loc.S("mode.editor.warning.vocabularyUnsupported.mistral");
-            }
             // Deepgram base and whisper models don't support vocabulary
             else if (cloudProvider == "deepgram")
             {
