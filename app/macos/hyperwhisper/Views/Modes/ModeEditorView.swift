@@ -198,7 +198,10 @@ struct ModeEditorView: View {
                 provider: initialCloudProvider,
                 selectedModelId: initialCloudTranscriptionModel
             ))
-            _englishSpelling = State(initialValue: EnglishSpelling(rawValue: mode.englishSpelling ?? "american") ?? .american)
+            // An existing mode with no stored value has never had one chosen, so
+            // it opens on the region's variant too. A stored value is kept as is.
+            _englishSpelling = State(initialValue: EnglishSpelling(rawValue: mode.englishSpelling ?? "")
+                ?? .defaultForCurrentRegion)
             _userSystemPrompt = State(initialValue: mode.userSystemPrompt ?? "")
             _cloudAccuracyTier = State(initialValue: migratedAccuracyTierRaw)
             _cloudPostProcessingModel = State(initialValue: CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel).rawValue)
@@ -226,7 +229,9 @@ struct ModeEditorView: View {
             // Model dropdown opens on "Scribe v2 (Recommended)".
             _cloudTranscriptionModel = State(initialValue: CloudAccuracyTier.elevenLabsScribeV2.defaultModelId)
             _showAllCloudTranscriptionModels = State(initialValue: false)
-            _englishSpelling = State(initialValue: .american)
+            // Seed the spelling variant from the system region so a brand-new
+            // mode opens on the user's own variant instead of always American.
+            _englishSpelling = State(initialValue: .defaultForCurrentRegion)
             _userSystemPrompt = State(initialValue: "")
             _cloudAccuracyTier = State(initialValue: CloudAccuracyTier.elevenLabsScribeV2.rawValue)
             _cloudPostProcessingModel = State(initialValue: CloudPostProcessingModel.claudeHaiku.rawValue)

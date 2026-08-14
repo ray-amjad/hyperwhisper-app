@@ -1495,6 +1495,57 @@ internal static class Program
                 Assert(result == "hello world", $"expected trimmed text with empty vocabulary, got '{result}'");
             });
 
+            Run("EnglishSpellingRegionDefault maps a region to its spelling variant", () =>
+            {
+                Assert(EnglishSpellingRegionDefault.ForRegion("GB") == "british",
+                    "expected GB to map to british");
+                Assert(EnglishSpellingRegionDefault.ForRegion("IE") == "british",
+                    "expected IE to map to british");
+                Assert(EnglishSpellingRegionDefault.ForRegion("NZ") == "british",
+                    "expected NZ to map to british");
+                Assert(EnglishSpellingRegionDefault.ForRegion("AU") == "australian",
+                    "expected AU to map to australian");
+                Assert(EnglishSpellingRegionDefault.ForRegion("CA") == "canadian",
+                    "expected CA to map to canadian");
+                Assert(EnglishSpellingRegionDefault.ForRegion("US") == "american",
+                    "expected US to map to american");
+
+                // Case and padding come from whatever the OS reports.
+                Assert(EnglishSpellingRegionDefault.ForRegion(" gb ") == "british",
+                    "expected a lowercase, padded code to still map to british");
+
+                // Anything unknown or missing keeps the historical american value.
+                Assert(EnglishSpellingRegionDefault.ForRegion("JP") == "american",
+                    "expected an unlisted region to fall back to american");
+                Assert(EnglishSpellingRegionDefault.ForRegion(null) == "american",
+                    "expected a null region to fall back to american");
+                Assert(EnglishSpellingRegionDefault.ForRegion("") == "american",
+                    "expected an empty region to fall back to american");
+                Assert(EnglishSpellingRegionDefault.ForRegion("ZZ") == "american",
+                    "expected an invalid region to fall back to american");
+            });
+
+            Run("ForCurrentRegion returns a variant the mode editor can select", () =>
+            {
+                var current = EnglishSpellingRegionDefault.ForCurrentRegion();
+                Assert(
+                    current is "american" or "british" or "australian" or "canadian",
+                    $"expected a known spelling variant, got '{current}'");
+            });
+
+            Run("Seeded default modes carry the region's spelling variant", () =>
+            {
+                var expected = EnglishSpellingRegionDefault.ForCurrentRegion();
+                var modes = ModeDefaults.GetDefaultModes();
+
+                Assert(modes.Count > 0, "expected at least one default mode");
+                foreach (var mode in modes)
+                {
+                    Assert(mode.EnglishSpelling == expected,
+                        $"expected default mode '{mode.Name}' to seed '{expected}', got '{mode.EnglishSpelling ?? "<null>"}'");
+                }
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");

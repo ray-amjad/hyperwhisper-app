@@ -106,7 +106,9 @@ internal static class ModesEndpoints
                 CloudProvider = normalized.Provider,
                 PostProcessingMode = dto.PostProcessingMode ?? 0,
                 PostProcessingProvider = dto.PostProcessingProvider,
-                EnglishSpelling = dto.EnglishSpelling,
+                // An omitted spelling lands on the system region's variant, the
+                // same value the GUI seeds into a new mode.
+                EnglishSpelling = dto.EnglishSpelling ?? EnglishSpellingRegionDefault.ForCurrentRegion(),
                 // Fallback transcription tier mirrors the GUI/default-mode
                 // recommendation (ModeDefaults.cs: ElevenLabs Scribe v2) so
                 // API/MCP-created modes don't silently use the retired default.
