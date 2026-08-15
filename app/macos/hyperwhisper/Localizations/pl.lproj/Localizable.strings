@@ -913,6 +913,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcription.error.maxRetriesExceeded" = "Maksymalna liczba prób powtórzenia przekroczona";
 "transcription.error.unauthorized.provider" = "Nieautoryzowany: nieprawidłowy klucz API %@ lub uprawnienia.\n\nOtwórz Ustawienia → Klucze API, aby sprawdzić poświadczenia.";
 "transcription.error.unauthorized.generic" = "Nieautoryzowany: nieprawidłowy klucz API lub uprawnienia.\n\nOtwórz Ustawienia → Klucze API, aby sprawdzić poświadczenia.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud wymaga klucza konta.\n\nOtwórz Ustawienia → HyperWhisper Cloud, aby wprowadzić klucz lub kupić kredyty.";
 "transcription.error.invalidRequest" = "Nieprawidłowe żądanie: sprawdź plik audio lub ustawienia";
 "transcription.error.streamingInterrupted" = "Transmisja przerwana; pokazany tekst częściowy";
 "transcription.error.busy" = "Usługa transkrypcji jest aktualnie zajęta";

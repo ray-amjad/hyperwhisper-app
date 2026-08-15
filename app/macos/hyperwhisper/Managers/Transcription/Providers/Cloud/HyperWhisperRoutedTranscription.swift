@@ -74,6 +74,14 @@ enum HyperWhisperRoutedTranscription {
         }
 
         let (identifier, isLicensed) = await licenseManager.getTranscriptionIdentifier()
+
+        // Fail fast: the guest/device-credit path is dead server-side
+        // (entitlement is enforced there), so an unlicensed request is doomed —
+        // surface guidance instead of burning a network round-trip on a 401.
+        // Fail-closed only; the backend still validates the key.
+        // See HyperWhisperCloudEntitlement.
+        try HyperWhisperCloudEntitlement.requireLicense(isLicensed: isLicensed, provider: providerDisplayName)
+
         let contentType = AudioMimeTypeResolver.infer(for: audioURL)
 
         // Build the routed request via the shared core. The core bakes the
@@ -87,6 +95,11 @@ enum HyperWhisperRoutedTranscription {
             language: language,
             vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             baseURL: NetworkConfig.hyperwhisperCloudURL,
+            // The `deviceID` branch is now unreachable — the
+            // HyperWhisperCloudEntitlement pre-check above rejects
+            // `isLicensed == false` before we get here. Kept because the core's
+            // param shape is shared with other callers, and so the guard stays
+            // the single place that encodes the policy.
             licenseKey: isLicensed ? identifier : nil,
             deviceID: isLicensed ? nil : identifier,
             routedProvider: providerHeader

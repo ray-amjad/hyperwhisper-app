@@ -226,6 +226,13 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
 
         AppLogger.network.debug("HyperWhisper Cloud identifier · licensed=\(isLicensed, privacy: .public) · hash=\(identifier.prefix(8), privacy: .private)")
 
+        // Fail fast: the guest/device-credit path is dead server-side
+        // (entitlement is enforced there), so an unlicensed request is doomed —
+        // surface guidance instead of converting + VAD-trimming the audio and
+        // burning a network round-trip on a 401. Fail-closed only; the backend
+        // still validates the key. See HyperWhisperCloudEntitlement.
+        try HyperWhisperCloudEntitlement.requireLicense(isLicensed: isLicensed, provider: name)
+
         // Determine post-processing configuration based on mode settings
         let postProcessingMode = mode.flatMap { PostProcessingMode(rawValue: $0.postProcessingMode) } ?? .cloud
         let selectedPostProcessingProvider = mode?.postProcessingProvider.flatMap { PostProcessingProvider(rawValue: $0) }
@@ -310,6 +317,11 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 language: language,
                 vocabulary: vocabTermsForCore,
                 baseURL: NetworkConfig.hyperwhisperCloudURL,
+                // The `deviceID` branch is now unreachable from `transcribe` —
+                // the HyperWhisperCloudEntitlement pre-check above rejects
+                // `isLicensed == false` before we get here. Kept because the
+                // core's param shape is shared with other callers, and so the
+                // guard stays the single place that encodes the policy.
                 licenseKey: isLicensed ? identifier : nil,
                 deviceID: isLicensed ? nil : identifier,
                 routedProvider: accuracyTier.sttProvider,

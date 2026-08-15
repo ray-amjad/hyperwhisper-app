@@ -913,6 +913,7 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "transcription.error.maxRetriesExceeded" = "Numero massimo di tentativi superato";
 "transcription.error.unauthorized.provider" = "Non autorizzato: chiave API %@ non valida o permessi.\n\nApri Impostazioni → Chiavi API per verificare le credenziali.";
 "transcription.error.unauthorized.generic" = "Non autorizzato: chiave API non valida o permessi.\n\nApri Impostazioni → Chiavi API per verificare le credenziali.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud richiede una chiave account.\n\nApri Impostazioni → HyperWhisper Cloud per inserire la tua chiave o ottenere crediti.";
 "transcription.error.invalidRequest" = "Richiesta non valida: controlla il file audio o le impostazioni";
 "transcription.error.streamingInterrupted" = "Streaming interrotto; testo parziale mostrato";
 "transcription.error.busy" = "Il servizio di trascrizione è attualmente occupato";
