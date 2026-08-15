@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Kļūdu žurnalēšana";
 "settings.general.errorLogging.info" = "Automātiski uztvert un nosūtīt kļūdu pārskatus, lai palīdzētu uzlabot lietotni.";
 "settings.general.shareSpeedData.title" = "Kopīgot anonīmus ātruma datus";
-"settings.general.shareSpeedData.subtitle" = "Palīdz visiem redzēt, kurš mākoņa modelis ir ātrākais viņu atrašanās vietā.";
 "settings.general.shareSpeedData.info" = "Mēra, cik ilgu laiku patērē katrs mākoņpakalpojumu sniedzējs, un pievieno to publiskam salīdzinājumam. Mērījumā ietilpst pakalpojumu sniedzējs, servera reģions, klipa garums un patērētais laiks — bez konta, bez atslēgas, bez audio un bez teksta. Izslēdziet šo, un HyperWhisper pārstās to sūtīt. Nekas cits nemainās, un vietējie modeļi nekad neko nesūta.";
 "settings.general.shareSpeedData.link" = "Skatīt ātruma salīdzinājumu";
 "settings.general.autoUpdate.title" = "Automātisks atjaunināšana";
@@ -914,6 +913,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.error.maxRetriesExceeded" = "Maksimālais atkārtošanas mēģinājumu skaits pārsniegts";
 "transcription.error.unauthorized.provider" = "Neautorizēts: nepareiza %@ API atslēga vai atļaujas.\n\nAtvērt iestatījumus → API atslēgas, lai pārbaudītu savus akreditācijas datus.";
 "transcription.error.unauthorized.generic" = "Neautorizēts: nepareiza API atslēga vai atļaujas.\n\nAtvērt iestatījumus → API atslēgas, lai pārbaudītu savus akreditācijas datus.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud nepieciešama konta atslēga.\n\nAtveriet Iestatījumi → HyperWhisper Cloud, lai ievadītu atslēgu vai iegādātos kredītus.";
 "transcription.error.invalidRequest" = "Nepareizs pieprasījums: pārbaudiet audio failu vai iestatījumus";
 "transcription.error.streamingInterrupted" = "Straumēšana bija pārraut; parādīts daļējs teksts";
 "transcription.error.busy" = "Transkripciijas pakalpojums pašlaik ir aizņemts";

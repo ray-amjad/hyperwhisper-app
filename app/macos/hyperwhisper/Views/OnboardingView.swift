@@ -676,7 +676,11 @@ struct OnboardingView: View {
             cloudProvider: chosenProvider,
             postProcessingMode: postProcessingMode,
             postProcessingProvider: existing?.postProcessingProvider,
-            englishSpelling: existing?.englishSpelling,
+            // Forward the existing mode's spelling EXACTLY, including "not set" —
+            // re-running onboarding must not write a spelling instruction onto a
+            // mode that never had one. Only a store with no default Mode at all
+            // (existing == nil) falls through to the region default.
+            englishSpelling: existing.map { $0.englishSpelling ?? "" },
             userSystemPrompt: existing?.userSystemPrompt,
             useStreamingTranscription: existing?.useStreamingTranscription ?? false,
             cloudAccuracyTier: accuracyTier,

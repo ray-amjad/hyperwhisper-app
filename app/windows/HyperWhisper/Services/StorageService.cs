@@ -105,14 +105,6 @@ public class StorageService
     }
 
     /// <summary>
-    /// Opens the recordings folder in Explorer, creating it if needed.
-    /// </summary>
-    public void OpenRecordingsFolder()
-    {
-        TryOpenRecordingsFolder(out _);
-    }
-
-    /// <summary>
     /// Attempts to open the recordings folder in Explorer, creating it if needed.
     /// </summary>
     public bool TryOpenRecordingsFolder(out string? error)

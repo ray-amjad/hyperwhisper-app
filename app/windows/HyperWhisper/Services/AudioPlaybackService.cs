@@ -47,9 +47,6 @@ public class AudioPlaybackService : IDisposable
     /// <summary>Whether audio is loaded and ready to play.</summary>
     public bool IsLoaded => _audioFile != null;
 
-    /// <summary>Current playback position.</summary>
-    public TimeSpan CurrentPosition => _audioFile?.CurrentTime ?? TimeSpan.Zero;
-
     /// <summary>Total duration of the loaded audio.</summary>
     public TimeSpan TotalDuration => _audioFile?.TotalTime ?? TimeSpan.Zero;
 

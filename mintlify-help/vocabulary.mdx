@@ -48,8 +48,8 @@ The app sends entries without a replacement as keyword hints to the cloud provid
 - **Gemini** — the app sends the terms as free text in a natural-language prompt instruction. This is the same mechanism as the prompt vocabulary of OpenAI and HyperWhisper Cloud.
 - **ElevenLabs** — the app sends the terms as repeated `keyterms` multipart form fields. Scribe v2 is the only ElevenLabs model. The limit is 100 terms, and the app drops terms longer than 50 characters. If you reach ElevenLabs through HyperWhisper Cloud, the server applies the same two limits and also drops terms of more than 5 words. With your own ElevenLabs key, the word-count limit does not apply.
 - **AssemblyAI** — the app sends the terms as key-term context, up to 200 terms for most models. The limit is 1000 terms for the Universal-3.5 Pro and Universal-3 Pro models. The app drops phrases longer than 6 words.
-- **Grok STT** — this provider does not support custom vocabulary hints. The app accepts your entries, but it does not send them.
-- **Mistral (BYOK)** — Voxtral does not support custom vocabulary. The app accepts your entries, but it does not send them, whatever you type. The internal route from HyperWhisper Cloud to Mistral is a different mechanism on the server, and this limit does not apply to it.
+- **Grok STT** — the app sends the terms as repeated `keyterm` fields. The limit is 100 terms, and the app drops terms longer than 50 characters. The same limits apply with your own xAI key, through HyperWhisper Cloud, and in streaming mode.
+- **Mistral** — the app sends the terms as a `context_bias` list, up to 100 terms. The same limit applies with your own Mistral key and through HyperWhisper Cloud.
 
 <Note>
   If the language of the mode is **Auto**, Deepgram vocabulary boosting behavior depends on the model. Nova-3 ignores keyword boosting parameters when language auto-detection is on — boosting applies only when the mode has an explicit language. Nova-2, Nova-1, and the Enhanced models keep sending keyword boosting even under Auto.

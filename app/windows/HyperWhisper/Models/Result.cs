@@ -118,19 +118,6 @@ public readonly struct Result<T>
         return IsSuccess ? Value! : defaultValue;
     }
 
-    /// <summary>
-    /// Get the value or throw the exception if failed.
-    /// </summary>
-    public T GetValueOrThrow()
-    {
-        if (IsSuccess)
-            return Value!;
-
-        if (Exception != null)
-            throw Exception;
-
-        throw new InvalidOperationException(Error);
-    }
 }
 
 /// <summary>

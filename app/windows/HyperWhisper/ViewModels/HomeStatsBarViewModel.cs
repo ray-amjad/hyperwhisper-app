@@ -25,8 +25,6 @@ public partial class HomeStatsBarViewModel : ObservableObject
 
     partial void OnSavedThisWeekMinutesChanged(int value) => OnPropertyChanged(nameof(SavedThisWeekDisplay));
 
-    public static int[] TypingSpeedPresets => new[] { 30, 40, 50, 60, 80, 100 };
-
     // Saved-minutes ceiling — one week of minutes. A row with Words>0 and
     // Duration≈0 can otherwise produce an absurd savings figure.
     private const int SavedMinutesCeiling = 7 * 24 * 60;

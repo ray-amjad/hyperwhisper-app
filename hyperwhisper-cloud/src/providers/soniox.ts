@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v4 auto-routed to v5 after 2026-06-30 (Soniox docs/changelog); v5 is now the
@@ -163,11 +163,11 @@ export async function transcribeWithSoniox(
       model,
       enable_language_identification: true,
     };
-    if (language && language.toLowerCase() !== 'auto') {
-      // Soniox `language_hints` expects ISO language codes (e.g. "en"/"es"), not
-      // full BCP-47 tags — strip any region/script subtag so a client-supplied
-      // "en-US"/"pt-BR" becomes "en"/"pt" and actually biases detection.
-      const hint = language.toLowerCase().split(/[-_]/)[0];
+    // Soniox `language_hints` expects ISO language codes (e.g. "en"/"es"), not
+    // full BCP-47 tags — strip any region/script subtag so a client-supplied
+    // "en-US"/"pt-BR" becomes "en"/"pt" and actually biases detection.
+    const hint = explicitLanguageSubtag(language);
+    if (hint !== undefined) {
       createBody.language_hints = [hint];
     }
     const terms = initialPrompt ? toContextTerms(initialPrompt) : [];

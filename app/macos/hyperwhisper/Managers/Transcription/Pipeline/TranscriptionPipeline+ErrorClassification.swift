@@ -111,6 +111,12 @@ extension TranscriptionPipeline {
             return TranscriptionErrorClassification(category: "audio", kind: "no_speech_detected", retryable: retryable, httpStatus: nil)
         case .localRuntimeUnavailable:
             return TranscriptionErrorClassification(category: "local_runtime", kind: "local_runtime_unavailable", retryable: retryable, httpStatus: nil)
+        case .cloudAccountRequired:
+            // Deliberately its own category rather than reusing "auth": this is a
+            // client-side entitlement refusal that never reached the server, so it
+            // must not share a Sentry fingerprint with the real `unauthorized`
+            // 401s (HYPERWHISPER-T2).
+            return TranscriptionErrorClassification(category: "license", kind: "cloud_account_required", retryable: retryable, httpStatus: nil)
         }
     }
 
@@ -171,6 +177,15 @@ extension TranscriptionPipeline {
         }
 
         switch transcriptionError {
+        case .cloudAccountRequired:
+            // Expected, user-recoverable state, not a code defect: HyperWhisper
+            // Cloud was selected without an account key, and the client refused
+            // the request up front. The user gets an actionable inline error.
+            // NOTE: `.unauthorized` deliberately stays reported below — a 401 on
+            // a request we believed *was* licensed is a genuine signal (e.g. a
+            // stale server-side licence cache), and is the original
+            // HYPERWHISPER-T2 fingerprint we still want to watch.
+            return false
         case .transientNetwork, .timeout, .rateLimited,
              .noSpeechDetected, .insufficientCredits, .quotaExceeded,
              .localRuntimeUnavailable, .modelNotDownloaded:

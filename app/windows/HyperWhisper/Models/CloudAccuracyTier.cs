@@ -15,7 +15,7 @@ public enum CloudAccuracyTier
     /// <summary>Deepgram Nova-3 — Medium tier</summary>
     DeepgramNova3,
 
-    /// <summary>xAI Grok STT — High tier (no custom vocabulary plumbed through backend)</summary>
+    /// <summary>xAI Grok STT — High tier (vocabulary sent as repeated `keyterm` fields)</summary>
     GrokStt,
 
     /// <summary>Microsoft MAI-Transcribe 1.5 — High tier (HW Cloud only)</summary>

@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Înregistrare erori";
 "settings.general.errorLogging.info" = "Capturați și trimiteți automat rapoarte de eroare pentru a ajuta la îmbunătățirea aplicației.";
 "settings.general.shareSpeedData.title" = "Distribuie date de viteză anonime";
-"settings.general.shareSpeedData.subtitle" = "Ajută pe toată lumea să vadă care model din cloud este cel mai rapid acolo unde se află.";
 "settings.general.shareSpeedData.info" = "Măsoară cât timp durează fiecare furnizor cloud și adaugă asta la o comparație publică. O măsurătoare conține furnizorul, regiunea serverului, durata clipului și timpul necesar — fără cont, fără cheie, fără audio și fără text. Dezactivează asta și HyperWhisper nu îl mai trimite. Nimic altceva nu se schimbă, iar modelele locale nu trimit niciodată nimic.";
 "settings.general.shareSpeedData.link" = "Vezi comparația de viteză";
 "settings.general.autoUpdate.title" = "Actualizare automată";
@@ -914,6 +913,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.error.maxRetriesExceeded" = "Depășit numărul maxim de reîncercări";
 "transcription.error.unauthorized.provider" = "Neautorizat: cheie API %@ nevalidă sau permisiuni.\n\nDeschideți Setări → Chei API pentru a verifica credențialele.";
 "transcription.error.unauthorized.generic" = "Neautorizat: cheie API nevalidă sau permisiuni.\n\nDeschideți Setări → Chei API pentru a verifica credențialele.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud necesită o cheie de cont.\n\nDeschideți Setări → HyperWhisper Cloud pentru a introduce cheia sau a obține credite.";
 "transcription.error.invalidRequest" = "Cerere nevalidă: verificați fișierul audio sau setări";
 "transcription.error.streamingInterrupted" = "Streaming întrerupt; text parțial afișat";
 "transcription.error.busy" = "Serviciul de transcriere este în prezent ocupat";

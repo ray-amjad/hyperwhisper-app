@@ -293,13 +293,13 @@ public static class CloudTranscriptionModels
     // =========================================================================
     // MISTRAL MODELS
     // Mistral Voxtral for audio transcription.
-    // NOTE: Does NOT support custom vocabulary.
+    // NOTE: Vocabulary is sent as a `context_bias` list (max 100 terms).
     // =========================================================================
 
     /// <summary>
     /// Mistral transcription models.
     /// - voxtral-mini-latest: Latest Voxtral Mini model
-    /// NOTE: Custom vocabulary is NOT supported.
+    /// NOTE: Custom vocabulary is sent as `context_bias`.
     /// </summary>
     public static readonly CloudTranscriptionModel[] Mistral = new[]
     {
@@ -307,7 +307,7 @@ public static class CloudTranscriptionModels
         {
             Id = "voxtral-mini-latest",
             DisplayName = "Voxtral Mini",
-            Description = "Audio transcription (no vocabulary support)",
+            Description = "Audio transcription with context-bias vocabulary",
             Provider = CloudTranscriptionProvider.Mistral,
             IsPopular = true
         }
@@ -440,14 +440,15 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// xAI Grok transcription. The API has no model parameter, so this is a
-    /// single placeholder. The model dropdown is hidden in the UI for Grok.
+    /// single entry. It is shown as a one-item dropdown so the Model row keeps
+    /// the same shape as every other provider's.
     /// </summary>
     public static readonly CloudTranscriptionModel[] Grok = new[]
     {
         new CloudTranscriptionModel
         {
             Id = "",
-            DisplayName = "Default",
+            DisplayName = "Grok Speech-to-Text",
             Description = "xAI Grok speech-to-text (single implicit model)",
             Provider = CloudTranscriptionProvider.Grok,
             PricePerMinute = 0.0016667m,
@@ -687,9 +688,22 @@ public static class CloudTranscriptionModels
     /// <summary>
     /// Gets a model by its ID, optionally scoped to a provider.
     /// </summary>
+    /// <remarks>
+    /// A provider whose API takes no <c>model</c> parameter (Grok) registers its
+    /// single entry under the empty id, so a provider-scoped lookup for "" is a
+    /// real hit and must resolve. An unscoped lookup still returns null — ""
+    /// is ambiguous without a provider, and any provider left without a model
+    /// would otherwise resolve to Grok. Mirrors the macOS
+    /// <c>model(withId:provider:)</c> overload.
+    /// </remarks>
     public static CloudTranscriptionModel? GetById(string? modelId, CloudTranscriptionProvider? provider = null)
     {
-        if (string.IsNullOrEmpty(modelId)) return null;
+        if (string.IsNullOrEmpty(modelId))
+        {
+            return provider.HasValue
+                ? GetModelsForProvider(provider.Value).FirstOrDefault(m => m.Id.Length == 0)
+                : null;
+        }
 
         var canonical = ResolveModelAlias(modelId, provider);
 

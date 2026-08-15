@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "تسجيل الأخطاء";
 "settings.general.errorLogging.info" = "التقط تلقائياً وأرسل تقارير الأخطاء للمساعدة في تحسين التطبيق.";
 "settings.general.shareSpeedData.title" = "مشاركة بيانات السرعة المجهولة";
-"settings.general.shareSpeedData.subtitle" = "تساعد الجميع على معرفة نموذج السحابة الأسرع في موقعهم.";
 "settings.general.shareSpeedData.info" = "يقيس المدة التي يستغرقها كل مزود سحابي ويضيفها إلى مقارنة عامة. يتضمن القياس المزوّد، ومنطقة الخادم، وطول المقطع، والوقت المستغرق — بلا حساب، ولا مفتاح، ولا صوت، ولا نص. أوقف هذا الخيار ليتوقف HyperWhisper عن إرساله. لا شيء آخر يتغير، والنماذج المحلية لا ترسل أي شيء أبداً.";
 "settings.general.shareSpeedData.link" = "عرض مقارنة السرعة";
 "settings.general.autoUpdate.title" = "التحديث التلقائي";
@@ -914,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "تم تجاوز حد محاولات إعادة المحاولة الأقصى";
 "transcription.error.unauthorized.provider" = "غير مصرح: مفتاح API %@ غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
 "transcription.error.unauthorized.generic" = "غير مصرح: مفتاح API غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
+"transcription.error.cloudAccountRequired" = "يتطلب HyperWhisper Cloud مفتاح حساب.\n\nافتح الإعدادات → HyperWhisper Cloud لإدخال مفتاحك أو الحصول على رصيد.";
 "transcription.error.invalidRequest" = "طلب غير صحيح: تحقق من ملف الصوت أو الإعدادات";
 "transcription.error.streamingInterrupted" = "تم مقاطعة البث؛ تم عرض نص جزئي";
 "transcription.error.busy" = "خدمة النسخ مشغولة حالياً";

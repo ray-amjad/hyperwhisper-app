@@ -432,32 +432,6 @@ public class ModeService
         ModeChanged?.Invoke(this, mode);
     }
 
-    /// <summary>Sets the default mode.</summary>
-    public void SetDefaultMode(Guid id)
-    {
-        lock (_lock)
-        {
-            try
-            {
-                using var context = new HyperWhisperDbContext();
-
-                var modes = context.Modes.ToList();
-                foreach (var mode in modes)
-                {
-                    mode.IsDefault = mode.Id == id;
-                }
-
-                context.SaveChanges();
-                LoggingService.Info($"ModeService: Set default mode to {id}");
-            }
-            catch (DbUpdateException ex)
-            {
-                LoggingService.Error("ModeService: Error setting default mode", ex);
-                throw;
-            }
-        }
-    }
-
     /// <summary>Sets the selected mode.</summary>
     public void SetSelectedMode(Guid id)
     {

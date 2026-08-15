@@ -127,7 +127,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
     // (grok → deepgram → groq → elevenlabs) defined in transcribe.ts.
     selfOnly: false,
     async: false,
-    models: [{ id: '', supportsVocabulary: false, estimatedUsdPerMinute: 0.00167 }],
+    models: [{ id: '', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 }],
   },
   'azure-mai': {
     id: 'azure-mai',

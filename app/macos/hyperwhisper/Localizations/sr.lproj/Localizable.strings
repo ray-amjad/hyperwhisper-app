@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Бележење грешака";
 "settings.general.errorLogging.info" = "Аутоматски прикупи и пошаљи извештаје о грешкама да помогнеш побољшање апликације.";
 "settings.general.shareSpeedData.title" = "Дели анонимне податке о брзини";
-"settings.general.shareSpeedData.subtitle" = "Помаже свима да виде који је облак модел најбржи тамо где су.";
 "settings.general.shareSpeedData.info" = "Мери колико времена треба сваком добављачу услуга у облаку и додаје то јавном поређењу. Мерење садржи добављача, регион сервера, дужину исечка и утрошено време — без налога, без кључа, без звука и без текста. Искључите ово и HyperWhisper престаје да то шаље. Ништа друго се не мења, а локални модели никада ништа не шаљу.";
 "settings.general.shareSpeedData.link" = "Погледај поређење брзине";
 "settings.general.autoUpdate.title" = "Аутоматско ажурирање";
@@ -914,6 +913,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "transcription.error.maxRetriesExceeded" = "Максимални покушаји поново су превишени";
 "transcription.error.unauthorized.provider" = "Неауторизовано: неважећи %@ API кључ или дозволе.\n\nОтвори Поставке → API Кључеви да верификујеш своје акредитиве.";
 "transcription.error.unauthorized.generic" = "Неауторизовано: неважећи API кључ или дозволе.\n\nОтвори Поставке → API Кључеви да верификујеш своје акредитиве.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud захтева кључ налога.\n\nОтвори Поставке → HyperWhisper Cloud да унесеш кључ или набавиш кредите.";
 "transcription.error.invalidRequest" = "Неважећи захтев: провери звучну датотеку или поставке";
 "transcription.error.streamingInterrupted" = "Стриминг је прекинут; приказан је делимичан текст";
 "transcription.error.busy" = "Услуга транскрипције је тренутно заузета";

@@ -26,7 +26,7 @@ import {
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview } from './utils';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -155,7 +155,7 @@ export async function transcribeWithGoogleChirp(
 
   // Don't lowercase — Speech V2 expects canonical BCP-47 codes (e.g. en-US),
   // and forcing lower-case breaks the region subtag matching.
-  const isMonolingual = language && language.toLowerCase() !== 'auto';
+  const isMonolingual = isExplicitLanguage(language);
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
   const config: Record<string, unknown> = {

@@ -101,7 +101,13 @@ struct TranscriptionErrorClassificationTests {
         (.quotaExceeded(provider: "p", message: nil), false),
         (.timeout(operation: "x"), false),
         (.noSpeechDetected, false),
-        (.localRuntimeUnavailable(reason: "llama-server unreachable"), false)
+        (.localRuntimeUnavailable(reason: "llama-server unreachable"), false),
+        // Client-side entitlement refusal (HYPERWHISPER-T2): expected,
+        // user-recoverable, never reported. Its sibling `.unauthorized` above
+        // stays `true` on purpose — a 401 on a request we believed was licensed
+        // is still a real signal.
+        (.cloudAccountRequired(provider: "HyperWhisper Cloud"), false),
+        (.cloudAccountRequired(provider: nil), false)
     ]
 
     private static let cloudErrorCases: [(HyperWhisperCloudError, Bool)] = [
@@ -119,6 +125,8 @@ struct TranscriptionErrorClassificationTests {
     /// **Do not add a `default:` case.** A new enum case must fail the build.
     private static func shouldCaptureInSentry(_ error: TranscriptionError) -> Bool {
         switch error {
+        case .cloudAccountRequired:
+            return false
         case .transientNetwork, .timeout, .rateLimited,
              .noSpeechDetected, .insufficientCredits, .quotaExceeded,
              .localRuntimeUnavailable(_):

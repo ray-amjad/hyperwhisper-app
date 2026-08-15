@@ -44,22 +44,13 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
     private const int FilePollIntervalMs = 300;
     private const int MaxFilePollAttempts = 500;
 
-    // Supported audio MIME types
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".opus", "audio/ogg" },
-        { ".flac", "audio/flac" },
-        { ".aac", "audio/aac" },
-        { ".aiff", "audio/aiff" }
-    };
+    // Supported audio MIME types: the shared set plus the three extra containers
+    // Gemini accepts.
+    private static readonly IReadOnlyDictionary<string, string> MimeTypes =
+        TranscriptionPreflight.StandardMimeTypesPlus(
+            (".opus", "audio/ogg"),
+            (".aac", "audio/aac"),
+            (".aiff", "audio/aiff"));
 
     // =========================================================================
     // STATE
@@ -145,31 +136,15 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Audio path: {audioPath}");
         LoggingService.Info($"  Custom prompt: {(_customPrompt != null ? "yes" : "no")}");
 
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Gemini API key not configured",
-                "Gemini");
-        }
-
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Gemini");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
+        // Validate configuration and audio file (shared gate). Gemini does not
+        // cap the file size client-side.
+        var fileInfo = TranscriptionPreflight.Validate("Gemini", _apiKey, audioPath);
 
         // Build core params once. Pass ALL raw vocab terms — the core's prompt
         // builder folds base + language hint + vocabulary + custom prompt into the
         // generateContent request. The custom prompt rides in `prompt`.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav", MimeTypes);
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,

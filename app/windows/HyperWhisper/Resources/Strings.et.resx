@@ -963,12 +963,6 @@ Seda toimingut ei saa tagasi võtta.</value>
   </data>
 
   <!-- History - Retry -->
-  <data name="history.retry.attemptSingular" xml:space="preserve">
-    <value>1 attempt</value>
-  </data>
-  <data name="history.retry.attemptPlural" xml:space="preserve">
-    <value>{0} attempts</value>
-  </data>
   <data name="history.context.retryAgain" xml:space="preserve">
     <value>Retry again</value>
   </data>

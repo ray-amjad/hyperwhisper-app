@@ -68,6 +68,41 @@ export function estimateAudioSeconds(byteLength: number, contentType: string): n
   return byteLength / (match?.bytesPerSecond ?? DEFAULT_BYTES_PER_SECOND);
 }
 
+/**
+ * Whether the caller asked for a specific language, rather than auto-detect.
+ *
+ * `undefined`, `''` and `'auto'` (any case) all mean auto-detect: the client
+ * sends the literal string `auto` for "detect the language", and omits the
+ * param entirely on older builds. Every adapter had its own copy of the same
+ * `language && language.toLowerCase() !== 'auto'` test, so the meaning of
+ * "explicit language" was defined in ten places at once.
+ *
+ * Declared as a type predicate so a call site keeps the `string` narrowing the
+ * inline expression used to give it.
+ */
+export function isExplicitLanguage(language: string | undefined): language is string {
+  return !!language && language.toLowerCase() !== 'auto';
+}
+
+/**
+ * The caller's explicit language reduced to its bare primary subtag
+ * (`'en-US'` → `'en'`, `'pt_BR'` → `'pt'`), or `undefined` for auto-detect.
+ *
+ * Almost every upstream here wants an ISO-639-1 code and rejects — or silently
+ * ignores — a region-qualified BCP-47 tag, so each adapter independently grew
+ * the same `language.toLowerCase().split(/[-_]/)[0]` reduction. Google Chirp is
+ * the exception: Speech V2 wants the canonical BCP-47 code, so it uses
+ * {@link isExplicitLanguage} and passes the tag through untouched.
+ *
+ * Deliberately does NOT trim: the inline copies did not, and a caller that
+ * needs trimming (AssemblyAI's sync path) trims before calling. Callers that
+ * must reproduce the inline behaviour for a degenerate tag like `'-en'` (which
+ * reduces to `''`) should test against `undefined`, not truthiness.
+ */
+export function explicitLanguageSubtag(language: string | undefined): string | undefined {
+  return isExplicitLanguage(language) ? language.toLowerCase().split(/[-_]/)[0] : undefined;
+}
+
 /** Filename extensions the multipart adapters use for the audio part. */
 export type AudioExtension = 'wav' | 'mp3' | 'm4a' | 'aac' | 'webm' | 'ogg' | 'flac';
 

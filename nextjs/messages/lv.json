@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Vietējais API un MCP serveris",
-      "description": "Iebūvētais MCP serveris ļauj Claude, Cursor un citiem AI aģentiem vadīt HyperWhisper. Tikai vietējais HTTP API ar bearer autentifikāciju skriptiem un automatizācijai."
+      "description": "Iebūvētais MCP serveris ļauj Claude, Cursor un citiem AI aģentiem vadīt HyperWhisper. Tikai vietējais HTTP API skriptiem un automatizācijai."
     },
     "modes": {
       "title": "Režīmi jebkurai situācijai",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Cik precīza ir transkripcija?",
-        "answer": "Ar modernākajiem AI modeļiem sasniedzam nozarē vadošu 99% precizitāti. Precizitāti varat vēl vairāk uzlabot, pievienojot savu pielāgoto vārdu krājumu tehniskiem terminiem, vārdiem un specializētam žargonam."
+        "answer": "Tas ir atkarīgs no izmantotā modeļa un valodas kombinācijas. Daži modeļi ir izcili angļu valodā, bet vājāki citās valodās, un mākoņa modeļi parasti ir precīzāki nekā lokālie. Jebkura modeļa precizitāti varat uzlabot, pievienojot savu pielāgoto vārdu krājumu tehniskiem terminiem, vārdiem un specializētam žargonam."
       },
       "offline": {
         "question": "Vai varu lietot bez interneta?",
-        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
+        "answer": "Pilnīgi noteikti. HyperWhisper var lietot pilnībā bezsaistē uz jūsu Mac vai Windows datora ar lokāliem AI modeļiem - internets nav nepieciešams. Lietotājiem, kuri vēlas maksimālu precizitāti un ātrumu, piedāvājam arī izvēles mākoņa apstrādi caur dažādiem pakalpojumu sniedzējiem."
       },
       "apiKey": {
         "question": "Vai man jāmaksā par API piekļuvi?",
-        "answer": "Jūs izmantojat savu API atslēgu šiem pakalpojumu sniedzējiem: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral un Google Gemini. Daži pakalpojumu sniedzēji jaunajiem lietotājiem piedāvā bezmaksas kredītus; Deepgram piedāvā $200, AssemblyAI piedāvā $50. Ilgtermiņā tas ir ievērojami lētāk nekā jebkura abonēšana. \n\nVarat izmantot arī HyperWhisper Cloud (iebūvēts), kam nav vajadzīga API atslēga un kas darbojas pēc pay-as-you-go modeļa.\n\nAtcerieties, lokālais bezsaistes režīms darbojas bez jebkādas API atslēgas un ir pilnīgi bezmaksas."
+        "answer": "Jūs izmantojat savu API atslēgu šiem pakalpojumu sniedzējiem: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox un Google Gemini. Daži pakalpojumu sniedzēji jaunajiem lietotājiem piedāvā bezmaksas kredītus; Deepgram piedāvā $200, AssemblyAI piedāvā $50. Ilgtermiņā tas ir ievērojami lētāk nekā jebkura abonēšana. \n\nVarat izmantot arī HyperWhisper Cloud (iebūvēts), kam nav vajadzīga API atslēga un kas darbojas pēc pay-as-you-go modeļa.\n\nAtcerieties, lokālais bezsaistes režīms darbojas bez jebkādas API atslēgas un ir pilnīgi bezmaksas."
       },
       "languages": {
         "question": "Kādas valodas tas atbalsta?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Kā tiek aizsargāts mans privātums?",
-        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs vai Mistral).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), vai tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Izmantojot lokālo režīmu, nekādi dati nepamet jūsu Mac vai Windows datoru.\n\nIzmantojot cloud transkripciju, jūsu dati tiek nosūtīti cloud pakalpojumu sniedzējam, kuru izvēlaties (piemēram, OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vai Google Gemini).\n\nTo varat pārbaudīt paši ar tīkla inspektoru, piemēram, [Proxyman](https://proxyman.io), tīkla monitoru, piemēram, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vai izlasot [pirmkodu GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Kas ir HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Kādas ir sistēmas prasības?",
         "answer": "Mac: macOS 14 vai jaunāka versija, atbalstīti Apple Silicon un Intel. Windows: Windows 10/11, x64 vai ARM64. Optimālai veiktspējai ieteicami 8GB RAM."
-      },
-      "windowsStatus": {
-        "question": "Vai Windows versijai ir visas tās pašas funkcijas kā macOS?",
-        "answer": "Windows versija tika izlaista nesen, tāpēc tajā vēl var nebūt visas funkcijas, kas pieejamas macOS. Mēs aktīvi strādājam pie pilnīgas funkciju paritātes abās platformās."
       },
       "madeBy": {
         "question": "Kas to izveidoja?",

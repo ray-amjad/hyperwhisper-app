@@ -132,15 +132,6 @@ public sealed class DeviceIdService
     /// </summary>
     public DeviceIdSource Source => _deviceIdSource;
 
-    /// <summary>
-    /// Gets a masked version of the device ID for logging.
-    /// Shows first 4 and last 4 characters: "abcd...wxyz"
-    /// </summary>
-    public string GetMaskedDeviceId()
-    {
-        return MaskDeviceId(_cachedDeviceId);
-    }
-
     // =========================================================================
     // DEVICE ID GENERATION
     // =========================================================================

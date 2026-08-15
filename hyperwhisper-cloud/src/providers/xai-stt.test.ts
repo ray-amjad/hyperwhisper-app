@@ -110,12 +110,34 @@ describe('transcribeWithXaiGrok — multipart request shape', () => {
     expect((unknown.form?.get('file') as File).name).toBe('audio.mp3');
   });
 
-  test('ignores an initial prompt — the xAI STT endpoint has no prompt field', async () => {
+  test('sends an initial prompt as repeated keyterm fields, never as prompt', async () => {
     const captured = captureRequest({ text: 'hi', duration: 4 });
 
     await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, 'HyperWhisper, Drizzle');
     expect(captured.form?.has('prompt')).toBe(false);
-    expect([...(captured.form as FormData).keys()]).toEqual(['file']);
+    expect(captured.form?.getAll('keyterm')).toEqual(['HyperWhisper', 'Drizzle']);
+    // the file part stays last.
+    expect([...(captured.form as FormData).keys()]).toEqual(['keyterm', 'keyterm', 'file']);
+  });
+
+  test('sends no keyterm field when there is no initial prompt', async () => {
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+
+    await transcribeWithXaiGrok(audio(), 'audio/mp3');
+    expect(captured.form?.has('keyterm')).toBe(false);
+  });
+
+  test('drops terms over 50 characters, de-duplicates, and caps at 100', async () => {
+    const captured = captureRequest({ text: 'hi', duration: 4 });
+    const tooLong = 'x'.repeat(51);
+    const terms = [tooLong, 'Kept', 'kept', ...Array.from({ length: 120 }, (_, i) => `term${i}`)];
+
+    await transcribeWithXaiGrok(audio(), 'audio/mp3', undefined, terms.join(', '));
+    const sent = captured.form?.getAll('keyterm') as string[];
+    expect(sent.length).toBe(100);
+    expect(sent[0]).toBe('Kept');
+    expect(sent).not.toContain(tooLong);
+    expect(sent.filter((t) => t.toLowerCase() === 'kept').length).toBe(1);
   });
 });
 

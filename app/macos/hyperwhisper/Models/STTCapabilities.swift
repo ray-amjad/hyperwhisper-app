@@ -359,7 +359,7 @@ enum STTCapabilities {
                             "it",  // Italian
                             "nl"   // Dutch
                         ]),
-                        notes: "Mistral's state-of-the-art transcription model. Supports 13 languages with automatic detection. Does not support custom vocabulary."
+                        notes: "Mistral's state-of-the-art transcription model. Supports 13 languages with automatic detection. Custom vocabulary is sent as a context_bias list (max 100 terms)."
                     )
                 ]
             ),

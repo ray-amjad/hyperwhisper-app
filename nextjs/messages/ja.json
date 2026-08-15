@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "ローカルAPIとMCPサーバー",
-      "description": "内蔵のMCPサーバーにより、Claude、Cursorなどの AI エージェントから HyperWhisper を操作できます。スクリプトや自動化向けの、ベアラー認証付きローカル限定 HTTP API。"
+      "description": "内蔵のMCPサーバーにより、Claude、Cursorなどの AI エージェントから HyperWhisper を操作できます。スクリプトや自動化向けの、ローカル限定 HTTP API。"
     },
     "modes": {
       "title": "シーン別の最適化モード",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "文字起こしの精度はどのくらいですか？",
-        "answer": "最先端のAIモデルにより、業界トップクラスの99%の認識精度を実現しています。専門用語、固有名詞、業界用語などをカスタム辞書に登録することで、さらに精度を高めることができます。"
+        "answer": "精度は、使用するモデルと言語の組み合わせによって変わります。英語では非常に高精度でも、他の言語では精度が下がるモデルもあり、一般的にクラウドモデルはローカルモデルより高精度です。専門用語、固有名詞、業界用語などをカスタム辞書に登録すれば、どのモデルでも精度を高めることができます。"
       },
       "offline": {
         "question": "インターネット接続なしで使えますか？",
-        "answer": "はい、完全にオフラインで使用できます。ローカルAIモデルを使用するため、インターネット接続は不要です。より高速で高精度な処理をご希望の場合は、各種クラウドプロバイダーによるオプションのクラウド処理もご利用いただけます。"
+        "answer": "はい、完全にオフラインで使用できます。Mac でも Windows PC でも、ローカルAIモデルを使用するためインターネット接続は不要です。より高速で高精度な処理をご希望の場合は、各種クラウドプロバイダーによるオプションのクラウド処理もご利用いただけます。"
       },
       "apiKey": {
         "question": "APIの利用に料金がかかりますか？",
-        "answer": "Groq、OpenAI、Deepgram、AssemblyAI、ElevenLabsを利用する場合は、各プロバイダーのAPIキーを用意していただく必要があります。一部のプロバイダーは新規ユーザーに無料クレジットを提供しており、Deepgramは$200、AssemblyAIは$50分の無料クレジットが利用できます。長期的には、サブスクリプション型のサービスよりもかなりお得になります。\n\nまた、APIキー不要で従量課金制のHyperWhisper Cloud（組み込み）もご利用いただけます。\n\nもちろん、ローカルオフラインモードはAPIキー不要で完全無料です。"
+        "answer": "次のプロバイダーを利用する場合は、各プロバイダーのAPIキーを用意していただく必要があります: Groq、xAI Grok、OpenAI、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini。一部のプロバイダーは新規ユーザーに無料クレジットを提供しており、Deepgramは$200、AssemblyAIは$50分の無料クレジットが利用できます。長期的には、サブスクリプション型のサービスよりもかなりお得になります。\n\nまた、APIキー不要で従量課金制のHyperWhisper Cloud（組み込み）もご利用いただけます。\n\nもちろん、ローカルオフラインモードはAPIキー不要で完全無料です。"
       },
       "languages": {
         "question": "対応言語は何ですか？",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "プライバシーはどのように保護されますか？",
-        "answer": "ローカルモードを使用している場合、データがMacの外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、Deepgram、AssemblyAI、ElevenLabs、Mistralなど）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、ご自身で通信内容を確認することもできます。"
+        "answer": "ローカルモードを使用している場合、データが Mac や Windows PC の外に出ることは決してありません。\n\nクラウド文字起こしを使用している場合、データはお客様が選択したクラウドプロバイダー（OpenAI、Groq、xAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini など）に送信されます。\n\n[Proxyman](https://proxyman.io)などのネットワークインスペクターや、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)などのネットワークモニターで、あるいは[GitHub のソースコード](https://github.com/ray-amjad/hyperwhisper-app)を読むことで、ご自身で確認することもできます。"
       },
       "cloud": {
         "question": "HyperWhisper Cloudとは何ですか？",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "動作環境を教えてください。",
         "answer": "Mac：macOS 14以降、Apple SiliconとIntelの両方に対応。Windows：Windows 10/11、x64またはARM64。最適なパフォーマンスには8GB以上のRAMを推奨します。"
-      },
-      "windowsStatus": {
-        "question": "Windows版はmacOS版と同じ機能がすべて使えますか？",
-        "answer": "Windows版は最近リリースされたばかりのため、macOS版のすべての機能がまだ搭載されていない場合があります。両プラットフォームの機能を揃えるべく、積極的に開発を進めています。"
       },
       "madeBy": {
         "question": "開発者は誰ですか？",

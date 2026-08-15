@@ -47,7 +47,7 @@ The **Engine** section is visible only after you turn on streaming. Open this se
 | Deepgram | Yes | Yes (explicit language only) | Yes — Nova 3 |
 | ElevenLabs | Yes | No | No |
 | OpenAI | Yes | No | No |
-| xAI | Yes | No | No |
+| xAI | Yes | Yes | No |
 | Parakeet (On-Device) | No | No | V3 (Multilingual) / V2 (English) |
 | Nemotron 3.5 (On-Device) | No | No | Multilingual / Latin |
 
@@ -56,7 +56,7 @@ The **Engine** section is visible only after you turn on streaming. Open this se
 **Parakeet** and **Nemotron 3.5** run fully on your device. After the model download is complete, they need no network connection. These two providers are available on macOS only. The Windows provider list contains HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, and xAI.
 
 <Note>
-  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud and Deepgram, but only when you set an explicit language. ElevenLabs, OpenAI, and xAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). On Windows, cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. On macOS, cloud streaming providers receive every vocabulary entry as a boosting hint, whether or not it also has a replacement.
+  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud, Deepgram and xAI. For HyperWhisper Cloud and Deepgram you must set an explicit language; xAI accepts the terms with any language, including Automatic. ElevenLabs and OpenAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those two providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). Cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. This is the same rule on both platforms.
 </Note>
 
 ## Deepgram Options
@@ -97,7 +97,7 @@ The **Language** setting tells the provider which language to expect. An explici
 
 <Tabs>
   <Tab title="macOS">
-    The language picker appears in the **Language** section, below the Engine card. The available choices depend on the provider that you select. For cloud providers, the **Automatic** option lets the server detect the language from your audio. When you select **Automatic**, vocabulary boosting is off.
+    The language picker appears in the **Language** section, below the Engine card. The available choices depend on the provider that you select. For cloud providers, the **Automatic** option lets the server detect the language from your audio. When you select **Automatic**, vocabulary boosting is off for HyperWhisper Cloud and Deepgram. It stays on for xAI.
 
     For Parakeet V2, the language is always English, and the picker is off. For Parakeet V3 and the two Nemotron variants, the picker shows only the languages that the model supports.
   </Tab>
@@ -105,6 +105,21 @@ The **Language** setting tells the provider which language to expect. An explici
     The language picker appears in the **Language** section after you turn on streaming. Select a supported language from the list.
   </Tab>
 </Tabs>
+
+## If the Connection Drops
+
+A streaming session uses one WebSocket connection to the provider. If that connection stops without warning, HyperWhisper keeps the microphone open and connects again automatically.
+
+- The status indicator changes to **Reconnecting**. On macOS the indicator is yellow and pulses. On Windows it is orange and pulses. Read [Recording Window](/recording-window) for the full list of the indicator colors.
+- HyperWhisper makes a maximum of 3 attempts. On macOS, it waits 1 second before each attempt. On Windows, it waits 500 ms before the first attempt, and more before each subsequent attempt.
+- If all 3 attempts fail, HyperWhisper stops the session and shows an error. Start the session again with your streaming shortcut.
+- On macOS, a connection that stayed up for 60 seconds or more before it dropped sets the count of the attempts back to zero. A long session thus does not stop after 3 separate network problems. Drops that occur one after the other in a few seconds continue to add to the count.
+
+Some faults cannot improve with another attempt. If the provider reports an exhausted credit balance, a key that is not valid, or a permission error, HyperWhisper stops immediately and shows that message. It makes no attempt to connect again, because the same fault occurs each time. Correct the condition, then start the session again.
+
+<Note>
+  To start a streaming session with HyperWhisper Cloud, you need a credit balance of approximately 30 seconds of audio. Below that balance, the server refuses the session before it starts, and the app tells you that credits are exhausted. Read [HyperWhisper Cloud Credits](/cloud-credits) to add credits.
+</Note>
 
 ## How Streaming Differs from Modes
 

@@ -1,135 +1,53 @@
-import { polarClient, POLAR_ORGANIZATION_ID } from "@/lib/clients/polar";
+import { NextResponse } from "next/server";
+
+import { findAccountByKey, type AccountKeyRow } from "@/src/lib/db-layer";
 import {
-  findAccountByKey,
-  findAccountById,
-  findAccountByPolarLicenseKeyId,
-  insertAccountKey,
-  grantCreditLot,
-  getOrCreateUser,
-  type AccountKeyRow,
-} from "@/src/lib/db-layer";
-import { probeLicenseKeyReadOnly } from "@/src/lib/license-validation-probe";
+  probeLicenseKeyReadOnly,
+  type LicenseInvalid,
+  type ReadOnlyLicenseProbeResult,
+} from "@/src/lib/license-validation-probe";
 
 /**
  * Shared license key validation logic.
  *
  * Used by both /api/license/validate and /api/license/activate so that
- * every entry point performs a real database check (with Polar fallback)
- * instead of trusting the key blindly.
+ * every entry point performs a real database check instead of trusting
+ * the key blindly.
+ *
+ * The database is the single source of truth. Historical Polar-sold keys
+ * were imported into it by the (now removed) Polar fallback; Stripe-sold
+ * keys are inserted by the Stripe webhook at purchase time.
  */
 
 /**
- * Import a license from Polar into the local database.
+ * The one way either license route serializes a rejection.
  *
- * Called when a license key is not found in the database but may exist in Polar.
- * Creates the license record, user (if needed), and grants 5000 credits.
+ * Both routes are backed by `checkLicenseKey`, so a field added to the invalid
+ * result has to reach both replies or the two endpoints disagree on the wire
+ * contract. Routing every invalid exit through here makes that structural: the
+ * argument is a `LicenseInvalid`, so a rejection cannot be serialized without
+ * its `reason` (see `LicenseInvalidReason` for what the field is for).
  */
-async function importLicenseFromPolar(licenseKey: string): Promise<{
-  success: boolean;
-  licenseId?: string;
-  error?: string;
-}> {
-  try {
-    // 1. Validate with Polar API
-    const polarResult = await polarClient.customerPortal.licenseKeys.validate({
-      key: licenseKey,
-      organizationId: POLAR_ORGANIZATION_ID,
-    });
-
-    // 2. Check if valid
-    if (polarResult.status !== "granted") {
-      return { success: false, error: `License is ${polarResult.status}` };
-    }
-
-    // 2b. Dedupe by the stable Polar license-key id (casing-independent).
-    // findAccountByKey is a case-sensitive exact match, so a different casing
-    // or whitespace variant of an already-imported key misses the DB lookup
-    // and reaches this fallback. Without this guard each variant would insert a
-    // fresh license row and grant another 5000 credits. polarResult.id is the
-    // canonical resource id regardless of how the input key was cased.
-    const alreadyImported = await findAccountByPolarLicenseKeyId(
-      polarResult.id,
-    );
-    if (alreadyImported) {
-      return { success: true, licenseId: alreadyImported.id };
-    }
-
-    // 3. Get customer email - required for import
-    const email = polarResult.customer?.email;
-    if (!email) {
-      return { success: false, error: "License has no associated email" };
-    }
-
-    // 4. Get or create user
-    const user = await getOrCreateUser(email, {
-      name: polarResult.customer?.name ?? undefined,
-      polarCustomerId: polarResult.customerId ?? undefined,
-    });
-    if (!user) {
-      return { success: false, error: "Failed to get or create user" };
-    }
-
-    // 5. Insert license into database
-    const license = await insertAccountKey({
-      key: licenseKey,
-      email: email.toLowerCase().trim(),
-      userId: user.id,
-      polarLicenseKeyId: polarResult.id,
-      polarCustomerId: polarResult.customerId ?? null,
-      status: "granted",
-    });
-
-    if (!license) {
-      console.error("Failed to insert license from Polar");
-      return { success: false, error: "Failed to import license" };
-    }
-
-    // 6. Create credit balance with 5000 credits
-    try {
-      await grantCreditLot({
-        userId: license.userId,
-        amount: 5000,
-        sourceType: "polar_bundle",
-        sourceId: polarResult.id,
-      });
-    } catch (creditError) {
-      console.error("Failed to create credit balance:", creditError);
-      // License was created, but credits failed - still return success
-    }
-
-    console.log(
-      `Imported license from Polar: ${licenseKey} for ${email} with 5000 credits`,
-    );
-
-    return { success: true, licenseId: license.id };
-  } catch (err) {
-    console.error("Polar license import error:", err);
-    return {
-      success: false,
-      error: "Failed to validate with Polar",
-    };
-  }
+export function invalidLicenseResponse(result: LicenseInvalid): NextResponse {
+  return NextResponse.json(
+    { valid: false, error: result.error, reason: result.reason },
+    { status: result.status },
+  );
 }
 
 export type LicenseCheckResult =
   | { valid: true; license: AccountKeyRow }
-  | { valid: false; error: string; status: number };
+  | LicenseInvalid;
 
 /**
  * Read-only license check for UI that presents Test separately from Activate.
- * Existing database rows are read directly; Polar fallback is validated live
- * without importing a row, creating a user, or granting credits.
+ * Reads the stored row directly; never writes.
  */
 export async function probeLicenseKey(
   licenseKey: string,
-): Promise<{ valid: true } | { valid: false; error: string; status: number }> {
+): Promise<ReadOnlyLicenseProbeResult> {
   return probeLicenseKeyReadOnly(licenseKey, {
     findStoredLicense: findAccountByKey,
-    validateWithPolar: async (key) =>
-      polarClient.customerPortal.licenseKeys.validate({
-        key,
-        organizationId: POLAR_ORGANIZATION_ID,
-      }),
   });
 }
 
@@ -137,45 +55,31 @@ export async function probeLicenseKey(
  * Checks whether a license key is valid (exists and is "granted").
  *
  * 1. Looks up the key in the database
- * 2. POLAR FALLBACK: if not found, validates against Polar and imports it
- * 3. Verifies the license status is "granted" (not revoked/disabled)
+ * 2. Verifies the license status is "granted" (not revoked/disabled)
  */
 export async function checkLicenseKey(
   licenseKey: string,
 ): Promise<LicenseCheckResult> {
-  // Query database for the license
-  let license = await findAccountByKey(licenseKey.trim());
+  const license = await findAccountByKey(licenseKey.trim());
 
-  // POLAR FALLBACK: If not found in DB, try Polar API
   if (!license) {
-    const polarImport = await importLicenseFromPolar(licenseKey.trim());
-
-    if (!polarImport.success) {
-      return {
-        valid: false,
-        error: polarImport.error || "License key not found",
-        status: 400,
-      };
-    }
-
-    // Re-query the newly imported license
-    license = await findAccountById(polarImport.licenseId!);
-
-    if (!license) {
-      return {
-        valid: false,
-        error: "Failed to retrieve imported license",
-        status: 500,
-      };
-    }
+    // An unknown key is an ordinary verdict — the single commonest rejection
+    // (a typo, a revoked-and-purged key) — not an incident. See
+    // `LicenseInvalidReason`.
+    return {
+      valid: false,
+      error: "License key not found",
+      status: 400,
+      reason: "not_entitled",
+    };
   }
 
-  // Check status
   if (license.status !== "granted") {
     return {
       valid: false,
       error: `License is ${license.status}`,
       status: 400,
+      reason: "not_entitled",
     };
   }
 

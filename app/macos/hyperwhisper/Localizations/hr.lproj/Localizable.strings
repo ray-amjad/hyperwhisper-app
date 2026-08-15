@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Zapisivanje grešaka";
 "settings.general.errorLogging.info" = "Automatski snimaj i šalji izvještaje o greškama kako bi se poboljšala aplikacija.";
 "settings.general.shareSpeedData.title" = "Podijeli anonimne podatke o brzini";
-"settings.general.shareSpeedData.subtitle" = "Pomaže svima vidjeti koji je oblak-model najbrži na njihovoj lokaciji.";
 "settings.general.shareSpeedData.info" = "Mjeri koliko vremena treba svakom pružatelju usluga u oblaku i dodaje to javnoj usporedbi. Mjerenje sadrži pružatelja usluga, regiju poslužitelja, duljinu isječka i utrošeno vrijeme — bez računa, bez ključa, bez zvuka i bez teksta. Isključite ovo i HyperWhisper prestaje to slati. Ništa se drugo ne mijenja, a lokalni modeli nikad ništa ne šalju.";
 "settings.general.shareSpeedData.link" = "Pogledaj usporedbu brzine";
 "settings.general.autoUpdate.title" = "Automatsko ažuriranje";
@@ -914,6 +913,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcription.error.maxRetriesExceeded" = "Prekoračen maksimalni broj pokušaja";
 "transcription.error.unauthorized.provider" = "Neovlašteno: nevažeći %@ API ključ ili dozvole.\n\nOtvorite Postavke → API ključevi za provjeru svojih vjerodajnica.";
 "transcription.error.unauthorized.generic" = "Neovlašteno: nevažeći API ključ ili dozvole.\n\nOtvorite Postavke → API ključevi za provjeru svojih vjerodajnica.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud zahtijeva ključ računa.\n\nOtvorite Postavke → HyperWhisper Cloud za unos ključa ili nabavu kredita.";
 "transcription.error.invalidRequest" = "Nevažeći zahtjev: provjerite audio datoteku ili postavke";
 "transcription.error.streamingInterrupted" = "Strujanje prekinuto; prikazan djelomični tekst";
 "transcription.error.busy" = "Usluga transkripcije je trenutno zauzeta";
