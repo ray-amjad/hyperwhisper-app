@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Registre d'errors";
 "settings.general.errorLogging.info" = "Captura i envia automàticament informes d'error per ajudar a millorar l'aplicació.";
 "settings.general.shareSpeedData.title" = "Comparteix dades de velocitat anònimes";
-"settings.general.shareSpeedData.subtitle" = "Ajuda tothom a veure quin model al núvol és el més ràpid on són.";
 "settings.general.shareSpeedData.info" = "Mesura quant triga cada proveïdor al núvol i ho afegeix a una comparació pública. Un mesurament conté el proveïdor, la regió del servidor, la durada del fragment i el temps trigat — sense compte, sense clau, sense àudio i sense text. Desactiva-ho i HyperWhisper deixa d'enviar-ho. Res més canvia, i els models locals mai envien res.";
 "settings.general.shareSpeedData.link" = "Veure la comparació de velocitat";
 "settings.general.autoUpdate.title" = "Actualització automàtica";
@@ -914,6 +913,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.error.maxRetriesExceeded" = "S'ha superat el nombre màxim d'intents";
 "transcription.error.unauthorized.provider" = "No autoritzat: clau API o permisos de %@ no vàlids.\n\nObriu Configuració → Claus API per verificar les vostres credencials.";
 "transcription.error.unauthorized.generic" = "No autoritzat: clau API o permisos no vàlids.\n\nObriu Configuració → Claus API per verificar les vostres credencials.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud requereix una clau de compte.\n\nObriu Configuració → HyperWhisper Cloud per introduir la vostra clau o obtenir crèdits.";
 "transcription.error.invalidRequest" = "Sol·licitud no vàlida: comproveu el fitxer d'àudio o la configuració";
 "transcription.error.streamingInterrupted" = "Transmissió interrompuda; es mostra text parcial";
 "transcription.error.busy" = "El servei de transcripció està ocupat actualment";

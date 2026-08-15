@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "エラーログ";
 "settings.general.errorLogging.info" = "エラーレポートを自動的に収集し、アプリ改善に役立てます。";
 "settings.general.shareSpeedData.title" = "匿名の速度データを共有";
-"settings.general.shareSpeedData.subtitle" = "自分の地域でどのクラウドモデルが最速かをみんなが確認できるようにします。";
 "settings.general.shareSpeedData.info" = "各クラウドプロバイダーの所要時間を計測し、公開比較に追加します。計測にはプロバイダー、サーバーのリージョン、クリップの長さ、かかった時間が含まれます — アカウントもキーも音声もテキストも含まれません。オフにすると、HyperWhisperは送信を停止します。他は何も変わらず、ローカルモデルは常に何も送信しません。";
 "settings.general.shareSpeedData.link" = "速度比較を見る";
 "settings.general.autoUpdate.title" = "自動更新";
@@ -915,6 +914,7 @@
 "transcription.error.maxRetriesExceeded" = "リトライ回数の上限を超えました";
 "transcription.error.unauthorized.provider" = "認証エラー: %@ APIキーまたは権限が無効です。\n\n設定 → APIキーで資格情報を確認してください。";
 "transcription.error.unauthorized.generic" = "認証エラー: APIキーまたは権限が無効です。\n\n設定 → APIキーで資格情報を確認してください。";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud にはアカウントキーが必要です。\n\n設定 → HyperWhisper Cloud でキーを入力するか、クレジットを購入してください。";
 "transcription.error.invalidRequest" = "無効なリクエストです。音声ファイルや設定を確認してください";
 "transcription.error.streamingInterrupted" = "ストリーミングが中断されました。部分的なテキストを表示します";
 "transcription.error.busy" = "文字起こしサービスが混雑しています";

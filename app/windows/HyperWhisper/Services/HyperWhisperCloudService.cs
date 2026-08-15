@@ -61,20 +61,6 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
     // now uses the core's RetryMaxAttempts() via RustRetry.
     private const int MaxRetries = 4; // Matches macOS implementation
 
-    // MIME types for audio content
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
     // =========================================================================
     // STATE
     // =========================================================================
@@ -429,8 +415,7 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         // KEEP native: credit-header extraction, no-speech diagnostics, the DNS
         // HttpClient rebuild (via onTransportError), and the /post-process path.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,

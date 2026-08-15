@@ -26,7 +26,7 @@ import {
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview } from './utils';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -155,7 +155,7 @@ export async function transcribeWithGoogleChirp(
 
   // Don't lowercase — Speech V2 expects canonical BCP-47 codes (e.g. en-US),
   // and forcing lower-case breaks the region subtag matching.
-  const isMonolingual = language && language.toLowerCase() !== 'auto';
+  const isMonolingual = isExplicitLanguage(language);
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
   const config: Record<string, unknown> = {
@@ -168,20 +168,28 @@ export async function transcribeWithGoogleChirp(
     languageCodes: isMonolingual ? [language!] : ['auto'],
     model: 'chirp_3',
   };
-  // Speech V2 model adaptation (phrase biasing) is supported only by the
-  // `long`, `short`, and telephony models — NOT by any `chirp*` model.
-  // Sending `config.adaptation` against chirp_3 makes Google return
-  // 404 NOT_FOUND ("Requested entity was not found"), failing the whole
-  // request even though phrases are advisory.
-  // Ref: https://cloud.google.com/speech-to-text/v2/docs/adaptation-model
-  // We drop phrases silently and log so the call site can decide whether to
-  // surface a UI affordance ("vocabulary ignored for this provider").
-  const adaptationSupported = false; // chirp_3 only — flip if we add long/short later
-  if (phrases.length > 0 && !adaptationSupported) {
-    logProviderEvent(provider, 'phrases_dropped_unsupported_model', {
-      model: 'chirp_3',
-      phraseCount: phrases.length,
-    }, context);
+  // Speech V2 model adaptation (phrase biasing). Chirp 3 now documents this as
+  // GA with a dictionary of up to 1,000 phrases, so we send an inline phrase
+  // set rather than dropping the terms.
+  // Ref: https://docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model
+  //
+  // History (read before removing the fallback below): an earlier integration
+  // sent `config.adaptation` against chirp_3 and Google answered 404 NOT_FOUND
+  // ("Requested entity was not found"), which failed the whole request even
+  // though phrases are advisory. Biasing is a nice-to-have and transcription is
+  // not, so a request rejected WITH adaptation is retried once WITHOUT it
+  // instead of surfacing the error. If the 404 ever comes back, users lose the
+  // biasing and keep their transcript.
+  if (phrases.length > 0) {
+    config.adaptation = {
+      phraseSets: [{ inlinePhraseSet: { phrases: phrases.map((value) => ({ value })) } }],
+    };
+  }
+
+  /** The same config with the advisory `adaptation` block removed. */
+  function configWithoutAdaptation(): Record<string, unknown> {
+    const { adaptation: _dropped, ...rest } = config;
+    return rest;
   }
 
   // Allocated before the try so the finally block can clean up even when
@@ -203,20 +211,37 @@ export async function transcribeWithGoogleChirp(
     let normalized: NormalizedTranscript;
 
     if (useInlineAudio) {
-      const bodyObject = { config, content: base64Encode(audio) };
+      const content = base64Encode(audio);
       const accessToken = await getGoogleAccessToken();
-
-      const response = await fetchWithTimeout(provider, syncUrl, {
+      const recognize = (body: Record<string, unknown>) => fetchWithTimeout(provider, syncUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(bodyObject),
+        body: JSON.stringify(body),
       }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
 
+      let response = await recognize({ config, content });
+      let errorText: string | undefined;
+
       if (!response.ok) {
-        await throwForSpeechError(provider, response, startedAt, context);
+        const rejection = await classifyRejection(response, phrases.length > 0);
+        errorText = rejection.errorText;
+        if (rejection.retryWithoutAdaptation) {
+          logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
+            status: response.status,
+            phraseCount: phrases.length,
+            delivery: 'inline',
+            bodyPreview: rejection.errorText,
+          }, context);
+          response = await recognize({ config: configWithoutAdaptation(), content });
+          errorText = undefined;
+        }
+      }
+
+      if (!response.ok) {
+        await throwForSpeechError(provider, response, startedAt, context, errorText);
       }
 
       const data = await parseJsonBody<SpeechRecognizeResponse>(response, provider, 'sync_recognize', context);
@@ -233,6 +258,9 @@ export async function transcribeWithGoogleChirp(
         batchUrl,
         gcsUri: upload.gcsUri,
         config,
+        // Submit-time only: same advisory-biasing fallback as the inline path.
+        fallbackConfig: phrases.length > 0 ? configWithoutAdaptation() : undefined,
+        phraseCount: phrases.length,
         provider,
         startedAt,
         context,
@@ -361,13 +389,50 @@ function normalizeSpeechResults(
   };
 }
 
+/**
+ * Decide whether a rejected request should be retried without the advisory
+ * `adaptation` block, reading the error body exactly once.
+ *
+ * The body read is not optional: it is what releases the socket, and it is what
+ * keeps this from re-sending a payload that will fail identically.
+ *
+ * - **404** retries. Google reports an unusable phrase set as a bare
+ *   `Requested entity was not found.` with nothing about adaptation in it, so a
+ *   body match would defeat the whole fallback. On the sync path there is no
+ *   other 404 shape; on the batch path the submit only runs after a successful
+ *   upload.
+ * - **400** retries ONLY when the body names the biasing machinery. 400 is the
+ *   status Google uses for the ~60 s sync duration cap, an unusable audio
+ *   config and a wrong `GOOGLE_SPEECH_REGION` — none of which get better on a
+ *   second identical attempt.
+ * - Anything else never retries.
+ */
+async function classifyRejection(
+  response: Response,
+  hasPhrases: boolean,
+): Promise<{ retryWithoutAdaptation: boolean; errorText: string }> {
+  const errorText = await readErrorBodyPreview(response);
+  if (!hasPhrases) {
+    return { retryWithoutAdaptation: false, errorText };
+  }
+  if (response.status === 404) {
+    return { retryWithoutAdaptation: true, errorText };
+  }
+  if (response.status === 400 && /adaptation|phrase[_ ]?set|phrases/i.test(errorText)) {
+    return { retryWithoutAdaptation: true, errorText };
+  }
+  return { retryWithoutAdaptation: false, errorText };
+}
+
 async function throwForSpeechError(
   provider: string,
   response: Response,
   startedAt: number,
   context: ProviderRequestContext,
+  /** Body already read by `classifyRejection`; a Response body reads once. */
+  preReadErrorText?: string,
 ): Promise<never> {
-  const errorText = await readErrorBodyPreview(response);
+  const errorText = preReadErrorText ?? await readErrorBodyPreview(response);
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = response.status >= 500
     ? 'upstream_5xx'
@@ -404,6 +469,14 @@ interface BatchRecognizeParams {
   batchUrl: string;
   gcsUri: string;
   config: Record<string, unknown>;
+  /**
+   * Config to re-submit with when the first submit is rejected in a way that
+   * points at the advisory `adaptation` block (400 / 404). Undefined when there
+   * is nothing advisory to drop.
+   */
+  fallbackConfig?: Record<string, unknown>;
+  /** Phrase count, for the retry log line only. */
+  phraseCount?: number;
   provider: string;
   startedAt: number;
   context: ProviderRequestContext;
@@ -426,32 +499,55 @@ interface BatchRecognizeParams {
  * itself — no second GCS round trip to fetch them from a bucket.
  */
 async function runBatchRecognize(params: BatchRecognizeParams): Promise<NormalizedTranscript> {
-  const { region, batchUrl, gcsUri, config, provider, startedAt, context, onOperationStarted } = params;
+  const {
+    region, batchUrl, gcsUri, config, fallbackConfig, phraseCount,
+    provider, startedAt, context, onOperationStarted,
+  } = params;
   const accessToken = await getGoogleAccessToken();
 
-  const submitBody = {
-    config,
-    files: [{ uri: gcsUri }],
-    recognitionOutputConfig: { inlineResponseConfig: {} },
-    // No `processingStrategy` here — that field defaults to
-    // `PROCESSING_STRATEGY_UNSPECIFIED`, which is Google's IMMEDIATE path
-    // (results within seconds-to-minutes). The named `DYNAMIC_BATCHING`
-    // enum is the opposite: a deferred low-cost queue fulfilled within 24
-    // hours. We want immediate fulfilment for interactive transcription;
-    // omitting the field is the correct way to opt in.
-  };
-
-  const submitResponse = await fetchWithTimeout(provider, batchUrl, {
+  const submit = (submitConfig: Record<string, unknown>) => fetchWithTimeout(provider, batchUrl, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(submitBody),
+    body: JSON.stringify({
+      config: submitConfig,
+      files: [{ uri: gcsUri }],
+      recognitionOutputConfig: { inlineResponseConfig: {} },
+      // No `processingStrategy` here — that field defaults to
+      // `PROCESSING_STRATEGY_UNSPECIFIED`, which is Google's IMMEDIATE path
+      // (results within seconds-to-minutes). The named `DYNAMIC_BATCHING`
+      // enum is the opposite: a deferred low-cost queue fulfilled within 24
+      // hours. We want immediate fulfilment for interactive transcription;
+      // omitting the field is the correct way to opt in.
+    }),
   }, context);
 
+  let submitResponse = await submit(config);
+  let submitErrorText: string | undefined;
+
+  // Advisory biasing must never cost the transcript — see the adaptation note
+  // in `transcribeWithGoogleChirp`. Retried at submit time only, so a poll-time
+  // failure never re-runs an operation we are already being billed for, and
+  // through the SAME predicate as the inline path so the two cannot drift.
   if (!submitResponse.ok) {
-    await throwForSpeechError(provider, submitResponse, startedAt, context);
+    const rejection = await classifyRejection(submitResponse, Boolean(fallbackConfig));
+    submitErrorText = rejection.errorText;
+    if (rejection.retryWithoutAdaptation && fallbackConfig) {
+      logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
+        status: submitResponse.status,
+        phraseCount: phraseCount ?? 0,
+        delivery: 'gcs+batch',
+        bodyPreview: rejection.errorText,
+      }, context);
+      submitResponse = await submit(fallbackConfig);
+      submitErrorText = undefined;
+    }
+  }
+
+  if (!submitResponse.ok) {
+    await throwForSpeechError(provider, submitResponse, startedAt, context, submitErrorText);
   }
 
   const submitData = await parseJsonBody<{ name?: string }>(submitResponse, provider, 'batch_submit', context);

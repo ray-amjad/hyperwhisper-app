@@ -36,7 +36,6 @@ public sealed class LocalLlmService : IDisposable
 
     public bool IsModelLoaded => _weights != null;
     public string? ActiveModelPath => _activeModelPath;
-    public string? ActiveModelName => string.IsNullOrEmpty(_activeModelPath) ? null : Path.GetFileName(_activeModelPath);
     public bool IsUsingGpu { get; private set; }
 
     public async Task LoadModelAsync(string modelPath, CancellationToken cancellationToken = default)

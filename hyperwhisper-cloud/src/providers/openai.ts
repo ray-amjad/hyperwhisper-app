@@ -13,6 +13,7 @@ import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   estimateSecondsFromBytes,
+  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -103,11 +104,11 @@ export async function transcribeWithOpenAI(
   // returns a duration we can bill on).
   formData.append('response_format', isWhisper ? 'verbose_json' : 'json');
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // OpenAI's `language` hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
-    // region-qualified BCP-47 tag — strip any region/script subtag so a
-    // client-supplied "en-US"/"pt-BR" isn't rejected for this self-only provider.
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // OpenAI's `language` hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
+  // region-qualified BCP-47 tag — strip any region/script subtag so a
+  // client-supplied "en-US"/"pt-BR" isn't rejected for this self-only provider.
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language', langCode);
   }
   // gpt-transcribe takes a STRUCTURED keyword list; every other model only has

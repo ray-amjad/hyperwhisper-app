@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Ghi lỗi";
 "settings.general.errorLogging.info" = "Tự động chụp và gửi báo cáo lỗi để giúp cải thiện ứng dụng.";
 "settings.general.shareSpeedData.title" = "Chia sẻ dữ liệu tốc độ ẩn danh";
-"settings.general.shareSpeedData.subtitle" = "Giúp mọi người thấy mô hình đám mây nào nhanh nhất tại vị trí của họ.";
 "settings.general.shareSpeedData.info" = "Đo thời gian mỗi nhà cung cấp đám mây mất và thêm vào so sánh công khai. Một phép đo gồm nhà cung cấp, khu vực máy chủ, độ dài đoạn ghi âm và thời gian đã dùng — không tài khoản, không khóa, không âm thanh và không văn bản. Tắt tính năng này và HyperWhisper sẽ ngừng gửi. Không có gì khác thay đổi, và các mô hình cục bộ không bao giờ gửi bất cứ thứ gì.";
 "settings.general.shareSpeedData.link" = "Xem so sánh tốc độ";
 "settings.general.autoUpdate.title" = "Cập nhật tự động";
@@ -914,6 +913,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.error.maxRetriesExceeded" = "Vượt quá số lần thử lại tối đa";
 "transcription.error.unauthorized.provider" = "Không được phép: khóa API %@ không hợp lệ hoặc quyền.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
 "transcription.error.unauthorized.generic" = "Không được phép: khóa API hoặc quyền không hợp lệ.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud yêu cầu khóa tài khoản.\n\nMở Cài đặt → HyperWhisper Cloud để nhập khóa của bạn hoặc mua tín dụng.";
 "transcription.error.invalidRequest" = "Yêu cầu không hợp lệ: kiểm tra tệp âm thanh hoặc cài đặt";
 "transcription.error.streamingInterrupted" = "Luồng phát bị gián đoạn; văn bản một phần được hiển thị";
 "transcription.error.busy" = "Dịch vụ chuyển đổi hiện đang bận";

@@ -50,20 +50,6 @@ public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
     private const int DefaultTimeoutSeconds = 120; // 2 minutes for large files
     private const int MaxRetries = 3;
 
-    // Supported audio MIME types
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
     // =========================================================================
     // STATE
     // =========================================================================
@@ -136,40 +122,13 @@ public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "OpenAI API key not configured",
-                "OpenAI");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "OpenAI");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
-
-        if (fileInfo.Length > MaxFileSizeBytes)
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.FileTooLarge,
-                $"File size ({fileInfo.Length / 1024.0 / 1024.0:F1} MB) exceeds 25 MB limit",
-                "OpenAI");
-        }
+        // STEP 1+2: Validate configuration and audio file (shared gate).
+        TranscriptionPreflight.Validate("OpenAI", _apiKey, audioPath, MaxFileSizeBytes, "25 MB");
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,

@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Registro de erros";
 "settings.general.errorLogging.info" = "Capture e envie automaticamente relatórios de erro para ajudar a melhorar o aplicativo.";
 "settings.general.shareSpeedData.title" = "Compartilhar dados de velocidade anônimos";
-"settings.general.shareSpeedData.subtitle" = "Ajuda todos a ver qual modelo na nuvem é o mais rápido onde estão.";
 "settings.general.shareSpeedData.info" = "Mede quanto tempo cada provedor de nuvem leva e adiciona isso a uma comparação pública. Uma medição contém o provedor, a região do servidor, a duração do trecho e o tempo levado — sem conta, sem chave, sem áudio e sem texto. Desative isso e o HyperWhisper para de enviá-lo. Mais nada muda, e os modelos locais nunca enviam nada.";
 "settings.general.shareSpeedData.link" = "Ver a comparação de velocidade";
 "settings.general.autoUpdate.title" = "Atualização automática";
@@ -914,6 +913,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcription.error.maxRetriesExceeded" = "Número máximo de tentativas excedido";
 "transcription.error.unauthorized.provider" = "Não autorizado: chave de API %@ inválida ou permissões insuficientes.\n\nAbra Configurações → Chaves de API para verificar suas credenciais.";
 "transcription.error.unauthorized.generic" = "Não autorizado: chave de API inválida ou permissões insuficientes.\n\nAbra Configurações → Chaves de API para verificar suas credenciais.";
+"transcription.error.cloudAccountRequired" = "O HyperWhisper Cloud requer uma chave de conta.\n\nAbra Configurações → HyperWhisper Cloud para inserir sua chave ou obter créditos.";
 "transcription.error.invalidRequest" = "Solicitação inválida: verifique arquivo de áudio ou configurações";
 "transcription.error.streamingInterrupted" = "Streaming interrompido; texto parcial mostrado";
 "transcription.error.busy" = "O serviço de transcrição está ocupado no momento";

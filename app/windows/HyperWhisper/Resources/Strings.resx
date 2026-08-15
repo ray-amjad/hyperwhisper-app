@@ -1253,12 +1253,6 @@ Do you want to restart now?</value>
   </data>
 
   <!-- History - Retry -->
-  <data name="history.retry.attemptSingular" xml:space="preserve">
-    <value>1 attempt</value>
-  </data>
-  <data name="history.retry.attemptPlural" xml:space="preserve">
-    <value>{0} attempts</value>
-  </data>
   <data name="history.context.retryAgain" xml:space="preserve">
     <value>Retry again</value>
   </data>
@@ -1366,7 +1360,7 @@ Do you want to restart now?</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - high accuracy, no custom vocabulary</value>
+    <value>xAI Grok STT - high accuracy, custom vocabulary as keyterms</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
     <value>Microsoft MAI-Transcribe 1.5</value>
@@ -1378,7 +1372,7 @@ Do you want to restart now?</value>
     <value>Google Chirp 3</value>
   </data>
   <data name="modes.cloudAccuracy.googleChirp3.description" xml:space="preserve">
-    <value>Google Chirp 3 - 100+ languages (no custom vocabulary)</value>
+    <value>Google Chirp 3 - 100+ languages, custom vocabulary as a phrase list</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>

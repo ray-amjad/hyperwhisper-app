@@ -163,12 +163,12 @@ const GEMINI_DEFAULT_CHAT_MODEL = 'gemini-2.5-flash';
 // Mistral (chat/completions). https://mistral.ai/pricing + docs.mistral.ai
 // `mistral-small-latest` resolves to Mistral Small 4: the model-specific docs
 // list $0.15/$0.60, which conflicts with the lower pricing-tile figure — we
-// bill at the higher (model-docs) rate, the billing-safe choice. `mistral-nemo`
-// is not a valid chat id; the canonical API id is `open-mistral-nemo`.
-// Re-confirm both against live provider pages before secrets go live.
+// bill at the higher (model-docs) rate, the billing-safe choice. The retired
+// Nemo model is no longer allowlisted; old clients still sending its id resolve
+// to `mistral-small-latest` and are billed at that rate.
+// Re-confirm against live provider pages before secrets go live.
 const MISTRAL_CHAT_RATES: Record<string, LLMChatRate> = {
   'mistral-small-latest': { promptPerToken: 0.15 / 1_000_000, completionPerToken: 0.60 / 1_000_000 },
-  'open-mistral-nemo': { promptPerToken: 0.15 / 1_000_000, completionPerToken: 0.15 / 1_000_000 },
 };
 const MISTRAL_DEFAULT_CHAT_MODEL = 'mistral-small-latest';
 

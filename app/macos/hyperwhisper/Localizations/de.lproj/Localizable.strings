@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Fehlerprotokollierung";
 "settings.general.errorLogging.info" = "Erfassen und senden Sie automatisch Fehlerberichte, um die App zu verbessern.";
 "settings.general.shareSpeedData.title" = "Anonyme Geschwindigkeitsdaten teilen";
-"settings.general.shareSpeedData.subtitle" = "Hilft allen zu sehen, welches Cloud-Modell an ihrem Standort am schnellsten ist.";
 "settings.general.shareSpeedData.info" = "Misst, wie lange jeder Cloud-Anbieter braucht, und fügt es einem öffentlichen Vergleich hinzu. Eine Messung enthält den Anbieter, die Serverregion, die Clip-Länge und die benötigte Zeit — kein Konto, kein Schlüssel, kein Audio und kein Text. Schalte es aus, und HyperWhisper sendet es nicht mehr. Sonst ändert sich nichts, und lokale Modelle senden nie etwas.";
 "settings.general.shareSpeedData.link" = "Geschwindigkeitsvergleich ansehen";
 "settings.general.autoUpdate.title" = "Automatische Aktualisierung";
@@ -914,6 +913,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.error.maxRetriesExceeded" = "Maximale Wiederholungsversuche überschritten";
 "transcription.error.unauthorized.provider" = "Nicht autorisiert: Ungültiger %@ API-Schlüssel oder Berechtigungen.\n\nÖffnen Sie Einstellungen → API-Schlüssel, um Ihre zu überprüfen Anmeldeinformationen.";
 "transcription.error.unauthorized.generic" = "Nicht autorisiert: Ungültiger API-Schlüssel oder ungültige Berechtigungen.\n\nÖffnen Sie Einstellungen → API-Schlüssel, um Ihre Anmeldeinformationen zu überprüfen.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud erfordert einen Kontoschlüssel.\n\nÖffnen Sie Einstellungen → HyperWhisper Cloud, um Ihren Schlüssel einzugeben oder Credits zu erwerben.";
 "transcription.error.invalidRequest" = "Ungültige Anfrage: Überprüfen Sie die Audiodatei oder Einstellungen";
 "transcription.error.streamingInterrupted" = "Streaming unterbrochen; Teiltext angezeigt";
 "transcription.error.busy" = "Der Transkriptionsdienst ist derzeit ausgelastet";

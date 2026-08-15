@@ -28,19 +28,6 @@ internal static class HyperWhisperRoutedTranscriptionClient
 {
     private const int DefaultTimeoutSeconds = 180;
 
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
     /// <summary>
     /// Process-wide shared HttpClient for HW-Cloud-routed providers
     /// (Azure-MAI, Google-Chirp). One pooled SocketsHttpHandler across
@@ -112,8 +99,7 @@ internal static class HyperWhisperRoutedTranscriptionClient
                 providerDisplayName);
         }
 
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         // Gate `initial_prompt` on the catalog's customVocabulary flag — the core
         // only builds the CSV (trim + drop-empty), it does NOT gate on support.

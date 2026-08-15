@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Feillogging";
 "settings.general.errorLogging.info" = "Fang automatisk opp og send feilrapporter for å forbedre appen.";
 "settings.general.shareSpeedData.title" = "Del anonyme hastighetsdata";
-"settings.general.shareSpeedData.subtitle" = "Hjelper alle med å se hvilken sky-modell som er raskest der de er.";
 "settings.general.shareSpeedData.info" = "Måler hvor lang tid hver skyleverandør bruker, og legger det til en offentlig sammenligning. En måling inneholder leverandøren, serverregionen, klippets lengde og tiden brukt — ingen konto, ingen nøkkel, ingen lyd og ingen tekst. Slå dette av, så slutter HyperWhisper å sende det. Ingenting annet endres, og lokale modeller sender aldri noe.";
 "settings.general.shareSpeedData.link" = "Se hastighetssammenligningen";
 "settings.general.autoUpdate.title" = "Automatisk oppdatering";
@@ -914,6 +913,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.error.maxRetriesExceeded" = "Maksimalt antall gjenforsøk overskredet";
 "transcription.error.unauthorized.provider" = "Uautorisert: ugyldig %@ API-nøkkel eller tillatelser.\n\nÅpne Innstillinger → API-nøkler for å bekrefte legitimasjonen din.";
 "transcription.error.unauthorized.generic" = "Uautorisert: ugyldig API-nøkkel eller tillatelser.\n\nÅpne Innstillinger → API-nøkler for å bekrefte legitimasjonen din.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud krever en kontonøkkel.\n\nÅpne Innstillinger → HyperWhisper Cloud for å skrive inn nøkkelen din eller kjøpe kreditter.";
 "transcription.error.invalidRequest" = "Ugyldig forespørsel: sjekk lydfil eller innstillinger";
 "transcription.error.streamingInterrupted" = "Strømming avbrutt; delvis tekst vist";
 "transcription.error.busy" = "Transkripsjonserveren er for øyeblikket opptatt";

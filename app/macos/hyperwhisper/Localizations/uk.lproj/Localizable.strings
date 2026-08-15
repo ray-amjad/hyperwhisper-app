@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Логування помилок";
 "settings.general.errorLogging.info" = "Автоматично захоплювати та надсилати звіти про помилки, щоб допомогти поліпшити застосунок.";
 "settings.general.shareSpeedData.title" = "Поділитися анонімними даними про швидкість";
-"settings.general.shareSpeedData.subtitle" = "Допомагає всім побачити, яка хмарна модель найшвидша в їхньому регіоні.";
 "settings.general.shareSpeedData.info" = "Вимірює, скільки часу займає робота кожного хмарного провайдера, і додає це до публічного порівняння. Вимірювання містить провайдера, регіон сервера, тривалість кліпу та витрачений час — без облікового запису, без ключа, без аудіо і без тексту. Вимкніть це, і HyperWhisper перестане його надсилати. Більше нічого не змінюється, а локальні моделі ніколи нічого не надсилають.";
 "settings.general.shareSpeedData.link" = "Переглянути порівняння швидкості";
 "settings.general.autoUpdate.title" = "Автоматичне оновлення";
@@ -914,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "Перевищено максимальну кількість спроб повтору";
 "transcription.error.unauthorized.provider" = "Невозможна доступ: недійсний API ключ %@ або дозволи.\n\nВідкрийте параметри → API ключі, щоб перевірити облікові дані.";
 "transcription.error.unauthorized.generic" = "Невозможна доступ: недійсний API ключ або дозволи.\n\nВідкрийте параметри → API ключі, щоб перевірити облікові дані.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud потребує ключ облікового запису.\n\nВідкрийте параметри → HyperWhisper Cloud, щоб ввести ключ або придбати кредити.";
 "transcription.error.invalidRequest" = "Недійсний запит: перевірте аудіо файл або параметри";
 "transcription.error.streamingInterrupted" = "Потокова передача переривана; показаний частковий текст";
 "transcription.error.busy" = "Сервіс транскрипції наразі зайнятий";

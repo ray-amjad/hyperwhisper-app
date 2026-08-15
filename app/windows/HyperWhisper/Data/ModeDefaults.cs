@@ -33,6 +33,11 @@ public static class ModeDefaults
         var elevenLabsScribeModel =
             Services.AppClassification.CloudSttCatalog.Shared.DefaultModelIdForId("elevenLabsScribeV2");
 
+        // Seed the spelling variant from the system region so a first install in
+        // e.g. the UK opens on "British" instead of making the user change every
+        // mode by hand. An unknown region keeps the historical "american".
+        var englishSpelling = Utilities.EnglishSpellingRegionDefault.ForCurrentRegion();
+
         return new List<Mode>
         {
             new Mode
@@ -45,6 +50,7 @@ public static class ModeDefaults
                 CloudAccuracyTier = "elevenLabsScribeV2",
                 CloudTranscriptionModel = elevenLabsScribeModel,
                 Language = "auto",
+                EnglishSpelling = englishSpelling,
                 IsDefault = true,
                 IsSystemProvided = true,
                 SortOrder = 0,
@@ -66,6 +72,7 @@ public static class ModeDefaults
                 CloudAccuracyTier = "elevenLabsScribeV2",
                 CloudTranscriptionModel = elevenLabsScribeModel,
                 Language = "auto",
+                EnglishSpelling = englishSpelling,
                 IsSystemProvided = true,
                 SortOrder = 1,
                 PostProcessingMode = 0,  // Off - direct transcription
@@ -82,6 +89,7 @@ public static class ModeDefaults
                 CloudAccuracyTier = "elevenLabsScribeV2",
                 CloudTranscriptionModel = elevenLabsScribeModel,
                 Language = "auto",
+                EnglishSpelling = englishSpelling,
                 IsSystemProvided = true,
                 SortOrder = 2,
                 PostProcessingMode = 1,
@@ -100,6 +108,7 @@ public static class ModeDefaults
                 CloudAccuracyTier = "elevenLabsScribeV2",
                 CloudTranscriptionModel = elevenLabsScribeModel,
                 Language = "auto",
+                EnglishSpelling = englishSpelling,
                 IsSystemProvided = true,
                 SortOrder = 3,
                 PostProcessingMode = 1,
@@ -118,6 +127,7 @@ public static class ModeDefaults
                 CloudAccuracyTier = "elevenLabsScribeV2",
                 CloudTranscriptionModel = elevenLabsScribeModel,
                 Language = "auto",
+                EnglishSpelling = englishSpelling,
                 IsSystemProvided = true,
                 SortOrder = 4,
                 PostProcessingMode = 1,
@@ -136,6 +146,7 @@ public static class ModeDefaults
                 CloudAccuracyTier = "elevenLabsScribeV2",
                 CloudTranscriptionModel = elevenLabsScribeModel,
                 Language = "auto",
+                EnglishSpelling = englishSpelling,
                 IsSystemProvided = true,
                 SortOrder = 5,
                 PostProcessingMode = 1,

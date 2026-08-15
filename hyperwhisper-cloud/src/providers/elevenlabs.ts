@@ -6,6 +6,7 @@ import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   audioExtensionFromContentType,
+  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -63,8 +64,8 @@ export async function transcribeWithElevenLabs(
   // ElevenLabs Scribe `language_code` expects a bare ISO-639-1/639-3 code, not a
   // hyphenated BCP-47 locale — strip the region to the primary subtag ("en-US" →
   // "en") like the sibling adapters so a region-tagged code isn't rejected.
-  if (language && language.toLowerCase() !== 'auto') {
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language_code', langCode);
   }
 

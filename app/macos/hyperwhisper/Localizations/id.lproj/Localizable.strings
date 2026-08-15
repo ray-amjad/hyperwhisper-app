@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Pencatatan kesalahan";
 "settings.general.errorLogging.info" = "Secara otomatis menangkap dan mengirim laporan kesalahan untuk membantu meningkatkan aplikasi.";
 "settings.general.shareSpeedData.title" = "Bagikan data kecepatan anonim";
-"settings.general.shareSpeedData.subtitle" = "Membantu semua orang melihat model cloud mana yang tercepat di lokasi mereka.";
 "settings.general.shareSpeedData.info" = "Mengukur berapa lama waktu yang dibutuhkan setiap penyedia cloud dan menambahkannya ke perbandingan publik. Satu pengukuran berisi penyedia, wilayah server, panjang klip, dan waktu yang dibutuhkan — tanpa akun, tanpa kunci, tanpa audio, dan tanpa teks. Matikan ini dan HyperWhisper berhenti mengirimkannya. Tidak ada yang lain berubah, dan model lokal tidak pernah mengirim apa pun.";
 "settings.general.shareSpeedData.link" = "Lihat perbandingan kecepatan";
 "settings.general.autoUpdate.title" = "Pembaruan otomatis";
@@ -914,6 +913,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.error.maxRetriesExceeded" = "Percobaan ulang maksimum terlampaui";
 "transcription.error.unauthorized.provider" = "Tidak sah: kunci API %@ tidak valid atau izin.\n\nBuka Pengaturan → Kunci API untuk memverifikasi kredensial Anda.";
 "transcription.error.unauthorized.generic" = "Tidak sah: kunci API tidak valid atau izin.\n\nBuka Pengaturan → Kunci API untuk memverifikasi kredensial Anda.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud memerlukan kunci akun.\n\nBuka Pengaturan → HyperWhisper Cloud untuk memasukkan kunci Anda atau mendapatkan kredit.";
 "transcription.error.invalidRequest" = "Permintaan tidak valid: periksa file audio atau pengaturan";
 "transcription.error.streamingInterrupted" = "Streaming terganggu; teks parsial ditampilkan";
 "transcription.error.busy" = "Layanan transkripsi saat ini sibuk";

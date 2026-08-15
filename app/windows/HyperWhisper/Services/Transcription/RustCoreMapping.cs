@@ -250,17 +250,6 @@ internal static class RustCoreMapping
     };
 
     /// <summary>
-    /// Map a routed <c>X-STT-Provider</c> header value to an
-    /// <see cref="HwProvider"/>. Used by the routed path.
-    /// </summary>
-    internal static HwProvider HwProviderForRouted(string sttProviderHeader) => sttProviderHeader switch
-    {
-        "azure-mai" => HwProvider.AzureMai,
-        "google-chirp" => HwProvider.GoogleChirp,
-        _ => HwProvider.HyperWhisperCloud
-    };
-
-    /// <summary>
     /// Read the HW-Cloud 402 credit context (<c>credits_remaining</c> /
     /// <c>credits_required</c>) from an error response body. Returns (0, 0) absent.
     /// </summary>

@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Vigade logimine";
 "settings.general.errorLogging.info" = "Hõiva ja saada automaatselt veaaruandeid rakenduse täiustamiseks.";
 "settings.general.shareSpeedData.title" = "Jaga anonüümseid kiirusandmeid";
-"settings.general.shareSpeedData.subtitle" = "Aitab kõigil näha, milline pilvemudel on nende asukohas kiireim.";
 "settings.general.shareSpeedData.info" = "Mõõdab, kui kaua iga pilveteenuse pakkuja aega võtab, ja lisab selle avalikku võrdlusesse. Mõõtmine sisaldab pakkujat, serveri piirkonda, klipi pikkust ja kulunud aega — ei kontot, ei võtit, ei heli ega teksti. Lülita see välja ja HyperWhisper lõpetab selle saatmise. Midagi muud ei muutu ning kohalikud mudelid ei saada kunagi midagi.";
 "settings.general.shareSpeedData.link" = "Vaata kiiruse võrdlust";
 "settings.general.autoUpdate.title" = "Automaatne uuendamine";
@@ -914,6 +913,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.error.maxRetriesExceeded" = "Maksimaalne uuesti proovimise katsed ületatud";
 "transcription.error.unauthorized.provider" = "Volitamata: vale %@ API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
 "transcription.error.unauthorized.generic" = "Volitamata: vale API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud nõuab kontovõtit.\n\nAvage Seaded → HyperWhisper Cloud, et sisestada oma võti või hankida krediiti.";
 "transcription.error.invalidRequest" = "Vale päring: kontrollige helifaili või seadeid";
 "transcription.error.streamingInterrupted" = "Voogedastus katkestatud; osaliselt tekst näidatud";
 "transcription.error.busy" = "Transkriptsiooni teenus on praegu hõivatud";

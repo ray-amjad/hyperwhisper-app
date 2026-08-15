@@ -82,6 +82,10 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
 
         var webSocket = new ClientWebSocket();
         _strategy.ConfigureWebSocket(webSocket, _config);
+        // Keep the response of an upgrade that never reached 101, so the catch
+        // below can read WHY the server refused instead of only that it did.
+        // See TerminalUpgradeMessage.
+        webSocket.Options.CollectHttpResponseDetails = true;
 
         ChangeState(StreamingConnectionState.Connecting);
         _sessionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -159,8 +163,19 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // A REFUSED UPGRADE IS NOT A CONNECTION FAILURE.
+            //
+            // HyperWhisper Cloud needs 30 seconds of balance to open a streaming
+            // session and answers 402 before any socket exists, so the user who
+            // has already run out lands here on every attempt. Without the
+            // status, all this had to show was .NET's own sentence — "The server
+            // returned status code '402' when status code '101' was expected" —
+            // which names neither the problem nor the fix. Read up here rather
+            // than inline, so it cannot come after the Dispose further down.
+            var refusal = TerminalUpgradeMessage(webSocket);
+
             LoggingService.Error($"StreamingTranscriptionClient: connect failed for {_strategy.TranscriptionProviderLabel}", ex);
-            Raise(ErrorReceived, ex.Message);
+            Raise(ErrorReceived, refusal ?? ex.Message);
 
             // Same reasoning as HandleCloseResult: don't reclassify an in-flight intentional
             // shutdown (StopAsync already moved to Disconnecting/Idle) as this connect failure.
@@ -316,6 +331,37 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         }
     }
 
+    /// <summary>
+    /// The message for an upgrade the server refused outright, or null when the
+    /// failure is one a retry can still answer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Mirrors macOS's <c>StreamingProviderErrorPolicy.upgradeRefusal</c>, and
+    /// covers the same gap: the terminal-close handling below only helps a user
+    /// who runs out of credits <em>during</em> a session. The same user one
+    /// keypress later never opens a socket at all — HyperWhisper Cloud requires
+    /// 30 seconds of balance and refuses the upgrade with 402 — and that path
+    /// had only .NET's own "status code '402' when status code '101' was
+    /// expected" to show for it.
+    /// </para>
+    /// <para>
+    /// 402, 401 and 403 each name a state the <em>user</em> changes: top up, fix
+    /// the key. Everything else — 429, 5xx, a proxy mangling the upgrade — keeps
+    /// its retry, so null for an unrecognised status is the safe default rather
+    /// than a gap. Requires <c>CollectHttpResponseDetails</c>, without which
+    /// <c>HttpStatusCode</c> is 0 and this correctly finds nothing.
+    /// </para>
+    /// </remarks>
+    private static string? TerminalUpgradeMessage(ClientWebSocket? webSocket) => webSocket == null
+        ? null
+        : (int)webSocket.HttpStatusCode switch
+        {
+            402 => "Streaming could not start because credits are exhausted. Add more credits in Settings.",
+            401 or 403 => "Streaming could not start because the account key was refused. Check your key in Settings.",
+            _ => null
+        };
+
     private async Task<bool> TryReconnectAsync(CancellationToken cancellationToken)
     {
         var uri = _strategy.BuildWebSocketUri(_config);
@@ -336,12 +382,15 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 return false;
             }
 
+            ClientWebSocket? webSocket = null;
+
             try
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(500 * attempt), cancellationToken);
 
-                var webSocket = new ClientWebSocket();
+                webSocket = new ClientWebSocket();
                 _strategy.ConfigureWebSocket(webSocket, _config);
+                webSocket.Options.CollectHttpResponseDetails = true;
                 await webSocket.ConnectAsync(uri, cancellationToken);
 
                 _webSocket?.Dispose();
@@ -376,11 +425,41 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // Same ownership rule as the catch below: a socket this attempt
+                // built and never adopted has no other reference to release it.
+                if (webSocket != null && !ReferenceEquals(webSocket, _webSocket))
+                    webSocket.Dispose();
                 return false;
             }
             catch (Exception ex)
             {
                 LoggingService.Warn($"StreamingTranscriptionClient: reconnect attempt {attempt} failed - {ex.Message}");
+
+                var refusal = TerminalUpgradeMessage(webSocket);
+
+                // Release the socket this attempt built, unless the attempt got
+                // far enough to adopt it as _webSocket (ConnectAsync succeeded
+                // and SendStartMessagesAsync then threw). Disposing it in that
+                // case would hand the next attempt, or StopAsync, a dead socket.
+                if (webSocket != null && !ReferenceEquals(webSocket, _webSocket))
+                    webSocket.Dispose();
+
+                // A balance that ran out mid-session refuses every reconnect the
+                // same way, so the remaining attempts are two more seconds spent
+                // waiting for an answer that cannot change — ending on
+                // "connection was lost", which sends the user to look at their
+                // network. Stop on the first refusal and name it instead.
+                if (refusal != null)
+                {
+                    LoggingService.Warn($"StreamingTranscriptionClient: reconnect refused outright - {refusal}");
+                    Raise(ErrorReceived, refusal);
+                    _sessionStartedTcs?.TrySetException(new InvalidOperationException(refusal));
+                    TryChangeStateUnless(
+                        StreamingConnectionState.Error,
+                        StreamingConnectionState.Disconnecting,
+                        StreamingConnectionState.Idle);
+                    return false;
+                }
             }
         }
 

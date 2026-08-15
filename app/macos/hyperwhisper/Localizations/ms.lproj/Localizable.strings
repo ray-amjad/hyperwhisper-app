@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Pengelogan ralat";
 "settings.general.errorLogging.info" = "Tangkap dan hantar laporan ralat secara automatik untuk membantu meningkatkan aplikasi.";
 "settings.general.shareSpeedData.title" = "Kongsi data kelajuan tanpa nama";
-"settings.general.shareSpeedData.subtitle" = "Membantu semua orang melihat model awan mana yang paling pantas di lokasi mereka.";
 "settings.general.shareSpeedData.info" = "Mengukur berapa lama setiap penyedia awan mengambil masa dan menambahkannya ke perbandingan awam. Satu pengukuran mengandungi penyedia, rantau pelayan, panjang klip dan masa yang diambil — tiada akaun, tiada kunci, tiada audio dan tiada teks. Matikan ini dan HyperWhisper berhenti menghantarnya. Tiada apa-apa lagi yang berubah, dan model tempatan tidak pernah menghantar apa-apa.";
 "settings.general.shareSpeedData.link" = "Lihat perbandingan kelajuan";
 "settings.general.autoUpdate.title" = "Kemas kini automatik";
@@ -914,6 +913,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.error.maxRetriesExceeded" = "Cubaan semula maksimum melebihi";
 "transcription.error.unauthorized.provider" = "Tidak dibenarkan: kunci API %@ tidak sah atau kebenaran.\n\nBuka Tetapan → Kunci API untuk mengesahkan kelayakan anda.";
 "transcription.error.unauthorized.generic" = "Tidak dibenarkan: kunci API tidak sah atau kebenaran.\n\nBuka Tetapan → Kunci API untuk mengesahkan kelayakan anda.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud memerlukan kunci akaun.\n\nBuka Tetapan → HyperWhisper Cloud untuk memasukkan kunci anda atau mendapatkan kredit.";
 "transcription.error.invalidRequest" = "Permintaan tidak sah: periksa fail audio atau tetapan";
 "transcription.error.streamingInterrupted" = "Streaming terganggu; teks separa ditunjukkan";
 "transcription.error.busy" = "Perkhidmatan transkripsi sedang sibuk";

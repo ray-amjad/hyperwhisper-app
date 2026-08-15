@@ -5,7 +5,9 @@ import {
   computeUploadTimeoutMs,
   estimateAudioSeconds,
   estimateSecondsFromBytes,
+  explicitLanguageSubtag,
   fetchWithTimeout,
+  isExplicitLanguage,
   providerHttpError,
   readErrorBodyPreview,
 } from './utils';
@@ -72,6 +74,38 @@ describe('estimateAudioSeconds (content-type aware duration estimate)', () => {
     // if/else chain this table replaced.
     expect(estimateAudioSeconds(80_000, 'audio/mp4; codecs=opus')).toBe(10);
     expect(estimateAudioSeconds(96_000, 'AUDIO/WAV')).toBe(3);
+  });
+});
+
+describe('isExplicitLanguage / explicitLanguageSubtag (auto vs. a named language)', () => {
+  test('undefined, empty and "auto" (any case) all mean auto-detect', () => {
+    for (const value of [undefined, '', 'auto', 'AUTO', 'Auto']) {
+      expect(isExplicitLanguage(value)).toBe(false);
+      expect(explicitLanguageSubtag(value)).toBeUndefined();
+    }
+  });
+
+  test('a named language reduces to its lower-case primary subtag', () => {
+    expect(explicitLanguageSubtag('en')).toBe('en');
+    expect(explicitLanguageSubtag('EN')).toBe('en');
+    expect(explicitLanguageSubtag('en-US')).toBe('en');
+    expect(explicitLanguageSubtag('pt_BR')).toBe('pt');
+    expect(explicitLanguageSubtag('zh-Hant-TW')).toBe('zh');
+    expect(isExplicitLanguage('en-US')).toBe(true);
+  });
+
+  test('does not trim — matches the inline copies it replaces', () => {
+    // AssemblyAI's sync path trims BEFORE calling; nothing else did, and adding
+    // a trim here would change what those adapters send.
+    expect(explicitLanguageSubtag(' en-US ')).toBe(' en');
+    expect(explicitLanguageSubtag('  ')).toBe('  ');
+  });
+
+  test('a degenerate tag yields an empty subtag, not undefined', () => {
+    // Callers distinguish "auto" from "explicit but empty" by testing against
+    // undefined, so `-en` must stay on the explicit branch.
+    expect(explicitLanguageSubtag('-en')).toBe('');
+    expect(isExplicitLanguage('-en')).toBe(true);
   });
 });
 

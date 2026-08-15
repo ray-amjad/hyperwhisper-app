@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "오류 로깅";
 "settings.general.errorLogging.info" = "앱 개선에 도움이 되도록 오류 보고서를 자동으로 캡처하고 전송합니다.";
 "settings.general.shareSpeedData.title" = "익명 속도 데이터 공유";
-"settings.general.shareSpeedData.subtitle" = "자신의 위치에서 어떤 클라우드 모델이 가장 빠른지 모두가 알 수 있도록 도와줍니다.";
 "settings.general.shareSpeedData.info" = "각 클라우드 제공업체가 걸리는 시간을 측정하여 공개 비교에 추가합니다. 측정에는 제공업체, 서버 지역, 클립 길이, 소요 시간이 포함됩니다 — 계정도, 키도, 오디오도, 텍스트도 없습니다. 이 설정을 끄면 HyperWhisper가 전송을 중단합니다. 다른 것은 아무것도 바뀌지 않으며, 로컬 모델은 절대 아무것도 전송하지 않습니다.";
 "settings.general.shareSpeedData.link" = "속도 비교 보기";
 "settings.general.autoUpdate.title" = "자동 업데이트";
@@ -914,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "최대 재시도 횟수 초과";
 "transcription.error.unauthorized.provider" = "권한 없음: 잘못된 %@ API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
 "transcription.error.unauthorized.generic" = "권한 없음: 잘못된 API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud에는 계정 키가 필요합니다.\n\n설정 → HyperWhisper Cloud를 열어 키를 입력하거나 크레딧을 구매하세요.";
 "transcription.error.invalidRequest" = "잘못된 요청: 오디오 파일 또는 설정 확인";
 "transcription.error.streamingInterrupted" = "스트리밍 중단됨; 부분 텍스트 표시됨";
 "transcription.error.busy" = "음성 인식 서비스가 현재 바쁩니다";

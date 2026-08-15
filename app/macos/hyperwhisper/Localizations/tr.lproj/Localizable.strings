@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Hata günlüğü";
 "settings.general.errorLogging.info" = "Uygulamayı iyileştirmeye yardımcı olmak için hata raporlarını otomatik olarak yakalayın ve gönderin.";
 "settings.general.shareSpeedData.title" = "Anonim hız verilerini paylaş";
-"settings.general.shareSpeedData.subtitle" = "Herkesin bulunduğu yerde hangi bulut modelinin en hızlı olduğunu görmesine yardımcı olur.";
 "settings.general.shareSpeedData.info" = "Her bulut sağlayıcısının ne kadar sürdüğünü ölçer ve bunu genel bir karşılaştırmaya ekler. Bir ölçüm; sağlayıcıyı, sunucu bölgesini, klip uzunluğunu ve geçen süreyi içerir — hesap yok, anahtar yok, ses yok ve metin yok. Bunu kapatın, HyperWhisper göndermeyi durdursun. Başka hiçbir şey değişmez ve yerel modeller hiçbir zaman hiçbir şey göndermez.";
 "settings.general.shareSpeedData.link" = "Hız karşılaştırmasını gör";
 "settings.general.autoUpdate.title" = "Otomatik güncelleme";
@@ -914,6 +913,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.error.maxRetriesExceeded" = "Maksimum yeniden deneme girişimleri aşıldı";
 "transcription.error.unauthorized.provider" = "Yetkisiz: Geçersiz %@ API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
 "transcription.error.unauthorized.generic" = "Yetkisiz: Geçersiz API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud bir hesap anahtarı gerektirir.\n\nAnahtarınızı girmek veya kredi almak için Ayarlar → HyperWhisper Cloud'u açın.";
 "transcription.error.invalidRequest" = "Geçersiz istek: ses dosyasını veya ayarları kontrol edin";
 "transcription.error.streamingInterrupted" = "Akış kesildi; kısmi metin gösteriliyor";
 "transcription.error.busy" = "Transkripsiyon hizmeti şu anda meşgul";
