@@ -46,8 +46,10 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     private static readonly TimeSpan BaseRequestTimeout = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan MaxRequestTimeout = TimeSpan.FromMinutes(30);
 
-    // Audio MIME types Grok accepts (containers auto-detected by API)
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
+    // Audio MIME types Grok accepts (containers auto-detected by API). A
+    // different container set from the shared standard map, so Grok keeps its
+    // own and passes it to TranscriptionPreflight.MimeTypeFor.
+    private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { ".wav", "audio/wav" },
         { ".mp3", "audio/mpeg" },
@@ -124,32 +126,8 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Grok API key not configured",
-                "Grok");
-        }
-
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Grok");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
-
-        if (fileInfo.Length > MaxFileSizeBytes)
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.FileTooLarge,
-                $"File size ({fileInfo.Length / 1024.0 / 1024.0:F1} MB) exceeds 500 MB limit",
-                "Grok");
-        }
+        // Validate configuration and audio file (shared gate).
+        var fileInfo = TranscriptionPreflight.Validate("Grok", _apiKey, audioPath, MaxFileSizeBytes, "500 MB");
 
         if (vocabulary?.Count > 0)
         {
@@ -161,8 +139,7 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         // (`language` + `format=true`) and the multipart assembly; Grok has no
         // model and no vocabulary, so pass an empty term list.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "application/octet-stream");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,

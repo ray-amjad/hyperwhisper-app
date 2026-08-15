@@ -20,7 +20,9 @@ public class SonioxService : ITranscriptionProvider, IDisposable
     private const int MaxPollAttempts = 180;
     private const int PollIntervalMs = 1000;
 
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
+    // Soniox accepts a different container set from the shared standard map, so
+    // it keeps its own and passes it to TranscriptionPreflight.MimeTypeFor.
+    private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { ".aac", "audio/aac" },
         { ".aiff", "audio/aiff" },
@@ -72,40 +74,16 @@ public class SonioxService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Soniox API key not configured",
-                "Soniox");
-        }
-
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Soniox");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
-
+        // Validate configuration and audio file (shared gate).
         var maxFileSize = CloudTranscriptionProvider.Soniox.GetMaxFileSizeBytes();
-        if (fileInfo.Length > maxFileSize)
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.FileTooLarge,
-                $"File size ({fileInfo.Length / 1024.0 / 1024.0:F1} MB) exceeds {maxFileSize / 1024 / 1024 / 1024} GB limit",
-                "Soniox");
-        }
+        TranscriptionPreflight.Validate(
+            "Soniox", _apiKey, audioPath, maxFileSize, $"{maxFileSize / 1024 / 1024 / 1024} GB");
 
         // Build core params once. Pass the RAW vocab list (boost terms) — the core
         // builds the `context` CSV and gates `language_hints`. The model/auth are
         // baked by the per-step core builders.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "application/octet-stream");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,

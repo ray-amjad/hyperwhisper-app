@@ -53,20 +53,6 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
     private const int DefaultTimeoutSeconds = 180; // 3 minutes for larger files
     private const int MaxRetries = 3;
 
-    // MIME types for audio content
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
     // =========================================================================
     // STATE
     // =========================================================================
@@ -139,26 +125,9 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Deepgram API key not configured",
-                "Deepgram");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Deepgram");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
+        // STEP 1+2: Validate configuration and audio file (shared gate). Deepgram
+        // has no explicit file size limit, so no cap is passed.
+        TranscriptionPreflight.Validate("Deepgram", _apiKey, audioPath);
 
         // STEP 3: Build the request via the Rust shared core (URL + query
         // params model/smart_format/keyterm/keywords/language, Content-Type, and a
@@ -166,8 +135,7 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
         // through the shared executor + core retry loop. The core owns the
         // keyterm-vs-keywords + auto-detect vocab gating per model.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,

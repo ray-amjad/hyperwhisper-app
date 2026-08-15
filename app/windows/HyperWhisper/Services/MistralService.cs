@@ -50,20 +50,6 @@ public class MistralService : ITranscriptionProvider, IDisposable
     private const int DefaultTimeoutSeconds = 120;
     private const int MaxRetries = 3;
 
-    // Supported audio MIME types
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
     // =========================================================================
     // STATE
     // =========================================================================
@@ -142,33 +128,15 @@ public class MistralService : ITranscriptionProvider, IDisposable
             LoggingService.Warn($"  Warning: Vocabulary ignored - Mistral does not support custom vocabulary");
         }
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Mistral API key not configured",
-                "Mistral");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Mistral");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
+        // STEP 1+2: Validate configuration and audio file (shared gate). Mistral
+        // does not cap the file size client-side.
+        TranscriptionPreflight.Validate("Mistral", _apiKey, audioPath);
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop. Mistral does not support
         // custom vocabulary; pass an empty term list.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
