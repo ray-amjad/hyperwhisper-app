@@ -24,10 +24,10 @@ import {
   type TranscriptionAudioRef,
 } from '../lib/gcs-storage';
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
-import { resolveGoogleChirpLocale } from '../lib/language-codes';
+import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -161,18 +161,13 @@ export async function transcribeWithGoogleChirp(
   // error as retryable, a permanent rejection was retried four times before it
   // surfaced. The user saw a ~27-second hang rather than an error.
   //
-  // `resolveGoogleChirpLocale` expands the subtag and returns null when nothing
-  // maps, so an unknown code degrades to auto-detect instead of a request we
-  // already know Google will refuse.
-  const resolvedLocale = isExplicitLanguage(language) ? resolveGoogleChirpLocale(language) : null;
-  if (isExplicitLanguage(language) && !resolvedLocale) {
-    // The picker offered a language Chirp cannot do — the client language list
-    // and the shared catalog have drifted apart.
-    logProviderEvent(provider, 'language_unmappable', {
-      requested: language,
-      fallback: 'auto',
-    }, context);
-  }
+  // `resolveProviderLanguage` expands the subtag, honours a region/script the
+  // client already qualified, and returns null (logging `language_unmappable`)
+  // when nothing maps — so an unknown code degrades to auto-detect instead of a
+  // request we already know Google will refuse.
+  const resolvedLocale = resolveProviderLanguage({
+    provider, model: 'chirp_3', language, context,
+  });
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
   const config: Record<string, unknown> = {

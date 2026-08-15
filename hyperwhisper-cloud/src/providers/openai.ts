@@ -7,14 +7,13 @@
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
-import { openaiLanguageField } from '../lib/language-codes';
+import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   estimateSecondsFromBytes,
-  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -60,16 +59,32 @@ export async function transcribeWithOpenAI(
   formData.append('response_format', isWhisper ? 'verbose_json' : 'json');
 
   // OpenAI's language hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
-  // region-qualified BCP-47 tag — strip any region/script subtag so a
-  // client-supplied "en-US"/"pt-BR" isn't rejected for this self-only provider.
+  // region-qualified BCP-47 tag — the resolver strips any region/script subtag
+  // so a client-supplied "en-US"/"pt-BR" isn't rejected for this self-only
+  // provider, and drops the hint entirely for a code the field cannot express.
+  // The picker's list comes from Whisper's tokenizer, which is not purely
+  // ISO-639-1: `haw` and `yue` are ISO-639-3 and have no 639-1 form, so they are
+  // omitted and OpenAI auto-detects instead of being handed a value it cannot
+  // parse.
   //
-  // The FIELD NAME is per-model. `gpt-transcribe` and `gpt-live-transcribe` read
-  // a plural `languages`; the singular `language` that whisper-1 and the
-  // gpt-4o-* models use is accepted and then ignored there, so the hint was
-  // silently doing nothing on the two newest models.
-  const langCode = explicitLanguageSubtag(language);
-  if (langCode !== undefined) {
-    formData.append(openaiLanguageField(model), langCode);
+  // ON THE FIELD NAME — deliberately still the SINGULAR `language`, for every
+  // model including `gpt-transcribe`. An earlier revision of this PR switched
+  // the gpt-transcribe family to a plural `languages` on the strength of a doc
+  // reading. That claim is unverified: no OpenAI SDK is vendored here, nothing
+  // in this repo pins the field's type, and `scripts/language-code-probe.ts` was
+  // written precisely to settle it and has never been run. If `languages` is
+  // array-typed, OpenAI's multipart convention wants `languages[]` and a bare
+  // scalar parses as the wrong type → 400. `FALLBACK_CHAINS.openai` is
+  // self-only, so that 400 is terminal — transcribe.ts returns 400
+  // "Transcription input rejected" and the transcription fails outright, on a
+  // model marked `isPopular` on both platforms. The worst case for the singular
+  // field is the hint being ignored; the worst case for the plural one is total
+  // failure, and this module's own rule is THE FALLBACK IS ALWAYS AUTO-DETECT,
+  // NEVER AN ERROR. Run the probe's `openaiRow('gpt-transcribe', 'languages', …)`
+  // rows before changing this line.
+  const langCode = resolveProviderLanguage({ provider, model, language, context });
+  if (langCode) {
+    formData.append('language', langCode);
   }
   if (initialPrompt) {
     formData.append('prompt', initialPrompt);
