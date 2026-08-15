@@ -9,7 +9,7 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
 // v4 auto-routed to v5 after 2026-06-30 (Soniox docs/changelog); v5 is now the
@@ -19,6 +19,7 @@ const DEFAULT_MODEL = 'stt-async-v5';
 const POLL_INTERVAL_MS = 1_000;
 const POLL_DEADLINE_MS = 240_000;
 const MAX_CONTEXT_TERMS = 200;
+const MAX_CONTEXT_TERM_CHARS = 80;
 // Soniox supports async files up to 300 min, but our request-scoped poll budget
 // is POLL_DEADLINE_MS, and a transcription still "processing" at the deadline
 // CANNOT be deleted (Soniox returns 409 transcription_invalid_state) — so
@@ -47,11 +48,10 @@ function authHeader(apiKey: string): Record<string, string> {
 }
 
 function toContextTerms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-    .filter((t) => t.length >= 1 && t.length <= 80)
-    .slice(0, MAX_CONTEXT_TERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_CONTEXT_TERMS,
+    maxTermChars: MAX_CONTEXT_TERM_CHARS,
+  });
 }
 
 function throwForStatus(status: number, bodyPreview: string): never {

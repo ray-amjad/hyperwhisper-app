@@ -103,6 +103,79 @@ export function explicitLanguageSubtag(language: string | undefined): string | u
   return isExplicitLanguage(language) ? language.toLowerCase().split(/[-_]/)[0] : undefined;
 }
 
+/**
+ * Per-upstream limits for {@link splitVocabularyTerms}. Everything NOT
+ * expressed here is identical across the adapters and lives in the helper: the
+ * `,` / newline / `;` separators, the leading-bullet strip, and dropping empty
+ * terms.
+ */
+export interface VocabularyTermPolicy {
+  /** Maximum number of terms forwarded upstream. */
+  maxTerms: number;
+  /**
+   * Drop a term longer than this many characters. Omit for no length limit —
+   * Gemini receives the terms as prose, so no upstream field bounds them.
+   */
+  maxTermChars?: number;
+  /**
+   * Drop a term of more than this many whitespace-separated words. Omit for no
+   * word limit. Only ElevenLabs Scribe documents one.
+   */
+  maxTermWords?: number;
+  /**
+   * Replace every run of inner whitespace with this string, BEFORE the length
+   * checks below. Only Mistral Voxtral needs it: it 400s the whole request when
+   * a `context_bias` item holds whitespace, so a multi-word term is joined with
+   * `_` rather than dropped. See the call site for the reference.
+   */
+  joinWordsWith?: string;
+}
+
+/**
+ * Split a user's vocabulary prompt into the individual terms an upstream's
+ * keyterm / keyword / phrase-list field takes.
+ *
+ * Input `"HyperWhisper, SwiftUI\n- Claude"` → `["HyperWhisper", "SwiftUI", "Claude"]`.
+ *
+ * Every adapter had grown its own copy of the same four steps — split on
+ * `,` / newline / `;`, trim, strip a leading `-` / `*` bullet, drop empties —
+ * differing only in the numeric limits on {@link VocabularyTermPolicy}. So the
+ * meaning of "one vocabulary term" was defined in nine places at once, and a
+ * term that one adapter forwarded another silently dropped.
+ *
+ * Every upstream here takes ONE repeated field value per term, never a single
+ * comma-joined string (that boosts one literal phrase containing commas, which
+ * does nothing), so callers append each returned term separately.
+ *
+ * Deliberately does NOT sanitize beyond the bullet strip: `providers/openai.ts`
+ * and `providers/xai-stt.ts` additionally strip `<>`, collapse whitespace runs
+ * and de-duplicate case-insensitively to match the Rust core's
+ * `sanitize_vocabulary_word`, and keep their own splitters for that reason.
+ */
+export function splitVocabularyTerms(
+  initialPrompt: string,
+  policy: VocabularyTermPolicy,
+): string[] {
+  const terms: string[] = [];
+
+  for (const raw of initialPrompt.split(/[,\n;]+/)) {
+    if (terms.length >= policy.maxTerms) break;
+
+    let term = raw.trim().replace(/^[-*]\s*/, '');
+    if (policy.joinWordsWith !== undefined) {
+      term = term.replace(/\s+/g, policy.joinWordsWith);
+    }
+
+    if (term.length === 0) continue;
+    if (policy.maxTermChars !== undefined && term.length > policy.maxTermChars) continue;
+    if (policy.maxTermWords !== undefined && term.split(/\s+/).length > policy.maxTermWords) continue;
+
+    terms.push(term);
+  }
+
+  return terms;
+}
+
 /** Filename extensions the multipart adapters use for the audio part. */
 export type AudioExtension = 'wav' | 'mp3' | 'm4a' | 'aac' | 'webm' | 'ogg' | 'flac';
 
