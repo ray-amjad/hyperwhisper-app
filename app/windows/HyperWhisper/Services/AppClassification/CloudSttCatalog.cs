@@ -204,7 +204,8 @@ public sealed class CloudSttCatalog
     /// than poisoning the picker). Splits on <c>-</c>/<c>_</c> to take the primary
     /// subtag, then: two-letter subtags pass through; three-letter subtags are
     /// looked up in <see cref="Iso6392ToIso6391"/>; everything else (sentinels like
-    /// <c>multi</c>, codes with no 639-1 form like <c>fil</c>/<c>ceb</c>) → null.
+    /// <c>multi</c>, and three-letter codes that map to no picker row like
+    /// <c>ceb</c>) → null.
     /// </summary>
     private static string? NormalizeToIso6391(string? code)
     {
@@ -242,10 +243,19 @@ public sealed class CloudSttCatalog
 
     /// <summary>
     /// ISO-639-2/3 → ISO-639-1 map, scoped to the three-letter codes that actually
-    /// appear in the catalog AND have a clean two-letter form the picker exposes.
-    /// Codes without a 639-1 equivalent (<c>fil</c>, <c>ceb</c>, <c>kea</c>,
+    /// appear in the catalog AND name a language the picker can show.
+    ///
+    /// Most entries reduce to a two-letter code. Three do not, and map to
+    /// themselves because <c>LanguageInfo.AllLanguages</c> lists them under the
+    /// three-letter form: <c>yue</c> (Cantonese) and <c>haw</c> (Hawaiian). The
+    /// odd one out is <c>fil</c> → <c>tl</c>: Filipino has no 639-1 code of its
+    /// own, but the picker shows it as Tagalog, so it has to fold. The backend
+    /// unfolds it — <c>resolveElevenLabsLanguage</c> in hyperwhisper-cloud sends
+    /// ElevenLabs <c>fil</c> back, since Scribe does not list <c>tl</c>.
+    ///
+    /// Codes with neither a 639-1 form nor a picker row (<c>ceb</c>, <c>kea</c>,
     /// <c>nso</c>, <c>nya</c>, <c>ful</c>, <c>luo</c>, <c>lug</c>, <c>xho</c>,
-    /// <c>zul</c>, <c>ibo</c>, <c>kur</c>, <c>wol</c>, <c>ast</c>, <c>haw</c>…) are
+    /// <c>zul</c>, <c>ibo</c>, <c>kur</c>, <c>wol</c>, <c>ast</c>…) are
     /// intentionally omitted → they normalize to null and are dropped.
     /// </summary>
     private static readonly Dictionary<string, string> Iso6392ToIso6391 = new(StringComparer.OrdinalIgnoreCase)
@@ -254,7 +264,7 @@ public sealed class CloudSttCatalog
         ["bel"] = "be", ["ben"] = "bn", ["bos"] = "bs", ["bul"] = "bg", ["cat"] = "ca",
         ["ces"] = "cs", ["cmn"] = "zh", ["cym"] = "cy", ["dan"] = "da", ["deu"] = "de",
         ["ell"] = "el", ["eng"] = "en", ["est"] = "et", ["fas"] = "fa", ["fil"] = "tl", ["fin"] = "fi",
-        ["fra"] = "fr", ["glg"] = "gl", ["guj"] = "gu", ["hau"] = "ha", ["heb"] = "he",
+        ["fra"] = "fr", ["glg"] = "gl", ["guj"] = "gu", ["hau"] = "ha", ["haw"] = "haw", ["heb"] = "he",
         ["hin"] = "hi", ["hrv"] = "hr", ["hun"] = "hu", ["hye"] = "hy", ["ind"] = "id",
         ["isl"] = "is", ["ita"] = "it", ["jav"] = "jw", ["jpn"] = "ja", ["kan"] = "kn",
         ["kat"] = "ka", ["kaz"] = "kk", ["khm"] = "km", ["kor"] = "ko", ["lao"] = "lo",

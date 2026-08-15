@@ -245,7 +245,7 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
+      "supportedLanguages": ["af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw", "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi", "yo", "yue", "zh"]
     },
 
     {

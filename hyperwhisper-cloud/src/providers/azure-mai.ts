@@ -13,6 +13,7 @@
 
 import { AZURE_MAI_MAX_BYTES } from '../lib/constants';
 import { computeAzureMaiTranscriptionCost } from '../lib/cost-calculator';
+import { resolveAzureMaiLocale } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -41,13 +42,12 @@ function parsePhraseList(initialPrompt: string): string[] {
     .slice(0, MAX_PHRASES);
 }
 
-function normalizeLocale(language: string): string {
-  // MAI-Transcribe 1.5 wants two-letter language codes (`en`, `ja`, `fr`).
-  // The wider Fast-Transcription API accepts BCP-47 (`en-US`) but the MAI
-  // doc explicitly uses 2-letter; strip the region subtag so we match docs
-  // and stay forward-compatible if Azure tightens validation.
-  return language.toLowerCase().split('-')[0];
-}
+// Locale normalization lives in `lib/language-codes.ts`. Stripping the region
+// was never the whole job: the picker offers Norwegian as `no`, and Azure's
+// operational table lists only `nb`. `resolveAzureMaiLocale` applies that alias
+// and checks the result against the 42 codes Azure documents, so an unlisted
+// language omits `definition.locales` instead of pinning Azure to a locale it
+// does not have.
 
 // MAI-Transcribe 1.5 is available in 4 Azure regions: eastus, westus,
 // northeurope, southeastasia. We provision 3 (skip westus — eastus covers
@@ -116,7 +116,13 @@ export async function transcribeWithAzureMai(
 
   const url = `https://${azureRegion}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15`;
 
-  const isMonolingual = isExplicitLanguage(language);
+  const resolvedLocale = isExplicitLanguage(language) ? resolveAzureMaiLocale(language) : null;
+  if (isExplicitLanguage(language) && !resolvedLocale) {
+    logProviderEvent(provider, 'language_unmappable', {
+      requested: language,
+      fallback: 'auto',
+    }, context);
+  }
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
   const definition: Record<string, unknown> = {
@@ -125,8 +131,8 @@ export async function transcribeWithAzureMai(
       model: 'mai-transcribe-1.5',
     },
   };
-  if (isMonolingual) {
-    definition.locales = [normalizeLocale(language!)];
+  if (resolvedLocale) {
+    definition.locales = [resolvedLocale];
   }
   if (phrases.length > 0) {
     definition.phraseList = { phrases };

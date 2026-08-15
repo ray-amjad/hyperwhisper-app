@@ -2,11 +2,12 @@
 // High accuracy STT - $0.00983/min using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
+import { resolveElevenLabsLanguage } from '../lib/language-codes';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   audioExtensionFromContentType,
-  explicitLanguageSubtag,
+  isExplicitLanguage,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -62,10 +63,14 @@ export async function transcribeWithElevenLabs(
   formData.append('tag_audio_events', 'false');
 
   // ElevenLabs Scribe `language_code` expects a bare ISO-639-1/639-3 code, not a
-  // hyphenated BCP-47 locale — strip the region to the primary subtag ("en-US" →
-  // "en") like the sibling adapters so a region-tagged code isn't rejected.
-  const langCode = explicitLanguageSubtag(language);
-  if (langCode !== undefined) {
+  // hyphenated BCP-47 locale — the resolver strips the region ("en-US" → "en")
+  // like the sibling adapters so a region-tagged code isn't rejected.
+  //
+  // It also fixes the handful of codes where stripping alone lands on something
+  // Scribe does not list: the picker's Tagalog `tl` has to become `fil`, and
+  // Mandarin `zh` has to become `cmn`.
+  const langCode = isExplicitLanguage(language) ? resolveElevenLabsLanguage(language) : null;
+  if (langCode) {
     formData.append('language_code', langCode);
   }
 

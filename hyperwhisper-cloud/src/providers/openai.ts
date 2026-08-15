@@ -7,6 +7,7 @@
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
 import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
+import { openaiLanguageField } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
@@ -58,12 +59,17 @@ export async function transcribeWithOpenAI(
   // returns a duration we can bill on).
   formData.append('response_format', isWhisper ? 'verbose_json' : 'json');
 
-  // OpenAI's `language` hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
+  // OpenAI's language hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
   // region-qualified BCP-47 tag — strip any region/script subtag so a
   // client-supplied "en-US"/"pt-BR" isn't rejected for this self-only provider.
+  //
+  // The FIELD NAME is per-model. `gpt-transcribe` and `gpt-live-transcribe` read
+  // a plural `languages`; the singular `language` that whisper-1 and the
+  // gpt-4o-* models use is accepted and then ignored there, so the hint was
+  // silently doing nothing on the two newest models.
   const langCode = explicitLanguageSubtag(language);
   if (langCode !== undefined) {
-    formData.append('language', langCode);
+    formData.append(openaiLanguageField(model), langCode);
   }
   if (initialPrompt) {
     formData.append('prompt', initialPrompt);

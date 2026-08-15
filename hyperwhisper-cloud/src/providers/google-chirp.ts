@@ -24,6 +24,7 @@ import {
   type TranscriptionAudioRef,
 } from '../lib/gcs-storage';
 import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google-auth';
+import { resolveGoogleChirpLocale } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { estimateAudioSeconds, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview } from './utils';
@@ -153,9 +154,25 @@ export async function transcribeWithGoogleChirp(
   const syncUrl = `https://${region}-speech.googleapis.com/v2/projects/${projectId}/locations/${region}/recognizers/_:recognize`;
   const batchUrl = `https://${region}-speech.googleapis.com/v2/projects/${projectId}/locations/${region}/recognizers/_:batchRecognize`;
 
-  // Don't lowercase — Speech V2 expects canonical BCP-47 codes (e.g. en-US),
-  // and forcing lower-case breaks the region subtag matching.
-  const isMonolingual = isExplicitLanguage(language);
+  // Speech V2 expects a canonical BCP-47 LOCALE (`en-US`), not a bare primary
+  // subtag — which is exactly what the desktop pickers send. Passing `language`
+  // through untouched therefore 400'd on 73 of the 75 codes the picker offers
+  // (everything except `auto` and `sw`), and because the client treats a server
+  // error as retryable, a permanent rejection was retried four times before it
+  // surfaced. The user saw a ~27-second hang rather than an error.
+  //
+  // `resolveGoogleChirpLocale` expands the subtag and returns null when nothing
+  // maps, so an unknown code degrades to auto-detect instead of a request we
+  // already know Google will refuse.
+  const resolvedLocale = isExplicitLanguage(language) ? resolveGoogleChirpLocale(language) : null;
+  if (isExplicitLanguage(language) && !resolvedLocale) {
+    // The picker offered a language Chirp cannot do — the client language list
+    // and the shared catalog have drifted apart.
+    logProviderEvent(provider, 'language_unmappable', {
+      requested: language,
+      fallback: 'auto',
+    }, context);
+  }
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
   const config: Record<string, unknown> = {
@@ -163,9 +180,9 @@ export async function transcribeWithGoogleChirp(
     // Per Chirp 3 docs: `languageCodes: ["auto"]` is the documented sentinel
     // for unrestricted automatic language detection. Other forms (empty array,
     // omitted field, "und", null) are rejected by V2. Monolingual requests
-    // pass the single BCP-47 code instead.
+    // pass the single BCP-47 locale instead.
     // Ref: cloud.google.com/speech-to-text/v2/docs/chirp_3-model
-    languageCodes: isMonolingual ? [language!] : ['auto'],
+    languageCodes: resolvedLocale ? [resolvedLocale] : ['auto'],
     model: 'chirp_3',
   };
   // Speech V2 model adaptation (phrase biasing) is supported only by the
@@ -195,6 +212,9 @@ export async function transcribeWithGoogleChirp(
       audioBytes: audio.byteLength,
       contentType,
       language: language || 'auto',
+      // What actually went out, after locale expansion. `auto` means either the
+      // user picked Automatic or the code had no Chirp locale.
+      languageCodeSent: resolvedLocale ?? 'auto',
       phraseCount: phrases.length,
       region,
       delivery,

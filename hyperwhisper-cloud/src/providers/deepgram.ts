@@ -4,6 +4,7 @@
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
+import { resolveDeepgramLanguage } from '../lib/language-codes';
 import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError } from './utils';
 
 // Maximum keywords Deepgram accepts
@@ -47,10 +48,15 @@ function buildDeepgramUrl(model: string, language?: string, vocabularyTerms: str
     mip_opt_out: 'true',
   });
 
-  const isMonolingual = isExplicitLanguage(language);
+  // Language support is per-MODEL here, not per-provider: the medical models are
+  // English-only, and nova-2 predates the nova-3 language expansion. The picker
+  // scopes its language list by TIER, so switching to a medical model leaves
+  // every language selectable. Resolve against the model and fall back to
+  // detection rather than pinning the request to a language it cannot serve.
+  const resolved = isExplicitLanguage(language) ? resolveDeepgramLanguage(model, language) : null;
 
-  if (isMonolingual) {
-    params.set('language', language.toLowerCase());
+  if (resolved) {
+    params.set('language', resolved);
   } else {
     params.set('detect_language', 'true');
   }
@@ -91,11 +97,24 @@ export async function transcribeWithDeepgram(
   const url = buildDeepgramUrl(model, language, keyterms);
   const provider = 'deepgram';
 
+  // Recomputed for the log only — buildDeepgramUrl already applied it.
+  const languageSent = isExplicitLanguage(language) ? resolveDeepgramLanguage(model, language) : null;
+  if (isExplicitLanguage(language) && !languageSent) {
+    // This model cannot do the language the picker offered, which means the
+    // client's per-model language scoping has drifted from the upstream.
+    logProviderEvent(provider, 'language_unsupported_for_model', {
+      model,
+      requested: language,
+      fallback: 'detect_language',
+    }, context);
+  }
+
   logProviderEvent(provider, 'prepare', {
     model,
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
+    languageSent: languageSent ?? 'detect',
     keytermCount: keyterms.length,
   }, context);
 
