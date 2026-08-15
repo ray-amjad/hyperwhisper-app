@@ -15,10 +15,8 @@ export const downloadEmailRateLimiter = new Ratelimit({
 /**
  * Rate limiter for the public license validate/activate endpoints.
  *
- * These endpoints are unauthenticated and, on a database miss, fall back to a
- * live Polar API call (importLicenseFromPolar). Without a limiter, one cheap
- * unauthenticated POST maps 1:1 to one outbound Polar request, letting any
- * caller flood random keys to burn Polar quota / amplify load. The limit is
+ * These endpoints are unauthenticated, so any caller can flood random keys
+ * and drive database lookups. The limit is
  * generous enough for legitimate clients (the macOS app re-validates
  * periodically and many users may share a NAT IP) while bounding abuse.
  *

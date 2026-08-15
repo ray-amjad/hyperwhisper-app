@@ -8,10 +8,6 @@ import { z } from "zod";
 export const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
 
-  // Polar (kept for portal access to past invoices)
-  POLAR_ORGANIZATION_ID: z.string(),
-  POLAR_ACCESS_TOKEN: z.string(),
-
   // Stripe
   STRIPE_SECRET_KEY: z.string().startsWith("sk_"),
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
@@ -71,10 +67,6 @@ export const serverSchema = z.object({
 export const serverEnv = {
   NODE_ENV: process.env.NODE_ENV,
 
-  // Polar (kept for portal access to past invoices)
-  POLAR_ORGANIZATION_ID: process.env.POLAR_ORGANIZATION_ID,
-  POLAR_ACCESS_TOKEN: process.env.POLAR_ACCESS_TOKEN,
-
   // Stripe
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
@@ -120,10 +112,6 @@ export const serverEnv = {
 export const clientSchema = z.object({
   NEXT_PUBLIC_ENVIRONMENT: z.enum(["development", "test", "production"]).optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_BILLING_PORTAL_URL: z
-    .string()
-    .url()
-    .default("https://polar.sh/hyperwhisper/portal"),
   NEXT_PUBLIC_CLOUDFLARE_WORKER_URL: z.string().url(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
@@ -138,7 +126,6 @@ export const clientSchema = z.object({
 export const clientEnv = {
   NEXT_PUBLIC_ENVIRONMENT: process.env.NEXT_PUBLIC_ENVIRONMENT,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_BILLING_PORTAL_URL: process.env.NEXT_PUBLIC_BILLING_PORTAL_URL,
   NEXT_PUBLIC_CLOUDFLARE_WORKER_URL: process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,

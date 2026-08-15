@@ -28,8 +28,6 @@ export interface AccountKeyInsert {
   email: string;
   userId: string;
   status?: string;
-  polarLicenseKeyId?: string | null;
-  polarCustomerId?: string | null;
   stripeCustomerId?: string | null;
   stripeSessionId?: string | null;
 }
@@ -107,36 +105,20 @@ function drizzleAccountKeyToRow(row: typeof accountKeys.$inferSelect): AccountKe
 // ---------------------------------------------------------------------------
 
 export async function insertAccountKey(data: AccountKeyInsert): Promise<AccountKeyRow | null> {
-  const polarLicenseKeyId = data.polarLicenseKeyId ?? null;
-  const insert = db
+  const [row] = await db
     .insert(accountKeys)
     .values({
       key: data.key,
       email: data.email,
       userId: data.userId,
       status: data.status ?? "granted",
-      polarLicenseKeyId,
-      polarCustomerId: data.polarCustomerId ?? null,
       stripeCustomerId: data.stripeCustomerId ?? null,
       stripeSessionId: data.stripeSessionId ?? null,
-    });
-
-  // When importing a Polar license, the unique index on polar_license_key_id
-  // (idx_license_keys_polar_license_key_id) is the authoritative dedupe guard:
-  // if a concurrent import already inserted a row for this Polar key, skip the
-  // insert and return the existing row instead of failing or creating a
-  // duplicate. The read-then-write check in importLicenseFromPolar handles the
-  // common case; this makes the rare race deterministic.
-  const [row] = polarLicenseKeyId
-    ? await insert
-        .onConflictDoNothing({ target: accountKeys.polarLicenseKeyId })
-        .returning()
-    : await insert.returning();
+    })
+    .returning();
 
   if (!row) {
-    return polarLicenseKeyId
-      ? await findAccountByPolarLicenseKeyId(polarLicenseKeyId)
-      : null;
+    return null;
   }
   return drizzleAccountKeyToRow(row);
 }
@@ -170,15 +152,6 @@ export async function findAccountById(id: string): Promise<AccountKeyRow | null>
 export async function findAccountByStripeSession(sessionId: string): Promise<AccountKeyRow | null> {
   const row = await db.query.accountKeys.findFirst({
     where: eq(accountKeys.stripeSessionId, sessionId),
-  });
-  return row ? drizzleAccountKeyToRow(row) : null;
-}
-
-export async function findAccountByPolarLicenseKeyId(
-  polarLicenseKeyId: string
-): Promise<AccountKeyRow | null> {
-  const row = await db.query.accountKeys.findFirst({
-    where: eq(accountKeys.polarLicenseKeyId, polarLicenseKeyId),
   });
   return row ? drizzleAccountKeyToRow(row) : null;
 }
@@ -1017,7 +990,7 @@ export async function logSentEmail(data: {
 
 export async function getOrCreateUser(
   email: string,
-  metadata?: { name?: string; stripeCustomerId?: string; polarCustomerId?: string }
+  metadata?: { name?: string; stripeCustomerId?: string }
 ): Promise<UserResult | null> {
   // Check if user exists
   const existing = await db.query.user.findFirst({
@@ -1026,7 +999,7 @@ export async function getOrCreateUser(
   if (existing) return { id: existing.id, email: existing.email };
 
   // Create via Better Auth's user table.
-  // emailVerified stays false: this address comes from a Stripe/Polar checkout
+  // emailVerified stays false: this address comes from a Stripe checkout
   // or an admin/import grant, so the mailbox owner has never proven control of
   // it. The magic-link plugin flips emailVerified to true on the first
   // successful sign-in, which is the only point where ownership is verified.

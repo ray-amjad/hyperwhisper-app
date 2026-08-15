@@ -16,7 +16,7 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * BACKWARDS COMPATIBILITY:
  * - Old macOS app versions still call this endpoint and treat the
  *   response as the authoritative "is this license valid?" check
- * - Performs a REAL license check (DB lookup + Polar fallback) so
+ * - Performs a REAL license check (DB lookup + status check) so
  *   invalid keys fail closed instead of open
  * - Returns a dummy activation_id on success - old apps expect it,
  *   but it is never used (deactivate is a stub)
@@ -34,9 +34,8 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * src/lib/license-validation-probe.ts.
  */
 export async function POST(req: NextRequest) {
-  // Rate limit by IP before any DB lookup or Polar fallback. Like /validate,
-  // this endpoint runs a live outbound Polar request on every unknown key, so
-  // it shares the same amplification limiter.
+  // Rate limit by IP before any DB lookup. Like /validate, this endpoint is
+  // unauthenticated, so it shares the same limiter.
   const clientIP = getClientIPFromHeaders(req.headers);
   const { success } = await licenseValidateRateLimiter.limit(clientIP);
 
