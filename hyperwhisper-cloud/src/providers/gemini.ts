@@ -7,6 +7,7 @@
 
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
+import { describeLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError } from './utils';
@@ -51,7 +52,11 @@ function thinkingConfig(model: string): Record<string, unknown> {
 function buildPrompt(language?: string, initialPrompt?: string): string {
   let prompt = 'Transcribe the speech in this audio verbatim. Output only the transcript text with no commentary, labels, timestamps, or preamble.';
   if (isExplicitLanguage(language)) {
-    prompt += ` The audio is in language code "${language.toLowerCase()}"; transcribe it in that language.`;
+    // Gemini gets the language as prose, not as a request parameter, so a bare
+    // two-letter code is a poor instruction: `no` is also the English word
+    // "no", `is` is "is", `as` is "as", `so` is "so". Name the language and
+    // keep the code beside it as a tiebreaker.
+    prompt += ` The audio is in ${describeLanguage(language)}; transcribe it in that language.`;
   }
   if (initialPrompt) {
     // Match the other adapters' splitter: strip leading `- `/`* ` bullet markers

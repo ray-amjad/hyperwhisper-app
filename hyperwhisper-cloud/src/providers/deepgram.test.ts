@@ -62,10 +62,22 @@ describe('transcribeWithDeepgram — URL/param building', () => {
     expect(cap2.params().get('model')).toBe('nova-3-medical');
   });
 
-  test('an explicit language is lowercased onto the language param; detect_language is omitted', async () => {
+  test('a region Deepgram does not list is dropped to the base code; detect_language is omitted', async () => {
+    // Deepgram lists `fr` and `fr-CA`, never `fr-FR`. Forwarding the region
+    // verbatim is the class of bug this resolver exists to stop, so `FR-fr`
+    // resolves to the base code rather than a locale the upstream would refuse.
     const cap = mockFetchOnce(() => jsonResponse({ results: {} }));
     await transcribeWithDeepgram(AUDIO, 'audio/wav', 'FR-fr');
-    expect(cap.params().get('language')).toBe('fr-fr');
+    expect(cap.params().get('language')).toBe('fr');
+    expect(cap.params().get('detect_language')).toBeNull();
+  });
+
+  test('a region Deepgram DOES list is preserved rather than flattened', async () => {
+    // The other half of the same rule: dropping `en-GB` to `en` would quietly
+    // move British dictation onto the US spelling model.
+    const cap = mockFetchOnce(() => jsonResponse({ results: {} }));
+    await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-GB');
+    expect(cap.params().get('language')).toBe('en-gb');
     expect(cap.params().get('detect_language')).toBeNull();
   });
 

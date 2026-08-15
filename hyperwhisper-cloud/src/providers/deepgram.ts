@@ -4,7 +4,8 @@
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError } from './utils';
+import { resolveProviderLanguage } from '../lib/language-codes';
+import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -36,9 +37,24 @@ function deepgramModelParam(model: string): string {
 }
 
 /**
- * Build Deepgram API URL with query parameters
+ * Build Deepgram API URL with query parameters.
+ *
+ * `language` is ALREADY RESOLVED — `null` means "this request runs on
+ * auto-detect". Deciding the fallback here was the wrong home for it: the
+ * caller then had to re-run the resolver just to learn what this function had
+ * decided, and the two call sites had to agree forever for the telemetry to be
+ * honest. This function now only formats.
+ *
+ * On the deliberate keyterm behaviour when `language` is null: Nova-3 honours
+ * `keyterm` (and Nova-2 `keywords`) only in monolingual mode and silently drops
+ * it under `detect_language` — see references/custom-vocab.md. The terms are
+ * still appended anyway, because omitting them can only lose boosting if that
+ * documented behaviour is ever narrower than stated, while sending them costs
+ * nothing but URL bytes. What must NOT happen is the loss being invisible: the
+ * `language_unmappable` event carries `vocabularyTermsAtRisk` so a request that
+ * quietly forfeited the user's custom vocabulary is countable.
  */
-function buildDeepgramUrl(model: string, language?: string, vocabularyTerms: string[] = []): string {
+function buildDeepgramUrl(model: string, language: string | null, vocabularyTerms: string[] = []): string {
   const dgModel = deepgramModelParam(model);
   const params = new URLSearchParams({
     model: dgModel,
@@ -47,10 +63,8 @@ function buildDeepgramUrl(model: string, language?: string, vocabularyTerms: str
     mip_opt_out: 'true',
   });
 
-  const isMonolingual = isExplicitLanguage(language);
-
-  if (isMonolingual) {
-    params.set('language', language.toLowerCase());
+  if (language) {
+    params.set('language', language);
   } else {
     params.set('detect_language', 'true');
   }
@@ -88,14 +102,25 @@ export async function transcribeWithDeepgram(
 
   const keyterms = initialPrompt ? convertToKeyterms(initialPrompt) : [];
   const model = context.model || 'nova-3-general';
-  const url = buildDeepgramUrl(model, language, keyterms);
   const provider = 'deepgram';
+
+  // Language support is per-MODEL here, not per-provider: the medical models are
+  // English-only, and nova-2 predates the nova-3 language expansion while also
+  // keeping two languages (`th`, `zh`) nova-3 dropped. The picker scopes its
+  // language list by TIER, so switching models leaves every language selectable.
+  // One call: resolves, logs the fallback if there is one, and returns what to
+  // send.
+  const languageSent = resolveProviderLanguage({
+    provider, model, language, context, vocabularyTermCount: keyterms.length,
+  });
+  const url = buildDeepgramUrl(model, languageSent, keyterms);
 
   logProviderEvent(provider, 'prepare', {
     model,
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
+    languageSent: languageSent ?? 'detect',
     keytermCount: keyterms.length,
   }, context);
 

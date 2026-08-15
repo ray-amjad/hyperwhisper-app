@@ -2,11 +2,11 @@
 // High accuracy STT - $0.00983/min using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
+import { resolveProviderLanguage } from '../lib/language-codes';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   audioExtensionFromContentType,
-  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -62,10 +62,19 @@ export async function transcribeWithElevenLabs(
   formData.append('tag_audio_events', 'false');
 
   // ElevenLabs Scribe `language_code` expects a bare ISO-639-1/639-3 code, not a
-  // hyphenated BCP-47 locale — strip the region to the primary subtag ("en-US" →
-  // "en") like the sibling adapters so a region-tagged code isn't rejected.
-  const langCode = explicitLanguageSubtag(language);
-  if (langCode !== undefined) {
+  // hyphenated BCP-47 locale — the resolver strips the region ("en-US" → "en")
+  // like the sibling adapters so a region-tagged code isn't rejected.
+  //
+  // It also fixes the handful of codes where stripping alone lands on something
+  // Scribe does not list (the picker's Tagalog `tl` has to become `fil`,
+  // Mandarin `zh` has to become `cmn`) and — the part that matters most —
+  // returns null for a language Scribe simply does not have. Forwarding one of
+  // those was a 4xx, which `providerHttpError` turns into `ProviderInputError`,
+  // which walks FALLBACK_CHAINS.elevenlabs down to deepgram/groq: the user is
+  // moved off the provider they picked, silently. Auto-detect on the chosen
+  // provider is the better answer, and now it is a logged one.
+  const langCode = resolveProviderLanguage({ provider, model: modelId, language, context });
+  if (langCode) {
     formData.append('language_code', langCode);
   }
 
@@ -84,6 +93,9 @@ export async function transcribeWithElevenLabs(
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
+    // What actually went out. `auto` means either the user picked Automatic or
+    // Scribe has no code for the language.
+    languageCodeSent: langCode ?? 'auto',
     keytermCount: keyterms.length,
   }, context);
 
