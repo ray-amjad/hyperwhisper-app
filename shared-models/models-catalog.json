@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-08-07",
+  "lastUpdated": "2026-08-15",
   "models": [
     {
       "provider": "appleSpeech",
@@ -412,7 +412,25 @@
       "platforms": ["macos", "windows"],
       "notes": "Launched 2026-07-08. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
     },
+    {
+      "provider": "grok",
+      "id": "grok-4.6",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Released 2026-08-12; 500k context. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts."
+    },
 
+    {
+      "provider": "gemini",
+      "id": "gemini-3.7-flash",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Released 2026-08-13. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
+    },
     {
       "provider": "gemini",
       "id": "gemini-3.6-flash",
@@ -433,6 +451,16 @@
     },
 
     {
+      "provider": "openai",
+      "id": "gpt-5.6-luna",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "OpenAI's named replacement for gpt-4.1-nano, which retires 2026-10-23. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` openai entries in this catalog; disambiguated by `kind`."
+    },
+
+    {
       "provider": "mistral",
       "id": "mistral-small-latest",
       "kind": "text",
@@ -448,7 +476,7 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "notes": "Released 2026-04-29. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts (unlike mistral-small-latest / open-mistral-nemo above, which are cloud-routed)."
+      "notes": "Released 2026-04-29. BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts (unlike mistral-small-latest above, which is cloud-routed)."
     },
 
     {
@@ -456,9 +484,9 @@
       "id": "open-mistral-nemo",
       "kind": "text",
       "supportsCustomVocabulary": false,
-      "availableViaHyperWhisperCloud": true,
+      "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "notes": "Live via HyperWhisper Cloud (hyperwhisper-cloud hyperwhisper-fly#48 deployed 2026-06-19)."
+      "notes": "Retired: weights retired by Mistral 2026-07-31; removed from both app pickers and the hyperwhisper-cloud allowlist 2026-08-15. Saved modes redirect to mistral-small-latest."
     },
 
     {

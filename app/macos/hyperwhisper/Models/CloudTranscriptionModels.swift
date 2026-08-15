@@ -485,7 +485,7 @@ struct CloudTranscriptionModels {
             description: "Mistral's state-of-the-art transcription model. Faster and more accurate than Whisper large-v3.",
             provider: .mistral,
             isPopular: true,
-            pricePerSecond: 0.002 / 60.0  // $0.002 per minute
+            pricePerSecond: 0.003 / 60.0  // $0.003 per minute
         ),
 
         // Soniox Models

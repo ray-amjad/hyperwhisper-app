@@ -175,9 +175,11 @@ describe('provider endpoint and auth', () => {
     expect(calls[1].url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
     expect(lastBody().model).toBe('gemini-2.5-flash-lite');
 
-    await requestMistralChat(PAYLOAD, 'req-1', 'open-mistral-nemo');
+    // Mistral is down to a single allowlisted model, so the handed model and the
+    // provider default coincide — the client still must send what it was handed.
+    await requestMistralChat(PAYLOAD, 'req-1', 'mistral-small-latest');
     expect(calls[2].url).toBe('https://api.mistral.ai/v1/chat/completions');
-    expect(lastBody().model).toBe('open-mistral-nemo');
+    expect(lastBody().model).toBe('mistral-small-latest');
   });
 
   test('accepts the secondary env var name for the two providers that have one', async () => {
