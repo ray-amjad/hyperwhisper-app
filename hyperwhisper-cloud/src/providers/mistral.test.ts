@@ -108,6 +108,25 @@ describe('transcribeWithMistral — context_bias encoding', () => {
     expect(captured.form?.getAll('context_bias')).toEqual(['Drizzle', 'HyperWhisper', 'Voxtral']);
   });
 
+  // Voxtral 400s the whole request when ANY item holds whitespace, so a single
+  // multi-word vocabulary term used to fail the transcription outright.
+  test('joins a multi-word phrase with underscores instead of leaving the space', async () => {
+    const captured = captureRequest(okBody);
+
+    await transcribeWithMistral(audio(), 'audio/wav', undefined, 'Claude Code,Drizzle,Fly.io');
+    expect(captured.form?.getAll('context_bias')).toEqual(['Claude_Code', 'Drizzle', 'Fly.io']);
+  });
+
+  test('leaves no whitespace of any kind inside a phrase', async () => {
+    const captured = captureRequest(okBody);
+
+    await transcribeWithMistral(audio(), 'audio/wav', undefined, '-  New\tYork  City , a b');
+    expect(captured.form?.getAll('context_bias')).toEqual(['New_York_City', 'a_b']);
+    for (const term of captured.form?.getAll('context_bias') ?? []) {
+      expect(String(term)).not.toMatch(/[\s,]/);
+    }
+  });
+
   test('drops phrases longer than 80 characters and keeps the rest', async () => {
     const captured = captureRequest(okBody);
     const tooLong = 'x'.repeat(81);
