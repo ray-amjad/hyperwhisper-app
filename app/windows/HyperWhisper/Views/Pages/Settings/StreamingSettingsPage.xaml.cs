@@ -5,6 +5,7 @@ using System.Windows.Input;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Streaming;
 using HyperWhisper.Views.Windows;
 
 namespace HyperWhisper.Views.Pages.Settings;
