@@ -27,7 +27,6 @@
     "@heroui/navbar": "2.2.30",
     "@heroui/system": "^2.4.28",
     "@heroui/theme": "^2.4.26",
-    "@polar-sh/sdk": "^0.34.12",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.101.4",
     "@trpc/client": "^11.18.0",

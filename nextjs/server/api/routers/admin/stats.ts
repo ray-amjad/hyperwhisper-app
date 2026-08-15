@@ -1,20 +1,18 @@
 /**
  * Admin Stats Router
  *
- * Dashboard statistics from Stripe and Polar.
+ * Dashboard statistics from Stripe.
  * All procedures require admin authentication.
  *
  * PROCEDURES:
- * - get: Returns customer counts from Stripe and Polar
+ * - get: Returns customer counts from Stripe
  *
  * INTEGRATIONS:
  * - Stripe: Customer count
- * - Polar: Customer count
  */
 import { TRPCError } from "@trpc/server";
 
 import { createTRPCRouter, adminProcedure } from "../../trpc";
-import { polarClient, POLAR_ORGANIZATION_ID } from "@/lib/clients/polar";
 import { stripe } from "@/lib/clients/stripe";
 
 export const statsRouter = createTRPCRouter({
@@ -23,9 +21,8 @@ export const statsRouter = createTRPCRouter({
    *
    * FETCHES:
    * 1. Stripe customer count (paginated, up to 100)
-   * 2. Polar customer count (paginated)
    *
-   * @returns { totalCustomers, totalCreditsUsed, polarCustomers, stripeCustomers }
+   * @returns { totalCustomers, totalCreditsUsed, stripeCustomers }
    */
   get: adminProcedure.query(async () => {
     try {
@@ -38,34 +35,14 @@ export const statsRouter = createTRPCRouter({
         // Stripe not configured
       }
 
-      // Fetch Polar customers count
-      let polarCustomers = 0;
-      try {
-        const polarResult = await polarClient.customers.list({
-          organizationId: POLAR_ORGANIZATION_ID,
-          limit: 100,
-        });
-
-        for await (const page of polarResult) {
-          if (page && "items" in page) {
-            polarCustomers += (page as { items: unknown[] }).items.length;
-          } else if (page && "id" in page) {
-            polarCustomers++;
-          }
-        }
-      } catch {
-        // Polar not configured
-      }
-
       // Calculate total credits used
       // Note: Stripe's listEventSummaries requires a customer parameter,
       // so we'd need to sum across all customers. For now, return 0.
       const totalCreditsUsed = 0;
 
       return {
-        totalCustomers: stripeCustomers + polarCustomers,
+        totalCustomers: stripeCustomers,
         totalCreditsUsed,
-        polarCustomers,
         stripeCustomers,
       };
     } catch (error) {

@@ -13,7 +13,8 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * License Validation API
  *
  * Validates license keys against the database.
- * Supports both Polar-issued and Stripe-issued licenses.
+ * The database holds both Stripe-issued licenses and imported legacy
+ * (Polar-era) licenses; it is the single source of truth.
  *
  * DEVICE TRACKING:
  * When device_id is provided, tracks the device validation in the
@@ -30,12 +31,8 @@ import { getClientIPFromHeaders } from "@/server/api/routers/download-ip";
  * CHECKS:
  * 1. License key exists in database
  * 2. Status is "granted" (not revoked/disabled)
- *
- * POLAR FALLBACK:
- * If license not found in database, validates against Polar API.
- * If valid via Polar, imports the license to the database with 5000 credits.
- * (Lookup + fallback + status check live in src/lib/license-validation.ts,
- * shared with the legacy /activate endpoint.)
+ * (Lookup + status check live in src/lib/license-validation.ts, shared with
+ * the legacy /activate endpoint.)
  *
  * INVALID REPLIES CARRY A `reason` (LicenseInvalidReason):
  * EVERY `{ valid: false }` body from this route — including the 429 rate-limit
@@ -72,9 +69,8 @@ async function trackDeviceValidation(
 }
 
 export async function POST(req: NextRequest) {
-  // Rate limit by IP before any DB lookup or Polar fallback. The fallback
-  // issues a live outbound Polar request on every unknown key, so this caps
-  // the amplification an unauthenticated caller can drive.
+  // Rate limit by IP before any DB lookup, capping what an unauthenticated
+  // caller can drive.
   const clientIP = getClientIPFromHeaders(req.headers);
   const { success } = await licenseValidateRateLimiter.limit(clientIP);
 
@@ -128,7 +124,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ valid: true });
     }
 
-    // Lookup in database, with Polar fallback + status check
+    // Lookup in database + status check
     const result = await checkLicenseKey(license_key);
 
     if (!result.valid) {

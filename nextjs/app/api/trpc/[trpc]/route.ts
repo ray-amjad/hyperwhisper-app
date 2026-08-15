@@ -46,7 +46,7 @@ const handler = (req: NextRequest) =>
     router: appRouter,
     createContext: () => createContext(req),
     // Log server-side errors so production failures (DB outages, unexpected
-    // exceptions, Stripe/Polar errors inside mutations) are visible to
+    // exceptions, Stripe errors inside mutations) are visible to
     // operators and surfaced to observability sinks.
     //
     // Expected client/auth errors (invalid input, rate limits, unauthenticated
