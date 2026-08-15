@@ -293,13 +293,13 @@ public static class CloudTranscriptionModels
     // =========================================================================
     // MISTRAL MODELS
     // Mistral Voxtral for audio transcription.
-    // NOTE: Does NOT support custom vocabulary.
+    // NOTE: Vocabulary is sent as a `context_bias` list (max 100 terms).
     // =========================================================================
 
     /// <summary>
     /// Mistral transcription models.
     /// - voxtral-mini-latest: Latest Voxtral Mini model
-    /// NOTE: Custom vocabulary is NOT supported.
+    /// NOTE: Custom vocabulary is sent as `context_bias`.
     /// </summary>
     public static readonly CloudTranscriptionModel[] Mistral = new[]
     {
@@ -307,7 +307,7 @@ public static class CloudTranscriptionModels
         {
             Id = "voxtral-mini-latest",
             DisplayName = "Voxtral Mini",
-            Description = "Audio transcription (no vocabulary support)",
+            Description = "Audio transcription with context-bias vocabulary",
             Provider = CloudTranscriptionProvider.Mistral,
             IsPopular = true
         }
