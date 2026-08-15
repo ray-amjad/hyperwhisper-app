@@ -1546,6 +1546,93 @@ internal static class Program
                 }
             });
 
+            // HYPERWHISPER-SP / HYPERWHISPER-FM parity: LicenseNetworkService.LicenseVerdictReason
+            // decides whether a non-200 license-validate reply is an ordinary verdict (log only) or
+            // a genuine backend incident (capture to Sentry). The backend answers 400 with the SAME
+            // {"valid":false,"error":"..."} shape for a lapsed license, a nonexistent key, AND a real
+            // infrastructure fault, so the shape alone cannot decide this - only the server's own
+            // `reason` field can. Mirrors macOS LicenseNetworkVerdictReportingTests.swift exactly.
+            Run("LicenseVerdictReason recognizes reason=not_entitled at 400 as an ordinary verdict", () =>
+            {
+                var body = System.Text.Encoding.UTF8.GetBytes(
+                    """{"valid":false,"error":"License is revoked","reason":"not_entitled"}""");
+                var reason = LicenseNetworkService.LicenseVerdictReason(400, body);
+                Assert(reason == LicenseNetworkService.NotEntitledReason,
+                    $"expected '{LicenseNetworkService.NotEntitledReason}', got '{reason ?? "<null>"}'");
+            });
+
+            Run("LicenseVerdictReason: reason alone (no other fields) is enough at 400", () =>
+            {
+                var body = System.Text.Encoding.UTF8.GetBytes("""{"reason":"not_entitled"}""");
+                var reason = LicenseNetworkService.LicenseVerdictReason(400, body);
+                Assert(reason == LicenseNetworkService.NotEntitledReason, $"got '{reason ?? "<null>"}'");
+            });
+
+            Run("LicenseVerdictReason: lookup_failed and bad_request are NOT an ordinary verdict", () =>
+            {
+                var lookupFailed = System.Text.Encoding.UTF8.GetBytes(
+                    """{"valid":false,"error":"Failed to validate with Polar","reason":"lookup_failed"}""");
+                var badRequest = System.Text.Encoding.UTF8.GetBytes(
+                    """{"valid":false,"error":"License key is required","reason":"bad_request"}""");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, lookupFailed) == "lookup_failed",
+                    "expected 'lookup_failed' returned verbatim");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, badRequest) == "bad_request",
+                    "expected 'bad_request' returned verbatim");
+            });
+
+            Run("LicenseVerdictReason: an unrecognised reason is returned verbatim but is not a verdict", () =>
+            {
+                var body = System.Text.Encoding.UTF8.GetBytes(
+                    """{"valid":false,"error":"...","reason":"quota_exceeded"}""");
+                var reason = LicenseNetworkService.LicenseVerdictReason(400, body);
+                Assert(reason == "quota_exceeded", $"got '{reason ?? "<null>"}'");
+                Assert(reason != LicenseNetworkService.NotEntitledReason,
+                    "an unrecognised reason must never equal the not-entitled constant");
+            });
+
+            Run("LicenseVerdictReason: a body with no reason field is not a verdict (must still be captured)", () =>
+            {
+                var noReason = System.Text.Encoding.UTF8.GetBytes(
+                    """{"valid":false,"error":"License is revoked"}""");
+                var validTrue = System.Text.Encoding.UTF8.GetBytes("""{"valid":true}""");
+                var emptyObject = System.Text.Encoding.UTF8.GetBytes("{}");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, noReason) == null,
+                    "expected null for a 400 body with no reason field");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, validTrue) == null,
+                    "expected null for valid:true with no reason field");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, emptyObject) == null,
+                    "expected null for an empty JSON object");
+            });
+
+            Run("LicenseVerdictReason: an empty body or an HTML captive-portal page is not a verdict", () =>
+            {
+                var html = System.Text.Encoding.UTF8.GetBytes(
+                    "<!DOCTYPE html><html><body><h1>Sign in to continue</h1></body></html>");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, System.Array.Empty<byte>()) == null,
+                    "expected null for an empty body");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, html) == null,
+                    "expected null for an undecodable HTML body");
+            });
+
+            Run("LicenseVerdictReason: non-object JSON and a non-string reason are not a verdict", () =>
+            {
+                var array = System.Text.Encoding.UTF8.GetBytes("[]");
+                var nonStringReason = System.Text.Encoding.UTF8.GetBytes("""{"valid":false,"reason":7}""");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, array) == null, "expected null for a JSON array");
+                Assert(LicenseNetworkService.LicenseVerdictReason(400, nonStringReason) == null,
+                    "expected null for a non-string reason value");
+            });
+
+            Run("LicenseVerdictReason: only status 400 is eligible - same body at 500 is not a verdict", () =>
+            {
+                var verdictBody = System.Text.Encoding.UTF8.GetBytes(
+                    """{"valid":false,"error":"License is revoked","reason":"not_entitled"}""");
+                Assert(LicenseNetworkService.LicenseVerdictReason(500, verdictBody) == null,
+                    "expected null - a 5xx never reaches this predicate as a terminal result, and even if it did, only 400 is the documented verdict status");
+                Assert(LicenseNetworkService.LicenseVerdictReason(401, verdictBody) == null, "expected null at 401");
+                Assert(LicenseNetworkService.LicenseVerdictReason(200, verdictBody) == null, "expected null at 200");
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");

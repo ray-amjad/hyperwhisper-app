@@ -295,6 +295,18 @@ struct LanguageProcessingSettingsView: View {
 
         guard !options.contains(where: { $0.id == current }) else { return }
 
+        // DEPRECATION MAP RESOLUTION:
+        // Consult the documented retirement map (PostProcessingModels.resolvedModelId)
+        // before falling back to list order. This is the same map the transcription
+        // path uses (AIPostProcessor.swift), so a stored retired id lands on its
+        // intended replacement here too, instead of on whatever option happens to be
+        // first in the picker.
+        let resolved = PostProcessingModels.resolvedModelId(current, provider: currentProvider)
+        if resolved != current, options.contains(where: { $0.id == resolved }) {
+            languageModel = resolved
+            return
+        }
+
         // CASE-INSENSITIVE RESOLUTION:
         // Handles stored ids that differ only in casing from the current catalog (e.g.
         // legacy Gemma 4 12B uppercase → current lowercase). Rewrites the stored id to

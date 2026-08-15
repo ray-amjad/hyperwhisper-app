@@ -21,9 +21,19 @@
 // - 24-hour validation cache; 7-day offline grace period.
 // - license.customerId / cachedStatus / lastValidation in kvstore.json.
 // - Raw license key in Windows Credential Manager (unchanged 1:1).
+//
+// ERROR REPORTING (HYPERWHISPER-SP / HYPERWHISPER-FM parity with macOS):
+// - A non-200 that is a genuine backend incident (unexpected status, an
+//   unrecognised/absent verdict reason, or an undecodable body) is captured to
+//   Sentry. An ordinary "this license isn't entitled" reply (400 + a `reason`
+//   of "not_entitled" - lapsed, revoked, or a mistyped/non-existent key) is
+//   only logged - see LicenseVerdictReason.
 
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using HyperWhisper.Models;
@@ -159,6 +169,45 @@ public sealed class LicenseNetworkService : IDisposable
                 // TODO-verify (Windows/CI): Rust shared-core swap.
                 var httpOutcome = HyperwhisperCoreMethods.LicenseHttpErrorOutcome(
                     (ushort)code, responseBytes);
+
+                // The server's own classification of this rejection, or nil if it
+                // stated none. Decoded once and used for BOTH the verdict decision
+                // and the Sentry tag below, so the two can never disagree about
+                // what the server said. Mirrors macOS LicenseNetworkService.swift
+                // (HYPERWHISPER-SP / HYPERWHISPER-FM).
+                var verdictReason = LicenseVerdictReason(code, responseBytes);
+
+                if (verdictReason == NotEntitledReason)
+                {
+                    // An ordinary "this license isn't entitled" reply (lapsed,
+                    // revoked, or a mistyped/non-existent key) — log it, never
+                    // report it. Never log the license key itself.
+                    LoggingService.Warn(
+                        $"LicenseNetworkService: Validation rejected by server - status={code}, reason={verdictReason}, message={httpOutcome.errorMessage ?? "no message"}");
+                }
+                else
+                {
+                    // Everything else is an unexpected non-200: a different
+                    // status, an unrecognised/absent reason, or an undecodable
+                    // body. That is a genuine backend incident, not an ordinary
+                    // verdict — report it. `license_reason` as a TAG (not just an
+                    // extra) so lookup_failed / bad_request / unstated stay
+                    // separable in triage.
+                    SentryService.CaptureDiagnosticEvent(
+                        "License validation server error",
+                        extras: new Dictionary<string, object>
+                        {
+                            ["endpoint"] = request.url,
+                            ["status"] = code,
+                            ["license_reason"] = verdictReason ?? UnstatedReason
+                        },
+                        tags: new Dictionary<string, string>
+                        {
+                            ["component"] = "license",
+                            ["license_reason"] = verdictReason ?? UnstatedReason
+                        });
+                }
+
                 HyperwhisperCoreMethods.LicensePersistValidationVerdict(
                     store, httpOutcome.status, trimmedKey, RustLicenseCore.Now());
                 return RustLicenseCore.ToResult(httpOutcome);
@@ -220,6 +269,83 @@ public sealed class LicenseNetworkService : IDisposable
         }
         return RustLicenseCore.ToResult(
             HyperwhisperCoreMethods.LicenseOfflineFallbackOutcome(store, RustLicenseCore.Now()));
+    }
+
+    // =========================================================================
+    // VERDICT CLASSIFICATION (HYPERWHISPER-SP / HYPERWHISPER-FM parity)
+    // =========================================================================
+
+    /// <summary>
+    /// The one `reason` value that means "ordinary verdict - log it, don't
+    /// report it". Named rather than spelled out at each use so the predicate,
+    /// the call site's branch, and its log line cannot drift apart.
+    /// internal (not private): test seam for HyperWhisper.SmokeTests via
+    /// InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    /// change is intended.
+    /// </summary>
+    internal const string NotEntitledReason = "not_entitled";
+
+    /// <summary>
+    /// Stand-in used in Sentry tags/extras when the server stated no usable
+    /// reason, so "the backend didn't classify this" is searchable instead of
+    /// being an absent tag.
+    /// </summary>
+    private const string UnstatedReason = "unstated";
+
+    /// <summary>
+    /// The one field of the backend's invalid-license reply this classifier reads.
+    /// Everything else in that body (valid/error/status) is the core's job -
+    /// this is decoded independently, native-side, purely to read `reason`.
+    /// </summary>
+    private sealed class LicenseVerdictBody
+    {
+        [JsonPropertyName("reason")]
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// The backend's machine-readable classification of a non-200 invalid-license
+    /// reply - "not_entitled", "lookup_failed", "bad_request", or whatever else
+    /// it may add later - returned verbatim. Null when the status is not 400,
+    /// the body does not decode, or it states no non-empty reason.
+    ///
+    /// Mirrors macOS <c>LicenseNetworkService.licenseVerdictReason(statusCode:body:)</c>
+    /// exactly: the response SHAPE cannot decide this, because the backend
+    /// answers 400 with the same <c>{"valid":false,"error":"..."}</c> for an
+    /// ordinary lapsed license, for a key that doesn't exist, AND for genuine
+    /// infrastructure faults - only the server knows which branch it took, so
+    /// it says so via `reason`. See <c>nextjs/src/lib/license-validation-probe.ts</c>
+    /// (`LicenseInvalidReason`) for the backend side.
+    ///
+    /// Callers treat exactly one value - <see cref="NotEntitledReason"/> - as an
+    /// ordinary verdict to log rather than capture. A different status, an HTML
+    /// captive-portal page, an empty body, a missing/blank reason, or an
+    /// unrecognised reason all fall through to "report it" - nil-means-report is
+    /// the safe default, and it is accurate: one backend serves every client, so
+    /// `reason` is present on every invalid reply from the moment it deploys.
+    /// </summary>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static string? LicenseVerdictReason(int statusCode, byte[] body)
+    {
+        if (statusCode != 400)
+        {
+            return null;
+        }
+
+        LicenseVerdictBody? decoded;
+        try
+        {
+            decoded = JsonSerializer.Deserialize<LicenseVerdictBody>(body);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        var reason = decoded?.Reason;
+        return string.IsNullOrEmpty(reason) ? null : reason;
     }
 
     /// <summary>
