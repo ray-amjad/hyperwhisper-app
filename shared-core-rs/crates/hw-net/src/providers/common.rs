@@ -37,6 +37,12 @@ pub enum VocabularyMode {
 /// documented `timestamp_granularities[]`), one field per element.
 pub const KEYWORDS_FIELD: &str = "keywords[]";
 
+/// Cap on the structured keyword list. Mirrors `MAX_KEYWORDS` in
+/// `hyperwhisper-cloud/src/providers/openai.ts` so BYOK and the routed path
+/// send the same number of hints; without it the BYOK path was unbounded while
+/// the cloud path capped, and a 250-entry vocabulary POSTed 250 parts.
+pub const MAX_KEYWORDS: usize = 100;
+
 /// Declarative description of an OpenAI-style multipart transcription provider.
 pub struct OpenAiStyleSpec {
     pub endpoint: &'static str,
@@ -114,23 +120,22 @@ pub fn build_openai_style(
     // carries only the caller's own instructions. Every other model keeps the
     // historical framed-prompt behavior.
     if spec.vocabulary == VocabularyMode::Prompt {
-        if spec.keywords_models.contains(&model.as_str()) {
-            for term in keyword_boost_terms(&params.vocabulary, None) {
+        let sends_keywords = spec.keywords_models.contains(&model.as_str());
+        if sends_keywords {
+            for term in keyword_boost_terms(&params.vocabulary, Some(MAX_KEYWORDS)) {
                 parts.push(multipart_field(KEYWORDS_FIELD, term));
             }
-            if let Some(custom) = params
-                .prompt
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-            {
-                parts.push(multipart_field("prompt", custom));
-            }
+        }
+        // On a keywords model `prompt` carries ONLY the caller's own
+        // instructions — the vocabulary went out as a structured list, so the
+        // framing preamble would be describing terms that are not there.
+        let prompt = if sends_keywords {
+            custom_prompt(params).unwrap_or_default().to_string()
         } else {
-            let prompt = build_prompt(params);
-            if !prompt.is_empty() {
-                parts.push(multipart_field("prompt", prompt));
-            }
+            build_prompt(params)
+        };
+        if !prompt.is_empty() {
+            parts.push(multipart_field("prompt", prompt));
         }
     }
 
@@ -151,6 +156,17 @@ pub fn build_openai_style(
     })
 }
 
+/// The caller's own instructions, trimmed, or `None` when there are none.
+/// Both `prompt` shapes (framed-vocabulary and keywords-only) end with these,
+/// so the normalization lives in one place.
+fn custom_prompt(params: &TranscribeParams) -> Option<&str> {
+    params
+        .prompt
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
 /// Compose the `prompt` field value: vocabulary terms framed as
 /// `"Important terms to recognize: a, b, c. "` (comma-**space** join, trailing
 /// `". "`), then the caller's custom instructions (`params.prompt`).
@@ -168,11 +184,7 @@ fn build_prompt(params: &TranscribeParams) -> String {
     } else {
         format!("Important terms to recognize: {}. ", terms.join(", "))
     };
-    let custom = params
-        .prompt
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty());
+    let custom = custom_prompt(params);
     match (framed_vocab.is_empty(), custom) {
         (true, None) => String::new(),
         (true, Some(c)) => c.to_string(),

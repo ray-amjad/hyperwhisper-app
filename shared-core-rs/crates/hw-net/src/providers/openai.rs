@@ -272,7 +272,22 @@ mod tests {
                     field(parts, "prompt").unwrap().starts_with("Important terms"),
                     "model={model}"
                 );
+            } else {
+                panic!("expected multipart body");
             }
+        }
+    }
+
+    #[test]
+    fn keywords_are_capped_at_100() {
+        let mut p = params();
+        p.model = "gpt-transcribe".to_string();
+        p.vocabulary = (0..250).map(|i| format!("term{i}")).collect();
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "keywords[]").len(), 100);
+        } else {
+            panic!("expected multipart body");
         }
     }
 

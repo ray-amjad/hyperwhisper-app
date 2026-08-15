@@ -148,6 +148,25 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
     expect(sent.filter((k) => k.toLowerCase() === 'kept').length).toBe(1);
   });
 
+  test('drops a keyword longer than 80 characters instead of sending it whole', async () => {
+    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+    const longSentence = 'a'.repeat(81);
+
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, `${longSentence}, Kept`, {
+      model: 'gpt-transcribe',
+    });
+    expect(captured.form?.getAll('keywords[]')).toEqual(['Kept']);
+  });
+
+  test('collapses whitespace runs inside a keyword', async () => {
+    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, 'Hyper   Whisper', {
+      model: 'gpt-transcribe',
+    });
+    expect(captured.form?.getAll('keywords[]')).toEqual(['Hyper Whisper']);
+  });
+
   test('keeps the prompt path for whisper-1 and the gpt-4o models', async () => {
     for (const model of ['whisper-1', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe']) {
       const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });

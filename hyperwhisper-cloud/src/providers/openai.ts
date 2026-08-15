@@ -29,6 +29,11 @@ const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
 // `timestamp_granularities[]`.
 const KEYWORDS_FIELD = 'keywords[]';
 const MAX_KEYWORDS = 100;
+// Per-term ceiling, matching MAX_VOCABULARY_TERM_CHARS in the Rust core's
+// `sanitize_vocabulary_word` — the canonical sanitizer the BYOK half of this
+// feature routes through. Without it a pasted 400-character sentence went
+// upstream as one "keyword", and every sibling adapter here caps term length.
+const MAX_KEYWORD_CHARS = 80;
 
 /** Split a comma/newline vocabulary prompt into `keywords[]` values. */
 function toKeywords(initialPrompt: string): string[] {
@@ -36,8 +41,15 @@ function toKeywords(initialPrompt: string): string[] {
   const keywords: string[] = [];
   for (const raw of initialPrompt.split(/[,\n;]+/)) {
     // OpenAI documents that a keyword must be one line with no `<`, `>`, CR or LF.
-    const keyword = raw.trim().replace(/^[-*]\s*/, '').replace(/[<>\r\n]/g, '');
-    if (keyword.length === 0) continue;
+    // Collapsing whitespace runs matches the canonical sanitizer and keeps a
+    // multi-line paste from becoming one unusable hint.
+    const keyword = raw
+      .trim()
+      .replace(/^[-*]\s*/, '')
+      .replace(/[<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (keyword.length === 0 || keyword.length > MAX_KEYWORD_CHARS) continue;
     const key = keyword.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
