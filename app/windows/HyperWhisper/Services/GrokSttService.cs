@@ -8,8 +8,10 @@
 // - language: supported formatting code (e.g., "en") — only sent when caller
 //   provides a Grok-supported language selection
 // - format: "true" — only sent alongside a supported `language`
+// - keyterm: repeated once per vocabulary term (max 100 terms, 50 chars each)
 //
-// NOTE: No `model` parameter (single implicit model) and no prompt/vocabulary parameter.
+// NOTE: No `model` parameter (single implicit model) and no free-text `prompt`
+// parameter — vocabulary goes through `keyterm` instead.
 //
 // RESPONSE FORMAT: { "text": "transcribed text", "language": "...", "duration": ..., "words": [...] }
 //
@@ -131,13 +133,13 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
 
         if (vocabulary?.Count > 0)
         {
-            LoggingService.Info($"  Grok STT does not support custom vocabulary — {vocabulary.Count} term(s) will be ignored");
+            LoggingService.Info($"  Vocabulary sent as keyterm fields (max 100 terms, 50 chars each)");
         }
 
         // Build the request via the Rust shared core, then drive it through the
         // shared executor + core retry loop. The core owns the language gating
-        // (`language` + `format=true`) and the multipart assembly; Grok has no
-        // model and no vocabulary, so pass an empty term list.
+        // (`language` + `format=true`), the keyterm cap and the multipart
+        // assembly; Grok has no model, so only the vocabulary is passed on.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
 
@@ -145,7 +147,7 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
-            vocabulary: Array.Empty<string>(),
+            vocabulary: vocabulary ?? Array.Empty<string>(),
             apiKey: _apiKey);
 
         var requestTimeout = GetRequestTimeout(fileInfo.Length);

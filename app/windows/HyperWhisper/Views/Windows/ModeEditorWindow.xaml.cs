@@ -2330,10 +2330,9 @@ public partial class ModeEditorWindow : Window
             var cloudModel = (CloudModelCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
             var cloudAccuracyTier = SelectedCloudTierId();
 
-            // Standalone Grok BYOK: keyterm not plumbed through backend.
             // HW Cloud accuracy tiers: catalog flags whether the chosen tier +
-            // model supports custom vocabulary (Grok SST and Chirp 3 do not;
-            // ElevenLabs scribe_v1 doesn't while scribe_v2 does). Prefer the
+            // model supports custom vocabulary (Chirp 3 does not; ElevenLabs
+            // scribe_v1 doesn't while scribe_v2 does). Prefer the
             // per-model flag so the warning matches the send-path gate. If the
             // tier string is null/empty (initial render, catalog load failure)
             // suppress the warning rather than guess.
@@ -2348,7 +2347,7 @@ public partial class ModeEditorWindow : Window
                 && (hwModelKnown
                     ? !hwCatalog.ModelSupportsCustomVocabulary(cloudAccuracyTier, hwCloudModelId)
                     : !hwCatalog.SupportsCustomVocabulary(cloudAccuracyTier));
-            if (cloudProvider == "grok" || cloudTierUnsupported)
+            if (cloudTierUnsupported)
             {
                 showWarning = true;
             }

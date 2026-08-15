@@ -14,6 +14,9 @@ import {
 } from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
+// xAI keyterm limits: max 100 terms, each up to 50 characters.
+const MAX_KEYTERMS = 100;
+const MAX_KEYTERM_CHARS = 50;
 const SUPPORTED_FORMATTING_LANGUAGES = new Set([
   'ar',
   'cs',
@@ -55,6 +58,30 @@ function normalizedFormattingLanguage(language?: string): string | undefined {
   return SUPPORTED_FORMATTING_LANGUAGES.has(normalized) ? normalized : undefined;
 }
 
+/** Split a comma/newline vocabulary prompt into xAI `keyterm` values. */
+function toKeyterms(initialPrompt: string): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const raw of initialPrompt.split(/[,\n;]+/)) {
+    // Strip angle brackets and collapse whitespace runs, matching the canonical
+    // `sanitize_vocabulary_word` the BYOK path routes through — an imported
+    // backup can carry either.
+    const term = raw
+      .trim()
+      .replace(/^[-*]\s*/, '')
+      .replace(/[<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (term.length === 0 || term.length > MAX_KEYTERM_CHARS) continue;
+    const key = term.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    terms.push(term);
+    if (terms.length === MAX_KEYTERMS) break;
+  }
+  return terms;
+}
+
 export async function transcribeWithXaiGrok(
   audio: ArrayBuffer,
   contentType: string,
@@ -78,6 +105,14 @@ export async function transcribeWithXaiGrok(
     formData.append('language', formattingLanguage);
   }
 
+  // keyterm is a REPEATED field — one append per term, not a joined string.
+  // Ref: docs.x.ai speech-to-text ("Repeat the parameter for multiple terms.
+  // Max 100 terms, each up to 50 characters.")
+  const keyterms = initialPrompt ? toKeyterms(initialPrompt) : [];
+  for (const term of keyterms) {
+    formData.append('keyterm', term);
+  }
+
   // xAI requires the file part after all other multipart fields.
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
 
@@ -86,7 +121,7 @@ export async function transcribeWithXaiGrok(
     contentType,
     language: language || 'auto',
     formattingLanguage: formattingLanguage || 'none',
-    ignoresInitialPrompt: Boolean(initialPrompt),
+    keytermCount: keyterms.length,
   }, context);
 
   const response = await fetchWithTimeout(provider, XAI_STT_URL, {

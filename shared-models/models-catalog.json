@@ -345,7 +345,7 @@
       "provider": "grok",
       "id": "",
       "kind": "voice",
-      "supportsCustomVocabulary": false,
+      "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "platforms": ["windows"],
       "supportsAllLanguages": true,

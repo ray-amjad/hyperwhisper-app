@@ -246,7 +246,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         }
 
         // Resolve the accuracy tier early so we can gate the send path on the
-        // catalog's `customVocabulary.supported` flag (Chirp 3 / Grok modes
+        // catalog's `customVocabulary.supported` flag (Chirp 3 modes
         // currently get `initial_prompt` silently dropped server-side).
         let accuracyTier = CloudAccuracyTier.fromStorageValue(mode?.cloudAccuracyTier)
         // X-STT-Model: the selected model within the provider/tier. Empty →

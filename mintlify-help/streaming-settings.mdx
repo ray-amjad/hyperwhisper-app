@@ -47,7 +47,7 @@ The **Engine** section is visible only after you turn on streaming. Open this se
 | Deepgram | Yes | Yes (explicit language only) | Yes — Nova 3 |
 | ElevenLabs | Yes | No | No |
 | OpenAI | Yes | No | No |
-| xAI | Yes | No | No |
+| xAI | Yes | Yes | No |
 | Parakeet (On-Device) | No | No | V3 (Multilingual) / V2 (English) |
 | Nemotron 3.5 (On-Device) | No | No | Multilingual / Latin |
 
@@ -56,7 +56,7 @@ The **Engine** section is visible only after you turn on streaming. Open this se
 **Parakeet** and **Nemotron 3.5** run fully on your device. After the model download is complete, they need no network connection. These two providers are available on macOS only. The Windows provider list contains HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, and xAI.
 
 <Note>
-  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud and Deepgram, but only when you set an explicit language. ElevenLabs, OpenAI, and xAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). On Windows, cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. On macOS, cloud streaming providers receive every vocabulary entry as a boosting hint, whether or not it also has a replacement.
+  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud, Deepgram and xAI. For HyperWhisper Cloud and Deepgram you must set an explicit language; xAI accepts the terms with any language, including Automatic. ElevenLabs and OpenAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those two providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). Cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. This is the same rule on both platforms.
 </Note>
 
 ## Deepgram Options
@@ -97,7 +97,7 @@ The **Language** setting tells the provider which language to expect. An explici
 
 <Tabs>
   <Tab title="macOS">
-    The language picker appears in the **Language** section, below the Engine card. The available choices depend on the provider that you select. For cloud providers, the **Automatic** option lets the server detect the language from your audio. When you select **Automatic**, vocabulary boosting is off.
+    The language picker appears in the **Language** section, below the Engine card. The available choices depend on the provider that you select. For cloud providers, the **Automatic** option lets the server detect the language from your audio. When you select **Automatic**, vocabulary boosting is off for HyperWhisper Cloud and Deepgram. It stays on for xAI.
 
     For Parakeet V2, the language is always English, and the picker is off. For Parakeet V3 and the two Nemotron variants, the picker shows only the languages that the model supports.
   </Tab>

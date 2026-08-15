@@ -38,6 +38,18 @@ final class XAIStreamingStrategy: StreamingProviderStrategy {
             logger.info("xAI formatting disabled: \(language, privacy: .public) is not in supported formatting set")
         }
 
+        // VOCABULARY BOOSTING (keyterm):
+        // xAI takes one `keyterm` query item per term — max 100 terms, each up
+        // to 50 characters. Unlike Deepgram, xAI accepts keyterms with or
+        // without an explicit language, so there is no monolingual gate here.
+        let keyterms = Self.keyterms(from: config.vocabulary)
+        for term in keyterms {
+            queryItems.append(URLQueryItem(name: "keyterm", value: term))
+        }
+        if !keyterms.isEmpty {
+            logger.info("xAI vocabulary boosting enabled: \(keyterms.count, privacy: .public) keyterms added")
+        }
+
         components.queryItems = queryItems
         return components.url
     }
@@ -126,10 +138,29 @@ final class XAIStreamingStrategy: StreamingProviderStrategy {
 
     var transcriptionProviderLabel: String { "xAI (Streaming)" }
 
-    var supportsVocabulary: Bool { false }
+    var supportsVocabulary: Bool { true }
 }
 
 private extension XAIStreamingStrategy {
+    /// xAI keyterm caps: 100 terms, 50 characters each. Mirrors `grok::keyterms`
+    /// in the Rust core, which applies the same two limits on the batch path.
+    static let maxKeyterms = 100
+    static let maxKeytermChars = 50
+
+    static func keyterms(from vocabulary: String?) -> [String] {
+        guard let vocabulary, !vocabulary.isEmpty else { return [] }
+        var seen = Set<String>()
+        var terms: [String] = []
+        for raw in vocabulary.split(separator: ",") {
+            let term = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !term.isEmpty, term.count <= maxKeytermChars else { continue }
+            guard seen.insert(term.lowercased()).inserted else { continue }
+            terms.append(term)
+            if terms.count == maxKeyterms { break }
+        }
+        return terms
+    }
+
     static let supportedFormattingLanguages: Set<String> = [
         "ar", "cs", "da", "de", "en", "es", "fa", "fil", "fr", "hi",
         "id", "it", "ja", "ko", "mk", "ms", "nl", "pl", "pt", "ro",

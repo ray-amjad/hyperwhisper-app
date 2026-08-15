@@ -19,7 +19,7 @@
 //  | HyperWhisper    | No      | Yes        | No              | No              |
 //  | Deepgram        | Yes     | Yes*       | Yes (Nova 3)    | Yes             |
 //  | ElevenLabs      | Yes     | No         | No              | No              |
-//  | xAI             | Yes     | No         | No              | No              |
+//  | xAI             | Yes     | Yes        | No              | No              |
 //
 //  *Deepgram vocabulary only works with explicit language (not auto-detect)
 
@@ -118,6 +118,10 @@ struct StreamingView: View {
 
     /// Whether auto-detect language currently disables vocabulary boosting.
     /// Shown directly under the language row for better context.
+    ///
+    /// xAI stays excluded for a different reason from ElevenLabs/OpenAI: it does
+    /// send keyterms, and it accepts them with or without an explicit language,
+    /// so auto-detect costs it nothing. Only Deepgram's monolingual gate does.
     private var shouldShowVocabAutoDetectWarning: Bool {
         settingsManager.streamingLanguage == "auto"
             && hasVocabularyItems
@@ -362,7 +366,7 @@ struct StreamingView: View {
     /// - HyperWhisper Cloud: Default, no API key needed, routes through Fly.io backend
     /// - Deepgram: Direct WebSocket, requires API key, supports model selection
     /// - ElevenLabs: Direct WebSocket, requires API key, no vocabulary support
-    /// - xAI: Direct WebSocket, requires Grok/xAI API key, no vocabulary support
+    /// - xAI: Direct WebSocket, requires Grok/xAI API key, vocabulary via keyterm
     private var providerSection: some View {
         HStack(spacing: 12) {
             Image(systemName: "cloud")
@@ -482,7 +486,9 @@ struct StreamingView: View {
     @ViewBuilder
     private var warningsSection: some View {
         // WARNING: Some realtime APIs have no vocabulary boosting capability.
-        if (selectedProvider == .elevenLabs || selectedProvider == .openAI || selectedProvider == .xai) && hasVocabularyItems {
+        // xAI is NOT in this list — its WebSocket takes repeated `keyterm` query
+        // items (see XAIStreamingStrategy).
+        if (selectedProvider == .elevenLabs || selectedProvider == .openAI) && hasVocabularyItems {
             warningRow(
                 message: String(format: "streaming.warning.vocabUnsupported".localized, selectedProvider.displayName)
             )
