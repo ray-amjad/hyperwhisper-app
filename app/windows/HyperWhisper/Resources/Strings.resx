@@ -1372,7 +1372,7 @@ Do you want to restart now?</value>
     <value>Google Chirp 3</value>
   </data>
   <data name="modes.cloudAccuracy.googleChirp3.description" xml:space="preserve">
-    <value>Google Chirp 3 - 100+ languages (no custom vocabulary)</value>
+    <value>Google Chirp 3 - 100+ languages, custom vocabulary as a phrase list</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>

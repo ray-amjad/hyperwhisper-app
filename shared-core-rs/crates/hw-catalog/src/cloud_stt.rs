@@ -551,10 +551,10 @@ mod tests {
     // --- Golden: unverified tri-state (googleChirp3) ------------------------
 
     #[test]
-    fn google_chirp_vocab_is_false_languages_present() {
+    fn google_chirp_vocab_is_true_languages_present() {
         let c = catalog();
-        // googleChirp3 customVocabulary.supported == false.
-        assert!(!c.supports_custom_vocabulary("googleChirp3"));
+        // googleChirp3 customVocabulary.supported == true (inline phrase set).
+        assert!(c.supports_custom_vocabulary("googleChirp3"));
         // languages.codes IS a real array (count 111).
         let codes = c.language_codes("googleChirp3").expect("codes present");
         assert!(codes.contains(&"en-US".to_string()));

@@ -21,7 +21,7 @@ public enum CloudAccuracyTier
     /// <summary>Microsoft MAI-Transcribe 1.5 — High tier (HW Cloud only)</summary>
     AzureMaiTranscribe,
 
-    /// <summary>Google Chirp 3 — High tier (HW Cloud only, no custom vocabulary)</summary>
+    /// <summary>Google Chirp 3 — High tier (HW Cloud only; vocabulary sent as a phrase list)</summary>
     GoogleChirp3,
 
     /// <summary>ElevenLabs Scribe v2 — Highest tier</summary>

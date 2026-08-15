@@ -470,8 +470,7 @@ struct ModeEditorView: View {
         // ElevenLabs Scribe v1 doesn't support custom vocabulary (v2 supports keyterms)
         let isElevenLabsV1 = provider == .cloud && currentCloudProvider == .elevenLabs && cloudTranscriptionModel == "scribe_v1"
         // Cloud accuracy tiers under HyperWhisper Cloud where the shared
-        // catalog flags vocabulary as unsupported (e.g. Google Chirp 3 —
-        // Speech V2 adaptation 404s on chirp_3).
+        // catalog flags vocabulary as unsupported for the selected model.
         let isUnsupportedCloudTier: Bool = {
             guard provider == .cloud, currentCloudProvider == .hyperwhisper else { return false }
             // Model-aware: follows the SELECTED model's catalog vocab flag.
