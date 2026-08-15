@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Local API & MCP Server",
-      "description": "Built-in MCP server lets Claude, Cursor, and other AI agents drive HyperWhisper. Local-only HTTP API with bearer auth for scripts and automations."
+      "description": "Built-in MCP server lets Claude, Cursor, and other AI agents drive HyperWhisper. Local-only HTTP API for scripts and automations."
     },
     "openSource": {
       "title": "Open Source",
@@ -160,15 +160,15 @@
     "questions": {
       "accuracy": {
         "question": "How accurate is the transcription?",
-        "answer": "We achieve industry-leading 99% accuracy using state-of-the-art AI models. You can boost accuracy even further by adding your own custom vocabulary for technical terms, names, and specialized jargon."
+        "answer": "It depends on the combination of model and language you use. Some models are excellent in English but weaker in other languages, and the cloud models are generally more accurate than the local offline ones. You can boost accuracy on any model by adding your own custom vocabulary for technical terms, names, and specialized jargon."
       },
       "offline": {
         "question": "Can I use it without internet?",
-        "answer": "Absolutely. HyperWhisper can be used entirely offline on your Mac using local AI models - no internet required. For users who want maximum accuracy and speed, we also offer optional cloud processing via various cloud providers."
+        "answer": "Absolutely. HyperWhisper can be used entirely offline on your Mac or Windows PC using local AI models - no internet required. For users who want maximum accuracy and speed, we also offer optional cloud processing via various cloud providers."
       },
       "apiKey": {
         "question": "Do I need to pay for API access?",
-        "answer": "You bring your own API key for the following providers: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, and Google Gemini. Some providers offer free credits to new users; Deepgram offers $200, AssemblyAI offers $50. This works out significantly cheaper in the long-run than any subscription. \n\nYou can also use HyperWhisper Cloud (built-in) which requires no API key and is pay-as-you-go.\n\nBut remember, the local offline mode works without any API key and is completely free."
+        "answer": "You bring your own API key for the following providers: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, and Google Gemini. Some providers offer free credits to new users; Deepgram offers $200, AssemblyAI offers $50. This works out significantly cheaper in the long-run than any subscription. \n\nYou can also use HyperWhisper Cloud (built-in) which requires no API key and is pay-as-you-go.\n\nBut remember, the local offline mode works without any API key and is completely free."
       },
       "languages": {
         "question": "What languages does it support?",
@@ -184,7 +184,7 @@
       },
       "privacy": {
         "question": "How is my privacy protected?",
-        "answer": "When using local mode, no data ever leaves your Mac.\n\nWhen using cloud transcription, your data is sent to the cloud provider you choose (e.g., OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, or Google Gemini).\n\nYou can verify this yourself with a network inspector such as [Proxyman](https://proxyman.io) or a network monitor like [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html).\n\nFor a full breakdown of where audio goes and how to opt your own API keys out of model training, see our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy)."
+        "answer": "When using local mode, no data ever leaves your Mac or Windows PC.\n\nWhen using cloud transcription, your data is sent to the cloud provider you choose (e.g., OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, or Google Gemini).\n\nYou can verify this yourself with a network inspector such as [Proxyman](https://proxyman.io) or a network monitor like [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), or by reading the [source code on GitHub](https://github.com/ray-amjad/hyperwhisper-app).\n\nFor a full breakdown of where audio goes and how to opt your own API keys out of model training, see our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy)."
       },
       "cloud": {
         "question": "What is HyperWhisper Cloud?",
@@ -217,10 +217,6 @@
       "requirements": {
         "question": "What are the system requirements?",
         "answer": "For Mac: macOS 14 or newer, both Apple Silicon and Intel supported. For Windows: Windows 10/11, x64 or ARM64. 8GB RAM recommended for optimal performance."
-      },
-      "windowsStatus": {
-        "question": "Does the Windows version have all the same features as macOS?",
-        "answer": "The Windows version was recently released, so it may not have all features available on macOS yet. We're actively working to bring full feature parity to both platforms."
       },
       "madeBy": {
         "question": "Who was this made by?",

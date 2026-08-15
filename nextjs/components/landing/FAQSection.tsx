@@ -62,7 +62,6 @@ export default function FAQSection() {
     "lifetime",
     "refund",
     "requirements",
-    "windowsStatus",
     "languages",
     "apiKey",
     "cloud",

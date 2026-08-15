@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Lokal API og MCP-server",
-      "description": "Den innebygde MCP-serveren lar Claude, Cursor og andre AI-agenter styre HyperWhisper. Lokal HTTP-API med bearer-autentisering for skript og automatiseringer."
+      "description": "Den innebygde MCP-serveren lar Claude, Cursor og andre AI-agenter styre HyperWhisper. Lokal HTTP-API for skript og automatiseringer."
     },
     "modes": {
       "title": "Moduser for enhver situasjon",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Hvor nøyaktig er transkriberingen?",
-        "answer": "Vi oppnår bransjeledende 99% nøyaktighet med toppmoderne AI-modeller. Du kan øke nøyaktigheten ytterligere ved å legge til eget tilpasset ordforråd for tekniske termer, navn og spesialisert sjargong."
+        "answer": "Det avhenger av kombinasjonen av modell og språk du bruker. Noen modeller er utmerkede på engelsk, men svakere på andre språk, og skymodellene er generelt mer nøyaktige enn de lokale. Du kan øke nøyaktigheten på enhver modell ved å legge til eget tilpasset ordforråd for tekniske termer, navn og spesialisert sjargong."
       },
       "offline": {
         "question": "Kan jeg bruke det uten internett?",
-        "answer": "Absolutt. HyperWhisper kan brukes helt offline på Mac-en din med lokale AI-modeller - ingen internettforbindelse kreves. For brukere som ønsker maksimal nøyaktighet og hastighet, tilbyr vi også valgfri skyprosessering via ulike skyleverandører."
+        "answer": "Absolutt. HyperWhisper kan brukes helt offline på Mac-en eller Windows-PC-en din med lokale AI-modeller - ingen internettforbindelse kreves. For brukere som ønsker maksimal nøyaktighet og hastighet, tilbyr vi også valgfri skyprosessering via ulike skyleverandører."
       },
       "apiKey": {
         "question": "Må jeg betale for API-tilgang?",
-        "answer": "Du bruker din egen API-nøkkel for følgende leverandører: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral og Google Gemini. Noen leverandører tilbyr gratiskreditter til nye brukere; Deepgram tilbyr $200 og AssemblyAI tilbyr $50. På lang sikt er dette betydelig billigere enn ethvert abonnement. \n\nDu kan også bruke HyperWhisper Cloud (innebygd), som ikke krever API-nøkkel og bruker pay-as-you-go.\n\nHusk: lokal offline-modus fungerer uten API-nøkkel og er helt gratis."
+        "answer": "Du bruker din egen API-nøkkel for følgende leverandører: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox og Google Gemini. Noen leverandører tilbyr gratiskreditter til nye brukere; Deepgram tilbyr $200 og AssemblyAI tilbyr $50. På lang sikt er dette betydelig billigere enn ethvert abonnement. \n\nDu kan også bruke HyperWhisper Cloud (innebygd), som ikke krever API-nøkkel og bruker pay-as-you-go.\n\nHusk: lokal offline-modus fungerer uten API-nøkkel og er helt gratis."
       },
       "languages": {
         "question": "Hvilke språk støttes?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Hvordan beskyttes personvernet mitt?",
-        "answer": "Når du bruker lokal modus, forlater ingen data Mac-en din.\n\nNår du bruker skytranskribering, sendes dataene dine til skyleverandøren du velger (f.eks. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs eller Mistral).\n\nDu kan verifisere dette selv med et nettverksinspeksjonsverktøy som [Proxyman](https://proxyman.io) eller en nettverksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Når du bruker lokal modus, forlater ingen data Mac-en eller Windows-PC-en din.\n\nNår du bruker skytranskribering, sendes dataene dine til skyleverandøren du velger (f.eks. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eller Google Gemini).\n\nDu kan verifisere dette selv med et nettverksinspeksjonsverktøy som [Proxyman](https://proxyman.io), en nettverksmonitor som [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), eller ved å lese [kildekoden på GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Hva er HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Hva er systemkravene?",
         "answer": "For Mac: macOS 14 eller nyere, støtte for både Apple Silicon og Intel. For Windows: Windows 10/11, x64 eller ARM64. 8GB RAM anbefales for optimal ytelse."
-      },
-      "windowsStatus": {
-        "question": "Har Windows-versjonen alle de samme funksjonene som macOS?",
-        "answer": "Windows-versjonen ble nylig lansert, så den har kanskje ikke alle funksjonene som finnes på macOS ennå. Vi jobber aktivt med å oppnå full funksjonsparitet mellom begge plattformer."
       },
       "madeBy": {
         "question": "Hvem laget dette?",
