@@ -111,9 +111,13 @@ public static class StreamingTranscriptionSessionFactory
             return null;
         }
 
+        // Sanitize through the shared core, exactly like the batch path and macOS:
+        // an imported backup can carry angle brackets or whitespace runs, and every
+        // strategy downstream applies its own length cap AFTER this.
         var terms = vocabularyWords
             .Where(term => !string.IsNullOrWhiteSpace(term))
-            .Select(term => term.Trim())
+            .Select(term => Utilities.PromptBuilder.SanitizeVocabularyWord(term))
+            .Where(term => !string.IsNullOrWhiteSpace(term))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
         var vocabulary = string.Join(", ", terms);

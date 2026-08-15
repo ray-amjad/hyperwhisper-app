@@ -288,9 +288,10 @@ public partial class StreamingSettingsPage : Page
             return;
         }
 
-        // Auto-detect drops keyterm boosting on Deepgram Nova-3 only; xAI accepts
-        // keyterms with or without an explicit language.
-        if (provider == StreamingTranscriptionProvider.Deepgram
+        // Auto-detect drops the terms on Deepgram (Nova-3 monolingual gate) and on
+        // HyperWhisper Cloud (BuildWebSocketUri omits Vocabulary without an
+        // explicit language). xAI accepts keyterms either way, so it is exempt.
+        if (provider is StreamingTranscriptionProvider.Deepgram or StreamingTranscriptionProvider.HyperWhisperCloud
             && string.Equals(_settings.StreamingLanguage, "auto", System.StringComparison.OrdinalIgnoreCase))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyAutoDetect");
