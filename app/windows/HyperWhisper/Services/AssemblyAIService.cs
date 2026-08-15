@@ -11,7 +11,7 @@
 //
 // REQUEST FORMAT:
 // - Upload: Binary POST with raw audio
-// - Create: JSON with audio_url, speech_model, language_code, keyterms_prompt
+// - Create: JSON with audio_url, speech_models, language_code, keyterms_prompt
 //
 // RESPONSE FORMAT:
 // - Upload: { "upload_url": "..." }
