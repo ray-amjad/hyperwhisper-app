@@ -148,14 +148,23 @@ describe('transcribeWithOpenAI — multipart request shape', () => {
     expect(sent.filter((k) => k.toLowerCase() === 'kept').length).toBe(1);
   });
 
-  test('drops a keyword longer than 80 characters instead of sending it whole', async () => {
+  test('truncates a keyword longer than 80 characters, like the canonical sanitizer', async () => {
     const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
-    const longSentence = 'a'.repeat(81);
+    const longSentence = 'a'.repeat(90);
 
     await transcribeWithOpenAI(audio(), 'audio/wav', undefined, `${longSentence}, Kept`, {
       model: 'gpt-transcribe',
     });
-    expect(captured.form?.getAll('keywords[]')).toEqual(['Kept']);
+    expect(captured.form?.getAll('keywords[]')).toEqual(['a'.repeat(80), 'Kept']);
+  });
+
+  test('keeps a leading dash or asterisk that is part of the term', async () => {
+    const captured = captureRequest({ text: 'hi', usage: { input_tokens: 1 } });
+
+    await transcribeWithOpenAI(audio(), 'audio/wav', undefined, '-Xmx, *args, - bulleted', {
+      model: 'gpt-transcribe',
+    });
+    expect(captured.form?.getAll('keywords[]')).toEqual(['-Xmx', '*args', 'bulleted']);
   });
 
   test('collapses whitespace runs inside a keyword', async () => {

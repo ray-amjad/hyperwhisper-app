@@ -33,6 +33,7 @@ const MAX_KEYWORDS = 100;
 // `sanitize_vocabulary_word` — the canonical sanitizer the BYOK half of this
 // feature routes through. Without it a pasted 400-character sentence went
 // upstream as one "keyword", and every sibling adapter here caps term length.
+// Like the canonical sanitizer, an over-long term is TRUNCATED, not dropped.
 const MAX_KEYWORD_CHARS = 80;
 
 /** Split a comma/newline vocabulary prompt into `keywords[]` values. */
@@ -45,11 +46,18 @@ function toKeywords(initialPrompt: string): string[] {
     // multi-line paste from becoming one unusable hint.
     const keyword = raw
       .trim()
-      .replace(/^[-*]\s*/, '')
+      // Strip a list bullet ONLY when a space follows it. Without that space a
+      // leading "-" or "*" is part of the term — "-Xmx", "*args" — and stripping
+      // it silently biases the model toward a different token than the user
+      // entered, which the BYOK path does not do.
+      .replace(/^[-*]\s+/, '')
       .replace(/[<>]/g, '')
       .replace(/\s+/g, ' ')
-      .trim();
-    if (keyword.length === 0 || keyword.length > MAX_KEYWORD_CHARS) continue;
+      .trim()
+      // Truncate rather than drop, matching `sanitize_vocabulary_word`, and by
+      // code POINT so a term of supplementary characters is not cut early.
+      .slice(0, MAX_KEYWORD_CHARS);
+    if (keyword.length === 0) continue;
     const key = keyword.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
