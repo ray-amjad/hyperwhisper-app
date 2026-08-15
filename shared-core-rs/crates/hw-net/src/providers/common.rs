@@ -30,10 +30,44 @@ pub enum VocabularyMode {
     Prompt,
     /// Send one field per term under `name`, capped at `max_terms`
     /// (Mistral `context_bias`).
+    ///
+    /// `underscore_separators` replaces every whitespace run and comma inside a
+    /// term with a single `_`. Mistral validates `context_bias` items with its
+    /// `comma_separated` format and rejects any item containing whitespace or a
+    /// comma with HTTP 400 — so a two-word term like `Claude Code` would fail
+    /// the whole transcription rather than just miss its boost. Mistral's own
+    /// docs bias phrases this way (`["affordable_health_care"]`), and
+    /// `hyperwhisper-cloud/src/providers/mistral.ts` already does the same
+    /// substitution on the routed path.
     Terms {
         name: &'static str,
         max_terms: usize,
+        underscore_separators: bool,
     },
+}
+
+/// Replace every whitespace run and comma in `term` with a single `_`.
+/// See [`VocabularyMode::Terms`] for why Mistral needs this.
+fn underscore_separators(term: &str) -> String {
+    let replaced: String = term
+        .chars()
+        .map(|c| if c.is_whitespace() || c == ',' { '_' } else { c })
+        .collect();
+    // Collapse runs so "Smith,  Jr." becomes "Smith_Jr." and not "Smith___Jr.".
+    let mut out = String::with_capacity(replaced.len());
+    let mut last_was_underscore = false;
+    for c in replaced.chars() {
+        if c == '_' {
+            if !last_was_underscore {
+                out.push(c);
+            }
+            last_was_underscore = true;
+        } else {
+            out.push(c);
+            last_was_underscore = false;
+        }
+    }
+    out.trim_matches('_').to_string()
 }
 
 /// Declarative description of an OpenAI-style multipart transcription provider.
@@ -109,9 +143,21 @@ pub fn build_openai_style(
                 parts.push(multipart_field("prompt", prompt));
             }
         }
-        VocabularyMode::Terms { name, max_terms } => {
+        VocabularyMode::Terms {
+            name,
+            max_terms,
+            underscore_separators: needs_underscores,
+        } => {
             for term in keyword_boost_terms(&params.vocabulary, Some(max_terms)) {
-                parts.push(multipart_field(name, term));
+                let value = if needs_underscores {
+                    underscore_separators(&term)
+                } else {
+                    term
+                };
+                if value.is_empty() {
+                    continue;
+                }
+                parts.push(multipart_field(name, value));
             }
         }
     }

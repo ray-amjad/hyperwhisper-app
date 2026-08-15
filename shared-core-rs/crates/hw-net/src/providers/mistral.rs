@@ -16,11 +16,14 @@
 //!
 //! Voxtral has no free-text `prompt` field. It takes a STRUCTURED
 //! `context_bias` list instead — one field per term, at most
-//! [`MAX_CONTEXT_BIAS_TERMS`]. `params.prompt` (custom instructions) is still
-//! dropped, since there is no field to carry it.
+//! [`MAX_CONTEXT_BIAS_TERMS`], with whitespace and commas folded to `_` because
+//! Voxtral's `comma_separated` validator 400s an item that contains either.
+//! `params.prompt` (custom instructions) is still dropped, since there is no
+//! field to carry it.
 //!
 //! PARITY: `hyperwhisper-cloud/src/providers/mistral.ts` sends the same field
-//! with the same 100-term cap on the routed path. Mistral's API schema types
+//! with the same 100-term cap and the same `\s+ → _` substitution on the routed
+//! path. Mistral's API schema types
 //! `context_bias` as an array, so it is one form field per term — a single
 //! comma-joined value would bias one literal phrase containing commas.
 //!
@@ -59,6 +62,9 @@ fn spec() -> OpenAiStyleSpec {
         vocabulary: VocabularyMode::Terms {
             name: "context_bias",
             max_terms: MAX_CONTEXT_BIAS_TERMS,
+            // Voxtral rejects a context_bias item containing whitespace or a
+            // comma with HTTP 400 — see VocabularyMode::Terms.
+            underscore_separators: true,
         },
         send_model: true,
         // Mistral returns { "text" } without a response_format field.
@@ -180,6 +186,28 @@ mod tests {
         if let Body::Multipart { parts, .. } = &req.body {
             assert_eq!(field(parts, "prompt"), None);
             assert!(fields(parts, "context_bias").is_empty());
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn multi_word_and_comma_terms_are_underscored_not_rejected() {
+        // Voxtral's comma_separated validator 400s an item containing
+        // whitespace or a comma, so the builder must fold both to "_".
+        let mut p = params();
+        p.vocabulary = vec![
+            "Claude Code".to_string(),
+            "Smith,  Jr.".to_string(),
+            "HyperWhisper".to_string(),
+        ];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            let sent = fields(parts, "context_bias");
+            assert_eq!(sent, vec!["Claude_Code", "Smith_Jr.", "HyperWhisper"]);
+            assert!(!sent.iter().any(|t| t.contains(' ') || t.contains(',')));
+        } else {
+            panic!("expected multipart");
         }
     }
 
@@ -190,6 +218,8 @@ mod tests {
         let req = build_transcribe_request(&p).unwrap();
         if let Body::Multipart { parts, .. } = &req.body {
             assert_eq!(field(parts, "language"), Some("fr"));
+        } else {
+            panic!("expected multipart");
         }
     }
 
