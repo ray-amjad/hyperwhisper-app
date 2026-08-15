@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Helyi API és MCP-kiszolgáló",
-      "description": "A beépített MCP-kiszolgáló lehetővé teszi a Claude, a Cursor és más AI-ügynökök számára a HyperWhisper vezérlését. Csak helyi HTTP API bearer-hitelesítéssel szkriptekhez és automatizáláshoz."
+      "description": "A beépített MCP-kiszolgáló lehetővé teszi a Claude, a Cursor és más AI-ügynökök számára a HyperWhisper vezérlését. Csak helyi HTTP API szkriptekhez és automatizáláshoz."
     },
     "modes": {
       "title": "Módok minden helyzetre",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Mennyire pontos az átírás?",
-        "answer": "Iparágvezető, 99%-os pontosságot érünk el a legmodernebb AI modellekkel. A pontosság tovább növelhető saját egyéni szókincs hozzáadásával technikai kifejezésekhez, nevekhez és speciális zsargonhoz."
+        "answer": "Ez a használt modell és nyelv kombinációjától függ. Egyes modellek angolul kiválóak, más nyelveken viszont gyengébbek, a felhős modellek pedig általában pontosabbak a helyieknél. Bármely modell pontossága növelhető saját egyéni szókincs hozzáadásával technikai kifejezésekhez, nevekhez és speciális zsargonhoz."
       },
       "offline": {
         "question": "Használhatom internet nélkül?",
-        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
+        "answer": "Abszolút. A HyperWhisper teljesen offline használható a Maceden vagy a Windows PC-den helyi AI modellekkel - internet nélkül. Azoknak a felhasználóknak, akik maximális pontosságot és sebességet szeretnének, opcionális felhős feldolgozást is kínálunk különböző szolgáltatókon keresztül."
       },
       "apiKey": {
         "question": "Kell fizetnem az API-hozzáférésért?",
-        "answer": "A következő szolgáltatókhoz saját API-kulcsot használsz: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral és Google Gemini. Néhány szolgáltató ingyenes kreditet ad új felhasználóknak; a Deepgram $200-t, az AssemblyAI $50-t kínál. Hosszú távon ez jelentősen olcsóbb, mint bármilyen előfizetés. \n\nHasználhatod a beépített HyperWhisper Cloudot is, amely nem igényel API-kulcsot, és használat alapú elszámolással működik.\n\nNe feledd, a helyi offline mód API-kulcs nélkül is működik, és teljesen ingyenes."
+        "answer": "A következő szolgáltatókhoz saját API-kulcsot használsz: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox és Google Gemini. Néhány szolgáltató ingyenes kreditet ad új felhasználóknak; a Deepgram $200-t, az AssemblyAI $50-t kínál. Hosszú távon ez jelentősen olcsóbb, mint bármilyen előfizetés. \n\nHasználhatod a beépített HyperWhisper Cloudot is, amely nem igényel API-kulcsot, és használat alapú elszámolással működik.\n\nNe feledd, a helyi offline mód API-kulcs nélkül is működik, és teljesen ingyenes."
       },
       "languages": {
         "question": "Milyen nyelveket támogat?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Hogyan véditek az adataimat?",
-        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs vagy Mistral).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), vagy egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Helyi mód használatakor semmilyen adat nem hagyja el a Mac-edet vagy a Windows PC-det.\n\nFelhős átírás használatakor az adataid az általad választott felhőszolgáltatóhoz kerülnek (pl. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox vagy Google Gemini).\n\nEzt magad is ellenőrizheted egy hálózati ellenőrző eszközzel, például a [Proxyman](https://proxyman.io), egy hálózati monitorral, például a [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), vagy a [forráskód elolvasásával a GitHubon](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mi az a HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Mik a rendszerkövetelmények?",
         "answer": "Machez: macOS 14 vagy újabb, Apple Silicon és Intel támogatással. Windowshoz: Windows 10/11, x64 vagy ARM64. Az optimális teljesítményhez 8GB RAM ajánlott."
-      },
-      "windowsStatus": {
-        "question": "A Windows-verzió tudja ugyanazokat a funkciókat, mint a macOS-verzió?",
-        "answer": "A Windows-verzió nemrég jelent meg, így lehet, hogy még nem tartalmaz minden, macOS-en elérhető funkciót. Aktívan dolgozunk a teljes funkcióparitás elérésén mindkét platformon."
       },
       "madeBy": {
         "question": "Ki készítette ezt?",

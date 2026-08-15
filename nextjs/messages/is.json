@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Staðbundið API og MCP-þjónn",
-      "description": "Innbyggði MCP-þjónninn gerir Claude, Cursor og öðrum gervigreindarumboðum kleift að stýra HyperWhisper. Staðbundið HTTP API með bearer-auðkenningu fyrir skriftur og sjálfvirkni."
+      "description": "Innbyggði MCP-þjónninn gerir Claude, Cursor og öðrum gervigreindarumboðum kleift að stýra HyperWhisper. Staðbundið HTTP API fyrir skriftur og sjálfvirkni."
     },
     "modes": {
       "title": "Hamir fyrir allar aðstæður",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Hversu nákvæm er umritunin?",
-        "answer": "Við náum 99% nákvæmni sem er meðal þeirra bestu í greininni með nýjustu AI líkönum. Þú getur aukið nákvæmnina enn frekar með því að bæta við sérsniðnum orðaforða fyrir tæknileg hugtök, nöfn og sérhæfðan orðaforða."
+        "answer": "Það fer eftir því hvaða samsetningu líkans og tungumáls þú notar. Sum líkön eru frábær á ensku en veikari á öðrum tungumálum, og skýjalíkönin eru yfirleitt nákvæmari en þau staðbundnu. Þú getur aukið nákvæmni hvaða líkans sem er með því að bæta við sérsniðnum orðaforða fyrir tæknileg hugtök, nöfn og sérhæfðan orðaforða."
       },
       "offline": {
         "question": "Get ég notað þetta án internets?",
-        "answer": "Algjörlega. HyperWhisper er hægt að nota alveg offline á Mac með staðbundnum AI líkönum - ekkert internet þarf. Fyrir notendur sem vilja hámarksnákvæmni og hraða bjóðum við einnig valfrjálsa skýjavinnslu í gegnum ýmsa veitendur."
+        "answer": "Algjörlega. HyperWhisper er hægt að nota alveg offline á Mac eða Windows tölvu með staðbundnum AI líkönum - ekkert internet þarf. Fyrir notendur sem vilja hámarksnákvæmni og hraða bjóðum við einnig valfrjálsa skýjavinnslu í gegnum ýmsa veitendur."
       },
       "apiKey": {
         "question": "Þarf ég að borga fyrir API aðgang?",
-        "answer": "Þú notar þinn eigin API lykil fyrir eftirfarandi veitendur: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral og Google Gemini. Sumir veitendur bjóða nýjum notendum ókeypis inneign; Deepgram býður $200, AssemblyAI býður $50. Til lengri tíma litið er þetta mun ódýrara en hvaða áskrift sem er. \n\nÞú getur einnig notað HyperWhisper Cloud (innbyggt), sem krefst ekki API lykils og virkar með pay-as-you-go.\n\nMundu að staðbundinn offline hamur virkar án API lykils og er alveg ókeypis."
+        "answer": "Þú notar þinn eigin API lykil fyrir eftirfarandi veitendur: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox og Google Gemini. Sumir veitendur bjóða nýjum notendum ókeypis inneign; Deepgram býður $200, AssemblyAI býður $50. Til lengri tíma litið er þetta mun ódýrara en hvaða áskrift sem er. \n\nÞú getur einnig notað HyperWhisper Cloud (innbyggt), sem krefst ekki API lykils og virkar með pay-as-you-go.\n\nMundu að staðbundinn offline hamur virkar án API lykils og er alveg ókeypis."
       },
       "languages": {
         "question": "Hvaða tungumál eru studd?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Hvernig er persónuvernd mín tryggð?",
-        "answer": "Þegar þú notar staðbundinn ham fara engin gögn af Mac tölvunni þinni.\n\nÞegar þú notar skýjaumritun eru gögnin send til þess skýjaveitanda sem þú velur (t.d. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs eða Mistral).\n\nÞú getur sannreynt þetta sjálf(ur) með netgreiningartæki eins og [Proxyman](https://proxyman.io) eða netvöktunarforriti eins og [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Þegar þú notar staðbundinn ham fara engin gögn af Mac tölvunni þinni eða Windows tölvunni þinni.\n\nÞegar þú notar skýjaumritun eru gögnin send til þess skýjaveitanda sem þú velur (t.d. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox eða Google Gemini).\n\nÞú getur sannreynt þetta sjálf(ur) með netgreiningartæki eins og [Proxyman](https://proxyman.io), netvöktunarforriti eins og [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), eða með því að lesa [frumkóðann á GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Hvað er HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Hverjar eru kerfiskröfurnar?",
         "answer": "Fyrir Mac: macOS 14 eða nýrra, bæði Apple Silicon og Intel studd. Fyrir Windows: Windows 10/11, x64 eða ARM64. 8GB RAM mælt með fyrir bestu afköst."
-      },
-      "windowsStatus": {
-        "question": "Er Windows útgáfan með alla sömu eiginleika og macOS?",
-        "answer": "Windows útgáfan kom nýlega út, þannig að hún gæti ekki enn haft alla eiginleika sem eru á macOS. Við vinnum markvisst að fullri eiginleikasamsvörun milli beggja kerfa."
       },
       "madeBy": {
         "question": "Hver bjó þetta til?",

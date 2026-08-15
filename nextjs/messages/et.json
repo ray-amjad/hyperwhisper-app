@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Kohalik API ja MCP-server",
-      "description": "Sisseehitatud MCP-server võimaldab Claude'il, Cursoril ja teistel AI agentidel HyperWhisperit juhtida. Ainult kohalik HTTP API bearer-autentimisega skriptide ja automatiseerimise jaoks."
+      "description": "Sisseehitatud MCP-server võimaldab Claude'il, Cursoril ja teistel AI agentidel HyperWhisperit juhtida. Ainult kohalik HTTP API skriptide ja automatiseerimise jaoks."
     },
     "modes": {
       "title": "Režiimid igaks olukorraks",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Kui täpne on transkriptsioon?",
-        "answer": "Saavutame valdkonna tipptasemel 99% täpsuse, kasutades kaasaegseimaid AI mudeleid. Täpsust saad veelgi parandada, lisades oma kohandatud sõnavara tehniliste terminite, nimede ja erialase žargoni jaoks."
+        "answer": "See sõltub kasutatavast mudeli ja keele kombinatsioonist. Mõned mudelid on inglise keeles suurepärased, kuid teistes keeltes nõrgemad, ja pilvemudelid on tavaliselt täpsemad kui kohalikud. Iga mudeli täpsust saad parandada, lisades oma kohandatud sõnavara tehniliste terminite, nimede ja erialase žargooni jaoks."
       },
       "offline": {
         "question": "Kas saan seda kasutada ilma internetita?",
-        "answer": "Absoluutselt. HyperWhisperit saab Macis kasutada täielikult offline kohalike AI mudelitega - internetti pole vaja. Kasutajatele, kes soovivad maksimaalset täpsust ja kiirust, pakume ka valikulist pilvetöötlust erinevate pakkujate kaudu."
+        "answer": "Absoluutselt. HyperWhisperit saab Macis või Windowsi arvutis kasutada täielikult offline kohalike AI mudelitega - internetti pole vaja. Kasutajatele, kes soovivad maksimaalset täpsust ja kiirust, pakume ka valikulist pilvetöötlust erinevate pakkujate kaudu."
       },
       "apiKey": {
         "question": "Kas pean API juurdepääsu eest maksma?",
-        "answer": "Kasutad oma API võtit järgmiste pakkujate jaoks: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ja Google Gemini. Mõned pakkujad pakuvad uutele kasutajatele tasuta krediiti; Deepgram pakub $200, AssemblyAI pakub $50. Pikemas perspektiivis on see oluliselt odavam kui ükskõik milline tellimus. \n\nSamuti saad kasutada HyperWhisper Cloudi (sisseehitatud), mis ei vaja API võtit ja töötab kasutuspõhise hinnastusega.\n\nAga pea meeles, kohalik offline režiim töötab ilma API võtmeta ja on täiesti tasuta."
+        "answer": "Kasutad oma API võtit järgmiste pakkujate jaoks: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ja Google Gemini. Mõned pakkujad pakuvad uutele kasutajatele tasuta krediiti; Deepgram pakub $200, AssemblyAI pakub $50. Pikemas perspektiivis on see oluliselt odavam kui ükskõik milline tellimus. \n\nSamuti saad kasutada HyperWhisper Cloudi (sisseehitatud), mis ei vaja API võtit ja töötab kasutuspõhise hinnastusega.\n\nAga pea meeles, kohalik offline režiim töötab ilma API võtmeta ja on täiesti tasuta."
       },
       "languages": {
         "question": "Milliseid keeli see toetab?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Kuidas on minu privaatsus kaitstud?",
-        "answer": "Kui kasutad kohalikku režiimi, ei lahku andmed kunagi sinu Macist.\n\nKui kasutad pilvetranskriptsiooni, saadetakse andmed sinu valitud pilvepakkujale (nt OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs või Mistral).\n\nSeda saad ise kontrollida võrguliikluse tööriistaga nagu [Proxyman](https://proxyman.io) või võrgumonitoriga nagu [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Kui kasutad kohalikku režiimi, ei lahku andmed kunagi sinu Macist ega Windowsi arvutist.\n\nKui kasutad pilvetranskriptsiooni, saadetakse andmed sinu valitud pilvepakkujale (nt OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox või Google Gemini).\n\nSeda saad ise kontrollida võrguliikluse tööriistaga nagu [Proxyman](https://proxyman.io), võrgumonitoriga nagu [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) või lugedes [lähtekoodi GitHubis](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mis on HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Millised on süsteeminõuded?",
         "answer": "Macile: macOS 14 või uuem, toetatud on nii Apple Silicon kui Intel. Windowsile: Windows 10/11, x64 või ARM64. Parima jõudluse jaoks soovitame 8GB RAM-i."
-      },
-      "windowsStatus": {
-        "question": "Kas Windowsi versioonil on kõik samad funktsioonid nagu macOS-il?",
-        "answer": "Windowsi versioon ilmus hiljuti, seega ei pruugi seal veel olla kõiki macOS-is saadaval olevaid funktsioone. Töötame aktiivselt selle nimel, et saavutada täielik funktsioonide võrdsus mõlemal platvormil."
       },
       "madeBy": {
         "question": "Kes selle tegi?",
