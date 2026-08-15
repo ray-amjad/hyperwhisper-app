@@ -267,15 +267,6 @@ public class ApiKeyService
         return !string.IsNullOrEmpty(GetCustomEndpointApiKey(endpointId));
     }
 
-    /// <summary>
-    /// Gets a masked version of the API key for a custom endpoint.
-    /// </summary>
-    public string? GetMaskedCustomEndpointApiKey(Guid endpointId)
-    {
-        var key = GetCustomEndpointApiKey(endpointId);
-        return MaskKey(key);
-    }
-
     // =========================================================================
     // HELPER METHODS
     // =========================================================================

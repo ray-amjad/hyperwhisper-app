@@ -34,7 +34,7 @@ export const LLM_PROVIDER_NAMES: Record<LLMProvider, string> = {
 const LLM_SERVED_NAMES: Partial<Record<LLMProvider, Record<string, string>>> = {
   openai: { 'gpt-5-mini': 'openai-gpt-5-mini', 'gpt-5-nano': 'openai-gpt-5-nano' },
   gemini: { 'gemini-2.5-flash': 'gemini-2.5-flash', 'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite' },
-  mistral: { 'mistral-small-latest': 'mistral-small-latest', 'open-mistral-nemo': 'open-mistral-nemo' },
+  mistral: { 'mistral-small-latest': 'mistral-small-latest' },
 };
 
 /**
@@ -70,7 +70,7 @@ const LLM_PROVIDER_MODELS: Record<LLMProvider, { default: string; allowed: reado
   grok: { default: 'grok-4.3', allowed: ['grok-4.3'] },
   openai: { default: 'gpt-5-mini', allowed: ['gpt-5-mini', 'gpt-5-nano'] },
   gemini: { default: 'gemini-2.5-flash', allowed: ['gemini-2.5-flash', 'gemini-2.5-flash-lite'] },
-  mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest', 'open-mistral-nemo'] },
+  mistral: { default: 'mistral-small-latest', allowed: ['mistral-small-latest'] },
 };
 
 export function defaultModelFor(provider: LLMProvider): string {

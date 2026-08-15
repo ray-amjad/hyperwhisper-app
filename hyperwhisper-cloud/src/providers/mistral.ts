@@ -9,6 +9,7 @@ import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
   estimateSecondsFromBytes,
+  explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
@@ -21,11 +22,22 @@ const MAX_CONTEXT_BIAS_TERMS = 100;
 /** Voxtral additionally takes raw AAC, which the other adapters don't name. */
 const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
 
-/** Split a comma/newline vocabulary prompt into ≤100 `context_bias` phrases. */
+/**
+ * Split a comma/newline vocabulary prompt into ≤100 `context_bias` phrases.
+ *
+ * Inner whitespace collapses to `_` because Voxtral validates every item under
+ * `context_bias_input_method=comma_separated` (its server-side default) and 400s
+ * the WHOLE request when one item holds a comma or any whitespace — a single
+ * multi-word term like "Claude Code" then kills the transcription, not just that
+ * term, and a 400 is not a failover status so no sibling provider covers it.
+ * Underscores are the documented way to bias a phrase (docs.mistral.ai
+ * audio/speech_to_text → `["affordable_health_care", "American_people"]`), so
+ * joining beats dropping the term.
+ */
 function toContextBias(initialPrompt: string): string[] {
   return initialPrompt
     .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, ''))
+    .map((t) => t.trim().replace(/^[-*]\s*/, '').replace(/\s+/g, '_'))
     .filter((t) => t.length > 0 && t.length <= 80)
     .slice(0, MAX_CONTEXT_BIAS_TERMS);
 }
@@ -51,10 +63,10 @@ export async function transcribeWithMistral(
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model', model);
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
-    // locale — strip to the primary subtag like the sibling adapters.
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
+  // locale — strip to the primary subtag like the sibling adapters.
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language', langCode);
   }
 

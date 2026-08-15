@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "บันทึกข้อผิดพลาด";
 "settings.general.errorLogging.info" = "โดยอัตโนมัติจับและส่งรายงานข้อผิดพลาดเพื่อช่วยปรับปรุงแอป";
 "settings.general.shareSpeedData.title" = "แชร์ข้อมูลความเร็วแบบไม่ระบุตัวตน";
-"settings.general.shareSpeedData.subtitle" = "ช่วยให้ทุกคนเห็นว่าโมเดลคลาวด์ใดเร็วที่สุดในตำแหน่งของพวกเขา";
 "settings.general.shareSpeedData.info" = "วัดเวลาที่ผู้ให้บริการคลาวด์แต่ละรายใช้ และเพิ่มลงในการเปรียบเทียบสาธารณะ การวัดประกอบด้วยผู้ให้บริการ ภูมิภาคของเซิร์ฟเวอร์ ความยาวคลิป และเวลาที่ใช้ — ไม่มีบัญชี ไม่มีคีย์ ไม่มีเสียง และไม่มีข้อความ ปิดสิ่งนี้แล้ว HyperWhisper จะหยุดส่งข้อมูลนี้ ไม่มีสิ่งอื่นเปลี่ยนแปลง และโมเดลภายในเครื่องไม่เคยส่งอะไรเลย";
 "settings.general.shareSpeedData.link" = "ดูการเปรียบเทียบความเร็ว";
 "settings.general.autoUpdate.title" = "อัปเดตอัตโนมัติ";
@@ -914,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "เกินจำนวนการพยายามลองใหม่สูงสุด";
 "transcription.error.unauthorized.provider" = "ไม่ได้รับการยืนยัน: คีย์ API %@ ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
 "transcription.error.unauthorized.generic" = "ไม่ได้รับการยืนยัน: คีย์ API ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud ต้องใช้คีย์บัญชี\n\nเปิดการตั้งค่า → HyperWhisper Cloud เพื่อป้อนคีย์ของคุณหรือซื้อเครดิต";
 "transcription.error.invalidRequest" = "คำขอไม่ถูกต้อง: ตรวจสอบไฟล์เสียงหรือการตั้งค่า";
 "transcription.error.streamingInterrupted" = "สตรีมถูกหลีกลี่ยง ข้อความบางส่วนแสดง";
 "transcription.error.busy" = "บริการการสัญลักษณ์ยังคงไม่ว่าง";

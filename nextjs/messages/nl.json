@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Lokale API & MCP-server",
-      "description": "De ingebouwde MCP-server laat Claude, Cursor en andere AI-agents HyperWhisper aansturen. Lokale HTTP-API met bearer-authenticatie voor scripts en automatiseringen."
+      "description": "De ingebouwde MCP-server laat Claude, Cursor en andere AI-agents HyperWhisper aansturen. Lokale HTTP-API voor scripts en automatiseringen."
     },
     "modes": {
       "title": "Modi voor elke situatie",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Hoe nauwkeurig is de transcriptie?",
-        "answer": "Met state-of-the-art AI-modellen behalen we een toonaangevende nauwkeurigheid van 99%. Je kunt de nauwkeurigheid verder verhogen door je eigen aangepaste woordenschat toe te voegen voor technische termen, namen en specialistisch jargon."
+        "answer": "Dat hangt af van de combinatie van model en taal die je gebruikt. Sommige modellen zijn uitstekend in het Engels maar zwakker in andere talen, en de cloudmodellen zijn doorgaans nauwkeuriger dan de lokale. Je kunt de nauwkeurigheid van elk model verhogen door je eigen aangepaste woordenschat toe te voegen voor technische termen, namen en specialistisch jargon."
       },
       "offline": {
         "question": "Kan ik het zonder internet gebruiken?",
-        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
+        "answer": "Absoluut. HyperWhisper kan volledig offline op je Mac of Windows-pc worden gebruikt met lokale AI-modellen - geen internet vereist. Voor gebruikers die maximale nauwkeurigheid en snelheid willen, bieden we ook optionele cloudverwerking via verschillende cloudproviders."
       },
       "apiKey": {
         "question": "Moet ik betalen voor API-toegang?",
-        "answer": "Je gebruikt je eigen API-sleutel voor de volgende providers: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral en Google Gemini. Sommige providers bieden gratis credits aan nieuwe gebruikers; Deepgram biedt $200 en AssemblyAI biedt $50. Op de lange termijn is dit aanzienlijk goedkoper dan welk abonnement dan ook. \n\nJe kunt ook HyperWhisper Cloud (ingebouwd) gebruiken, waarvoor geen API-sleutel nodig is en dat op basis van gebruik wordt afgerekend.\n\nEn vergeet niet: de lokale offline modus werkt zonder API-sleutel en is volledig gratis."
+        "answer": "Je gebruikt je eigen API-sleutel voor de volgende providers: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox en Google Gemini. Sommige providers bieden gratis credits aan nieuwe gebruikers; Deepgram biedt $200 en AssemblyAI biedt $50. Op de lange termijn is dit aanzienlijk goedkoper dan welk abonnement dan ook. \n\nJe kunt ook HyperWhisper Cloud (ingebouwd) gebruiken, waarvoor geen API-sleutel nodig is en dat op basis van gebruik wordt afgerekend.\n\nEn vergeet niet: de lokale offline modus werkt zonder API-sleutel en is volledig gratis."
       },
       "languages": {
         "question": "Welke talen worden ondersteund?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Hoe wordt mijn privacy beschermd?",
-        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs of Mistral).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io) of een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Wanneer je de lokale modus gebruikt, verlaat er geen data je Mac of Windows-pc.\n\nWanneer je cloudtranscriptie gebruikt, worden je gegevens verzonden naar de cloudprovider die je kiest (bijv. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox of Google Gemini).\n\nJe kunt dit zelf verifiëren met een netwerk-inspector zoals [Proxyman](https://proxyman.io), een netwerkmonitor zoals [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), of door de [broncode op GitHub](https://github.com/ray-amjad/hyperwhisper-app) te lezen."
       },
       "cloud": {
         "question": "Wat is HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Wat zijn de systeemvereisten?",
         "answer": "Voor Mac: macOS 14 of nieuwer, zowel Apple Silicon als Intel ondersteund. Voor Windows: Windows 10/11, x64 of ARM64. 8GB RAM aanbevolen voor optimale prestaties."
-      },
-      "windowsStatus": {
-        "question": "Heeft de Windows-versie dezelfde functies als macOS?",
-        "answer": "De Windows-versie is onlangs uitgebracht, dus mogelijk zijn nog niet alle functies van macOS beschikbaar. We werken actief aan volledige feature parity op beide platforms."
       },
       "madeBy": {
         "question": "Door wie is dit gemaakt?",

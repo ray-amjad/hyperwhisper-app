@@ -15,13 +15,13 @@
 //  - voxtral-mini-latest: State-of-the-art transcription model ($0.002/min)
 //
 //  LIMITATIONS:
-//  - No custom vocabulary/prompt support
+//  - No free-text prompt field; vocabulary goes out as `context_bias`
 //  - language and timestamp_granularities cannot be used together
 //
 //  Wave 3 / M3-B.2: the multipart request build and the `{text}` parse now run
 //  through the Rust shared core (`mistralBuild/ParseTranscribeResponse`). The
-//  core bakes the `x-api-key` auth header, the `model` / `language` fields (no
-//  vocabulary — Mistral doesn't support it), and the NoSpeech-on-empty parse.
+//  core bakes the `x-api-key` auth header, the `model` / `language` fields, the
+//  repeated `context_bias` vocabulary fields, and the NoSpeech-on-empty parse.
 //  This file keeps the platform-owned shell: key config, URLSession, preflight,
 //  retry, logging, health.
 //
@@ -77,8 +77,8 @@ class MistralProvider: TranscriptionProvider {
         }
 
         // STEP 2: Build TranscribeParams. Model: mode selection or "" (core
-        // defaults to voxtral-mini-latest). Mistral has no vocabulary support —
-        // the core ignores the vocab list, so pass an empty list. Pass the
+        // defaults to voxtral-mini-latest). Pass the RAW vocabulary terms — the
+        // core normalizes them and caps the `context_bias` list. Pass the
         // natively-resolved mime (fallback audio/wav) explicitly.
         let model = (mode?.cloudTranscriptionModel?.isEmpty == false)
             ? (mode?.cloudTranscriptionModel ?? "")
@@ -88,7 +88,7 @@ class MistralProvider: TranscriptionProvider {
             audioPath: audioURL.path,
             audioMime: contentType,
             language: language,
-            vocabulary: [],
+            vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             apiKey: apiKey,
             model: model
         )

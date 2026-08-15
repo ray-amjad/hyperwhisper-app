@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 6);
+        assert_eq!(c.version(), 7);
         assert!(c.providers().len() >= 10);
     }
 

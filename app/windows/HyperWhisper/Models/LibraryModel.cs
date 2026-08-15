@@ -78,7 +78,6 @@ public sealed class LibraryModel
     public bool IsInstalled => LocationKind == LibraryModelLocationKind.Offline && StatusKind == LibraryModelStatusKind.Enabled;
     public bool IsCloud => LocationKind == LibraryModelLocationKind.Cloud;
     public bool IsVoice => Kind == LibraryModelKind.Voice;
-    public bool IsText => Kind == LibraryModelKind.Text;
 
     /// <summary>
     /// Whether this model stays visible when the library is filtered to
@@ -113,8 +112,6 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string ProviderName => Model.ProviderName;
     public string ProviderAssetPath => $"/Assets/Providers/{Model.ProviderAssetName}.png";
     public string TypeText => Model.Kind == LibraryModelKind.Voice ? "Voice" : "Language";
-    public string LocationText => Model.LocationKind == LibraryModelLocationKind.Cloud ? "Cloud" : (Model.SizeDescription ?? "Offline");
-    public string CompactMetadataText => $"{TypeText} - Fast {FormatRating(Model.Speed)} - Acc {FormatRating(Model.Accuracy)} - {LocationText}";
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
     public string Detail => Model.Detail ?? "";
@@ -126,7 +123,6 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
             return string.IsNullOrWhiteSpace(text) ? null : text;
         }
     }
-    public Visibility DetailVisibility => string.IsNullOrWhiteSpace(Model.Detail) ? Visibility.Collapsed : Visibility.Visible;
     public string StatusText => Model.StatusKind switch
     {
         LibraryModelStatusKind.Enabled when Model.Source == LibraryModelSource.CustomEndpoint => "Connected",
@@ -156,19 +152,6 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
         : Visibility.Collapsed;
     public Visibility CancelVisibility => Model.StatusKind == LibraryModelStatusKind.Downloading ? Visibility.Visible : Visibility.Collapsed;
     public Visibility DuplicateVisibility => Model.Source == LibraryModelSource.CustomEndpoint ? Visibility.Visible : Visibility.Collapsed;
-    public bool IsPrimaryActionEnabled =>
-        Model.Source == LibraryModelSource.CustomEndpoint
-        || Model.IsCloud
-        || Model.StatusKind is LibraryModelStatusKind.Downloadable or LibraryModelStatusKind.Downloading;
-
-    public Visibility CloudPillVisibility =>
-        Model.AvailableViaHyperWhisperCloud && !Model.IsHyperWhisperProvider
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-    public string CloudPillText => "HyperWhisper Cloud";
-    public string CloudPillToolTip =>
-        "Reachable through credit-based HyperWhisper Cloud — no provider API key required";
-
     // --- macOS ModelRow column parity -------------------------------------
 
     // Type column: a single glyph (Segoe MDL2) instead of the old "Voice/Language" text.
@@ -195,10 +178,6 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
         !Model.IsCloud && !string.IsNullOrWhiteSpace(Model.SizeDescription)
             ? Visibility.Visible
             : Visibility.Collapsed;
-    public Visibility CloudGlyphVisibility => Model.IsCloud ? Visibility.Visible : Visibility.Collapsed;
-
-    private static string FormatRating(int rating)
-        => $"{Math.Clamp(rating, 0, 5)}/5";
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 

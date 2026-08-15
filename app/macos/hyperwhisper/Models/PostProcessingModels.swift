@@ -101,7 +101,7 @@ struct PostProcessingModels {
             id: "gpt-5.4-nano",
             displayName: "GPT-5.4 Nano",
             isAvailable: true,
-            description: "Latest generation, fastest",
+            description: "Fast, lightweight",
             provider: .openai
         ),
         PostProcessingModel(
@@ -118,6 +118,13 @@ struct PostProcessingModels {
             description: "Latest generation, highest quality",
             provider: .openai
         ),
+        PostProcessingModel(
+            id: "gpt-5.6-luna",
+            displayName: "GPT-5.6 Luna",
+            isAvailable: true,
+            description: "Latest generation, fastest",
+            provider: .openai
+        ),
 
         // MARK: - Anthropic Models
         PostProcessingModel(
@@ -125,13 +132,6 @@ struct PostProcessingModels {
             displayName: "Claude 4.5 Haiku",
             isAvailable: true,
             description: "models.postProcessing.claude4.5.haiku.description".localized,
-            provider: .anthropic
-        ),
-        PostProcessingModel(
-            id: "claude-sonnet-4-0",
-            displayName: "Claude 4 Sonnet",
-            isAvailable: true,
-            description: "models.postProcessing.claude4.sonnet.description".localized,
             provider: .anthropic
         ),
         PostProcessingModel(
@@ -210,6 +210,13 @@ struct PostProcessingModels {
             id: "gemini-3.6-flash",
             displayName: "Gemini 3.6 Flash",
             isAvailable: true,
+            description: "Capable flash model, frontier performance for agentic tasks",
+            provider: .gemini
+        ),
+        PostProcessingModel(
+            id: "gemini-3.7-flash",
+            displayName: "Gemini 3.7 Flash",
+            isAvailable: true,
             description: "Latest flash model, frontier performance for agentic tasks",
             provider: .gemini
         ),
@@ -237,20 +244,6 @@ struct PostProcessingModels {
             provider: .groq
         ),
         PostProcessingModel(
-            id: "meta-llama/llama-4-maverick-17b-128e-instruct",
-            displayName: "Llama 4 Maverick 17B",
-            isAvailable: true,
-            description: "Latest Llama 4, high quality",
-            provider: .groq
-        ),
-        PostProcessingModel(
-            id: "moonshotai/kimi-k2-instruct",
-            displayName: "Kimi K2",
-            isAvailable: true,
-            description: "Strong agentic reasoning",
-            provider: .groq
-        ),
-        PostProcessingModel(
             id: "qwen/qwen3.6-27b",
             displayName: "Qwen 3.6 27B",
             isAvailable: true,
@@ -270,7 +263,14 @@ struct PostProcessingModels {
             id: "grok-4.5",
             displayName: "Grok 4.5",
             isAvailable: true,
-            description: "xAI's latest Grok model with reasoning disabled for low-latency text enhancement",
+            description: "xAI's Grok 4.5 with reasoning disabled for low-latency text enhancement",
+            provider: .grok
+        ),
+        PostProcessingModel(
+            id: "grok-4.6",
+            displayName: "Grok 4.6",
+            isAvailable: true,
+            description: "xAI's latest Grok model with a 500k context window and reasoning disabled for low-latency text enhancement",
             provider: .grok
         ),
 
@@ -296,13 +296,6 @@ struct PostProcessingModels {
             description: "models.postProcessing.cerebras.qwen3.235b.description".localized,
             provider: .cerebras
         ),
-        PostProcessingModel(
-            id: "zai-glm-4.7",
-            displayName: "Z.ai GLM 4.7 (Preview)",
-            isAvailable: true,
-            description: "models.postProcessing.cerebras.zai.glm47.description".localized,
-            provider: .cerebras
-        ),
 
         // MARK: - Mistral Models
         PostProcessingModel(
@@ -310,13 +303,6 @@ struct PostProcessingModels {
             displayName: "Mistral Small",
             isAvailable: true,
             description: "Fast, multilingual, cost-efficient",
-            provider: .mistral
-        ),
-        PostProcessingModel(
-            id: "open-mistral-nemo",
-            displayName: "Mistral Nemo",
-            isAvailable: true,
-            description: "Compact 12B, multilingual",
             provider: .mistral
         ),
         PostProcessingModel(
@@ -374,6 +360,8 @@ struct PostProcessingModels {
             "claude-haiku-4.5": "claude-haiku-4-5",
             "claude-3-5-haiku-latest": "claude-haiku-4-5",
             "claude-sonnet-4-5-20250929": "claude-sonnet-4-5",
+            // Alias for claude-sonnet-4-20250514, retired 2026-06-15 → claude-sonnet-4-5
+            "claude-sonnet-4-0": "claude-sonnet-4-5",
         ],
         .cerebras: [
             // Deprecated 2026-02-16: llama-3.3-70b → gpt-oss-120b
@@ -398,6 +386,10 @@ struct PostProcessingModels {
             "llama-3.1-8b-instant": "openai/gpt-oss-120b",
             "meta-llama/llama-4-scout-17b-16e-instruct": "openai/gpt-oss-120b",
             "qwen/qwen3-32b": "openai/gpt-oss-120b",
+            // Shut down by Groq 2025-10-10 — chain kimi → kimi-k2-instruct-0905 → openai/gpt-oss-120b
+            "moonshotai/kimi-k2-instruct": "openai/gpt-oss-120b",
+            // Shut down by Groq 2026-03-09 → openai/gpt-oss-120b (matches Windows)
+            "meta-llama/llama-4-maverick-17b-128e-instruct": "openai/gpt-oss-120b",
         ],
         .grok: [
             // Retired 2026-05-15 — all grok-4-* fast variants redirect to grok-4.3.
@@ -411,6 +403,12 @@ struct PostProcessingModels {
             // Migrated from Qwen 3.5 to Gemma 4 (2026-04)
             "Qwen3.5-4B-Q4_K_M.gguf": "gemma-4-E2B-it-Q4_K_M.gguf",
             "Qwen3.5-9B-Q4_K_M.gguf": "gemma-4-E4B-it-Q4_K_M.gguf",
+        ],
+        .mistral: [
+            // Weights retired 2026-07-31. Mistral names Ministral 3 8B as the
+            // successor, but we redirect to mistral-small-latest — already in
+            // this list and the HyperWhisper Cloud default for Mistral.
+            "open-mistral-nemo": "mistral-small-latest",
         ]
     ]
 

@@ -200,23 +200,6 @@ public static class SharedModelsCatalog
         }
     }
 
-    /// <summary>
-    /// Exact lookup with wildcard fallback. Returns null when neither
-    /// <c>(provider, kind, id)</c> nor <c>(provider, kind, "*")</c> is in the
-    /// catalog.
-    /// </summary>
-    public static CatalogEntry? GetEntry(string provider, CatalogKind kind, string id)
-    {
-        if (string.IsNullOrEmpty(provider)) return null;
-        id ??= "";
-
-        var map = GetEntries();
-        if (map == null) return null;
-        if (map.TryGetValue((provider, kind, id), out var exact)) return exact;
-        if (map.TryGetValue((provider, kind, "*"), out var wildcard)) return wildcard;
-        return null;
-    }
-
     /// <summary>Map the native <see cref="CatalogKind"/> to the shared-core <c>HwKind</c>.</summary>
     private static HwKind ToHwKind(CatalogKind kind) => kind switch
     {

@@ -20,7 +20,6 @@ public class KeyboardShortcut
     public bool IsModifierOnly => Key == null && (Control || Alt || Shift || Win);
     public int ModifierCount => (Control ? 1 : 0) + (Alt ? 1 : 0) + (Shift ? 1 : 0) + (Win ? 1 : 0);
     public bool IsSingleBareModifier => IsModifierOnly && ModifierCount == 1;
-    public bool IsIntentionalModifierChord => IsModifierOnly && ModifierCount >= 2;
 
     public KeyboardShortcut Clone() => new()
     {

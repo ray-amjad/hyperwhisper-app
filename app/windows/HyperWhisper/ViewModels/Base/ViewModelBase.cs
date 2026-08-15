@@ -11,5 +11,4 @@ public abstract partial class ViewModelBase : ObservableObject
     private bool _isInitialized;
 
     public virtual Task OnNavigatedToAsync() => Task.CompletedTask;
-    public virtual Task OnNavigatedFromAsync() => Task.CompletedTask;
 }

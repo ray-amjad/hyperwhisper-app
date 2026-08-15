@@ -28,8 +28,36 @@ pub enum Auth {
 pub enum VocabularyMode {
     /// Inject comma-separated terms into the `prompt` field (OpenAI / Groq).
     Prompt,
-    /// Provider does not accept vocabulary; terms are dropped (Mistral / Grok).
-    None,
+    /// Send one field per term under `name`, capped at `max_terms`
+    /// (Mistral `context_bias`).
+    ///
+    /// `underscore_separators` replaces every whitespace run and comma inside a
+    /// term with a single `_`. Mistral validates `context_bias` items with its
+    /// `comma_separated` format and rejects any item containing whitespace or a
+    /// comma with HTTP 400 — so a two-word term like `Claude Code` would fail
+    /// the whole transcription rather than just miss its boost. Mistral's own
+    /// docs bias phrases this way (`["affordable_health_care"]`), and
+    /// `hyperwhisper-cloud/src/providers/mistral.ts` already does the same
+    /// substitution on the routed path.
+    Terms {
+        name: &'static str,
+        max_terms: usize,
+        underscore_separators: bool,
+    },
+}
+
+/// Replace every whitespace run and comma in `term` with a single `_`.
+/// See [`VocabularyMode::Terms`] for why Mistral needs this.
+fn underscore_separators(term: &str) -> String {
+    // Split on the characters Voxtral forbids and rejoin with a single "_".
+    // Working on segments rather than substituting in place is what preserves a
+    // term's OWN underscores: "__init__" contains no whitespace and no comma, so
+    // it is one segment and passes through untouched, while "Smith,  Jr." is two
+    // segments and becomes "Smith_Jr.".
+    term.split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 /// Declarative description of an OpenAI-style multipart transcription provider.
@@ -95,12 +123,32 @@ pub fn build_openai_style(
         }
     }
 
-    // prompt — vocabulary CSV (when supported) followed by the caller's custom
-    // instructions (`params.prompt`). Either may be empty.
-    if spec.vocabulary == VocabularyMode::Prompt {
-        let prompt = build_prompt(params);
-        if !prompt.is_empty() {
-            parts.push(multipart_field("prompt", prompt));
+    // vocabulary — either folded into `prompt` with the framing preamble
+    // (followed by the caller's custom instructions), or sent as one field per
+    // term. Either may be empty.
+    match spec.vocabulary {
+        VocabularyMode::Prompt => {
+            let prompt = build_prompt(params);
+            if !prompt.is_empty() {
+                parts.push(multipart_field("prompt", prompt));
+            }
+        }
+        VocabularyMode::Terms {
+            name,
+            max_terms,
+            underscore_separators: needs_underscores,
+        } => {
+            for term in keyword_boost_terms(&params.vocabulary, Some(max_terms)) {
+                let value = if needs_underscores {
+                    underscore_separators(&term)
+                } else {
+                    term
+                };
+                if value.is_empty() {
+                    continue;
+                }
+                parts.push(multipart_field(name, value));
+            }
         }
     }
 

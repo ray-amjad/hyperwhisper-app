@@ -385,13 +385,66 @@ class AppState: ObservableObject {
 
         errorMessage = message
 
-        // Determine if we should show settings button based on message content
-        // Show for errors that user can fix in settings (API keys, auth, credits)
-        let showSettings = message.localizedCaseInsensitiveContains("API key") ||
-                           message.localizedCaseInsensitiveContains("unauthorized") ||
-                           message.localizedCaseInsensitiveContains("invalid api key") ||
-                           message.localizedCaseInsensitiveContains("insufficient credits") ||
-                           message.localizedCaseInsensitiveContains("quota exceeded")
+        // Determine if we should show settings button based on message content.
+        // Show for errors the user can fix in settings (API keys, auth, credits,
+        // billing).
+        //
+        // Kept in step with `StreamingProviderErrorPolicy.terminalMarkers`: the
+        // streaming client classifies exactly these conditions as user-fixable
+        // and suppresses the reconnect on that basis, so the toast that replaces
+        // the retry has to offer the fix. Five hand-written predicates missed
+        // most of them — "exceeded your current quota" is not "quota exceeded" —
+        // which left the app deciding a fault was the user's to fix and then
+        // hiding where to fix it.
+        let settingsActionableMarkers = [
+            "api key",
+            "api_key",
+            "unauthorized",
+            "authentication failed",
+            "authentication_error",
+            "forbidden",
+            "permission denied",
+            "permission_denied",
+            "credit balance exhausted",
+            "no credits remaining",
+            "insufficient credits",
+            "insufficient quota",
+            "insufficient_quota",
+            "quota exceeded",
+            "exceeded your current quota",
+            "billing",
+            "payment required",
+            "account is not active",
+            // `TranscriptionError.cloudAccountRequired` — the client-side
+            // HyperWhisper Cloud entitlement refusal (HYPERWHISPER-T2). Its
+            // message says "requires an account key", which matched none of the
+            // markers above, so the new error arrived with NO settings button at
+            // all where the `.unauthorized` it replaced had one.
+            //
+            // Scope of that fix, stated plainly: the button comes back in
+            // English only. Every entry in this list is an English literal, but
+            // `message` reaches us already localized, so in the other 39 locales
+            // nothing here matches at all — the German string reads "erfordert
+            // einen Kontoschlüssel" and still gets no button. A typed,
+            // locale-independent answer already exists and is simply bypassed on
+            // this path: `TranscriptionError.showSettingsButton`, reached via
+            // `showInlineError(_ error: TranscriptionError)` →
+            // `InlineErrorToastManager.show(error:)`. Both call sites that raise
+            // this error throw the typed value away and hand over only
+            // `error.localizedDescription` (`RecordingTranscriptionFlow+ErrorHandling`
+            // and the dialog's own matcher), leaving the message as the only
+            // evidence available to decide on. So this is parity with the
+            // `.unauthorized` case it replaces — the same English-only behaviour,
+            // not a regression introduced here — and routing those call sites
+            // through the typed overload, not lengthening this list, is the
+            // actual fix. Deliberately not attempted in this change.
+            //
+            // Deliberately absent from `StreamingProviderErrorPolicy.terminalMarkers`: that
+            // list classifies messages a provider sent over the wire, and this
+            // refusal never reaches a provider.
+            "account key"
+        ]
+        let showSettings = settingsActionableMarkers.contains { message.localizedCaseInsensitiveContains($0) }
 
         // Show the inline error toast (compact, auto-dismissing)
         // KEEP recording dialog open if it's visible - the toast appears ABOVE it

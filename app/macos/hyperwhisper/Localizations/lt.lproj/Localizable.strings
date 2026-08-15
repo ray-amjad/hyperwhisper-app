@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Klaidų žurnalai";
 "settings.general.errorLogging.info" = "Automatiškai užfiksuoti ir siųsti klaidų ataskaitas siekiant pagerinti programą.";
 "settings.general.shareSpeedData.title" = "Bendrinti anoniminius greičio duomenis";
-"settings.general.shareSpeedData.subtitle" = "Padeda visiems pamatyti, kuris debesijos modelis yra greičiausias jų vietovėje.";
 "settings.general.shareSpeedData.info" = "Matuoja, kiek laiko užtrunka kiekvienas debesijos paslaugų teikėjas, ir prideda tai prie viešo palyginimo. Matavimas apima teikėją, serverio regioną, klipo trukmę ir sugaištą laiką — jokios paskyros, jokio rakto, jokio garso ir jokio teksto. Išjunkite tai, ir HyperWhisper nustos jį siųsti. Niekas kitas nesikeičia, o vietiniai modeliai niekada nieko nesiunčia.";
 "settings.general.shareSpeedData.link" = "Žiūrėti greičio palyginimą";
 "settings.general.autoUpdate.title" = "Automatinis atnaujinimas";
@@ -914,6 +913,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.error.maxRetriesExceeded" = "Maksimalios pakartojimo bandymai viršyti";
 "transcription.error.unauthorized.provider" = "Neleistina: neteisinas %@ API raktas arba leidimai.\n\nAtidarkite nustatymai → API raktai, jei norite patikrinti savo duomenis.";
 "transcription.error.unauthorized.generic" = "Neleistina: neteisinas API raktas arba leidimai.\n\nAtidarkite nustatymai → API raktai, jei norite patikrinti savo duomenis.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud reikalauja paskyros rakto.\n\nAtidarykite Nustatymai → HyperWhisper Cloud, kad įvestumėte raktą arba įsigytumėte kreditų.";
 "transcription.error.invalidRequest" = "Neteisinga užklausa: patikrinkite audio failą arba nustatymus";
 "transcription.error.streamingInterrupted" = "Srautinis nutrūko; rodomas dalingas tekstas";
 "transcription.error.busy" = "Transkriptsiniu paslauga yra dabar užimta";

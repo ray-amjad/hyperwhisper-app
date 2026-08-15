@@ -1172,12 +1172,6 @@ public partial class SettingsService
     }
 
     /// <summary>
-    /// Gets the path to the settings JSON file.
-    /// Used by BackupService to read/write the settings file directly.
-    /// </summary>
-    public static string GetSettingsFilePath() => SettingsFilePath;
-
-    /// <summary>
     /// Fires <see cref="SettingsChanged"/>, marshaling to the UI thread when called from
     /// a background thread. SettingsChanged handlers (e.g. MainViewModel re-registering
     /// global shortcuts via WPF window interop) are UI-affine, so firing them on a worker

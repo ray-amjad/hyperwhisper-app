@@ -149,6 +149,18 @@ The server deletes the file when it stops correctly. If you force-quit HyperWhis
   If you see **Connection refused** and the discovery file is present, the file records an old port. Set the Local API switch to off, then set it to on again. The server writes a new file.
 </Note>
 
+## Port
+
+The server has no fixed port. At the first start, it asks the operating system for a free port. It then keeps that port and uses the same port at each later start. Thus a script that holds the port in its code continues to operate across restarts.
+
+If the kept port is not free at a later start, for example because a different program took it, the server does not fail. It asks the operating system for a new free port and writes the new port into the discovery file. To make a script that always finds the server, read the port from the discovery file.
+
+## Request timeout
+
+A `/transcribe` or a `/post-process` call is slow. A large local model, or a slow cloud model, needs 30 to 90 seconds, and sometimes more. On macOS, the server allows 10 minutes for one request. On Windows, the server sets no limit on the time of one request.
+
+Set the timeout of your own HTTP client higher than its default value. Many clients apply a short default timeout. Such a client reports a failure while the transcription is still in progress.
+
 ## Available endpoints
 
 | Method | Path | Auth | Purpose |
@@ -169,9 +181,11 @@ The server deletes the file when it stops correctly. If you force-quit HyperWhis
 The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full request and response schemas.
 
 <Note>
-  The two platforms are different in two ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
+  The two platforms are different in three ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
 
   macOS also examines the `Host` and `Origin` headers on each request. macOS returns `403` for a request that is not a true loopback call. This check protects you against DNS-rebinding attacks from a browser tab. Windows does not make this check.
+
+  Windows accepts and returns five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the Windows settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them.
 </Note>
 
 ## Next steps

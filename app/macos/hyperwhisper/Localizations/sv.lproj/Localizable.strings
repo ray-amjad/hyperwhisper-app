@@ -383,7 +383,6 @@
 "settings.general.errorLogging.title" = "Felöversikt";
 "settings.general.errorLogging.info" = "Samla automatiskt in och skicka felrapporter för att hjälpa till att förbättra appen.";
 "settings.general.shareSpeedData.title" = "Dela anonym hastighetsdata";
-"settings.general.shareSpeedData.subtitle" = "Hjälper alla att se vilken molnmodell som är snabbast där de är.";
 "settings.general.shareSpeedData.info" = "Mäter hur lång tid varje molnleverantör tar och lägger till det i en offentlig jämförelse. En mätning innehåller leverantören, serverregionen, klippets längd och tiden det tog — inget konto, ingen nyckel, inget ljud och ingen text. Stäng av det så slutar HyperWhisper att skicka det. Inget annat ändras, och lokala modeller skickar aldrig något.";
 "settings.general.shareSpeedData.link" = "Se hastighetsjämförelsen";
 "settings.general.autoUpdate.title" = "Automatisk uppdatering";
@@ -914,6 +913,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.error.maxRetriesExceeded" = "Maximalt antal försök överskridits";
 "transcription.error.unauthorized.provider" = "Obehörig: ogiltig %@ API-nyckel eller behörigheter.\n\nÖppna Inställningar → API-nycklar för att verifiera dina autentiseringsuppgifter.";
 "transcription.error.unauthorized.generic" = "Obehörig: ogiltig API-nyckel eller behörigheter.\n\nÖppna Inställningar → API-nycklar för att verifiera dina autentiseringsuppgifter.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud kräver en kontonyckel.\n\nÖppna Inställningar → HyperWhisper Cloud för att ange din nyckel eller köpa krediter.";
 "transcription.error.invalidRequest" = "Ogiltig förfrågan: kontrollera ljudfil eller inställningar";
 "transcription.error.streamingInterrupted" = "Strömningen avbröts; delvis text visad";
 "transcription.error.busy" = "Transkriptionstjänsten är för närvarande upptagen";

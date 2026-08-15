@@ -1588,6 +1588,10 @@ class PersistenceController: ObservableObject {
             // but the stored value would be misleading.
             mode.cloudTranscriptionModel = CloudAccuracyTier.elevenLabsScribeV2.defaultModelId
             mode.cloudPostProcessingModel = CloudPostProcessingModel.claudeHaiku.rawValue
+            // Seed the spelling variant from the system region so a first install
+            // in e.g. the UK opens on "British" instead of making the user change
+            // every mode by hand. An unknown region keeps the historical American.
+            mode.englishSpelling = EnglishSpelling.defaultForCurrentRegion.rawValue
         }
         
         // Save the default modes
@@ -1876,7 +1880,10 @@ class PersistenceController: ObservableObject {
         } else {
             mode?.postProcessingProvider = modeEnum.defaultProvider?.rawValue ?? "hyperwhisper"
         }
-        mode?.englishSpelling = englishSpelling ?? "american"
+        // An omitted spelling lands on the system region's variant, the same value
+        // the GUI seeds into a new mode. Callers that forward an existing mode's
+        // value (onboarding, backup restore) still pass it through unchanged.
+        mode?.englishSpelling = englishSpelling ?? EnglishSpelling.defaultForCurrentRegion.rawValue
         mode?.useStreamingTranscription = useStreamingTranscription
         // API/MCP-created cloud modes that omit the accuracy tier should land on
         // the SAME recommended engine the GUI seeds for new modes
@@ -2299,7 +2306,10 @@ class PersistenceController: ObservableObject {
                 },
                 postProcessingMode: backupMode.postProcessingMode,
                 postProcessingProvider: backupMode.postProcessingProvider,
-                englishSpelling: backupMode.englishSpelling,
+                // A backup with no spelling is restored with no spelling, NOT with
+                // this machine's region default. Windows keeps the null too, so a
+                // backup restores the same way on both platforms.
+                englishSpelling: backupMode.englishSpelling ?? "",
                 userSystemPrompt: backupMode.userSystemPrompt,
                 cloudAccuracyTier: normalized.accuracyTier
                     ?? CloudAccuracyTier.fromStorageValue(backupMode.cloudAccuracyTier).rawValue,

@@ -15,7 +15,7 @@
 // LIMITS:
 // - Supported formats: mp3, mp4, m4a, wav, webm, ogg, flac
 //
-// IMPORTANT: Does NOT support custom vocabulary/prompts
+// IMPORTANT: No free-text prompt; vocabulary goes out as `context_bias`
 //
 // ERROR HANDLING:
 // - 401: Invalid API key
@@ -38,7 +38,7 @@ namespace HyperWhisper.Services;
 
 /// <summary>
 /// Cloud transcription service using Mistral's Voxtral API.
-/// Note: Does NOT support custom vocabulary.
+/// Vocabulary is sent as a `context_bias` list (max 100 terms).
 /// </summary>
 public class MistralService : ITranscriptionProvider, IDisposable
 {
@@ -49,20 +49,6 @@ public class MistralService : ITranscriptionProvider, IDisposable
     private const string ApiEndpoint = "https://api.mistral.ai/v1/audio/transcriptions";
     private const int DefaultTimeoutSeconds = 120;
     private const int MaxRetries = 3;
-
-    // Supported audio MIME types
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
 
     // =========================================================================
     // STATE
@@ -122,7 +108,7 @@ public class MistralService : ITranscriptionProvider, IDisposable
 
     /// <summary>
     /// Transcribes audio using Mistral's Voxtral API.
-    /// Note: vocabulary parameter is ignored as Mistral doesn't support it.
+    /// Vocabulary terms are sent as a `context_bias` list (max 100 terms).
     /// </summary>
     public async Task<string> TranscribeAsync(
         string audioPath,
@@ -136,45 +122,26 @@ public class MistralService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        // Warn if vocabulary was provided (not supported)
         if (vocabulary?.Count > 0)
         {
-            LoggingService.Warn($"  Warning: Vocabulary ignored - Mistral does not support custom vocabulary");
+            LoggingService.Info($"  Vocabulary sent as context_bias: {vocabulary.Count} term(s) before capping");
         }
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Mistral API key not configured",
-                "Mistral");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Mistral");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
+        // STEP 1+2: Validate configuration and audio file (shared gate). Mistral
+        // does not cap the file size client-side.
+        TranscriptionPreflight.Validate("Mistral", _apiKey, audioPath);
 
         // STEP 3: Build the request via the Rust shared core, then drive it
-        // through the shared executor + core retry loop. Mistral does not support
-        // custom vocabulary; pass an empty term list.
+        // through the shared executor + core retry loop. Pass the RAW vocabulary
+        // list — the core normalizes it and caps the `context_bias` field.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
-            vocabulary: Array.Empty<string>(),
+            vocabulary: vocabulary ?? Array.Empty<string>(),
             apiKey: _apiKey,
             model: _modelId);
 

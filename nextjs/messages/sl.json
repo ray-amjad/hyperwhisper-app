@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Lokalni API in strežnik MCP",
-      "description": "Vgrajen strežnik MCP omogoča Claudeu, Cursorju in drugim AI agentom upravljanje HyperWhisperja. Samo lokalni HTTP API s preverjanjem bearer za skripte in avtomatizacije."
+      "description": "Vgrajen strežnik MCP omogoča Claudeu, Cursorju in drugim AI agentom upravljanje HyperWhisperja. Samo lokalni HTTP API za skripte in avtomatizacije."
     },
     "modes": {
       "title": "Načini za vsako situacijo",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Kako natančen je prepis?",
-        "answer": "Dosegamo vodilno natančnost 99 % z najsodobnejšimi AI modeli. Natančnost lahko še dodatno izboljšate z dodajanjem lastnega prilagojenega besednjaka za tehnične izraze, imena in specializiran žargon."
+        "answer": "Odvisno je od kombinacije modela in jezika, ki jo uporabljate. Nekateri modeli so odlični v angleščini, a šibkejši v drugih jezikih, modeli v oblaku pa so običajno natančnejši od lokalnih. Natančnost katerega koli modela lahko izboljšate z dodajanjem lastnega prilagojenega besednjaka za tehnične izraze, imena in specializiran žargon."
       },
       "offline": {
         "question": "Ali lahko uporabljam brez interneta?",
-        "answer": "Seveda. HyperWhisper lahko na vašem Macu uporabljate popolnoma brez povezave z lokalnimi AI modeli - internet ni potreben. Za uporabnike, ki želijo največjo natančnost in hitrost, ponujamo tudi opcijsko obdelavo v oblaku prek različnih ponudnikov."
+        "answer": "Seveda. HyperWhisper lahko na vašem Macu ali računalniku z Windows uporabljate popolnoma brez povezave z lokalnimi AI modeli - internet ni potreben. Za uporabnike, ki želijo največjo natančnost in hitrost, ponujamo tudi opcijsko obdelavo v oblaku prek različnih ponudnikov."
       },
       "apiKey": {
         "question": "Ali moram plačati za API dostop?",
-        "answer": "Uporabljate lasten API ključ za naslednje ponudnike: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral in Google Gemini. Nekateri ponudniki novim uporabnikom ponujajo brezplačno dobroimetje; Deepgram ponuja $200, AssemblyAI ponuja $50. Dolgoročno je to občutno ceneje kot katerakoli naročnina. \n\nUporabite lahko tudi HyperWhisper Cloud (vgrajen), ki ne zahteva API ključa in deluje po modelu plačila glede na uporabo.\n\nNe pozabite, lokalni način brez povezave deluje brez API ključa in je popolnoma brezplačen."
+        "answer": "Uporabljate lasten API ključ za naslednje ponudnike: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox in Google Gemini. Nekateri ponudniki novim uporabnikom ponujajo brezplačno dobroimetje; Deepgram ponuja $200, AssemblyAI ponuja $50. Dolgoročno je to občutno ceneje kot katerakoli naročnina. \n\nUporabite lahko tudi HyperWhisper Cloud (vgrajen), ki ne zahteva API ključa in deluje po modelu plačila glede na uporabo.\n\nNe pozabite, lokalni način brez povezave deluje brez API ključa in je popolnoma brezplačen."
       },
       "languages": {
         "question": "Katere jezike podpira?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Kako je zaščitena moja zasebnost?",
-        "answer": "Ko uporabljate lokalni način, nobeni podatki ne zapustijo vašega Maca.\n\nKo uporabljate cloud prepisovanje, se vaši podatki pošljejo cloud ponudniku, ki ga izberete (npr. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs ali Mistral).\n\nTo lahko preverite sami z omrežnim inšpektorjem, kot je [Proxyman](https://proxyman.io), ali omrežnim monitorjem, kot je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Ko uporabljate lokalni način, nobeni podatki ne zapustijo vašega Maca ali računalnika z Windows.\n\nKo uporabljate cloud prepisovanje, se vaši podatki pošljejo cloud ponudniku, ki ga izberete (npr. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ali Google Gemini).\n\nTo lahko preverite sami z omrežnim inšpektorjem, kot je [Proxyman](https://proxyman.io), omrežnim monitorjem, kot je [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), ali z branjem [izvorne kode na GitHubu](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Kaj je HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Kakšne so sistemske zahteve?",
         "answer": "Za Mac: macOS 14 ali novejši, podprta Apple Silicon in Intel. Za Windows: Windows 10/11, x64 ali ARM64. Za optimalno delovanje priporočamo 8 GB RAM."
-      },
-      "windowsStatus": {
-        "question": "Ali ima različica za Windows vse enake funkcije kot macOS?",
-        "answer": "Različica za Windows je bila izdana pred kratkim, zato morda še nima vseh funkcij, ki so na voljo v macOS. Aktivno delamo na popolni funkcionalni usklajenosti obeh platform."
       },
       "madeBy": {
         "question": "Kdo je to ustvaril?",

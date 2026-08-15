@@ -114,15 +114,21 @@ struct GeneralSettingsSection: View {
                 // Sharing is the default. Turning this off makes every cloud
                 // transcription send `X-Latency-Opt-Out: 1` (see LatencyOptOut),
                 // and the server drops the measurement instead of storing it.
+                //
+                // The comparison page is the pay-off for the toggle, so it sits
+                // on the title line and stays reachable whether or not sharing
+                // is on — someone who opted out can still read it, and seeing
+                // what it produces is the fairest way to present the choice.
                 SettingsToggleRow(
                     title: "settings.general.shareSpeedData.title",
-                    subtitle: "settings.general.shareSpeedData.subtitle",
+                    subtitle: nil,
                     info: "settings.general.shareSpeedData.info",
                     isOn: $settingsManager.shareAnonymousSpeedData,
-                    standalone: false
+                    standalone: false,
+                    titleLink: URL(string: "https://www.hyperwhisper.com/en/latency").map {
+                        SettingsRowLink(url: $0, label: "settings.general.shareSpeedData.link")
+                    }
                 )
-
-                speedDataLinkRow
 
                 Divider()
 
@@ -135,28 +141,6 @@ struct GeneralSettingsSection: View {
                 )
             }
         }
-    }
-
-    /// The pay-off for the toggle above: the page the shared data builds.
-    /// Shown whether or not sharing is on — someone who opted out can still
-    /// read the comparison, and seeing what it produces is the fairest way to
-    /// present the choice.
-    private var speedDataLinkRow: some View {
-        HStack(spacing: 4) {
-            Link(destination: URL(string: "https://www.hyperwhisper.com/en/latency")!) {
-                HStack(spacing: 4) {
-                    Text("settings.general.shareSpeedData.link")
-                    Image(systemName: "arrow.up.right")
-                        .imageScale(.small)
-                }
-            }
-            .font(.caption)
-            .buttonStyle(.link)
-
-            Spacer()
-        }
-        .padding(.horizontal, DesignConstants.Spacing.rowPadding)
-        .padding(.bottom, DesignConstants.Spacing.rowPadding)
     }
 
     private var updatesAndSupportCard: some View {

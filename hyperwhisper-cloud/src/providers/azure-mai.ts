@@ -19,6 +19,7 @@ import {
   audioExtensionFromContentType,
   computeUploadTimeoutMs,
   fetchWithTimeout,
+  isExplicitLanguage,
   logProviderEvent,
   readErrorBodyPreview,
 } from './utils';
@@ -115,7 +116,7 @@ export async function transcribeWithAzureMai(
 
   const url = `https://${azureRegion}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15`;
 
-  const isMonolingual = language && language.toLowerCase() !== 'auto';
+  const isMonolingual = isExplicitLanguage(language);
   const phrases = initialPrompt ? parsePhraseList(initialPrompt) : [];
 
   const definition: Record<string, unknown> = {

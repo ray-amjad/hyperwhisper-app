@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "本機 API 與 MCP 伺服器",
-      "description": "內建 MCP 伺服器，讓 Claude、Cursor 等 AI 代理可驅動 HyperWhisper。僅本機的 HTTP API，搭配 bearer 驗證，適用於指令稿與自動化。"
+      "description": "內建 MCP 伺服器，讓 Claude、Cursor 等 AI 代理可驅動 HyperWhisper。僅本機的 HTTP API，適用於指令稿與自動化。"
     },
     "modes": {
       "title": "適合各種情境的模式",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "轉寫有多準確？",
-        "answer": "我們使用最先進的 AI 模型，達到業界領先的 99% 準確率。你還可以透過加入自訂詞彙（技術術語、姓名、產業用語）進一步提升準確度。"
+        "answer": "這取決於你使用的模型與語言組合。有些模型在英文表現極佳，在其他語言卻較弱；雲端模型通常也比本機模型更準確。你可以透過加入自訂詞彙（技術術語、姓名、產業用語）提升任何模型的準確度。"
       },
       "offline": {
         "question": "沒有網路也能用嗎？",
-        "answer": "當然可以。HyperWhisper 可在你的 Mac 上以本機 AI 模型完全離線使用，無需連網。對於想要更高準確度與速度的使用者，我們也提供可選的雲端處理，支援多家雲端供應商。"
+        "answer": "當然可以。HyperWhisper 可在你的 Mac 或 Windows 電腦上以本機 AI 模型完全離線使用，無需連網。對於想要更高準確度與速度的使用者，我們也提供可選的雲端處理，支援多家雲端供應商。"
       },
       "apiKey": {
         "question": "需要為 API 存取付費嗎？",
-        "answer": "以下供應商需要你自備 API 金鑰：Groq、OpenAI、Deepgram、AssemblyAI、ElevenLabs。部分供應商會給新使用者免費額度；Deepgram 提供 $200，AssemblyAI 提供 $50。長期來看，這比任何訂閱都更划算。\n\n你也可以使用內建的 HyperWhisper Cloud，無需 API 金鑰，採按量計費。\n\n同時，本機離線模式不需要任何 API 金鑰，而且完全免費。"
+        "answer": "以下供應商需要你自備 API 金鑰：Groq、xAI Grok、OpenAI、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox、Google Gemini。部分供應商會給新使用者免費額度；Deepgram 提供 $200，AssemblyAI 提供 $50。長期來看，這比任何訂閱都更划算。\n\n你也可以使用內建的 HyperWhisper Cloud，無需 API 金鑰，採按量計費。\n\n同時，本機離線模式不需要任何 API 金鑰，而且完全免費。"
       },
       "languages": {
         "question": "支援哪些語言？",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "我的隱私如何保障？",
-        "answer": "使用本機模式時，資料不會離開你的 Mac。\n\n使用雲端轉寫時，資料會傳送到你選擇的雲端供應商（例如 OpenAI、Groq、Deepgram、AssemblyAI、ElevenLabs 或 Mistral）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等網路封包工具或 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等網路監控工具自行驗證。"
+        "answer": "使用本機模式時，資料不會離開你的 Mac 或 Windows 電腦。\n\n使用雲端轉寫時，資料會傳送到你選擇的雲端供應商（例如 OpenAI、Groq、xAI Grok、Deepgram、AssemblyAI、ElevenLabs、Mistral、Soniox 或 Google Gemini）。\n\n你可以使用 [Proxyman](https://proxyman.io) 等網路封包工具、[Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 等網路監控工具，或閱讀 [GitHub 上的原始碼](https://github.com/ray-amjad/hyperwhisper-app) 自行驗證。"
       },
       "cloud": {
         "question": "什麼是 HyperWhisper Cloud？",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "系統需求是什麼？",
         "answer": "Mac：macOS 14 或更新版本，支援 Apple Silicon 與 Intel。Windows：Windows 10/11，x64 或 ARM64。建議 8GB 記憶體以獲得最佳效能。"
-      },
-      "windowsStatus": {
-        "question": "Windows 版本是否具備 macOS 版本的全部功能？",
-        "answer": "Windows 版本是最近發布的，因此可能尚未具備 macOS 版本的所有功能。我們正在積極開發，努力讓兩個平台的功能保持一致。"
       },
       "madeBy": {
         "question": "這是誰做的？",

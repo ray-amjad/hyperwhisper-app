@@ -4,7 +4,7 @@
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
+import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -47,7 +47,7 @@ function buildDeepgramUrl(model: string, language?: string, vocabularyTerms: str
     mip_opt_out: 'true',
   });
 
-  const isMonolingual = language && language.toLowerCase() !== 'auto';
+  const isMonolingual = isExplicitLanguage(language);
 
   if (isMonolingual) {
     params.set('language', language.toLowerCase());

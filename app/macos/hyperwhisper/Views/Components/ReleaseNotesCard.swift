@@ -88,10 +88,14 @@ struct ReleaseNotesCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // Bullet points (<b>/<i> in the feed render as real emphasis)
-                if !release.bulletPoints.isEmpty {
+                // Bullet points (<b>/<i> render as real emphasis, and <a href>
+                // as a tinted, underlined link that opens in the browser).
+                // bulletPoints re-parses the note on every read, so this body
+                // pass reads it once, as it does the title.
+                let bulletPoints = release.bulletPoints
+                if !bulletPoints.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        ForEach(Array(release.bulletPoints.enumerated()), id: \.offset) { _, point in
+                        ForEach(Array(bulletPoints.enumerated()), id: \.offset) { _, point in
                             HStack(alignment: .top, spacing: 8) {
                                 // Bullet point
                                 Circle()
