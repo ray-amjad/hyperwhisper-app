@@ -167,12 +167,28 @@ You can use cloud post-processing through HyperWhisper Cloud with no key, or wit
 | **OpenAI** | Yes | GPT-4.1 and GPT-5 family. Fast and accurate |
 | **Anthropic (Claude)** | Yes | Claude Haiku and Sonnet. High-quality reasoning |
 | **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
-| **Groq** | Yes | Very fast inference with GPT OSS and Kimi K2 models |
-| **xAI (Grok)** | Yes | Grok 4.3 and Grok 4.5. High accuracy with low latency |
-| **Cerebras** | Yes | Very fast inference with GPT OSS, Llama 3.1, Qwen, and Z.ai models |
-| **Mistral** | Yes | Good for many languages. Mistral Small, Nemo, and Medium 3.5 |
+| **Groq** | Yes | Very fast inference with GPT OSS and Qwen models |
+| **xAI (Grok)** | Yes | Grok 4.3, Grok 4.5, and Grok 4.6. High accuracy with low latency |
+| **Cerebras** | Yes | Very fast inference with GPT OSS, Llama 3.1, and Qwen models |
+| **Mistral** | Yes | Good for many languages. Mistral Small and Mistral Medium 3.5 |
 
 Every cloud post-processing model has a **speed** rating and an **accuracy** rating. The [Rating scale](#rating-scale) section explains these ratings. They let you choose the trade that is important to you.
+
+### Retired post-processing models
+
+A provider can retire a post-processing model. HyperWhisper then removes the model from the picker and maps it to a current model. Your saved modes continue to work. The app applies the map when it reads the mode, thus you do not edit the mode yourself. macOS and Windows use the same map.
+
+The replacement is always a model of the same provider, except for the local Gemma models. HyperWhisper does not move your mode to a different provider, and it does not change your API key.
+
+| Retired model | Replacement |
+| --- | --- |
+| Mistral Nemo | Mistral Small |
+| Kimi K2 (Groq) | GPT OSS 120B |
+| Llama 3.3 70B (Groq and Cerebras) | GPT OSS 120B |
+| Z.ai GLM 4.7 (Cerebras) | GPT OSS 120B |
+| Grok 4 and Grok 4.1 Fast (xAI) | Grok 4.3 |
+| Gemma 3 12B and 27B (Gemini) | Gemini 2.5 Flash |
+| Qwen 3.5 (local) | Gemma 4 |
 
 ## Local LLM post-processing
 
