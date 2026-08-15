@@ -913,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "超過最大重試次數";
 "transcription.error.unauthorized.provider" = "未授權：無效的 %@ API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
 "transcription.error.unauthorized.generic" = "未授權：無效的 API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud 需要帳戶金鑰。\n\n開啟設定 → HyperWhisper Cloud 輸入金鑰或購買點數。";
 "transcription.error.invalidRequest" = "無效的請求：檢查音頻檔案或設定";
 "transcription.error.streamingInterrupted" = "串流中斷；顯示部分文字";
 "transcription.error.busy" = "轉錄服務目前忙碌中";

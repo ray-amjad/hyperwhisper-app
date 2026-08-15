@@ -913,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "Максималният брой повторни опити е надвишен";
 "transcription.error.unauthorized.provider" = "Неоторизиран: невалиден %@ API ключ или разрешения.\n\nОтворете Настройки → API ключове, за да проверите идентификационните си данни.";
 "transcription.error.unauthorized.generic" = "Неоторизиран: невалиден API ключ или разрешения.\n\nОтворете Настройки → API ключове, за да проверите идентификационните си данни.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud изисква ключ за акаунт.\n\nОтворете Настройки → HyperWhisper Cloud, за да въведете ключа си или да получите кредити.";
 "transcription.error.invalidRequest" = "Невалидна заявка: проверете аудио файла или настройките";
 "transcription.error.streamingInterrupted" = "Поточното предаване е прекъснато; показан е частичен текст";
 "transcription.error.busy" = "Услугата за транскрипция в момента е заета";

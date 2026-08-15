@@ -913,6 +913,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.error.maxRetriesExceeded" = "Maximum újrapróbálási kísérletek túllépve";
 "transcription.error.unauthorized.provider" = "Jogosulatlan: érvénytelen %@ API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
 "transcription.error.unauthorized.generic" = "Jogosulatlan: érvénytelen API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
+"transcription.error.cloudAccountRequired" = "A HyperWhisper Cloud fiókkulcsot igényel.\n\nNyisd meg a Beállítások → HyperWhisper Cloud menüt a kulcs megadásához vagy kreditek vásárlásához.";
 "transcription.error.invalidRequest" = "Érvénytelen kérés: ellenőrizd az audio fájlt vagy beállításokat";
 "transcription.error.streamingInterrupted" = "Streamelés megszakítva; részleges szöveg megjelenítve";
 "transcription.error.busy" = "Az átírási szolgáltatás jelenleg foglalt";

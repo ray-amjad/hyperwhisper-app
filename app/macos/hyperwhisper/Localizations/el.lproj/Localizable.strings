@@ -913,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "Υπερβολή μέγιστης προσπάθειας δοκιμής";
 "transcription.error.unauthorized.provider" = "Μη εξουσιοδοτημένο: μη έγκυρο κλειδί API %@ ή δικαιώματα.\n\nΑνοίξτε Ρυθμίσεις → Κλειδιά API για επαλήθευση των διαπιστευτηρίων σας.";
 "transcription.error.unauthorized.generic" = "Μη εξουσιοδοτημένο: μη έγκυρο κλειδί API ή δικαιώματα.\n\nΑνοίξτε Ρυθμίσεις → Κλειδιά API για επαλήθευση των διαπιστευτηρίων σας.";
+"transcription.error.cloudAccountRequired" = "Το HyperWhisper Cloud απαιτεί κλειδί λογαριασμού.\n\nΑνοίξτε Ρυθμίσεις → HyperWhisper Cloud για να εισαγάγετε το κλειδί σας ή να αποκτήσετε μονάδες.";
 "transcription.error.invalidRequest" = "Μη έγκυρο αίτημα: ελέγξτε το αρχείο ήχου ή τις ρυθμίσεις";
 "transcription.error.streamingInterrupted" = "Ρευστοποίηση διακοπή; μερικό κείμενο που εμφανίζεται";
 "transcription.error.busy" = "Η υπηρεσία μεταγραφής είναι επί του παρόντος απασχολημένη";

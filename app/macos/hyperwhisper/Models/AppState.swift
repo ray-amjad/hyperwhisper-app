@@ -414,7 +414,35 @@ class AppState: ObservableObject {
             "exceeded your current quota",
             "billing",
             "payment required",
-            "account is not active"
+            "account is not active",
+            // `TranscriptionError.cloudAccountRequired` — the client-side
+            // HyperWhisper Cloud entitlement refusal (HYPERWHISPER-T2). Its
+            // message says "requires an account key", which matched none of the
+            // markers above, so the new error arrived with NO settings button at
+            // all where the `.unauthorized` it replaced had one.
+            //
+            // Scope of that fix, stated plainly: the button comes back in
+            // English only. Every entry in this list is an English literal, but
+            // `message` reaches us already localized, so in the other 39 locales
+            // nothing here matches at all — the German string reads "erfordert
+            // einen Kontoschlüssel" and still gets no button. A typed,
+            // locale-independent answer already exists and is simply bypassed on
+            // this path: `TranscriptionError.showSettingsButton`, reached via
+            // `showInlineError(_ error: TranscriptionError)` →
+            // `InlineErrorToastManager.show(error:)`. Both call sites that raise
+            // this error throw the typed value away and hand over only
+            // `error.localizedDescription` (`RecordingTranscriptionFlow+ErrorHandling`
+            // and the dialog's own matcher), leaving the message as the only
+            // evidence available to decide on. So this is parity with the
+            // `.unauthorized` case it replaces — the same English-only behaviour,
+            // not a regression introduced here — and routing those call sites
+            // through the typed overload, not lengthening this list, is the
+            // actual fix. Deliberately not attempted in this change.
+            //
+            // Deliberately absent from `StreamingProviderErrorPolicy.terminalMarkers`: that
+            // list classifies messages a provider sent over the wire, and this
+            // refusal never reaches a provider.
+            "account key"
         ]
         let showSettings = settingsActionableMarkers.contains { message.localizedCaseInsensitiveContains($0) }
 

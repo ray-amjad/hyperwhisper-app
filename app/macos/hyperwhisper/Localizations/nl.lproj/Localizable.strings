@@ -913,6 +913,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.error.maxRetriesExceeded" = "Maximale aantalpoging pogingen bereikt";
 "transcription.error.unauthorized.provider" = "Niet gemachtigd: ongeldige %@ API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
 "transcription.error.unauthorized.generic" = "Niet gemachtigd: ongeldige API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vereist een accountsleutel.\n\nOpen Instellingen → HyperWhisper Cloud om je sleutel in te voeren of tegoed te kopen.";
 "transcription.error.invalidRequest" = "Ongeldige aanvraag: controleer audiobestand of instellingen";
 "transcription.error.streamingInterrupted" = "Streaming onderbroken; gedeeltelijke tekst weergegeven";
 "transcription.error.busy" = "De transcriptieservice is momenteel bezet";

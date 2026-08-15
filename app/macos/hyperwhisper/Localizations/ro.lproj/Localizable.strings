@@ -913,6 +913,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.error.maxRetriesExceeded" = "Depășit numărul maxim de reîncercări";
 "transcription.error.unauthorized.provider" = "Neautorizat: cheie API %@ nevalidă sau permisiuni.\n\nDeschideți Setări → Chei API pentru a verifica credențialele.";
 "transcription.error.unauthorized.generic" = "Neautorizat: cheie API nevalidă sau permisiuni.\n\nDeschideți Setări → Chei API pentru a verifica credențialele.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud necesită o cheie de cont.\n\nDeschideți Setări → HyperWhisper Cloud pentru a introduce cheia sau a obține credite.";
 "transcription.error.invalidRequest" = "Cerere nevalidă: verificați fișierul audio sau setări";
 "transcription.error.streamingInterrupted" = "Streaming întrerupt; text parțial afișat";
 "transcription.error.busy" = "Serviciul de transcriere este în prezent ocupat";

@@ -913,6 +913,7 @@ Prije brisanja ažurirajte ove načine rada da koriste drugi model.";
 "transcription.error.maxRetriesExceeded" = "Prekoračen maksimalni broj pokušaja";
 "transcription.error.unauthorized.provider" = "Neovlašteno: nevažeći %@ API ključ ili dozvole.\n\nOtvorite Postavke → API ključevi za provjeru svojih vjerodajnica.";
 "transcription.error.unauthorized.generic" = "Neovlašteno: nevažeći API ključ ili dozvole.\n\nOtvorite Postavke → API ključevi za provjeru svojih vjerodajnica.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud zahtijeva ključ računa.\n\nOtvorite Postavke → HyperWhisper Cloud za unos ključa ili nabavu kredita.";
 "transcription.error.invalidRequest" = "Nevažeći zahtjev: provjerite audio datoteku ili postavke";
 "transcription.error.streamingInterrupted" = "Strujanje prekinuto; prikazan djelomični tekst";
 "transcription.error.busy" = "Usluga transkripcije je trenutno zauzeta";

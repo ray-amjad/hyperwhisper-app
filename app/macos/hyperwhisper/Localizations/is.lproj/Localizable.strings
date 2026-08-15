@@ -913,6 +913,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.error.maxRetriesExceeded" = "Hámarks endurtilraunatölur farið yfir";
 "transcription.error.unauthorized.provider" = "Óheimilt: ógildur %@ API lykill eða heimildir.\n\nOpnaðu Stillingar → API lyklar til að staðfesta skilríkin þín.";
 "transcription.error.unauthorized.generic" = "Óheimilt: ógildur API lykill eða heimildir.\n\nOpnaðu Stillingar → API lyklar til að staðfesta skilríkin þín.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud krefst reikningslykils.\n\nOpnaðu Stillingar → HyperWhisper Cloud til að slá inn lykilinn þinn eða fá inneign.";
 "transcription.error.invalidRequest" = "Ógild beiðni: athugaðu hljóðskrá eða stillingar";
 "transcription.error.streamingInterrupted" = "Streymi truflað; hlutaðan texta sýndur";
 "transcription.error.busy" = "Afritunarþjónustan er upptekin eins og stendur";

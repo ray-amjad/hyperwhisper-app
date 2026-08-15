@@ -913,6 +913,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.error.maxRetriesExceeded" = "Maximalt antal försök överskridits";
 "transcription.error.unauthorized.provider" = "Obehörig: ogiltig %@ API-nyckel eller behörigheter.\n\nÖppna Inställningar → API-nycklar för att verifiera dina autentiseringsuppgifter.";
 "transcription.error.unauthorized.generic" = "Obehörig: ogiltig API-nyckel eller behörigheter.\n\nÖppna Inställningar → API-nycklar för att verifiera dina autentiseringsuppgifter.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud kräver en kontonyckel.\n\nÖppna Inställningar → HyperWhisper Cloud för att ange din nyckel eller köpa krediter.";
 "transcription.error.invalidRequest" = "Ogiltig förfrågan: kontrollera ljudfil eller inställningar";
 "transcription.error.streamingInterrupted" = "Strömningen avbröts; delvis text visad";
 "transcription.error.busy" = "Transkriptionstjänsten är för närvarande upptagen";

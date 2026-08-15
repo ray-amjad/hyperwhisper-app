@@ -913,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "تم تجاوز حد محاولات إعادة المحاولة الأقصى";
 "transcription.error.unauthorized.provider" = "غير مصرح: مفتاح API %@ غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
 "transcription.error.unauthorized.generic" = "غير مصرح: مفتاح API غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
+"transcription.error.cloudAccountRequired" = "يتطلب HyperWhisper Cloud مفتاح حساب.\n\nافتح الإعدادات → HyperWhisper Cloud لإدخال مفتاحك أو الحصول على رصيد.";
 "transcription.error.invalidRequest" = "طلب غير صحيح: تحقق من ملف الصوت أو الإعدادات";
 "transcription.error.streamingInterrupted" = "تم مقاطعة البث؛ تم عرض نص جزئي";
 "transcription.error.busy" = "خدمة النسخ مشغولة حالياً";

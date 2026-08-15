@@ -913,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "Максимальное количество попыток повтора превышено";
 "transcription.error.unauthorized.provider" = "Не авторизовано: неверный ключ API или разрешения %@.\n\nОткройте параметры → Ключи API для проверки учетных данных.";
 "transcription.error.unauthorized.generic" = "Не авторизовано: неверный ключ API или разрешения.\n\nОткройте параметры → Ключи API для проверки учетных данных.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud требует ключ учётной записи.\n\nОткройте параметры → HyperWhisper Cloud, чтобы ввести ключ или приобрести кредиты.";
 "transcription.error.invalidRequest" = "Неверный запрос: проверьте аудиофайл или параметры";
 "transcription.error.streamingInterrupted" = "Потоковая передача прервана; показан частичный текст";
 "transcription.error.busy" = "Служба транскрипции в настоящее время занята";

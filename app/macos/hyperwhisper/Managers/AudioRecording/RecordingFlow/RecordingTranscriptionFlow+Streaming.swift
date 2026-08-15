@@ -359,6 +359,29 @@ extension RecordingTranscriptionFlow {
             }
 
             let (identifier, isLicensed) = licenseManager.getTranscriptionIdentifier()
+
+            // Fail fast: the streaming WebSocket authenticates an account /
+            // licence key only — the guest `device_id` path is gone server-side
+            // — so an unlicensed session is a guaranteed 401, surfaced by the
+            // provider as a misleading "invalid API key" for a provider that has
+            // no user-supplied API key (HYPERWHISPER-T2). Refuse locally instead.
+            // Fail-closed only; the backend stays the sole authority.
+            // See HyperWhisperCloudEntitlement.
+            do {
+                try HyperWhisperCloudEntitlement.requireLicense(
+                    isLicensed: isLicensed,
+                    provider: StreamingTranscriptionProvider.hyperwhisperCloud.displayName
+                )
+            } catch {
+                // Not a Sentry error: this is an expected, user-recoverable
+                // state, and `cancelRecordingWithError` only logs + shows the
+                // inline toast (which carries a Settings button because the
+                // message names an "account key").
+                AppLogger.audio.warning("⚠️ Streaming refused: HyperWhisper Cloud selected without an account key")
+                await cancelRecordingWithError(error.localizedDescription)
+                return
+            }
+
             licenseKey = isLicensed ? identifier : nil
             deviceId = isLicensed ? nil : identifier
         }
