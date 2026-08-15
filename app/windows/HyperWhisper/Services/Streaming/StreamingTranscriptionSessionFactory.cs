@@ -44,7 +44,7 @@ public static class StreamingTranscriptionSessionFactory
             LicenseKey: LicenseManager.Instance.GetStoredLicenseKey(),
             DeviceId: DeviceIdService.Instance.GetDeviceId(),
             Language: settings.StreamingLanguage,
-            Vocabulary: BuildVocabulary(provider, vocabularyWords),
+            Vocabulary: BuildVocabulary(strategy, vocabularyWords),
             ApiKey: apiKey,
             Model: provider == StreamingTranscriptionProvider.Deepgram ? settings.StreamingDeepgramModel : null,
             FastFormatting: settings.StreamingFastFormatting,
@@ -53,6 +53,14 @@ public static class StreamingTranscriptionSessionFactory
 
         return Result<StreamingTranscriptionClient>.Success(new StreamingTranscriptionClient(strategy, config));
     }
+
+    /// <summary>
+    /// Whether this provider's streaming strategy consumes custom vocabulary.
+    /// The strategy owns the answer; UI must ask here rather than keep its own
+    /// provider list, or the two drift (see BuildVocabulary below).
+    /// </summary>
+    public static bool SupportsVocabulary(StreamingTranscriptionProvider provider) =>
+        CreateStrategy(provider).SupportsVocabulary;
 
     private static IStreamingProviderStrategy CreateStrategy(StreamingTranscriptionProvider provider) => provider switch
     {
@@ -90,13 +98,15 @@ public static class StreamingTranscriptionSessionFactory
         _ => null
     };
 
+    // The strategy is the single owner of "does this provider take vocabulary".
+    // A second provider list here is what made the xAI keyterm support dead on
+    // arrival: the strategy said yes and this method still said no.
     private static string? BuildVocabulary(
-        StreamingTranscriptionProvider provider,
+        IStreamingProviderStrategy strategy,
         IReadOnlyCollection<string> vocabularyWords
     )
     {
-        if (provider is StreamingTranscriptionProvider.ElevenLabs or StreamingTranscriptionProvider.OpenAI or StreamingTranscriptionProvider.Xai ||
-            vocabularyWords.Count == 0)
+        if (!strategy.SupportsVocabulary || vocabularyWords.Count == 0)
         {
             return null;
         }

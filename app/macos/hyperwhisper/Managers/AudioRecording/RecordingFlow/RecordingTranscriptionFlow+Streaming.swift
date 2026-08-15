@@ -1024,7 +1024,20 @@ extension RecordingTranscriptionFlow {
     }
 
     /// Build a comma-separated vocabulary string from vocabulary entries.
-    /// Used for Deepgram's keyterm parameter.
+    /// Consumed by every streaming strategy that reports `supportsVocabulary`
+    /// (Deepgram `keyterm`, xAI `keyterm`, HyperWhisper Cloud `initial_prompt`).
+    ///
+    /// Applies the SAME two rules as the batch path's
+    /// `RustCoreMapping.boostVocabularyTerms`:
+    ///
+    /// - **replacement pairs are excluded.** An entry with a replacement is a
+    ///   find-and-replace correction (`Klawd` → `Claude`), not a recognition
+    ///   hint. Sending its `word` boosts the ASR toward the exact misspelling
+    ///   the user configured a fix for, and burns one of the provider's term
+    ///   slots doing it.
+    /// - **each term is sanitized** through `PromptBuilder.sanitizeVocabularyWord`,
+    ///   so an imported backup cannot push angle brackets or whitespace runs
+    ///   into a provider request.
     ///
     /// - Parameter vocabulary: Array of vocabulary entry snapshots
     /// - Returns: Comma-separated string of vocabulary terms, or nil if empty
@@ -1033,7 +1046,8 @@ extension RecordingTranscriptionFlow {
         var seen = Set<String>()
 
         for item in vocabulary {
-            let word = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard item.replacement?.isEmpty != false else { continue }
+            let word = PromptBuilder.sanitizeVocabularyWord(item.word)
             guard !word.isEmpty,
                   !seen.contains(word.lowercased()) else {
                 continue

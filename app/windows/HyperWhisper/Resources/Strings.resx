@@ -1366,7 +1366,7 @@ Do you want to restart now?</value>
     <value>Grok STT</value>
   </data>
   <data name="modes.cloudAccuracy.grokStt.description" xml:space="preserve">
-    <value>xAI Grok STT - high accuracy, no custom vocabulary</value>
+    <value>xAI Grok STT - high accuracy, custom vocabulary as keyterms</value>
   </data>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.label" xml:space="preserve">
     <value>Microsoft MAI-Transcribe 1.5</value>

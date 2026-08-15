@@ -279,14 +279,19 @@ public partial class StreamingSettingsPage : Page
         }
 
         var provider = StreamingTranscriptionProviderExtensions.FromStorageValue(_settings.StreamingProvider);
-        if (provider is StreamingTranscriptionProvider.ElevenLabs or StreamingTranscriptionProvider.OpenAI or StreamingTranscriptionProvider.Xai)
+        // Ask the strategy, never a second provider list — see
+        // StreamingTranscriptionSessionFactory.SupportsVocabulary.
+        if (!StreamingTranscriptionSessionFactory.SupportsVocabulary(provider))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyUnsupported");
             VocabularyWarningPanel.Visibility = Visibility.Visible;
             return;
         }
 
-        if (string.Equals(_settings.StreamingLanguage, "auto", System.StringComparison.OrdinalIgnoreCase))
+        // Auto-detect drops keyterm boosting on Deepgram Nova-3 only; xAI accepts
+        // keyterms with or without an explicit language.
+        if (provider == StreamingTranscriptionProvider.Deepgram
+            && string.Equals(_settings.StreamingLanguage, "auto", System.StringComparison.OrdinalIgnoreCase))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyAutoDetect");
             VocabularyWarningPanel.Visibility = Visibility.Visible;
