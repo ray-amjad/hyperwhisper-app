@@ -716,8 +716,28 @@ struct RecordingDialog: View {
         // "account key" matches `TranscriptionError.cloudAccountRequired`, the
         // client-side HyperWhisper Cloud entitlement refusal (HYPERWHISPER-T2).
         // Without it that error shows no button here at all — the `.unauthorized`
-        // it replaced matched "unauthorized"/"API key" and got one. Mirrors
-        // `AppState.showError`'s marker list.
+        // it replaced matched "unauthorized"/"API key" and got one.
+        //
+        // NOT in sync with `AppState.showError`'s `settingsActionableMarkers`,
+        // and do not read it as a mirror of that list: this one holds 6 markers,
+        // that one ~19, and this one is a strict subset. The asymmetry is
+        // load-bearing rather than cosmetic, because this matcher runs LAST and
+        // therefore wins. On the transcription-failure path
+        // `RecordingTranscriptionFlow+ErrorHandling` calls `showError` first and
+        // only then sets `lastTranscription` to "Error: …", which is what wakes
+        // this dialog's `onChange` and lands here second; and
+        // `InlineErrorToastManager.show` dismisses the existing toast before
+        // presenting the new one. So while the recording dialog is on screen,
+        // an error whose message matches only a marker unique to
+        // `settingsActionableMarkers` (e.g. billing, forbidden, "exceeded your
+        // current quota") is given a Settings button by `showError` and then has
+        // it stripped again here. Reconciling the two lists is deliberately out
+        // of scope for this change.
+        //
+        // English-only, like the list it shadows: these are English literals but
+        // `cleanError` arrives already localized, so none of them match in the
+        // other 39 locales. See the note in `AppState.showError` for the typed
+        // alternative that exists and why this path bypasses it.
         let showSettings = cleanError.localizedCaseInsensitiveContains("API key") ||
                            cleanError.localizedCaseInsensitiveContains("unauthorized") ||
                            cleanError.localizedCaseInsensitiveContains("invalid api key") ||

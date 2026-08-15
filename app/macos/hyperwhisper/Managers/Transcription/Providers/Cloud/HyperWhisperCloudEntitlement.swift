@@ -24,12 +24,26 @@ import Foundation
 ///
 /// **What it actually saves.** The network round-trip and the upload — not the
 /// audio preprocessing. The guard sits inside the provider, and by the time a
-/// provider is called the audio has already been prepared: the recording flow
-/// runs VAD trimming before `transcribeWithDetails`
-/// (`RecordingTranscriptionFlow+StopRecording.swift`), and the file-import path
-/// re-encodes first. Moving the check ahead of that work would mean a preflight
-/// in the recording flow itself, which is a deliberate follow-up, not something
-/// this type does today.
+/// provider is called the audio has already been prepared:
+///
+/// - Both entry points run the *same* optional VAD silence trim
+///   (`VADProcessingService.processAudioForTranscription`) immediately before
+///   `transcribeWithDetails` — the recording flow in
+///   `RecordingTranscriptionFlow+StopRecording.swift` and the file-import flow
+///   in `FileTranscriptionFlow.swift`. VAD is not import-specific and it is not
+///   unconditional: in both flows it returns the original URL untouched unless
+///   the user enabled VAD and the clip is at least
+///   `AudioConstants.vadMinimumDuration`. When it does run it decodes and
+///   rewrites the audio, so that is the one preprocessing cost either path can
+///   pay before we get here.
+/// - The import path does not otherwise re-encode. A picked audio file is
+///   copied byte-for-byte into the recordings folder (`FileManager.copyItem`);
+///   re-encoding is reached only for video containers, gated on
+///   `isVideoFileType` (mp4/mov/m4v), which extracts the audio track first.
+///
+/// Moving the check ahead of that work would mean a preflight in the recording
+/// flow itself, which is a deliberate follow-up, not something this type does
+/// today.
 ///
 /// **Fail-closed only.** This type can only *refuse* a request; it can never
 /// grant one. The server remains the sole authority on entitlement — a `true`
