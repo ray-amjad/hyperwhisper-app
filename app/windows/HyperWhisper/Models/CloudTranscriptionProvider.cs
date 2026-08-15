@@ -233,9 +233,9 @@ public static class CloudTranscriptionProviderExtensions
         // Azure MAI + Google Chirp 3 are surfaced as HW Cloud accuracy tiers
         // since PR #521; they no longer appear in the standalone BYOK list.
         // Any un-migrated mode that still hits the BYOK path with these
-        // provider values must NOT ship `initial_prompt` (Chirp 3 drops it,
-        // Azure MAI uses a different field). The HW Cloud send path has its
-        // own catalog-driven gate.
+        // provider values must NOT ship `initial_prompt` (Chirp 3 takes a
+        // phrase set on the routed path only, Azure MAI uses a different
+        // field). The HW Cloud send path has its own catalog-driven gate.
         CloudTranscriptionProvider.MicrosoftAzureSpeech => false,
         CloudTranscriptionProvider.GoogleSpeech => false,
         CloudTranscriptionProvider.None => false,

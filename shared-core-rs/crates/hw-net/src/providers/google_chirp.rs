@@ -8,11 +8,12 @@
 //! - macOS `GoogleChirpProvider.swift` + `HyperWhisperRoutedTranscription.swift`
 //! - Windows `GoogleChirpTranscriptionService.cs` + `HyperWhisperRoutedTranscriptionClient.cs`
 //!
-//! Note: Chirp 3 has `initial_prompt` silently dropped server-side, so the
-//! shipped clients gate vocabulary off for this tier. That gating is a
-//! catalog-driven, platform-side decision (it depends on the per-model catalog
-//! the platform owns), so it is NOT enforced in this sans-I/O builder — the
-//! caller passes an empty `vocabulary` when the catalog says unsupported.
+//! Note: the backend forwards `initial_prompt` to Chirp 3 as a Speech V2 inline
+//! phrase set (`config.adaptation`), so vocabulary IS honoured for this tier.
+//! Whether a client sends any is a catalog-driven, platform-side decision (it
+//! depends on the per-model catalog the platform owns), so it is not enforced
+//! in this sans-I/O builder — the caller passes an empty `vocabulary` when the
+//! catalog says unsupported.
 
 use crate::contract::{HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError};
 use crate::providers::hyperwhisper_cloud;

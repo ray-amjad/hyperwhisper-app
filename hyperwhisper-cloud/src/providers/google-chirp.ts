@@ -192,14 +192,6 @@ export async function transcribeWithGoogleChirp(
     return rest;
   }
 
-  /**
-   * Whether a rejected request should be retried without adaptation. Google
-   * reports an unusable phrase set as 404 NOT_FOUND, and 400 INVALID_ARGUMENT
-   * is the other shape a bad `adaptation` block takes.
-   */
-  const isAdaptationRejection = (status: number) =>
-    phrases.length > 0 && (status === 400 || status === 404);
-
   // Allocated before the try so the finally block can clean up even when
   // the upload throws part way through.
   let gcsRef: TranscriptionAudioRef | null = null;
@@ -231,18 +223,25 @@ export async function transcribeWithGoogleChirp(
       }, context, SYNC_RECOGNIZE_TIMEOUT_MS);
 
       let response = await recognize({ config, content });
+      let errorText: string | undefined;
 
-      if (!response.ok && isAdaptationRejection(response.status)) {
-        logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-          status: response.status,
-          phraseCount: phrases.length,
-          delivery: 'inline',
-        }, context);
-        response = await recognize({ config: configWithoutAdaptation(), content });
+      if (!response.ok) {
+        const rejection = await classifyRejection(response, phrases.length > 0);
+        errorText = rejection.errorText;
+        if (rejection.retryWithoutAdaptation) {
+          logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
+            status: response.status,
+            phraseCount: phrases.length,
+            delivery: 'inline',
+            bodyPreview: rejection.errorText,
+          }, context);
+          response = await recognize({ config: configWithoutAdaptation(), content });
+          errorText = undefined;
+        }
       }
 
       if (!response.ok) {
-        await throwForSpeechError(provider, response, startedAt, context);
+        await throwForSpeechError(provider, response, startedAt, context, errorText);
       }
 
       const data = await parseJsonBody<SpeechRecognizeResponse>(response, provider, 'sync_recognize', context);
@@ -390,13 +389,50 @@ function normalizeSpeechResults(
   };
 }
 
+/**
+ * Decide whether a rejected request should be retried without the advisory
+ * `adaptation` block, reading the error body exactly once.
+ *
+ * The body read is not optional: it is what releases the socket, and it is what
+ * keeps this from re-sending a payload that will fail identically.
+ *
+ * - **404** retries. Google reports an unusable phrase set as a bare
+ *   `Requested entity was not found.` with nothing about adaptation in it, so a
+ *   body match would defeat the whole fallback. On the sync path there is no
+ *   other 404 shape; on the batch path the submit only runs after a successful
+ *   upload.
+ * - **400** retries ONLY when the body names the biasing machinery. 400 is the
+ *   status Google uses for the ~60 s sync duration cap, an unusable audio
+ *   config and a wrong `GOOGLE_SPEECH_REGION` — none of which get better on a
+ *   second identical attempt.
+ * - Anything else never retries.
+ */
+async function classifyRejection(
+  response: Response,
+  hasPhrases: boolean,
+): Promise<{ retryWithoutAdaptation: boolean; errorText: string }> {
+  const errorText = await readErrorBodyPreview(response);
+  if (!hasPhrases) {
+    return { retryWithoutAdaptation: false, errorText };
+  }
+  if (response.status === 404) {
+    return { retryWithoutAdaptation: true, errorText };
+  }
+  if (response.status === 400 && /adaptation|phrase[_ ]?set|phrases/i.test(errorText)) {
+    return { retryWithoutAdaptation: true, errorText };
+  }
+  return { retryWithoutAdaptation: false, errorText };
+}
+
 async function throwForSpeechError(
   provider: string,
   response: Response,
   startedAt: number,
   context: ProviderRequestContext,
+  /** Body already read by `classifyRejection`; a Response body reads once. */
+  preReadErrorText?: string,
 ): Promise<never> {
-  const errorText = await readErrorBodyPreview(response);
+  const errorText = preReadErrorText ?? await readErrorBodyPreview(response);
   const elapsedMs = Math.round(performance.now() - startedAt);
   const kind = response.status >= 500
     ? 'upstream_5xx'
@@ -489,21 +525,29 @@ async function runBatchRecognize(params: BatchRecognizeParams): Promise<Normaliz
   }, context);
 
   let submitResponse = await submit(config);
+  let submitErrorText: string | undefined;
 
   // Advisory biasing must never cost the transcript — see the adaptation note
   // in `transcribeWithGoogleChirp`. Retried at submit time only, so a poll-time
-  // failure never re-runs an operation we are already being billed for.
-  if (!submitResponse.ok && fallbackConfig && (submitResponse.status === 400 || submitResponse.status === 404)) {
-    logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
-      status: submitResponse.status,
-      phraseCount: phraseCount ?? 0,
-      delivery: 'gcs+batch',
-    }, context);
-    submitResponse = await submit(fallbackConfig);
+  // failure never re-runs an operation we are already being billed for, and
+  // through the SAME predicate as the inline path so the two cannot drift.
+  if (!submitResponse.ok) {
+    const rejection = await classifyRejection(submitResponse, Boolean(fallbackConfig));
+    submitErrorText = rejection.errorText;
+    if (rejection.retryWithoutAdaptation && fallbackConfig) {
+      logProviderEvent(provider, 'adaptation_rejected_retrying_without', {
+        status: submitResponse.status,
+        phraseCount: phraseCount ?? 0,
+        delivery: 'gcs+batch',
+        bodyPreview: rejection.errorText,
+      }, context);
+      submitResponse = await submit(fallbackConfig);
+      submitErrorText = undefined;
+    }
   }
 
   if (!submitResponse.ok) {
-    await throwForSpeechError(provider, submitResponse, startedAt, context);
+    await throwForSpeechError(provider, submitResponse, startedAt, context, submitErrorText);
   }
 
   const submitData = await parseJsonBody<{ name?: string }>(submitResponse, provider, 'batch_submit', context);

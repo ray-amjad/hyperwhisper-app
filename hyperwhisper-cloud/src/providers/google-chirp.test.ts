@@ -228,6 +228,37 @@ describe('transcribeWithGoogleChirp — phrase-list adaptation', () => {
     expect(bodies[1].config.languageCodes).toEqual(['en-US']);
   });
 
+  test('does not retry a 400 whose body is not about the phrase set', async () => {
+    // The sync ~60s duration cap, a bad audio config and a wrong region are all
+    // 400s. Re-sending the same payload just fails again on a selfOnly provider.
+    let calls = 0;
+    fetchHandler = () => {
+      calls += 1;
+      return new Response('{"error":{"status":"INVALID_ARGUMENT","message":"Invalid audio duration"}}', { status: 400 });
+    };
+
+    await expect(
+      transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav', 'en-US', 'HyperWhisper'),
+    ).rejects.toThrow();
+    expect(calls).toBe(1);
+  });
+
+  test('retries a 400 that names the phrase set', async () => {
+    const bodies: any[] = [];
+    fetchHandler = (_url, init) => {
+      const body = JSON.parse(init.body as string);
+      bodies.push(body);
+      if (body.config.adaptation) {
+        return new Response('{"error":{"message":"Invalid inlinePhraseSet in adaptation"}}', { status: 400 });
+      }
+      return syncRecognizeResponse('kept it');
+    };
+
+    const result = await transcribeWithGoogleChirp(new ArrayBuffer(1000), 'audio/wav', 'en-US', 'HyperWhisper');
+    expect(result.text).toBe('kept it');
+    expect(bodies.length).toBe(2);
+  });
+
   test('does not retry a rejection when there was no vocabulary to drop', async () => {
     let calls = 0;
     fetchHandler = () => {
