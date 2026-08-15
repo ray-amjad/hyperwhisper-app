@@ -62,7 +62,15 @@ function toKeyterms(initialPrompt: string): string[] {
   const seen = new Set<string>();
   const terms: string[] = [];
   for (const raw of initialPrompt.split(/[,\n;]+/)) {
-    const term = raw.trim().replace(/^[-*]\s*/, '');
+    // Strip angle brackets and collapse whitespace runs, matching the canonical
+    // `sanitize_vocabulary_word` the BYOK path routes through — an imported
+    // backup can carry either.
+    const term = raw
+      .trim()
+      .replace(/^[-*]\s*/, '')
+      .replace(/[<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     if (term.length === 0 || term.length > MAX_KEYTERM_CHARS) continue;
     const key = term.toLowerCase();
     if (seen.has(key)) continue;
