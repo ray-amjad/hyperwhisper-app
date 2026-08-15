@@ -13,14 +13,23 @@ import Foundation
 /// The backend dropped guest / device-credit auth: its auth middleware reads
 /// only `account_key` / `license_key` and rejects everything else with a 401
 /// before it reads the request body. So an unlicensed upload is guaranteed to
-/// fail — but only *after* the client has converted and VAD-trimmed the audio
-/// and pushed it over the network. The Rust core then maps that 401 to a
-/// terminal `TranscriptionError.unauthorized`, which is reported to Sentry as a
+/// fail — but only *after* the client has pushed the audio over the network.
+/// The Rust core then maps that 401 to a terminal
+/// `TranscriptionError.unauthorized`, which is reported to Sentry as a
 /// production error and tells the user to "Open Settings → API Keys" for a
 /// provider that has no user-supplied API key. (Sentry HYPERWHISPER-T2.)
 ///
 /// This check refuses that request locally, up front, with a `TranscriptionError`
 /// that names the real remedy.
+///
+/// **What it actually saves.** The network round-trip and the upload — not the
+/// audio preprocessing. The guard sits inside the provider, and by the time a
+/// provider is called the audio has already been prepared: the recording flow
+/// runs VAD trimming before `transcribeWithDetails`
+/// (`RecordingTranscriptionFlow+StopRecording.swift`), and the file-import path
+/// re-encodes first. Moving the check ahead of that work would mean a preflight
+/// in the recording flow itself, which is a deliberate follow-up, not something
+/// this type does today.
 ///
 /// **Fail-closed only.** This type can only *refuse* a request; it can never
 /// grant one. The server remains the sole authority on entitlement — a `true`

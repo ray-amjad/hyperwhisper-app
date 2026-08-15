@@ -228,9 +228,11 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
 
         // Fail fast: the guest/device-credit path is dead server-side
         // (entitlement is enforced there), so an unlicensed request is doomed —
-        // surface guidance instead of converting + VAD-trimming the audio and
-        // burning a network round-trip on a 401. Fail-closed only; the backend
-        // still validates the key. See HyperWhisperCloudEntitlement.
+        // surface guidance instead of burning the upload and the network
+        // round-trip on a 401. This does NOT skip audio preprocessing: the
+        // recording flow already VAD-trimmed (and the import path already
+        // re-encoded) before this provider was called. Fail-closed only; the
+        // backend still validates the key. See HyperWhisperCloudEntitlement.
         try HyperWhisperCloudEntitlement.requireLicense(isLicensed: isLicensed, provider: name)
 
         // Determine post-processing configuration based on mode settings

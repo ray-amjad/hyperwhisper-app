@@ -414,7 +414,16 @@ class AppState: ObservableObject {
             "exceeded your current quota",
             "billing",
             "payment required",
-            "account is not active"
+            "account is not active",
+            // `TranscriptionError.cloudAccountRequired` — the client-side
+            // HyperWhisper Cloud entitlement refusal (HYPERWHISPER-T2). Its
+            // message says "requires an account key", which matched none of the
+            // markers above, so the new error arrived with NO settings button at
+            // all where the `.unauthorized` it replaced had one. Deliberately
+            // absent from `StreamingProviderErrorPolicy.terminalMarkers`: that
+            // list classifies messages a provider sent over the wire, and this
+            // refusal never reaches a provider.
+            "account key"
         ]
         let showSettings = settingsActionableMarkers.contains { message.localizedCaseInsensitiveContains($0) }
 

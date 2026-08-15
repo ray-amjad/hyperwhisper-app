@@ -713,11 +713,17 @@ struct RecordingDialog: View {
         // Determine if we should show Settings button
         // Show for errors that user can fix in settings (API keys, auth, credits)
         // Hide for transient errors (network, rate limits, no speech)
+        // "account key" matches `TranscriptionError.cloudAccountRequired`, the
+        // client-side HyperWhisper Cloud entitlement refusal (HYPERWHISPER-T2).
+        // Without it that error shows no button here at all — the `.unauthorized`
+        // it replaced matched "unauthorized"/"API key" and got one. Mirrors
+        // `AppState.showError`'s marker list.
         let showSettings = cleanError.localizedCaseInsensitiveContains("API key") ||
                            cleanError.localizedCaseInsensitiveContains("unauthorized") ||
                            cleanError.localizedCaseInsensitiveContains("invalid api key") ||
                            cleanError.localizedCaseInsensitiveContains("insufficient credits") ||
-                           cleanError.localizedCaseInsensitiveContains("quota exceeded")
+                           cleanError.localizedCaseInsensitiveContains("quota exceeded") ||
+                           cleanError.localizedCaseInsensitiveContains("account key")
 
         // Show the inline error toast ABOVE the recording dialog
         // This does NOT close the recording dialog
