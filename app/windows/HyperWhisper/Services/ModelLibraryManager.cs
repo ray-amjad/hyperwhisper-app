@@ -533,7 +533,6 @@ public sealed class ModelLibraryManager
         ["gemini-3.1-flash-lite-preview"]                 = (4, 3),
         ["openai/gpt-oss-120b"]                           = (4, 4),
         ["openai/gpt-oss-20b"]                            = (4, 4),
-        ["meta-llama/llama-4-maverick-17b-128e-instruct"] = (2, 3),
         ["qwen/qwen3.6-27b"]                              = (4, 3),
         ["grok-4.3"]                                      = (2, 5),
         ["grok-4.5"]                                      = (2, 5),
