@@ -49,25 +49,15 @@ pub enum VocabularyMode {
 /// Replace every whitespace run and comma in `term` with a single `_`.
 /// See [`VocabularyMode::Terms`] for why Mistral needs this.
 fn underscore_separators(term: &str) -> String {
-    let replaced: String = term
-        .chars()
-        .map(|c| if c.is_whitespace() || c == ',' { '_' } else { c })
-        .collect();
-    // Collapse runs so "Smith,  Jr." becomes "Smith_Jr." and not "Smith___Jr.".
-    let mut out = String::with_capacity(replaced.len());
-    let mut last_was_underscore = false;
-    for c in replaced.chars() {
-        if c == '_' {
-            if !last_was_underscore {
-                out.push(c);
-            }
-            last_was_underscore = true;
-        } else {
-            out.push(c);
-            last_was_underscore = false;
-        }
-    }
-    out.trim_matches('_').to_string()
+    // Split on the characters Voxtral forbids and rejoin with a single "_".
+    // Working on segments rather than substituting in place is what preserves a
+    // term's OWN underscores: "__init__" contains no whitespace and no comma, so
+    // it is one segment and passes through untouched, while "Smith,  Jr." is two
+    // segments and becomes "Smith_Jr.".
+    term.split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>()
+        .join("_")
 }
 
 /// Declarative description of an OpenAI-style multipart transcription provider.

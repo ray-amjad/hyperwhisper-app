@@ -212,6 +212,20 @@ mod tests {
     }
 
     #[test]
+    fn a_terms_own_underscores_survive() {
+        // Only whitespace and commas are separators. A term that already
+        // contains underscores is not a multi-word term and must not be trimmed.
+        let mut p = params();
+        p.vocabulary = vec!["__init__".to_string(), "_private".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "context_bias"), vec!["__init__", "_private"]);
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
     fn language_sent_verbatim_when_not_auto() {
         let mut p = params();
         p.language = Some("fr".to_string());
