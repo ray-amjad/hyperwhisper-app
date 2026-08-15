@@ -22,6 +22,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   readErrorBodyPreview,
+  splitVocabularyTerms,
 } from './utils';
 
 const MAX_PHRASES = 100;
@@ -34,11 +35,10 @@ const MAX_PHRASE_LEN = 50;
 const AZURE_MAI_ACCEPTED_FORMATS = ['wav', 'mp3', 'flac'] as const;
 
 function parsePhraseList(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map(t => t.trim().replace(/^[-*]\s*/, ''))
-    .filter(t => t.length > 0 && t.length <= MAX_PHRASE_LEN)
-    .slice(0, MAX_PHRASES);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_PHRASES,
+    maxTermChars: MAX_PHRASE_LEN,
+  });
 }
 
 // Locale normalization lives in `lib/language-codes.ts`. Stripping the region

@@ -8,7 +8,11 @@ import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-ca
 import { validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { isIPBlocked } from '../lib/redis';
-import { isExplicitLanguage } from '../providers/utils';
+import { isExplicitLanguage, splitVocabularyTerms } from '../providers/utils';
+
+// Deepgram `keyterm` limits — same values the REST adapter applies.
+const MAX_KEYTERMS = 100;
+const MAX_KEYTERM_CHARS = 50;
 
 interface DeepgramLiveResponse {
   type: string;
@@ -115,11 +119,10 @@ function buildDeepgramUrl(language?: string, vocabulary?: string): string {
       // nova-2 `keywords` syntax). A single comma-joined `a:1.5,b:1.5` value
       // boosts one literal phrase and does nothing. Split/clean to match the
       // REST adapter's convertToKeyterms, then append each term individually.
-      const terms = vocabulary
-        .split(/[,\n;]+/)
-        .map(t => t.trim().replace(/^[-*]\s*/, ''))
-        .filter(t => t.length > 0 && t.length <= 50)
-        .slice(0, 100);
+      const terms = splitVocabularyTerms(vocabulary, {
+        maxTerms: MAX_KEYTERMS,
+        maxTermChars: MAX_KEYTERM_CHARS,
+      });
       for (const term of terms) {
         params.append('keyterm', term);
       }

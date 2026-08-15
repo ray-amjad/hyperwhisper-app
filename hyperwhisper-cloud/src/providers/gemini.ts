@@ -10,11 +10,13 @@ import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/const
 import { describeLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError } from './utils';
+import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 const AUDIO_TOKENS_PER_SECOND = 32;
+// Vocabulary terms named in the prompt, matching the sibling adapters' cap.
+const MAX_PROMPT_TERMS = 100;
 // Total request (incl. base64) must stay under 20 MB; base64 inflates ~33%, so
 // cap raw audio at ~14 MB and 413 anything larger (no Files-API path in v1).
 // GEMINI_INLINE_MAX_BYTES is shared with the route's pre-buffer gate.
@@ -59,13 +61,11 @@ function buildPrompt(language?: string, initialPrompt?: string): string {
     prompt += ` The audio is in ${describeLanguage(language)}; transcribe it in that language.`;
   }
   if (initialPrompt) {
-    // Match the other adapters' splitter: strip leading `- `/`* ` bullet markers
-    // so a bulleted vocab list doesn't bias the model toward literal dashes.
-    const terms = initialPrompt
-      .split(/[,\n;]+/)
-      .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-      .filter(Boolean)
-      .slice(0, 100);
+    // The shared splitter strips leading `- `/`* ` bullet markers, so a bulleted
+    // vocab list doesn't bias the model toward literal dashes. No per-term
+    // length limit: the terms go into the prompt as prose, not into an upstream
+    // field with a documented cap.
+    const terms = splitVocabularyTerms(initialPrompt, { maxTerms: MAX_PROMPT_TERMS });
     if (terms.length) {
       prompt += ` Spell these terms exactly when you hear them: ${terms.map((t) => `"${t}"`).join(', ')}.`;
     }

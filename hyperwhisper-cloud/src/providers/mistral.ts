@@ -13,11 +13,13 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  splitVocabularyTerms,
 } from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'voxtral-mini-latest';
 const MAX_CONTEXT_BIAS_TERMS = 100;
+const MAX_CONTEXT_BIAS_TERM_CHARS = 80;
 
 /** Voxtral additionally takes raw AAC, which the other adapters don't name. */
 const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
@@ -35,11 +37,11 @@ const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
  * joining beats dropping the term.
  */
 function toContextBias(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, '').replace(/\s+/g, '_'))
-    .filter((t) => t.length > 0 && t.length <= 80)
-    .slice(0, MAX_CONTEXT_BIAS_TERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_CONTEXT_BIAS_TERMS,
+    maxTermChars: MAX_CONTEXT_BIAS_TERM_CHARS,
+    joinWordsWith: '_',
+  });
 }
 
 export async function transcribeWithMistral(

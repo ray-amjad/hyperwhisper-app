@@ -10,6 +10,7 @@ import {
   isExplicitLanguage,
   providerHttpError,
   readErrorBodyPreview,
+  splitVocabularyTerms,
 } from './utils';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 
@@ -355,5 +356,78 @@ describe('providerHttpError (shared non-2xx classification for the sync STT adap
       kind: 'rate_limit',
       bodyPreview: 'boom',
     });
+  });
+});
+
+describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
+  const NO_LIMITS = { maxTerms: 1000 };
+
+  test('splits on commas, newlines and semicolons', () => {
+    expect(splitVocabularyTerms('HyperWhisper,SwiftUI;Claude\nBun', NO_LIMITS))
+      .toEqual(['HyperWhisper', 'SwiftUI', 'Claude', 'Bun']);
+  });
+
+  test('collapses runs of separators instead of emitting empty terms', () => {
+    expect(splitVocabularyTerms('a,,;\n,b', NO_LIMITS)).toEqual(['a', 'b']);
+  });
+
+  test('trims each term and drops empty ones', () => {
+    expect(splitVocabularyTerms('  a  ,   ,b\t', NO_LIMITS)).toEqual(['a', 'b']);
+  });
+
+  test('strips a leading bullet marker, with or without a following space', () => {
+    expect(splitVocabularyTerms('- a\n* b\n-c\n*d', NO_LIMITS)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  test('a term that is only a bullet marker is dropped', () => {
+    expect(splitVocabularyTerms('-,*,a', NO_LIMITS)).toEqual(['a']);
+  });
+
+  test('inner whitespace is preserved by default', () => {
+    expect(splitVocabularyTerms('Claude  Code', NO_LIMITS)).toEqual(['Claude  Code']);
+  });
+
+  test('maxTermChars drops over-long terms rather than truncating them', () => {
+    const terms = splitVocabularyTerms(`ok,${'x'.repeat(51)},${'y'.repeat(50)}`, {
+      maxTerms: 100,
+      maxTermChars: 50,
+    });
+    expect(terms).toEqual(['ok', 'y'.repeat(50)]);
+  });
+
+  test('omitting maxTermChars applies no length limit', () => {
+    expect(splitVocabularyTerms('z'.repeat(400), NO_LIMITS)).toEqual(['z'.repeat(400)]);
+  });
+
+  test('maxTermWords drops phrases with too many words', () => {
+    const terms = splitVocabularyTerms('one two three,one two three four', {
+      maxTerms: 100,
+      maxTermWords: 3,
+    });
+    expect(terms).toEqual(['one two three']);
+  });
+
+  test('maxTerms caps the result, counting only kept terms', () => {
+    // The over-long term is dropped before the cap, so three terms still come back.
+    const terms = splitVocabularyTerms(`a,${'x'.repeat(99)},b,c,d`, {
+      maxTerms: 3,
+      maxTermChars: 10,
+    });
+    expect(terms).toEqual(['a', 'b', 'c']);
+  });
+
+  test('joinWordsWith replaces inner whitespace runs before the length check', () => {
+    // Mistral Voxtral 400s the whole request on a `context_bias` item holding
+    // whitespace, so a multi-word term is joined rather than dropped.
+    expect(splitVocabularyTerms('- Claude  Code, Bun', { maxTerms: 100, joinWordsWith: '_' }))
+      .toEqual(['Claude_Code', 'Bun']);
+    // 'a' + 5 spaces + 'b' is 7 chars raw but 3 once joined, so the cap sees 3.
+    expect(splitVocabularyTerms('a     b', { maxTerms: 100, maxTermChars: 4, joinWordsWith: '_' }))
+      .toEqual(['a_b']);
+  });
+
+  test('an empty prompt yields no terms', () => {
+    expect(splitVocabularyTerms('', NO_LIMITS)).toEqual([]);
+    expect(splitVocabularyTerms('   ', NO_LIMITS)).toEqual([]);
   });
 });

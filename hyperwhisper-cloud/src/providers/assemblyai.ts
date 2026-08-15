@@ -44,7 +44,7 @@ import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionC
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
@@ -55,6 +55,7 @@ const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
 const DEFAULT_MODEL = 'universal-3-5-pro';
 const MEDICAL_DOMAIN_VALUE = 'medical-v1';
 const MAX_KEYTERMS = 200;
+const MAX_KEYTERM_CHARS = 50;
 // Max words per `keyterms_prompt` phrase (AssemblyAI spec). Applied by BOTH
 // the async create-request term cap below AND the sync fast path's
 // char-budget cap — mirrors the shared Rust core's `MAX_KEYTERM_WORDS`
@@ -174,11 +175,10 @@ function authHeaders(apiKey: string): Record<string, string> {
 }
 
 function toKeyterms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-    .filter((t) => t.length >= 1 && t.length <= 50)
-    .slice(0, MAX_KEYTERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYTERMS,
+    maxTermChars: MAX_KEYTERM_CHARS,
+  });
 }
 
 /** Drop keyterm phrases over `MAX_KEYTERM_WORDS` words — mirrors the Rust

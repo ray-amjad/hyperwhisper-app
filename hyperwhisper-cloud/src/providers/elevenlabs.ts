@@ -10,6 +10,7 @@ import {
   fetchWithTimeout,
   logProviderEvent,
   providerHttpError,
+  splitVocabularyTerms,
 } from './utils';
 
 // ElevenLabs treats mp3 as the *fallback* container rather than one it matches
@@ -29,11 +30,11 @@ const MAX_KEYTERM_WORDS = 5;
  * and additionally drops terms exceeding ElevenLabs' 50-char / 5-word limits.
  */
 function toKeyterms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map(t => t.trim().replace(/^[-*]\s*/, ''))
-    .filter(t => t.length > 0 && t.length <= MAX_KEYTERM_CHARS && t.split(/\s+/).length <= MAX_KEYTERM_WORDS)
-    .slice(0, MAX_KEYTERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYTERMS,
+    maxTermChars: MAX_KEYTERM_CHARS,
+    maxTermWords: MAX_KEYTERM_WORDS,
+  });
 }
 
 /**

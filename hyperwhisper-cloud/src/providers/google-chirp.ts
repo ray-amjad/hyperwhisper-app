@@ -27,7 +27,7 @@ import { getGoogleAccessToken, invalidateGoogleAccessToken } from '../lib/google
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { estimateAudioSeconds, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, splitVocabularyTerms } from './utils';
 
 // Re-exported for the transcribe route's pre-buffer header gate. Kept here
 // historically; the canonical constant now lives in `lib/constants.ts`.
@@ -77,11 +77,10 @@ function getRegion(): string {
 }
 
 function parsePhraseList(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map(t => t.trim().replace(/^[-*]\s*/, ''))
-    .filter(t => t.length > 0 && t.length <= MAX_PHRASE_LEN)
-    .slice(0, MAX_PHRASES);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_PHRASES,
+    maxTermChars: MAX_PHRASE_LEN,
+  });
 }
 
 function base64Encode(audio: ArrayBuffer): string {

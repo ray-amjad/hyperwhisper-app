@@ -5,10 +5,11 @@ import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
-import { fetchWithTimeout, logProviderEvent, providerHttpError } from './utils';
+import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
+const MAX_KEYWORD_CHARS = 50;
 
 /**
  * Split an initial prompt into individual vocabulary terms.
@@ -18,11 +19,10 @@ const MAX_KEYWORDS = 100;
  * (that boosts one literal phrase containing commas, which does nothing).
  */
 function convertToKeyterms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map(t => t.trim().replace(/^[-*]\s*/, ''))
-    .filter(t => t.length > 0 && t.length <= 50)
-    .slice(0, MAX_KEYWORDS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYWORDS,
+    maxTermChars: MAX_KEYWORD_CHARS,
+  });
 }
 
 /**
