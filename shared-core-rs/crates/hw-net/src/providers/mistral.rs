@@ -67,6 +67,7 @@ fn spec() -> OpenAiStyleSpec {
             underscore_separators: true,
         },
         send_model: true,
+        keywords_models: &[],
         // Mistral returns { "text" } without a response_format field.
         send_response_format: false,
     }

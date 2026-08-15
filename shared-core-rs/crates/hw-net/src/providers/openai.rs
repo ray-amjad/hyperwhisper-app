@@ -31,6 +31,11 @@
 //!   a vocabulary hint — the failure mode reported in issue #76. See
 //!   [`crate::providers::common::build_prompt`] for the shared implementation
 //!   used by every `VocabularyMode::Prompt` provider.
+//! - **`keywords[]` (gpt-transcribe only)**: `gpt-transcribe` takes a structured
+//!   keyword list, which is a better fit than a framed prompt sentence — the
+//!   terms stay hints instead of becoming part of the instruction. For that
+//!   model the terms go out as repeated `keywords[]` fields and `prompt` carries
+//!   only the caller's own instructions. Listed in [`KEYWORDS_MODELS`].
 
 use crate::contract::{HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError};
 use crate::providers::common::{self, Auth, OpenAiStyleSpec, VocabularyMode};
@@ -43,6 +48,12 @@ pub const ENDPOINT: &str = "https://api.openai.com/v1/audio/transcriptions";
 /// `OpenAIWhisperService` both default to `whisper-1`.
 pub const DEFAULT_MODEL: &str = "whisper-1";
 
+/// Models that take a structured `keywords[]` list instead of vocabulary in the
+/// `prompt` field. Only `gpt-transcribe` documents it; `gpt-live-transcribe` is
+/// realtime-only and never reaches this REST builder, and the `gpt-4o-*` and
+/// `whisper-1` models have no such parameter.
+pub const KEYWORDS_MODELS: &[&str] = &["gpt-transcribe"];
+
 fn spec() -> OpenAiStyleSpec {
     OpenAiStyleSpec {
         endpoint: ENDPOINT,
@@ -50,6 +61,7 @@ fn spec() -> OpenAiStyleSpec {
         auth: Auth::Bearer,
         vocabulary: VocabularyMode::Prompt,
         send_model: true,
+        keywords_models: KEYWORDS_MODELS,
         send_response_format: true,
     }
 }
@@ -86,6 +98,16 @@ mod tests {
             Part::Field { name: n, value } if n == name => Some(value.as_str()),
             _ => None,
         })
+    }
+
+    fn fields<'a>(parts: &'a [Part], name: &str) -> Vec<&'a str> {
+        parts
+            .iter()
+            .filter_map(|p| match p {
+                Part::Field { name: n, value } if n == name => Some(value.as_str()),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -190,6 +212,80 @@ mod tests {
                 prompt.starts_with("Important terms to recognize:"),
                 "expected framed preamble, got: {prompt:?}"
             );
+        } else {
+            panic!("expected multipart body");
+        }
+    }
+
+    #[test]
+    fn gpt_transcribe_sends_keywords_list_not_a_framed_prompt() {
+        let mut p = params();
+        p.model = "gpt-transcribe".to_string();
+        p.vocabulary = vec!["Kubernetes".to_string(), "gRPC".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "keywords[]"), vec!["Kubernetes", "gRPC"]);
+            // no vocabulary framing leaks into `prompt`.
+            assert_eq!(field(parts, "prompt"), None);
+        } else {
+            panic!("expected multipart body");
+        }
+    }
+
+    #[test]
+    fn gpt_transcribe_keeps_custom_instructions_in_prompt() {
+        let mut p = params();
+        p.model = "gpt-transcribe".to_string();
+        p.vocabulary = vec!["Kubernetes".to_string()];
+        p.prompt = Some("  A support call about billing.  ".to_string());
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "keywords[]"), vec!["Kubernetes"]);
+            assert_eq!(field(parts, "prompt"), Some("A support call about billing."));
+        } else {
+            panic!("expected multipart body");
+        }
+    }
+
+    #[test]
+    fn gpt_transcribe_without_vocabulary_sends_no_keywords_field() {
+        let mut p = params();
+        p.model = "gpt-transcribe".to_string();
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert!(fields(parts, "keywords[]").is_empty());
+        } else {
+            panic!("expected multipart body");
+        }
+    }
+
+    #[test]
+    fn whisper_and_gpt4o_models_never_send_keywords() {
+        for model in ["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"] {
+            let mut p = params();
+            p.model = model.to_string();
+            p.vocabulary = vec!["Kubernetes".to_string()];
+            let req = build_transcribe_request(&p).unwrap();
+            if let Body::Multipart { parts, .. } = &req.body {
+                assert!(fields(parts, "keywords[]").is_empty(), "model={model}");
+                assert!(
+                    field(parts, "prompt").unwrap().starts_with("Important terms"),
+                    "model={model}"
+                );
+            } else {
+                panic!("expected multipart body");
+            }
+        }
+    }
+
+    #[test]
+    fn keywords_are_capped_at_100() {
+        let mut p = params();
+        p.model = "gpt-transcribe".to_string();
+        p.vocabulary = (0..250).map(|i| format!("term{i}")).collect();
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "keywords[]").len(), 100);
         } else {
             panic!("expected multipart body");
         }

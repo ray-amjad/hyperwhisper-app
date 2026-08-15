@@ -61,7 +61,7 @@ Each provider uses these entries differently:
 
 - **Deepgram** — HyperWhisper sends them as keyword boosting parameters, to a maximum of 100 terms. A warning appears if you go above this limit.
 - **ElevenLabs Scribe v2** — HyperWhisper sends them as keyterms, to a maximum of 100 terms. It removes terms of more than 50 characters. Through HyperWhisper Cloud, the server also removes terms of more than 5 words.
-- **OpenAI Whisper, Groq Whisper, HyperWhisper Cloud, Gemini** — HyperWhisper sends them as prompt vocabulary. HyperWhisper Cloud keeps only the first 100 terms and shows no warning. Gemini gets the terms as free text in a natural-language prompt instruction, the same mechanism as OpenAI, Groq, and HyperWhisper Cloud.
+- **OpenAI Whisper, Groq Whisper, HyperWhisper Cloud, Gemini** — HyperWhisper sends them as prompt vocabulary. The OpenAI `gpt-transcribe` model is the exception: it gets the terms as a `keywords` list. HyperWhisper Cloud keeps only the first 100 terms and shows no warning. Gemini gets the terms as free text in a natural-language prompt instruction, the same mechanism as OpenAI, Groq, and HyperWhisper Cloud.
 - **Soniox** — HyperWhisper sends them as context vocabulary, in one comma-separated string.
 - **AssemblyAI** — HyperWhisper sends them as key-term context.
 - **Microsoft MAI-Transcribe** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing.

@@ -35,6 +35,7 @@ fn spec() -> OpenAiStyleSpec {
         auth: Auth::Bearer,
         vocabulary: VocabularyMode::Prompt,
         send_model: true,
+        keywords_models: &[],
         send_response_format: true,
     }
 }
