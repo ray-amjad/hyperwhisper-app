@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.44.0</title>
+            <pubDate>Sun, 16 Aug 2026 03:57:23 +0000</pubDate>
+            <sparkle:version>113</sparkle:version>
+            <sparkle:shortVersionString>2.44.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.44.0.dmg" length="33713877" type="application/octet-stream" sparkle:edSignature="DPP917c7aauffQ4pGjxhPk24cXrC+HwaKpP2Yw7xrOtjqiyYPwhqAD2UYBoISfAWwuouaBUmKWBuT3rq2BTkAw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Your vocabulary now reaches more providers.</b> Grok, Mistral with your own key, Google Chirp 3 and OpenAI's gpt-transcribe all read your custom terms. Before, the terms were sent nowhere.</li><li><b>Three new post-processing models.</b> Gemini 3.7 Flash, Grok 4.6 and GPT-5.6 Luna. Modes set to a retired model move to a current one on their own.</li><li><b>Clearer provider and model pickers.</b> The Provider list names the company, the Model list names the model, and Google no longer appears twice.</li><li><b>New modes start with your region's English spelling.</b> Modes you already made keep their setting.</li><li>HyperWhisper Cloud now tells you straight away when it needs a licence, instead of recording and uploading first and failing at the end.</li><li>A provider error during streaming now shows one clear message, instead of replacing it with a misleading reconnection failure.</li><li>Fixed the audio file picker freezing the app, badges cramming together in History, and links in this window not opening.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.43.0</title>
             <pubDate>Thu, 13 Aug 2026 03:09:10 +0000</pubDate>
             <sparkle:version>112</sparkle:version>
