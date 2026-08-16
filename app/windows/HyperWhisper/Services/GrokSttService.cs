@@ -153,39 +153,14 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         var requestTimeout = GetRequestTimeout(fileInfo.Length);
         LoggingService.Info($"  Request timeout: {requestTimeout.TotalMinutes:F1} minutes (per attempt)");
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.GrokParseTranscribeResponse(resp), "Grok", resp),
-                cancellationToken: cancellationToken,
-                perAttemptTimeout: requestTimeout);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by GrokBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "Grok");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.GrokParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Grok");
-        }
-
-        LoggingService.Info("========== GROK TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "Grok",
+            buildRequest: () => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.GrokParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken,
+            perAttemptTimeout: requestTimeout);
     }
 
 

@@ -145,37 +145,13 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
             apiKey: _apiKey,
             model: _modelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(resp), "Deepgram", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Deepgram");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Deepgram");
-        }
-
-        LoggingService.Info("========== DEEPGRAM TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "Deepgram",
+            buildRequest: () => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.DeepgramParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 
 

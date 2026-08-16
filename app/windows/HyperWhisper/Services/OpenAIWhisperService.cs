@@ -138,38 +138,13 @@ public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
             apiKey: _apiKey,
             model: _modelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.OpenaiBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.OpenaiParseTranscribeResponse(resp), "OpenAI", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by OpenaiBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "OpenAI");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.OpenaiParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "OpenAI");
-        }
-
-        LoggingService.Info("========== OPENAI TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "OpenAI",
+            buildRequest: () => HyperwhisperCoreMethods.OpenaiBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.OpenaiParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 
     // =========================================================================
