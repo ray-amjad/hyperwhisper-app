@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // The page's display map is the one list of provider ids; a provider it can
-  // render is a provider this route stores. See lib/latency/providers.ts.
+  // The page's catalog mirror is the one list of provider ids; a provider it
+  // can render is a provider this route stores. See lib/latency/providers.ts.
   const result = validateBatch(body, KNOWN_PROVIDERS);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
@@ -98,10 +98,10 @@ export async function POST(request: NextRequest) {
         // hour beside it, grouping on those columns reassembles the request and
         // its provider chain, which is the one correlation the row promises not
         // to allow. Nothing reads the column (src/content/latency.ts selects
-        // provider, region, count, percentiles and error rate, and filters on
-        // duration_bucket), so it is stored as null rather than coarsened into
-        // a second spelling of the bucket. The column stays for a future,
-        // deliberate use.
+        // vendor, provider, model, region, count, percentiles and error rate,
+        // and filters on duration_bucket), so it is stored as null rather than
+        // coarsened into a second spelling of the bucket. The column stays for a
+        // future, deliberate use.
         audioSeconds: null,
         // Bucketed here rather than on the page: the boundaries and the labels
         // that describe them live in one place (lib/latency/types.ts), and the

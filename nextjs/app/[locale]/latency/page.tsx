@@ -9,7 +9,7 @@ export const revalidate = 3600;
 
 const TITLE = "Speech-to-text latency, measured";
 const DESCRIPTION =
-  "How fast each speech-to-text provider actually answers HyperWhisper Cloud, by region, over the last 30 days.";
+  `How fast each speech-to-text provider actually answers HyperWhisper Cloud, by region and by model, over the last ${WINDOW_DAYS} days.`;
 
 export async function generateMetadata() {
   return {
@@ -87,15 +87,30 @@ export default async function LatencyPage({ params }: Props) {
           </div>
           <div>
             <dt className="font-medium text-gray-200">
-              A row is a provider, not a model
+              A row is a provider, until you open it
             </dt>
             <dd className="mt-1">
               Most of these providers offer several models, and HyperWhisper
-              lets you pin the one you want. A row covers whichever model of
-              that provider actually ran — its default for most people, plus
-              whatever anyone else picked — so read a row as &ldquo;how fast
-              this provider answers us&rdquo;, not as a benchmark of one named
-              model against another.
+              lets you pin the one you want. A provider row covers whichever
+              model of that provider actually ran — its default for most people,
+              plus whatever anyone else picked — so read it as &ldquo;how fast
+              this provider answers us&rdquo;. <span className="text-gray-200">Break
+              down by model</span> splits each one into its models. Those rows
+              count only the attempts that ran on that model, so they fill in
+              more slowly and a young model may show nothing but dashes for a
+              while.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-200">
+              The names match the app
+            </dt>
+            <dd className="mt-1">
+              Provider and model names here are the same ones the app&apos;s
+              Provider and Model menus show, read from the same shared catalog.
+              Google covers both Chirp and Gemini in one row, exactly as the app
+              does — the model you pick under it is what decides which of the two
+              runs.
             </dd>
           </div>
           <div>

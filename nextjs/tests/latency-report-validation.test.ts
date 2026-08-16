@@ -12,9 +12,9 @@ const MODULE_PATH = "../app/api/internal/latency/validation.ts";
 const TYPES_MODULE_PATH = "../lib/latency/types.ts";
 const loadTypes = () => import(TYPES_MODULE_PATH);
 
-// The one list of provider ids, derived from the page's display map. The ingest
-// takes it as an argument rather than importing it, so the tests exercise the
-// real list by handing it in the same way route.ts does.
+// The one list of provider ids, derived from the page's catalog mirror. The
+// ingest takes it as an argument rather than importing it, so the tests exercise
+// the real list by handing it in the same way route.ts does.
 const PROVIDERS_MODULE_PATH = "../lib/latency/providers.ts";
 const loadProviders = () => import(PROVIDERS_MODULE_PATH);
 
@@ -118,57 +118,147 @@ test("accepts every provider the page can display", async () => {
   }
 });
 
-test("the page's provider ids are the catalog's backend ids", async () => {
-  const { PROVIDER_DISPLAY_NAMES } = await loadProviders();
+type CatalogFile = {
+  providers: {
+    sttProvider: string;
+    vendor: string;
+    vendorDisplayName: string;
+    models: { id: string; displayName: string; isDefault?: boolean }[];
+  }[];
+};
 
-  // KNOWN_PROVIDERS is `Object.keys(PROVIDER_DISPLAY_NAMES)`, so comparing the
-  // two only restates that line. The claim worth pinning is the one this app
-  // cannot enforce by construction: PROVIDER_DISPLAY_NAMES mirrors
-  // shared-app-classification/cloud-stt-catalog.json, which lives outside the
-  // Next.js build root and so is copied rather than imported. If the catalog
-  // gains a provider, or renames a backend id, the copy here goes stale — the
-  // page silently stops rendering that provider's column AND the ingest starts
-  // rejecting its rows as an unknown provider. Read as data, not imported: the
-  // point is precisely that the two deployables do not share a module system.
+/**
+ * The real catalog, read as data rather than imported — the point is precisely
+ * that the two deployables do not share a module system.
+ * shared-app-classification/cloud-stt-catalog.json lives outside the Next.js
+ * build root, so lib/latency/providers.ts copies it. If the catalog gains a
+ * provider, renames a backend id, or renames a model, the copy goes stale: the
+ * page silently stops rendering that provider AND the ingest starts rejecting
+ * its rows as an unknown provider.
+ */
+function readCatalog(): CatalogFile {
   const catalogPath = fileURLToPath(
     new URL("../../shared-app-classification/cloud-stt-catalog.json", import.meta.url),
   );
-  const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as {
-    providers: { sttProvider: string }[];
-  };
-  const catalogIds = catalog.providers.map((entry) => entry.sttProvider).sort();
+  return JSON.parse(readFileSync(catalogPath, "utf8")) as CatalogFile;
+}
 
-  assert.deepEqual(Object.keys(PROVIDER_DISPLAY_NAMES).sort(), catalogIds);
+test("the page's catalog mirror matches the catalog the apps read", async () => {
+  const { STT_CATALOG } = await loadProviders();
+
+  const shape = (entry: CatalogFile["providers"][number]) => ({
+    sttProvider: entry.sttProvider,
+    vendor: entry.vendor,
+    vendorDisplayName: entry.vendorDisplayName,
+    // Order matters as well as content: it is what puts a vendor's model rows in
+    // the same order as the app's Model dropdown.
+    models: entry.models.map((model) => ({
+      id: model.id,
+      displayName: model.displayName,
+      isDefault: model.isDefault === true,
+    })),
+  });
+
+  assert.deepEqual(
+    (STT_CATALOG as CatalogFile["providers"]).map(shape),
+    readCatalog().providers.map(shape),
+  );
 });
 
-test("no display label names a model the cell does not isolate", async () => {
-  const { PROVIDER_DISPLAY_NAMES } = await loadProviders();
+test("a provider row is named after a vendor, never after one of its models", async () => {
+  const { STT_CATALOG, vendorDisplayName } = await loadProviders();
 
-  // src/content/latency.ts groups by provider and region, never by model, while
-  // users can pin a per-provider model in either desktop app. So a label naming
-  // a model makes a claim about the rows underneath it that the query does not
-  // — "Deepgram Nova 3" over a cell that also holds nova-2 timings, "OpenAI
-  // Whisper" over a cell that is mostly gpt-4o-transcribe. The catalog's own
-  // displayName carries those suffixes, which is exactly why this app keeps its
-  // own vendor-only labels instead of reusing them.
+  // A provider row blends every model of that vendor, so a label naming one of
+  // them makes a claim about the rows underneath that the aggregate does not —
+  // "Deepgram Nova 3" over cells that also hold nova-2 timings. Naming models is
+  // the model rows' job. The catalog's per-entry `displayName` carries those
+  // suffixes, which is why the page reads `vendorDisplayName` instead.
   //
   // Two shapes to catch: a version number ("Nova 3", "Scribe v2",
-  // "MAI-Transcribe 1.5"), and a bare model family name. `\b` keeps
-  // "MAI-Transcribe" out of the `scribe` case — that is a product name, not a
-  // model this page blends.
+  // "MAI-Transcribe 1.5"), and a bare model family name.
   const version = /\d/;
-  const modelFamily = /\b(whisper|nova|voxtral|universal|scribe)/i;
-  const labels = PROVIDER_DISPLAY_NAMES as Record<string, string>;
-  for (const [id, label] of Object.entries(labels)) {
+  const modelFamily = /\b(whisper|nova|voxtral|universal|scribe|chirp|gemini|grok)/i;
+  for (const entry of STT_CATALOG as CatalogFile["providers"]) {
+    const label = vendorDisplayName(entry.vendor);
     assert.ok(
       !version.test(label),
-      `${id}: "${label}" names a model version, but the cell blends every model of that provider`,
+      `${entry.vendor}: "${label}" names a model version, but the row blends every model of that vendor`,
     );
     assert.ok(
       !modelFamily.test(label),
-      `${id}: "${label}" names a model family, but the cell blends every model of that provider`,
+      `${entry.vendor}: "${label}" names a model family, but the row blends every model of that vendor`,
     );
   }
+});
+
+test("Chirp and Gemini share one row, the way the app's Provider menu shows them", async () => {
+  const { STT_CATALOG, vendorDisplayName } = await loadProviders();
+
+  // The merge is the catalog's, not this app's: both entries carry
+  // vendor "google", which is what macOS's cloudTierVendorGroups collapses on.
+  // Splitting them here would put two rows on the page that the app never names
+  // separately.
+  const google = (STT_CATALOG as CatalogFile["providers"]).filter(
+    (entry) => entry.vendor === "google",
+  );
+  assert.deepEqual(
+    google.map((entry) => entry.sttProvider).sort(),
+    ["gemini", "google-chirp"],
+  );
+  assert.equal(vendorDisplayName("google"), "Google");
+});
+
+test("every model row is named the way the app's Model menu names it", async () => {
+  const { modelDisplayName, isDefaultModel, modelSortIndex } = await loadProviders();
+
+  for (const entry of readCatalog().providers) {
+    for (const model of entry.models) {
+      assert.equal(
+        modelDisplayName(entry.sttProvider, model.id),
+        model.displayName,
+        `${entry.sttProvider}/${model.id}`,
+      );
+      assert.ok(modelSortIndex(entry.sttProvider, model.id) < Number.MAX_SAFE_INTEGER);
+    }
+  }
+
+  // The ingest stores null for a provider whose endpoint takes no model id, and
+  // the catalog spells that same model with an empty id. Both must resolve to
+  // the one model, or xAI's only row would print its raw backend id.
+  assert.equal(modelDisplayName("grok", null), "Grok Speech-to-Text");
+  assert.equal(modelDisplayName("grok", ""), "Grok Speech-to-Text");
+  assert.equal(isDefaultModel("grok", null), true);
+
+  // A model the mirror has not learned yet keeps its raw id and sorts last,
+  // rather than borrowing another model's name or position.
+  assert.equal(modelDisplayName("openai", "gpt-5-transcribe"), "gpt-5-transcribe");
+  assert.equal(modelSortIndex("openai", "gpt-5-transcribe"), Number.MAX_SAFE_INTEGER);
+});
+
+test("exactly one model per vendor is badged as the default", async () => {
+  const { STT_CATALOG, isDefaultModel } = await loadProviders();
+
+  // A row on the page is a vendor, so "default" has to mean what the app means
+  // by it: what picking that vendor and touching nothing else gives you. Google
+  // marks a default inside BOTH its entries (chirp_3 and gemini-2.5-flash), but
+  // selecting Google lands on the first entry in catalog order and then on that
+  // entry's default — one model, not two.
+  const badged = new Map<string, string[]>();
+  for (const entry of STT_CATALOG as CatalogFile["providers"]) {
+    for (const model of entry.models) {
+      if (!isDefaultModel(entry.sttProvider, model.id)) continue;
+      badged.set(entry.vendor, [...(badged.get(entry.vendor) ?? []), model.displayName]);
+    }
+  }
+
+  for (const entry of STT_CATALOG as CatalogFile["providers"]) {
+    assert.deepEqual(
+      badged.get(entry.vendor)?.length,
+      1,
+      `${entry.vendor}: ${JSON.stringify(badged.get(entry.vendor))}`,
+    );
+  }
+  assert.deepEqual(badged.get("google"), ["Chirp 3"]);
 });
 
 test("rejects a failure sample with no failure kind", async () => {
@@ -320,7 +410,7 @@ test("stores the arrival hour, not the instant, so a chain cannot be reassembled
     coarseCreatedAt(at).getTime(),
     coarseCreatedAt(Date.UTC(2026, 7, 4, 13, 59, 59, 999)).getTime(),
   );
-  // The next hour is a different value, so a 30-day window still moves.
+  // The next hour is a different value, so the trailing window still moves.
   assert.notEqual(
     coarseCreatedAt(at).getTime(),
     coarseCreatedAt(Date.UTC(2026, 7, 4, 14, 0, 0, 0)).getTime(),

@@ -41,8 +41,19 @@ export function bucketForSeconds(seconds: number): DurationBucket {
 /** The bucket most clips land in, so the page opens on the busiest data. */
 export const DEFAULT_BUCKET: DurationBucket = "short";
 
-/** Trailing window the page reports on. Raw rows live for a year. */
-export const WINDOW_DAYS = 30;
+/**
+ * Trailing window the page reports on. Raw rows live for a year, so this can
+ * move without a data migration.
+ *
+ * 90 days rather than 30 because the page now cuts each vendor into its models,
+ * and a model row counts only the attempts that ran on that model. A 30-day
+ * window left most model rows under MIN_SAMPLES_PER_CELL, and p99 needs 500
+ * attempts in a single cell — a bar a per-model cell reaches only with a window
+ * this long. The cost is that a provider's recent improvement takes longer to
+ * show; the page states the window in its header, so nobody reads a 90-day
+ * figure as a reading of today.
+ */
+export const WINDOW_DAYS = 90;
 
 /**
  * A cell below this many attempts shows "not enough data" instead of a number.
@@ -92,8 +103,8 @@ export const BUCKET_LABELS: Record<DurationBucket, string> = Object.fromEntries(
   DURATION_BUCKET_MODEL.map((bucket) => [bucket.id, bucket.label]),
 ) as Record<DurationBucket, string>;
 
+/** One region's numbers for one row of the table. */
 export type LatencyCell = {
-  provider: string;
   region: string;
   samples: number;
   p50: number;
@@ -103,9 +114,43 @@ export type LatencyCell = {
   errorRate: number;
 };
 
-export type LatencyMatrixData = {
+/**
+ * One model of one vendor — a row the table shows only while "Break down by
+ * model" is on.
+ *
+ * `provider` is the backend id the model belongs to, kept beside the model id
+ * because a vendor can span several: selecting a Gemini model under the merged
+ * Google row is what moves the backend provider from google-chirp to gemini.
+ */
+export type LatencyModelRow = {
+  provider: string;
+  /** Null for a provider whose endpoint takes no model id. */
+  model: string | null;
+  label: string;
+  /** The model a fresh install lands on, badged as such in the table. */
+  isDefault: boolean;
   cells: LatencyCell[];
-  providers: string[];
+};
+
+/**
+ * One vendor — a row of the table, named the way the app's Provider dropdown
+ * names it.
+ *
+ * Its cells are NOT a blend of the model rows below it. Percentiles do not
+ * average, so both levels are aggregated separately in Postgres over the same
+ * rows; see src/content/latency.ts.
+ */
+export type LatencyVendorRow = {
+  /** Catalog `vendor` key. Google covers both Chirp and Gemini. */
+  vendor: string;
+  label: string;
+  cells: LatencyCell[];
+  /** In the order the app's Model dropdown lists them. */
+  models: LatencyModelRow[];
+};
+
+export type LatencyMatrixData = {
+  vendors: LatencyVendorRow[];
   regions: string[];
   totalSamples: number;
   windowDays: number;
