@@ -24,6 +24,8 @@ import CoreAudio
 /// **Thread Safety:**
 /// All methods are `nonisolated` and safe to call from any thread.
 /// This allows device enumeration on background queues without blocking the UI.
+/// Note that `nonisolated` alone does NOT move work off the main thread — see the
+/// "Async Wrappers" section at the bottom of this file for the wrappers that do.
 ///
 /// **Important Note:**
 /// These methods interact with the system's audio hardware directly.
@@ -499,5 +501,83 @@ class CoreAudioDeviceHelper {
         let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &dataSize, &uid)
         guard status == noErr else { return nil }
         return uid as String
+    }
+
+    // MARK: - Async Wrappers
+    //
+    // Off-main-actor wrappers around the synchronous CoreAudio calls above.
+    //
+    // WHY THEY EXIST (Sentry HYPERWHISPER-F7 and HYPERWHISPER-HP, "App hanging for
+    // at least 10000 ms"): every method in this file is a synchronous
+    // AudioObjectGetPropertyData / AudioObjectSetPropertyData call, i.e. a mach_msg
+    // round trip to the coreaudiod daemon. During an audio route change (Bluetooth
+    // disconnect, USB audio removal, AirPods reconnect) or wake-from-sleep the daemon
+    // can take many seconds to answer, and fetchCoreAudioInputDevices() makes 3+N of
+    // those round trips for N devices. Every caller is a @MainActor type, so the whole
+    // app froze for the wait.
+    //
+    // WHY `nonisolated` WAS NOT ALREADY ENOUGH: these methods are all already
+    // `nonisolated`, and on its own that changes nothing — a `nonisolated` method
+    // called from @MainActor code still runs synchronously on the caller's thread.
+    // The `Task.detached` hop below is what actually leaves the main thread;
+    // `nonisolated` only makes that hop legal without an actor round trip.
+    //
+    // WHY Task.detached AND NOT A CONTINUATION OVER A QUEUE: unlike
+    // SimpleRecorder.makeLiveRecorder(url:settings:), which has to hand back a
+    // non-Sendable AVAudioRecorder and therefore needs a checked continuation's
+    // `sending` result, every value returned here is Sendable ([AudioDevice],
+    // AudioDeviceID, String, Bool). Detached also pins the blocking work to
+    // .userInitiated instead of inheriting the caller's priority. Same shape as
+    // CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:).
+    //
+    // NO SERIALIZATION GUARANTEE: these wrappers do not serialize against each other,
+    // so two callers can be inside CoreAudio at once. That is fine for property reads
+    // and the default-device write is last-write-wins at the HAL anyway — but it is
+    // exactly why the recorder start uses a dedicated serial queue instead of this.
+    //
+    // THE SYNCHRONOUS METHODS STAY. They are still the right call from code that is
+    // already off the main actor: the mic auto-boost task in
+    // RecordingLifecycle.startRecording() (STEP 4.5) and the error-metadata collectors
+    // in RecordingTranscriptionFlow+ErrorHandling. Do not delete them and do not route
+    // those call sites through these wrappers — a detached hop from an already-detached
+    // task buys nothing.
+
+    /// `fetchCoreAudioInputDevices()`, off the main actor. The most expensive call in
+    /// this file (3+N mach_msg round trips) and the one on the recording-start path.
+    nonisolated static func fetchCoreAudioInputDevicesAsync() async -> [AudioDevice] {
+        await Task.detached(priority: .userInitiated) { () -> [AudioDevice] in
+            CoreAudioDeviceHelper.fetchCoreAudioInputDevices()
+        }.value
+    }
+
+    /// `getSystemDefaultInputDeviceID()`, off the main actor.
+    nonisolated static func systemDefaultInputDeviceIDAsync() async -> AudioDeviceID? {
+        await Task.detached(priority: .userInitiated) { () -> AudioDeviceID? in
+            CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+        }.value
+    }
+
+    /// `getSystemDefaultInputDeviceUID()`, off the main actor. Two round trips: the
+    /// default-device lookup plus the UID read.
+    nonisolated static func systemDefaultInputDeviceUIDAsync() async -> String? {
+        await Task.detached(priority: .userInitiated) { () -> String? in
+            CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
+        }.value
+    }
+
+    /// `findAudioDeviceID(byUID:)`, off the main actor. Enumerates every device and
+    /// reads a UID per device, so it is as expensive as a full scan.
+    nonisolated static func findAudioDeviceIDAsync(byUID uid: String) async -> AudioDeviceID? {
+        await Task.detached(priority: .userInitiated) { () -> AudioDeviceID? in
+            CoreAudioDeviceHelper.findAudioDeviceID(byUID: uid)
+        }.value
+    }
+
+    /// `setSystemDefaultInputDevice(to:)`, off the main actor. A system-wide write —
+    /// see the synchronous version for the restore-afterwards contract.
+    nonisolated static func setSystemDefaultInputDeviceAsync(to deviceID: AudioDeviceID) async -> Bool {
+        await Task.detached(priority: .userInitiated) { () -> Bool in
+            CoreAudioDeviceHelper.setSystemDefaultInputDevice(to: deviceID)
+        }.value
     }
 }

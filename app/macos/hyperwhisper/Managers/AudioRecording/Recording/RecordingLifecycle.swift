@@ -261,16 +261,23 @@ class RecordingLifecycle {
         //
         // History: Original fix (HYPERWHISPER-NF, 7 users) used 2×250ms = 500ms total —
         // too short. Regressed on v2.33.1 to 9 users. Extending to ~3.2s total with
-        // per-attempt breadcrumbs so we can see recovery patterns in Sentry.
-        let deviceRetryDelaysMs: [UInt64] = [150, 250, 400, 600, 800, 1000]
+        // per-attempt breadcrumbs so we can see recovery patterns in Sentry. The
+        // schedule now lives in `RecordingStartBackoff` so a unit test can pin it;
+        // read that type's doc comment before changing anything here.
+        //
+        // Each probe runs off the main actor (HYPERWHISPER-F7): device enumeration is
+        // 3+N synchronous mach_msg round trips to coreaudiod, and a route change is
+        // precisely when the daemon is slowest to answer — which is also precisely
+        // when this loop runs. Up to 7 of those on the main thread was a hang.
+        let deviceRetryDelaysMs: [UInt64] = RecordingStartBackoff.inputDeviceRetryDelaysMs
         let deviceRetryStart = Date()
-        var inputDevices = CoreAudioDeviceHelper.fetchCoreAudioInputDevices()
+        var inputDevices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
         if inputDevices.isEmpty {
             for (index, delayMs) in deviceRetryDelaysMs.enumerated() {
                 let attempt = index + 1
                 AppLogger.audio.warning("No audio input devices on attempt \(attempt, privacy: .public) - retrying in \(delayMs, privacy: .public)ms")
                 try await Task.sleep(nanoseconds: delayMs * 1_000_000)
-                inputDevices = CoreAudioDeviceHelper.fetchCoreAudioInputDevices()
+                inputDevices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
                 if !inputDevices.isEmpty {
                     let elapsedMs = Int(Date().timeIntervalSince(deviceRetryStart) * 1_000)
                     AppLogger.audio.notice("Audio input devices recovered on attempt \(attempt, privacy: .public) after \(elapsedMs, privacy: .public)ms (count=\(inputDevices.count, privacy: .public))")
@@ -311,6 +318,13 @@ class RecordingLifecycle {
 
         // STEP 4: Apply selected audio input device
         // This temporarily changes system default if user selected specific device
+        //
+        // NOT YET OFF THE MAIN ACTOR. `applySelectedInputDeviceIfNeeded()` is a
+        // synchronous CoreAudio fan-out of the same kind as the probe above, but it
+        // also mutates `AudioDeviceManager`'s @Published state and owns a fallback
+        // path that fires `onSelectedDeviceInvalidated`. Making it async belongs with
+        // the rest of the `AudioDeviceManager` move (HYPERWHISPER-HP) — deliberately
+        // left here, not overlooked.
         let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "apply selected input device")
         deviceManager.applySelectedInputDeviceIfNeeded()
         SentryService.finishSpan(deviceApplySpan, status: .ok)
@@ -432,16 +446,10 @@ class RecordingLifecycle {
         self.finalURL = finalURL
 
         // DEFENSIVE: Ensure recordings directory exists before creating audio file
-        do {
-            try FileManager.default.createDirectory(
-                at: self.recordingsDirectory,
-                withIntermediateDirectories: true,
-                attributes: nil
-            )
-            AppLogger.audio.debug("Recordings directory ready: \(self.recordingsDirectory.path, privacy: .public)")
-        } catch {
-            AppLogger.audio.error("Failed to create recordings directory: \(error.localizedDescription)")
-        }
+        // Resolve the directory on the main actor (it reads `settingsManager`), then
+        // do the blocking filesystem work off it — see `ensureDirectoryExists(at:)`.
+        // Still non-fatal: a failure is logged and the recording proceeds.
+        await RecordingLifecycle.ensureDirectoryExists(at: self.recordingsDirectory)
 
         // STEP 6: Start recording with SimpleRecorder
         // AVAudioRecorder handles all buffer management and format conversion internally
@@ -464,6 +472,43 @@ class RecordingLifecycle {
         AppLogger.audio.info("Started recording to file: \(wavURL.lastPathComponent, privacy: .public)")
 
         return finalURL
+    }
+
+    /// Create `directory` (and any missing parents) off the main actor.
+    ///
+    /// **Why detached (Sentry HYPERWHISPER-F7, "App hanging for at least 10000 ms"):**
+    /// `createDirectory(at:withIntermediateDirectories:)` is a blocking filesystem
+    /// syscall. The recordings folder routinely lives under iCloud Drive, Dropbox or a
+    /// network share, where a `mkdir` on a cold or offline provider can stall for
+    /// seconds; running it inline froze the whole app one step before the recorder
+    /// even started. `nonisolated` on its own would not help — a `nonisolated` method
+    /// called from `@MainActor` code still runs on the caller's thread, so the
+    /// `Task.detached` hop is what actually leaves the main thread. Same shape as
+    /// `CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:)`.
+    ///
+    /// **Deliberately non-throwing.** A failure here has always been non-fatal: it is
+    /// logged and the recording proceeds, because `AVAudioRecorder` may still be able
+    /// to write (the directory usually already exists — this call is defensive) and
+    /// because a genuine write failure surfaces with a better error from the recorder
+    /// itself. Do not "improve" this into a `throws`; that changes which error the
+    /// user sees and sends the caller down `cleanupFailedStartArtifacts()`.
+    ///
+    /// The caller resolves the URL on the main actor before calling: `recordingsDirectory`
+    /// is a computed property that reads `settingsManager`, so it cannot be evaluated
+    /// from here.
+    nonisolated private static func ensureDirectoryExists(at directory: URL) async {
+        await Task.detached(priority: .userInitiated) { () -> Void in
+            do {
+                try FileManager.default.createDirectory(
+                    at: directory,
+                    withIntermediateDirectories: true,
+                    attributes: nil
+                )
+                AppLogger.audio.debug("Recordings directory ready: \(directory.path, privacy: .public)")
+            } catch {
+                AppLogger.audio.error("Failed to create recordings directory: \(error.localizedDescription)")
+            }
+        }.value
     }
 
     /// Schedule Core Data session persistence after the Sentry Recording Start
@@ -985,6 +1030,13 @@ class RecordingLifecycle {
         return diagnostics
     }
 
+    /// STILL SYNCHRONOUS ON PURPOSE. When `availableDevices` is supplied — which is
+    /// what the retry-exhausted branch of `startRecording()` does — this makes no HAL
+    /// calls at all beyond the transport-type lookups. The zero-argument call from
+    /// `collectDiagnostics(rawURL:dstURL:duration:)` does re-enumerate, but that is a
+    /// post-failure telemetry path, not the recording-start path HYPERWHISPER-F7 is
+    /// about, and its caller is a sync private helper whose own blocking filesystem
+    /// reads would have to move in the same change. Left for a follow-up.
     private func collectInputDeviceDiagnostics(availableDevices: [AudioDevice]? = nil) -> [String: Any] {
         let devices = availableDevices ?? CoreAudioDeviceHelper.fetchCoreAudioInputDevices()
         let selectedDevice = deviceManager.selectedDevice
