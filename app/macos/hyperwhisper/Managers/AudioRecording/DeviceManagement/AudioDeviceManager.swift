@@ -264,8 +264,14 @@ class AudioDeviceManager {
 
     // MARK: - Device Enumeration
 
-    /// Monotonic scan counter — see "OVERLAPPING SCANS" on `updateAvailableDevices(reason:)`.
-    private var scanGeneration: Int = 0
+    /// The scan that is currently reading the hardware, if any.
+    /// See the SINGLE-FLIGHT note on `updateAvailableDevices(reason:)`.
+    private var scanTask: Task<[AudioDevice], Never>?
+
+    /// Reason of a scan that was requested while `scanTask` was already running. At most
+    /// one is kept: several requests arriving during one scan collapse into a single
+    /// re-run, which is the whole point.
+    private var pendingScanReason: DeviceScanOrigin?
 
     /// Read the device roster and the system default input UID off the main actor.
     ///
@@ -276,15 +282,10 @@ class AudioDeviceManager {
     /// `coreaudiod` is precisely the process that is slow to answer, so the main thread
     /// parked in `mach_msg` for the full duration.
     ///
-    /// **Why `nonisolated` alone is not the fix:** the `CoreAudioDeviceHelper` methods were
+    /// **Why `nonisolated` alone is not the fix:** the `CoreAudioDeviceHelper` methods are
     /// already `nonisolated`, and a synchronous `nonisolated` method called from
     /// `@MainActor` code still runs on the caller's thread. The detached hop inside the
     /// `…Async` wrappers is what actually leaves the main thread.
-    ///
-    /// **Two hops, not one:** this composes the existing `CoreAudioDeviceHelper` async
-    /// wrappers rather than re-opening its own `Task.detached` around their synchronous
-    /// bodies. An extra thread hop costs microseconds; the `mach_msg` round trip it wraps
-    /// costs seconds. Keeping one documented bridging point beats saving that hop.
     nonisolated static func fetchSnapshot() async -> AudioDeviceScanSnapshot {
         let devices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
         let systemDefaultUID = await CoreAudioDeviceHelper.systemDefaultInputDeviceUIDAsync()
@@ -303,51 +304,66 @@ class AudioDeviceManager {
     /// - When device list may have changed (device connected/disconnected)
     /// - When refreshing UI
     ///
-    /// **OVERLAPPING SCANS (newest-scan-wins):**
+    /// **SINGLE-FLIGHT.**
     /// CoreAudio coalesces notifications, and a bursty route change (AirPods reconnect,
-    /// dock hot-plug) can now put two scans in flight at once — something that could not
-    /// happen while this method was synchronous. The two candidate policies were
-    /// last-write-wins and an in-flight guard. **We take a generation guard**, because
-    /// last-write-wins is not actually safe here: a scan has *two* suspension points (the
-    /// snapshot and the volume probe), so interleaved completions could publish scan A's
-    /// device roster next to scan B's volume metrics — a mix that never existed on the
-    /// hardware. With the guard, a scan that has been superseded before it writes anything
-    /// simply abandons; the most recently *started* scan is never superseded, so state
-    /// always converges on the freshest read. A dropped scan loses nothing observable: the
-    /// scan that superseded it re-runs the same invalidation branch and emits its own
-    /// breadcrumbs from newer data.
+    /// dock hot-plug) can put several scans in flight at once — something that could not
+    /// happen while this method was synchronous. Rather than let them overlap and then
+    /// referee the winner, only one scan ever touches the hardware at a time: a request
+    /// arriving while a scan is running records its reason and awaits the running scan,
+    /// which re-runs exactly once at the end to pick up whatever changed.
     ///
-    /// The volume-metric triple written by `updateInputVolumeMetrics()` after the second
-    /// suspension point stays last-completion-wins. Each probe writes all three fields
-    /// together on the main actor, so the triple is always self-consistent; only which
-    /// probe wins is non-deterministic, and any device or selection change re-runs it.
+    /// That is strictly better than a newest-wins guard for two reasons. Scans cannot
+    /// interleave, so the roster and the volume metrics can never come from two different
+    /// reads of the hardware. And no scan is ever discarded after doing the work, so
+    /// **every** hardware read publishes its result and emits its timing breadcrumb — the
+    /// signal HYPERWHISPER-HP is diagnosed from. A guard would have dropped scans exactly
+    /// when they were slowest, which is exactly when the breadcrumb matters.
     ///
-    /// **Returns** the roster this call read from the hardware — *even when the call was
-    /// superseded and therefore published nothing*. A superseded scan still performed a real
-    /// HAL read; it only declined to publish because a fresher one is on the way. Callers
-    /// that need the list rather than the side effect must use this return value and must
-    /// NOT read the published `availableDevices` right after awaiting, or a supersede would
-    /// hand them an empty array. `AudioRecordingManager.configure(...)` depends on this: it
-    /// clears the user's saved microphone preference when the saved device is absent from
-    /// the list, so an empty-by-race read there would wipe that preference on every launch.
+    /// **Do not call this from inside a scan.** A call made from within `performDeviceScan`
+    /// (or anything it awaits) would await the very task it is running in and hang. The
+    /// invalidation callback is deliberately dispatched into its own `Task` for this
+    /// reason; `applySelectedInputDeviceIfNeeded()` re-scans on its fallback path and must
+    /// therefore never be awaited from a scan either.
+    ///
+    /// **Returns** the roster that was published — always a real hardware read, and always
+    /// the same array that landed in `availableDevices`. Awaiting this and then reading
+    /// `availableDevices` is equally correct; `AudioRecordingManager.configure(...)` uses
+    /// the return value only so the microphone-restoration block cannot be reordered away
+    /// from the scan it depends on.
     @discardableResult
     func updateAvailableDevices(reason: DeviceScanOrigin = .manual) async -> [AudioDevice] {
+        if let running = scanTask {
+            // A scan is already inside CoreAudio. Ask it to run once more when it lands
+            // (several requests collapse into that one re-run) and wait for the result.
+            pendingScanReason = reason
+            AppLogger.audio.debug("🔍 Device scan (reason=\(reason.rawValue, privacy: .public)) coalesced into the scan in flight")
+            return await running.value
+        }
+
+        let task: Task<[AudioDevice], Never> = Task { @MainActor in
+            var devices = await self.performDeviceScan(reason: reason)
+            while let queued = self.pendingScanReason {
+                self.pendingScanReason = nil
+                devices = await self.performDeviceScan(reason: queued)
+            }
+            self.scanTask = nil
+            return devices
+        }
+        scanTask = task
+        return await task.value
+    }
+
+    /// One complete device scan: read the hardware off the main actor, publish on it.
+    ///
+    /// Every call that reaches this method publishes and emits its breadcrumbs; there is
+    /// no early return. Coalescing happens in `updateAvailableDevices(reason:)` *before*
+    /// any hardware read, so nothing is ever measured and then thrown away.
+    private func performDeviceScan(reason: DeviceScanOrigin) async -> [AudioDevice] {
         let scanStart = Date()
         AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(reason.rawValue, privacy: .public))")
 
-        scanGeneration &+= 1
-        let generation = scanGeneration
-
         let snapshot = await Self.fetchSnapshot()
-
         let devices = snapshot.devices
-
-        // Superseded while we were off the main actor — a newer scan has fresher data, so
-        // publish nothing. The roster we read is still returned; see the doc comment.
-        guard generation == scanGeneration else {
-            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) superseded by a newer scan - not publishing")
-            return devices
-        }
 
         availableDevices = devices
 
@@ -487,9 +503,26 @@ class AudioDeviceManager {
     /// enumerates every device and reads a UID per device, so this was as expensive as a
     /// full scan. The `@Published` writes and the invalidation callback still run on the
     /// main actor. The return contract and the fallback ordering are unchanged.
+    ///
+    /// **STALE-SELECTION GUARD.** This is the only newly-async path that writes *global
+    /// system state*, so it is the one that must re-check what it is acting on. The
+    /// selection can change while it is suspended — the user picks a different microphone
+    /// from the menu, or a scan invalidates the old one — and without the re-check a stale
+    /// resume would either set the system default input back to the microphone the user
+    /// just moved away from, or clear a selection (and, via `onSelectedDeviceInvalidated`,
+    /// the persisted preference) that is newer than the one it looked up. So the selected
+    /// UID is captured once up front and re-validated after every await, before any
+    /// mutation and before the default-device write. A superseded call returns `true`: it
+    /// invalidated nothing, and the newer selection schedules its own apply.
     @discardableResult
     func applySelectedInputDeviceIfNeeded() async -> Bool {
         guard let selected = selectedDevice else { return true }
+        let appliedUID = selected.uid
+
+        /// The selection this call was launched for is still the selection in effect.
+        func selectionIsStillCurrent() -> Bool {
+            selectedDevice?.uid == appliedUID
+        }
 
         // Find CoreAudio device ID from UID
         // DEVICE VALIDATION: If the UID lookup fails, the device is no longer available
@@ -497,8 +530,15 @@ class AudioDeviceManager {
         // - Bluetooth device disconnected and reconnected (may get new UID)
         // - USB device unplugged
         // - Device list in menu was stale when user selected it
-        guard let desiredID = await CoreAudioDeviceHelper.findAudioDeviceIDAsync(byUID: selected.uid) else {
-            AppLogger.audio.warning("⚠️ Unable to resolve AudioDeviceID for UID: \(selected.uid) - device may have disconnected, falling back to system default")
+        let resolvedID = await CoreAudioDeviceHelper.findAudioDeviceIDAsync(byUID: appliedUID)
+
+        guard selectionIsStillCurrent() else {
+            AppLogger.audio.info("Input-device apply for \(selected.name, privacy: .public) superseded by a newer selection - not applying")
+            return true
+        }
+
+        guard let desiredID = resolvedID else {
+            AppLogger.audio.warning("⚠️ Unable to resolve AudioDeviceID for UID: \(appliedUID) - device may have disconnected, falling back to system default")
 
             // FALLBACK: Clear the invalid selection and revert to system default
             // This ensures recording will use whatever macOS considers the current default
@@ -521,6 +561,11 @@ class AudioDeviceManager {
         guard let currentID = await CoreAudioDeviceHelper.systemDefaultInputDeviceIDAsync() else {
             AppLogger.audio.warning("⚠️ Unable to read current default input device")
             return true // Not a device selection failure, just can't read current default
+        }
+
+        guard selectionIsStillCurrent() else {
+            AppLogger.audio.info("Input-device apply for \(selected.name, privacy: .public) superseded before the default-device write")
+            return true
         }
 
         // Only switch if different
@@ -598,16 +643,31 @@ class AudioDeviceManager {
     /// - After device enumeration
     /// - Periodically to keep volume metrics fresh
     ///
-    /// Concurrent calls are last-completion-wins. All three published fields are written
-    /// together from a single probe, so the triple is never a mix of two probes; only which
-    /// probe lands last is non-deterministic, and the next scan or selection change
-    /// re-runs it.
+    /// **A probe only publishes for the selection it was launched for.** Probe durations
+    /// vary by device — a Bluetooth headset that is still negotiating can take seconds
+    /// while the built-in microphone answers instantly — so a probe started for microphone
+    /// A can easily land after a probe started for microphone B and overwrite all three
+    /// published fields with A's values. Nothing would correct that until the next scan,
+    /// which may never come. So the selection is captured before suspending and re-checked
+    /// after; a probe whose selection has moved on publishes nothing and lets the newer
+    /// probe stand.
+    ///
+    /// Declining is safe because every path that changes `selectedDevice` schedules a
+    /// fresh probe: `selectDevice(_:)` and the `AudioRecordingManager` mirror both do,
+    /// `performDeviceScan` awaits one after its invalidation branch, and
+    /// `applySelectedInputDeviceIfNeeded()`'s fallback re-scans.
     func updateInputVolumeMetrics() async {
-        // Captured before suspending so the probe and the name fallback below agree on
-        // which device was selected when this refresh started.
+        // Captured before suspending so the probe, the publish decision and the name
+        // fallback below all agree on which device was selected when this refresh started.
         let selected = selectedDevice
+        let probedUID = selected?.uid
 
-        let probe = await Self.probeActiveInputDevice(selectedUID: selected?.uid)
+        let probe = await Self.probeActiveInputDevice(selectedUID: probedUID)
+
+        guard selectedDevice?.uid == probedUID else {
+            AppLogger.audio.debug("Input volume probe superseded by a newer device selection - not publishing")
+            return
+        }
 
         guard probe.resolvedDeviceID != nil else {
             // No device available

@@ -362,18 +362,16 @@ class AudioRecordingManager: NSObject, ObservableObject {
         // Update available devices on launch, then restore the saved microphone.
         //
         // THE `await` AND THE RESTORATION BLOCK MUST STAY IN THE SAME TASK, IN THIS ORDER.
-        // The device scan is asynchronous now (HYPERWHISPER-HP). The restoration below CLEARS
-        // `settingsManager.selectedMicrophoneId` when the saved device is missing from the
-        // scanned list. If it ran before the scan finished it would see an empty list on every
-        // launch and silently wipe the user's microphone preference every single time. Do not
-        // hoist it out, and do not turn the `await` into a fire-and-forget call with the
-        // restoration left behind.
+        // The device scan is asynchronous now (HYPERWHISPER-HP), and the restoration below
+        // CLEARS `settingsManager.selectedMicrophoneId` when the saved device is missing from
+        // the scanned list. If it ran before the scan finished it would match against an empty
+        // list on every launch and silently wipe the user's microphone preference every single
+        // time. Do not hoist it out, and do not turn the `await` into a fire-and-forget call
+        // with the restoration left behind.
         //
-        // Note it matches against the roster the scan RETURNS, not the published
-        // `availableDevices` mirror. A CoreAudio notification landing during launch can
-        // supersede this scan, in which case it publishes nothing and the mirror stays empty
-        // — but the returned roster is always a real hardware read. See
-        // `AudioDeviceManager.updateAvailableDevices(reason:)`.
+        // It matches against the roster the scan returns, which is the same array the scan
+        // published — device scans are single-flighted, so a returned roster is always a
+        // completed hardware read, never a placeholder.
         Task { @MainActor in
             let devices = await self.deviceManager.updateAvailableDevices(reason: .initialBootstrap)
 
