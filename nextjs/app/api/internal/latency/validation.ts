@@ -117,7 +117,7 @@ function isValidRegion(value: unknown): value is string {
  * imports at all: `node --test --experimental-strip-types` loads it directly and
  * resolves neither the `@/` alias nor an extensionless relative `.ts` path. The
  * one list the ingest actually runs on is `KNOWN_PROVIDERS` in
- * lib/latency/providers.ts, derived from the page's display map — route.ts
+ * lib/latency/providers.ts, derived from the page's catalog mirror — route.ts
  * hands it in, and the test loads the same export.
  */
 export function validateSample(
