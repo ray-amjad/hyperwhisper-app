@@ -89,6 +89,10 @@ The number of available languages depends on the model or the provider that you 
 |---|---|
 | **Whisper (all multilingual variants)** | 101 languages |
 | **HyperWhisper Cloud, OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs, Soniox, Mistral, Gemini, Grok** | Different for each model — the picker filters the list |
+| **ElevenLabs Scribe v2** | 83 languages |
+| **Deepgram Nova 3 General** | 47 languages |
+| **Deepgram Nova 2 General** | 33 languages. The two lists are different: Thai and Chinese are on Nova 2 only |
+| **Deepgram Nova 3 Medical, Nova 2 Medical** | English only |
 | **Google Speech / Chirp 3** (via HyperWhisper Cloud) | ~74 languages (a selected part of the full Chirp 3 list) |
 | **Azure MAI-Transcribe** (via HyperWhisper Cloud) | ~42 languages |
 | **Parakeet V3** | 25 European languages (English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Russian, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Serbian, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian) |
@@ -123,7 +127,23 @@ If you enable AI post-processing, a language model improves the transcription re
 
 ### Engine Availability
 
-If a model does not support your language, the picker changes to the first language in the list of that model. HyperWhisper makes this change when you select the model. It does not send an unsupported language code to the engine.
+If a model does not support your language, the picker changes to the first language in the list of that model. HyperWhisper makes this change when you select the model.
+
+The Deepgram medical models are an exception. The picker filters the languages by accuracy tier, not by model, so all the languages of the Deepgram tier stay in the list. But **Nova 3 Medical** and **Nova 2 Medical** transcribe English only. If you select a medical model with a different language, HyperWhisper Cloud removes the language and Deepgram detects it from the audio.
+
+### Language Codes for Cloud Providers
+
+Each provider has its own spelling of a language code. For a request through HyperWhisper Cloud, the server changes the code of the mode into the code that the provider accepts. Examples:
+
+- **Google Chirp 3** accepts a full locale only. HyperWhisper Cloud expands `en` to `en-US`, and `zh` to `cmn-Hans-CN`.
+- **Azure MAI-Transcribe** lists Norwegian as `nb`. HyperWhisper Cloud sends `nb` for Norwegian.
+- **ElevenLabs Scribe** lists Tagalog as `fil`, and Mandarin as `cmn`.
+
+If the provider has no code for your language, HyperWhisper Cloud sends no language. The provider then detects the language from the audio. A transcription with automatic detection is better than a failed request.
+
+<Note>
+  This repair is part of HyperWhisper Cloud. It applies to the providers that HyperWhisper Cloud operates, not to a request that you send with your own API key.
+</Note>
 
 ---
 
