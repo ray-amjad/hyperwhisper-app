@@ -199,6 +199,27 @@ fn is_wav_mime(mime: &str) -> bool {
     mime.to_lowercase().contains("wav")
 }
 
+/// The Content-Type put on the `audio` multipart part, ALWAYS — the resolved
+/// MIME is what [`is_wav_mime`] gates on, never what goes on the wire.
+///
+/// Sync matches this value against a fixed set and rejects anything else with
+/// `{"status":415,"title":"Unsupported Media Type","detail":"unsupported audio
+/// Content-Type: '<value>'"}` BEFORE decoding a byte, so an unrecognized
+/// spelling of WAV fails 100% of the time regardless of the audio itself.
+///
+/// Measured against the live API (2026-08-16, one 7s 16 kHz mono WAV, same
+/// bytes each time): `audio/wav`, `audio/wave` and `audio/x-wav` -> 200;
+/// `audio/vnd.wave` and `application/octet-stream` -> 415. The multipart
+/// filename has no effect either way.
+///
+/// `audio/vnd.wave` is not hypothetical: it is what macOS's
+/// `UTType.preferredMIMEType` returns for a .wav file, so it is the value
+/// `AudioMimeTypeResolver` puts in `params.audio_mime` on every macOS
+/// recording. Until this constant existed, EVERY macOS sync attempt 415'd and
+/// fell through to the async upload/create/poll flow. Mirrors the cloud TS
+/// mirror's `SYNC_AUDIO_CONTENT_TYPE`.
+const SYNC_AUDIO_MIME: &str = "audio/wav";
+
 /// Build the **sync** transcription request: one multipart POST carrying the
 /// audio file plus an optional `config` JSON part.
 ///
@@ -255,7 +276,8 @@ pub fn build_sync_request(params: &TranscribeParams) -> Result<HttpRequest, Tran
     let mut parts: Vec<Part> = vec![multipart_file(
         "audio",
         params.audio_path.clone(),
-        mime,
+        // Canonical `audio/wav`, NOT the resolved `mime` — see SYNC_AUDIO_MIME.
+        SYNC_AUDIO_MIME.to_string(),
         filename_of(&params.audio_path),
     )];
     if let Some(config_json) = sync_config_json(params) {
@@ -389,6 +411,29 @@ mod tests {
                 other => panic!("expected FileRef first, got {other:?}"),
             },
             other => panic!("expected Multipart body, got {other:?}"),
+        }
+    }
+
+    /// Regression: sync matches the audio part's Content-Type against a fixed
+    /// set and 415s everything else ("unsupported audio Content-Type:
+    /// 'audio/vnd.wave'"). macOS resolves a .wav file to `audio/vnd.wave`, so
+    /// forwarding the resolved MIME meant every macOS sync attempt 415'd and
+    /// silently fell through to async. See `SYNC_AUDIO_MIME`.
+    #[test]
+    fn sync_request_sends_canonical_wav_mime_not_the_resolved_one() {
+        for resolved in ["audio/vnd.wave", "audio/wave", "audio/x-wav", "audio/wav"] {
+            let mut p = sync_params();
+            p.audio_mime = Some(resolved.to_string());
+            let req = build_sync_request(&p).unwrap();
+            match &req.body {
+                Body::Multipart { parts, .. } => match &parts[0] {
+                    Part::FileRef { mime, .. } => {
+                        assert_eq!(mime, SYNC_AUDIO_MIME, "resolved MIME {resolved:?}");
+                    }
+                    other => panic!("expected FileRef first, got {other:?}"),
+                },
+                other => panic!("expected Multipart body, got {other:?}"),
+            }
         }
     }
 

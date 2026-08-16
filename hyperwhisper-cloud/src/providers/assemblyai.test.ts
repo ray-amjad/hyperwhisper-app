@@ -134,6 +134,32 @@ describe('transcribeWithAssemblyAI — sync fast path eligibility', () => {
 });
 
 describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
+  // Regression: sync matches the audio part's Content-Type against a fixed set
+  // and 415s everything else ("unsupported audio Content-Type: 'audio/vnd.wave'").
+  // macOS's UTType.preferredMIMEType returns `audio/vnd.wave` for a .wav file,
+  // so forwarding the caller's spelling meant every macOS sync attempt 415'd and
+  // silently fell through to async. See SYNC_AUDIO_CONTENT_TYPE.
+  test('the audio part is canonical audio/wav even when the caller sent another WAV spelling', async () => {
+    const calls: Call[] = [];
+    let sentType: string | undefined;
+    let sentFilename: string | undefined;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), method: 'POST' });
+      const audioPart = (init?.body as FormData).get('audio') as File;
+      sentType = audioPart.type;
+      sentFilename = audioPart.name;
+      return jsonResponse({ text: 'hello world', audio_duration_ms: 3000 });
+    }) as unknown as typeof fetch;
+
+    const result = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/vnd.wave', 'en-US');
+
+    // Still eligible — the loose gate is unchanged, only the wire value is fixed.
+    expect(calls).toEqual([{ url: SYNC_URL, method: 'POST' }]);
+    expect(result.text).toBe('hello world');
+    expect(sentType).toBe('audio/wav');
+    expect(sentFilename).toBe('audio.wav');
+  });
+
   test('a successful sync transcript reports the sync-only model and computed cost', async () => {
     globalThis.fetch = mock(async () => jsonResponse({ text: 'bonjour', audio_duration_ms: 60_000 })) as unknown as typeof fetch;
 

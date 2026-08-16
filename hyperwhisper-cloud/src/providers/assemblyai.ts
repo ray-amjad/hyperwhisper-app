@@ -39,6 +39,11 @@
 // round-trip up to the sync timeout on the most common input format. Rather
 // than transcode, sync eligibility is gated on a WAV `contentType` — see
 // `isWavContentType` below. Mirrors the Rust core's `build_sync_request`.
+//
+// Container SPELLING is a separate concern from the gate: sync matches the
+// audio part's Content-Type against a fixed set and 415s everything else, so
+// the caller's own WAV spelling is NEVER forwarded — see
+// `SYNC_AUDIO_CONTENT_TYPE` below.
 
 import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
@@ -78,6 +83,28 @@ const MAX_KEYTERM_WORDS = 6;
 //   precisely, just log a best-effort reason.
 const SYNC_TRANSCRIBE_URL = `${ASSEMBLYAI_SYNC_BASE}/v1/transcribe`;
 const SYNC_DEFAULT_MODEL = 'universal-3-5-pro';
+// The Content-Type put on the `audio` multipart part, ALWAYS — the caller's
+// own `contentType` is deliberately not forwarded. Sync matches this value
+// against a fixed set and rejects anything else with
+// `{"status":415,"title":"Unsupported Media Type","detail":"unsupported audio
+// Content-Type: '<value>'"}` BEFORE decoding a byte, so an unrecognised
+// spelling of WAV fails 100% of the time regardless of the audio itself.
+//
+// Measured against the live API (2026-08-16, one 7s 16 kHz mono WAV, same
+// bytes each time): `audio/wav`, `audio/wave` and `audio/x-wav` -> 200;
+// `audio/vnd.wave` and `application/octet-stream` -> 415. The multipart
+// filename has no effect either way.
+//
+// `audio/vnd.wave` is not hypothetical: it is what macOS's
+// `UTType.preferredMIMEType` returns for a .wav file, so it is the value
+// `AudioMimeTypeResolver` puts on every macOS upload, and it is what the
+// desktop app actually sent here. Until this constant existed, EVERY macOS
+// sync attempt 415'd and fell through to the async upload/create/poll flow —
+// the fast path was dead on arrival for the platform that produces most of
+// the traffic. `isWavContentType` stays a loose substring gate because it
+// answers a different question ("is this a WAV container?"); this is what
+// goes on the wire. Mirrors the Rust core's `sync_flow::SYNC_AUDIO_MIME`.
+const SYNC_AUDIO_CONTENT_TYPE = 'audio/wav';
 const SYNC_MAX_DURATION_SECONDS = 120;
 // Safety margin below the hard cap: `estimateSecondsFromBytes` is a rough
 // 64kbps-encoded guess, not a real duration. An estimate landing in the last
@@ -222,7 +249,6 @@ function throwForStatus(status: number, bodyPreview: string): never {
  */
 async function transcribeWithAssemblyAISync(
   audio: ArrayBuffer,
-  contentType: string,
   language: string | undefined,
   initialPrompt: string | undefined,
   apiKey: string,
@@ -250,7 +276,9 @@ async function transcribeWithAssemblyAISync(
   }
 
   const form = new FormData();
-  form.append('audio', new Blob([audio], { type: contentType || 'application/octet-stream' }), 'audio');
+  // Canonical `audio/wav`, NOT `contentType` — see SYNC_AUDIO_CONTENT_TYPE.
+  // The filename mirrors the Python SDK's `audio.wav`; sync ignores it.
+  form.append('audio', new Blob([audio], { type: SYNC_AUDIO_CONTENT_TYPE }), 'audio.wav');
   if (Object.keys(config).length > 0) {
     // Append as a plain string, NOT a Blob. Per the FormData/multipart spec, a
     // Blob part without an explicit filename serializes as `filename="blob"`,
@@ -395,7 +423,7 @@ export async function transcribeWithAssemblyAI(
     logProviderEvent(provider, 'sync_attempt', {
       estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
     }, context);
-    const syncResult = await transcribeWithAssemblyAISync(audio, contentType, language, initialPrompt, apiKey, context);
+    const syncResult = await transcribeWithAssemblyAISync(audio, language, initialPrompt, apiKey, context);
     if (syncResult) {
       return syncResult;
     }
