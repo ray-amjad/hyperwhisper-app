@@ -23,11 +23,16 @@ import Foundation
 /// **Conformances:**
 /// - `Identifiable`: Enables use in SwiftUI lists and ForEach
 /// - `Hashable`: Allows use in Sets and as Dictionary keys
+/// - `Sendable`: Stated explicitly. Three immutable `String`s already earn the implicit
+///   conformance, but device lists now cross a `Task.detached` boundary on the CoreAudio
+///   scan path (`AudioDeviceScanSnapshot`, HYPERWHISPER-HP). Spelling it out
+///   means adding a mutable or reference-typed property breaks the build at this
+///   declaration rather than at a distant concurrency diagnostic.
 ///
 /// **Usage:**
 /// Used throughout the audio recording system to represent available microphones
 /// and track the currently selected input device.
-struct AudioDevice: Identifiable, Hashable {
+struct AudioDevice: Identifiable, Hashable, Sendable {
     let id: String      // Unique identifier
     let name: String    // Display name
     let uid: String     // System UID (CoreAudio)

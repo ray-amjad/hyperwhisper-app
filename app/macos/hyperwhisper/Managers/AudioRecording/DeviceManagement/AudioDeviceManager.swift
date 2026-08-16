@@ -9,6 +9,35 @@ import Foundation
 import Combine
 import CoreAudio
 
+// MARK: - Off-Main-Actor Scan Results
+//
+// Both types are deliberately declared at FILE SCOPE rather than nested inside
+// `AudioDeviceManager`. That type is `@MainActor`, and a global actor annotation on a
+// nominal type is inferred by the declarations nested inside it — a nested struct would
+// pick up main-actor-isolated initializers, which the `nonisolated static` producers below
+// could not call. File scope sidesteps the question entirely. Do not move them inside.
+
+/// One complete, off-main-actor CoreAudio device scan.
+///
+/// `Sendable` because `AudioDevice` is three immutable `String`s (now stated explicitly on
+/// the type). Carrying both values together means the main actor performs a single batch of
+/// `@Published` writes per scan instead of interleaving writes with blocking HAL reads.
+struct AudioDeviceScanSnapshot: Sendable {
+    let devices: [AudioDevice]
+    let systemDefaultUID: String?
+}
+
+/// Everything one volume-metric refresh reads from the HAL, in a single Sendable value.
+///
+/// `resolvedDeviceID == nil` means no input device could be resolved at all — the caller
+/// clears the published metrics, exactly as the synchronous version did.
+struct AudioInputDeviceProbe: Sendable {
+    let resolvedDeviceID: AudioDeviceID?
+    let volumeScalar: Float?
+    let uid: String?
+    let name: String?
+}
+
 /// High-level audio device management
 ///
 /// **Purpose:**
@@ -28,7 +57,17 @@ import CoreAudio
 /// The AudioRecordingManager mirrors these properties for view binding.
 ///
 /// **Thread Safety:**
-/// All methods run on main actor for UI consistency.
+/// The type is `@MainActor` and every `@Published` write happens on the main actor.
+/// The blocking CoreAudio reads do NOT: `fetchSnapshot()` and
+/// `probeActiveInputDevice(selectedUID:)` are `nonisolated static` and run detached, and
+/// the device-switching calls go through the `CoreAudioDeviceHelper` async wrappers. That
+/// is why `updateAvailableDevices(reason:)`, `updateInputVolumeMetrics()` and
+/// `applySelectedInputDeviceIfNeeded()` are `async` (Sentry HYPERWHISPER-HP). Do not make
+/// them synchronous again.
+///
+/// The one remaining synchronous CoreAudio call in this type is `restoreInputVolume(_:deviceID:)`,
+/// on the recording-STOP path. It is not part of HYPERWHISPER-HP's listener fan-out and was
+/// left alone deliberately; moving it belongs with the rest of the stop path.
 @MainActor
 class AudioDeviceManager {
 
@@ -50,6 +89,7 @@ class AudioDeviceManager {
     // 2. CoreAudio fires those listeners any time hardware is added/removed or the default input changes.
     // 3. Callbacks arrive on deviceListenerQueue (background) so we avoid touching UI state off the main thread.
     // 4. Each callback schedules updateAvailableDevices() on @MainActor, guaranteeing safe @Published updates.
+    //    That scan reads CoreAudio off the main actor and hops back to publish (HYPERWHISPER-HP).
     // 5. SwiftUI views react immediately, so the microphone picker/menu reflects AirPods the moment they connect.
     // Threading: CoreAudio may invoke listeners on arbitrary threads; confining them to our serial queue keeps
     // ordering deterministic while still offloading processing away from the audio subsystem.
@@ -161,10 +201,19 @@ class AudioDeviceManager {
 
         let listenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             guard let self else { return }
-            // Fire-and-forget Task is acceptable because updateAvailableDevices() is idempotent and cheap;
-            // CoreAudio may coalesce notifications, and we prefer not to block the callback queue.
+            // THIS IS THE HYPERWHISPER-HP FIX. The comment that used to sit here claimed
+            // updateAvailableDevices() was "idempotent and cheap". It is idempotent; it was
+            // never cheap. It is a synchronous CoreAudio fan-out (device roster + default
+            // input UID + the volume-metric probe), i.e. many mach_msg round trips to
+            // coreaudiod — and this listener fires during exactly the route change that
+            // makes coreaudiod slow to answer. Running that on the main actor is what hung
+            // the app for 10+ seconds.
+            //
+            // updateAvailableDevices(reason:) is now async: it does the HAL reads off the
+            // main actor and only the @Published writes on it. The Task stays
+            // fire-and-forget so the CoreAudio callback queue is never blocked.
             Task { @MainActor in
-                self.updateAvailableDevices(reason: origin)
+                await self.updateAvailableDevices(reason: origin)
             }
         }
 
@@ -215,10 +264,37 @@ class AudioDeviceManager {
 
     // MARK: - Device Enumeration
 
+    /// Monotonic scan counter — see "OVERLAPPING SCANS" on `updateAvailableDevices(reason:)`.
+    private var scanGeneration: Int = 0
+
+    /// Read the device roster and the system default input UID off the main actor.
+    ///
+    /// **Sentry HYPERWHISPER-HP** ("App hanging for at least 10000 ms"): both reads are
+    /// synchronous `AudioObjectGetPropertyData` calls — `mach_msg` round trips to
+    /// `coreaudiod` — and they were reached from `@MainActor` code driven by a CoreAudio
+    /// property-listener block. During the route change that fires that listener,
+    /// `coreaudiod` is precisely the process that is slow to answer, so the main thread
+    /// parked in `mach_msg` for the full duration.
+    ///
+    /// **Why `nonisolated` alone is not the fix:** the `CoreAudioDeviceHelper` methods were
+    /// already `nonisolated`, and a synchronous `nonisolated` method called from
+    /// `@MainActor` code still runs on the caller's thread. The detached hop inside the
+    /// `…Async` wrappers is what actually leaves the main thread.
+    ///
+    /// **Two hops, not one:** this composes the existing `CoreAudioDeviceHelper` async
+    /// wrappers rather than re-opening its own `Task.detached` around their synchronous
+    /// bodies. An extra thread hop costs microseconds; the `mach_msg` round trip it wraps
+    /// costs seconds. Keeping one documented bridging point beats saving that hop.
+    nonisolated static func fetchSnapshot() async -> AudioDeviceScanSnapshot {
+        let devices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
+        let systemDefaultUID = await CoreAudioDeviceHelper.systemDefaultInputDeviceUIDAsync()
+        return AudioDeviceScanSnapshot(devices: devices, systemDefaultUID: systemDefaultUID)
+    }
+
     /// Update list of available audio devices
     ///
     /// **What This Does:**
-    /// 1. Calls CoreAudioDeviceHelper to enumerate devices
+    /// 1. Reads the device roster and system default UID off the main actor (`fetchSnapshot()`)
     /// 2. Updates availableDevices array
     /// 3. Refreshes volume metrics for current device
     ///
@@ -226,16 +302,58 @@ class AudioDeviceManager {
     /// - On app launch
     /// - When device list may have changed (device connected/disconnected)
     /// - When refreshing UI
-    func updateAvailableDevices(reason: DeviceScanOrigin = .manual) {
+    ///
+    /// **OVERLAPPING SCANS (newest-scan-wins):**
+    /// CoreAudio coalesces notifications, and a bursty route change (AirPods reconnect,
+    /// dock hot-plug) can now put two scans in flight at once — something that could not
+    /// happen while this method was synchronous. The two candidate policies were
+    /// last-write-wins and an in-flight guard. **We take a generation guard**, because
+    /// last-write-wins is not actually safe here: a scan has *two* suspension points (the
+    /// snapshot and the volume probe), so interleaved completions could publish scan A's
+    /// device roster next to scan B's volume metrics — a mix that never existed on the
+    /// hardware. With the guard, a scan that has been superseded before it writes anything
+    /// simply abandons; the most recently *started* scan is never superseded, so state
+    /// always converges on the freshest read. A dropped scan loses nothing observable: the
+    /// scan that superseded it re-runs the same invalidation branch and emits its own
+    /// breadcrumbs from newer data.
+    ///
+    /// The volume-metric triple written by `updateInputVolumeMetrics()` after the second
+    /// suspension point stays last-completion-wins. Each probe writes all three fields
+    /// together on the main actor, so the triple is always self-consistent; only which
+    /// probe wins is non-deterministic, and any device or selection change re-runs it.
+    ///
+    /// **Returns** the roster this call read from the hardware — *even when the call was
+    /// superseded and therefore published nothing*. A superseded scan still performed a real
+    /// HAL read; it only declined to publish because a fresher one is on the way. Callers
+    /// that need the list rather than the side effect must use this return value and must
+    /// NOT read the published `availableDevices` right after awaiting, or a supersede would
+    /// hand them an empty array. `AudioRecordingManager.configure(...)` depends on this: it
+    /// clears the user's saved microphone preference when the saved device is absent from
+    /// the list, so an empty-by-race read there would wipe that preference on every launch.
+    @discardableResult
+    func updateAvailableDevices(reason: DeviceScanOrigin = .manual) async -> [AudioDevice] {
         let scanStart = Date()
         AppLogger.audio.debug("🔍 Scanning audio devices (reason=\(reason.rawValue, privacy: .public))")
 
-        let devices = CoreAudioDeviceHelper.fetchCoreAudioInputDevices()
+        scanGeneration &+= 1
+        let generation = scanGeneration
+
+        let snapshot = await Self.fetchSnapshot()
+
+        let devices = snapshot.devices
+
+        // Superseded while we were off the main actor — a newer scan has fresher data, so
+        // publish nothing. The roster we read is still returned; see the doc comment.
+        guard generation == scanGeneration else {
+            AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) superseded by a newer scan - not publishing")
+            return devices
+        }
+
         availableDevices = devices
 
         // Update the system default device UID for UI display
         // This allows the menu to show "(Default)" next to the system's default input device
-        systemDefaultDeviceUID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
+        systemDefaultDeviceUID = snapshot.systemDefaultUID
 
         // If the previously selected device is no longer available, fall back to system default.
         if let selected = selectedDevice,
@@ -262,7 +380,7 @@ class AudioDeviceManager {
             }
         }
 
-        updateInputVolumeMetrics()
+        await updateInputVolumeMetrics()
 
         if AppLogger.isErrorLoggingEnabled,
            reason == .coreAudioDeviceList || reason == .coreAudioDefaultInput {
@@ -278,6 +396,9 @@ class AudioDeviceManager {
             )
         }
 
+        // Same 250ms threshold as before. It now measures the off-actor scan rather than a
+        // main-thread stall, which is still the signal we want: a slow scan means coreaudiod
+        // is struggling, and that is what correlates with the device-change reports.
         let durationMs = Int(Date().timeIntervalSince(scanStart) * 1000)
         if durationMs > 250 {
             AppLogger.audio.warning("⚠️ 📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(self.availableDevices.count)")
@@ -296,6 +417,8 @@ class AudioDeviceManager {
         } else {
             AppLogger.audio.debug("📱 Device scan (\(reason.rawValue)) finished in \(durationMs)ms · devices=\(self.availableDevices.count)")
         }
+
+        return devices
     }
 
     // MARK: - Device Selection
@@ -308,9 +431,14 @@ class AudioDeviceManager {
     ///
     /// **Parameters:**
     /// - `device`: The device to select, or nil for system default
+    ///
+    /// **Deliberately still synchronous.** Menu items and picker bindings call this from
+    /// SwiftUI button actions (`MainAppView`, `OnboardingSourceViews`); making it `async`
+    /// would push `Task {}` wrappers into every one of those call sites for no benefit.
+    /// `selectedDevice` is still assigned synchronously, so the UI updates on the same
+    /// runloop turn it always did. Only the CoreAudio work is deferred.
     func selectDevice(_ device: AudioDevice?) {
         selectedDevice = device
-        updateInputVolumeMetrics()
 
         if let device = device {
             AppLogger.audio.info("Selected input device: \(device.name)")
@@ -318,8 +446,11 @@ class AudioDeviceManager {
             AppLogger.audio.info("Selected system default input device")
         }
 
-        // Apply immediately so Bluetooth devices have time to connect before recording starts.
-        applySelectedInputDeviceIfNeeded()
+        Task { @MainActor in
+            await self.updateInputVolumeMetrics()
+            // Apply immediately so Bluetooth devices have time to connect before recording starts.
+            await self.applySelectedInputDeviceIfNeeded()
+        }
     }
 
     // MARK: - Device Switching
@@ -350,8 +481,14 @@ class AudioDeviceManager {
     /// **Returns:**
     /// - `true` if no device was selected (using system default) or device was successfully applied
     /// - `false` if the selected device was invalid and we fell back to system default
+    ///
+    /// **Off the main actor (HYPERWHISPER-HP):** every CoreAudio call below is now awaited
+    /// through a `CoreAudioDeviceHelper` async wrapper. `findAudioDeviceID(byUID:)` alone
+    /// enumerates every device and reads a UID per device, so this was as expensive as a
+    /// full scan. The `@Published` writes and the invalidation callback still run on the
+    /// main actor. The return contract and the fallback ordering are unchanged.
     @discardableResult
-    func applySelectedInputDeviceIfNeeded() -> Bool {
+    func applySelectedInputDeviceIfNeeded() async -> Bool {
         guard let selected = selectedDevice else { return true }
 
         // Find CoreAudio device ID from UID
@@ -360,7 +497,7 @@ class AudioDeviceManager {
         // - Bluetooth device disconnected and reconnected (may get new UID)
         // - USB device unplugged
         // - Device list in menu was stale when user selected it
-        guard let desiredID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: selected.uid) else {
+        guard let desiredID = await CoreAudioDeviceHelper.findAudioDeviceIDAsync(byUID: selected.uid) else {
             AppLogger.audio.warning("⚠️ Unable to resolve AudioDeviceID for UID: \(selected.uid) - device may have disconnected, falling back to system default")
 
             // FALLBACK: Clear the invalid selection and revert to system default
@@ -375,20 +512,20 @@ class AudioDeviceManager {
             }
 
             // Refresh device list to ensure UI shows current available devices
-            updateAvailableDevices(reason: .manual)
+            await updateAvailableDevices(reason: .manual)
 
             return false
         }
 
         // Get current system default
-        guard let currentID = CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() else {
+        guard let currentID = await CoreAudioDeviceHelper.systemDefaultInputDeviceIDAsync() else {
             AppLogger.audio.warning("⚠️ Unable to read current default input device")
             return true // Not a device selection failure, just can't read current default
         }
 
         // Only switch if different
         if currentID != desiredID {
-            if CoreAudioDeviceHelper.setSystemDefaultInputDevice(to: desiredID) {
+            if await CoreAudioDeviceHelper.setSystemDefaultInputDeviceAsync(to: desiredID) {
                 AppLogger.audio.info("🎚️ Switched system default input to: \(selected.name)")
             } else {
                 AppLogger.audio.warning("⚠️ Failed to switch system default input to: \(selected.name)")
@@ -400,6 +537,51 @@ class AudioDeviceManager {
 
     // MARK: - Volume Metrics
 
+    /// Resolve the active input device and read its volume, UID and name — off the main actor.
+    ///
+    /// **This is the largest single piece of HYPERWHISPER-HP.** Per call it can make ~5+N
+    /// synchronous `mach_msg` round trips for N devices: `findAudioDeviceID(byUID:)`
+    /// enumerates every device and reads a UID per device, then `readInputVolumeScalar`
+    /// makes up to two property reads, then `copyDeviceUID` and `copyDeviceName` make one
+    /// each. It is called from every device scan, from `selectDevice(_:)` and from
+    /// `AudioRecordingManager`'s `selectedDevice` `didSet`, so it ran on the main actor
+    /// several times per route change.
+    ///
+    /// **One detached hop, on purpose.** Unlike `fetchSnapshot()`, this does not compose
+    /// per-call `CoreAudioDeviceHelper` async wrappers: `readInputVolumeScalar`,
+    /// `copyDeviceUID` and `copyDeviceName` have none, and adding three more would turn one
+    /// probe into five thread hops. The whole fan-out runs inside a single
+    /// `Task.detached(priority: .userInitiated)` instead — the same mechanism the wrappers
+    /// use, just amortised across the batch.
+    ///
+    /// `selectedUID` is passed in rather than read here because `selectedDevice` is
+    /// `@MainActor` state; the caller captures it before suspending so the probe and the
+    /// name fallback describe the same selection.
+    nonisolated static func probeActiveInputDevice(selectedUID: String?) async -> AudioInputDeviceProbe {
+        await Task.detached(priority: .userInitiated) { () -> AudioInputDeviceProbe in
+            // Determine active device ID — same precedence as before: an explicitly
+            // selected device that still resolves, otherwise the system default.
+            let resolvedDeviceID: AudioDeviceID? = {
+                if let selectedUID,
+                   let id = CoreAudioDeviceHelper.findAudioDeviceID(byUID: selectedUID) {
+                    return id
+                }
+                return CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+            }()
+
+            guard let deviceID = resolvedDeviceID else {
+                return AudioInputDeviceProbe(resolvedDeviceID: nil, volumeScalar: nil, uid: nil, name: nil)
+            }
+
+            return AudioInputDeviceProbe(
+                resolvedDeviceID: deviceID,
+                volumeScalar: CoreAudioDeviceHelper.readInputVolumeScalar(for: deviceID),
+                uid: CoreAudioDeviceHelper.copyDeviceUID(for: deviceID),
+                name: CoreAudioDeviceHelper.copyDeviceName(for: deviceID)
+            )
+        }.value
+    }
+
     /// Refresh cached information about the active input device and volume
     ///
     /// **What This Does:**
@@ -408,21 +590,26 @@ class AudioDeviceManager {
     /// 3. Read its UID and name
     /// 4. Update published properties
     ///
+    /// Steps 1-3 happen off the main actor in `probeActiveInputDevice(selectedUID:)`;
+    /// only step 4 runs here.
+    ///
     /// **When to Call:**
     /// - After device selection changes
     /// - After device enumeration
     /// - Periodically to keep volume metrics fresh
-    func updateInputVolumeMetrics() {
-        // Determine active device ID
-        let resolvedDeviceID: AudioDeviceID? = {
-            if let selected = selectedDevice,
-               let id = CoreAudioDeviceHelper.findAudioDeviceID(byUID: selected.uid) {
-                return id
-            }
-            return CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
-        }()
+    ///
+    /// Concurrent calls are last-completion-wins. All three published fields are written
+    /// together from a single probe, so the triple is never a mix of two probes; only which
+    /// probe lands last is non-deterministic, and the next scan or selection change
+    /// re-runs it.
+    func updateInputVolumeMetrics() async {
+        // Captured before suspending so the probe and the name fallback below agree on
+        // which device was selected when this refresh started.
+        let selected = selectedDevice
 
-        guard let deviceID = resolvedDeviceID else {
+        let probe = await Self.probeActiveInputDevice(selectedUID: selected?.uid)
+
+        guard probe.resolvedDeviceID != nil else {
             // No device available
             inputVolumeScalar = nil
             activeInputDeviceIdentifier = nil
@@ -430,13 +617,13 @@ class AudioDeviceManager {
             return
         }
 
-        // Read device properties
-        inputVolumeScalar = CoreAudioDeviceHelper.readInputVolumeScalar(for: deviceID)
-        activeInputDeviceIdentifier = CoreAudioDeviceHelper.copyDeviceUID(for: deviceID)
+        // Publish device properties
+        inputVolumeScalar = probe.volumeScalar
+        activeInputDeviceIdentifier = probe.uid
 
-        if let name = CoreAudioDeviceHelper.copyDeviceName(for: deviceID) {
+        if let name = probe.name {
             activeInputDeviceName = name
-        } else if let selected = selectedDevice {
+        } else if let selected = selected {
             activeInputDeviceName = selected.name
         } else {
             activeInputDeviceName = "audio.device.default".localized

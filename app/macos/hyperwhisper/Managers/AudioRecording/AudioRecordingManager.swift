@@ -88,7 +88,13 @@ class AudioRecordingManager: NSObject, ObservableObject {
     @Published var selectedDevice: AudioDevice? {
         didSet {
             guard selectedDevice?.id != oldValue?.id else { return }
-            deviceManager.updateInputVolumeMetrics()
+            // `updateInputVolumeMetrics()` is async now — its CoreAudio fan-out runs off the
+            // main actor (HYPERWHISPER-HP). A `didSet` cannot await, so this is
+            // fire-and-forget. The metrics it publishes are display-only, so arriving a
+            // runloop turn later is fine; nothing downstream reads them synchronously.
+            Task { @MainActor in
+                await self.deviceManager.updateInputVolumeMetrics()
+            }
         }
     }
 
@@ -210,7 +216,12 @@ class AudioRecordingManager: NSObject, ObservableObject {
 
     /// Polling task that samples `inputLevelPreviewRecorder` at ~30 FPS.
     private var inputLevelPreviewTask: Task<Void, Never>?
-    
+
+    /// Monotonic counter that invalidates an in-flight `startInputLevelPreview()`.
+    /// Bumped by both `startInputLevelPreview()` and `stopInputLevelPreview()` — see the
+    /// re-entrancy note on `startInputLevelPreview()`.
+    private var inputLevelPreviewGeneration: Int = 0
+
     /// Observer for UserDefaults changes
     private var defaultsObserver: NSObjectProtocol?
 
@@ -348,21 +359,37 @@ class AudioRecordingManager: NSObject, ObservableObject {
             self?.settingsManager?.selectedMicrophoneId = ""
         }
 
-        // Update available devices on launch
-        updateAvailableDevices(reason: .initialBootstrap)
+        // Update available devices on launch, then restore the saved microphone.
+        //
+        // THE `await` AND THE RESTORATION BLOCK MUST STAY IN THE SAME TASK, IN THIS ORDER.
+        // The device scan is asynchronous now (HYPERWHISPER-HP). The restoration below CLEARS
+        // `settingsManager.selectedMicrophoneId` when the saved device is missing from the
+        // scanned list. If it ran before the scan finished it would see an empty list on every
+        // launch and silently wipe the user's microphone preference every single time. Do not
+        // hoist it out, and do not turn the `await` into a fire-and-forget call with the
+        // restoration left behind.
+        //
+        // Note it matches against the roster the scan RETURNS, not the published
+        // `availableDevices` mirror. A CoreAudio notification landing during launch can
+        // supersede this scan, in which case it publishes nothing and the mirror stays empty
+        // — but the returned roster is always a real hardware read. See
+        // `AudioDeviceManager.updateAvailableDevices(reason:)`.
+        Task { @MainActor in
+            let devices = await self.deviceManager.updateAvailableDevices(reason: .initialBootstrap)
 
-        // MICROPHONE RESTORATION: Restore the user's previously selected microphone if still available
-        // This runs on app launch to ensure the same device is used across sessions
-        // The savedId is persisted via @AppStorage in SettingsManager
-        if let savedId = settingsManager?.selectedMicrophoneId, !savedId.isEmpty {
-            if let savedDevice = availableDevices.first(where: { $0.id == savedId }) {
-                AppLogger.audio.info("Restoring saved microphone selection on launch: \(savedDevice.name, privacy: .public)")
-                selectDevice(savedDevice)
-            } else {
-                // Device no longer available (disconnected Bluetooth, unplugged USB, etc.)
-                // Clear the preference so we don't keep trying to restore a missing device
-                AppLogger.audio.warning("Saved microphone not found on launch, clearing preference: \(savedId, privacy: .public)")
-                settingsManager?.selectedMicrophoneId = ""
+            // MICROPHONE RESTORATION: Restore the user's previously selected microphone if still available
+            // This runs on app launch to ensure the same device is used across sessions
+            // The savedId is persisted via @AppStorage in SettingsManager
+            if let savedId = self.settingsManager?.selectedMicrophoneId, !savedId.isEmpty {
+                if let savedDevice = devices.first(where: { $0.id == savedId }) {
+                    AppLogger.audio.info("Restoring saved microphone selection on launch: \(savedDevice.name, privacy: .public)")
+                    self.selectDevice(savedDevice)
+                } else {
+                    // Device no longer available (disconnected Bluetooth, unplugged USB, etc.)
+                    // Clear the preference so we don't keep trying to restore a missing device
+                    AppLogger.audio.warning("Saved microphone not found on launch, clearing preference: \(savedId, privacy: .public)")
+                    self.settingsManager?.selectedMicrophoneId = ""
+                }
             }
         }
 
@@ -991,8 +1018,18 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// - During app initialization
     /// - When user plugs/unplugs audio devices
     /// - When refreshing device list in settings
+    ///
+    /// **Deliberately synchronous and fire-and-forget.** The underlying scan is `async`
+    /// now (HYPERWHISPER-HP), but this wrapper is called from SwiftUI `.onAppear`
+    /// (`OnboardingSourceViews`), so keeping the sync signature means view code needs no
+    /// `.task {}` restructuring. Callers get "a refresh has been requested", not "the
+    /// refresh has finished" — which is all any of them ever used it for. Code that must
+    /// observe the *result* should await `deviceManager.updateAvailableDevices(reason:)`
+    /// directly, as `configure(...)` does for microphone restoration.
     func updateAvailableDevices(reason: AudioDeviceManager.DeviceScanOrigin = .manual) {
-        deviceManager.updateAvailableDevices(reason: reason)
+        Task { @MainActor in
+            await self.deviceManager.updateAvailableDevices(reason: reason)
+        }
     }
 
     /// Select a specific audio input device for recording
@@ -1025,8 +1062,24 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// No-ops (and releases any prior session) if microphone permission is
     /// missing or a real recording is active — the preview must never contend
     /// with the recording capture path or leak the mic.
+    ///
+    /// **Why the body is inside a `Task`:** applying the selected device is a blocking
+    /// CoreAudio fan-out and is now `async` (HYPERWHISPER-HP). It has to *finish* before
+    /// the metering recorder opens, because the recorder captures whatever the system
+    /// default is at that instant — so it is awaited, not fired off, and everything after
+    /// it moves into the same task.
+    ///
+    /// **Re-entrancy:** the suspension point is new, and this method is called twice in a
+    /// row on the onboarding screen (`.onAppear`, then again from the device picker). Two
+    /// overlapping starts would each open a recorder and the second would overwrite
+    /// `inputLevelPreviewRecorder`, leaking a live recorder holding the microphone.
+    /// `inputLevelPreviewGeneration` — bumped by both this method and
+    /// `stopInputLevelPreview()` — makes a superseded start bail out before it constructs
+    /// anything. After that check the remainder is straight-line main-actor code with no
+    /// further suspension, so nothing can interleave between the check and the assignment.
     func startInputLevelPreview() {
         // Restart cleanly if already running (e.g. the device changed).
+        // Note this also bumps the generation, invalidating any in-flight start.
         stopInputLevelPreview()
 
         guard hasMicrophonePermission else {
@@ -1038,36 +1091,47 @@ class AudioRecordingManager: NSObject, ObservableObject {
             return
         }
 
-        // Ensure the chosen device is the active system default before we open
-        // the metering recorder, so the preview reflects the picked device.
-        deviceManager.applySelectedInputDeviceIfNeeded()
+        inputLevelPreviewGeneration &+= 1
+        let generation = inputLevelPreviewGeneration
 
-        let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatLinearPCM),
-            AVSampleRateKey: 16000.0,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false
-        ]
+        Task { @MainActor in
+            // Ensure the chosen device is the active system default before we open
+            // the metering recorder, so the preview reflects the picked device.
+            await self.deviceManager.applySelectedInputDeviceIfNeeded()
 
-        do {
-            let recorder = try AVAudioRecorder(url: URL(fileURLWithPath: "/dev/null"), settings: settings)
-            recorder.isMeteringEnabled = true
-            guard recorder.record() else {
-                AppLogger.audio.warning("Input-level preview recorder failed to start")
+            // A newer start (or any stop) landed while we were applying the device.
+            guard generation == self.inputLevelPreviewGeneration else {
+                AppLogger.audio.info("Input-level preview superseded before it started")
                 return
             }
-            inputLevelPreviewRecorder = recorder
-            inputLevelPreviewTask = Task { [weak self] in
-                while !Task.isCancelled {
-                    self?.sampleInputLevelPreview()
-                    try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
+
+            let settings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatLinearPCM),
+                AVSampleRateKey: 16000.0,
+                AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false
+            ]
+
+            do {
+                let recorder = try AVAudioRecorder(url: URL(fileURLWithPath: "/dev/null"), settings: settings)
+                recorder.isMeteringEnabled = true
+                guard recorder.record() else {
+                    AppLogger.audio.warning("Input-level preview recorder failed to start")
+                    return
                 }
+                self.inputLevelPreviewRecorder = recorder
+                self.inputLevelPreviewTask = Task { [weak self] in
+                    while !Task.isCancelled {
+                        self?.sampleInputLevelPreview()
+                        try? await Task.sleep(nanoseconds: 33_000_000) // ~30 FPS
+                    }
+                }
+                AppLogger.audio.info("Input-level preview started")
+            } catch {
+                AppLogger.audio.error("Failed to start input-level preview: \(error.localizedDescription, privacy: .public)")
             }
-            AppLogger.audio.info("Input-level preview started")
-        } catch {
-            AppLogger.audio.error("Failed to start input-level preview: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -1075,6 +1139,9 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Safe to call repeatedly; also invoked when onboarding is dismissed and
     /// whenever a real recording starts.
     func stopInputLevelPreview() {
+        // Invalidate any start that is still awaiting the device switch, so it does not
+        // resume and open a recorder we have just been told to shut down.
+        inputLevelPreviewGeneration &+= 1
         inputLevelPreviewTask?.cancel()
         inputLevelPreviewTask = nil
         inputLevelPreviewRecorder?.stop()
