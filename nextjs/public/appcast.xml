@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.44.1</title>
+            <pubDate>Sun, 16 Aug 2026 14:08:26 +0000</pubDate>
+            <sparkle:version>114</sparkle:version>
+            <sparkle:shortVersionString>2.44.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.44.1.dmg" length="33713787" type="application/octet-stream" sparkle:edSignature="SoPc9GVirMX42YCSOqGfvBJdNMme0C5jr/3aHRoFWzqK2Je+QCfn4KhWW559i8E/+++QmIYR5HvNQi38mv9OAg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Faster AssemblyAI transcription for clips under 2 minutes</li><li>Fixed a Parakeet bug that pegged a CPU core and left the menu bar unclickable</li><li>Fixed the History window clipping the sidebar and search bar when you select a transcript</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.44.0</title>
             <pubDate>Sun, 16 Aug 2026 03:57:23 +0000</pubDate>
             <sparkle:version>113</sparkle:version>
