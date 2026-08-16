@@ -271,19 +271,59 @@ extension RecordingTranscriptionFlow {
         powerActivityManager.beginPowerActivity("Recording and transcribing audio")
 
         // 5. START AUDIO RECORDING
+        //
+        // Three outcomes, not two. `startRecording()` can also come back `.superseded`,
+        // meaning a newer start took ownership of the recorder while this one was
+        // suspended inside CoreAudio. That is why the span is opened by hand instead of
+        // through `measureAsync`: the helper only knows `.ok` and `.internalError`, and
+        // a superseded start is neither.
+        let startSpan = SentryService.startSpan(operation: "audio.recorder", description: "start recording")
+        let startOutcome: RecorderStartOutcome
         do {
-            try await SentryService.measureAsync(
-                operation: "audio.recorder",
-                description: "start recording"
-            ) {
-                try await recordingLifecycle.startRecording()
-            }
-            logPreflightCheckpoint("audio engine started")
+            startOutcome = try await recordingLifecycle.startRecording()
         } catch {
+            SentryService.finishSpan(startSpan, status: .internalError)
             await handleRecordingStartFailure(error)
             finishStartTransaction(.internalError)
             return
         }
+
+        if case .superseded = startOutcome {
+            SentryService.finishSpan(startSpan, status: .cancelled)
+            AppLogger.audio.notice("Recording start superseded by a newer start - abandoning attempt \(attemptId, privacy: .public)")
+            SentryService.addBreadcrumb(
+                message: "Recording start superseded by a newer start",
+                category: "audio.recording",
+                level: .warning,
+                data: [
+                    "attemptId": attemptId,
+                    "trigger": resolvedTrigger.rawValue
+                ]
+            )
+
+            // DO NOT run handleRecordingStartFailure() here. Its cleanup deletes
+            // `rawURL`, which by now is the WINNING attempt's `.incomplete_*.wav` — the
+            // file being actively recorded into. Nothing shows recording UI, no session
+            // is persisted, no timer runs: the winner does all of that for itself.
+            //
+            // Shared state is only unwound if this attempt still owns it. In the normal
+            // case a newer `handleStartRecording` has already overwritten
+            // `currentRecordingAttemptId` and taken the power assertion for itself, and
+            // clearing either here would sabotage a recording that is genuinely live.
+            if currentRecordingAttemptId == attemptId {
+                currentRecordingAttemptId = nil
+                currentRecordingTriggerSource = .unknown
+                sessionStartedWithTextDeliverySuppressed = false
+                quickCaptureContext = nil
+                powerActivityManager.endPowerActivity()
+            }
+
+            finishStartTransaction(.cancelled)
+            return
+        }
+
+        SentryService.finishSpan(startSpan, status: .ok)
+        logPreflightCheckpoint("audio engine started")
 
         // 6. SHOW RECORDING UI NOW THAT THE RECORDER IS LIVE
         await MainActor.run {

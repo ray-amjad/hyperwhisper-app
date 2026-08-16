@@ -209,15 +209,24 @@ class RecordingLifecycle {
     /// Stores path in RecordingSession immediately for recovery after crash.
     ///
     /// **Returns:**
-    /// URL where final M4A file will be written (after conversion)
+    /// `.started` once the recorder is live — `finalURL` then holds the URL the audio
+    /// will end up at — or `.superseded` when a newer start took ownership of the
+    /// recorder while this one was suspended in CoreAudio.
+    ///
+    /// **`.superseded` is neither success nor failure and the caller must treat it as a
+    /// third case.** This attempt installed nothing, its WAV is already deleted, and
+    /// `rawURL`/`finalURL` now describe the *winning* attempt. So a superseded start
+    /// must not show recording UI, must not persist a session, and above all must not
+    /// run `cleanupFailedStartArtifacts()` — that deletes the file the winner is
+    /// actively recording into.
     ///
     /// **Throws:**
     /// - `AudioError.noPermission`: No microphone permission
     /// - `AudioError.permissionDenied`: Can't access recordings folder
     /// - `AudioError.invalidHardwareFormat`: Audio interface format error
     /// - `AudioError.fileCreationFailed`: Can't create audio file
-    @discardableResult
-    func startRecording() async throws -> URL {
+    /// - `AudioError.noMicrophoneAvailable`: No input device after the retry schedule
+    func startRecording() async throws -> RecorderStartOutcome {
         // STEP 1: Prepare environment
         // Ensure recordings folder is accessible before starting
         if let settings = settingsManager {
@@ -454,13 +463,32 @@ class RecordingLifecycle {
         // The recorder is constructed and started off the main actor (HYPERWHISPER-F7);
         // the span still measures exactly that work, so the fix stays measurable.
         let recorderStartSpan = SentryService.startSpan(operation: "audio.recorder", description: "start AVAudioRecorder")
+        let outcome: RecorderStartOutcome
         do {
-            try await simpleRecorder.startRecording(to: wavURL)
-            SentryService.finishSpan(recorderStartSpan, status: .ok)
+            outcome = try await simpleRecorder.startRecording(to: wavURL)
         } catch {
             SentryService.finishSpan(recorderStartSpan, status: .internalError)
             throw error
         }
+
+        guard case .started = outcome else {
+            // SUPERSEDED. A newer start owns the recorder, `rawURL`/`finalURL` and the
+            // `.incomplete_*.wav` on disk. Publish nothing, touch nothing, and hand the
+            // outcome up so the flow does not show recording UI over a dead recorder.
+            //
+            // Span status is `.cancelled`, deliberately not `.ok` and not
+            // `.internalError`: nothing failed, so an error status would invent an error
+            // rate that does not exist and bury the real HYPERWHISPER-F7 signal, but
+            // nothing started either, so `.ok` would fold a no-op into the latency
+            // distribution this span exists to measure. `.cancelled` is the one status
+            // that means "abandoned on purpose", and it keeps superseded starts
+            // filterable in Sentry rather than invisible.
+            SentryService.finishSpan(recorderStartSpan, status: .cancelled)
+            AppLogger.audio.warning("Recording start superseded while AVAudioRecorder was starting - abandoning this attempt")
+            return .superseded
+        }
+
+        SentryService.finishSpan(recorderStartSpan, status: .ok)
 
         // STEP 7: Update state and start timer
         isRecording = true
@@ -469,7 +497,7 @@ class RecordingLifecycle {
 
         AppLogger.audio.info("Started recording to file: \(wavURL.lastPathComponent, privacy: .public)")
 
-        return finalURL
+        return .started
     }
 
     /// Create `directory` (and any missing parents) off the main actor.

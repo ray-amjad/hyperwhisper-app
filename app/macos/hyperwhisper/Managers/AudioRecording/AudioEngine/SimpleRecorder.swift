@@ -9,6 +9,29 @@
 import Foundation
 import AVFoundation
 
+/// How a `SimpleRecorder.startRecording(to:)` attempt ended.
+///
+/// A start can now finish in three ways, not two: it can succeed, it can fail (throw),
+/// or it can be **superseded** — a newer start, or a stop, took ownership of the
+/// recorder while this attempt was suspended inside CoreAudio.
+///
+/// Supersede is neither success nor failure and must not be reported as either. A
+/// superseded attempt installed nothing and already discarded its own recorder and WAV,
+/// so a caller that treats it as success shows a live recording UI over a dead recorder,
+/// and a caller that treats it as failure runs its cleanup over the *winning* attempt's
+/// files. Returning it explicitly is what stops both.
+///
+/// Declared at file scope rather than nested in `SimpleRecorder`, because that type is
+/// `@MainActor` and nesting would make this enum main-actor isolated for no reason. Same
+/// rationale as `AudioDeviceScanSnapshot` in `AudioDeviceManager`.
+enum RecorderStartOutcome: Sendable {
+    /// The recorder is live and installed; `isRecording` is true.
+    case started
+    /// A newer start (or a stop) owns the recorder. Nothing was installed, and this
+    /// attempt has already stopped its instance and deleted its own WAV.
+    case superseded
+}
+
 /// Simple audio recorder using AVAudioRecorder
 ///
 /// **Why This Exists:**
@@ -45,9 +68,14 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// `startRecording(to:)` now suspends while CoreAudio brings the recorder up
     /// (see the doc comment on `makeLiveRecorder(url:settings:)`). Both
     /// `startRecording(to:)` and `stopRecording()` bump this counter, so an
-    /// attempt whose ticket no longer matches knows it was superseded and must
-    /// throw its instance away instead of installing it. Only ever touched on
-    /// the main actor.
+    /// attempt whose ticket no longer matches knows it was superseded, must
+    /// throw its instance away instead of installing it, and must report
+    /// `.superseded` to its caller. Only ever touched on the main actor.
+    ///
+    /// This is the one place in the audio stack where a monotonic ticket is the
+    /// right tool: the losing attempt has to be told it lost *after* the fact,
+    /// while holding a live object it must dispose of itself. Where a superseded
+    /// operation merely has to stop, use `Task` cancellation instead.
     private var startGeneration: Int = 0
 
     /// Dedicated **serial** queue for the blocking CoreAudio calls in
@@ -220,26 +248,38 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// install.
     ///
     /// **Re-entrancy:** the `await` is a suspension point that did not exist when
-    /// this method was synchronous, so a `stopRecording()` — or a second
-    /// `startRecording(to:)` from a double-tapped hotkey — can now land in the
-    /// middle of a start. Without the `startGeneration` ticket that interleaving
-    /// leaks a live, running, invisible recorder holding the user's microphone:
-    /// the stop finds `recorder == nil` and no-ops, then the in-flight start
-    /// installs its instance and sets `isRecording = true` (or the second start
-    /// overwrites the first one's still-running instance). A superseded attempt
-    /// therefore stops its own instance and returns without touching any state.
+    /// this method was synchronous, so a second `startRecording(to:)` — from a
+    /// double-tapped hotkey, or from a push-to-talk release that re-enters
+    /// `toggleRecordingWithTranscription` while `isRecording` is still false —
+    /// can now land in the middle of a start. Without the `startGeneration`
+    /// ticket that interleaving leaks a live, running, invisible recorder holding
+    /// the user's microphone: the second start overwrites `recorder` while the
+    /// first instance is still running, and nothing can ever stop it again.
     ///
-    /// It returns rather than throws because the winning attempt owns the state
-    /// now: throwing would send the caller down `handleRecordingStartFailure` →
-    /// `cleanupFailedStartArtifacts()`, which deletes `rawURL` — by then the
-    /// *winner's* `.incomplete_*.wav`, i.e. the file being actively recorded.
+    /// A superseded attempt stops and deletes its own instance and reports
+    /// `.superseded`. It does not throw, because the winning attempt owns the
+    /// state now: throwing would send the caller down
+    /// `handleRecordingStartFailure` → `cleanupFailedStartArtifacts()`, which
+    /// deletes `rawURL` — by then the *winner's* `.incomplete_*.wav`, i.e. the
+    /// file being actively recorded. It does not return `.started` either: the
+    /// caller would show a live recording UI, run a duration timer and persist a
+    /// Core Data session over a recorder that does not exist.
+    ///
+    /// The same reasoning covers a failure that arrives after the attempt was
+    /// superseded — `makeLiveRecorder` throwing is the loser's problem, not the
+    /// winner's, so it is logged and reported as `.superseded` rather than
+    /// rethrown into the winner's cleanup.
     ///
     /// **Parameters:**
     /// - `url`: Where to save the WAV file
     ///
+    /// **Returns:**
+    /// - `.started` when the recorder is live and installed
+    /// - `.superseded` when a newer start took over; nothing was installed
+    ///
     /// **Throws:**
     /// - AudioError.recordingFailed if recorder cannot start
-    func startRecording(to url: URL) async throws {
+    func startRecording(to url: URL) async throws -> RecorderStartOutcome {
         // Cancel any pending deferred release from a previous stop.
         recorderReleaseTask?.cancel()
         recorderReleaseTask = nil
@@ -251,12 +291,25 @@ class SimpleRecorder: NSObject, ObservableObject {
 
         // Create recorder with Whisper-optimized settings and start it, off the
         // main actor. Throws exactly what the synchronous version threw.
-        let startedRecorder = try await SimpleRecorder.makeLiveRecorder(url: url, settings: recordSettings)
+        let startedRecorder: AVAudioRecorder
+        do {
+            startedRecorder = try await SimpleRecorder.makeLiveRecorder(url: url, settings: recordSettings)
+        } catch {
+            // A failure only belongs to the caller if the caller still owns the
+            // recorder. Rethrowing a superseded attempt's error would run the
+            // winner's start down the failure path and delete the file it is
+            // recording into.
+            guard generation == startGeneration else {
+                AppLogger.audio.warning("Superseded SimpleRecorder start also failed - swallowing its error: \(error.localizedDescription, privacy: .public)")
+                return .superseded
+            }
+            throw error
+        }
 
         guard generation == startGeneration else {
             AppLogger.audio.warning("SimpleRecorder start was superseded while AVAudioRecorder was starting - discarding the orphaned recorder")
             SimpleRecorder.discardSupersededRecorder(startedRecorder)
-            return
+            return .superseded
         }
 
         recorder = startedRecorder
@@ -264,6 +317,7 @@ class SimpleRecorder: NSObject, ObservableObject {
         startMeterUpdates()
 
         AppLogger.audio.info("SimpleRecorder started recording to: \(url.lastPathComponent, privacy: .public)")
+        return .started
     }
 
     /// Stop recording
@@ -274,10 +328,20 @@ class SimpleRecorder: NSObject, ObservableObject {
     /// 3. Releases recorder instance
     /// 4. Resets audio level to 0
     ///
-    /// **Re-entrancy:** bumping `startGeneration` is what makes this safe against
-    /// a `startRecording(to:)` that is currently suspended inside CoreAudio. That
-    /// start would otherwise complete after this stop and install a live recorder
-    /// nobody can see or stop. See `startRecording(to:)`.
+    /// **Re-entrancy:** bumping `startGeneration` invalidates a `startRecording(to:)`
+    /// that is currently suspended inside CoreAudio, so it discards its instance
+    /// instead of installing one nobody can see or stop.
+    ///
+    /// Be precise about what that does and does not currently protect. The app's only
+    /// caller — `RecordingLifecycle.stopRecording()` — is gated on
+    /// `guard isRecording else { return nil }`, and `isRecording` is set only *after*
+    /// the suspension, so a user-initiated stop landing inside the start window never
+    /// reaches this method at all. The interleaving the ticket actually resolves today
+    /// is start-versus-start (see `startRecording(to:)`); the bump here exists so that
+    /// this method is correct for any caller, including one added later that is not
+    /// gated on `isRecording`. Do not remove it, and do not describe it as closing the
+    /// stop-during-start window — that window is closed at the flow level, by the
+    /// superseded start abandoning itself.
     func stopRecording() {
         // Invalidate any start that is still suspended in makeLiveRecorder().
         startGeneration &+= 1
