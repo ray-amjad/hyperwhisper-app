@@ -284,12 +284,16 @@ class AudioDeviceManager {
     ///
     /// **Why `nonisolated` alone is not the fix:** the `CoreAudioDeviceHelper` methods are
     /// already `nonisolated`, and a synchronous `nonisolated` method called from
-    /// `@MainActor` code still runs on the caller's thread. The detached hop inside the
-    /// `…Async` wrappers is what actually leaves the main thread.
+    /// `@MainActor` code still runs on the caller's thread. The `offMainActor` hop is what
+    /// actually leaves the main thread. Both reads share one hop: they are independent,
+    /// and a scan should cost one thread transition, not one per property.
     nonisolated static func fetchSnapshot() async -> AudioDeviceScanSnapshot {
-        let devices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
-        let systemDefaultUID = await CoreAudioDeviceHelper.systemDefaultInputDeviceUIDAsync()
-        return AudioDeviceScanSnapshot(devices: devices, systemDefaultUID: systemDefaultUID)
+        await offMainActor {
+            AudioDeviceScanSnapshot(
+                devices: CoreAudioDeviceHelper.fetchCoreAudioInputDevices(),
+                systemDefaultUID: CoreAudioDeviceHelper.getSystemDefaultInputDeviceUID()
+            )
+        }
     }
 
     /// Update list of available audio devices
@@ -530,7 +534,7 @@ class AudioDeviceManager {
         // - Bluetooth device disconnected and reconnected (may get new UID)
         // - USB device unplugged
         // - Device list in menu was stale when user selected it
-        let resolvedID = await CoreAudioDeviceHelper.findAudioDeviceIDAsync(byUID: appliedUID)
+        let resolvedID = await offMainActor { CoreAudioDeviceHelper.findAudioDeviceID(byUID: appliedUID) }
 
         guard selectionIsStillCurrent() else {
             AppLogger.audio.info("Input-device apply for \(selected.name, privacy: .public) superseded by a newer selection - not applying")
@@ -558,7 +562,7 @@ class AudioDeviceManager {
         }
 
         // Get current system default
-        guard let currentID = await CoreAudioDeviceHelper.systemDefaultInputDeviceIDAsync() else {
+        guard let currentID = await offMainActor({ CoreAudioDeviceHelper.getSystemDefaultInputDeviceID() }) else {
             AppLogger.audio.warning("⚠️ Unable to read current default input device")
             return true // Not a device selection failure, just can't read current default
         }
@@ -570,7 +574,7 @@ class AudioDeviceManager {
 
         // Only switch if different
         if currentID != desiredID {
-            if await CoreAudioDeviceHelper.setSystemDefaultInputDeviceAsync(to: desiredID) {
+            if await offMainActor({ CoreAudioDeviceHelper.setSystemDefaultInputDevice(to: desiredID) }) {
                 AppLogger.audio.info("🎚️ Switched system default input to: \(selected.name)")
             } else {
                 AppLogger.audio.warning("⚠️ Failed to switch system default input to: \(selected.name)")
@@ -592,18 +596,15 @@ class AudioDeviceManager {
     /// `AudioRecordingManager`'s `selectedDevice` `didSet`, so it ran on the main actor
     /// several times per route change.
     ///
-    /// **One detached hop, on purpose.** Unlike `fetchSnapshot()`, this does not compose
-    /// per-call `CoreAudioDeviceHelper` async wrappers: `readInputVolumeScalar`,
-    /// `copyDeviceUID` and `copyDeviceName` have none, and adding three more would turn one
-    /// probe into five thread hops. The whole fan-out runs inside a single
-    /// `Task.detached(priority: .userInitiated)` instead — the same mechanism the wrappers
-    /// use, just amortised across the batch.
+    /// **One hop for the whole fan-out.** Up to five blocking reads run inside a single
+    /// `offMainActor` block rather than one wrapped call each; the thread transition costs
+    /// microseconds, the `mach_msg` round trips it wraps cost seconds.
     ///
     /// `selectedUID` is passed in rather than read here because `selectedDevice` is
     /// `@MainActor` state; the caller captures it before suspending so the probe and the
     /// name fallback describe the same selection.
     nonisolated static func probeActiveInputDevice(selectedUID: String?) async -> AudioInputDeviceProbe {
-        await Task.detached(priority: .userInitiated) { () -> AudioInputDeviceProbe in
+        await offMainActor { () -> AudioInputDeviceProbe in
             // Determine active device ID — same precedence as before: an explicitly
             // selected device that still resolves, otherwise the system default.
             let resolvedDeviceID: AudioDeviceID? = {
@@ -624,7 +625,7 @@ class AudioDeviceManager {
                 uid: CoreAudioDeviceHelper.copyDeviceUID(for: deviceID),
                 name: CoreAudioDeviceHelper.copyDeviceName(for: deviceID)
             )
-        }.value
+        }
     }
 
     /// Refresh cached information about the active input device and volume

@@ -217,10 +217,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Polling task that samples `inputLevelPreviewRecorder` at ~30 FPS.
     private var inputLevelPreviewTask: Task<Void, Never>?
 
-    /// Monotonic counter that invalidates an in-flight `startInputLevelPreview()`.
-    /// Bumped by both `startInputLevelPreview()` and `stopInputLevelPreview()` — see the
-    /// re-entrancy note on `startInputLevelPreview()`.
-    private var inputLevelPreviewGeneration: Int = 0
+    /// The `startInputLevelPreview()` task that is currently applying the selected device.
+    /// Cancelled by `stopInputLevelPreview()` — see the re-entrancy note on
+    /// `startInputLevelPreview()`.
+    private var inputLevelPreviewStartTask: Task<Void, Never>?
 
     /// Observer for UserDefaults changes
     private var defaultsObserver: NSObjectProtocol?
@@ -1070,14 +1070,16 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// **Re-entrancy:** the suspension point is new, and this method is called twice in a
     /// row on the onboarding screen (`.onAppear`, then again from the device picker). Two
     /// overlapping starts would each open a recorder and the second would overwrite
-    /// `inputLevelPreviewRecorder`, leaking a live recorder holding the microphone.
-    /// `inputLevelPreviewGeneration` — bumped by both this method and
-    /// `stopInputLevelPreview()` — makes a superseded start bail out before it constructs
-    /// anything. After that check the remainder is straight-line main-actor code with no
-    /// further suspension, so nothing can interleave between the check and the assignment.
+    /// `inputLevelPreviewRecorder`, leaking a live recorder holding the microphone. The
+    /// start task is therefore stored and cancelled by `stopInputLevelPreview()`, which
+    /// this method calls first — the same cancellation that already tore down the polling
+    /// task, rather than a second supersede mechanism beside it. `applySelectedInputDeviceIfNeeded()`
+    /// is not cancellation-aware, so the check happens after it returns; from there the
+    /// remainder is straight-line main-actor code with no further suspension, so nothing
+    /// can interleave between the check and the assignment.
     func startInputLevelPreview() {
         // Restart cleanly if already running (e.g. the device changed).
-        // Note this also bumps the generation, invalidating any in-flight start.
+        // Note this also cancels any in-flight start.
         stopInputLevelPreview()
 
         guard hasMicrophonePermission else {
@@ -1089,16 +1091,13 @@ class AudioRecordingManager: NSObject, ObservableObject {
             return
         }
 
-        inputLevelPreviewGeneration &+= 1
-        let generation = inputLevelPreviewGeneration
-
-        Task { @MainActor in
+        inputLevelPreviewStartTask = Task { @MainActor in
             // Ensure the chosen device is the active system default before we open
             // the metering recorder, so the preview reflects the picked device.
             await self.deviceManager.applySelectedInputDeviceIfNeeded()
 
-            // A newer start (or any stop) landed while we were applying the device.
-            guard generation == self.inputLevelPreviewGeneration else {
+            // A newer start (or any stop) cancelled us while we were applying the device.
+            guard !Task.isCancelled else {
                 AppLogger.audio.info("Input-level preview superseded before it started")
                 return
             }
@@ -1137,9 +1136,10 @@ class AudioRecordingManager: NSObject, ObservableObject {
     /// Safe to call repeatedly; also invoked when onboarding is dismissed and
     /// whenever a real recording starts.
     func stopInputLevelPreview() {
-        // Invalidate any start that is still awaiting the device switch, so it does not
-        // resume and open a recorder we have just been told to shut down.
-        inputLevelPreviewGeneration &+= 1
+        // Cancel any start that is still awaiting the device switch, so it does not resume
+        // and open a recorder we have just been told to shut down.
+        inputLevelPreviewStartTask?.cancel()
+        inputLevelPreviewStartTask = nil
         inputLevelPreviewTask?.cancel()
         inputLevelPreviewTask = nil
         inputLevelPreviewRecorder?.stop()

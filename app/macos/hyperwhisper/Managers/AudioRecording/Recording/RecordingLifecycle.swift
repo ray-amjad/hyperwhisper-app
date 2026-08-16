@@ -280,13 +280,13 @@ class RecordingLifecycle {
         // when this loop runs. Up to 7 of those on the main thread was a hang.
         let deviceRetryDelaysMs: [UInt64] = RecordingStartBackoff.inputDeviceRetryDelaysMs
         let deviceRetryStart = Date()
-        var inputDevices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
+        var inputDevices = await offMainActor { CoreAudioDeviceHelper.fetchCoreAudioInputDevices() }
         if inputDevices.isEmpty {
             for (index, delayMs) in deviceRetryDelaysMs.enumerated() {
                 let attempt = index + 1
                 AppLogger.audio.warning("No audio input devices on attempt \(attempt, privacy: .public) - retrying in \(delayMs, privacy: .public)ms")
                 try await Task.sleep(nanoseconds: delayMs * 1_000_000)
-                inputDevices = await CoreAudioDeviceHelper.fetchCoreAudioInputDevicesAsync()
+                inputDevices = await offMainActor { CoreAudioDeviceHelper.fetchCoreAudioInputDevices() }
                 if !inputDevices.isEmpty {
                     let elapsedMs = Int(Date().timeIntervalSince(deviceRetryStart) * 1_000)
                     AppLogger.audio.notice("Audio input devices recovered on attempt \(attempt, privacy: .public) after \(elapsedMs, privacy: .public)ms (count=\(inputDevices.count, privacy: .public))")
@@ -502,15 +502,12 @@ class RecordingLifecycle {
 
     /// Create `directory` (and any missing parents) off the main actor.
     ///
-    /// **Why detached (Sentry HYPERWHISPER-F7, "App hanging for at least 10000 ms"):**
-    /// `createDirectory(at:withIntermediateDirectories:)` is a blocking filesystem
-    /// syscall. The recordings folder routinely lives under iCloud Drive, Dropbox or a
-    /// network share, where a `mkdir` on a cold or offline provider can stall for
-    /// seconds; running it inline froze the whole app one step before the recorder
-    /// even started. `nonisolated` on its own would not help — a `nonisolated` method
-    /// called from `@MainActor` code still runs on the caller's thread, so the
-    /// `Task.detached` hop is what actually leaves the main thread. Same shape as
-    /// `CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:)`.
+    /// **Why off the main actor (Sentry HYPERWHISPER-F7, "App hanging for at least
+    /// 10000 ms"):** `createDirectory(at:withIntermediateDirectories:)` is a blocking
+    /// filesystem syscall. The recordings folder routinely lives under iCloud Drive,
+    /// Dropbox or a network share, where a `mkdir` on a cold or offline provider can stall
+    /// for seconds; running it inline froze the whole app one step before the recorder
+    /// even started. See `offMainActor` for why `nonisolated` alone would not have helped.
     ///
     /// **Deliberately non-throwing.** A failure here has always been non-fatal: it is
     /// logged and the recording proceeds, because `AVAudioRecorder` may still be able
@@ -523,7 +520,7 @@ class RecordingLifecycle {
     /// is a computed property that reads `settingsManager`, so it cannot be evaluated
     /// from here.
     nonisolated private static func ensureDirectoryExists(at directory: URL) async {
-        await Task.detached(priority: .userInitiated) { () -> Void in
+        await offMainActor { () -> Void in
             do {
                 try FileManager.default.createDirectory(
                     at: directory,
@@ -534,7 +531,7 @@ class RecordingLifecycle {
             } catch {
                 AppLogger.audio.error("Failed to create recordings directory: \(error.localizedDescription)")
             }
-        }.value
+        }
     }
 
     /// Schedule Core Data session persistence after the Sentry Recording Start
