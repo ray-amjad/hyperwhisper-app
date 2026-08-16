@@ -445,9 +445,11 @@ class RecordingLifecycle {
 
         // STEP 6: Start recording with SimpleRecorder
         // AVAudioRecorder handles all buffer management and format conversion internally
+        // The recorder is constructed and started off the main actor (HYPERWHISPER-F7);
+        // the span still measures exactly that work, so the fix stays measurable.
         let recorderStartSpan = SentryService.startSpan(operation: "audio.recorder", description: "start AVAudioRecorder")
         do {
-            try simpleRecorder.startRecording(to: wavURL)
+            try await simpleRecorder.startRecording(to: wavURL)
             SentryService.finishSpan(recorderStartSpan, status: .ok)
         } catch {
             SentryService.finishSpan(recorderStartSpan, status: .internalError)
