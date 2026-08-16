@@ -25,6 +25,53 @@ Generate the correct date with PowerShell:
 -->
 
 <!-- ================================================================== -->
+<!-- VERSION 1.11.0 -->
+<!-- ================================================================== -->
+
+<!-- 1.11.0 - ARM64 -->
+<item>
+<title>1.11.0 (ARM64)</title>
+<pubDate>Sun, 16 Aug 2026 04:17:53 +0000</pubDate>
+<sparkle:version>1.11.0</sparkle:version>
+<sparkle:shortVersionString>1.11.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-arm64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.11.0-arm64-Setup.exe"
+length="144032072"
+type="application/octet-stream"
+sparkle:edSignature="MQgOhGGatHVV29jVBVZRPU4LPTbEg10iYopao3lFQnt24U5RIbmxpJmeQI81C8XbOHUcAQpJ4FLRTQrUsPetBA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.11.0</h2>
+<ul>
+<li>Your custom vocabulary now reaches more providers. Grok, Mistral with your own key, Google Chirp 3 and OpenAI gpt-transcribe all read your terms. Before, they were sent nowhere.</li><li>Three new post-processing models: Gemini 3.7 Flash, Grok 4.6 and GPT-5.6 Luna. Modes set to a retired model move to a current one on their own.</li><li>Clearer provider and model pickers. The Provider list names the company, the Model list names the model, and Google no longer appears twice.</li><li>New modes start with the English spelling for your region. Modes you already made keep their setting.</li><li>A provider error during streaming now shows one clear message, instead of replacing it with a misleading reconnection failure.</li><li>Links in the update window are now clickable.</li>
+</ul>
+]]></description>
+</item>
+
+<!-- 1.11.0 - x64 -->
+<item>
+<title>1.11.0 (x64)</title>
+<pubDate>Sun, 16 Aug 2026 04:17:53 +0000</pubDate>
+<sparkle:version>1.11.0</sparkle:version>
+<sparkle:shortVersionString>1.11.0</sparkle:shortVersionString>
+<sparkle:minimumSystemVersion>10.0</sparkle:minimumSystemVersion>
+<sparkle:os>windows-x64</sparkle:os>
+<enclosure
+url="https://builds.hyperwhisper.com/HyperWhisper-1.11.0-x64-Setup.exe"
+length="181543392"
+type="application/octet-stream"
+sparkle:edSignature="9R+WIg19m7gbO6f7RNDHdvOI7wNEU8cP1s3lffMGgjmhv/17fVis2FE1fPx5qfZiTHNpNs1Z10mYOpPQGW+zDA=="
+/>
+<description><![CDATA[
+<h2>What's New in 1.11.0</h2>
+<ul>
+<li>Your custom vocabulary now reaches more providers. Grok, Mistral with your own key, Google Chirp 3 and OpenAI gpt-transcribe all read your terms. Before, they were sent nowhere.</li><li>Three new post-processing models: Gemini 3.7 Flash, Grok 4.6 and GPT-5.6 Luna. Modes set to a retired model move to a current one on their own.</li><li>Clearer provider and model pickers. The Provider list names the company, the Model list names the model, and Google no longer appears twice.</li><li>New modes start with the English spelling for your region. Modes you already made keep their setting.</li><li>A provider error during streaming now shows one clear message, instead of replacing it with a misleading reconnection failure.</li><li>Links in the update window are now clickable.</li>
+</ul>
+]]></description>
+</item>
+<!-- ================================================================== -->
 <!-- VERSION 1.10.0 -->
 <!-- ================================================================== -->
 
