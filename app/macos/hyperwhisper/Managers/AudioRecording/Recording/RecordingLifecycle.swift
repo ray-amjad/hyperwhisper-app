@@ -311,6 +311,11 @@ class RecordingLifecycle {
             var diagnostics = collectInputDeviceDiagnostics(availableDevices: inputDevices)
             diagnostics["deviceRetryElapsedMs"] = elapsedMs
             diagnostics["deviceRetryAttempts"] = deviceRetryDelaysMs.count
+            // The schedule this build actually shipped. Compared against elapsedMs it
+            // separates "we waited the full budget and CoreAudio still had nothing" from
+            // "this build is running a shorter schedule than we think" — which is the
+            // shape HYPERWHISPER-NF regressed in on v2.33.1.
+            diagnostics["deviceRetryBudgetMs"] = Int(RecordingStartBackoff.totalInputDeviceRetryBudgetMs)
             AppLogger.audio.error("No audio input devices detected after \(deviceRetryDelaysMs.count, privacy: .public) retries (\(elapsedMs, privacy: .public)ms) - cannot start recording")
 
             if AppLogger.isErrorLoggingEnabled {

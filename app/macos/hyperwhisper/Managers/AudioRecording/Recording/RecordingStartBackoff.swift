@@ -19,8 +19,9 @@ import Foundation
 ///
 /// The original fix used 2 × 250 ms = 500 ms of total backoff. That was too short, and
 /// the issue regressed on v2.33.1. The schedule below totals 3200 ms, which is what
-/// stopped it. `RecordingStartBackoffTests` asserts both the exact array and the
-/// minimum total, so shortening it again fails CI instead of shipping.
+/// stopped it. `RecordingStartBackoffTests` asserts that total, so shortening it again
+/// fails CI instead of shipping. How the total is split across attempts is deliberately
+/// not asserted — that part is tunable.
 ///
 /// **Do not shorten this.** A machine with genuinely no input device returns instantly
 /// on the first probe and never reaches the retry loop, so the schedule costs nothing
@@ -41,7 +42,10 @@ enum RecordingStartBackoff {
     /// Total wall time the probe is willing to spend on retries, in milliseconds.
     ///
     /// Derived from `inputDeviceRetryDelaysMs` rather than written out separately, so
-    /// the two can never disagree.
+    /// the two can never disagree. Reported as `deviceRetryBudgetMs` on the
+    /// "no audio input devices after retries" breadcrumb, where it says which schedule
+    /// the build in front of you actually shipped — releases lag `main`, so a Sentry
+    /// event showing a short budget is a stale build, not a new bug.
     static var totalInputDeviceRetryBudgetMs: UInt64 {
         inputDeviceRetryDelaysMs.reduce(0, +)
     }
