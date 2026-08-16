@@ -83,9 +83,6 @@
   <data name="common.edit" xml:space="preserve">
     <value>编辑</value>
   </data>
-  <data name="common.add" xml:space="preserve">
-    <value>添加</value>
-  </data>
   <data name="common.copy" xml:space="preserve">
     <value>复制</value>
   </data>
@@ -270,12 +267,6 @@
   <data name="mode.editor.field.language" xml:space="preserve">
     <value>语言</value>
   </data>
-  <data name="mode.editor.provider.local" xml:space="preserve">
-    <value>本地</value>
-  </data>
-  <data name="mode.editor.provider.cloud" xml:space="preserve">
-    <value>云端</value>
-  </data>
   <data name="mode.editor.field.source" xml:space="preserve">
     <value>来源</value>
   </data>
@@ -287,9 +278,6 @@
   </data>
   <data name="mode.editor.source.yourProvider" xml:space="preserve">
     <value>API 密钥</value>
-  </data>
-  <data name="mode.editor.field.engine" xml:space="preserve">
-    <value>引擎</value>
   </data>
   <data name="mode.editor.engine.recommendedLabel" xml:space="preserve">
     <value>{0} (推荐)</value>
@@ -314,12 +302,6 @@
   <data name="vocabulary.description" xml:space="preserve">
     <value>这有助于软件在混合语言时识别姓名、缩写、俚语或其他语言的词语。</value>
   </data>
-  <data name="vocabulary.input.title" xml:space="preserve">
-    <value>输入</value>
-  </data>
-  <data name="vocabulary.edit.title" xml:space="preserve">
-    <value>编辑词汇条目</value>
-  </data>
   <data name="common.update" xml:space="preserve">
     <value>更新</value>
   </data>
@@ -338,23 +320,8 @@
   <data name="vocabulary.limit.title" xml:space="preserve">
     <value>关键词上限已超出</value>
   </data>
-  <data name="vocabulary.input.wordLabel" xml:space="preserve">
-    <value>单词</value>
-  </data>
-  <data name="vocabulary.input.replacementLabel" xml:space="preserve">
-    <value>替换（可选）</value>
-  </data>
   <data name="vocabulary.autoLearned.badge" xml:space="preserve">
     <value>自动学习</value>
-  </data>
-  <data name="vocabulary.autoLearned.clear" xml:space="preserve">
-    <value>清除自动学习</value>
-  </data>
-  <data name="vocabulary.autoLearned.clearConfirm.title" xml:space="preserve">
-    <value>清除自动学习的词汇？</value>
-  </data>
-  <data name="vocabulary.autoLearned.clearConfirm.message" xml:space="preserve">
-    <value>要删除 {0} 个自动学习的词汇条目吗？手动添加的条目会保留。</value>
   </data>
   <data name="vocabulary.input.placeholder" xml:space="preserve">
     <value>添加单词或创建片段</value>
@@ -383,12 +350,6 @@
   <data name="settings.nav.appearance" xml:space="preserve">
     <value>外观</value>
   </data>
-  <data name="settings.nav.license" xml:space="preserve">
-    <value>许可证</value>
-  </data>
-  <data name="settings.nav.credits" xml:space="preserve">
-    <value>额度</value>
-  </data>
   <data name="settings.nav.cloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
@@ -413,9 +374,6 @@
   <data name="settings.nav.about" xml:space="preserve">
     <value>关于</value>
   </data>
-  <data name="settings.section.license" xml:space="preserve">
-    <value>许可证</value>
-  </data>
   <data name="settings.section.storage" xml:space="preserve">
     <value>存储</value>
   </data>
@@ -439,12 +397,6 @@
   <data name="settings.general.title" xml:space="preserve">
     <value>常规</value>
   </data>
-  <data name="settings.general.startup.title" xml:space="preserve">
-    <value>启动</value>
-  </data>
-  <data name="settings.general.startup.subtitle" xml:space="preserve">
-    <value>配置 HyperWhisper 的启动方式</value>
-  </data>
   <data name="settings.general.launchAtLogin.title" xml:space="preserve">
     <value>开机启动</value>
   </data>
@@ -457,12 +409,6 @@
   <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
     <value>启动时隐藏在系统托盘中。</value>
   </data>
-  <data name="settings.general.windowBehavior.title" xml:space="preserve">
-    <value>窗口行为</value>
-  </data>
-  <data name="settings.general.windowBehavior.subtitle" xml:space="preserve">
-    <value>配置窗口和录音显示方式</value>
-  </data>
   <data name="settings.general.minimizeToTray.title" xml:space="preserve">
     <value>最小化到系统托盘</value>
   </data>
@@ -474,12 +420,6 @@
   </data>
   <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
     <value>显示带有音频可视化的录音叠加层</value>
-  </data>
-  <data name="settings.general.loggingAndUpdates.title" xml:space="preserve">
-    <value>日志和更新</value>
-  </data>
-  <data name="settings.general.loggingAndUpdates.subtitle" xml:space="preserve">
-    <value>帮助我们改进 HyperWhisper</value>
   </data>
   <data name="settings.general.errorLogging.title" xml:space="preserve">
     <value>发送错误报告</value>
@@ -740,9 +680,6 @@
   </data>
 
   <!-- Settings - Output -->
-  <data name="settings.output.cleanup.section" xml:space="preserve">
-    <value>清理</value>
-  </data>
   <data name="settings.output.removeFillerWords.title" xml:space="preserve">
     <value>移除填充词</value>
   </data>
@@ -761,17 +698,8 @@
   <data name="settings.output.restoreClipboard.subtitle" xml:space="preserve">
     <value>粘贴后恢复之前的剪贴板内容</value>
   </data>
-  <data name="settings.output.clipboard.description" xml:space="preserve">
-    <value>管理粘贴后的剪贴板行为</value>
-  </data>
   <data name="settings.output.clipboard.section" xml:space="preserve">
     <value>剪贴板</value>
-  </data>
-  <data name="settings.output.paste.description" xml:space="preserve">
-    <value>配置自动粘贴行为</value>
-  </data>
-  <data name="settings.output.paste.section" xml:space="preserve">
-    <value>粘贴行为</value>
   </data>
   <data name="settings.output.restoreDelay.subtitle" xml:space="preserve">
     <value>恢复剪贴板内容前的延迟</value>
@@ -788,9 +716,6 @@
   <!-- Settings - Storage -->
   <data name="settings.storage.recordings.title" xml:space="preserve">
     <value>录音文件夹</value>
-  </data>
-  <data name="settings.storage.recordings.subtitle" xml:space="preserve">
-    <value>选择保存新录音的位置。</value>
   </data>
   <data name="settings.storage.showFolder.title" xml:space="preserve">
     <value>显示录音文件夹</value>
@@ -904,74 +829,17 @@
   </data>
 
   <!-- Settings - Models -->
-  <data name="settings.models.downloaded" xml:space="preserve">
-    <value>已下载</value>
-  </data>
   <data name="settings.models.download" xml:space="preserve">
     <value>下载</value>
   </data>
-  <data name="settings.models.parakeet.title" xml:space="preserve">
-    <value>Parakeet 模型</value>
-  </data>
-  <data name="settings.models.parakeet.subtitle" xml:space="preserve">
-    <value>推荐给大多数用户。多语言模型支持 25 种语言。</value>
-  </data>
-  <data name="settings.models.directory.parakeet" xml:space="preserve">
-    <value>Parakeet 模型文件夹</value>
-  </data>
-  <data name="settings.models.directory.whisper" xml:space="preserve">
-    <value>Whisper 模型文件夹</value>
-  </data>
-  <data name="settings.models.directory.local" xml:space="preserve">
-    <value>本地 LLM 模型文件夹</value>
-  </data>
   <data name="settings.models.directory.show" xml:space="preserve">
     <value>在资源管理器中显示</value>
-  </data>
-  <data name="settings.models.directory.openFailed" xml:space="preserve">
-    <value>无法打开模型文件夹：{0}</value>
   </data>
   <data name="settings.models.download.cancelled" xml:space="preserve">
     <value>下载已被用户取消</value>
   </data>
   <data name="settings.models.download.failed" xml:space="preserve">
     <value>下载失败：{0}</value>
-  </data>
-  <data name="settings.models.available.title" xml:space="preserve">
-    <value>可用模型</value>
-  </data>
-  <data name="settings.models.available.subtitle" xml:space="preserve">
-    <value>下载离线转录模型</value>
-  </data>
-  <data name="settings.models.englishOnly" xml:space="preserve">
-    <value>（仅英语）</value>
-  </data>
-  <data name="settings.models.gpu.detecting" xml:space="preserve">
-    <value>正在检测...</value>
-  </data>
-  <data name="settings.models.gpu.name" xml:space="preserve">
-    <value>GPU:</value>
-  </data>
-  <data name="settings.models.gpu.subtitle" xml:space="preserve">
-    <value>GPU 加速可提高转录速度</value>
-  </data>
-  <data name="settings.models.gpu.title" xml:space="preserve">
-    <value>GPU 信息</value>
-  </data>
-  <data name="settings.models.gpu.vram" xml:space="preserve">
-    <value>VRAM:</value>
-  </data>
-  <data name="settings.models.guide.title" xml:space="preserve">
-    <value>模型选择指南</value>
-  </data>
-  <data name="settings.models.recommendation.title" xml:space="preserve">
-    <value>推荐</value>
-  </data>
-  <data name="settings.models.recommendation.text" xml:space="preserve">
-    <value>基于您的硬件</value>
-  </data>
-  <data name="settings.models.vramWarning" xml:space="preserve">
-    <value>（超出 VRAM）</value>
   </data>
 
   <!-- Post-Processing -->
@@ -1006,9 +874,6 @@
   </data>
   <data name="status.model.localReady" xml:space="preserve">
     <value>本地：{0}（{1} 就绪）</value>
-  </data>
-  <data name="status.model.cloudReady" xml:space="preserve">
-    <value>云端（就绪）</value>
   </data>
   <data name="status.model.unknown" xml:space="preserve">
     <value>未知</value>
@@ -1067,12 +932,6 @@
   </data>
 
   <!-- History - Status -->
-  <data name="history.status.processing" xml:space="preserve">
-    <value>处理中...</value>
-  </data>
-  <data name="history.status.completed" xml:space="preserve">
-    <value>已完成</value>
-  </data>
 
   <!-- History - Retry -->
   <data name="history.context.retryAgain" xml:space="preserve">
@@ -1187,9 +1046,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
     <value>ElevenLabs Scribe V1 不支持自定义词汇。</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.mistral" xml:space="preserve">
-    <value>Mistral 不支持自定义词汇。</value>
-  </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
     <value>Deepgram Base 模型不支持自定义词汇。</value>
   </data>
@@ -1295,12 +1151,6 @@
 你必须至少保留一个模式。</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
-  <data name="settings.shortcuts.global.title" xml:space="preserve">
-    <value>全局快捷键</value>
-  </data>
-  <data name="settings.shortcuts.global.subtitle" xml:space="preserve">
-    <value>自定义你的键盘快捷键</value>
-  </data>
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
     <value>开始/停止录音</value>
   </data>
@@ -1334,9 +1184,6 @@
     <value>禁用开机启动失败。请检查你是否有权限修改启动设置。</value>
   </data>
   <!-- Settings - Models -->
-  <data name="settings.models.vramWarning.title" xml:space="preserve">
-    <value>显存不足</value>
-  </data>
   <data name="settings.models.downloadFailed.title" xml:space="preserve">
     <value>下载失败</value>
   </data>
@@ -1383,9 +1230,6 @@
   </data>
   <data name="settings.storage.autoDelete.subtitle" xml:space="preserve">
     <value>自动删除旧录音以节省磁盘空间</value>
-  </data>
-  <data name="settings.storage.autoDelete.enabled" xml:space="preserve">
-    <value>启用自动删除</value>
   </data>
   <data name="settings.storage.autoDelete.deleteAfter" xml:space="preserve">
     <value>删除早于以下时间的录音:</value>
@@ -1487,30 +1331,6 @@
   </data>
 
   <!-- Models - ARM64 and GPU -->
-  <data name="settings.models.noGpu.title" xml:space="preserve">
-    <value>未检测到 NVIDIA GPU</value>
-  </data>
-  <data name="settings.models.cpuMode" xml:space="preserve">
-    <value>CPU 模式</value>
-  </data>
-  <data name="settings.models.noGpu.description" xml:space="preserve">
-    <value>为获得最佳性能，建议使用支持 CUDA 的 NVIDIA GPU 进行本地转写。</value>
-  </data>
-  <data name="settings.models.gpu.notDetected" xml:space="preserve">
-    <value>未检测到</value>
-  </data>
-  <data name="settings.models.gpu.unknown" xml:space="preserve">
-    <value>未知</value>
-  </data>
-  <data name="settings.models.gpu.recommendBase" xml:space="preserve">
-    <value>未检测到 GPU。建议使用 Base 模型进行 CPU 转写。</value>
-  </data>
-  <data name="settings.models.diskUsage.none" xml:space="preserve">
-    <value>未下载任何模型</value>
-  </data>
-  <data name="settings.models.diskUsage.format" xml:space="preserve">
-    <value>{0} 个模型 ({1})</value>
-  </data>
 
   <!-- Mode Editor - Additional -->
   <data name="mode.editor.model.notDownloaded" xml:space="preserve">
@@ -1597,9 +1417,6 @@
   </data>
   <data name="settings.sound.soundEffects.title" xml:space="preserve">
     <value>音效</value>
-  </data>
-  <data name="settings.sound.soundEffects.subtitle" xml:space="preserve">
-    <value>配置录音事件的音频反馈</value>
   </data>
   <data name="settings.sound.enableSoundEffects.title" xml:space="preserve">
     <value>播放音效</value>
@@ -1694,12 +1511,6 @@
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>使用 Soniox 最新 STT 模型的异步转录</value>
   </data>
-  <data name="mode.editor.warning.parakeetLanguageUnsupported" xml:space="preserve">
-    <value>Parakeet v3 不支持此语言，请考虑使用 Whisper 或云端提供商。</value>
-  </data>
-  <data name="mode.editor.warning.parakeetV2EnglishOnly" xml:space="preserve">
-    <value>Parakeet v2 仅支持英语，语言将被设置为英语。</value>
-  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
@@ -1738,12 +1549,6 @@
   </data>
   <data name="settings.backup.import.button" xml:space="preserve">
     <value>导入备份...</value>
-  </data>
-  <data name="settings.backup.import.confirmReplace.message" xml:space="preserve">
-    <value>这将在导入前清除所有当前设置、模式、词汇和转录内容，无法撤销。是否继续？</value>
-  </data>
-  <data name="settings.backup.import.confirmReplace.title" xml:space="preserve">
-    <value>替换现有数据？</value>
   </data>
   <data name="settings.backup.import.dialogTitle" xml:space="preserve">
     <value>导入 HyperWhisper 备份</value>
@@ -1787,9 +1592,6 @@
   <data name="settings.shortcuts.pushToTalk.doublePress.subtitle" xml:space="preserve">
     <value>快速双击以保持录音而无需按住</value>
   </data>
-  <data name="settings.shortcuts.pushToTalk.mode.label" xml:space="preserve">
-    <value>模式</value>
-  </data>
   <data name="settings.shortcuts.pushToTalk.modifier.label" xml:space="preserve">
     <value>修饰键</value>
   </data>
@@ -1807,12 +1609,6 @@
   </data>
   <data name="settings.sound.autoIncreaseMicVolume.title" xml:space="preserve">
     <value>自动提高麦克风音量</value>
-  </data>
-  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
-    <value>配置录音期间麦克风输入行为</value>
-  </data>
-  <data name="settings.sound.microphone.title" xml:space="preserve">
-    <value>麦克风</value>
   </data>
   <data name="status.model.parakeet.loading" xml:space="preserve">
     <value>正在加载 {0}...</value>
@@ -1836,12 +1632,6 @@
   </data>
   <data name="settings.api.provider.localLlm.manageModels" xml:space="preserve">
     <value>管理模型</value>
-  </data>
-  <data name="settings.models.localLlm.title" xml:space="preserve">
-    <value>本地 LLM 模型</value>
-  </data>
-  <data name="settings.models.localLlm.subtitle" xml:space="preserve">
-    <value>存储在此设备上的离线后处理模型</value>
   </data>
   <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
     <value>运行时：CPU 回退。未检测到 GPU 加速设备。</value>
@@ -1920,12 +1710,6 @@
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>模型</value>
   </data>
-  <data name="settings.streaming.deepgram.subtitle" xml:space="preserve">
-    <value>配置 Deepgram 专用的流式转写行为。</value>
-  </data>
-  <data name="settings.streaming.deepgram.title" xml:space="preserve">
-    <value>Deepgram 选项</value>
-  </data>
   <data name="settings.streaming.enable.subtitle" xml:space="preserve">
     <value>使用单独的快捷键连续转写，并将最终语音片段粘贴到当前应用中。</value>
   </data>
@@ -1938,9 +1722,6 @@
   <data name="settings.streaming.fastFormatting.title" xml:space="preserve">
     <value>快速格式化</value>
   </data>
-  <data name="settings.streaming.language.subtitle" xml:space="preserve">
-    <value>选择流式转写使用的语言。</value>
-  </data>
   <data name="settings.streaming.language.title" xml:space="preserve">
     <value>语言</value>
   </data>
@@ -1952,9 +1733,6 @@
   </data>
   <data name="settings.streaming.provider.hyperwhisperCloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
-  </data>
-  <data name="settings.streaming.provider.subtitle" xml:space="preserve">
-    <value>选择用于实时转写的服务。</value>
   </data>
   <data name="settings.streaming.provider.title" xml:space="preserve">
     <value>提供商</value>
@@ -1983,9 +1761,6 @@
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
     <value>xAI 流式转写需要在模型的 API 密钥管理器中配置 Grok API 密钥。</value>
   </data>
-  <data name="settings.streaming.shortcut.current" xml:space="preserve">
-    <value>当前快捷键：{0}</value>
-  </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
     <value>流式转写快捷键</value>
   </data>
@@ -2006,12 +1781,6 @@
   <data name="settings.sound.mediaControl.subtitle" xml:space="preserve">
     <value>在 HyperWhisper 录音时控制其他音频。</value>
   </data>
-  <data name="settings.sound.mediaControl.mode.title" xml:space="preserve">
-    <value>录音时</value>
-  </data>
-  <data name="settings.sound.mediaControl.mode.subtitle" xml:space="preserve">
-    <value>将系统输出静音，避免音乐、通话或视频声音进入听写。</value>
-  </data>
   <data name="settings.sound.mediaControl.off" xml:space="preserve">
     <value>关闭</value>
   </data>
@@ -2027,9 +1796,6 @@
   </data>
 
   <!-- Synced fallback strings -->
-  <data name="settings.nav.vocabulary" xml:space="preserve">
-    <value>Vocabulary</value>
-  </data>
   <data name="window.caption.minimize" xml:space="preserve">
     <value>Minimize</value>
   </data>
@@ -2143,9 +1909,6 @@
   </data>
   <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
     <value>不支持自定义词汇</value>
-  </data>
-  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
-    <value>{0}（推荐）</value>
   </data>
   <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
     <value>医学词汇（医学模式附加组件）</value>
