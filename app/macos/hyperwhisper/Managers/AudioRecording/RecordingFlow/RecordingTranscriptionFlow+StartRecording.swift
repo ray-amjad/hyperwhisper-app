@@ -302,9 +302,12 @@ extension RecordingTranscriptionFlow {
             )
 
             // DO NOT run handleRecordingStartFailure() here. Its cleanup deletes
-            // `rawURL`, which by now is the WINNING attempt's `.incomplete_*.wav` — the
-            // file being actively recorded into. Nothing shows recording UI, no session
-            // is persisted, no timer runs: the winner does all of that for itself.
+            // `rawURL`, which if a winning attempt is live is the `.incomplete_*.wav`
+            // being actively recorded into. (`cleanupFailedStartArtifacts()` now refuses
+            // to run while a recording is live, but that is a backstop, not a licence to
+            // call the failure path for something that did not fail.) Nothing shows
+            // recording UI, no session is persisted, no timer runs: the winner does all
+            // of that for itself.
             //
             // Shared state is only unwound if this attempt still owns it. In the normal
             // case a newer `handleStartRecording` has already overwritten

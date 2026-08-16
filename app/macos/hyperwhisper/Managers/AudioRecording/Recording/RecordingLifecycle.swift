@@ -214,11 +214,18 @@ class RecordingLifecycle {
     /// recorder while this one was suspended in CoreAudio.
     ///
     /// **`.superseded` is neither success nor failure and the caller must treat it as a
-    /// third case.** This attempt installed nothing, its WAV is already deleted, and
-    /// `rawURL`/`finalURL` now describe the *winning* attempt. So a superseded start
-    /// must not show recording UI, must not persist a session, and above all must not
-    /// run `cleanupFailedStartArtifacts()` — that deletes the file the winner is
-    /// actively recording into.
+    /// third case.** This attempt installed nothing and its WAV is already deleted, so a
+    /// superseded start must not show recording UI and must not persist a session.
+    ///
+    /// **How `rawURL`/`finalURL` are kept describing the winner.** Not by convention —
+    /// this used to be asserted in three doc comments and enforced nowhere, and the
+    /// `await` between the URL writes and the ticket meant a losing attempt could
+    /// publish its URLs over the winner's, or nil them out from under
+    /// `persistSessionForActiveRecording()`. They are now written in STEP 7 only, in
+    /// the same uninterrupted main-actor region as `isRecording = true`, and only by an
+    /// attempt whose recorder start came back `.started`. A loser has nothing to undo
+    /// because it never wrote anything, and STEP 2's clear is skipped while a recording
+    /// is live for the same reason.
     ///
     /// **Throws:**
     /// - `AudioError.noPermission`: No microphone permission
@@ -246,10 +253,20 @@ class RecordingLifecycle {
         // Clear stale file references from previous recordings
         // Problem: If a new recording starts before the previous one fully completes,
         // the readiness probe could inspect the wrong file
-        // Solution: Always clear these references to ensure each recording session
-        // has fresh, unique file URLs based on current timestamp
-        self.finalURL = nil
-        self.rawURL = nil
+        // Solution: Clear these references so each recording session gets fresh, unique
+        // file URLs based on current timestamp
+        //
+        // GUARDED ON `isRecording`, WHICH IS NOT COSMETIC. When it is true these URLs
+        // belong to a recording that is live right now, and STEP 3 immediately below is
+        // about to stop it — which needs them to finalise the audio. Clearing them
+        // unconditionally also nilled `rawURL` out from under a concurrent start's
+        // `persistSessionForActiveRecording()`, whose `guard let rawURL` then wrote no
+        // session row at all for a recording the UI was showing as live. Whoever owns
+        // the URLs clears them: `stopRecording()` and `cleanupFailedStartArtifacts()`.
+        if !isRecording {
+            self.finalURL = nil
+            self.rawURL = nil
+        }
         self.lastMicBoostFailed = false
 
         // STEP 3: Stop any existing recording
@@ -360,6 +377,25 @@ class RecordingLifecycle {
         // If the task completes before recording stops, the original volume will be restored.
         // If recording stops first, the volume may not be restored (acceptable trade-off
         // since the feature is "nice to have" and shouldn't block the core recording function).
+        //
+        // `originalMicVolume` IS WRITE-ONCE, AND THAT IS LOAD-BEARING
+        // ---------------------------------------------------------------------------------
+        // Each start launches its own independent task, so two overlapping starts run two
+        // read-boost-store sequences with nothing between them. The read and the write
+        // straddle a blocking CoreAudio call, so the second task can read the volume the
+        // first task has *already boosted* and store 0.9 as "the original". That corruption
+        // is sticky and escapes the app entirely: on stop, `restoreInputVolume` writes 0.9
+        // back, the next recording reads 0.9, stores 0.9, restores 0.9 — and the user's
+        // input device stays pinned at 90% for every application on the machine until they
+        // reset it by hand in System Settings.
+        //
+        // An attempt-ownership guard does not fix this, which is why there isn't one: the
+        // task that reads the already-boosted 0.9 is the *newer* attempt, so it is exactly
+        // the one an attempt guard would let through. What fixes it is claiming the single
+        // saved-volume slot atomically on the main actor and refusing to overwrite a claim
+        // that is already held. A task that cannot claim the slot does not simply give up —
+        // it undoes its own boost, so no device is ever left raised with nobody holding its
+        // true original.
         if settingsManager?.autoIncreaseMicVolume == true {
             // Capture device UID before launching background task (if a specific device is selected)
             let selectedDeviceUID = deviceManager.selectedDevice?.uid
@@ -423,11 +459,30 @@ class RecordingLifecycle {
                     let newStr = newVolume.map { String(format: "%.0f%%", $0 * 100) } ?? "nil"
                     AppLogger.audio.info("🎚️ [ASYNC] SUCCESS - Volume changed from \(originalStr, privacy: .public) → \(newStr, privacy: .public)")
 
-                    // Store original volume + device ID on main actor for restoration after recording
-                    await MainActor.run { [weak self] in
-                        self?.originalMicVolume = originalVolume
-                        self?.originalMicVolumeDeviceID = deviceID
+                    // Claim the single saved-volume slot on the main actor. Write-once:
+                    // see the note above STEP 4.5 for why an overwrite here pins the
+                    // user's microphone at 90% system-wide.
+                    let claimed = await MainActor.run { [weak self] () -> Bool in
+                        guard let self else { return false }
+                        guard self.originalMicVolume == nil else { return false }
+                        self.originalMicVolume = originalVolume
+                        self.originalMicVolumeDeviceID = deviceID
                         AppLogger.audio.info("🎚️ [ASYNC] Stored original volume for restoration")
+                        return true
+                    }
+
+                    if !claimed {
+                        // Another attempt (or another device) owns the slot, so nothing
+                        // will ever restore OUR boost. Undo it here, off the main actor,
+                        // while we still hold this device's true pre-boost volume.
+                        //
+                        // Same-device case: we read after the owner's boost, so
+                        // `originalVolume` is already 0.9 and this write is a no-op.
+                        // Different-device case: our device goes back to where we found
+                        // it and the recording simply runs unboosted, which is the safe
+                        // side of a "nice to have".
+                        AppLogger.audio.notice("🎚️ [ASYNC] Saved-volume slot already claimed - reverting this task's own boost instead of overwriting it")
+                        _ = CoreAudioDeviceHelper.setInputVolumeScalar(for: deviceID, volume: originalVolume)
                     }
                 } else {
                     AppLogger.audio.warning("🎚️ [ASYNC] FAILED - CoreAudio setInputVolumeScalar returned false (device may not support software volume control)")
@@ -445,26 +500,36 @@ class RecordingLifecycle {
             }
         }
 
-        // STEP 5: Generate file paths
-        // Record directly to WAV at 16kHz mono (Whisper-optimized format)
-        // No intermediate CAF or real-time format conversion needed
-        let timestamp = Date().timeIntervalSince1970
-        let sessionID = UUID()
-
-        // Create session-tagged temp WAV file for crash recovery
-        let wavURL = recordingsDirectory.appendingPathComponent(".incomplete_\(sessionID.uuidString).wav")
-        self.rawURL = wavURL
-
-        // Final URL will be determined after recording (WAV if small, M4A if large)
-        // UUID-based path — avoid second-resolution collisions on rapid retrigger (issue #236)
-        let finalURL = recordingsDirectory.appendingPathComponent("recording_\(sessionID.uuidString).wav")
-        self.finalURL = finalURL
-
         // DEFENSIVE: Ensure recordings directory exists before creating audio file
         // Resolve the directory on the main actor (it reads `settingsManager`), then
         // do the blocking filesystem work off it — see `ensureDirectoryExists(at:)`.
         // Still non-fatal: a failure is logged and the recording proceeds.
+        //
+        // Runs BEFORE the paths are derived, not after. Partly because creating a
+        // directory before building paths inside it is the sane order, but mainly
+        // because this is a suspension point: leaving it between the path derivation and
+        // the recorder start put an `await` in the middle of the region that decides who
+        // owns the recording state.
         await RecordingLifecycle.ensureDirectoryExists(at: self.recordingsDirectory)
+
+        // STEP 5: Generate file paths
+        // Record directly to WAV at 16kHz mono (Whisper-optimized format)
+        // No intermediate CAF or real-time format conversion needed
+        //
+        // These stay LOCAL until STEP 7. `self.rawURL` / `self.finalURL` are the shared
+        // description of the one live recording, and an attempt that has not yet started
+        // a recorder has no claim on them. Publishing here — as this did — meant an
+        // attempt that went on to lose the recorder race had already overwritten the
+        // winner's URLs, and `cleanupFailedStartArtifacts()` on the loser's failure path
+        // then deleted the WAV the winner was actively recording into.
+        let sessionID = UUID()
+
+        // Create session-tagged temp WAV file for crash recovery
+        let wavURL = recordingsDirectory.appendingPathComponent(".incomplete_\(sessionID.uuidString).wav")
+
+        // Final URL will be determined after recording (WAV if small, M4A if large)
+        // UUID-based path — avoid second-resolution collisions on rapid retrigger (issue #236)
+        let finalURL = recordingsDirectory.appendingPathComponent("recording_\(sessionID.uuidString).wav")
 
         // STEP 6: Start recording with SimpleRecorder
         // AVAudioRecorder handles all buffer management and format conversion internally
@@ -480,9 +545,11 @@ class RecordingLifecycle {
         }
 
         guard case .started = outcome else {
-            // SUPERSEDED. A newer start owns the recorder, `rawURL`/`finalURL` and the
-            // `.incomplete_*.wav` on disk. Publish nothing, touch nothing, and hand the
-            // outcome up so the flow does not show recording UI over a dead recorder.
+            // SUPERSEDED. A newer start owns the recorder and the `.incomplete_*.wav` on
+            // disk. Publish nothing, touch nothing, and hand the outcome up so the flow
+            // does not show recording UI over a dead recorder. There is nothing to undo:
+            // this attempt's URLs are still local, and `SimpleRecorder` has already
+            // stopped its instance and deleted its own WAV.
             //
             // Span status is `.cancelled`, deliberately not `.ok` and not
             // `.internalError`: nothing failed, so an error status would invent an error
@@ -498,7 +565,18 @@ class RecordingLifecycle {
 
         SentryService.finishSpan(recorderStartSpan, status: .ok)
 
-        // STEP 7: Update state and start timer
+        // STEP 7: Publish ownership of the recording, then update state and start timer
+        //
+        // ONE UNINTERRUPTED MAIN-ACTOR REGION — DO NOT PUT AN `await` ANYWHERE IN IT.
+        // We are here only because `SimpleRecorder` handed us `.started`, which means
+        // this attempt owns the recorder as of this instant. Writing the URLs and
+        // `isRecording` together, with no suspension between them, is what makes
+        // "`rawURL`/`finalURL` describe whatever is recording right now" an enforced
+        // property rather than a comment. Every reader downstream —
+        // `persistSessionForActiveRecording()`, `cleanupFailedStartArtifacts()`,
+        // `stopRecording()`, STEP 2 above — keys off that pairing.
+        self.rawURL = wavURL
+        self.finalURL = finalURL
         isRecording = true
         recordingStartTime = Date()
         startDurationTimer()
@@ -568,7 +646,20 @@ class RecordingLifecycle {
     /// Remove raw files created before a deferred RecordingSession exists.
     /// This covers recorder-start failures where AVAudioRecorder created the
     /// `.incomplete_*.wav` file but `record()` did not successfully start.
+    ///
+    /// **Refuses to run while a recording is live.** `rawURL` and `isRecording` are
+    /// written together in STEP 7 of `startRecording()`, so `isRecording == true` means
+    /// `rawURL` is the file a recorder is writing into *right now*. A failing attempt
+    /// that overlapped a successful one would otherwise delete the winner's audio and
+    /// nil its URLs from underneath it — the failure handler upstream has no attempt
+    /// ownership guard of its own, so the check belongs here, next to the state it
+    /// protects.
     func cleanupFailedStartArtifacts() {
+        guard !isRecording else {
+            AppLogger.audio.warning("Skipping failed-start cleanup: a recording is live and owns these artifacts")
+            return
+        }
+
         if let rawURL, FileManager.default.fileExists(atPath: rawURL.path) {
             do {
                 try FileManager.default.removeItem(at: rawURL)
@@ -610,7 +701,28 @@ class RecordingLifecycle {
     /// - `recordingSession`: Core Data session updated for this stop, if available
     /// Returns nil if not currently recording
     func stopRecording(cancelled: Bool = false) async -> (url: URL?, duration: TimeInterval, conversionWarning: String?, recordingSession: RecordingSession?)? {
-        guard isRecording else { return nil }
+        guard isRecording else {
+            // NOT NECESSARILY "nothing to stop". `isRecording` is set only after the
+            // recorder comes up, so a start suspended inside CoreAudio — the
+            // HYPERWHISPER-F7 condition, where `AVAudioRecorder.record()` blocks for
+            // seconds on an unresponsive coreaudiod — is invisible here. A push-to-talk
+            // key released during that window used to reach this `guard`, return nil,
+            // and leave the start to resume and install a live recorder that nothing
+            // would ever stop, holding the microphone open indefinitely.
+            //
+            // Telling the recorder to abandon any in-flight start turns that into a
+            // clean `.superseded`, which the start flow already unwinds. Still returns
+            // nil: there is genuinely no audio to hand back.
+            if simpleRecorder.cancelPendingStart() {
+                AppLogger.audio.notice("Stop requested while a recording start was still inside CoreAudio - the start will abandon itself")
+                SentryService.addBreadcrumb(
+                    message: "Stop landed inside the recording-start window",
+                    category: "audio.recording",
+                    level: .warning
+                )
+            }
+            return nil
+        }
 
         // Capture the duration before resetting
         let duration = recordingDuration
@@ -1356,6 +1468,10 @@ class RecordingLifecycle {
     /// **Why 0.1 seconds:**
     /// Provides smooth updates for UI without excessive timer overhead.
     private func startDurationTimer() {
+        // Overlapping starts can reach STEP 7 twice. Without this, the earlier `Timer`
+        // is only dropped from the property, never invalidated, so it keeps firing
+        // against `recordingStartTime` forever.
+        recordingTimer?.invalidate()
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self, let start = self.recordingStartTime else { return }
             self.recordingDuration = Date().timeIntervalSince(start)
