@@ -36,7 +36,12 @@ class CoreAudioDeviceHelper {
     // MARK: - Stream Format Info
 
     /// Lightweight representation of an input stream format.
-    struct AudioStreamFormatInfo {
+    ///
+    /// `Sendable` is stated explicitly: four immutable value-typed fields already earn the
+    /// implicit conformance, but this now crosses an `offMainActor` boundary on the
+    /// recording-start failure path, so spelling it out makes a future reference-typed
+    /// field fail here rather than at a distant concurrency diagnostic.
+    struct AudioStreamFormatInfo: Sendable {
         let sampleRate: Double
         let channels: UInt32
         let bitDepth: UInt32

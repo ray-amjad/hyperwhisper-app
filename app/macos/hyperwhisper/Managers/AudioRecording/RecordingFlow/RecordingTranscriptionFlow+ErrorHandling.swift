@@ -44,7 +44,7 @@ private func probeRecordingStartDeviceMetadata(
     availableDevices: [AudioDevice],
     maxDevices: Int
 ) async -> RecordingStartDeviceProbe {
-    await offMainActor {
+    await offMainActor { () -> RecordingStartDeviceProbe in
         // Only emitted when the UID resolves to a live device, matching the previous
         // behaviour: an unresolvable selection writes no key, a resolvable device with an
         // unreadable transport type writes "unknown".

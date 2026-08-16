@@ -59,11 +59,11 @@ struct AudioInputDeviceProbe: Sendable {
 /// **Thread Safety:**
 /// The type is `@MainActor` and every `@Published` write happens on the main actor.
 /// The blocking CoreAudio reads do NOT: `fetchSnapshot()` and
-/// `probeActiveInputDevice(selectedUID:)` are `nonisolated static` and run detached, and
-/// the device-switching calls go through the `CoreAudioDeviceHelper` async wrappers. That
-/// is why `updateAvailableDevices(reason:)`, `updateInputVolumeMetrics()` and
-/// `applySelectedInputDeviceIfNeeded()` are `async` (Sentry HYPERWHISPER-HP). Do not make
-/// them synchronous again.
+/// `probeActiveInputDevice(selectedUID:)` are `nonisolated static` and run off the main
+/// actor, and the device-switching calls in `applySelectedInputDeviceIfNeeded()` are
+/// wrapped in `offMainActor` blocks. That is why `updateAvailableDevices(reason:)`,
+/// `updateInputVolumeMetrics()` and `applySelectedInputDeviceIfNeeded()` are `async`
+/// (Sentry HYPERWHISPER-HP). Do not make them synchronous again.
 ///
 /// The one remaining synchronous CoreAudio call in this type is `restoreInputVolume(_:deviceID:)`,
 /// on the recording-STOP path. It is not part of HYPERWHISPER-HP's listener fan-out and was
@@ -521,12 +521,9 @@ class AudioDeviceManager {
     @discardableResult
     func applySelectedInputDeviceIfNeeded() async -> Bool {
         guard let selected = selectedDevice else { return true }
+        // Captured once. Every `selectedDevice?.uid == appliedUID` re-check below asks the
+        // same question: is the selection this call was launched for still in effect?
         let appliedUID = selected.uid
-
-        /// The selection this call was launched for is still the selection in effect.
-        func selectionIsStillCurrent() -> Bool {
-            selectedDevice?.uid == appliedUID
-        }
 
         // Find CoreAudio device ID from UID
         // DEVICE VALIDATION: If the UID lookup fails, the device is no longer available
@@ -536,7 +533,7 @@ class AudioDeviceManager {
         // - Device list in menu was stale when user selected it
         let resolvedID = await offMainActor { CoreAudioDeviceHelper.findAudioDeviceID(byUID: appliedUID) }
 
-        guard selectionIsStillCurrent() else {
+        guard selectedDevice?.uid == appliedUID else {
             AppLogger.audio.info("Input-device apply for \(selected.name, privacy: .public) superseded by a newer selection - not applying")
             return true
         }
@@ -567,7 +564,7 @@ class AudioDeviceManager {
             return true // Not a device selection failure, just can't read current default
         }
 
-        guard selectionIsStillCurrent() else {
+        guard selectedDevice?.uid == appliedUID else {
             AppLogger.audio.info("Input-device apply for \(selected.name, privacy: .public) superseded before the default-device write")
             return true
         }
