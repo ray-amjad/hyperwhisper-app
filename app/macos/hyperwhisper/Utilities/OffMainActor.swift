@@ -9,7 +9,7 @@ import Foundation
 
 /// Run a blocking synchronous `body` off the main actor and await its result.
 ///
-/// **Why this exists (Sentry HYPERWHISPER-F7 and HYPERWHISPER-HP, "App hanging for at
+/// **Why this exists (Sentry HYPERWHISPER-F7, "App hanging for at
 /// least 10000 ms"):** the app is full of synchronous system calls that are cheap until
 /// they are not — CoreAudio property reads are `mach_msg` round trips to `coreaudiod`,
 /// which can take many seconds during an audio route change or wake-from-sleep, and
@@ -36,10 +36,14 @@ import Foundation
 /// fine for anything that must not overlap, which is exactly why the recorder start does
 /// not use this.
 ///
-/// Written as one shared bridge because the same six-line `Task.detached { … }.value`
-/// block had been copied into `CrashRecoveryManager`, `HistoryView`,
-/// `RecordingTranscriptionFlow+StopRecording` and the CoreAudio device path, each with its
-/// own re-derivation of the reasoning above.
+/// **Why a shared function for what is currently one file's worth of call sites.** Today
+/// only `RecordingLifecycle` calls this — the device probe, the mic auto-boost's undo path
+/// and the recordings-folder `mkdir`. The same six-line `Task.detached { … }.value` block
+/// is already hand-written in `CrashRecoveryManager`, `HistoryView` and
+/// `RecordingTranscriptionFlow+StopRecording`, each with its own partial re-derivation of
+/// the reasoning above, and the reasoning is the part that keeps being got wrong. Migrating
+/// those is a separate change; this exists so the next one is a one-liner rather than a
+/// fourth re-derivation.
 ///
 /// - Parameters:
 ///   - priority: Priority for the detached work. Defaults to `.userInitiated` because

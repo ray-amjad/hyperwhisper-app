@@ -22,8 +22,7 @@ import AVFoundation
 /// files. Returning it explicitly is what stops both.
 ///
 /// Declared at file scope rather than nested in `SimpleRecorder`, because that type is
-/// `@MainActor` and nesting would make this enum main-actor isolated for no reason. Same
-/// rationale as `AudioDeviceScanSnapshot` in `AudioDeviceManager`.
+/// `@MainActor` and nesting would make this enum main-actor isolated for no reason.
 enum RecorderStartOutcome: Sendable {
     /// The recorder is live and installed; `isRecording` is true.
     case started

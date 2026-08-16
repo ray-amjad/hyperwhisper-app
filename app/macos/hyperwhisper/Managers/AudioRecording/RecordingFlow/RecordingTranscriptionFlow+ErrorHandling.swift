@@ -9,73 +9,6 @@ import CoreData
 import Foundation
 import KeyboardShortcuts
 
-/// The CoreAudio-derived half of `recordingStartFailureMetadata(error:)`, gathered in one
-/// hop off the main actor.
-///
-/// File scope, not nested in `RecordingTranscriptionFlow`: that type is `@MainActor`, and
-/// a nested type would inherit that isolation and could not be produced from a detached
-/// block. Same rationale as `AudioDeviceScanSnapshot` in `AudioDeviceManager`.
-///
-/// `nil` on the optional fields means "do not write this key at all", preserving exactly
-/// which keys the synchronous version emitted.
-private struct RecordingStartDeviceProbe: Sendable {
-    let selectedDeviceTransportType: String?
-    let activeDeviceTransportType: String?
-    let inputStreamFormat: CoreAudioDeviceHelper.AudioStreamFormatInfo?
-    let availableDeviceSummaries: [String]
-}
-
-/// Read every CoreAudio property `recordingStartFailureMetadata(error:)` needs, off the
-/// main actor.
-///
-/// **Why this is not "already off the main actor" (Sentry HYPERWHISPER-F7):**
-/// `RecordingTranscriptionFlow` is `@MainActor`, and these are blocking `mach_msg` round
-/// trips to `coreaudiod` — the device summary alone is N x (1 + N) of them for N devices,
-/// because it resolves an `AudioDeviceID` per device and then reads a transport type per
-/// ID. This runs from the recording-start failure handler, which fires *precisely* when
-/// `coreaudiod` is unresponsive: the user gets `noMicrophoneAvailable` after the 3.2 s
-/// retry schedule and the failure handler then blocks the main thread again on the same
-/// sick daemon. Reporting a hang must not extend it.
-///
-/// All inputs are captured on the main actor by the caller and are `Sendable`.
-private func probeRecordingStartDeviceMetadata(
-    selectedUID: String?,
-    activeUID: String?,
-    availableDevices: [AudioDevice],
-    maxDevices: Int
-) async -> RecordingStartDeviceProbe {
-    await offMainActor { () -> RecordingStartDeviceProbe in
-        // Only emitted when the UID resolves to a live device, matching the previous
-        // behaviour: an unresolvable selection writes no key, a resolvable device with an
-        // unreadable transport type writes "unknown".
-        let selectedTransport: String? = selectedUID
-            .flatMap { CoreAudioDeviceHelper.findAudioDeviceID(byUID: $0) }
-            .map { CoreAudioDeviceHelper.transportTypeString(for: $0) ?? "unknown" }
-
-        let activeDeviceID = activeUID
-            .flatMap { CoreAudioDeviceHelper.findAudioDeviceID(byUID: $0) }
-            ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
-
-        let summaries = availableDevices.prefix(maxDevices).map { device -> String in
-            let transport: String
-            if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: device.uid),
-               let transportType = CoreAudioDeviceHelper.transportTypeString(for: deviceID) {
-                transport = transportType
-            } else {
-                transport = "unknown"
-            }
-            return "\(device.name) (\(transport))"
-        }
-
-        return RecordingStartDeviceProbe(
-            selectedDeviceTransportType: selectedTransport,
-            activeDeviceTransportType: activeDeviceID.flatMap { CoreAudioDeviceHelper.transportTypeString(for: $0) },
-            inputStreamFormat: activeDeviceID.flatMap { CoreAudioDeviceHelper.copyInputStreamFormat(for: $0) },
-            availableDeviceSummaries: summaries
-        )
-    }
-}
-
 extension RecordingTranscriptionFlow {
 
     // MARK: - Error Handling
@@ -155,7 +88,7 @@ extension RecordingTranscriptionFlow {
         } else if microphoneInUse {
             AppLogger.audio.warning("Recording start blocked: microphone busy · error: \(error.localizedDescription)")
         } else {
-            let metadata = await recordingStartFailureMetadata(error: error)
+            let metadata = recordingStartFailureMetadata(error: error)
             AppLogger.logAudioError("Failed to start recording", error: error, metadata: metadata)
         }
 
@@ -174,13 +107,7 @@ extension RecordingTranscriptionFlow {
         quickCaptureContext = nil
     }
 
-    /// Build the Sentry metadata for a recording-start failure.
-    ///
-    /// `async` because the CoreAudio half of it is gathered by
-    /// `probeRecordingStartDeviceMetadata(...)` off the main actor — see that function for
-    /// why. Everything read from `self` here is main-actor state and stays on the main
-    /// actor; only resolved UIDs and the device roster cross over.
-    private func recordingStartFailureMetadata(error: Error) async -> [String: Any] {
+    private func recordingStartFailureMetadata(error: Error) -> [String: Any] {
         var metadata: [String: Any] = [:]
 
         metadata["recordingAttemptId"] = currentRecordingAttemptId ?? "none"
@@ -192,6 +119,10 @@ extension RecordingTranscriptionFlow {
         let selectedDevice = recordingLifecycle.deviceManager.selectedDevice
         metadata["selectedDeviceName"] = selectedDevice?.name ?? "system_default"
         metadata["selectedDeviceUID"] = selectedDevice?.uid ?? "system_default"
+        if let uid = selectedDevice?.uid,
+           let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: uid) {
+            metadata["selectedDeviceTransportType"] = CoreAudioDeviceHelper.transportTypeString(for: deviceID) ?? "unknown"
+        }
 
         let recordingsFolder = settingsManager?.recordingsFolder ?? ""
         metadata["recordingsFolder"] = recordingsFolder
@@ -227,32 +158,24 @@ extension RecordingTranscriptionFlow {
         metadata["activeDeviceUID"] = activeUID ?? "unknown"
         metadata["activeDeviceIsDefault"] = (activeUID != nil && activeUID == systemDefaultUID)
 
+        let activeDeviceID = activeUID
+            .flatMap { CoreAudioDeviceHelper.findAudioDeviceID(byUID: $0) }
+            ?? CoreAudioDeviceHelper.getSystemDefaultInputDeviceID()
+        if let activeDeviceID = activeDeviceID {
+            if let transport = CoreAudioDeviceHelper.transportTypeString(for: activeDeviceID) {
+                metadata["activeDeviceTransportType"] = transport
+            }
+            if let format = CoreAudioDeviceHelper.copyInputStreamFormat(for: activeDeviceID) {
+                metadata["inputSampleRateHz"] = format.sampleRate
+                metadata["inputChannelCount"] = format.channels
+                metadata["inputBitDepth"] = format.bitDepth
+                metadata["inputIsFloat"] = format.isFloat
+            }
+        }
+
         let availableDevices = deviceManager.availableDevices
         metadata["availableInputDeviceCount"] = availableDevices.count
-
-        // The blocking CoreAudio reads, in one hop off the main actor. This handler runs
-        // when coreaudiod is already unresponsive, so gathering diagnostics must not add
-        // another main-thread stall to the hang it is describing.
-        let deviceProbe = await probeRecordingStartDeviceMetadata(
-            selectedUID: selectedDevice?.uid,
-            activeUID: activeUID,
-            availableDevices: availableDevices,
-            maxDevices: 20
-        )
-
-        if let selectedTransport = deviceProbe.selectedDeviceTransportType {
-            metadata["selectedDeviceTransportType"] = selectedTransport
-        }
-        if let transport = deviceProbe.activeDeviceTransportType {
-            metadata["activeDeviceTransportType"] = transport
-        }
-        if let format = deviceProbe.inputStreamFormat {
-            metadata["inputSampleRateHz"] = format.sampleRate
-            metadata["inputChannelCount"] = format.channels
-            metadata["inputBitDepth"] = format.bitDepth
-            metadata["inputIsFloat"] = format.isFloat
-        }
-        metadata["availableInputDevices"] = deviceProbe.availableDeviceSummaries
+        metadata["availableInputDevices"] = summarizeAvailableDevices(availableDevices, maxDevices: 20)
 
         metadata["recordingFailureStage"] = recordingFailureStage(for: error)
 
@@ -265,6 +188,20 @@ extension RecordingTranscriptionFlow {
         }
 
         return metadata
+    }
+
+    private func summarizeAvailableDevices(_ devices: [AudioDevice], maxDevices: Int) -> [String] {
+        let trimmed = devices.prefix(maxDevices)
+        return trimmed.map { device in
+            let transport: String
+            if let deviceID = CoreAudioDeviceHelper.findAudioDeviceID(byUID: device.uid),
+               let transportType = CoreAudioDeviceHelper.transportTypeString(for: deviceID) {
+                transport = transportType
+            } else {
+                transport = "unknown"
+            }
+            return "\(device.name) (\(transport))"
+        }
     }
 
     private func recordingFailureStage(for error: Error) -> String {

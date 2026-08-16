@@ -24,9 +24,20 @@ import CoreAudio
 /// **Thread Safety:**
 /// All methods are `nonisolated` and safe to call from any thread.
 /// This allows device enumeration on background queues without blocking the UI.
-/// Note that `nonisolated` alone does NOT move work off the main thread — from the main
-/// actor these must be called inside `offMainActor { … }`. See the section at the bottom
-/// of this file.
+///
+/// **EVERY METHOD IN THIS FILE BLOCKS, AND `nonisolated` DOES NOT CHANGE THAT.**
+/// These are synchronous `AudioObjectGetPropertyData` / `AudioObjectSetPropertyData`
+/// calls — `mach_msg` round trips to `coreaudiod`, and `fetchCoreAudioInputDevices()`
+/// makes 3+N of them for N devices. During an audio route change (Bluetooth disconnect,
+/// USB audio removal, AirPods reconnect) or wake-from-sleep the daemon can take many
+/// seconds to answer, which is what froze the app in Sentry HYPERWHISPER-F7 /
+/// HYPERWHISPER-HP ("App hanging for at least 10000 ms"). A `nonisolated` method called
+/// from `@MainActor` code still runs synchronously on the caller's thread: `nonisolated`
+/// removes the actor hop, it does not add a thread hop. From the main actor, wrap the
+/// call — `await offMainActor { CoreAudioDeviceHelper.… }` — and batch a fan-out into one
+/// wrapped block rather than wrapping each read. `RecordingLifecycle.startRecording()`'s
+/// input-device probe is the worked example. Call these directly only from code that is
+/// already off the main actor.
 ///
 /// **Important Note:**
 /// These methods interact with the system's audio hardware directly.
@@ -36,12 +47,7 @@ class CoreAudioDeviceHelper {
     // MARK: - Stream Format Info
 
     /// Lightweight representation of an input stream format.
-    ///
-    /// `Sendable` is stated explicitly: four immutable value-typed fields already earn the
-    /// implicit conformance, but this now crosses an `offMainActor` boundary on the
-    /// recording-start failure path, so spelling it out makes a future reference-typed
-    /// field fail here rather than at a distant concurrency diagnostic.
-    struct AudioStreamFormatInfo: Sendable {
+    struct AudioStreamFormatInfo {
         let sampleRate: Double
         let channels: UInt32
         let bitDepth: UInt32
@@ -508,28 +514,4 @@ class CoreAudioDeviceHelper {
         guard status == noErr else { return nil }
         return uid as String
     }
-
-    // MARK: - Calling These From The Main Actor
-    //
-    // EVERY METHOD IN THIS FILE BLOCKS. They are synchronous
-    // AudioObjectGetPropertyData / AudioObjectSetPropertyData calls, i.e. mach_msg round
-    // trips to the coreaudiod daemon, and fetchCoreAudioInputDevices() makes 3+N of them
-    // for N devices. During an audio route change (Bluetooth disconnect, USB audio
-    // removal, AirPods reconnect) or wake-from-sleep the daemon can take many seconds to
-    // answer. Calling any of this from @MainActor code froze the whole app — Sentry
-    // HYPERWHISPER-F7 and HYPERWHISPER-HP, "App hanging for at least 10000 ms".
-    //
-    // `nonisolated` DOES NOT HELP. These methods are all already `nonisolated`, and on
-    // its own that changes nothing: a `nonisolated` method called from @MainActor code
-    // still runs synchronously on the caller's thread. From the main actor, wrap the
-    // call — `await offMainActor { CoreAudioDeviceHelper.… }` — and batch a fan-out into
-    // ONE wrapped block rather than wrapping each read. See `offMainActor` for the full
-    // rationale, and `AudioDeviceManager.fetchSnapshot()` /
-    // `AudioDeviceManager.probeActiveInputDevice(selectedUID:)` for what a batched call
-    // site looks like.
-    //
-    // Call them directly only from code that is already off the main actor — the mic
-    // auto-boost task in RecordingLifecycle.startRecording() (STEP 4.5) and the bodies of
-    // the wrapped blocks themselves. A detached hop from an already-detached task buys
-    // nothing.
 }

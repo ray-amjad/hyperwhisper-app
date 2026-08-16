@@ -24,10 +24,10 @@ import Foundation
 /// - `Identifiable`: Enables use in SwiftUI lists and ForEach
 /// - `Hashable`: Allows use in Sets and as Dictionary keys
 /// - `Sendable`: Stated explicitly. Three immutable `String`s already earn the implicit
-///   conformance, but device lists now cross a `Task.detached` boundary on the CoreAudio
-///   scan path (`AudioDeviceScanSnapshot`, HYPERWHISPER-HP). Spelling it out
-///   means adding a mutable or reference-typed property breaks the build at this
-///   declaration rather than at a distant concurrency diagnostic.
+///   conformance, but device lists now cross a `Task.detached` boundary — the input-device
+///   probe in `RecordingLifecycle.startRecording()` enumerates them inside `offMainActor`
+///   (HYPERWHISPER-F7). Spelling it out means adding a mutable or reference-typed property
+///   breaks the build at this declaration rather than at a distant concurrency diagnostic.
 ///
 /// **Usage:**
 /// Used throughout the audio recording system to represent available microphones

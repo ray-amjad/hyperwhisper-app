@@ -333,12 +333,15 @@ class RecordingLifecycle {
         // STEP 4: Apply selected audio input device
         // This temporarily changes system default if user selected specific device
         //
-        // The CoreAudio fan-out inside runs off the main actor (HYPERWHISPER-HP); the
-        // @Published writes and the `onSelectedDeviceInvalidated` fallback still run on it.
-        // We await it rather than firing it off, because the recorder opened in STEP 5
-        // captures whatever the system default is at that moment.
+        // STILL SYNCHRONOUS, AND STILL ON THE MAIN ACTOR. Its CoreAudio writes are a
+        // known contributor to HYPERWHISPER-HP, but moving them off is the device-manager
+        // rework that was descoped from this PR after review; it lands with its own review
+        // budget. Do not make this `await` without moving the whole of
+        // `AudioDeviceManager` with it — the recorder opened in STEP 6 captures whatever
+        // the system default is at that moment, so a fire-and-forget hop here records
+        // from the wrong microphone.
         let deviceApplySpan = SentryService.startSpan(operation: "audio.device", description: "apply selected input device")
-        await deviceManager.applySelectedInputDeviceIfNeeded()
+        deviceManager.applySelectedInputDeviceIfNeeded()
         SentryService.finishSpan(deviceApplySpan, status: .ok)
 
         // STEP 4.5: Auto-increase microphone volume if enabled
