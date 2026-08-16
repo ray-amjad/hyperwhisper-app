@@ -61,14 +61,21 @@ struct FlowLayout: Layout {
 
     /// Measures every subview at its natural width and groups the subviews into
     /// lines that fit `maxWidth`. A subview wider than `maxWidth` gets a line of
-    /// its own and is measured against `maxWidth`, so it wraps internally rather
-    /// than overflow the container.
+    /// its own, capped to `maxWidth`, so its label truncates rather than overflow
+    /// the container.
+    ///
+    /// Measure with `.unspecified`, never against `maxWidth`. SwiftUI probes a
+    /// pane's minimum size by proposing a near-zero width, and a badge measured
+    /// at ~32pt wraps inside its own pill into a column hundreds of points tall.
+    /// That height becomes the History detail pane's minimum height, escapes to
+    /// the fixed 1000x600 window frame, and the oversized content is centred —
+    /// which clips the top and bottom off every column in the window.
     private func layoutLines(maxWidth: CGFloat, subviews: Subviews) -> [Line] {
         var lines: [Line] = []
         var current = Line()
 
         for index in subviews.indices {
-            var size = subviews[index].sizeThatFits(ProposedViewSize(width: maxWidth, height: nil))
+            var size = subviews[index].sizeThatFits(.unspecified)
             size.width = min(size.width, maxWidth)
 
             let needsNewLine = !current.items.isEmpty && current.width + spacing + size.width > maxWidth
