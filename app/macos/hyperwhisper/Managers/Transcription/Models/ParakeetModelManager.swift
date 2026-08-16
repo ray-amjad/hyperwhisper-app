@@ -217,7 +217,19 @@ final class ParakeetModelManager: ObservableObject {
             localURL: v3Exists ? v3Directory : nil
         ))
 
-        availableModels = models
+        // PUBLISH ONLY ON AN ACTUAL CHANGE:
+        // `@Published` fires on every assignment, equal value or not. Assigning
+        // unconditionally here closes a feedback cycle that never settles:
+        // the root view's `.onReceive($availableModels)` calls
+        // `refreshParakeetReadiness` -> `prepareModel(for:)` -> `refreshState()`,
+        // which publishes again. `.removeDuplicates()` on that subscription
+        // cannot break it, because `prepareModel` moves `modelReadyState` from
+        // `.loading` to `.ready`, re-evaluating the root body and rebuilding the
+        // operator chain with no memory of the previous value.
+        // See ParakeetRefreshStateRepublishTests.
+        if availableModels != models {
+            availableModels = models
+        }
     }
 
     // START DOWNLOAD:
