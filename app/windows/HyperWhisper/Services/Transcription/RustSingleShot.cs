@@ -1,8 +1,8 @@
 // RUST SINGLE-SHOT TRANSCRIBE RUNNER
 //
-// Every direct-vendor BYOK provider that transcribes in ONE request (Deepgram,
-// ElevenLabs, Grok, Groq, Mistral, OpenAI) drove the shared core through the
-// identical seven-step sequence, copied into each service:
+// The one copy of the sequence a direct-vendor BYOK provider runs when it
+// transcribes in a SINGLE request. Each such service used to spell it out
+// inline, identically:
 //
 //   1. RustRetry.PerformAsync(client, buildRequest, parseError, token[, timeout])
 //   2. catch HwTranscriptionException from the BUILD fn -> MapTranscriptionError
@@ -12,28 +12,15 @@
 //   6. log the "COMPLETE" banner, character count and elapsed time
 //   7. return transcript.text
 //
-// Only the provider name and the two core FFI functions differed, so the shape
-// of a single-shot transcription was written out six times and could drift six
-// ways. This is the one copy. It emits exactly what the six services emitted,
-// log lines included.
+// Only the provider name and the two core FFI functions differed, and all three
+// are parameters. Two things are NOT parameters, and that is what decides
+// whether a provider can run on this:
 //
-// NOT for the multi-step providers: AssemblyAI, Gemini and Soniox upload and
-// then poll. The two HyperWhisper-Cloud paths are out for DIFFERENT reasons:
+//   - the retry give-up mapper is always ParseProviderError below, which adds
+//     nothing to the core's own classification of the error body;
+//   - the tail is always the three-line banner below, derived from `provider`.
 //
-//   - HyperWhisperCloudService really does carry extra context into
-//     MapTranscriptionError (402 credit numbers, 413 size, and the provider
-//     diagnostics it attaches on a no-speech parse failure), and its completion
-//     banner prints two extra credit lines.
-//
-//   - HyperWhisperRoutedTranscriptionClient does NOT. Both of its
-//     MapTranscriptionError calls are the same plain two-arg form used below,
-//     so that is not what keeps it out. It is out because (a) its retry give-up
-//     mapper is its own MapRoutedError — which enriches the 402 credit / 413
-//     size context off the response body — where this runner hard-codes
-//     RustCoreMapping.ParseProviderError, and (b) it logs one
-//     "Completed · totalMs=… · chars=…" line instead of the banner below.
-//
-// Those keep their own sequences.
+// A provider needing either to differ keeps its own sequence.
 
 using System.Diagnostics;
 using System.Net.Http;

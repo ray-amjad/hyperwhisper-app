@@ -28,10 +28,6 @@ using System.Diagnostics;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding — still needed for the HyperwhisperCoreMethods
-// Build/Parse calls below. The colliding type names (HttpRequest, HttpResponse,
-// HwTranscript, HwTranscriptionException) are no longer spelled anywhere in this
-// file; RustSingleShot owns the request/response sequence now.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;

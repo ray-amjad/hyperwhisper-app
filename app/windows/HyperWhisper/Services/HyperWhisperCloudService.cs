@@ -448,6 +448,8 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
                 buildRequest: () => LatencyOptOut.Apply(
                     ClientInfoHeaders.Apply(
                         HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams))),
+                // Own give-up mapper, not RustSingleShot's fixed one: MapCloudError
+                // below adds the 402 credit / 413 size context from the body.
                 parseError: MapCloudError,
                 cancellationToken: cancellationToken,
                 onTransportError: ex =>
