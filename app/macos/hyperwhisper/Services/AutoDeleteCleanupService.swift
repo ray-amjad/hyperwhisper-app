@@ -14,11 +14,27 @@
 //  CLEANUP FLOW:
 //  1. Check if auto-delete is enabled in settings
 //  2. Calculate the cutoff date based on configured time unit and value
-//  3. Fetch all transcripts older than the cutoff date
-//  4. Collect every audio file path to remove (original + trimmed) on the main actor
-//  5. Delete those files from disk in one batch, off the main actor
-//  6. Delete the transcripts from Core Data
-//  7. Save changes to Core Data
+//  3. In ONE uninterrupted main-actor block: fetch all transcripts older than the
+//     cutoff date, collect every audio file path to remove (original + trimmed),
+//     delete those transcripts from Core Data, and save
+//  4. Delete those files from disk in one batch, off the main actor
+//  5. Back on the main actor: tally the stats, log them, record them
+//
+//  WHY THE CORE DATA WORK COMES FIRST:
+//  Step 4 is a suspension point. Anything read from a `Transcript` BEFORE it and
+//  used AFTER it is a snapshot that the app can invalidate while we are away —
+//  a retry can rewrite `audioFilePath` (.wav -> .m4a) or set
+//  `trimmedAudioFilePath`, the history UI can delete the row, and the debounced
+//  `refreshAllObjects()` maintenance pass can re-fault every object we hold. So
+//  the entire Core Data half runs to completion first, with no `await` anywhere
+//  inside it, and only plain `[String]` paths cross the hop.
+//
+//  The trade-off, deliberately chosen: a crash between the save and the unlink
+//  leaves audio files on disk with no Core Data row. That is the safe direction —
+//  `CrashRecoveryManager.scanForUnclaimedWAVCandidates` already sweeps up orphaned
+//  WAVs, whereas the opposite order leaves a surviving row pointing at a file that
+//  is already gone, which the History UI renders as a playable recording that
+//  silently fails.
 //
 //  SCHEDULING:
 //  - Runs immediately on app launch (if enabled)
@@ -252,14 +268,10 @@ class AutoDeleteCleanupService: ObservableObject {
         }
     }
 
-    /// Performs a cleanup operation based on current settings
+    /// Performs a cleanup operation based on current settings.
     ///
-    /// CLEANUP STEPS:
-    /// 1. Check if auto-delete is enabled
-    /// 2. Calculate cutoff date
-    /// 3. Fetch transcripts older than cutoff
-    /// 4. Delete audio files and transcripts
-    /// 5. Update statistics
+    /// See the CLEANUP FLOW note at the top of this file for the ordering and why
+    /// the Core Data work has to finish before the off-actor file deletion.
     ///
     /// - Returns: The cleanup statistics, or nil if auto-delete is disabled
     @discardableResult
@@ -313,13 +325,20 @@ class AutoDeleteCleanupService: ObservableObject {
 
         logger.info("Found \(transcriptsToDelete.count, privacy: .public) transcripts to delete")
 
-        // Delete transcripts and their audio files
-        var audioFilesDeleted = 0
-        var bytesFreed: Int64 = 0
+        // ---------------------------------------------------------------------
+        // STEP 1 (main actor, NO suspension point anywhere in this block):
+        // read the paths off the managed objects, delete the rows, and save.
+        //
+        // This runs to completion before the `await` below, so nothing can
+        // rewrite `audioFilePath` / `trimmedAudioFilePath`, delete a row, or
+        // re-fault the objects underneath us. That is what makes
+        // `transcriptsToDelete.count` an honest count of what was deleted, and
+        // what makes `paths` an honest snapshot of what those rows pointed at.
+        // Do not introduce an `await` between the collect loop and `save()`.
+        // ---------------------------------------------------------------------
 
-        // STEP 1 (main actor): collect the paths to delete.
-        // Every `Transcript` access happens here, before the hop — `Transcript`
-        // is an `NSManagedObject` and must never cross into the detached task.
+        // Every `Transcript` access happens here — `Transcript` is an
+        // `NSManagedObject` and must never cross into the detached task.
         // The list is deliberately NOT de-duplicated: if a transcript's original
         // and trimmed paths are the same string, the first entry deletes and
         // counts the file and the second finds it already gone, exactly as the
@@ -337,11 +356,24 @@ class AutoDeleteCleanupService: ObservableObject {
             }
         }
 
+        let viewContext = persistenceController.container.viewContext
+        for transcript in transcriptsToDelete {
+            viewContext.delete(transcript)
+        }
+
+        // Save Core Data changes. From here on the rows are gone; the files they
+        // referenced are unlinked below. A crash in between orphans files on
+        // disk, which `CrashRecoveryManager`'s sweep already handles — see the
+        // trade-off note in the file header.
+        persistenceController.save()
+
         // STEP 2 (off the main actor): the blocking filesystem work.
         let results = await Self.deleteFiles(at: paths)
 
         // STEP 3 (back on the main actor): tally and log. `deleteFiles` returns
         // one result per input path, in order, so `zip` pairs them up.
+        var audioFilesDeleted = 0
+        var bytesFreed: Int64 = 0
         for (path, result) in zip(paths, results) {
             if result.deleted {
                 audioFilesDeleted += 1
@@ -351,18 +383,6 @@ class AutoDeleteCleanupService: ObservableObject {
                 logger.error("Failed to delete audio file: \(failureDescription, privacy: .public)")
             }
         }
-
-        // STEP 4 (main actor): delete the transcripts from Core Data
-        for transcript in transcriptsToDelete {
-            // The file-deletion hop above is a suspension point, so a row could
-            // have been deleted from under us (history UI, sync merge) while we
-            // were away. Deleting an already-deleted object throws.
-            guard !transcript.isDeleted, transcript.managedObjectContext != nil else { continue }
-            persistenceController.container.viewContext.delete(transcript)
-        }
-
-        // Save Core Data changes
-        persistenceController.save()
 
         let duration = CFAbsoluteTimeGetCurrent() - startTime
         lastCleanupDate = Date()
