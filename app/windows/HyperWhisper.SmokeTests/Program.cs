@@ -394,11 +394,12 @@ internal static class Program
                 Assert(handler.Sends == 1, $"sends {handler.Sends}");
             });
 
-            // RustSingleShot now solely owns build-error mapping, the post-retry
-            // cancellation check, parse-error mapping and the completion log for
-            // every single-shot BYOK provider. Both of its hard parameters are
-            // caller-supplied delegates, so the sequence is exercisable here
-            // without an FFI call or a network hop.
+            // RustSingleShot now solely owns build-error mapping, the retry
+            // give-up mapping, the post-retry cancellation check, parse-error
+            // mapping and the completion log for the services that call it. Its
+            // build and parse arguments are caller-supplied delegates, so the
+            // whole sequence is exercisable here without an FFI call or a
+            // network hop.
             //
             // Each case below asserts WHICH path produced its outcome, not just
             // that something happened, via one shared mechanism: the test's own
@@ -457,8 +458,71 @@ internal static class Program
                 // send count, so none of the above can tell the two apart. It maps
                 // with the response status; the post-retry parse maps without one.
                 // A null status is therefore proof this came from the post-retry
-                // parse — and matches what the six services emitted on main.
+                // parse — and matches what the six services emitted on main. The
+                // next case is that other path, asserting 401 where this one
+                // asserts null, so the premise is executed rather than assumed.
                 Assert(ex.HttpStatusCode == null, $"http status {ex.HttpStatusCode}");
+            });
+
+            RunAsync("RustSingleShot maps a non-2xx give-up with the provider tag and the status", async () =>
+            {
+                // The give-up mapper is the only symbol this refactor relocated,
+                // and nothing else in the suite reaches it: it runs solely from
+                // RustRetry's GiveUp branch, which needs a non-2xx response.
+                // 401 classifies Unauthorized in the core, which is terminal, so
+                // the wrapper gives up on attempt 1 — one send, no backoff sleep.
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                {
+                    Content = new StringContent("{\"error\":\"bad key\"}")
+                }));
+                using var client = new HttpClient(handler);
+                var steps = new List<string>();
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "ElevenLabs",
+                    buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
+                    parseResponse: _ => { steps.Add("parse"); throw new HwTranscriptionException.Unauthorized(); },
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None));
+
+                Assert(ex.Code == TranscriptionErrorCode.Unauthorized, $"code {ex.Code}");
+                Assert(ex.ProviderName == "ElevenLabs", $"provider {ex.ProviderName}");
+                // The point of the mapper. Drop the status it passes, or hand it
+                // the wrong provider, and every BYOK 401/429/413 still surfaces —
+                // untagged and status-less — to the UI and to
+                // TranscriptionDiagnosticsService.
+                Assert(ex.HttpStatusCode == 401, $"http status {ex.HttpStatusCode}");
+                // parse ran once, against the non-2xx, from inside the give-up
+                // branch; the runner's own post-retry parse is never reached.
+                Assert(string.Join(",", steps) == "build,parse", $"steps {string.Join(",", steps)}");
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
+            });
+
+            RunAsync("RustSingleShot fails a non-2xx the core parser accepts", async () =>
+            {
+                // The give-up mapper's other branch. A parser that returns a
+                // transcript for an error response must not turn that body into a
+                // successful transcription.
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                {
+                    Content = new StringContent("{\"text\":\"not an error body\"}")
+                }));
+                using var client = new HttpClient(handler);
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "Mistral",
+                    buildRequest: BuildDummyRequest,
+                    parseResponse: _ => new HwTranscript("must not be returned", null, null, null),
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None));
+
+                Assert(ex.Code == TranscriptionErrorCode.Unknown, $"code {ex.Code}");
+                Assert(ex.Message == "Unexpected non-error response", $"message {ex.Message}");
+                Assert(ex.ProviderName == "Mistral", $"provider {ex.ProviderName}");
+                Assert(ex.HttpStatusCode == 401, $"http status {ex.HttpStatusCode}");
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
             });
 
             RunAsync("RustSingleShot honours cancellation after the retry loop returns", async () =>
