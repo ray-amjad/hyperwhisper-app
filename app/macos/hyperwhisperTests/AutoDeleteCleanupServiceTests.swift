@@ -48,11 +48,19 @@ private final class FixedAutoDeleteSettings: AutoDeleteSettingsManager {
 /// Coverage for `AutoDeleteCleanupService.performCleanup()` itself
 /// (HYPERWHISPER-HF).
 ///
-/// `FileDeletionTests` covers the pure deletion helper. These cover the three
-/// things the main-actor-hang fix changed *inside* `performCleanup()`: the
-/// `defer` that now solely owns `isCleanupInProgress`, the ordering that puts
-/// the whole Core Data half before the off-actor hop, and the stats reported
-/// afterwards.
+/// `FileDeletionTests` covers the pure deletion helper. These cover what the
+/// main-actor-hang fix changed *inside* `performCleanup()` and what is
+/// observable from outside it: the `defer` that now solely owns
+/// `isCleanupInProgress`, the stats reported after the off-actor hop, and the
+/// bail-out that must leave every file alone when the Core Data save does not
+/// commit.
+///
+/// What these do NOT pin is the ordering itself — that the Core Data delete and
+/// save happen BEFORE the off-actor hop, and that the blocking deletes really
+/// leave the main actor. Both need a seam this service does not have (an
+/// injectable deleter, or an observable point between the save and the unlink),
+/// and both are the actual substance of HYPERWHISPER-HF. Treat the ordering as
+/// covered by review, not by this suite.
 @MainActor
 struct AutoDeleteCleanupServiceTests {
 

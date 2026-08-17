@@ -17,24 +17,40 @@
 //  3. In ONE uninterrupted main-actor block: fetch all transcripts older than the
 //     cutoff date, collect every audio file path to remove (original + trimmed),
 //     delete those transcripts from Core Data, and save
-//  4. Delete those files from disk in one batch, off the main actor
-//  5. Back on the main actor: tally the stats, log them, record them
+//  4. If the save did not commit, roll back and stop — nothing is unlinked
+//  5. Delete those files from disk in one batch, off the main actor
+//  6. Back on the main actor: tally the stats, log them, record them
 //
 //  WHY THE CORE DATA WORK COMES FIRST:
-//  Step 4 is a suspension point. Anything read from a `Transcript` BEFORE it and
-//  used AFTER it is a snapshot that the app can invalidate while we are away —
-//  a retry can rewrite `audioFilePath` (.wav -> .m4a) or set
-//  `trimmedAudioFilePath`, the history UI can delete the row, and the debounced
-//  `refreshAllObjects()` maintenance pass can re-fault every object we hold. So
-//  the entire Core Data half runs to completion first, with no `await` anywhere
-//  inside it, and only plain `[String]` paths cross the hop.
+//  Step 5 is a suspension point. Anything read from a `Transcript` BEFORE it and
+//  used AFTER it is a snapshot that other MAIN-ACTOR work can invalidate while we
+//  are away — a retry's path rewrite merging in, the history UI deleting the row,
+//  the debounced `refreshAllObjects()` maintenance pass re-faulting every object
+//  we hold. All of those need the main actor, so all of them are excluded by
+//  running the entire Core Data half to completion first, with no `await`
+//  anywhere inside it, and letting only plain `[String]` paths cross the hop.
+//  (It does NOT exclude `PersistenceController.writerContext`, which runs on its
+//  own private queue — see the STEP 1 comment in `performCleanup()` for what
+//  remains open there.)
 //
-//  The trade-off, deliberately chosen: a crash between the save and the unlink
-//  leaves audio files on disk with no Core Data row. That is the safe direction —
-//  `CrashRecoveryManager.scanForUnclaimedWAVCandidates` already sweeps up orphaned
-//  WAVs, whereas the opposite order leaves a surviving row pointing at a file that
-//  is already gone, which the History UI renders as a playable recording that
-//  silently fails.
+//  THE TRADE-OFF, DELIBERATELY ACCEPTED:
+//  A pass interrupted between the save and the unlink — quit, crash, force-kill —
+//  leaves audio files on disk that no Core Data row references, and NOTHING in
+//  the app sweeps them up. `CrashRecoveryManager.scanForUnclaimedWAVCandidates`
+//  is not that sweep: it matches only `.incomplete_*.wav` files and only
+//  synthesizes stub `RecordingSession` rows, freeing no disk. Auto-delete removes
+//  only finalized files — `recording_<uuid>.wav`, converted `.m4a`,
+//  `<name>_trimmed.<ext>` — none of which carry that prefix. So those bytes leak
+//  permanently. The pre-reorder order was self-healing here: the unlink came
+//  first and the single trailing save meant an interrupted pass discarded its
+//  pending deletes, and the next tick redid the work.
+//
+//  We take the leak anyway. The other order corrupts the user's data instead —
+//  a surviving row pointing at a file that is already gone, which the History UI
+//  renders as a playable recording that silently fails — and it reopens the
+//  snapshot races above. Leaked bytes are invisible and recoverable; a dead
+//  History row is neither. A persisted, retryable deletion queue would close both
+//  and is deliberately out of scope for this change.
 //
 //  SCHEDULING:
 //  - Runs immediately on app launch (if enabled)
@@ -312,15 +328,29 @@ class AutoDeleteCleanupService: ObservableObject {
         // STEP 1 (main actor, NO suspension point anywhere in this block):
         // read the paths off the managed objects, delete the rows, and save.
         //
-        // This runs to completion before the `await` below, so nothing can
-        // rewrite `audioFilePath` / `trimmedAudioFilePath`, delete a row, or
-        // re-fault the objects underneath us. That is what makes
-        // `transcriptsToDelete.count` an honest count of what was deleted, and
-        // what makes `paths` an honest snapshot of what those rows pointed at.
-        // Do not introduce an `await` between the collect loop and `save()`.
+        // This runs to completion before the `await` below, so no other
+        // MAIN-ACTOR work can delete a row or re-fault the objects underneath
+        // us, and no merge from a background write can land on the `viewContext`
+        // mid-block. That is what makes `transcriptsToDelete.count` an honest
+        // count of what was deleted. Do not introduce an `await` between the
+        // fetch and `save()`.
+        //
+        // What this does NOT give us is atomicity against the rest of the app.
+        // The absence of a suspension point only excludes work that needs the
+        // main actor. `PersistenceController.writerContext` is a
+        // `newBackgroundContext()` that runs every write via `context.perform`
+        // on a private queue, and `updateTranscriptAudioFilePathInBackground`
+        // performs the `.wav` -> `.m4a` rewrite from an un-awaited detached
+        // `Task`. That write can commit in genuine parallel with this block, so
+        // a path collected here can already be stale by the time we save: the
+        // reorder NARROWS the orphan-a-newly-converted-file window from "the
+        // whole pass, including the off-actor deletion hop" down to the
+        // fetch->save span; it does not close it. Closing it needs the fetch and
+        // the delete to run on the writer itself, which is a larger change than
+        // this fix.
         // ---------------------------------------------------------------------
 
-        // Every `Transcript` access happens here — `Transcript` is an
+        // Every `Transcript` access happens inside STEP 1 — `Transcript` is an
         // `NSManagedObject` and must never cross into the detached task.
         // The list is deliberately NOT de-duplicated: if a transcript's original
         // and trimmed paths are the same string, the first entry deletes and

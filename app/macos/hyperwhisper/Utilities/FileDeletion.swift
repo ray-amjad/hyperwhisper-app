@@ -28,10 +28,10 @@ import Foundation
 /// actor-isolated — crossing the boundary.
 ///
 /// It is declared at file scope because it is a cross-cutting value type in its
-/// own right, not an implementation detail of any single caller. (Nesting it
-/// would be fine on isolation grounds: a nested type does NOT inherit its
-/// enclosing type's global-actor isolation, and returning an isolated type from
-/// a `nonisolated` function is legal anyway.)
+/// own right, not an implementation detail of any single caller — and because at
+/// file scope, in a file with no global-actor annotation anywhere, its isolation
+/// is obvious from the declaration itself rather than from whatever type it
+/// happens to sit inside.
 struct FileDeletionResult: Sendable {
     /// Whether the file existed and was removed.
     let deleted: Bool
@@ -51,11 +51,15 @@ enum FileDeletion {
 
     /// Deletes each file in `paths` that exists, off the caller's actor.
     ///
-    /// **Why detached:** being `async` on a non-isolated type is what takes the
-    /// work off the caller's actor; the `Task.detached` on top pins it to a fixed
-    /// `.userInitiated` priority instead of inheriting the caller's, matching the
-    /// established shape in
-    /// `CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:)`.
+    /// **Why detached:** a `nonisolated async` function already runs on the
+    /// concurrent executor rather than the caller's actor (SE-0338), but that is
+    /// a language-mode-dependent guarantee — under
+    /// `NonisolatedNonsendingByDefault` it inverts and such a function runs on
+    /// the caller. The `Task.detached` is what makes the hop unconditional, and
+    /// it pins the work to a fixed `.userInitiated` priority instead of
+    /// inheriting the caller's, matching the established shape in
+    /// `CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:)`. Do not remove
+    /// it: it is load-bearing for HYPERWHISPER-HF, not decoration.
     ///
     /// One detached task covers the whole batch: the hop is the expensive part,
     /// and one task per file would reintroduce per-file overhead for no gain.
