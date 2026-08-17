@@ -111,17 +111,38 @@ struct AutoDeleteFileDeletionTests {
     }
 
     /// `removeItem` failing must surface a description for the caller to log,
-    /// credit no bytes, and leave the target alone.
-    @Test func undeletableTargetReportsFailure() async throws {
+    /// credit no bytes, and leave the target file intact on disk.
+    ///
+    /// The fixture is a REGULAR FILE inside a `r-x------` parent, which is both
+    /// what production actually passes (only file paths ever reach `deleteFiles`)
+    /// and the only shape that makes the surviving-target assertion mean
+    /// anything. An earlier version of this test used a non-empty *directory*:
+    /// `removeItem` is recursive, so it happily unlinked the child and only the
+    /// final `rmdir` hit EACCES — the fixture was destroyed and the
+    /// "target still exists" assertion passed on the leftover directory entry.
+    /// A regression that deleted user audio and then reported failure would have
+    /// slipped straight through.
+    ///
+    /// `unlink` needs WRITE on the containing directory, which `0o500` denies,
+    /// while the retained read+execute bits keep `fileExists` and
+    /// `attributesOfItem` working — so the helper genuinely reaches `removeItem`
+    /// and genuinely fails there.
+    ///
+    /// Skipped under uid 0: root bypasses the directory mode outright, so the
+    /// file would be deleted and the test would fail for a reason that has
+    /// nothing to do with `deleteFiles`. CI runs unprivileged, so this runs.
+    @Test(.enabled(if: getuid() != 0, "root bypasses POSIX permissions, so an undeletable file cannot be staged"))
+    func undeletableTargetReportsFailure() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        // A non-empty directory inside a read-only parent: `removeItem` cannot
-        // unlink it, but `fileExists` still says it is there.
         let parent = directory.appendingPathComponent("locked", isDirectory: true)
-        let target = parent.appendingPathComponent("target", isDirectory: true)
-        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-        try Data([0x00]).write(to: target.appendingPathComponent("child.wav"))
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        let target = parent.appendingPathComponent("target.wav")
+        try Data(repeating: 0x41, count: 128).write(to: target)
+
+        // Registered AFTER the directory-removal defer above, so LIFO restores
+        // write permission first and the temporary directory can then be cleaned.
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: parent.path)
         defer {
             try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: parent.path)
@@ -134,7 +155,10 @@ struct AutoDeleteFileDeletionTests {
         #expect(!result.deleted)
         #expect(result.bytesFreed == 0)
         #expect(result.failureDescription != nil)
+        // The whole point: a failed removal must not have destroyed the file.
         #expect(FileManager.default.fileExists(atPath: target.path))
+        let survivingBytes = try Data(contentsOf: target).count
+        #expect(survivingBytes == 128)
     }
 
     @Test func emptyInputProducesEmptyOutput() async {
