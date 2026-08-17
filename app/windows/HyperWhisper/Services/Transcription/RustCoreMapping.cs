@@ -29,13 +29,18 @@ internal static class RustCoreMapping
     /// <paramref name="provider"/> and the response status. A non-throwing parse
     /// (unexpected on a non-2xx) yields <see cref="TranscriptionErrorCode.Unknown"/>.
     /// Dedups the identical per-provider <c>Parse&lt;X&gt;Error</c> statics.
+    ///
+    /// <paramref name="parse"/> is the provider's core parse fn as-is, so a caller
+    /// that already holds one (see <see cref="RustSingleShot"/>) hands it straight
+    /// through. On the unexpected non-throwing path its transcript is discarded —
+    /// only the thrown classification is of interest here.
     /// </summary>
     internal static TranscriptionException ParseProviderError(
-        Action parse, string provider, HttpResponse resp)
+        Func<HttpResponse, HwTranscript> parse, string provider, HttpResponse resp)
     {
         try
         {
-            parse();
+            parse(resp);
             // 2xx never reaches here; a non-error parse is unexpected.
             return new TranscriptionException(
                 TranscriptionErrorCode.Unknown, "Unexpected non-error response", provider, (int)resp.@status);

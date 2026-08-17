@@ -72,8 +72,7 @@ internal static class RustSingleShot
             response = await RustRetry.PerformAsync(
                 httpClient,
                 buildRequest: buildRequest,
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => { parseResponse(resp); }, provider, resp),
+                parseError: resp => RustCoreMapping.ParseProviderError(parseResponse, provider, resp),
                 cancellationToken: cancellationToken,
                 perAttemptTimeout: perAttemptTimeout);
         }
