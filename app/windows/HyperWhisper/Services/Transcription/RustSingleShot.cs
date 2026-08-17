@@ -1,8 +1,6 @@
 // RUST SINGLE-SHOT TRANSCRIBE RUNNER
 //
-// The one copy of the sequence a direct-vendor BYOK provider runs when it
-// transcribes in a SINGLE request. Each such service used to spell it out
-// inline, identically:
+// One copy of the sequence its callers used to spell out inline, identically:
 //
 //   1. RustRetry.PerformAsync(client, buildRequest, parseError, token[, timeout])
 //   2. catch HwTranscriptionException from the BUILD fn -> MapTranscriptionError
@@ -12,15 +10,12 @@
 //   6. log the "COMPLETE" banner, character count and elapsed time
 //   7. return transcript.text
 //
-// Only the provider name and the two core FFI functions differed, and all three
-// are parameters. Two things are NOT parameters, and that is what decides
-// whether a provider can run on this:
-//
-//   - the retry give-up mapper is always ParseProviderError below, which adds
-//     nothing to the core's own classification of the error body;
-//   - the tail is always the three-line banner below, derived from `provider`.
-//
-// A provider needing either to differ keeps its own sequence.
+// What TranscribeAsync does NOT take is part of its contract too. It takes one
+// HttpClient rather than resolving one per attempt, hands RustRetry no
+// transport-error hook, and hard-codes both the give-up mapper
+// (ParseProviderError below) and the three-line banner derived from `provider`.
+// A caller needing any of those to differ keeps its own sequence. That is a
+// list of what this file fixes, not a survey of who can use it.
 
 using System.Diagnostics;
 using System.Net.Http;

@@ -152,8 +152,11 @@ internal static class HyperWhisperRoutedTranscriptionClient
                 // sharing on (see LatencyOptOut).
                 buildRequest: () => LatencyOptOut.Apply(
                     ClientInfoHeaders.Apply(BuildRoutedRequest(sttProviderHeader, coreParams))),
-                // Own give-up mapper, not RustSingleShot's fixed one: MapRoutedError
-                // below adds the 402 credit / 413 size context from the body.
+                // Not on RustSingleShot: this sequence needs its own give-up
+                // mapper — MapRoutedError below adds the 402 credit / 413 size
+                // context from the body — and its own tail, the single
+                // "  Completed · totalMs=… · chars=…" line at the end of this
+                // method.
                 parseError: resp => MapRoutedError(sttProviderHeader, providerDisplayName, resp),
                 cancellationToken: cancellationToken);
         }

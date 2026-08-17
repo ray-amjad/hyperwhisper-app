@@ -83,10 +83,10 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         _httpClient = new HttpClient
         {
             // No HttpClient-level cap: the request bound is the size-scaled
-            // per-attempt timeout that TranscribeAsync passes to
-            // RustRetry.PerformAsync (GetRequestTimeout — 5 min base + 3 s/MB,
-            // capped at 30 min). A fixed 300 s cap here killed large-file uploads
-            // that legitimately need longer than 5 minutes to send.
+            // per-attempt timeout that TranscribeAsync below passes to
+            // RustSingleShot.TranscribeAsync (GetRequestTimeout — 5 min base +
+            // 3 s/MB, capped at 30 min). A fixed 300 s cap here killed large-file
+            // uploads that legitimately need longer than 5 minutes to send.
             Timeout = Timeout.InfiniteTimeSpan
         };
     }
