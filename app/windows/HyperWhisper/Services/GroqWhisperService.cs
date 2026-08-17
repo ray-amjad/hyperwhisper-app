@@ -27,13 +27,13 @@
 // NOTE: Shares API key with Groq post-processing (PostProcessingProvider.Groq)
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
+// Rust shared-core binding — still needed for the HyperwhisperCoreMethods
+// Build/Parse calls below. The colliding type names (HttpRequest, HttpResponse,
+// HwTranscript, HwTranscriptionException) are no longer spelled anywhere in this
+// file; RustSingleShot owns the request/response sequence now.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -48,10 +48,8 @@ public class GroqWhisperService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.groq.com/openai/v1/audio/transcriptions";
     private const long MaxFileSizeBytes = 25 * 1024 * 1024; // 25 MB
     private const int DefaultTimeoutSeconds = 120;
-    private const int MaxRetries = 3;
 
     // =========================================================================
     // STATE

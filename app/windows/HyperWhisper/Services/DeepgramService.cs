@@ -29,12 +29,13 @@
 // NOTE: Uses TranscriptionApiKeyType.Deepgram (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System types; qualify uniffi.hyperwhisper_core.HttpResponse below.
+// Rust shared-core binding — still needed for the HyperwhisperCoreMethods
+// Build/Parse calls below. The colliding type names (HttpRequest, HttpResponse,
+// HwTranscript, HwTranscriptionException) are no longer spelled anywhere in this
+// file; RustSingleShot owns the request/response sequence now.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -49,9 +50,7 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiBaseUrl = "https://api.deepgram.com/v1/listen";
     private const int DefaultTimeoutSeconds = 180; // 3 minutes for larger files
-    private const int MaxRetries = 3;
 
     // =========================================================================
     // STATE

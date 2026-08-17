@@ -18,9 +18,22 @@
 // log lines included.
 //
 // NOT for the multi-step providers: AssemblyAI, Gemini and Soniox upload and
-// then poll, and HyperWhisperCloudService / HyperWhisperRoutedTranscriptionClient
-// carry extra credit / file-size / diagnostics context into
-// MapTranscriptionError. Those keep their own sequences.
+// then poll. The two HyperWhisper-Cloud paths are out for DIFFERENT reasons:
+//
+//   - HyperWhisperCloudService really does carry extra context into
+//     MapTranscriptionError (402 credit numbers, 413 size, and the provider
+//     diagnostics it attaches on a no-speech parse failure), and its completion
+//     banner prints two extra credit lines.
+//
+//   - HyperWhisperRoutedTranscriptionClient does NOT. Both of its
+//     MapTranscriptionError calls are the same plain two-arg form used below,
+//     so that is not what keeps it out. It is out because (a) its retry give-up
+//     mapper is its own MapRoutedError — which enriches the 402 credit / 413
+//     size context off the response body — where this runner hard-codes
+//     RustCoreMapping.ParseProviderError, and (b) it logs one
+//     "Completed · totalMs=… · chars=…" line instead of the banner below.
+//
+// Those keep their own sequences.
 
 using System.Diagnostics;
 using System.Net.Http;

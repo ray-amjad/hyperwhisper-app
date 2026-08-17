@@ -35,13 +35,13 @@
 // NOTE: Uses TranscriptionApiKeyType.ElevenLabs (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
+// Rust shared-core binding — still needed for the HyperwhisperCoreMethods
+// Build/Parse calls below. The colliding type names (HttpRequest, HttpResponse,
+// HwTranscript, HwTranscriptionException) are no longer spelled anywhere in this
+// file; RustSingleShot owns the request/response sequence now.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -57,9 +57,7 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.elevenlabs.io/v1/speech-to-text";
     private const int DefaultTimeoutSeconds = 120;
-    private const int MaxRetries = 3;
 
     // =========================================================================
     // STATE
