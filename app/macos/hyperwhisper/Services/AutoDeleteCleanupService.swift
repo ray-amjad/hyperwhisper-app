@@ -15,11 +15,10 @@
 //  1. Check if auto-delete is enabled in settings
 //  2. Calculate the cutoff date based on configured time unit and value
 //  3. Fetch all transcripts older than the cutoff date
-//  4. For each transcript:
-//     a. Delete the original audio file from disk (if exists)
-//     b. Delete the trimmed audio file from disk (if exists)
-//     c. Delete the transcript from Core Data
-//  5. Save changes to Core Data
+//  4. Collect every audio file path to remove (original + trimmed) on the main actor
+//  5. Delete those files from disk in one batch, off the main actor
+//  6. Delete the transcripts from Core Data
+//  7. Save changes to Core Data
 //
 //  SCHEDULING:
 //  - Runs immediately on app launch (if enabled)
@@ -34,6 +33,26 @@ import Foundation
 import CoreData
 import Combine
 import os
+
+// MARK: - File Deletion Result
+
+/// The outcome of trying to delete one file during an auto-delete cleanup pass.
+///
+/// Plain `Sendable` value type so the deletion batch can run off the main actor
+/// and hand its results back without anything managed — or MainActor-isolated —
+/// crossing the boundary. It is declared at file scope rather than nested inside
+/// `AutoDeleteCleanupService` so it does not pick up that type's `@MainActor`
+/// isolation, which would stop a `nonisolated` function returning it.
+struct AutoDeleteFileDeletionResult: Sendable {
+    /// Whether the file existed and was removed.
+    let deleted: Bool
+    /// Size of the removed file in bytes; `0` when nothing was deleted.
+    let bytesFreed: Int64
+    /// Localized description of the failure, or `nil` when the file was deleted
+    /// or simply wasn't there. The caller logs it — `Logger` here is MainActor
+    /// state, so the message has to travel back rather than be emitted in place.
+    let failureDescription: String?
+}
 
 // MARK: - Auto-Delete Cleanup Service
 
@@ -50,7 +69,9 @@ import os
 ///
 /// THREAD SAFETY:
 /// - All Core Data operations happen on the main thread via @MainActor
-/// - File system operations happen on background threads
+/// - File system operations happen on background threads: the blocking deletes
+///   run in `deleteFiles(at:)`, a `nonisolated static` helper that does its work
+///   on a detached task (HYPERWHISPER-HF)
 /// - Timer fires on main thread to coordinate with Core Data
 @MainActor
 class AutoDeleteCleanupService: ObservableObject {
@@ -261,6 +282,13 @@ class AutoDeleteCleanupService: ObservableObject {
         }
 
         isCleanupInProgress = true
+        // Placed immediately AFTER the flag is set, never at the top of the
+        // function: a top-level defer would also fire on the `guard
+        // !isCleanupInProgress` early return above and clear the flag out from
+        // under the cleanup that is actually running. This body now has a
+        // suspension point (the file-deletion hop), so every exit path has to
+        // clear the flag exactly once.
+        defer { isCleanupInProgress = false }
         let startTime = CFAbsoluteTimeGetCurrent()
 
         logger.info("Starting auto-delete cleanup. Cutoff date: \(cutoffDate, privacy: .public)")
@@ -269,7 +297,6 @@ class AutoDeleteCleanupService: ObservableObject {
         let transcriptsToDelete = fetchTranscriptsOlderThan(cutoffDate)
 
         guard !transcriptsToDelete.isEmpty else {
-            isCleanupInProgress = false
             lastCleanupDate = Date()
 
             let stats = CleanupStats(
@@ -290,26 +317,47 @@ class AutoDeleteCleanupService: ObservableObject {
         var audioFilesDeleted = 0
         var bytesFreed: Int64 = 0
 
+        // STEP 1 (main actor): collect the paths to delete.
+        // Every `Transcript` access happens here, before the hop — `Transcript`
+        // is an `NSManagedObject` and must never cross into the detached task.
+        // The list is deliberately NOT de-duplicated: if a transcript's original
+        // and trimmed paths are the same string, the first entry deletes and
+        // counts the file and the second finds it already gone, exactly as the
+        // sequential per-file version behaved.
+        var paths: [String] = []
         for transcript in transcriptsToDelete {
-            // Delete original audio file
+            // Original audio file
             if let audioPath = transcript.audioFilePath {
-                let (deleted, bytes) = deleteFileIfExists(at: audioPath)
-                if deleted {
-                    audioFilesDeleted += 1
-                    bytesFreed += bytes
-                }
+                paths.append(audioPath)
             }
 
-            // Delete trimmed audio file (VAD-processed version)
+            // Trimmed audio file (VAD-processed version)
             if let trimmedPath = transcript.value(forKey: "trimmedAudioFilePath") as? String {
-                let (deleted, bytes) = deleteFileIfExists(at: trimmedPath)
-                if deleted {
-                    audioFilesDeleted += 1
-                    bytesFreed += bytes
-                }
+                paths.append(trimmedPath)
             }
+        }
 
-            // Delete the transcript from Core Data
+        // STEP 2 (off the main actor): the blocking filesystem work.
+        let results = await Self.deleteFiles(at: paths)
+
+        // STEP 3 (back on the main actor): tally and log. `deleteFiles` returns
+        // one result per input path, in order, so `zip` pairs them up.
+        for (path, result) in zip(paths, results) {
+            if result.deleted {
+                audioFilesDeleted += 1
+                bytesFreed += result.bytesFreed
+                logger.debug("Deleted audio file: \(path, privacy: .public)")
+            } else if let failureDescription = result.failureDescription {
+                logger.error("Failed to delete audio file: \(failureDescription, privacy: .public)")
+            }
+        }
+
+        // STEP 4 (main actor): delete the transcripts from Core Data
+        for transcript in transcriptsToDelete {
+            // The file-deletion hop above is a suspension point, so a row could
+            // have been deleted from under us (history UI, sync merge) while we
+            // were away. Deleting an already-deleted object throws.
+            guard !transcript.isDeleted, transcript.managedObjectContext != nil else { continue }
             persistenceController.container.viewContext.delete(transcript)
         }
 
@@ -317,7 +365,6 @@ class AutoDeleteCleanupService: ObservableObject {
         persistenceController.save()
 
         let duration = CFAbsoluteTimeGetCurrent() - startTime
-        isCleanupInProgress = false
         lastCleanupDate = Date()
 
         let stats = CleanupStats(
@@ -380,31 +427,62 @@ class AutoDeleteCleanupService: ObservableObject {
         }
     }
 
-    /// Deletes a file at the specified path if it exists
+    // MARK: - File Deletion (off the main actor)
+
+    /// Deletes each file in `paths` that exists, off the main actor.
     ///
-    /// - Parameter path: The file path to delete
-    /// - Returns: Tuple of (wasDeleted, bytesFreed)
-    private func deleteFileIfExists(at path: String) -> (deleted: Bool, bytes: Int64) {
-        let fileManager = FileManager.default
+    /// **Why detached:** `fileExists`, `attributesOfItem` and `removeItem` are
+    /// blocking filesystem syscalls — three of them per file. This service is
+    /// `@MainActor`, so running them inline put the whole backlog's worth of
+    /// `stat`/`unlink` on the main thread; with a large backlog, or a recordings
+    /// folder on iCloud Drive or a network volume, that hung the app
+    /// (HYPERWHISPER-HF, "App hanging for at least 10000 ms", caught at
+    /// `deleteFileIfExists` → `FileManager.fileExists` → `stat`). Being
+    /// `nonisolated async` is what takes the work off the caller's actor; the
+    /// `Task.detached` on top pins it to a fixed `.userInitiated` priority
+    /// instead of inheriting the caller's, matching the established shape in
+    /// `CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:)`.
+    ///
+    /// One detached task covers the whole batch: the hop is the expensive part,
+    /// and one per file would reintroduce per-file overhead for no gain.
+    ///
+    /// `static` and taking plain `[String]` is structural, not stylistic — it is
+    /// what keeps `Transcript`, the view context and `self` out of the closure.
+    /// The `Logger` is MainActor state too, so failures come back as strings for
+    /// the caller to log.
+    ///
+    /// - Parameter paths: The file paths to delete, in order. Duplicates are
+    ///   preserved and processed sequentially, so a repeated path deletes on its
+    ///   first appearance and reports "not found" on the next.
+    /// - Returns: One result per input path, index-aligned with `paths`.
+    nonisolated static func deleteFiles(at paths: [String]) async -> [AutoDeleteFileDeletionResult] {
+        await Task.detached(priority: .userInitiated) { () -> [AutoDeleteFileDeletionResult] in
+            let fileManager = FileManager.default
+            var results: [AutoDeleteFileDeletionResult] = []
+            results.reserveCapacity(paths.count)
 
-        guard fileManager.fileExists(atPath: path) else {
-            return (false, 0)
-        }
+            for path in paths {
+                guard fileManager.fileExists(atPath: path) else {
+                    results.append(AutoDeleteFileDeletionResult(deleted: false, bytesFreed: 0, failureDescription: nil))
+                    continue
+                }
 
-        // Get file size before deletion
-        var fileSize: Int64 = 0
-        if let attrs = try? fileManager.attributesOfItem(atPath: path),
-           let size = attrs[.size] as? Int64 {
-            fileSize = size
-        }
+                // Get file size before deletion
+                var fileSize: Int64 = 0
+                if let attrs = try? fileManager.attributesOfItem(atPath: path),
+                   let size = attrs[.size] as? Int64 {
+                    fileSize = size
+                }
 
-        do {
-            try fileManager.removeItem(atPath: path)
-            logger.debug("Deleted audio file: \(path, privacy: .public)")
-            return (true, fileSize)
-        } catch {
-            logger.error("Failed to delete audio file: \(error.localizedDescription, privacy: .public)")
-            return (false, 0)
-        }
+                do {
+                    try fileManager.removeItem(atPath: path)
+                    results.append(AutoDeleteFileDeletionResult(deleted: true, bytesFreed: fileSize, failureDescription: nil))
+                } catch {
+                    results.append(AutoDeleteFileDeletionResult(deleted: false, bytesFreed: 0, failureDescription: error.localizedDescription))
+                }
+            }
+
+            return results
+        }.value
     }
 }
