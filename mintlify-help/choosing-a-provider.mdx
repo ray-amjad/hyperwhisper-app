@@ -12,7 +12,7 @@ HyperWhisper Cloud is built in. You do not need an API key or a separate account
 Each provider has an accuracy rating of **Highest**, **High**, or **Medium**. The rating and the cost are independent: two providers with the same rating can have very different costs per minute.
 
 <Tip>
-  For speed, read the public [latency page](https://www.hyperwhisper.com/en/latency). It gives the measured p50, p95, and p99 times of each provider in each server region, from the last 30 days of real HyperWhisper Cloud requests. A cell with fewer than 20 measurements shows a dash. These measurements come from the users who leave **Share anonymous speed data** on — read [General Settings](/general-settings#share-anonymous-speed-data) for that setting.
+  For speed, read the public [latency page](https://www.hyperwhisper.com/en/latency). It gives the measured p50, p95, and p99 times of each provider in each server region, from the last 90 days of real HyperWhisper Cloud requests. A cell needs a minimum of 3 attempts to show a number. The p99 column needs 500 attempts, because a 99th percentile from a small sample is only its slowest call. A cell below that limit shows a dash. These measurements come from the users who leave **Share anonymous speed data** on — read [General Settings](/general-settings#share-anonymous-speed-data) for that setting.
 </Tip>
 
 <Note>
@@ -49,6 +49,14 @@ Each provider has an accuracy rating of **Highest**, **High**, or **Medium**. Th
 <Note>
   One credit costs **\$0.001 USD**. A \$5 purchase creates your account key with 5,000 credits. You can add more credits with the \$5 or \$10 presets, or with a custom amount up to \$500. Card payments have a processing fee of approximately 6%.
 </Note>
+
+## Read the latency page
+
+The public [latency page](https://www.hyperwhisper.com/en/latency) gives one row for each provider company. It names each row the way the **Provider** menu in the app names it. Chirp 3 and Gemini are both Google, so they share one **Google** row.
+
+The buttons above the table select the **Metric** (p50, p95, p99, or the error rate) and the **Clip length** group. Hold the pointer on a cell to see the number of attempts behind it.
+
+Click **Break down by model** to open each company into its models. This control is off when the page opens. The models keep the order of the **Model** menu in the app, and a **default** badge marks the model that a new selection of that company uses. A model row counts only the attempts that ran on that model. Thus a model row shows a dash more frequently than the row of its company.
 
 ## You pay only for speech
 
