@@ -470,5 +470,8 @@ public protocol SpanProtocol {
 public enum SpanStatus {
     case ok
     case internalError
+    /// Work that was abandoned on purpose rather than succeeding or failing — e.g. a
+    /// recording start superseded by a newer one. Mirrors `kSentrySpanStatusCancelled`.
+    case cancelled
 }
 #endif

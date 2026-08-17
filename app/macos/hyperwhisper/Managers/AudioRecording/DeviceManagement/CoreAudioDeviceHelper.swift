@@ -25,6 +25,20 @@ import CoreAudio
 /// All methods are `nonisolated` and safe to call from any thread.
 /// This allows device enumeration on background queues without blocking the UI.
 ///
+/// **EVERY METHOD IN THIS FILE BLOCKS, AND `nonisolated` DOES NOT CHANGE THAT.**
+/// These are synchronous `AudioObjectGetPropertyData` / `AudioObjectSetPropertyData`
+/// calls — `mach_msg` round trips to `coreaudiod`, and `fetchCoreAudioInputDevices()`
+/// makes 3+N of them for N devices. During an audio route change (Bluetooth disconnect,
+/// USB audio removal, AirPods reconnect) or wake-from-sleep the daemon can take many
+/// seconds to answer, which is what froze the app in Sentry HYPERWHISPER-F7 /
+/// HYPERWHISPER-HP ("App hanging for at least 10000 ms"). A `nonisolated` method called
+/// from `@MainActor` code still runs synchronously on the caller's thread: `nonisolated`
+/// removes the actor hop, it does not add a thread hop. From the main actor, wrap the
+/// call — `await offMainActor { CoreAudioDeviceHelper.… }` — and batch a fan-out into one
+/// wrapped block rather than wrapping each read. `RecordingLifecycle.startRecording()`'s
+/// input-device probe is the worked example. Call these directly only from code that is
+/// already off the main actor.
+///
 /// **Important Note:**
 /// These methods interact with the system's audio hardware directly.
 /// They require proper audio permissions and may fail if hardware is unavailable.
