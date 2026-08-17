@@ -394,6 +394,96 @@ internal static class Program
                 Assert(handler.Sends == 1, $"sends {handler.Sends}");
             });
 
+            // RustSingleShot now solely owns build-error mapping, the post-retry
+            // cancellation check, parse-error mapping and the completion log for
+            // all six single-shot BYOK providers (Deepgram, ElevenLabs, Grok,
+            // Groq, Mistral, OpenAI). Both of its hard parameters are
+            // caller-supplied delegates, so the sequence is exercisable here
+            // without an FFI call or a network hop.
+
+            RunAsync("RustSingleShot maps a build-fn core error with the provider tag", async () =>
+            {
+                var handler = new StubHandler(_ => throw new InvalidOperationException("must not send"));
+                using var client = new HttpClient(handler);
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "Groq",
+                    buildRequest: () => throw new HwTranscriptionException.Unauthorized(),
+                    parseResponse: _ => throw new InvalidOperationException("must not parse"),
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None));
+
+                Assert(ex.Code == TranscriptionErrorCode.Unauthorized, $"code {ex.Code}");
+                Assert(ex.ProviderName == "Groq", $"provider {ex.ProviderName}");
+                Assert(ex.Message == "Invalid Groq API key", $"message {ex.Message}");
+                // The build fn throws before the executor is reached.
+                Assert(handler.Sends == 0, $"sends {handler.Sends}");
+            });
+
+            RunAsync("RustSingleShot maps a parse-fn core error with the provider tag", async () =>
+            {
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"text\":\"\"}")
+                }));
+                using var client = new HttpClient(handler);
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "Deepgram",
+                    BuildDummyRequest,
+                    parseResponse: _ => throw new HwTranscriptionException.NoSpeech(),
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None));
+
+                Assert(ex.Code == TranscriptionErrorCode.NoSpeechDetected, $"code {ex.Code}");
+                Assert(ex.ProviderName == "Deepgram", $"provider {ex.ProviderName}");
+                // 2xx, so parseError never ran — this is the post-retry parse.
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
+            });
+
+            RunAsync("RustSingleShot honours cancellation after the retry loop returns", async () =>
+            {
+                using var cts = new CancellationTokenSource();
+                var parseCalls = 0;
+
+                var handler = new StubHandler(async _ =>
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"text\":\"ignored\"}")
+                    };
+                    // Buffer the body BEFORE cancelling: the executor reads the
+                    // content with the caller token, so an unbuffered body would
+                    // fail inside RustRetry and never reach the check under test.
+                    // Already-buffered content short-circuits that read, so the
+                    // 2xx makes it back to RustSingleShot's post-retry
+                    // ThrowIfCancellationRequested.
+                    await response.Content.LoadIntoBufferAsync();
+                    cts.Cancel();
+                    return response;
+                });
+                using var client = new HttpClient(handler);
+
+                await ExpectAsync<OperationCanceledException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "OpenAI",
+                    BuildDummyRequest,
+                    parseResponse: _ =>
+                    {
+                        parseCalls++;
+                        return new HwTranscript("must not be returned", null, null, null);
+                    },
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: cts.Token));
+
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
+                // The load-bearing assertion: a cancelled sequence must never
+                // parse the body or hand back a transcript.
+                Assert(parseCalls == 0, $"parse ran {parseCalls} times after cancellation");
+            });
+
             Run("AssemblyAI MapError classifies via the step's own parser", () =>
             {
                 var unauthorized = new uniffi.hyperwhisper_core.HttpResponse(
