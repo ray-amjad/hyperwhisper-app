@@ -205,4 +205,15 @@ If the app stopped during the recording itself, the transcription never started,
 
 ## Automatic Deletion
 
-Both apps have an optional automatic-deletion setting. It deletes transcriptions that are older than an age that you set. To turn on this setting, go to **Settings → Storage → Enable automatic deletion**. On macOS, you can set the age limit in minutes, hours, or days. On Windows, the age limit is a whole number of days (1–365) — there is no minutes/hours picker. Automatic deletion runs in the background. It deletes the transcript record and the audio file.
+Both apps have an optional automatic-deletion setting. It deletes transcriptions that are older than an age that you set. Automatic deletion runs in the background. It deletes the transcript record and the audio file.
+
+<Tabs>
+  <Tab title="macOS">
+    Go to **Settings → Storage → Enable automatic deletion**. You can set the age limit in minutes, hours, or days. A **Next check** line shows the countdown to the next cleanup.
+  </Tab>
+  <Tab title="Windows">
+    Go to **Settings → Storage → Automatic Cleanup**. The age limit is a whole number of days (1–365) — there is no minutes/hours picker. A line below the box shows the time of the last cleanup and the number of transcripts that it deleted. The **Delete Now** button runs the cleanup immediately, after a confirmation dialog.
+  </Tab>
+</Tabs>
+
+For the other settings in this panel, read [Storage Settings](/storage-settings).

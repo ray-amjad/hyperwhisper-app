@@ -112,6 +112,7 @@
           "general-settings",
           "output-settings",
           "appearance-settings",
+          "storage-settings",
           "advanced-settings",
           "backup-export-settings"
         ]
