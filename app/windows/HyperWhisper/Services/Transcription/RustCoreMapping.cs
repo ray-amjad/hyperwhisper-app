@@ -23,35 +23,6 @@ namespace HyperWhisper.Services.Transcription;
 internal static class RustCoreMapping
 {
     /// <summary>
-    /// The standard retry give-up mapper: re-run the provider's core parser on a
-    /// non-2xx response (which throws the classified <see cref="HwTranscriptionException"/>)
-    /// and map it to a <see cref="TranscriptionException"/> tagged with
-    /// <paramref name="provider"/> and the response status. A non-throwing parse
-    /// (unexpected on a non-2xx) yields <see cref="TranscriptionErrorCode.Unknown"/>.
-    /// Dedups the identical per-provider <c>Parse&lt;X&gt;Error</c> statics.
-    ///
-    /// <paramref name="parse"/> is the provider's core parse fn as-is, so a caller
-    /// that already holds one (see <see cref="RustSingleShot"/>) hands it straight
-    /// through. On the unexpected non-throwing path its transcript is discarded —
-    /// only the thrown classification is of interest here.
-    /// </summary>
-    internal static TranscriptionException ParseProviderError(
-        Func<HttpResponse, HwTranscript> parse, string provider, HttpResponse resp)
-    {
-        try
-        {
-            parse(resp);
-            // 2xx never reaches here; a non-error parse is unexpected.
-            return new TranscriptionException(
-                TranscriptionErrorCode.Unknown, "Unexpected non-error response", provider, (int)resp.@status);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            return MapTranscriptionError(ex, provider, (int)resp.@status);
-        }
-    }
-
-    /// <summary>
     /// Map a core <see cref="HwTranscriptionException"/> (thrown by every
     /// build/parse FFI fn) to the app's <see cref="TranscriptionException"/>.
     ///

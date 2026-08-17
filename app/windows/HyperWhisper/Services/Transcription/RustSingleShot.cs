@@ -37,6 +37,7 @@
 
 using System.Diagnostics;
 using System.Net.Http;
+using HyperWhisper.Models;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.Transcription;
@@ -72,7 +73,7 @@ internal static class RustSingleShot
             response = await RustRetry.PerformAsync(
                 httpClient,
                 buildRequest: buildRequest,
-                parseError: resp => RustCoreMapping.ParseProviderError(parseResponse, provider, resp),
+                parseError: resp => ParseProviderError(parseResponse, provider, resp),
                 cancellationToken: cancellationToken,
                 perAttemptTimeout: perAttemptTimeout);
         }
@@ -98,5 +99,31 @@ internal static class RustSingleShot
         LoggingService.Info($"  Characters: {transcript.@text.Length}");
         LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
         return transcript.@text;
+    }
+
+    /// <summary>
+    /// The give-up mapper handed to <see cref="RustRetry"/> above. Re-runs
+    /// <paramref name="parseResponse"/> — the same core parser used on success —
+    /// over the non-2xx response, which throws the core's classified
+    /// <see cref="HwTranscriptionException"/>, and maps it to a
+    /// <see cref="TranscriptionException"/> tagged with <paramref name="provider"/>
+    /// and the response status. A non-throwing parse (unexpected on a non-2xx)
+    /// yields <see cref="TranscriptionErrorCode.Unknown"/>; its transcript is
+    /// discarded — only the classification is of interest here.
+    /// </summary>
+    private static TranscriptionException ParseProviderError(
+        Func<HttpResponse, HwTranscript> parseResponse, string provider, HttpResponse resp)
+    {
+        try
+        {
+            parseResponse(resp);
+            // 2xx never reaches here; a non-error parse is unexpected.
+            return new TranscriptionException(
+                TranscriptionErrorCode.Unknown, "Unexpected non-error response", provider, (int)resp.@status);
+        }
+        catch (HwTranscriptionException ex)
+        {
+            return RustCoreMapping.MapTranscriptionError(ex, provider, (int)resp.@status);
+        }
     }
 }
