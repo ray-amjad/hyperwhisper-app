@@ -396,92 +396,162 @@ internal static class Program
 
             // RustSingleShot now solely owns build-error mapping, the post-retry
             // cancellation check, parse-error mapping and the completion log for
-            // all six single-shot BYOK providers (Deepgram, ElevenLabs, Grok,
-            // Groq, Mistral, OpenAI). Both of its hard parameters are
+            // every single-shot BYOK provider. Both of its hard parameters are
             // caller-supplied delegates, so the sequence is exercisable here
             // without an FFI call or a network hop.
+            //
+            // Each case below asserts WHICH path produced its outcome, not just
+            // that something happened, via one shared mechanism: the test's own
+            // build/parse delegates append to a `steps` list, and the case asserts
+            // the exact ordered join. "Threw" alone is not evidence — the runner
+            // hands the same parseResponse delegate to RustRetry as its give-up
+            // mapper, so several distinct paths produce indistinguishable
+            // exceptions unless something pins the path down.
 
             RunAsync("RustSingleShot maps a build-fn core error with the provider tag", async () =>
             {
                 var handler = new StubHandler(_ => throw new InvalidOperationException("must not send"));
                 using var client = new HttpClient(handler);
+                var steps = new List<string>();
 
                 var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
                     client,
                     "Groq",
-                    buildRequest: () => throw new HwTranscriptionException.Unauthorized(),
-                    parseResponse: _ => throw new InvalidOperationException("must not parse"),
+                    buildRequest: () => { steps.Add("build"); throw new HwTranscriptionException.Unauthorized(); },
+                    parseResponse: _ => { steps.Add("parse"); throw new InvalidOperationException("must not parse"); },
                     totalSw: System.Diagnostics.Stopwatch.StartNew(),
                     cancellationToken: CancellationToken.None));
 
                 Assert(ex.Code == TranscriptionErrorCode.Unauthorized, $"code {ex.Code}");
                 Assert(ex.ProviderName == "Groq", $"provider {ex.ProviderName}");
                 Assert(ex.Message == "Invalid Groq API key", $"message {ex.Message}");
-                // The build fn throws before the executor is reached.
+                // The build fn threw before the executor was reached, and nothing
+                // downstream ran.
+                Assert(string.Join(",", steps) == "build", $"steps {string.Join(",", steps)}");
                 Assert(handler.Sends == 0, $"sends {handler.Sends}");
             });
 
-            RunAsync("RustSingleShot maps a parse-fn core error with the provider tag", async () =>
+            RunAsync("RustSingleShot maps a parse-fn core error from the POST-RETRY parse", async () =>
             {
                 var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("{\"text\":\"\"}")
                 }));
                 using var client = new HttpClient(handler);
+                var steps = new List<string>();
 
                 var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
                     client,
                     "Deepgram",
-                    BuildDummyRequest,
-                    parseResponse: _ => throw new HwTranscriptionException.NoSpeech(),
+                    buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
+                    parseResponse: _ => { steps.Add("parse"); throw new HwTranscriptionException.NoSpeech(); },
                     totalSw: System.Diagnostics.Stopwatch.StartNew(),
                     cancellationToken: CancellationToken.None));
 
                 Assert(ex.Code == TranscriptionErrorCode.NoSpeechDetected, $"code {ex.Code}");
                 Assert(ex.ProviderName == "Deepgram", $"provider {ex.ProviderName}");
-                // 2xx, so parseError never ran — this is the post-retry parse.
+                Assert(string.Join(",", steps) == "build,parse", $"steps {string.Join(",", steps)}");
                 Assert(handler.Sends == 1, $"sends {handler.Sends}");
+                // THE discriminator. The give-up mapper runs the very same
+                // parseResponse delegate and produces the same code, provider and
+                // send count, so none of the above can tell the two apart. It maps
+                // with the response status; the post-retry parse maps without one.
+                // A null status is therefore proof this came from the post-retry
+                // parse — and matches what the six services emitted on main.
+                Assert(ex.HttpStatusCode == null, $"http status {ex.HttpStatusCode}");
             });
 
             RunAsync("RustSingleShot honours cancellation after the retry loop returns", async () =>
             {
                 using var cts = new CancellationTokenSource();
-                var parseCalls = 0;
+                var steps = new List<string>();
 
-                var handler = new StubHandler(async _ =>
+                // Cancel from the response's Dispose, which the executor runs
+                // strictly AFTER SendAsync returned and after the body was read.
+                // Nothing else cancels this token, so neither HttpClient nor the
+                // executor's content read can be the source of the throw: if the
+                // post-retry ThrowIfCancellationRequested were gone, the token
+                // would still be cancelled but nothing would observe it, parse
+                // would run, and ExpectAsync would fail. (The previous shape
+                // cancelled inside the handler and relied on BCL buffering detail
+                // to decide which of two paths threw — under dotnet-quality
+                // "preview" that floats between runs.)
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    var response = new HttpResponseMessage(HttpStatusCode.OK)
-                    {
-                        Content = new StringContent("{\"text\":\"ignored\"}")
-                    };
-                    // Buffer the body BEFORE cancelling: the executor reads the
-                    // content with the caller token, so an unbuffered body would
-                    // fail inside RustRetry and never reach the check under test.
-                    // Already-buffered content short-circuits that read, so the
-                    // 2xx makes it back to RustSingleShot's post-retry
-                    // ThrowIfCancellationRequested.
-                    await response.Content.LoadIntoBufferAsync();
-                    cts.Cancel();
-                    return response;
-                });
+                    Content = new SignalOnDisposeContent("{\"text\":\"ignored\"}", cts.Cancel)
+                }));
                 using var client = new HttpClient(handler);
 
                 await ExpectAsync<OperationCanceledException>(() => RustSingleShot.TranscribeAsync(
                     client,
                     "OpenAI",
-                    BuildDummyRequest,
+                    buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
                     parseResponse: _ =>
                     {
-                        parseCalls++;
+                        steps.Add("parse");
                         return new HwTranscript("must not be returned", null, null, null);
                     },
                     totalSw: System.Diagnostics.Stopwatch.StartNew(),
                     cancellationToken: cts.Token));
 
                 Assert(handler.Sends == 1, $"sends {handler.Sends}");
-                // The load-bearing assertion: a cancelled sequence must never
-                // parse the body or hand back a transcript.
-                Assert(parseCalls == 0, $"parse ran {parseCalls} times after cancellation");
+                // A cancelled sequence must never parse the body or hand back a
+                // transcript.
+                Assert(string.Join(",", steps) == "build", $"steps {string.Join(",", steps)}");
+            });
+
+            RunAsync("RustSingleShot returns the transcript and derives each provider's exact banner", async () =>
+            {
+                // The PR's headline claim is byte-identical logs. main hard-coded
+                // one completion banner per service; the runner derives it from
+                // `provider`. These are those six literals, verbatim from main.
+                var cases = new (string Provider, string Banner)[]
+                {
+                    ("Deepgram", "========== DEEPGRAM TRANSCRIPTION COMPLETE =========="),
+                    ("ElevenLabs", "========== ELEVENLABS TRANSCRIPTION COMPLETE =========="),
+                    ("Grok", "========== GROK TRANSCRIPTION COMPLETE =========="),
+                    ("Groq", "========== GROQ TRANSCRIPTION COMPLETE =========="),
+                    ("Mistral", "========== MISTRAL TRANSCRIPTION COMPLETE =========="),
+                    ("OpenAI", "========== OPENAI TRANSCRIPTION COMPLETE ==========")
+                };
+
+                // Read back what LoggingService actually wrote. Main() points
+                // AppPaths at a disposable temp root, so this is a private log
+                // file — no production seam is added to observe it. Captured once
+                // because CurrentLogPath is date-derived.
+                var logPath = LoggingService.CurrentLogPath;
+                var logOffset = File.Exists(logPath) ? new FileInfo(logPath).Length : 0L;
+
+                foreach (var (provider, _) in cases)
+                {
+                    var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"text\":\"body is parsed by the stub below\"}")
+                    }));
+                    using var client = new HttpClient(handler);
+                    var steps = new List<string>();
+
+                    var text = await RustSingleShot.TranscribeAsync(
+                        client,
+                        provider,
+                        buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
+                        parseResponse: _ => { steps.Add("parse"); return new HwTranscript("hello world", null, null, null); },
+                        totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                        cancellationToken: CancellationToken.None);
+
+                    Assert(text == "hello world", $"{provider} text {text}");
+                    Assert(string.Join(",", steps) == "build,parse", $"{provider} steps {string.Join(",", steps)}");
+                    Assert(handler.Sends == 1, $"{provider} sends {handler.Sends}");
+                }
+
+                var emitted = ReadLogSince(logPath, logOffset);
+                foreach (var (provider, banner) in cases)
+                {
+                    Assert(emitted.Contains(banner, StringComparison.Ordinal), $"{provider} banner not emitted");
+                }
+                // The two lines under every banner, unchanged from main.
+                Assert(emitted.Contains("  Characters: 11", StringComparison.Ordinal), "characters line not emitted");
+                Assert(emitted.Contains("  Total time: ", StringComparison.Ordinal), "total time line not emitted");
             });
 
             Run("AssemblyAI MapError classifies via the step's own parser", () =>
@@ -1822,6 +1892,50 @@ internal static class Program
             Sends++;
             return _respond(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Response body that invokes <paramref name="onDispose"/> when the response
+    /// message is disposed — which <c>RustHttpExecutor</c> does strictly AFTER
+    /// <c>SendAsync</c> returned and after the body was read. That lets a test
+    /// change the world (cancel a token) at a point no HttpClient-internal read
+    /// can observe, so only the code under test can react to the change.
+    /// </summary>
+    private sealed class SignalOnDisposeContent : StringContent
+    {
+        private readonly Action _onDispose;
+        private bool _signalled;
+
+        public SignalOnDisposeContent(string content, Action onDispose) : base(content)
+            => _onDispose = onDispose;
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (disposing && !_signalled)
+            {
+                _signalled = true;
+                _onDispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Everything LoggingService appended to <paramref name="path"/> since
+    /// <paramref name="offset"/>. Shared read access because the log file may
+    /// still be open; missing file reads as empty.
+    /// </summary>
+    private static string ReadLogSince(string path, long offset)
+    {
+        if (!File.Exists(path))
+        {
+            return string.Empty;
+        }
+
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        stream.Seek(offset, SeekOrigin.Begin);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     /// <summary>
