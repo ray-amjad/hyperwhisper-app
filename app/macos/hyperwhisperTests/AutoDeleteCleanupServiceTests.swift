@@ -266,10 +266,10 @@ struct AutoDeleteCleanupServiceTests {
     /// exact condition auto-delete is supposed to relieve.
     ///
     /// The save is made to fail honestly rather than by mocking: an unsaved
-    /// `Transcript` with none of its mandatory attributes set fails
-    /// `validateForInsert` on the *whole context's* next save. That is also a
-    /// faithful model of the production trigger — one bad pending edit anywhere
-    /// on the app-wide `viewContext` sinks the auto-delete save with it.
+    /// `Transcript` missing its mandatory `text` fails `validateForInsert` on
+    /// the *whole context's* next save. That is also a faithful model of the
+    /// production trigger — one bad pending edit anywhere on the app-wide
+    /// `viewContext` sinks the auto-delete save with it.
     @Test func failedSaveDeletesNoFilesAndRollsBackTheRows() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

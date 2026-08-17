@@ -437,14 +437,39 @@ class AutoDeleteCleanupService: ObservableObject {
         // one result per input path, in order, so `zip` pairs them up.
         var audioFilesDeleted = 0
         var bytesFreed: Int64 = 0
+        var failedDeletionCount = 0
         for (path, result) in zip(paths, results) {
             if result.deleted {
                 audioFilesDeleted += 1
                 bytesFreed += result.bytesFreed
                 logger.debug("Deleted audio file: \(path, privacy: .public)")
             } else if let failureDescription = result.failureDescription {
-                logger.error("Failed to delete audio file: \(failureDescription, privacy: .public)")
+                // Log the path, not just the description. The Core Data row is
+                // already committed as deleted by this point, so this line is
+                // the only surviving record that the file exists — and
+                // `failureDescription` is a bare `localizedDescription`, which
+                // for POSIX-domain errors ("Permission denied") names neither
+                // the file nor its directory.
+                failedDeletionCount += 1
+                logger.error("Failed to delete audio file: \(path, privacy: .public) — \(failureDescription, privacy: .public)")
             }
+        }
+
+        // One event per pass, not one per file: a failing volume fails every
+        // path in the batch, and this is the only signal that auto-delete is
+        // silently leaking disk in production. Counts only — the paths stay in
+        // the local log, since they contain the user's home directory and the
+        // recording filenames.
+        if failedDeletionCount > 0 {
+            SentryService.captureMessage(
+                "Auto-delete could not remove some audio files",
+                level: .warning,
+                extras: [
+                    "failedDeletions": failedDeletionCount,
+                    "pathsAttempted": paths.count
+                ],
+                tags: ["component": "AutoDeleteCleanupService"]
+            )
         }
 
         let duration = CFAbsoluteTimeGetCurrent() - startTime
