@@ -29,12 +29,9 @@
 // NOTE: Uses TranscriptionApiKeyType.Deepgram (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System types; qualify uniffi.hyperwhisper_core.HttpResponse below.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -49,9 +46,7 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiBaseUrl = "https://api.deepgram.com/v1/listen";
     private const int DefaultTimeoutSeconds = 180; // 3 minutes for larger files
-    private const int MaxRetries = 3;
 
     // =========================================================================
     // STATE
@@ -145,37 +140,13 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
             apiKey: _apiKey,
             model: _modelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(resp), "Deepgram", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Deepgram");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Deepgram");
-        }
-
-        LoggingService.Info("========== DEEPGRAM TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "Deepgram",
+            buildRequest: () => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.DeepgramParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 
 

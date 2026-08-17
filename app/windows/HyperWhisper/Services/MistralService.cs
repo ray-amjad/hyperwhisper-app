@@ -25,13 +25,9 @@
 // NOTE: Uses TranscriptionApiKeyType.Mistral (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -46,9 +42,7 @@ public class MistralService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.mistral.ai/v1/audio/transcriptions";
     private const int DefaultTimeoutSeconds = 120;
-    private const int MaxRetries = 3;
 
     // =========================================================================
     // STATE
@@ -145,38 +139,13 @@ public class MistralService : ITranscriptionProvider, IDisposable
             apiKey: _apiKey,
             model: _modelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.MistralBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.MistralParseTranscribeResponse(resp), "Mistral", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by MistralBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "Mistral");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.MistralParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Mistral");
-        }
-
-        LoggingService.Info("========== MISTRAL TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "Mistral",
+            buildRequest: () => HyperwhisperCoreMethods.MistralBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.MistralParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 
 

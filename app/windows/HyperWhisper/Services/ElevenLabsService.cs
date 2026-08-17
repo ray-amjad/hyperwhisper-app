@@ -35,13 +35,9 @@
 // NOTE: Uses TranscriptionApiKeyType.ElevenLabs (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -57,9 +53,7 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.elevenlabs.io/v1/speech-to-text";
     private const int DefaultTimeoutSeconds = 120;
-    private const int MaxRetries = 3;
 
     // =========================================================================
     // STATE
@@ -168,38 +162,13 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
             apiKey: _apiKey,
             model: _modelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.ElevenlabsBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.ElevenlabsParseTranscribeResponse(resp), "ElevenLabs", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by ElevenlabsBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "ElevenLabs");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.ElevenlabsParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "ElevenLabs");
-        }
-
-        LoggingService.Info("========== ELEVENLABS TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "ElevenLabs",
+            buildRequest: () => HyperwhisperCoreMethods.ElevenlabsBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.ElevenlabsParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 
 

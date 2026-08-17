@@ -20,13 +20,8 @@
 // - Supported containers (auto-detected): wav, mp3, ogg, opus, flac, aac, mp4, m4a, mkv
 
 using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
-using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -40,7 +35,6 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.x.ai/v1/stt";
     private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
 
     // Per-attempt request timeout, scaled to file size (see GetRequestTimeout):
@@ -153,39 +147,14 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         var requestTimeout = GetRequestTimeout(fileInfo.Length);
         LoggingService.Info($"  Request timeout: {requestTimeout.TotalMinutes:F1} minutes (per attempt)");
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.GrokParseTranscribeResponse(resp), "Grok", resp),
-                cancellationToken: cancellationToken,
-                perAttemptTimeout: requestTimeout);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by GrokBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "Grok");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.GrokParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Grok");
-        }
-
-        LoggingService.Info("========== GROK TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
+        return await RustSingleShot.TranscribeAsync(
+            _httpClient,
+            "Grok",
+            buildRequest: () => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.GrokParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken,
+            perAttemptTimeout: requestTimeout);
     }
 
 
