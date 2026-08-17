@@ -37,14 +37,13 @@ internal static class RustSingleShot
     /// </summary>
     /// <param name="httpClient">The service's client, passed to <see cref="RustRetry"/>.</param>
     /// <param name="provider">
-    /// Display name used for error tagging ("Groq", "OpenAI", …). Its
-    /// upper-case form is the completion log banner, which is how every caller
-    /// already spelled it ("Groq" -> "========== GROQ TRANSCRIPTION COMPLETE ==========").
+    /// Display name, used for error tagging and — upper-cased — for the
+    /// completion banner below ("Groq" -> "========== GROQ TRANSCRIPTION COMPLETE ==========").
     /// </param>
     /// <param name="buildRequest">The core's <c>&lt;Provider&gt;BuildTranscribeRequest</c>.</param>
     /// <param name="parseResponse">The core's <c>&lt;Provider&gt;ParseTranscribeResponse</c>.</param>
     /// <param name="totalSw">Stopwatch started by the caller, reported as total time.</param>
-    /// <param name="perAttemptTimeout">Per-attempt timeout; only Grok sets one.</param>
+    /// <param name="perAttemptTimeout">Optional per-attempt timeout, forwarded to <see cref="RustRetry"/>.</param>
     internal static async Task<string> TranscribeAsync(
         HttpClient httpClient,
         string provider,
