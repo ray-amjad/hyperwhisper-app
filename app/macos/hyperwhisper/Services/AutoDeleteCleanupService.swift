@@ -253,7 +253,10 @@ class AutoDeleteCleanupService: ObservableObject {
     /// See the CLEANUP FLOW note at the top of this file for the ordering and why
     /// the Core Data work has to finish before the off-actor file deletion.
     ///
-    /// - Returns: The cleanup statistics, or nil if auto-delete is disabled
+    /// - Returns: The cleanup statistics, or `nil` when no cleanup happened —
+    ///   auto-delete is disabled, a pass is already running, no cutoff date could
+    ///   be calculated, or the Core Data save did not commit (in which case the
+    ///   pending deletes are rolled back and no file is touched).
     @discardableResult
     func performCleanup() async -> CleanupStats? {
         // Early exit if disabled or already running
@@ -342,10 +345,60 @@ class AutoDeleteCleanupService: ObservableObject {
         }
 
         // Save Core Data changes. From here on the rows are gone; the files they
-        // referenced are unlinked below. A crash in between orphans files on
-        // disk, which `CrashRecoveryManager`'s sweep already handles — see the
-        // trade-off note in the file header.
+        // referenced are unlinked below. A pass interrupted in between orphans
+        // files on disk that nothing sweeps up — see the trade-off note in the
+        // file header.
         persistenceController.save()
+
+        // The save may not have taken. `PersistenceController.save()` is a
+        // non-throwing `Void` function: it logs the error and reports it to
+        // Sentry, but it neither rethrows nor rolls back, so a failure leaves the
+        // pending deletes sitting on the context and returns silently. A
+        // disk-full `NSFileWriteOutOfSpaceError` — the very condition
+        // auto-delete exists to prevent — is one way to get there; any unrelated
+        // invalid pending edit anywhere on this app-wide `viewContext` is
+        // another.
+        //
+        // `hasChanges` is the only signal available at this call site, and it is
+        // a sound one here: a successful `save()` clears it, and there is no
+        // suspension point between the `save()` and this check, so nothing else
+        // on the main actor can dirty the context in between.
+        guard !viewContext.hasChanges else {
+            // Do NOT unlink anything. The rows are still there, so every path we
+            // collected is still referenced by a live History row — deleting the
+            // files now would produce exactly the broken-playback failure this
+            // ordering exists to prevent.
+            //
+            // Roll back so the context is not left dirty for every later
+            // operation. This also discards any unrelated pending edit on the
+            // `viewContext`, which is the intended behaviour rather than a side
+            // effect: something on this context is unsavable, and leaving our
+            // deletes pending means the next `save()` from anywhere in the app
+            // commits them at an arbitrary later moment with the audio files
+            // still on disk and no cleanup pass aware of it.
+            viewContext.rollback()
+
+            logger.error("""
+                Auto-delete aborted: Core Data save did not commit. \
+                Rolled back \(transcriptsToDelete.count, privacy: .public) pending transcript deletion(s); \
+                no audio files were deleted.
+                """)
+            SentryService.captureMessage(
+                "Auto-delete aborted: Core Data save did not commit",
+                level: .error,
+                extras: ["transcriptsPendingDeletion": transcriptsToDelete.count],
+                tags: ["component": "AutoDeleteCleanupService"]
+            )
+
+            // Return `nil` rather than a zero-filled `CleanupStats`, and leave
+            // `lastCleanupStats` / `lastCleanupDate` untouched: `nil` already
+            // means "no cleanup was performed" everywhere else in this function,
+            // and a zeroed stats object is indistinguishable from a genuine
+            // empty-backlog pass — it would show the user "No recordings to
+            // delete" for a backlog that is still entirely there. The `defer`
+            // above still clears `isCleanupInProgress` on this path.
+            return nil
+        }
 
         // STEP 2 (off the main actor): the blocking filesystem work.
         let results = await FileDeletion.deleteFiles(at: paths)

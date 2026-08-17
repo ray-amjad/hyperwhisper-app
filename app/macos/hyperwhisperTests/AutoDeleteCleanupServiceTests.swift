@@ -245,4 +245,69 @@ struct AutoDeleteCleanupServiceTests {
         let remaining = try transcriptCount(in: context)
         #expect(remaining == 0)
     }
+
+    /// A save that does not commit must not delete a single file.
+    ///
+    /// `PersistenceController.save()` swallows its error, so a failed save looks
+    /// exactly like a successful one to the caller and the pending row deletes
+    /// simply stay pending. Before the bail-out guard, the pass unlinked every
+    /// collected path anyway and reported a clean success — leaving live History
+    /// rows whose play buttons silently fail, the precise failure the
+    /// save-before-unlink ordering exists to prevent. Disk-full
+    /// (`NSFileWriteOutOfSpaceError`) is the realistic trigger, and it is the
+    /// exact condition auto-delete is supposed to relieve.
+    ///
+    /// The save is made to fail honestly rather than by mocking: an unsaved
+    /// `Transcript` with none of its mandatory attributes set fails
+    /// `validateForInsert` on the *whole context's* next save. That is also a
+    /// faithful model of the production trigger — one bad pending edit anywhere
+    /// on the app-wide `viewContext` sinks the auto-delete save with it.
+    @Test func failedSaveDeletesNoFilesAndRollsBackTheRows() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.viewContext
+
+        let originalPath = try makeFile(in: directory, byteCount: 1024)
+        let trimmedPath = try makeFile(in: directory, byteCount: 256)
+        insertTranscript(
+            into: context,
+            date: Date().addingTimeInterval(-3600),
+            audioFilePath: originalPath,
+            trimmedAudioFilePath: trimmedPath
+        )
+        try context.save()
+
+        // Inserted AFTER the good save, so only the cleanup's save sees it.
+        // `text` is non-optional in the model and is left nil, so this row fails
+        // `validateForInsert` and takes the whole context's save down with it.
+        // It is given a future date and a real id so that it is well-formed for
+        // the `date < cutoff` fetch and is simply too new to be collected — the
+        // save is the only thing it breaks.
+        let unsavable = Transcript(context: context)
+        unsavable.id = UUID()
+        unsavable.date = Date().addingTimeInterval(3600)
+        unsavable.duration = 1
+
+        let settings = FixedAutoDeleteSettings(enabled: true, cutoff: Date())
+        let service = AutoDeleteCleanupService(settingsManager: settings, persistenceController: persistence)
+
+        let stats = await service.performCleanup()
+
+        // No stats claimed, and no stale success recorded for the UI to show.
+        #expect(stats == nil)
+        #expect(service.lastCleanupStats == nil)
+        #expect(service.lastCleanupDate == nil)
+        // The files are still referenced by a live row, so they must survive.
+        #expect(FileManager.default.fileExists(atPath: originalPath))
+        #expect(FileManager.default.fileExists(atPath: trimmedPath))
+        // Rolled back: the transcript is back, the invalid row is gone, and the
+        // context is clean for whatever runs next.
+        let remaining = try transcriptCount(in: context)
+        #expect(remaining == 1)
+        #expect(!context.hasChanges)
+        // And the pass still released the flag, so the next tick can retry.
+        #expect(!service.isCleanupInProgress)
+    }
 }
