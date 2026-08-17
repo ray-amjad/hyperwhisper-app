@@ -394,11 +394,12 @@ internal static class Program
                 Assert(handler.Sends == 1, $"sends {handler.Sends}");
             });
 
-            // RustSingleShot now solely owns build-error mapping, the post-retry
-            // cancellation check, parse-error mapping and the completion log for
-            // every single-shot BYOK provider. Both of its hard parameters are
-            // caller-supplied delegates, so the sequence is exercisable here
-            // without an FFI call or a network hop.
+            // RustSingleShot now solely owns build-error mapping, the retry
+            // give-up mapping, the post-retry cancellation check, parse-error
+            // mapping and the completion log for the services that call it. Its
+            // build and parse arguments are caller-supplied delegates, so the
+            // whole sequence is exercisable here without an FFI call or a
+            // network hop.
             //
             // Each case below asserts WHICH path produced its outcome, not just
             // that something happened, via one shared mechanism: the test's own
@@ -457,8 +458,71 @@ internal static class Program
                 // send count, so none of the above can tell the two apart. It maps
                 // with the response status; the post-retry parse maps without one.
                 // A null status is therefore proof this came from the post-retry
-                // parse — and matches what the six services emitted on main.
+                // parse — and matches what the six services emitted on main. The
+                // next case is that other path, asserting 401 where this one
+                // asserts null, so the premise is executed rather than assumed.
                 Assert(ex.HttpStatusCode == null, $"http status {ex.HttpStatusCode}");
+            });
+
+            RunAsync("RustSingleShot maps a non-2xx give-up with the provider tag and the status", async () =>
+            {
+                // The give-up mapper is the only symbol this refactor relocated,
+                // and nothing else in the suite reaches it: it runs solely from
+                // RustRetry's GiveUp branch, which needs a non-2xx response.
+                // 401 classifies Unauthorized in the core, which is terminal, so
+                // the wrapper gives up on attempt 1 — one send, no backoff sleep.
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                {
+                    Content = new StringContent("{\"error\":\"bad key\"}")
+                }));
+                using var client = new HttpClient(handler);
+                var steps = new List<string>();
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "ElevenLabs",
+                    buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
+                    parseResponse: _ => { steps.Add("parse"); throw new HwTranscriptionException.Unauthorized(); },
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None));
+
+                Assert(ex.Code == TranscriptionErrorCode.Unauthorized, $"code {ex.Code}");
+                Assert(ex.ProviderName == "ElevenLabs", $"provider {ex.ProviderName}");
+                // The point of the mapper. Drop the status it passes, or hand it
+                // the wrong provider, and every BYOK 401/429/413 still surfaces —
+                // untagged and status-less — to the UI and to
+                // TranscriptionDiagnosticsService.
+                Assert(ex.HttpStatusCode == 401, $"http status {ex.HttpStatusCode}");
+                // parse ran once, against the non-2xx, from inside the give-up
+                // branch; the runner's own post-retry parse is never reached.
+                Assert(string.Join(",", steps) == "build,parse", $"steps {string.Join(",", steps)}");
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
+            });
+
+            RunAsync("RustSingleShot fails a non-2xx the core parser accepts", async () =>
+            {
+                // The give-up mapper's other branch. A parser that returns a
+                // transcript for an error response must not turn that body into a
+                // successful transcription.
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                {
+                    Content = new StringContent("{\"text\":\"not an error body\"}")
+                }));
+                using var client = new HttpClient(handler);
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustSingleShot.TranscribeAsync(
+                    client,
+                    "Mistral",
+                    buildRequest: BuildDummyRequest,
+                    parseResponse: _ => new HwTranscript("must not be returned", null, null, null),
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None));
+
+                Assert(ex.Code == TranscriptionErrorCode.Unknown, $"code {ex.Code}");
+                Assert(ex.Message == "Unexpected non-error response", $"message {ex.Message}");
+                Assert(ex.ProviderName == "Mistral", $"provider {ex.ProviderName}");
+                Assert(ex.HttpStatusCode == 401, $"http status {ex.HttpStatusCode}");
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
             });
 
             RunAsync("RustSingleShot honours cancellation after the retry loop returns", async () =>
@@ -500,58 +564,72 @@ internal static class Program
                 Assert(string.Join(",", steps) == "build", $"steps {string.Join(",", steps)}");
             });
 
-            RunAsync("RustSingleShot returns the transcript and derives each provider's exact banner", async () =>
+            RunAsync("RustSingleShot returns the transcript and logs the banner derived from provider", async () =>
             {
                 // The PR's headline claim is byte-identical logs. main hard-coded
                 // one completion banner per service; the runner derives it from
-                // `provider`. These are those six literals, verbatim from main.
-                var cases = new (string Provider, string Banner)[]
+                // `provider`. This is Groq's literal, verbatim from main.
+                //
+                // ONE provider, not the six. The other five differ from this one
+                // only by what ToUpperInvariant returns, so running them proves
+                // the BCL uppercases and nothing about the services — their
+                // "Groq"/"OpenAI"/… arguments are inline literals at six call
+                // sites that no test reaches, before this PR or after it. Five
+                // more iterations would buy that non-coverage at 15 extra writes
+                // through a sink that swallows its own IO errors.
+                const string provider = "Groq";
+                const string banner = "========== GROQ TRANSCRIPTION COMPLETE ==========";
+
+                var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    ("Deepgram", "========== DEEPGRAM TRANSCRIPTION COMPLETE =========="),
-                    ("ElevenLabs", "========== ELEVENLABS TRANSCRIPTION COMPLETE =========="),
-                    ("Grok", "========== GROK TRANSCRIPTION COMPLETE =========="),
-                    ("Groq", "========== GROQ TRANSCRIPTION COMPLETE =========="),
-                    ("Mistral", "========== MISTRAL TRANSCRIPTION COMPLETE =========="),
-                    ("OpenAI", "========== OPENAI TRANSCRIPTION COMPLETE ==========")
-                };
+                    Content = new StringContent("{\"text\":\"body is parsed by the stub below\"}")
+                }));
+                using var client = new HttpClient(handler);
+                var steps = new List<string>();
 
                 // Read back what LoggingService actually wrote. Main() points
                 // AppPaths at a disposable temp root, so this is a private log
-                // file — no production seam is added to observe it. Captured once
-                // because CurrentLogPath is date-derived.
-                var logPath = LoggingService.CurrentLogPath;
-                var logOffset = File.Exists(logPath) ? new FileInfo(logPath).Length : 0L;
+                // directory and no production seam is added to observe it.
+                // Offsets are per FILE across that directory, not one captured
+                // path: CurrentLogPath is DateTime.Now-derived and re-evaluated
+                // on every write, so a run crossing local midnight appends these
+                // lines to a file that did not exist when this case started.
+                var offsets = SnapshotLogOffsets();
 
-                foreach (var (provider, _) in cases)
-                {
-                    var handler = new StubHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                    {
-                        Content = new StringContent("{\"text\":\"body is parsed by the stub below\"}")
-                    }));
-                    using var client = new HttpClient(handler);
-                    var steps = new List<string>();
+                var text = await RustSingleShot.TranscribeAsync(
+                    client,
+                    provider,
+                    buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
+                    parseResponse: _ => { steps.Add("parse"); return new HwTranscript("hello world", null, null, null); },
+                    totalSw: System.Diagnostics.Stopwatch.StartNew(),
+                    cancellationToken: CancellationToken.None);
 
-                    var text = await RustSingleShot.TranscribeAsync(
-                        client,
-                        provider,
-                        buildRequest: () => { steps.Add("build"); return BuildDummyRequest(); },
-                        parseResponse: _ => { steps.Add("parse"); return new HwTranscript("hello world", null, null, null); },
-                        totalSw: System.Diagnostics.Stopwatch.StartNew(),
-                        cancellationToken: CancellationToken.None);
+                Assert(text == "hello world", $"text {text}");
+                Assert(string.Join(",", steps) == "build,parse", $"steps {string.Join(",", steps)}");
+                Assert(handler.Sends == 1, $"sends {handler.Sends}");
 
-                    Assert(text == "hello world", $"{provider} text {text}");
-                    Assert(string.Join(",", steps) == "build,parse", $"{provider} steps {string.Join(",", steps)}");
-                    Assert(handler.Sends == 1, $"{provider} sends {handler.Sends}");
-                }
+                // Every assertion below carries the captured window verbatim.
+                // LoggingService.WriteLog swallows its own IOException, so a red
+                // here has two possible causes — the banner changed, or the write
+                // was dropped — and only the captured text tells them apart.
+                var emitted = ReadLogSince(offsets);
+                var lines = SplitLogLines(emitted);
+                var context = $"log dir '{LoggingService.LogDirectory}', {lines.Length} line(s) captured: <<<{emitted}>>>";
 
-                var emitted = ReadLogSince(logPath, logOffset);
-                foreach (var (provider, banner) in cases)
-                {
-                    Assert(emitted.Contains(banner, StringComparison.Ordinal), $"{provider} banner not emitted");
-                }
-                // The two lines under every banner, unchanged from main.
-                Assert(emitted.Contains("  Characters: 11", StringComparison.Ordinal), "characters line not emitted");
-                Assert(emitted.Contains("  Total time: ", StringComparison.Ordinal), "total time line not emitted");
+                // Positional, not Contains: the two detail lines must be THIS
+                // banner's own next two lines. A Contains pair would be satisfied
+                // by any banner's detail lines anywhere in the window.
+                var bannerLine = Array.FindIndex(lines, l => l.EndsWith(banner, StringComparison.Ordinal));
+                Assert(bannerLine >= 0, $"banner line not emitted — {context}");
+                Assert(bannerLine + 2 < lines.Length, $"fewer than two lines follow the banner — {context}");
+                Assert(lines[bannerLine + 1].EndsWith("  Characters: 11", StringComparison.Ordinal),
+                    $"line after banner is '{lines[bannerLine + 1]}' — {context}");
+                // Anchored digits+"ms", because "  Total time: " on its own is a
+                // prefix of every unit a future edit could switch to.
+                var totalTime = lines[bannerLine + 2];
+                Assert(
+                    System.Text.RegularExpressions.Regex.IsMatch(totalTime, @"  Total time: [0-9]+ms$"),
+                    $"second line after banner is '{totalTime}' — {context}");
             });
 
             Run("AssemblyAI MapError classifies via the step's own parser", () =>
@@ -1921,21 +1999,90 @@ internal static class Program
     }
 
     /// <summary>
-    /// Everything LoggingService appended to <paramref name="path"/> since
-    /// <paramref name="offset"/>. Shared read access because the log file may
-    /// still be open; missing file reads as empty.
+    /// Current length of every file in the log directory. Taken before the act
+    /// step so <see cref="ReadLogSince"/> returns exactly what that step
+    /// appended — including into a file that did not exist yet, which is what a
+    /// run crossing local midnight produces (LoggingService derives its path
+    /// from <c>DateTime.Now</c> on every single write).
     /// </summary>
-    private static string ReadLogSince(string path, long offset)
+    private static Dictionary<string, long> SnapshotLogOffsets()
     {
-        if (!File.Exists(path))
+        var offsets = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var directory = LoggingService.LogDirectory;
+        if (!Directory.Exists(directory))
+        {
+            return offsets;
+        }
+
+        foreach (var file in Directory.GetFiles(directory))
+        {
+            offsets[file] = new FileInfo(file).Length;
+        }
+        return offsets;
+    }
+
+    /// <summary>
+    /// Everything LoggingService appended anywhere in the log directory since
+    /// <paramref name="offsets"/> was taken, in filename order (the names are
+    /// <c>hyperwhisper-yyyy-MM-dd.log</c>, so that is chronological). Shared
+    /// read access because the writer may still hold a file; a file that is
+    /// unreadable or gone contributes nothing rather than throwing, so the
+    /// caller's assertion — which prints what WAS captured — reports the
+    /// problem instead of this helper.
+    /// </summary>
+    private static string ReadLogSince(Dictionary<string, long> offsets)
+    {
+        var directory = LoggingService.LogDirectory;
+        if (!Directory.Exists(directory))
         {
             return string.Empty;
         }
 
-        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        stream.Seek(offset, SeekOrigin.Begin);
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
+        var files = Directory.GetFiles(directory);
+        Array.Sort(files, StringComparer.Ordinal);
+
+        var captured = new System.Text.StringBuilder();
+        foreach (var file in files)
+        {
+            var from = offsets.TryGetValue(file, out var offset) ? offset : 0L;
+            try
+            {
+                using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                if (from >= stream.Length)
+                {
+                    continue;
+                }
+                stream.Seek(from, SeekOrigin.Begin);
+                using var reader = new StreamReader(stream);
+                captured.Append(reader.ReadToEnd());
+            }
+            catch (IOException)
+            {
+                // Includes FileNotFoundException; see summary.
+            }
+        }
+        return captured.ToString();
+    }
+
+    /// <summary>
+    /// Log text split into non-empty lines, newline style stripped. Multi-line
+    /// entries (LoggingService.Warn with an exception writes one) therefore
+    /// contribute one element per physical line, which is what the positional
+    /// banner assertions want.
+    /// </summary>
+    private static string[] SplitLogLines(string text)
+    {
+        var raw = text.Split('\n');
+        var lines = new List<string>(raw.Length);
+        foreach (var line in raw)
+        {
+            var trimmed = line.TrimEnd('\r');
+            if (trimmed.Length > 0)
+            {
+                lines.Add(trimmed);
+            }
+        }
+        return lines.ToArray();
     }
 
     /// <summary>
