@@ -1,5 +1,5 @@
 //
-//  AutoDeleteFileDeletionTests.swift
+//  FileDeletionTests.swift
 //  hyperwhisperTests
 //
 
@@ -7,20 +7,22 @@ import Foundation
 import Testing
 @testable import HyperWhisper
 
-/// Regression guard for the auto-delete cleanup's file deletion batch
-/// (HYPERWHISPER-HF).
+/// Regression guard for `FileDeletion.deleteFiles(at:)` (HYPERWHISPER-HF).
 ///
-/// The per-file `deleteFileIfExists` moved off the main actor into one detached
-/// batch, `AutoDeleteCleanupService.deleteFiles(at:)`. The batch must keep the
-/// old per-file semantics exactly: results index-aligned with the input, paths
-/// processed sequentially in order, duplicates NOT collapsed (a repeated path
-/// must count once, as it did when the second call found the file already gone),
-/// and a failed removal reported without any bytes credited.
-struct AutoDeleteFileDeletionTests {
+/// Auto-delete's per-file `deleteFileIfExists` moved off the main actor into
+/// this one detached batch. The batch must keep the old per-file semantics
+/// exactly: results index-aligned with the input, paths processed sequentially
+/// in order, duplicates NOT collapsed (a repeated path must count once, as it
+/// did when the second call found the file already gone), and a failed removal
+/// reported without any bytes credited and without touching the file.
+///
+/// `AutoDeleteCleanupService` is the first caller but not the only intended one,
+/// so these exercise the helper's own contract, not auto-delete's.
+struct FileDeletionTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("AutoDeleteFileDeletionTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("FileDeletionTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -40,7 +42,7 @@ struct AutoDeleteFileDeletionTests {
         let byteCount = 2048
         let path = try makeFile(in: directory, byteCount: byteCount)
 
-        let results = await AutoDeleteCleanupService.deleteFiles(at: [path])
+        let results = await FileDeletion.deleteFiles(at: [path])
 
         #expect(results.count == 1)
         let result = try #require(results.first)
@@ -52,10 +54,10 @@ struct AutoDeleteFileDeletionTests {
 
     @Test func missingPathIsNotAFailure() async throws {
         let missing = FileManager.default.temporaryDirectory
-            .appendingPathComponent("AutoDeleteFileDeletionTests-missing-\(UUID().uuidString).wav")
+            .appendingPathComponent("FileDeletionTests-missing-\(UUID().uuidString).wav")
             .path
 
-        let results = await AutoDeleteCleanupService.deleteFiles(at: [missing])
+        let results = await FileDeletion.deleteFiles(at: [missing])
 
         #expect(results.count == 1)
         let result = try #require(results.first)
@@ -77,7 +79,7 @@ struct AutoDeleteFileDeletionTests {
         let byteCount = 512
         let path = try makeFile(in: directory, byteCount: byteCount)
 
-        let results = await AutoDeleteCleanupService.deleteFiles(at: [path, path])
+        let results = await FileDeletion.deleteFiles(at: [path, path])
 
         #expect(results.count == 2)
         #expect(results[0].deleted)
@@ -97,7 +99,7 @@ struct AutoDeleteFileDeletionTests {
         let missing = directory.appendingPathComponent("\(UUID().uuidString).wav").path
         let third = try makeFile(in: directory, byteCount: 300)
 
-        let results = await AutoDeleteCleanupService.deleteFiles(at: [first, missing, third])
+        let results = await FileDeletion.deleteFiles(at: [first, missing, third])
 
         #expect(results.count == 3)
         #expect(results[0].deleted)
@@ -148,7 +150,7 @@ struct AutoDeleteFileDeletionTests {
             try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: parent.path)
         }
 
-        let results = await AutoDeleteCleanupService.deleteFiles(at: [target.path])
+        let results = await FileDeletion.deleteFiles(at: [target.path])
 
         #expect(results.count == 1)
         let result = try #require(results.first)
@@ -162,7 +164,7 @@ struct AutoDeleteFileDeletionTests {
     }
 
     @Test func emptyInputProducesEmptyOutput() async {
-        let results = await AutoDeleteCleanupService.deleteFiles(at: [])
+        let results = await FileDeletion.deleteFiles(at: [])
 
         #expect(results.isEmpty)
     }

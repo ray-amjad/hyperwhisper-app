@@ -50,26 +50,6 @@ import CoreData
 import Combine
 import os
 
-// MARK: - File Deletion Result
-
-/// The outcome of trying to delete one file during an auto-delete cleanup pass.
-///
-/// Plain `Sendable` value type so the deletion batch can run off the main actor
-/// and hand its results back without anything managed — or MainActor-isolated —
-/// crossing the boundary. It is declared at file scope rather than nested inside
-/// `AutoDeleteCleanupService` so it does not pick up that type's `@MainActor`
-/// isolation, which would stop a `nonisolated` function returning it.
-struct AutoDeleteFileDeletionResult: Sendable {
-    /// Whether the file existed and was removed.
-    let deleted: Bool
-    /// Size of the removed file in bytes; `0` when nothing was deleted.
-    let bytesFreed: Int64
-    /// Localized description of the failure, or `nil` when the file was deleted
-    /// or simply wasn't there. The caller logs it — `Logger` here is MainActor
-    /// state, so the message has to travel back rather than be emitted in place.
-    let failureDescription: String?
-}
-
 // MARK: - Auto-Delete Cleanup Service
 
 /// Service responsible for automatically deleting old recordings based on user settings
@@ -86,8 +66,8 @@ struct AutoDeleteFileDeletionResult: Sendable {
 /// THREAD SAFETY:
 /// - All Core Data operations happen on the main thread via @MainActor
 /// - File system operations happen on background threads: the blocking deletes
-///   run in `deleteFiles(at:)`, a `nonisolated static` helper that does its work
-///   on a detached task (HYPERWHISPER-HF)
+///   run in `FileDeletion.deleteFiles(at:)`, which does its work on a detached
+///   task (HYPERWHISPER-HF)
 /// - Timer fires on main thread to coordinate with Core Data
 @MainActor
 class AutoDeleteCleanupService: ObservableObject {
@@ -368,7 +348,7 @@ class AutoDeleteCleanupService: ObservableObject {
         persistenceController.save()
 
         // STEP 2 (off the main actor): the blocking filesystem work.
-        let results = await Self.deleteFiles(at: paths)
+        let results = await FileDeletion.deleteFiles(at: paths)
 
         // STEP 3 (back on the main actor): tally and log. `deleteFiles` returns
         // one result per input path, in order, so `zip` pairs them up.
@@ -447,62 +427,4 @@ class AutoDeleteCleanupService: ObservableObject {
         }
     }
 
-    // MARK: - File Deletion (off the main actor)
-
-    /// Deletes each file in `paths` that exists, off the main actor.
-    ///
-    /// **Why detached:** `fileExists`, `attributesOfItem` and `removeItem` are
-    /// blocking filesystem syscalls — three of them per file. This service is
-    /// `@MainActor`, so running them inline put the whole backlog's worth of
-    /// `stat`/`unlink` on the main thread; with a large backlog, or a recordings
-    /// folder on iCloud Drive or a network volume, that hung the app
-    /// (HYPERWHISPER-HF, "App hanging for at least 10000 ms", caught at
-    /// `deleteFileIfExists` → `FileManager.fileExists` → `stat`). Being
-    /// `nonisolated async` is what takes the work off the caller's actor; the
-    /// `Task.detached` on top pins it to a fixed `.userInitiated` priority
-    /// instead of inheriting the caller's, matching the established shape in
-    /// `CrashRecoveryManager.scanForUnclaimedWAVCandidates(in:)`.
-    ///
-    /// One detached task covers the whole batch: the hop is the expensive part,
-    /// and one per file would reintroduce per-file overhead for no gain.
-    ///
-    /// `static` and taking plain `[String]` is structural, not stylistic — it is
-    /// what keeps `Transcript`, the view context and `self` out of the closure.
-    /// The `Logger` is MainActor state too, so failures come back as strings for
-    /// the caller to log.
-    ///
-    /// - Parameter paths: The file paths to delete, in order. Duplicates are
-    ///   preserved and processed sequentially, so a repeated path deletes on its
-    ///   first appearance and reports "not found" on the next.
-    /// - Returns: One result per input path, index-aligned with `paths`.
-    nonisolated static func deleteFiles(at paths: [String]) async -> [AutoDeleteFileDeletionResult] {
-        await Task.detached(priority: .userInitiated) { () -> [AutoDeleteFileDeletionResult] in
-            let fileManager = FileManager.default
-            var results: [AutoDeleteFileDeletionResult] = []
-            results.reserveCapacity(paths.count)
-
-            for path in paths {
-                guard fileManager.fileExists(atPath: path) else {
-                    results.append(AutoDeleteFileDeletionResult(deleted: false, bytesFreed: 0, failureDescription: nil))
-                    continue
-                }
-
-                // Get file size before deletion
-                var fileSize: Int64 = 0
-                if let attrs = try? fileManager.attributesOfItem(atPath: path),
-                   let size = attrs[.size] as? Int64 {
-                    fileSize = size
-                }
-
-                do {
-                    try fileManager.removeItem(atPath: path)
-                    results.append(AutoDeleteFileDeletionResult(deleted: true, bytesFreed: fileSize, failureDescription: nil))
-                } catch {
-                    results.append(AutoDeleteFileDeletionResult(deleted: false, bytesFreed: 0, failureDescription: error.localizedDescription))
-                }
-            }
-
-            return results
-        }.value
-    }
 }
