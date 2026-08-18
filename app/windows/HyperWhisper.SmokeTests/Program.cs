@@ -664,7 +664,7 @@ internal static class Program
                     "a medical model should NOT be sync-eligible even with an otherwise-eligible duration — sync has no medical/domain concept");
             });
 
-            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips confirmed dead silence", () =>
+            Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips confirmed dead silence", () =>
             {
                 // NonSilentRatio == 0 with a very low peak is the "nothing was recorded
                 // at all" case - always benign, must always be skipped. Regression guard
@@ -679,11 +679,11 @@ internal static class Program
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
-                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "confirmed dead silence should be skipped");
             });
 
-            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips the real HYPERWHISPER-PA no-speech sample (fix for the widened low-signal thresholds)", () =>
+            Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips the real HYPERWHISPER-PA no-speech sample (fix for the widened low-signal thresholds)", () =>
             {
                 // The actual values from the HYPERWHISPER-PA/-QB/-VY Sentry sample: quiet
                 // room tone the backend correctly called "no speech", but the old -50dBFS /
@@ -699,11 +699,11 @@ internal static class Program
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
-                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "the real HYPERWHISPER-PA no-speech sample should now be skipped");
             });
 
-            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
+            Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
             {
                 // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
                 // both thresholds must still be treated as low-signal and skipped, not
@@ -719,11 +719,11 @@ internal static class Program
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
-                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "a reading exactly at the low-signal thresholds should be skipped (inclusive boundary)");
             });
 
-            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic still captures a loud backend-disagreement anomaly", () =>
+            Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech still captures a loud backend-disagreement anomaly", () =>
             {
                 // Anomaly-detection guard: loud audio (high RMS, high non-silent ratio) that
                 // the backend nonetheless flags as no-speech is exactly the genuine
@@ -739,11 +739,11 @@ internal static class Program
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
-                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "a loud backend-disagreement anomaly should still be captured");
             });
 
-            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic always captures EmptyTranscriptWithoutFlag, unaffected by the threshold change", () =>
+            Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech always captures EmptyTranscriptWithoutFlag, unaffected by the threshold change", () =>
             {
                 // A real bug class (backend/local mismatch) that must keep firing
                 // regardless of RMS/ratio values.
@@ -757,11 +757,11 @@ internal static class Program
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true, EmptyTranscriptWithoutFlag: true);
 
-                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "EmptyTranscriptWithoutFlag should always be captured");
             });
 
-            Run("TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic always captures a failed audio analysis, unaffected by the threshold change", () =>
+            Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech always captures a failed audio analysis, unaffected by the threshold change", () =>
             {
                 // A real bug class (backend/local mismatch) that must keep firing
                 // regardless of RMS/ratio values.
@@ -775,7 +775,7 @@ internal static class Program
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
-                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "a failed audio analysis should always be captured");
             });
 
@@ -808,7 +808,7 @@ internal static class Program
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
                         == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
                     "a zero-frame recording should classify as EmptyRecording");
-                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "an empty recording must no longer be reported as a no-speech diagnostic");
             });
 
@@ -884,7 +884,7 @@ internal static class Program
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
                         == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
                     "a failed analysis must classify as NoSpeech even with zero duration/size");
-                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "a failed analysis should still be captured");
             });
 

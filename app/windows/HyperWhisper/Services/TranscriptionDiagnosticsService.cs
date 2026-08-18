@@ -370,10 +370,16 @@ public static class TranscriptionDiagnosticsService
         return NoSpeechDiagnosticOutcome.NoSpeech;
     }
 
+    /// <summary>
+    /// True when the input is reported <i>as a no-speech diagnostic</i>. This is NOT
+    /// "is anything captured": an <see cref="NoSpeechDiagnosticOutcome.EmptyRecording"/>
+    /// is also captured, under its own name and fingerprint, and returns false here.
+    /// Only <see cref="NoSpeechDiagnosticOutcome.Skip"/> means nothing is reported.
+    /// </summary>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static bool ShouldCaptureNoSpeechDiagnostic(
+    internal static bool ShouldCaptureAsNoSpeech(
         AudioAnalysisDiagnostics audioDiagnostics,
         TranscriptionProviderDiagnostics? providerDiagnostics)
         => ClassifyNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics) == NoSpeechDiagnosticOutcome.NoSpeech;
