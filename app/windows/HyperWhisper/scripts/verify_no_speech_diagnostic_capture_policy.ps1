@@ -108,7 +108,7 @@ static object AudioDiagnostics(
     double rmsDbfs = -20.0,
     double nonSilentRatio = 0.5,
     string? analysisError = null,
-    long? decodedSampleCount = 16000)
+    long? decodedSampleCount = 16000L)
 {
     var diagnosticsType = typeof(TranscriptionDiagnosticsService).GetNestedType(
         "AudioAnalysisDiagnostics",
@@ -183,7 +183,7 @@ Assert(
 // length whenever the container reports no duration, so a header-only file from
 // a 5-second recording arrives here with durationSeconds 5.0.
 Assert(
-    Classify(AudioDiagnostics(durationSeconds: 5.0, fileSizeBytes: 44, decodedSampleCount: 0)) == "EmptyRecording",
+    Classify(AudioDiagnostics(durationSeconds: 5.0, fileSizeBytes: 44, decodedSampleCount: 0L)) == "EmptyRecording",
     "A recording the decoder produced no frames for must classify as an empty recording.");
 
 Assert(
@@ -194,18 +194,18 @@ Assert(
             peakDbfs: -120.0,
             rmsDbfs: -120.0,
             nonSilentRatio: 0.0,
-            decodedSampleCount: 0),
+            decodedSampleCount: 0L),
         ProviderDiagnostics(backendNoSpeechDetected: true)) != "Skip",
     "Zero-frame analyzed files must capture diagnostics instead of being treated as expected silence.");
 
 Assert(
-    !ShouldCaptureAsNoSpeech(AudioDiagnostics(durationSeconds: 5.0, fileSizeBytes: 44, decodedSampleCount: 0)),
+    !ShouldCaptureAsNoSpeech(AudioDiagnostics(durationSeconds: 5.0, fileSizeBytes: 44, decodedSampleCount: 0L)),
     "An empty recording must be reported under its own name, not as a no-speech diagnostic.");
 
 // The mirror image: a decodable file whose container reports no duration is not
 // a recorder failure - nothing was recorded on that path in the first place.
 Assert(
-    Classify(AudioDiagnostics(durationSeconds: 0, decodedSampleCount: 16000)) == "NoSpeech",
+    Classify(AudioDiagnostics(durationSeconds: 0, decodedSampleCount: 16000L)) == "NoSpeech",
     "A file with decoded frames but no container duration must not be called an empty recording.");
 
 Assert(
