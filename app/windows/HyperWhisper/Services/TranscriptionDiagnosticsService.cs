@@ -47,8 +47,9 @@ public static class TranscriptionDiagnosticsService
         int? captureDeviceCount = null)
     {
         var audioDiagnostics = AnalyzeAudioFile(audioPath, fallbackDurationSeconds);
+        var outcome = ClassifyNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics);
 
-        if (!ShouldCaptureNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics))
+        if (outcome == NoSpeechDiagnosticOutcome.Skip)
         {
             LoggingService.Debug(
                 "TranscriptionDiagnosticsService: Skipping expected no-speech diagnostic " +
@@ -61,16 +62,29 @@ public static class TranscriptionDiagnosticsService
             return;
         }
 
+        // An empty recording (nothing captured at all) is a recorder failure, not a
+        // no-speech transcription result - it gets its own name, message and
+        // fingerprint root so it stops being reported into, and fragmenting, the
+        // no-speech group (HYPERWHISPER-PA/-QB/-RM/-XB/-XR).
+        var isEmptyRecording = outcome == NoSpeechDiagnosticOutcome.EmptyRecording;
+        var diagnosticName = isEmptyRecording ? "empty_recording" : "no_speech";
+        var diagnosticMessage = isEmptyRecording
+            ? "Windows transcription empty recording diagnostic"
+            : "Windows transcription no-speech diagnostic";
+        var fingerprintRoot = isEmptyRecording
+            ? "transcription-empty-recording"
+            : "transcription-no-speech";
+
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["component"] = "transcription",
-            ["diagnostic_name"] = "no_speech",
+            ["diagnostic_name"] = diagnosticName,
             ["diagnostic_stage"] = diagnosticStage,
             ["diagnostic_source"] = diagnosticSource,
             ["provider_type"] = mode?.ProviderType ?? "unknown",
-            ["cloud_provider"] = mode?.CloudProvider ?? "none",
+            ["cloud_provider"] = ResolveCloudProviderTag(mode),
             ["cloud_accuracy_tier"] = mode?.CloudAccuracyTier ?? "none",
-            ["local_engine"] = mode?.LocalEngine ?? "none",
+            ["local_engine"] = ResolveLocalEngine(mode),
             ["backend_no_speech_detected"] = (providerDiagnostics?.BackendNoSpeechDetected ?? false).ToString().ToLowerInvariant(),
             ["audio_analysis_succeeded"] = audioDiagnostics.AnalysisSucceeded.ToString().ToLowerInvariant(),
             // Promoted from extras so Sentry can facet/segment on them (extras
@@ -120,19 +134,12 @@ public static class TranscriptionDiagnosticsService
             extras["exception_http_status"] = exception.HttpStatusCode ?? 0;
         }
 
-        var fingerprint = new[]
-        {
-            "transcription-no-speech",
-            diagnosticStage,
-            diagnosticSource,
-            mode?.ProviderType ?? "unknown",
-            mode?.CloudProvider ?? "none"
-        };
+        var fingerprint = BuildDiagnosticFingerprint(fingerprintRoot, diagnosticStage, diagnosticSource, mode);
 
-        var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}";
+        var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}:{diagnosticName}";
 
         SentryService.CaptureDiagnosticEvent(
-            message: "Windows transcription no-speech diagnostic",
+            message: diagnosticMessage,
             extras: extras,
             tags: tags,
             fingerprint: fingerprint,
@@ -241,43 +248,117 @@ public static class TranscriptionDiagnosticsService
         return $"{bucket}dbfs";
     }
 
+    /// <summary>
+    /// Builds the Sentry grouping fingerprint. The last element is the honest
+    /// provider axis: <c>Mode.CloudProvider</c> and <c>Mode.ProviderType</c> are
+    /// independent persisted fields, so a mode switched from cloud to local keeps a
+    /// stale vendor value forever. Grouping on it unconditionally split ONE local-mode
+    /// condition across four Sentry issues (HYPERWHISPER-QB local+hyperwhisper,
+    /// -RM local+none, -XB local+gemini, -XR local+groq). Local modes therefore group
+    /// on their local engine; cloud modes keep grouping per vendor.
+    /// </summary>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static bool ShouldCaptureNoSpeechDiagnostic(
+    internal static string[] BuildDiagnosticFingerprint(
+        string fingerprintRoot,
+        string diagnosticStage,
+        string diagnosticSource,
+        Mode? mode)
+    {
+        return new[]
+        {
+            fingerprintRoot,
+            diagnosticStage,
+            diagnosticSource,
+            mode?.ProviderType ?? "unknown",
+            IsLocalMode(mode) ? ResolveLocalEngine(mode) : (mode?.CloudProvider ?? "none")
+        };
+    }
+
+    /// <summary>
+    /// The <c>cloud_provider</c> tag with the same staleness masked off, so faceting
+    /// on it doesn't attribute local-mode events to a cloud vendor the mode no longer
+    /// uses.
+    /// </summary>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static string ResolveCloudProviderTag(Mode? mode)
+        => IsLocalMode(mode) ? "none" : (mode?.CloudProvider ?? "none");
+
+    private static bool IsLocalMode(Mode? mode)
+        => string.Equals(mode?.ProviderType, "local", StringComparison.OrdinalIgnoreCase);
+
+    private static string ResolveLocalEngine(Mode? mode)
+        => string.IsNullOrWhiteSpace(mode?.LocalEngine) ? "none" : mode!.LocalEngine;
+
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal enum NoSpeechDiagnosticOutcome
+    {
+        /// <summary>Expected/benign - capture nothing.</summary>
+        Skip,
+
+        /// <summary>Nothing was recorded at all - a recorder failure, reported separately.</summary>
+        EmptyRecording,
+
+        /// <summary>Audio exists but produced no transcript - the original diagnostic.</summary>
+        NoSpeech
+    }
+
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static NoSpeechDiagnosticOutcome ClassifyNoSpeechDiagnostic(
         AudioAnalysisDiagnostics audioDiagnostics,
         TranscriptionProviderDiagnostics? providerDiagnostics)
     {
+        // MUST stay first: with no usable analysis we can't tell an empty recording
+        // from a quiet one, so fall back to the full no-speech report.
         if (!audioDiagnostics.AnalysisSucceeded)
         {
-            return true;
+            return NoSpeechDiagnosticOutcome.NoSpeech;
         }
 
+        // A header-only / zero-frame file means the recorder produced nothing, which
+        // is a different fault from "we recorded audio and got no words back". It is
+        // still reported - just under its own name and fingerprint - so a real
+        // recorder failure never gets silently dropped.
         if (audioDiagnostics.DurationSeconds <= 0 || audioDiagnostics.FileSizeBytes <= 0)
         {
-            return true;
+            return NoSpeechDiagnosticOutcome.EmptyRecording;
         }
 
         if (providerDiagnostics?.EmptyTranscriptWithoutFlag == true)
         {
-            return true;
+            return NoSpeechDiagnosticOutcome.NoSpeech;
         }
 
         if (audioDiagnostics.NonSilentRatio == 0 &&
             audioDiagnostics.PeakDbfs < ConfirmedSilencePeakDbfs)
         {
-            return false;
+            return NoSpeechDiagnosticOutcome.Skip;
         }
 
         if (providerDiagnostics?.BackendNoSpeechDetected == true &&
             audioDiagnostics.NonSilentRatio <= LowSignalNonSilentRatio &&
             audioDiagnostics.RmsDbfs <= LowSignalRmsDbfs)
         {
-            return false;
+            return NoSpeechDiagnosticOutcome.Skip;
         }
 
-        return true;
+        return NoSpeechDiagnosticOutcome.NoSpeech;
     }
+
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static bool ShouldCaptureNoSpeechDiagnostic(
+        AudioAnalysisDiagnostics audioDiagnostics,
+        TranscriptionProviderDiagnostics? providerDiagnostics)
+        => ClassifyNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics) == NoSpeechDiagnosticOutcome.NoSpeech;
 
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility

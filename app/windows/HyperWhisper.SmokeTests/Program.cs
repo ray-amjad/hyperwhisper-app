@@ -779,6 +779,162 @@ internal static class Program
                     "a failed audio analysis should always be captured");
             });
 
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic reclassifies a zero-duration recording as EmptyRecording, not no-speech", () =>
+            {
+                // A header-only / zero-frame WAV means the recorder captured nothing at
+                // all, so calling it "no speech" is wrong - it is a recorder failure.
+                // 4 of the 6 events on 1.11.0 in the HYPERWHISPER-PA/-QB/-RM/-XB/-XR
+                // cluster were this. It must leave the no-speech group but must still be
+                // reported (under its own name/fingerprint) rather than dropped.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 0,
+                    FileSizeBytes: 44,
+                    PeakDbfs: -120.0,
+                    RmsDbfs: -120.0,
+                    NonSilentRatio: 0);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                    "a zero-duration recording should classify as EmptyRecording");
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "an empty recording must no longer be reported as a no-speech diagnostic");
+            });
+
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic treats a zero-byte file as EmptyRecording too", () =>
+            {
+                // The zero-size half of the same guard: a plausible duration but an empty
+                // file on disk is still "nothing was recorded".
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 3.0,
+                    FileSizeBytes: 0,
+                    PeakDbfs: -30.0,
+                    RmsDbfs: -35.0,
+                    NonSilentRatio: 0.2);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                    "a zero-byte audio file should classify as EmptyRecording");
+            });
+
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic keeps the failed-analysis check ahead of the empty-recording check", () =>
+            {
+                // Precedence guard. A failed analysis reports DurationSeconds 0 whenever
+                // there is no fallback duration, so if the empty-recording rule ever moved
+                // above it every analysis failure would silently be relabelled a recorder
+                // failure. !AnalysisSucceeded must stay the first check.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: false,
+                    DurationSeconds: 0,
+                    FileSizeBytes: 0,
+                    AnalysisError: "synthetic analysis failure");
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                    "a failed analysis must classify as NoSpeech even with zero duration/size");
+                Assert(TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "a failed analysis should still be captured");
+            });
+
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic never calls a normal clip an EmptyRecording", () =>
+            {
+                // The reclassification must not leak into the genuine anomaly case: real
+                // audio with real signal stays a no-speech diagnostic.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -5.0,
+                    RmsDbfs: -18.0,
+                    NonSilentRatio: 0.35);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                    "a normal 4.2s clip should stay a no-speech diagnostic");
+            });
+
+            Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint ignores a stale CloudProvider on a local mode", () =>
+            {
+                // Mode.CloudProvider and Mode.ProviderType are independent persisted
+                // fields, so a mode switched from cloud to local keeps its old vendor
+                // forever. Grouping on it regardless of provider type is what split one
+                // local-mode condition across HYPERWHISPER-QB/-RM/-XB/-XR.
+                var mode = new Mode { ProviderType = "local", CloudProvider = "groq", LocalEngine = "whisper" };
+
+                var fingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", mode);
+
+                Assert(fingerprint.Length == 5, $"expected 5 fingerprint elements, got {fingerprint.Length}");
+                Assert(fingerprint[3] == "local", $"expected provider type 'local', got '{fingerprint[3]}'");
+                Assert(fingerprint[4] == "whisper",
+                    $"a local mode should group on its local engine, got '{fingerprint[4]}'");
+                Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(mode) == "none",
+                    "the cloud_provider tag must not report a stale vendor for a local mode");
+            });
+
+            Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint groups two local modes with different stale vendors together", () =>
+            {
+                // The actual production regression: same local engine, same condition,
+                // different leftover CloudProvider values - one Sentry group, not four.
+                var staleGroq = new Mode { ProviderType = "local", CloudProvider = "groq", LocalEngine = "parakeet" };
+                var staleGemini = new Mode { ProviderType = "local", CloudProvider = "gemini", LocalEngine = "parakeet" };
+
+                var first = string.Join("|", TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", staleGroq));
+                var second = string.Join("|", TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", staleGemini));
+
+                Assert(first == second, $"expected identical fingerprints, got '{first}' vs '{second}'");
+            });
+
+            Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint still separates cloud vendors", () =>
+            {
+                // The fix must not collapse every provider into one group: for a cloud
+                // mode the vendor is live data and two vendors are two conditions.
+                var groq = new Mode { ProviderType = "cloud", CloudProvider = "groq" };
+                var openai = new Mode { ProviderType = "cloud", CloudProvider = "openai" };
+
+                var groqFingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", groq);
+                var openaiFingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", openai);
+
+                Assert(groqFingerprint[4] == "groq", $"expected 'groq', got '{groqFingerprint[4]}'");
+                Assert(openaiFingerprint[4] == "openai", $"expected 'openai', got '{openaiFingerprint[4]}'");
+                Assert(string.Join("|", groqFingerprint) != string.Join("|", openaiFingerprint),
+                    "two different cloud vendors must keep grouping separately");
+                Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(groq) == "groq",
+                    "a cloud mode's cloud_provider tag must keep reporting its vendor");
+            });
+
+            Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint handles a null mode without throwing", () =>
+            {
+                // The diagnostic runs on failure paths where the mode can be gone.
+                var fingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-empty-recording", "file_transcription", "provider_no_speech", null);
+
+                Assert(fingerprint.Length == 5, $"expected 5 fingerprint elements, got {fingerprint.Length}");
+                Assert(fingerprint[0] == "transcription-empty-recording",
+                    $"expected the empty-recording root, got '{fingerprint[0]}'");
+                Assert(fingerprint[3] == "unknown", $"expected 'unknown', got '{fingerprint[3]}'");
+                Assert(fingerprint[4] == "none", $"expected 'none', got '{fingerprint[4]}'");
+                Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(null) == "none",
+                    "a null mode's cloud_provider tag should be 'none'");
+            });
+
             Run("DeepgramStreamingStrategy.SessionStartsOnWebSocketOpen is true (regression for #100)", () =>
             {
                 // Deepgram never sends its only session-shaped message (Metadata) until
