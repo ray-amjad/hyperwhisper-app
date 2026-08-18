@@ -977,6 +977,31 @@ internal static class Program
                     "the cloud_provider tag must not report a stale vendor for a local mode");
             });
 
+            Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint treats a null or non-canonical ProviderType as local, like the routing sites do", () =>
+            {
+                // ProviderType is nullable with no initializer and nothing backfills it,
+                // and every dispatch site routes anything that is not "cloud" to a local
+                // provider (MainViewModel.GetLocalProvider, TranscriptionRetryHandler).
+                // Matching only the literal "local" would leave this cohort grouping on
+                // its stale CloudProvider, i.e. still fragmented.
+                var nullProviderType = new Mode { ProviderType = null, CloudProvider = "groq", LocalEngine = "whisper" };
+                var emptyProviderType = new Mode { ProviderType = "", CloudProvider = "gemini", LocalEngine = "whisper" };
+
+                var nullFingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", nullProviderType);
+                var emptyFingerprint = TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", emptyProviderType);
+
+                Assert(nullFingerprint[4] == "whisper",
+                    $"a null ProviderType routes local, so it should group on its local engine, got '{nullFingerprint[4]}'");
+                Assert(emptyFingerprint[4] == "whisper",
+                    $"an empty ProviderType routes local, so it should group on its local engine, got '{emptyFingerprint[4]}'");
+                Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(nullProviderType) == "none",
+                    "a null ProviderType must not report a stale cloud vendor");
+                Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(emptyProviderType) == "none",
+                    "an empty ProviderType must not report a stale cloud vendor");
+            });
+
             Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint groups two local modes with different stale vendors together", () =>
             {
                 // The actual production regression: same local engine, same condition,

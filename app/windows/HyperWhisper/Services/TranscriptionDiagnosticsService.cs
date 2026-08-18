@@ -286,8 +286,20 @@ public static class TranscriptionDiagnosticsService
     internal static string ResolveCloudProviderTag(Mode? mode)
         => IsLocalMode(mode) ? "none" : (mode?.CloudProvider ?? "none");
 
+    /// <summary>
+    /// Mirrors how the app actually dispatches: <c>Mode.ProviderType</c> is nullable
+    /// with no initializer and nothing backfills it, and every routing site treats
+    /// "cloud" as the special case and everything else - including null and empty - as
+    /// local (<c>MainViewModel.GetLocalProvider</c>, <c>TranscriptionRetryHandler</c>,
+    /// <c>TranscriptionProviderFactory.IsHyperWhisperCloudActive</c>). Matching only the
+    /// literal "local" here would leave every mode with a null or non-canonical
+    /// ProviderType grouping on its stale CloudProvider, i.e. part of the cluster this
+    /// fixes would stay fragmented. Case-insensitive, matching the routing sites that
+    /// compare that way; values are not normalized on write, and this does not
+    /// normalize them either.
+    /// </summary>
     private static bool IsLocalMode(Mode? mode)
-        => string.Equals(mode?.ProviderType, "local", StringComparison.OrdinalIgnoreCase);
+        => !string.Equals(mode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase);
 
     private static string ResolveLocalEngine(Mode? mode)
         => string.IsNullOrWhiteSpace(mode?.LocalEngine) ? "none" : mode!.LocalEngine;
