@@ -779,62 +779,104 @@ internal static class Program
                     "a failed audio analysis should always be captured");
             });
 
-            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic reclassifies a zero-duration recording as EmptyRecording, not no-speech", () =>
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic reclassifies a zero-frame recording as EmptyRecording, not no-speech", () =>
             {
                 // A header-only / zero-frame WAV means the recorder captured nothing at
                 // all, so calling it "no speech" is wrong - it is a recorder failure.
                 // 4 of the 6 events on 1.11.0 in the HYPERWHISPER-PA/-QB/-RM/-XB/-XR
                 // cluster were this. It must leave the no-speech group but must still be
                 // reported (under its own name/fingerprint) rather than dropped.
+                //
+                // DurationSeconds is 5.0 on purpose: the live-recording call site passes
+                // RecordingDuration.TotalSeconds as the fallback, so a header-only file
+                // from a 5-second recording reports a full 5 seconds. Keying the rule on
+                // duration missed exactly this case and let it fall into the
+                // dead-silence skip below (NonSilentRatio 0 + PeakDbfs -120), i.e.
+                // reported nothing at all for the recorder failure we most want to see.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 5.0,
+                    FileSizeBytes: 44,
+                    PeakDbfs: -120.0,
+                    RmsDbfs: -120.0,
+                    NonSilentRatio: 0,
+                    DecodedSampleCount: 0);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                    "a zero-frame recording should classify as EmptyRecording");
+                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
+                    "an empty recording must no longer be reported as a no-speech diagnostic");
+            });
+
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic keeps capturing the production zero-frame cohort (audio_rms_dbfs_bucket=silent on 1.11.0)", () =>
+            {
+                // The events this PR exists to reclassify: analysis succeeded, the file
+                // has real bytes and the container reports no duration, and the signal
+                // reads as silent. Under the old duration rule they were captured (as
+                // no-speech); they must keep being captured after the change, as
+                // EmptyRecording - not fall into the dead-silence skip.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: true,
                     DurationSeconds: 0,
                     FileSizeBytes: 44,
                     PeakDbfs: -120.0,
                     RmsDbfs: -120.0,
-                    NonSilentRatio: 0);
+                    NonSilentRatio: 0,
+                    DecodedSampleCount: 0);
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        != TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                    "the 1.11.0 zero-frame cohort must still be reported, never skipped");
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
                         == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
-                    "a zero-duration recording should classify as EmptyRecording");
-                Assert(!TranscriptionDiagnosticsService.ShouldCaptureNoSpeechDiagnostic(audio, provider),
-                    "an empty recording must no longer be reported as a no-speech diagnostic");
+                    "the 1.11.0 zero-frame cohort should now report as EmptyRecording");
             });
 
-            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic treats a zero-byte file as EmptyRecording too", () =>
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic does not call a decodable file with no container duration an EmptyRecording", () =>
             {
-                // The zero-size half of the same guard: a plausible duration but an empty
-                // file on disk is still "nothing was recorded".
+                // The other direction. The file-transcription call site passes a fallback
+                // duration that is 0 when nothing probed it, so a perfectly decodable file
+                // whose container reports no duration used to be labelled a
+                // microphone-capture failure on a path where no recorder ever ran. The
+                // decoder produced frames, so this is a no-speech result, not an empty
+                // recording.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: true,
-                    DurationSeconds: 3.0,
-                    FileSizeBytes: 0,
-                    PeakDbfs: -30.0,
-                    RmsDbfs: -35.0,
-                    NonSilentRatio: 0.2);
+                    DurationSeconds: 0,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -5.0,
+                    RmsDbfs: -18.0,
+                    NonSilentRatio: 0.35,
+                    DecodedSampleCount: 67200);
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
-                    "a zero-byte audio file should classify as EmptyRecording");
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                    "a decodable file with no container duration must stay a no-speech diagnostic");
             });
 
             Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic keeps the failed-analysis check ahead of the empty-recording check", () =>
             {
-                // Precedence guard. A failed analysis reports DurationSeconds 0 whenever
-                // there is no fallback duration, so if the empty-recording rule ever moved
-                // above it every analysis failure would silently be relabelled a recorder
-                // failure. !AnalysisSucceeded must stay the first check.
+                // Precedence guard. A failed analysis decodes nothing, so if the
+                // empty-recording rule ever moved above it every analysis failure would
+                // silently be relabelled a recorder failure. !AnalysisSucceeded must stay
+                // the first check.
                 var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
                     AnalysisSucceeded: false,
                     DurationSeconds: 0,
                     FileSizeBytes: 0,
-                    AnalysisError: "synthetic analysis failure");
+                    AnalysisError: "synthetic analysis failure",
+                    DecodedSampleCount: 0);
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 
@@ -856,7 +898,8 @@ internal static class Program
                     FileSizeBytes: 65536,
                     PeakDbfs: -5.0,
                     RmsDbfs: -18.0,
-                    NonSilentRatio: 0.35);
+                    NonSilentRatio: 0.35,
+                    DecodedSampleCount: 67200);
                 var provider = new TranscriptionProviderDiagnostics(
                     ProviderDisplayName: "test", BackendNoSpeechDetected: true);
 

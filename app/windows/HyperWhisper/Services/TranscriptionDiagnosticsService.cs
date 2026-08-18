@@ -110,6 +110,9 @@ public static class TranscriptionDiagnosticsService
             ["audio_peak_dbfs"] = audioDiagnostics.PeakDbfs,
             ["audio_rms_dbfs"] = audioDiagnostics.RmsDbfs,
             ["audio_non_silent_ratio"] = audioDiagnostics.NonSilentRatio,
+            // The honest "was anything captured" signal - audio_duration_seconds above
+            // falls back to the caller's wall-clock value when the container has none.
+            ["audio_decoded_sample_count"] = (object?)audioDiagnostics.DecodedSampleCount ?? "unknown",
             ["mode_name"] = mode?.Name ?? "unknown",
             ["mode_preset"] = mode?.Preset ?? "unknown",
             ["transcription_provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
@@ -200,7 +203,8 @@ public static class TranscriptionDiagnosticsService
                 Channels: reader.WaveFormat.Channels,
                 PeakDbfs: ToDbfs(peak),
                 RmsDbfs: ToDbfs(rms),
-                NonSilentRatio: Math.Round(nonSilentRatio, 4));
+                NonSilentRatio: Math.Round(nonSilentRatio, 4),
+                DecodedSampleCount: sampleCount);
         }
         catch (Exception ex)
         {
@@ -326,7 +330,21 @@ public static class TranscriptionDiagnosticsService
         // is a different fault from "we recorded audio and got no words back". It is
         // still reported - just under its own name and fingerprint - so a real
         // recorder failure never gets silently dropped.
-        if (audioDiagnostics.DurationSeconds <= 0 || audioDiagnostics.FileSizeBytes <= 0)
+        //
+        // The discriminator is the decoded sample count, NOT DurationSeconds or
+        // FileSizeBytes, both of which lie here:
+        //  - DurationSeconds falls back to the caller's value when the container
+        //    reports none, so a header-only WAV from a 5-second recording arrives as
+        //    5.0 (false negative: it would fall through to the dead-silence rule and
+        //    be reported as nothing at all), while a decodable file whose container
+        //    reports no duration arrives as 0 on the file-transcription path, where no
+        //    recorder ever ran (false positive).
+        //  - FileSizeBytes <= 0 cannot co-occur with AnalysisSucceeded: AudioFileReader
+        //    has already parsed a header by then, and a zero-byte file throws out to
+        //    the catch as AnalysisSucceeded: false.
+        // Zero decoded samples is true in both directions and needs no fallback.
+        // Null (unknown - no read loop ran) is deliberately not empty.
+        if (audioDiagnostics.DecodedSampleCount == 0)
         {
             return NoSpeechDiagnosticOutcome.EmptyRecording;
         }
@@ -363,6 +381,18 @@ public static class TranscriptionDiagnosticsService
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
+    /// <param name="DurationSeconds">
+    /// The container's duration when it reports one, otherwise the caller's fallback
+    /// (wall-clock recording length on the live path, an already-probed duration on
+    /// the file path). Because of that substitution it does NOT tell you whether any
+    /// audio was actually decoded - use <paramref name="DecodedSampleCount"/> for that.
+    /// </param>
+    /// <param name="DecodedSampleCount">
+    /// Samples the decoder actually produced while reading the file, or <c>null</c> when
+    /// no read loop ran (analysis failed, or a synthetic record in a test). Zero is the
+    /// only honest "the recorder captured nothing" signal - see
+    /// <see cref="ClassifyNoSpeechDiagnostic"/>. Null means unknown, never empty.
+    /// </param>
     internal sealed record AudioAnalysisDiagnostics(
         bool AnalysisSucceeded,
         double DurationSeconds,
@@ -372,6 +402,7 @@ public static class TranscriptionDiagnosticsService
         double PeakDbfs = MinimumDbfs,
         double RmsDbfs = MinimumDbfs,
         double NonSilentRatio = 0,
-        string? AnalysisError = null
+        string? AnalysisError = null,
+        long? DecodedSampleCount = null
     );
 }
