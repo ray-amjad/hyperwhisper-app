@@ -909,6 +909,55 @@ internal static class Program
                     "a normal 4.2s clip should stay a no-speech diagnostic");
             });
 
+            Run("TranscriptionDiagnosticsService.ResolveDiagnosticPresentation gives every reportable outcome its own name, message and fingerprint root", () =>
+            {
+                // The name, message and fingerprint root used to be three separate
+                // ternaries off one bool, so a fourth outcome would compile clean and
+                // report under the old identity - the exact mislabelling this diagnostic
+                // exists to fix. One mapping now owns all three.
+                var noSpeech = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
+                    TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech);
+
+                Assert(noSpeech.Name == "no_speech", $"expected 'no_speech', got '{noSpeech.Name}'");
+                Assert(noSpeech.Message == "Windows transcription no-speech diagnostic",
+                    "the no-speech message is the Sentry group identity for eight live issues - it must stay character-identical");
+                Assert(noSpeech.FingerprintRoot == "transcription-no-speech",
+                    $"expected 'transcription-no-speech', got '{noSpeech.FingerprintRoot}'");
+
+                var emptyRecording = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
+                    TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording);
+
+                Assert(emptyRecording.Name == "empty_recording", $"expected 'empty_recording', got '{emptyRecording.Name}'");
+                Assert(emptyRecording.Message == "Windows transcription empty recording diagnostic",
+                    $"unexpected empty-recording message '{emptyRecording.Message}'");
+                Assert(emptyRecording.FingerprintRoot == "transcription-empty-recording",
+                    $"expected 'transcription-empty-recording', got '{emptyRecording.FingerprintRoot}'");
+
+                // Every reportable outcome must have its own arm. A new outcome with no
+                // mapping throws here, and one that copies an existing identity trips the
+                // uniqueness checks - so it fails in CI rather than in Sentry.
+                var names = new HashSet<string>(StringComparer.Ordinal);
+                var roots = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var outcome in Enum.GetValues<TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome>())
+                {
+                    if (outcome == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip)
+                    {
+                        // Skip is filtered out before anything is reported, so it has no
+                        // presentation by design.
+                        continue;
+                    }
+
+                    var presentation = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(outcome);
+
+                    Assert(names.Add(presentation.Name),
+                        $"outcome {outcome} reports under an already-used diagnostic name '{presentation.Name}'");
+                    Assert(roots.Add(presentation.FingerprintRoot),
+                        $"outcome {outcome} reports under an already-used fingerprint root '{presentation.FingerprintRoot}'");
+                    Assert(!string.IsNullOrWhiteSpace(presentation.Message),
+                        $"outcome {outcome} has no Sentry message");
+                }
+            });
+
             Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint ignores a stale CloudProvider on a local mode", () =>
             {
                 // Mode.CloudProvider and Mode.ProviderType are independent persisted

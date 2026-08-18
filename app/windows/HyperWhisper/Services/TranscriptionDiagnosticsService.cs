@@ -65,20 +65,15 @@ public static class TranscriptionDiagnosticsService
         // An empty recording (nothing captured at all) is a recorder failure, not a
         // no-speech transcription result - it gets its own name, message and
         // fingerprint root so it stops being reported into, and fragmenting, the
-        // no-speech group (HYPERWHISPER-PA/-QB/-RM/-XB/-XR).
-        var isEmptyRecording = outcome == NoSpeechDiagnosticOutcome.EmptyRecording;
-        var diagnosticName = isEmptyRecording ? "empty_recording" : "no_speech";
-        var diagnosticMessage = isEmptyRecording
-            ? "Windows transcription empty recording diagnostic"
-            : "Windows transcription no-speech diagnostic";
-        var fingerprintRoot = isEmptyRecording
-            ? "transcription-empty-recording"
-            : "transcription-no-speech";
+        // no-speech group (HYPERWHISPER-PA/-QB/-RM/-XB/-XR). One lookup resolves all
+        // three together, so an outcome can never be reported under another outcome's
+        // identity.
+        var presentation = ResolveDiagnosticPresentation(outcome);
 
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["component"] = "transcription",
-            ["diagnostic_name"] = diagnosticName,
+            ["diagnostic_name"] = presentation.Name,
             ["diagnostic_stage"] = diagnosticStage,
             ["diagnostic_source"] = diagnosticSource,
             ["provider_type"] = mode?.ProviderType ?? "unknown",
@@ -137,12 +132,12 @@ public static class TranscriptionDiagnosticsService
             extras["exception_http_status"] = exception.HttpStatusCode ?? 0;
         }
 
-        var fingerprint = BuildDiagnosticFingerprint(fingerprintRoot, diagnosticStage, diagnosticSource, mode);
+        var fingerprint = BuildDiagnosticFingerprint(presentation.FingerprintRoot, diagnosticStage, diagnosticSource, mode);
 
-        var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}:{diagnosticName}";
+        var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}:{presentation.Name}";
 
         SentryService.CaptureDiagnosticEvent(
-            message: diagnosticMessage,
+            message: presentation.Message,
             extras: extras,
             tags: tags,
             fingerprint: fingerprint,
@@ -311,6 +306,53 @@ public static class TranscriptionDiagnosticsService
         /// <summary>Audio exists but produced no transcript - the original diagnostic.</summary>
         NoSpeech
     }
+
+    /// <summary>
+    /// Everything a reportable outcome is published as: the <c>diagnostic_name</c> tag
+    /// (which also keys the dedupe), the Sentry message and the fingerprint root. They
+    /// are one value because they must stay in step - the mislabelling this diagnostic
+    /// exists to fix was three of them being derived separately.
+    /// </summary>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal readonly record struct DiagnosticPresentation(
+        string Name,
+        string Message,
+        string FingerprintRoot);
+
+    /// <summary>
+    /// The single outcome -> presentation mapping. Adding an outcome without adding an
+    /// arm here throws rather than silently reporting under another outcome's name,
+    /// message and fingerprint root; the smoke tests walk every enum value so that
+    /// fails in CI, not in production.
+    /// </summary>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static DiagnosticPresentation ResolveDiagnosticPresentation(NoSpeechDiagnosticOutcome outcome)
+        => outcome switch
+        {
+            // The message is the Sentry group identity for eight live issues
+            // (HYPERWHISPER-PA/-QB/-RM/-T6/-VY/-XB/-XR/-W7). It must stay
+            // character-identical - editing it starts a new group and orphans them.
+            NoSpeechDiagnosticOutcome.NoSpeech => new DiagnosticPresentation(
+                Name: "no_speech",
+                Message: "Windows transcription no-speech diagnostic",
+                FingerprintRoot: "transcription-no-speech"),
+
+            NoSpeechDiagnosticOutcome.EmptyRecording => new DiagnosticPresentation(
+                Name: "empty_recording",
+                Message: "Windows transcription empty recording diagnostic",
+                FingerprintRoot: "transcription-empty-recording"),
+
+            // Skip is filtered out before this point, and an unmapped outcome is a
+            // programmer error: there is no honest identity to report it under.
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(outcome),
+                outcome,
+                "No diagnostic presentation is defined for this outcome.")
+        };
 
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
