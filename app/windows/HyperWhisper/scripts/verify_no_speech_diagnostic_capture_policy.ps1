@@ -231,11 +231,24 @@ Assert(
     !ShouldCaptureAsNoSpeech(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)),
     "Confirmed silence should skip noisy diagnostics.");
 
+// ShouldCaptureAsNoSpeech is false for BOTH Skip and EmptyRecording, so the assertion
+// above would still pass if this input started emitting a full empty_recording event.
+// Only the outcome itself proves that nothing is reported.
+Assert(
+    Classify(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)) == "Skip",
+    "Confirmed silence must report nothing at all, not under another diagnostic's name.");
+
 Assert(
     !ShouldCaptureAsNoSpeech(
         AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02),
         ProviderDiagnostics(backendNoSpeechDetected: true)),
     "Backend-confirmed no speech on low-signal audio should skip noisy diagnostics.");
+
+Assert(
+    Classify(
+        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02),
+        ProviderDiagnostics(backendNoSpeechDetected: true)) == "Skip",
+    "Backend-confirmed no speech on low-signal audio must report nothing at all.");
 
 // The two "enough signal" samples below sit either side of the low-signal
 // thresholds as they ship today (-38.0dBFS / 0.06, widened in #160). Their
