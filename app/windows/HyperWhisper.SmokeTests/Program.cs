@@ -703,6 +703,50 @@ internal static class Program
                     "the real HYPERWHISPER-PA no-speech sample should now be skipped");
             });
 
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic returns Skip - not EmptyRecording - for confirmed dead silence", () =>
+            {
+                // ShouldCaptureAsNoSpeech is false for BOTH Skip and EmptyRecording, so
+                // every "should be skipped" assertion above would keep passing if a
+                // suppressed input started emitting a full empty_recording Sentry event
+                // instead of nothing. Only an assertion on the outcome itself proves
+                // suppression, so the two genuine suppression cases get one each.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 3.0,
+                    FileSizeBytes: 1024,
+                    PeakDbfs: -80.0,
+                    RmsDbfs: -90.0,
+                    NonSilentRatio: 0);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                    $"confirmed dead silence must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
+            });
+
+            Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic returns Skip - not EmptyRecording - for the real HYPERWHISPER-PA no-speech sample", () =>
+            {
+                // Same guard for the backend-confirmed low-signal arm: the whole point of
+                // the widened thresholds is that this sample produces NO Sentry event, not
+                // that it merely stops being labelled no-speech.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 4.2,
+                    FileSizeBytes: 65536,
+                    PeakDbfs: -30.0,
+                    RmsDbfs: -39.64,
+                    NonSilentRatio: 0.046);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+
+                Assert(
+                    TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
+                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                    $"the backend-confirmed low-signal sample must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
+            });
+
             Run("TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech skips exactly at the low-signal threshold boundary (inclusive <=)", () =>
             {
                 // The gate's comparisons are inclusive (<=), so a reading sitting exactly on
@@ -1015,6 +1059,38 @@ internal static class Program
                     "transcription-no-speech", "live_recording", "provider_no_speech", staleGemini));
 
                 Assert(first == second, $"expected identical fingerprints, got '{first}' vs '{second}'");
+            });
+
+            Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint groups a local mode and a null/empty-ProviderType mode on the same engine identically", () =>
+            {
+                // The residual half of the same split. Widening IsLocalMode fixed
+                // element [4] (the engine) but element [3] was still the raw
+                // ProviderType, so the very cohort that widening pulled in kept its own
+                // Sentry group: "local" vs null vs "" = three groups for one condition,
+                // exactly the HYPERWHISPER-QB/-RM shape. Element [3] is now canonicalized
+                // through the same predicate, so all three collapse.
+                var canonicalLocal = new Mode { ProviderType = "local", CloudProvider = "groq", LocalEngine = "whisper" };
+                var nullProviderType = new Mode { ProviderType = null, CloudProvider = "hyperwhisper", LocalEngine = "whisper" };
+                var emptyProviderType = new Mode { ProviderType = "", CloudProvider = "gemini", LocalEngine = "whisper" };
+
+                static string Fingerprint(Mode mode) => string.Join("|",
+                    TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                        "transcription-no-speech", "live_recording", "provider_no_speech", mode));
+
+                var canonical = Fingerprint(canonicalLocal);
+
+                Assert(canonical == Fingerprint(nullProviderType),
+                    $"expected identical fingerprints, got '{canonical}' vs '{Fingerprint(nullProviderType)}'");
+                Assert(canonical == Fingerprint(emptyProviderType),
+                    $"expected identical fingerprints, got '{canonical}' vs '{Fingerprint(emptyProviderType)}'");
+
+                // A genuinely absent mode is a different fact from a mode whose
+                // ProviderType was never written, and must keep its own value.
+                var noMode = string.Join("|", TranscriptionDiagnosticsService.BuildDiagnosticFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", null));
+
+                Assert(canonical != noMode,
+                    $"a null mode must not group with a local mode, both were '{canonical}'");
             });
 
             Run("TranscriptionDiagnosticsService.BuildDiagnosticFingerprint still separates cloud vendors", () =>

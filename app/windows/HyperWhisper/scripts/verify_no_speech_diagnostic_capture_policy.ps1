@@ -90,6 +90,7 @@ namespace HyperWhisper.Services
 '@ | Set-Content -LiteralPath $HarnessStubs -Encoding UTF8
 
 @'
+using System.Linq;
 using System.Reflection;
 using HyperWhisper.Services;
 using HyperWhisper.Services.Transcription;
@@ -115,24 +116,36 @@ static object AudioDiagnostics(
         BindingFlags.NonPublic)
         ?? throw new MissingMemberException(typeof(TranscriptionDiagnosticsService).FullName, "AudioAnalysisDiagnostics");
 
-    return Activator.CreateInstance(
-        diagnosticsType,
-        BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-        binder: null,
-        args: new object?[]
-        {
-            analysisSucceeded,
-            durationSeconds,
-            fileSizeBytes,
-            16000,
-            1,
-            peakDbfs,
-            rmsDbfs,
-            nonSilentRatio,
-            analysisError,
-            decodedSampleCount
-        },
-        culture: null)
+    var args = new object?[]
+    {
+        analysisSucceeded,
+        durationSeconds,
+        fileSizeBytes,
+        16000,
+        1,
+        peakDbfs,
+        rmsDbfs,
+        nonSilentRatio,
+        analysisError,
+        decodedSampleCount
+    };
+
+    // Pick the constructor by arity instead of letting Activator.CreateInstance go
+    // through Type.DefaultBinder. The binder has no Nullable<T> handling -
+    // typeof(long?).IsAssignableFrom(typeof(long)) is false - so a boxed System.Int64
+    // passed for the trailing "long? DecodedSampleCount" parameter makes BindToMethod
+    // discard the only candidate constructor and throw MissingMethodException, which
+    // would take out the very first assertion below and leave this script verifying
+    // nothing. ConstructorInfo.Invoke instead goes through CheckValue, which DOES
+    // accept a boxed T for a T? parameter - the same reason the MethodInfo.Invoke
+    // helpers below were never affected. The record's copy constructor takes one
+    // argument, so matching on args.Length is unambiguous.
+    var ctor = diagnosticsType
+        .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        .SingleOrDefault(c => c.GetParameters().Length == args.Length)
+        ?? throw new MissingMethodException(diagnosticsType.FullName, $".ctor({args.Length} parameters)");
+
+    return ctor.Invoke(args)
         ?? throw new InvalidOperationException("Could not create AudioAnalysisDiagnostics.");
 }
 
@@ -218,11 +231,24 @@ Assert(
     !ShouldCaptureAsNoSpeech(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)),
     "Confirmed silence should skip noisy diagnostics.");
 
+// ShouldCaptureAsNoSpeech is false for BOTH Skip and EmptyRecording, so the assertion
+// above would still pass if this input started emitting a full empty_recording event.
+// Only the outcome itself proves that nothing is reported.
+Assert(
+    Classify(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)) == "Skip",
+    "Confirmed silence must report nothing at all, not under another diagnostic's name.");
+
 Assert(
     !ShouldCaptureAsNoSpeech(
         AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02),
         ProviderDiagnostics(backendNoSpeechDetected: true)),
     "Backend-confirmed no speech on low-signal audio should skip noisy diagnostics.");
+
+Assert(
+    Classify(
+        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02),
+        ProviderDiagnostics(backendNoSpeechDetected: true)) == "Skip",
+    "Backend-confirmed no speech on low-signal audio must report nothing at all.");
 
 // The two "enough signal" samples below sit either side of the low-signal
 // thresholds as they ship today (-38.0dBFS / 0.06, widened in #160). Their
