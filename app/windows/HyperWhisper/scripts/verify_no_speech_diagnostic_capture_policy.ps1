@@ -90,6 +90,7 @@ namespace HyperWhisper.Services
 '@ | Set-Content -LiteralPath $HarnessStubs -Encoding UTF8
 
 @'
+using System.Linq;
 using System.Reflection;
 using HyperWhisper.Services;
 using HyperWhisper.Services.Transcription;
@@ -115,24 +116,36 @@ static object AudioDiagnostics(
         BindingFlags.NonPublic)
         ?? throw new MissingMemberException(typeof(TranscriptionDiagnosticsService).FullName, "AudioAnalysisDiagnostics");
 
-    return Activator.CreateInstance(
-        diagnosticsType,
-        BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-        binder: null,
-        args: new object?[]
-        {
-            analysisSucceeded,
-            durationSeconds,
-            fileSizeBytes,
-            16000,
-            1,
-            peakDbfs,
-            rmsDbfs,
-            nonSilentRatio,
-            analysisError,
-            decodedSampleCount
-        },
-        culture: null)
+    var args = new object?[]
+    {
+        analysisSucceeded,
+        durationSeconds,
+        fileSizeBytes,
+        16000,
+        1,
+        peakDbfs,
+        rmsDbfs,
+        nonSilentRatio,
+        analysisError,
+        decodedSampleCount
+    };
+
+    // Pick the constructor by arity instead of letting Activator.CreateInstance go
+    // through Type.DefaultBinder. The binder has no Nullable<T> handling -
+    // typeof(long?).IsAssignableFrom(typeof(long)) is false - so a boxed System.Int64
+    // passed for the trailing "long? DecodedSampleCount" parameter makes BindToMethod
+    // discard the only candidate constructor and throw MissingMethodException, which
+    // would take out the very first assertion below and leave this script verifying
+    // nothing. ConstructorInfo.Invoke instead goes through CheckValue, which DOES
+    // accept a boxed T for a T? parameter - the same reason the MethodInfo.Invoke
+    // helpers below were never affected. The record's copy constructor takes one
+    // argument, so matching on args.Length is unambiguous.
+    var ctor = diagnosticsType
+        .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        .SingleOrDefault(c => c.GetParameters().Length == args.Length)
+        ?? throw new MissingMethodException(diagnosticsType.FullName, $".ctor({args.Length} parameters)");
+
+    return ctor.Invoke(args)
         ?? throw new InvalidOperationException("Could not create AudioAnalysisDiagnostics.");
 }
 
