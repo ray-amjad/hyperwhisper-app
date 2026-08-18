@@ -248,13 +248,23 @@ public static class TranscriptionDiagnosticsService
     }
 
     /// <summary>
-    /// Builds the Sentry grouping fingerprint. The last element is the honest
+    /// Builds the Sentry grouping fingerprint. The last two elements are the honest
     /// provider axis: <c>Mode.CloudProvider</c> and <c>Mode.ProviderType</c> are
     /// independent persisted fields, so a mode switched from cloud to local keeps a
     /// stale vendor value forever. Grouping on it unconditionally split ONE local-mode
     /// condition across four Sentry issues (HYPERWHISPER-QB local+hyperwhisper,
     /// -RM local+none, -XB local+gemini, -XR local+groq). Local modes therefore group
     /// on their local engine; cloud modes keep grouping per vendor.
+    /// <para>
+    /// The provider-type element is canonicalized through the same
+    /// <see cref="IsLocalMode"/> predicate rather than emitted raw, because
+    /// <c>ProviderType</c> is nullable and non-canonical values route local all the
+    /// same: a raw value would re-split the cohort the engine element just merged
+    /// (<c>"local"</c> vs <c>null</c> vs <c>""</c> = three groups for one condition).
+    /// Values are not normalized, only bucketed into local/cloud. A genuinely absent
+    /// mode stays <c>"unknown"</c> - "no mode at all" is a different fact from "a mode
+    /// whose ProviderType was never written".
+    /// </para>
     /// </summary>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
@@ -270,7 +280,7 @@ public static class TranscriptionDiagnosticsService
             fingerprintRoot,
             diagnosticStage,
             diagnosticSource,
-            mode?.ProviderType ?? "unknown",
+            mode is null ? "unknown" : (IsLocalMode(mode) ? "local" : "cloud"),
             IsLocalMode(mode) ? ResolveLocalEngine(mode) : (mode?.CloudProvider ?? "none")
         };
     }
