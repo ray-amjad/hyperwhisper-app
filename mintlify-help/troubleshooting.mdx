@@ -36,6 +36,8 @@ This page lists the most common problems and their fixes. Go to the symptom that
   <Accordion title="No microphone available / device disconnected">
     If no audio input device is available when you start, the recording cannot start.
 
+    On macOS, HyperWhisper does not fail immediately. It looks for an input device up to 7 times, across approximately 3.2 seconds, before it shows this error. This delay exists because macOS can report zero input devices for a short time during an audio route change — a Bluetooth disconnect, a USB audio device that you remove, AirPods that connect again, or a wake from sleep. A Mac that has a real microphone usually recovers inside this window and the recording starts as normal. A machine with no input device at all answers immediately, so it does not wait.
+
     The usual causes are:
     - The USB microphone is disconnected
     - The Bluetooth headset is disconnected or in sleep mode
