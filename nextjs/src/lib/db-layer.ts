@@ -136,17 +136,35 @@ export async function updateAccountKey(
   await db.update(accountKeys).set(values).where(eq(accountKeys.id, id));
 }
 
+export interface RevokeWebAccessOptions {
+  /**
+   * The operator performing the change, when there is one. Their own sessions
+   * are left alone — see below.
+   */
+  actingUserId?: string;
+  /**
+   * Join an existing transaction. Pass this whenever the caller is already
+   * writing the row that made the access invalid, so the two cannot diverge.
+   */
+  tx?: DbExecutor;
+}
+
 /**
- * Revoke a license key and sign its owner out of the web portal.
+ * THE primitive for "this user's web access is no longer valid — kill it".
  *
- * The status write alone is not enough. Web sessions last 90 days and roll
+ * Every path that invalidates web access calls this one function. Do not add a
+ * second mechanism; extend this one. Today's callers:
+ *   - `revokeAccountKey()`     — a license key was revoked
+ *   - `updateCustomerEmail()`  — the account moved to a different address
+ *
+ * Why session rows have to go at all: web sessions last 90 days and roll
  * forward on use, and a session minted by `/sign-in/license-key` outlives the
- * key that minted it — so whoever holds a leaked key keeps the portal (email,
- * every other license key on the account, credit balances, the Stripe billing
- * portal link) for up to 90 days after the key is killed. Dropping the user's
- * sessions makes revocation take effect on the next request.
+ * key that minted it. Whoever holds a leaked key would otherwise keep the
+ * portal (email, every other key on the account, credit balances, the Stripe
+ * billing portal link) for up to 90 days after the key is killed. Deleting the
+ * rows makes revocation take effect on the very next request.
  *
- * Sessions are not attributable to the key that created them, so this drops all
+ * Sessions are not attributable to the key that created them, so this drops ALL
  * of the user's sessions, not just license-key ones. A legitimate owner of
  * several keys is signed out of the web portal once and signs back in with a
  * magic link or a key they still hold; the alternative — skipping the cleanup
@@ -154,23 +172,59 @@ export async function updateAccountKey(
  * multi-key case an attacker benefits from most. Desktop apps are unaffected:
  * `/api/license/*` authenticates on the license key, never on a session.
  *
- * `actingUserId` is the operator performing the revocation, when there is one.
- * Comped keys are routinely minted against an admin's own email, and an admin
- * refunding one of those would otherwise delete their own session mid-mutation
- * and sign themselves out. The rule lives here rather than at the call site so
- * every caller inherits it: the key is always revoked, and the session sweep is
- * skipped only for the one account we know is legitimately in use right now.
+ * `actingUserId` exists because comped keys are routinely minted against an
+ * admin's own email. An admin refunding one of those would delete their own
+ * session mid-mutation and sign themselves out. The rule lives here, not at the
+ * call site, so every future caller inherits it: the access-invalidating write
+ * always happens; only the session sweep is skipped, and only for the one
+ * account known to be legitimately in use right now.
+ *
+ * NOTE for whoever adds Redis `secondaryStorage` to Better Auth: this raw
+ * DELETE is the place to update. Better Auth's
+ * `internalAdapter.deleteUserSessions(userId)` would also purge secondary
+ * storage, the `active-sessions-${userId}` index, and run delete hooks — today
+ * those are all no-ops because sessions live only in Postgres, and using it
+ * here would mean giving up the transaction (it cannot join a Drizzle `tx`),
+ * which is the thing that actually made revocation reliable. Atomicity now,
+ * secondary storage later; this comment is the handoff.
+ */
+export async function revokeWebAccess(
+  userId: string,
+  options: RevokeWebAccessOptions = {},
+): Promise<void> {
+  if (options.actingUserId === userId) return;
+
+  const runner = options.tx ?? db;
+
+  await runner.delete(session).where(eq(session.userId, userId));
+}
+
+/**
+ * Revoke a license key and sign its owner out of the web portal, atomically.
+ *
+ * The two writes are one transaction on purpose. Ordered as separate
+ * statements they were fail-open, and fail-open in the worst possible shape:
+ * the status write armed `stripe-webhook.ts`'s `if (license.status ===
+ * "revoked") return;` guard, which sits ABOVE this call, so a failed session
+ * delete could never be retried — the first half of the write permanently
+ * blocked its own second half. The Stripe webhook route swallows the error and
+ * returns 200, so Stripe never retries either, and the key ended up revoked
+ * with live 90-day sessions and no path to clean up. Either both land or
+ * neither does.
  */
 export async function revokeAccountKey(
   id: string,
   userId: string,
   options: { actingUserId?: string } = {},
 ): Promise<void> {
-  await updateAccountKey(id, { status: "revoked" });
+  await db.transaction(async (tx) => {
+    await tx
+      .update(accountKeys)
+      .set({ status: "revoked" })
+      .where(eq(accountKeys.id, id));
 
-  if (options.actingUserId === userId) return;
-
-  await db.delete(session).where(eq(session.userId, userId));
+    await revokeWebAccess(userId, { ...options, tx });
+  });
 }
 
 export async function findAccountByKey(key: string): Promise<AccountKeyRow | null> {
@@ -1098,10 +1152,20 @@ export async function getUsersByIds(ids: string[]): Promise<Map<string, UserResu
  * split across two emails. The caller should pre-check uniqueness; the
  * user.email UNIQUE constraint is the final guard (a colliding write throws
  * Postgres error code 23505, which the caller maps to a conflict).
+ *
+ * This also revokes web access, in the same transaction. Moving an account to a
+ * different address is an access change: sessions key on `userId` and the row is
+ * updated in place, so without this the previous holder of the old address keeps
+ * a live, still-rolling session on an account that is no longer theirs. The
+ * function already resets `emailVerified` on exactly that reasoning; leaving the
+ * sessions alone contradicted it. Pre-existing, but 90-day sessions raised the
+ * blast radius from a week, and it goes through the same primitive as every
+ * other revocation rather than growing a second mechanism.
  */
 export async function updateCustomerEmail(
   userId: string,
-  newEmail: string
+  newEmail: string,
+  options: { actingUserId?: string } = {},
 ): Promise<void> {
   const email = newEmail.toLowerCase().trim();
   await db.transaction(async (tx) => {
@@ -1116,5 +1180,7 @@ export async function updateCustomerEmail(
       .update(accountKeys)
       .set({ email })
       .where(eq(accountKeys.userId, userId));
+
+    await revokeWebAccess(userId, { ...options, tx });
   });
 }

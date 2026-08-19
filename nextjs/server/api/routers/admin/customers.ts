@@ -359,7 +359,7 @@ export const customersRouter = createTRPCRouter({
         newEmail: z.string().email(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const email = input.newEmail.toLowerCase().trim();
 
       const target = await getUserById(input.userId);
@@ -383,7 +383,12 @@ export const customersRouter = createTRPCRouter({
       }
 
       try {
-        await updateCustomerEmail(input.userId, email);
+        // Also drops the moved account's web sessions — see
+        // `updateCustomerEmail`. `actingUserId` keeps an admin from signing
+        // themselves out when they correct their own address.
+        await updateCustomerEmail(input.userId, email, {
+          actingUserId: ctx.user.id,
+        });
       } catch (error) {
         // Unique-constraint race on user.email (Postgres 23505).
         const code = (error as { code?: string } | null)?.code;

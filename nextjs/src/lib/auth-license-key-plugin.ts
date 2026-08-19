@@ -71,6 +71,24 @@ export const licenseKeyPlugin = () => ({
           );
         }
 
+        // Re-read the key now that the session row exists. Revocation is a
+        // transaction that flips the status AND deletes the user's sessions
+        // (`revokeWebAccess`), so a revocation landing between the check above
+        // and `createSession` would sweep a session that did not exist yet and
+        // hand out a fresh 90-day one for a dead key. Reading after the write
+        // means the two orderings cannot both miss: either revocation sees this
+        // row and deletes it, or this read sees the revoked status and we do.
+        const current = await findAccountByKey(licenseKey);
+
+        if (!current || current.status !== "granted") {
+          await ctx.context.internalAdapter.deleteSession(session.token);
+
+          return ctx.json(
+            { error: "Invalid or inactive license key." },
+            { status: 400 },
+          );
+        }
+
         await setSessionCookie(ctx, { session, user: foundUser });
 
         const ipAddress =

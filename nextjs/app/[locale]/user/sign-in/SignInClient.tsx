@@ -67,8 +67,15 @@ export default function SignInClient() {
         body: JSON.stringify({ licenseKey: key.trim(), callbackURL }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setLicenseError(data.error ?? "Sign-in failed. Please try again.");
+
+      // Branch on the body, not just on `res.ok`. The endpoint rejects a bad
+      // or revoked key with `ctx.json({ error }, { status: 400 })`, but Better
+      // Auth's handler still puts that on the wire as HTTP 200, so `res.ok` was
+      // true and this fell through to `router.push(undefined)` — a thrown
+      // TypeError, no message, and a form that just sits there. Verified in
+      // Chromium against the real endpoint before and after.
+      if (!res.ok || data?.error || !data?.redirect) {
+        setLicenseError(data?.error ?? "Sign-in failed. Please try again.");
         setAutoSigningIn(false);
       } else {
         router.push(data.redirect);

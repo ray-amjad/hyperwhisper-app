@@ -9,6 +9,7 @@ import {
   insertAccountKey,
   getOrCreateUser,
   revokeAccountKey,
+  revokeWebAccess,
   grantCreditLot,
   grantCreditsForStripeEvent,
   refundCreditGrant,
@@ -554,15 +555,26 @@ export async function handleChargeRefunded(
     sourceId: checkoutSession.id,
   });
 
-  // Already revoked - idempotent, just log and return
+  // Already revoked - idempotent. Still sweep the sessions before returning:
+  // this branch is the ONLY thing a manual webhook re-send can reach, so if it
+  // returned here the status write would permanently block its own second half
+  // and a key could stay revoked with live 90-day sessions forever. It is also
+  // how keys revoked before this deploy — which still hold session rows, and
+  // whose sessions this branch used to re-extend from 7 to 90 days on first
+  // read — get cleaned up. `revokeWebAccess` is a no-op DELETE when there is
+  // nothing left to delete, so re-sends stay cheap and idempotent.
   if (license.status === "revoked") {
-    console.log(`License ${license.key.substring(0, 7)}... already revoked`);
+    await revokeWebAccess(license.userId);
+    console.log(
+      `License ${license.key.substring(0, 7)}... already revoked; swept any remaining web sessions`,
+    );
     return;
   }
 
   // STEP 6: Update status to revoked
-  // Also drops the owner’s web sessions — a 90-day session minted by
-  // license-key sign-in would otherwise outlive the revoked key.
+  // Also drops the owner’s web sessions, in the same transaction — a 90-day
+  // session minted by license-key sign-in would otherwise outlive the revoked
+  // key. See `revokeAccountKey` / `revokeWebAccess`.
   await revokeAccountKey(license.id, license.userId);
 
   console.log(
