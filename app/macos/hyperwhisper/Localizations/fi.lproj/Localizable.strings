@@ -953,6 +953,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcription.guidance.needsNativeRelaunch" = "Lopeta HyperWhisper ja avaa se uudelleen natiivina, jotta voit käyttää paikallista jälkikäsittelyä.";
 "transcription.guidance.localRuntimeUnavailable" = "Yritä uudelleen tai valitse pienempi paikallinen malli tilan asetuksista.";
 "transcription.error.localRuntimeUnavailable" = "Paikallinen tekoäly ei saanut käsittelyä valmiiksi — käsittelemätön litterointi säilytettiin.";
+"transcription.error.localSpeechModelEvicted" = "Puhemalli purettiin muistin vapauttamiseksi, eikä sitä voitu ladata uudelleen. Sulje joitakin sovelluksia ja yritä uudelleen.";
 "settings.backup.localDownload.title" = "Ladataanko paikalliset mallit?";
 "settings.backup.localDownload.message" = "%d palautetuista tiloistasi käyttää laitteessa toimivia tekoälymalleja, joita ei ole vielä ladattu.";
 "settings.backup.localDownload.downloadAll" = "Lataa kaikki";

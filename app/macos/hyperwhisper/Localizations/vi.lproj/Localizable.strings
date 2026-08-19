@@ -953,6 +953,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.guidance.needsNativeRelaunch" = "Hãy thoát và mở lại HyperWhisper ở chế độ gốc để dùng hậu xử lý cục bộ.";
 "transcription.guidance.localRuntimeUnavailable" = "Hãy thử lại hoặc chọn một mô hình cục bộ nhỏ hơn trong cài đặt Chế độ.";
 "transcription.error.localRuntimeUnavailable" = "AI cục bộ không thể hoàn tất — bản chép lời gốc của bạn đã được giữ lại.";
+"transcription.error.localSpeechModelEvicted" = "Mô hình giọng nói đã được giải phóng để lấy lại bộ nhớ và không thể tải lại. Hãy đóng bớt ứng dụng rồi thử lại.";
 "settings.backup.localDownload.title" = "Tải xuống mô hình cục bộ?";
 "settings.backup.localDownload.message" = "%d chế độ đã khôi phục của bạn dùng mô hình AI trên thiết bị nhưng chưa được tải xuống.";
 "settings.backup.localDownload.downloadAll" = "Tải xuống tất cả";

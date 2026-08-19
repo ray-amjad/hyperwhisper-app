@@ -953,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "लोकल पोस्ट-प्रोसेसिंग इस्तेमाल करने के लिए HyperWhisper को बंद करके नेटिव रूप से फिर से खोलें।";
 "transcription.guidance.localRuntimeUnavailable" = "फिर से कोशिश करें, या अपनी मोड सेटिंग में कोई छोटा लोकल मॉडल चुनें।";
 "transcription.error.localRuntimeUnavailable" = "लोकल AI पूरा नहीं कर सका — आपका मूल ट्रांसक्रिप्ट सहेज लिया गया है।";
+"transcription.error.localSpeechModelEvicted" = "मेमोरी खाली करने के लिए स्पीच मॉडल अनलोड कर दिया गया और उसे दोबारा लोड नहीं किया जा सका। कुछ ऐप्स बंद करें और फिर से कोशिश करें।";
 "settings.backup.localDownload.title" = "लोकल मॉडल डाउनलोड करें?";
 "settings.backup.localDownload.message" = "आपके पुनर्स्थापित किए गए %d मोड ऐसे ऑन-डिवाइस AI मॉडल का उपयोग करते हैं जो अभी डाउनलोड नहीं हुए हैं।";
 "settings.backup.localDownload.downloadAll" = "सभी डाउनलोड करें";

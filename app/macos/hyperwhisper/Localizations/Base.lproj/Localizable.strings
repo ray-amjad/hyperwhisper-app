@@ -966,6 +966,7 @@
 "transcription.error.noSpeechDetected" = "No speech detected in the recording.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Speak clearly into the microphone\n• Hold the key longer before speaking\n• Check that your microphone is working\n• Ensure the correct input device is selected";
 "transcription.error.localRuntimeUnavailable" = "Local AI couldn't finish — your raw transcript was kept.";
+"transcription.error.localSpeechModelEvicted" = "The speech model was unloaded to free memory and couldn't be reloaded. Close some apps and try again.";
 "transcription.guidance.localRuntimeUnavailable" = "Try again, or choose a smaller local model in your Mode settings.";
 "transcription.guidance.needsNativeRelaunch" = "Quit and reopen HyperWhisper natively to use local post-processing.";
 

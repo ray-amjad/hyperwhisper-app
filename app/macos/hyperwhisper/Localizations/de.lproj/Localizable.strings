@@ -953,6 +953,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.guidance.needsNativeRelaunch" = "Beenden Sie HyperWhisper und öffnen Sie es nativ erneut, um die lokale Nachbearbeitung zu verwenden.";
 "transcription.guidance.localRuntimeUnavailable" = "Versuchen Sie es erneut, oder wählen Sie in Ihren Modus-Einstellungen ein kleineres lokales Modell.";
 "transcription.error.localRuntimeUnavailable" = "Die lokale KI konnte nicht abgeschlossen werden — Ihr Rohtranskript wurde beibehalten.";
+"transcription.error.localSpeechModelEvicted" = "Das Sprachmodell wurde entladen, um Speicher freizugeben, und konnte nicht neu geladen werden. Schließen Sie einige Apps und versuchen Sie es erneut.";
 "settings.backup.localDownload.title" = "Lokale Modelle herunterladen?";
 "settings.backup.localDownload.message" = "%d Ihrer wiederhergestellten Modi verwenden lokale KI-Modelle, die noch nicht heruntergeladen sind.";
 "settings.backup.localDownload.downloadAll" = "Alle herunterladen";

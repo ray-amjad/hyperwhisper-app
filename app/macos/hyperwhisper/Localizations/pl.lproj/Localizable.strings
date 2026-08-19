@@ -953,6 +953,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcription.guidance.needsNativeRelaunch" = "Zamknij i otwórz HyperWhisper ponownie w trybie natywnym, aby korzystać z lokalnego przetwarzania końcowego.";
 "transcription.guidance.localRuntimeUnavailable" = "Spróbuj ponownie lub wybierz mniejszy model lokalny w ustawieniach trybu.";
 "transcription.error.localRuntimeUnavailable" = "Lokalna AI nie ukończyła przetwarzania — zachowano surową transkrypcję.";
+"transcription.error.localSpeechModelEvicted" = "Model mowy został zwolniony, aby odzyskać pamięć, i nie udało się go wczytać ponownie. Zamknij część aplikacji i spróbuj ponownie.";
 "settings.backup.localDownload.title" = "Pobrać modele lokalne?";
 "settings.backup.localDownload.message" = "%d przywróconych trybów korzysta z modeli AI działających na urządzeniu, które nie zostały jeszcze pobrane.";
 "settings.backup.localDownload.downloadAll" = "Pobierz wszystkie";

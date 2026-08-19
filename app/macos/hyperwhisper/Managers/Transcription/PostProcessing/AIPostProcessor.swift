@@ -265,10 +265,21 @@ class AIPostProcessor: ObservableObject {
         // markBusy/markIdle anywhere else — without this, a CRITICAL pressure
         // event would run the eviction closure (tier .llm) and stop the server
         // in the middle of an active chat-completion request, failing the pass.
-        // Released on every exit via defer.
-        let claimedLocalLLM = (provider == .localLLM)
-        if claimedLocalLLM {
-            await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+        // Released on every exit via defer — but only if it was actually taken.
+        //
+        // A REFUSED claim is not survivable here: it means the registry has
+        // already moved llama-server to `.freeing` and is stopping it, so
+        // POSTing a chat-completion at it would fail anyway, and releasing a
+        // claim we never took would zero a concurrent pass's claim
+        // (`PostProcessEndpoint` documents that these interleave).
+        var claimedLocalLLM = false
+        if provider == .localLLM {
+            claimedLocalLLM = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId).isHonored
+            guard claimedLocalLLM else {
+                AppLogger.transcription.error("Local LLM residency claim refused (runtime is being freed under memory pressure); returning original text.")
+                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "local model unloaded to free memory"))
+                return text
+            }
         }
         defer {
             if claimedLocalLLM {
@@ -787,8 +798,14 @@ class AIPostProcessor: ObservableObject {
         // Claim LLM residency for the rest of this streaming pass (including the
         // SSE stream and any non-streaming fallback) so a memory-pressure event
         // can't stop llama-server mid-request. See the non-streaming variant for
-        // the full rationale. Released on every exit via defer.
-        await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+        // the full rationale, including why a refusal returns instead of
+        // proceeding. Released on every exit via defer. Only the local LLM
+        // reaches this path, so the claim is unconditional.
+        guard await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId).isHonored else {
+            AppLogger.transcription.error("Local LLM residency claim refused (runtime is being freed under memory pressure); returning original text.")
+            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "local model unloaded to free memory"))
+            return text
+        }
         defer {
             Task { await ModelResidencyRegistry.shared.markIdle(id: LlamaServerController.residencyId) }
         }

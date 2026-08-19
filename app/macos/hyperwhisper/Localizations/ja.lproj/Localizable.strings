@@ -954,6 +954,7 @@
 "transcription.guidance.needsNativeRelaunch" = "ローカル後処理を使用するには、HyperWhisper を終了し、ネイティブで開き直してください。";
 "transcription.guidance.localRuntimeUnavailable" = "もう一度お試しいただくか、モード設定でより小さいローカルモデルを選択してください。";
 "transcription.error.localRuntimeUnavailable" = "ローカル AI が処理を完了できませんでした — 未処理の文字起こしは保持されています。";
+"transcription.error.localSpeechModelEvicted" = "メモリを解放するため音声モデルが解放され、再読み込みできませんでした。ほかのアプリを閉じてもう一度お試しください。";
 "settings.backup.localDownload.title" = "ローカルモデルをダウンロードしますか？";
 "settings.backup.localDownload.message" = "復元したモードのうち %d 個は、まだダウンロードされていないオンデバイス AI モデルを使用します。";
 "settings.backup.localDownload.downloadAll" = "すべてダウンロード";

@@ -953,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "ออกจาก HyperWhisper แล้วเปิดใหม่แบบเนทีฟ เพื่อใช้การประมวลผลหลังถอดเสียงในเครื่อง";
 "transcription.guidance.localRuntimeUnavailable" = "ลองอีกครั้ง หรือเลือกโมเดลในเครื่องที่เล็กลงในการตั้งค่าโหมด";
 "transcription.error.localRuntimeUnavailable" = "AI ในเครื่องทำงานไม่สำเร็จ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"transcription.error.localSpeechModelEvicted" = "โมเดลเสียงถูกยกเลิกการโหลดเพื่อคืนหน่วยความจำ และโหลดใหม่ไม่สำเร็จ ปิดบางแอปแล้วลองอีกครั้ง";
 "settings.backup.localDownload.title" = "ดาวน์โหลดโมเดลในเครื่องหรือไม่?";
 "settings.backup.localDownload.message" = "โหมดที่กู้คืนมา %d โหมดใช้โมเดล AI บนอุปกรณ์ที่ยังไม่ได้ดาวน์โหลด";
 "settings.backup.localDownload.downloadAll" = "ดาวน์โหลดทั้งหมด";

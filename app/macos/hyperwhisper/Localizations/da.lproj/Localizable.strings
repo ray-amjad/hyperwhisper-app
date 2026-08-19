@@ -953,6 +953,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.guidance.needsNativeRelaunch" = "Afslut og åbn HyperWhisper igen som native app for at bruge lokal efterbehandling.";
 "transcription.guidance.localRuntimeUnavailable" = "Prøv igen, eller vælg en mindre lokal model i dine tilstandsindstillinger.";
 "transcription.error.localRuntimeUnavailable" = "Lokal AI kunne ikke gøre det færdigt — din rå transskription blev bevaret.";
+"transcription.error.localSpeechModelEvicted" = "Talemodellen blev frigivet for at frigøre hukommelse og kunne ikke indlæses igen. Luk nogle apps, og prøv igen.";
 "settings.backup.localDownload.title" = "Download lokale modeller?";
 "settings.backup.localDownload.message" = "%d af dine gendannede tilstande bruger AI-modeller på enheden, som endnu ikke er downloadet.";
 "settings.backup.localDownload.downloadAll" = "Download alle";

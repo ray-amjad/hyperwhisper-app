@@ -117,6 +117,12 @@ extension TranscriptionPipeline {
             // must not share a Sentry fingerprint with the real `unauthorized`
             // 401s (HYPERWHISPER-T2).
             return TranscriptionErrorClassification(category: "license", kind: "cloud_account_required", retryable: retryable, httpStatus: nil)
+        case .localSpeechModelEvicted:
+            // Its own category/kind, which is the entire point of the case
+            // existing. The fingerprint is [category, kind, stage], so reusing
+            // "provider"/"provider_not_available" would drop this straight back
+            // into the HYPERWHISPER-SQ group it was added to distinguish.
+            return TranscriptionErrorClassification(category: "memory", kind: "local_speech_model_evicted", retryable: retryable, httpStatus: nil)
         }
     }
 
@@ -201,7 +207,14 @@ extension TranscriptionPipeline {
         case .invalidResponse, .modelProtected, .audioFileNotFound,
              .apiKeyMissing, .maxRetriesExceeded, .unauthorized, .invalidRequest,
              .streamingInterrupted, .busy, .invalidAudioFormat, .audioConversionFailed,
-             .audioFileTooLarge:
+             .audioFileTooLarge,
+             // CAPTURED on purpose. This is the failure the whole
+             // memory-residency fix exists to make visible: the local speech
+             // model was evicted mid-pass and a reload could not get it back.
+             // It looks user-recoverable, but it is the signal that tells us
+             // whether the eviction policy is too aggressive, so it must NOT be
+             // suppressed the way `.localRuntimeUnavailable` is.
+             .localSpeechModelEvicted:
             return true
         }
     }

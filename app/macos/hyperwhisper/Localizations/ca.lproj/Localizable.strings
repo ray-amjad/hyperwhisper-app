@@ -953,6 +953,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.guidance.needsNativeRelaunch" = "Tanca i torna a obrir HyperWhisper en mode natiu per utilitzar el postprocessament local.";
 "transcription.guidance.localRuntimeUnavailable" = "Torna-ho a provar o tria un model local més petit als ajustos del mode.";
 "transcription.error.localRuntimeUnavailable" = "La IA local no ha pogut acabar — s'ha conservat la transcripció original.";
+"transcription.error.localSpeechModelEvicted" = "El model de veu s'ha descarregat per alliberar memòria i no s'ha pogut tornar a carregar. Tanca algunes aplicacions i torna-ho a provar.";
 "settings.backup.localDownload.title" = "Vols baixar els models locals?";
 "settings.backup.localDownload.message" = "%d dels modes restaurats utilitzen models d'IA locals que encara no s'han baixat.";
 "settings.backup.localDownload.downloadAll" = "Baixar-ho tot";

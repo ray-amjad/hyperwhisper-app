@@ -953,6 +953,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.guidance.needsNativeRelaunch" = "Stop HyperWhisper en open het native opnieuw om lokale nabewerking te gebruiken.";
 "transcription.guidance.localRuntimeUnavailable" = "Probeer het opnieuw of kies een kleiner lokaal model in je modusinstellingen.";
 "transcription.error.localRuntimeUnavailable" = "Lokale AI kon niet worden voltooid — je onbewerkte transcriptie is behouden.";
+"transcription.error.localSpeechModelEvicted" = "Het spraakmodel is ontladen om geheugen vrij te maken en kon niet opnieuw worden geladen. Sluit enkele apps en probeer het opnieuw.";
 "settings.backup.localDownload.title" = "Lokale modellen downloaden?";
 "settings.backup.localDownload.message" = "%d van je herstelde modi gebruiken lokale AI-modellen die nog niet zijn gedownload.";
 "settings.backup.localDownload.downloadAll" = "Download alles";

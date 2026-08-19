@@ -953,6 +953,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.guidance.needsNativeRelaunch" = "Zaprite in znova odprite HyperWhisper kot izvorno aplikacijo, da boste lahko uporabljali lokalno naknadno obdelavo.";
 "transcription.guidance.localRuntimeUnavailable" = "Poskusite znova ali v nastavitvah načina izberite manjši lokalni model.";
 "transcription.error.localRuntimeUnavailable" = "Lokalna umetna inteligenca ni mogla dokončati obdelave — vaš neobdelan prepis je ohranjen.";
+"transcription.error.localSpeechModelEvicted" = "Govorni model je bil sproščen za sprostitev pomnilnika in ga ni bilo mogoče znova naložiti. Zaprite nekaj aplikacij in poskusite znova.";
 "settings.backup.localDownload.title" = "Ali želite prenesti lokalne modele?";
 "settings.backup.localDownload.message" = "%d obnovljenih načinov uporablja modele umetne inteligence v napravi, ki še niso preneseni.";
 "settings.backup.localDownload.downloadAll" = "Prenesi vse";
