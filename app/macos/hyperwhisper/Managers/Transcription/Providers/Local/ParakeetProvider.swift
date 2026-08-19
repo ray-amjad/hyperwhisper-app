@@ -307,21 +307,43 @@ final class ParakeetProvider: TranscriptionProvider {
 
         // Mark busy so a memory-pressure event can't evict the runtime mid-pass.
         //
-        // SCOPE, honestly: a refusal here is NOT handled, and it is not benign.
-        // `manager` was fetched above, before the claim, and `ParakeetRuntime.reset()`
-        // calls `await manager?.cleanup()` before it drops the reference — so an
-        // ARC-surviving `AsrManager` is already torn down and the transcribe
-        // below will fail against it. Bringing this site up to the
-        // `ResidentRuntimeClaim.acquire` contract is deliberately out of scope
-        // for HYPERWHISPER-SQ, which is the whisper.cpp arm; it is tracked
-        // separately.
+        // SCOPE, stated exactly. This site does NOT implement the
+        // `ResidentRuntimeClaim.acquire` contract — there is no claim-then-read
+        // and no reload — and bringing it up to that contract is deliberately
+        // out of HYPERWHISPER-SQ's scope, which is the whisper.cpp arm. What the
+        // three branches below do and do not cover:
         //
-        // What IS fixed here: the release is balanced on the claim. A second
-        // concurrent claimer reaches this same shared provider
-        // (`TranscribeEndpoint`), so an unconditional `markIdle` after a refused
-        // claim would drop THAT pass's useCount and expose its runtime to
-        // eviction mid-use.
-        let residencyClaimed = await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId).isHonored
+        // - `.claimed` — the ordinary path, and the only one that owes a
+        //   `markIdle`. A second concurrent claimer reaches this same shared
+        //   provider (`TranscribeEndpoint`), so an unconditional release after a
+        //   REFUSED claim would drop THAT pass's useCount and expose its runtime
+        //   to eviction mid-use. Hence the flag on both exits below.
+        // - `.evicting` — HANDLED, by failing instead of transcribing. `manager`
+        //   was fetched above, before the claim, and `ParakeetRuntime.reset()`
+        //   suspends inside `await manager?.cleanup()` while still holding the
+        //   reference — and `Runtime` is a reentrant actor, so a concurrent
+        //   `currentManager(for:)` takes the cache-hit branch and hands back
+        //   that same manager for the whole ~700 MB CoreML teardown. Running
+        //   `transcribe` against it is transcribing on a torn-down runtime. It
+        //   used to do exactly that, silently.
+        // - `.notResident` — NOT handled, on purpose, and this is the residual
+        //   hole. Nothing is registered under this id, which per `ClaimResult`
+        //   need not mean a teardown, so the pass proceeds UNCLAIMED (and
+        //   therefore unprotected against an eviction starting mid-pass). For
+        //   Parakeet specifically that reading is weaker than it is for the
+        //   whisper arm, because `currentManager` registers inside its own cold
+        //   load: a missing entry here more often means a completed eviction
+        //   than an unfinished registration. Closing it needs the claim-first
+        //   read this site does not have.
+        let parakeetClaim = await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId)
+        if parakeetClaim == .evicting {
+            logger.error("Parakeet residency claim refused: the runtime is being freed under memory pressure, so the manager fetched above is mid-teardown")
+            throw TranscriptionError.localSpeechModelEvicted(model: modelId)
+        }
+        let residencyClaimed = parakeetClaim.isHonored
+        if !residencyClaimed {
+            logger.notice("Parakeet is not registered for residency; proceeding unclaimed (see the note above)")
+        }
 
         // STEP 4: Perform transcription
         // FluidAudio 0.15.x removed the per-call `source:` arg and threads

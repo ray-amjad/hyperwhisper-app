@@ -39,6 +39,10 @@ private actor ClaimProbe {
     private(set) var honoredClaims = 0
     private(set) var releases = 0
     private(set) var reloads = 0
+    /// Every refusal reason `reload` was handed, in order. `acquire` passes it
+    /// because an owner that cannot tell `.evicting` from `.notResident` picks
+    /// the wrong reload for one of them — see `acquire`'s `reload` parameter.
+    private(set) var reloadReasons: [ModelResidencyRegistry.ClaimResult] = []
 
     init(
         claimAnswers: [ModelResidencyRegistry.ClaimResult],
@@ -74,9 +78,11 @@ private actor ClaimProbe {
         runtime
     }
 
-    /// Stands in for `LibWhisperProvider.loadModel(named:)`.
-    func reload() throws {
+    /// Stands in for `LibWhisperProvider`'s reload closure, which turns the
+    /// refusal reason into `loadModel(named:forceReload:)`.
+    func reload(after refusal: ModelResidencyRegistry.ClaimResult) throws {
         reloads += 1
+        reloadReasons.append(refusal)
         events.append("reload")
         if let reloadError = reloadError {
             throw reloadError
@@ -122,7 +128,7 @@ struct ResidentRuntimeClaimTests {
                 claim: { await probe.claim() },
                 release: { await probe.release() },
                 runtime: { await probe.currentRuntime() },
-                reload: { try await probe.reload() }
+                reload: { try await probe.reload(after: $0) }
             )
 
         #expect(acquisition.claimedRuntime == "whisper-context")
@@ -151,7 +157,7 @@ struct ResidentRuntimeClaimTests {
                 claim: { await probe.claim() },
                 release: { await probe.release() },
                 runtime: { await probe.currentRuntime() },
-                reload: { try await probe.reload() }
+                reload: { try await probe.reload(after: $0) }
             )
 
         #expect(acquisition.claimedRuntime == "reloaded-context")
@@ -163,6 +169,12 @@ struct ResidentRuntimeClaimTests {
         // taken, so releasing would decrement somebody else's.
         let events = await probe.events
         #expect(events == ["claim.evicting", "reload", "claim.claimed"])
+        // The reason is handed to the owner, not swallowed. Without it the
+        // whisper reload takes its already-resident shortcut on a runtime a
+        // committed teardown is about to free, and the pass dies on a
+        // non-retryable error a millisecond before a clean load.
+        let reloadReasons = await probe.reloadReasons
+        #expect(reloadReasons == [.evicting])
     }
 
     /// The OTHER refusal, and the reason `markBusy` reports two: `.notResident`
@@ -182,7 +194,7 @@ struct ResidentRuntimeClaimTests {
                 claim: { await probe.claim() },
                 release: { await probe.release() },
                 runtime: { await probe.currentRuntime() },
-                reload: { try await probe.reload() }
+                reload: { try await probe.reload(after: $0) }
             )
 
         #expect(acquisition.claimedRuntime == "reloaded-context")
@@ -190,6 +202,10 @@ struct ResidentRuntimeClaimTests {
         #expect(outstanding == 1)
         let events = await probe.events
         #expect(events == ["claim.notResident", "reload", "claim.claimed"])
+        // And it is reported AS `.notResident`, which is what tells the owner it
+        // may keep an already-resident runtime instead of rebuilding it.
+        let reloadReasons = await probe.reloadReasons
+        #expect(reloadReasons == [.notResident])
     }
 
     /// The defensive window: the entry is still registered, so the claim IS
@@ -208,12 +224,17 @@ struct ResidentRuntimeClaimTests {
                 claim: { await probe.claim() },
                 release: { await probe.release() },
                 runtime: { await probe.currentRuntime() },
-                reload: { try await probe.reload() }
+                reload: { try await probe.reload(after: $0) }
             )
 
         #expect(acquisition.claimedRuntime == "reloaded-context")
         let events = await probe.events
         #expect(events == ["claim.claimed", "release", "reload", "claim.claimed"])
+        // The awkward middle case reports `.claimed`, and that is right: the
+        // claim was honored and has already been given back, and the owner's own
+        // runtime is gone, so an ordinary reload rebuilds. Nothing to force.
+        let reloadReasons = await probe.reloadReasons
+        #expect(reloadReasons == [.claimed])
         // Two claims taken, one given back: the caller still owns exactly one.
         let outstanding = await probe.outstandingClaims
         #expect(outstanding == 1)
@@ -237,7 +258,7 @@ struct ResidentRuntimeClaimTests {
                 claim: { await probe.claim() },
                 release: { await probe.release() },
                 runtime: { await probe.currentRuntime() },
-                reload: { try await probe.reload() }
+                reload: { try await probe.reload(after: $0) }
             )
 
         #expect(acquisition.claimedRuntime == nil)
@@ -268,7 +289,7 @@ struct ResidentRuntimeClaimTests {
                     claim: { await probe.claim() },
                     release: { await probe.release() },
                     runtime: { await probe.currentRuntime() },
-                    reload: { try await probe.reload() }
+                    reload: { try await probe.reload(after: $0) }
                 )
             Issue.record("acquire should have rethrown the reload failure, got \(acquisition.claimedRuntime ?? "unavailable")")
         } catch {
@@ -301,7 +322,7 @@ struct ResidentRuntimeClaimTests {
                 claim: { await probe.claim() },
                 release: { await probe.release() },
                 runtime: { await probe.currentRuntime() },
-                reload: { try await probe.reload() }
+                reload: { try await probe.reload(after: $0) }
             )
 
         #expect(acquisition.claimedRuntime == nil)
