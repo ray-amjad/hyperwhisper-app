@@ -85,7 +85,7 @@ On unwind (throw or poll deadline) the provider issues a best-effort `operations
 
 GCS upload timeout: `max(30 s, 1 s per 100 KB)`. Transient GCS failures (timeout, network error, 429, 5xx) route through `ProviderUnavailableError('GCS upload', ...)` so transcribe.ts surfaces 502 via the chain-fail path. Non-transient (403 bad IAM, 404 missing bucket) stay as plain `Error` to fail fast.
 
-Pre-buffer size gate: `/transcribe` 413s before allocating an ArrayBuffer when `X-STT-Provider: google-chirp` + no bucket + Content-Length > 9.5 MB.
+Pre-buffer size gate: `/transcribe` 413s before allocating an ArrayBuffer when `X-STT-Provider: google-chirp` + no bucket + Content-Length > 9.5 MB. The cap and the bucket condition live in `src/providers/audio-limits.ts` (`preBufferMaxBytes`), not in the route — add a row there for a new provider with a payload cap.
 </important>
 
 <important if="you are spinning up a new Fly app or env that needs the GCS scratch bucket">
