@@ -41,10 +41,11 @@ class LibWhisperProvider: TranscriptionProvider {
     /// fix and this generation counter is the other half.
     private let lifecycleLock = AsyncSerialLock()
 
-    /// Bumped every time the resident context is installed or torn down.
-    /// `cleanup()` captures it BEFORE queueing on `lifecycleLock`, so a teardown
-    /// that was superseded while it waited can recognise itself as stale and
-    /// leave the newer context alone.
+    /// Bumped every time the resident context is installed or torn down, and
+    /// captured by the evict closure at REGISTRATION, so every teardown carries
+    /// the identity of the context it was actually sent for. A teardown that is
+    /// superseded while it waits for `lifecycleLock` recognises itself as stale
+    /// and leaves the newer context alone.
     private var contextGeneration: UInt64 = 0
 
     /// Bumped by every `cancelTranscription()` and by every new pass. A pass
@@ -119,34 +120,47 @@ class LibWhisperProvider: TranscriptionProvider {
     }
     
     /// Load a model for transcription
-    /// - Parameter modelName: Name of the model (e.g., "tiny", "base.en")
+    /// - Parameters:
+    ///   - modelName: Name of the model (e.g., "tiny", "base.en")
+    ///   - forceReload: Rebuild even when exactly this model looks resident. Set
+    ///     ONLY by the `.evicting` reload path — see `performLoad`.
     ///
     /// Serialised against `cleanup()` — and against any other load — by
     /// `lifecycleLock`, so a load and a memory-pressure teardown can never
     /// interleave. `ResidentRuntimeClaim.acquire` documents why.
-    func loadModel(named modelName: String) async throws {
-        await lifecycleLock.lock()
-        do {
-            try await performLoad(named: modelName)
-        } catch {
-            await lifecycleLock.unlock()
-            throw error
+    func loadModel(named modelName: String, forceReload: Bool = false) async throws {
+        try await lifecycleLock.withLock {
+            try await self.performLoad(named: modelName, forceReload: forceReload)
         }
-        await lifecycleLock.unlock()
     }
 
     /// The body of `loadModel`. MUST be called with `lifecycleLock` held: with
     /// `cleanup()` it is one of only two writers of `whisperContext`, and it
     /// assumes nothing else can touch that state across its suspension points.
-    private func performLoad(named modelName: String) async throws {
+    private func performLoad(named modelName: String, forceReload: Bool) async throws {
         // Somebody may have loaded exactly this model while we waited for the
         // lock — typically a claim that landed in the window between the context
         // being built and its registry entry existing, and reloaded defensively.
         // Tearing a live, registered context down to rebuild the same one IS the
         // destructive cold reload this guards against.
-        if whisperContext != nil, isModelReady, currentModel?.name == modelName {
+        //
+        // `forceReload` is the one case where "already resident" is a LIE, and
+        // skipping the rebuild costs the user their dictation. A teardown that
+        // has been committed (`markBusy` answered `.evicting`) but has not yet
+        // taken `lifecycleLock` leaves the context installed and `isModelReady`
+        // true, so this guard would match and return without bumping
+        // `contextGeneration` — and the parked teardown would then pass its own
+        // generation check and free the very context we just declared resident.
+        // The second claim is refused, the pass throws
+        // `localSpeechModelEvicted`, and that error is not retryable. Rebuilding
+        // instead bumps the generation twice, which stands the parked teardown
+        // down and registers a fresh entry for the claim that follows.
+        if !forceReload, whisperContext != nil, isModelReady, currentModel?.name == modelName {
             logger.debug("📦 Model already resident, skipping reload: \(modelName, privacy: .public)")
             return
+        }
+        if forceReload {
+            logger.notice("♻️ Forcing a rebuild of \(modelName, privacy: .public): the resident context is being torn down")
         }
 
         logger.info("📦 Loading model: \(modelName)")
@@ -192,16 +206,24 @@ class LibWhisperProvider: TranscriptionProvider {
             currentModel = model
             isModelReady = true
             contextGeneration &+= 1
+            let installedGeneration = contextGeneration
             logger.info("✅ Model loaded successfully: \(modelName) - READY TO TRANSCRIBE!")
 
             // Telemetry + register for memory-pressure eviction (weak capture).
             // Still under `lifecycleLock`, so the window between the context
             // existing and its entry existing is closed to anyone who reloads:
             // they queue on the lock and find both.
+            //
+            // The evict closure names its victim by capturing the generation of
+            // the context it is being registered FOR. A teardown therefore
+            // carries its own identity instead of re-deriving one at invocation
+            // time, and a teardown that finds a different generation when it
+            // finally takes the lock knows it was superseded — no read-ordering
+            // convention to preserve, and nothing for a later edit to break.
             let coldMs = Int(Date().timeIntervalSince(coldLoadStart) * 1000)
             AppLogger.memory.info("model.load.cold id=\(libWhisperResidencyId, privacy: .public) durationMs=\(coldMs, privacy: .public) footprintMB=\(MemoryFootprint.currentMB(), privacy: .public)")
             await ModelResidencyRegistry.shared.register(id: libWhisperResidencyId, tier: .stt) { [weak self] in
-                await self?.cleanup()
+                await self?.tearDownContext(registeredGeneration: installedGeneration)
             }
         } catch {
             logger.error("❌ Failed to load model: \(error)")
@@ -228,23 +250,32 @@ class LibWhisperProvider: TranscriptionProvider {
         let wantTimestamps = !granularities.isEmpty
         let includeWords = granularities.contains(.word)
 
+        // Supersede whatever pass is still running, and open a cancellation
+        // epoch for THIS one. The loads below can take seconds (a cold
+        // `createContext` is 2-5s), and the task created afterwards is
+        // unstructured, so it inherits nothing: without the epoch a user cancel
+        // landing in that window would cancel only the already-finished previous
+        // task and let a full whisper decode run on a recording the user had
+        // abandoned.
+        //
+        // This MUST stay above the deferred `pendingModel` load. `setModel` only
+        // stashes `pendingModel`, so that load — not the claim's reload — is the
+        // slow one on the first pass after launch, after a model switch, and
+        // after an eviction. Opening the epoch after it would leave the whole
+        // cold load unwatched: the cancel bumps to N+1 against a nil task, this
+        // pass then bumps to N+2 and captures that, and both checks below
+        // compare equal.
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
+        cancellationEpoch &+= 1
+        let epoch = cancellationEpoch
+
         // If we have a pending model but haven't loaded it yet, load it now
         if let pending = pendingModel {
             logger.info("🔄 Loading pending model before transcription: \(pending.rawValue)")
             try await loadModel(named: pending.rawValue)
             pendingModel = nil
         }
-        
-        // Supersede whatever pass is still running, and open a cancellation
-        // epoch for THIS one. The claim/reload below can take seconds (a cold
-        // `loadModel`), and the task created afterwards is unstructured, so it
-        // inherits nothing: without the epoch a user cancel landing in that
-        // window would cancel only the already-finished previous task and let a
-        // full whisper decode run on a recording the user had abandoned.
-        transcriptionTask?.cancel()
-        transcriptionTask = nil
-        cancellationEpoch &+= 1
-        let epoch = cancellationEpoch
 
         // Claim residency, THEN read the context under that claim. See
         // `ResidentRuntimeClaim.acquire` for why, and for the caller obligations
@@ -255,7 +286,7 @@ class LibWhisperProvider: TranscriptionProvider {
                 claim: { await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId) },
                 release: { await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId) },
                 runtime: { self.whisperContext },
-                reload: {
+                reload: { refusal in
                     guard let modelName = self.currentModel?.name else {
                         // Nothing was ever loaded, so this is not an eviction:
                         // the user has no model. Same four diagnostics and the
@@ -268,8 +299,14 @@ class LibWhisperProvider: TranscriptionProvider {
                         self.logger.error("   Model ready: \(self.isModelReady, privacy: .public)")
                         throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "No model loaded. Please download a model first.")
                     }
-                    self.logger.notice("♻️ Whisper context was freed to reclaim memory - reloading \(modelName, privacy: .public)")
-                    try await self.loadModel(named: modelName)
+                    // `.evicting` means a teardown of the context we can still
+                    // see is already committed, so the cheap "already resident"
+                    // answer inside `performLoad` would be wrong — see the guard
+                    // there, and `ResidentRuntimeClaim.acquire`'s `reload`
+                    // parameter, for why that costs the user the dictation.
+                    let forceReload = (refusal == .evicting)
+                    self.logger.notice("♻️ Whisper context was freed to reclaim memory - reloading \(modelName, privacy: .public) (force=\(forceReload, privacy: .public))")
+                    try await self.loadModel(named: modelName, forceReload: forceReload)
                 }
             )
 
@@ -457,32 +494,40 @@ class LibWhisperProvider: TranscriptionProvider {
     /// and turn every eviction back into a "No model loaded. Please download a
     /// model first." dead end.
     func cleanup() async {
+        // No generation: an explicit cleanup is the owner asking for whatever is
+        // resident to go, not a teardown queued for one particular context.
+        await tearDownContext(registeredGeneration: nil)
+    }
+
+    /// Frees the resident context, unless this teardown has been superseded.
+    ///
+    /// - Parameter registeredGeneration: the `contextGeneration` of the context
+    ///   this teardown was registered for, or `nil` for an unconditional
+    ///   `cleanup()`. If a load completes while this teardown waits for the
+    ///   lock, that load already freed the context this teardown was sent for
+    ///   and installed a newer one — tearing THAT down is HYPERWHISPER-SQ from
+    ///   the other side, so a mismatch makes this call a no-op.
+    private func tearDownContext(registeredGeneration: UInt64?) async {
         transcriptionTask?.cancel()
 
-        // Capture the generation BEFORE queueing on the lock. If a load
-        // completes while this teardown waits, that load already freed the
-        // context this teardown was sent for and installed a newer one — tearing
-        // THAT down is HYPERWHISPER-SQ from the other side, so a mismatch makes
-        // this call a no-op.
-        let generation = contextGeneration
-        await lifecycleLock.lock()
-        guard generation == contextGeneration else {
-            await lifecycleLock.unlock()
-            logger.info("🧽 Skipping superseded cleanup (generation \(generation, privacy: .public), now \(self.contextGeneration, privacy: .public))")
-            return
-        }
+        await lifecycleLock.withLock {
+            if let registeredGeneration = registeredGeneration, registeredGeneration != self.contextGeneration {
+                self.logger.info("🧽 Skipping superseded cleanup (generation \(registeredGeneration, privacy: .public), now \(self.contextGeneration, privacy: .public))")
+                return
+            }
 
-        // Retire before freeing, in that order and with no suspension between,
-        // for the same reason as `performLoad`: a claim arriving during
-        // `releaseResources()` must not be handed a context already going away.
-        let retired = whisperContext
-        whisperContext = nil
-        isModelReady = false
-        contextGeneration &+= 1
-        await ModelResidencyRegistry.shared.deregister(id: libWhisperResidencyId)
-        await retired?.releaseResources()
-        await lifecycleLock.unlock()
-        logger.info("🧽 Provider cleaned up")
+            // Retire before freeing, in that order and with no suspension
+            // between, for the same reason as `performLoad`: a claim arriving
+            // during `releaseResources()` must not be handed a context already
+            // going away.
+            let retired = self.whisperContext
+            self.whisperContext = nil
+            self.isModelReady = false
+            self.contextGeneration &+= 1
+            await ModelResidencyRegistry.shared.deregister(id: libWhisperResidencyId)
+            await retired?.releaseResources()
+            self.logger.info("🧽 Provider cleaned up")
+        }
     }
     
     // MARK: - Compatibility Methods for TranscriptionPipeline

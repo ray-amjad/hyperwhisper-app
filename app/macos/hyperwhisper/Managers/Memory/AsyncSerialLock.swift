@@ -48,4 +48,27 @@ actor AsyncSerialLock {
             waiters.removeFirst().resume()
         }
     }
+
+    /// Runs `body` with the lock held and releases it on EVERY exit path,
+    /// including a throw. This is the only form call sites should use:
+    /// hand-written `lock()` / `unlock()` pairs put the release obligation on
+    /// whoever edits the body next, and `defer` cannot discharge it because
+    /// `unlock()` is `async`.
+    ///
+    /// `nonisolated` on purpose. `body` therefore runs in the CALLER's context,
+    /// exactly as an inline `lock()`/`unlock()` pair would, and only the two
+    /// bookkeeping calls hop onto this actor — so a caller can keep passing a
+    /// closure that touches its own non-`Sendable` state (which is the entire
+    /// point: `LibWhisperProvider` guards a `whisper_context` with this).
+    nonisolated func withLock<T>(_ body: () async throws -> T) async rethrows -> T {
+        await lock()
+        do {
+            let value = try await body()
+            await unlock()
+            return value
+        } catch {
+            await unlock()
+            throw error
+        }
+    }
 }

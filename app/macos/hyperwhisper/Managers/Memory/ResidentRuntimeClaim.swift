@@ -115,12 +115,30 @@ enum ResidentRuntimeClaim {
     ///     a synchronous property read converts to it.
     ///   - reload: Loads the runtime again, which is expected to `register` a
     ///     fresh residency entry. Anything it throws propagates unchanged.
+    ///
+    ///     It is handed the outcome of the FIRST attempt, because the two
+    ///     refusals need different reloads and an owner that cannot tell them
+    ///     apart gets one of them wrong:
+    ///
+    ///     - `.notResident` — nothing is registered, but what the owner can see
+    ///       may be perfectly live (it built the runtime and has not registered
+    ///       it yet). A reload that finds that runtime resident should return
+    ///       without rebuilding: tearing a live context down to rebuild the same
+    ///       one IS the destructive cold reload this whole sequence exists to
+    ///       avoid.
+    ///     - `.evicting` — a teardown is committed and running. Here the SAME
+    ///       cheap "already resident, nothing to do" answer is a trap: the
+    ///       context the owner can still see is the one being freed, so
+    ///       returning early leaves the teardown to complete and the second
+    ///       claim is refused too. The owner must force a genuine rebuild, which
+    ///       both installs a runtime the teardown was not sent for and lets that
+    ///       teardown recognise itself as superseded.
     /// - Returns: `.claimed` holding the live runtime, or `.unavailable`.
     static func acquire<Runtime>(
         claim: () async -> ModelResidencyRegistry.ClaimResult,
         release: () async -> Void,
         runtime: () async -> Runtime?,
-        reload: () async throws -> Void
+        reload: (ModelResidencyRegistry.ClaimResult) async throws -> Void
     ) async rethrows -> Acquisition<Runtime> {
         // One claim/read/release triple. Returns the live runtime with exactly
         // one claim outstanding, or `nil` with NOTHING outstanding — including
@@ -141,7 +159,11 @@ enum ResidentRuntimeClaim {
         if let live = first.runtime {
             return .claimed(live)
         }
-        try await reload()
+        // `first.refusal` is `.claimed` in the awkward middle case (honored
+        // claim, runtime already gone) — the claim was given back inside
+        // `attempt`, and the owner's own state already says "not resident", so
+        // an ordinary reload rebuilds. Only `.evicting` needs forcing.
+        try await reload(first.refusal)
         let second = await attempt()
         if let live = second.runtime {
             return .claimed(live)
