@@ -11,20 +11,21 @@ import { authClient } from "@/src/lib/auth-client";
  * is never signed out.
  *
  * `authClient.useSession()` fetches `/api/auth/get-session` from the browser.
- * That is a route handler, so Better Auth's refreshed `Set-Cookie` reaches the
- * browser intact. Server Component reads cannot do this — Next.js forbids
- * writing cookies during an RSC render — which is why they go through
- * `getServerComponentSession()` and deliberately skip the refresh entirely.
+ * Under `session.deferSessionRefresh` (see `src/lib/auth.ts`) that GET performs
+ * no writes and comes back with `needsRefresh`, on which Better Auth's client
+ * immediately re-requests the same endpoint with POST — the only method that
+ * takes the write branch. Both hit a route handler, so the re-issued
+ * `Set-Cookie` reaches the browser intact.
  *
- * Why this component, when the tRPC handler also rolls the session: it does
- * (`server/api/trpc.ts` calls `auth.api.getSession` from a route handler), and
- * today all three pages under `(authenticated)` happen to fire an ungated
- * `useQuery` on mount. But that is a property of what each page needs to
- * *display*, not of authentication. Add a page with no client-side data, or
- * gate an existing query behind `enabled`, and the session silently stops
- * rolling — a failure nobody notices for 90 days. This component is mounted in
- * the segment layout, so the guarantee holds for every page in the segment,
- * now and later.
+ * This is now the ONLY thing that rolls the session. Server-side reads
+ * (`server/api/trpc.ts`, `app/api/customer/profile/route.ts`, every Server
+ * Component) all go through `getSessionFromCtx`, which hard-codes `method:
+ * "GET"`, so none of them refresh anything. That is deliberate — it is what
+ * makes it impossible for an RSC read to consume the refresh window and strand
+ * the cookie — but it does mean deleting this component silently reverts the
+ * portal to a hard 90-day deadline. It is mounted in the segment layout, so
+ * the guarantee holds for every page in the segment, now and later, without
+ * depending on any page happening to fire a client query.
  *
  * Refetch behaviour: Better Auth's client does no interval polling by default
  * (`sessionOptions.refetchInterval` defaults to 0), but it *does* refetch on

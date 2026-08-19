@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
-import { getServerComponentSession } from "@/src/lib/auth";
+import { getPortalSession } from "@/src/lib/auth";
 import { UserProvider } from "@/components/user/UserContext";
 import SessionRefresher from "@/components/user/SessionRefresher";
 import UserSidebar from "@/components/user/UserSidebar";
@@ -33,10 +32,7 @@ export default async function UserLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  // Server Component read: never rolls the session (see
-  // `getServerComponentSession`) — the cookie is re-issued from route
-  // handlers and <SessionRefresher /> instead.
-  const session = await getServerComponentSession(await headers());
+  const session = await getPortalSession();
 
   // Double-check auth (middleware should handle this, but be safe)
   if (!session?.user) {
