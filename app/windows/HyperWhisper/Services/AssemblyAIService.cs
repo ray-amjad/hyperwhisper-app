@@ -70,11 +70,9 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiBaseUrl = "https://api.assemblyai.com/v2";
     private const int DefaultTimeoutSeconds = 30; // Per request timeout
     private const int MaxPollAttempts = 120; // 2 minutes max at 1s intervals
     private const int PollIntervalMs = 1000; // 1 second between polls
-    private const int MaxRetries = 3;
 
     // Sync fast path HTTP call timeout — sourced from the Rust core's shared
     // `AssemblyaiSyncTimeoutMs()` FFI constant (see hw-net's

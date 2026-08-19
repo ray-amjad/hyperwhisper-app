@@ -53,7 +53,6 @@ enum OnboardingStyle {
     static let accentChip = Color.accentColor.opacity(0.18)
 
     static let okFill = Color.green.opacity(0.12)
-    static let okLine = Color.green.opacity(0.24)
 }
 
 // MARK: - Progress
