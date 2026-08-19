@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
-import { auth } from "@/src/lib/auth";
+import { getServerComponentSession } from "@/src/lib/auth";
 import UserDashboardClient from "./UserDashboardClient";
 
 export const metadata: Metadata = {
@@ -25,7 +25,10 @@ export default async function UserDashboardPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const session = await auth.api.getSession({ headers: await headers() });
+  // Server Component read: never rolls the session (see
+  // `getServerComponentSession`) — the cookie is re-issued from route
+  // handlers and <SessionRefresher /> instead.
+  const session = await getServerComponentSession(await headers());
 
   if (!session?.user) {
     redirect(`/${locale}/user/sign-in`);

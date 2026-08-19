@@ -12,9 +12,8 @@ export const auth = betterAuth({
   // Explicit session config: Better Auth's defaults are a 7-day `expiresIn`
   // with a 1-day `updateAge`, which signed active users out after a hard week.
   // 90 days + a daily rolling refresh keeps an active user signed in
-  // indefinitely. The refresh only reaches the browser because
-  // <SessionRefresher /> reads the session from a route handler
-  // (`/api/auth/get-session`) — a Server Component cannot set cookies.
+  // indefinitely — but only if the refresh happens somewhere a `Set-Cookie`
+  // can actually be sent. See `getServerComponentSession` below.
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days
     updateAge: 60 * 60 * 24, // refresh at most once a day
@@ -45,6 +44,35 @@ export const auth = betterAuth({
     nextCookies(),
   ],
 });
+
+/**
+ * Read the session from inside a Server Component (a `layout.tsx` / `page.tsx`).
+ *
+ * ALWAYS use this instead of `auth.api.getSession()` in a Server Component.
+ * `disableRefresh` is load-bearing, not an optimisation — do not drop it.
+ *
+ * Better Auth's `/get-session` rolls the session when
+ * `expiresAt - expiresIn + updateAge <= now`: it writes the new `expiresAt` to
+ * the DB and then calls `setSessionCookie`. Next.js forbids writing cookies
+ * during an RSC render, and the `nextCookies()` plugin swallows that failure in
+ * a bare `try/catch`. So an unguarded read here would consume the once-a-day
+ * refresh window — the DB row moves forward, the browser's cookie `Max-Age`
+ * does not, and every later read that day sees `shouldBeUpdated === false` and
+ * re-issues nothing. Net effect: the cookie's `Max-Age` is written exactly once,
+ * at sign-in, and the user is hard-signed-out on day 90 regardless of activity.
+ *
+ * `nextCookies()` does have a guard for this, but it only fires when the request
+ * carries an `RSC: 1` header — i.e. on soft navigations and prefetches. A hard
+ * page load sends no such header, which is exactly the case that matters.
+ *
+ * Route handlers (`server/api/trpc.ts`, `app/api/customer/profile/route.ts`,
+ * `/api/auth/*`) must keep calling `auth.api.getSession()` directly: a
+ * `Set-Cookie` is legal there, so those reads are what actually roll the
+ * session forward, together with <SessionRefresher />.
+ */
+export function getServerComponentSession(headers: Headers) {
+  return auth.api.getSession({ headers, query: { disableRefresh: true } });
+}
 
 function magicLinkEmailHtml({ url }: { url: string }): string {
   return `

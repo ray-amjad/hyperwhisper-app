@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
-import { auth } from "@/src/lib/auth";
+import { getServerComponentSession } from "@/src/lib/auth";
 import { UserProvider } from "@/components/user/UserContext";
 import SessionRefresher from "@/components/user/SessionRefresher";
 import UserSidebar from "@/components/user/UserSidebar";
@@ -18,7 +18,7 @@ import UserHeader from "@/components/user/UserHeader";
  * - Conditional sidebar (only for admins)
  * - Header with user info and sign-out
  * - UserProvider context for child components
- * - SessionRefresher: client-side session read so the rolling session cookie
+ * - SessionRefresher: browser-side session read so the rolling session cookie
  *   gets re-issued (a Server Component cannot set cookies)
  *
  * Layout Variations:
@@ -33,7 +33,10 @@ export default async function UserLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const session = await auth.api.getSession({ headers: await headers() });
+  // Server Component read: never rolls the session (see
+  // `getServerComponentSession`) — the cookie is re-issued from route
+  // handlers and <SessionRefresher /> instead.
+  const session = await getServerComponentSession(await headers());
 
   // Double-check auth (middleware should handle this, but be safe)
   if (!session?.user) {
