@@ -221,7 +221,23 @@ After you download them, the local **Gemma 4** models clean and format the trans
     | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
 
     <Note>
-      In the current Windows build, local Gemma post-processing uses the CPU on AMD and Intel GPUs. Transcription can still use GPU acceleration.
+      On an integrated GPU (including an AMD APU and an Intel UHD or Iris GPU), local Gemma post-processing uses the CPU. Transcription can still use GPU acceleration independently.
+    </Note>
+
+    ### Runtime backend badge
+
+    Each local Gemma row in **Model Library** shows a badge with the backend that the next load attempts on your PC:
+
+    | Badge | What it means | Row detail |
+    | --- | --- | --- |
+    | **GPU · CUDA** | An NVIDIA GPU, with the CUDA runtime present | `Runtime: CUDA first, CPU fallback` |
+    | **GPU · Vulkan** | A discrete AMD or Intel GPU, with the Vulkan runtime and the system Vulkan loader present | `Runtime: Vulkan first, CPU fallback` |
+    | **CPU** | No GPU offload | `Runtime: CPU fallback` |
+
+    The badge is per model, not per PC. If a load on a GPU backend stopped the app for one model, HyperWhisper does not use that backend again for that model, and the badge shows the backend that the next load uses. The two backends are independent: a CUDA failure does not block Vulkan.
+
+    <Note>
+      On a PC that can only use the CPU, the **Recommended** tag on Gemma 4 E2B is not shown, and the model menus remove the `(Recommended)` suffix from the name. Gemma 4 E2B is still the default local model. Only the label changes.
     </Note>
   </Tab>
 </Tabs>

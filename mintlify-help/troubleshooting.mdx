@@ -130,6 +130,22 @@ This page lists the most common problems and their fixes. Go to the symptom that
       </Tab>
     </Tabs>
   </Accordion>
+
+  <Accordion title="The speech model was unloaded to free memory (macOS)">
+    HyperWhisper releases the local speech model from memory when macOS has insufficient memory. If this occurs while a transcription runs, the transcription stops with this message:
+
+    > The speech model was unloaded to free memory and couldn't be reloaded. Close some apps and try again.
+
+    For a Whisper model, HyperWhisper first tries to load the model again, and shows the message only if that load also fails. For a Parakeet model, it shows the message immediately.
+
+    HyperWhisper does not retry the transcription automatically. The memory pressure is continuous, so more attempts would only load and lose the model again.
+
+    **Fix:** Close applications that use much memory. Then make the recording again. If the message occurs frequently, select a smaller local model, or select a cloud provider for the mode.
+
+    <Note>
+      A [Local API](/local-api) client gets the same condition as the `ENGINE_UNAVAILABLE` error code.
+    </Note>
+  </Accordion>
 </AccordionGroup>
 
 ---

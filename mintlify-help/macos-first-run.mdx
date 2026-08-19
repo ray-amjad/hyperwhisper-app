@@ -1,0 +1,94 @@
+---
+title: macOS First Run
+description: What the HyperWhisper first-run setup asks for on macOS, and what Set Up Later keeps.
+---
+
+The first time that you open HyperWhisper on a Mac, the app shows a setup flow in eight steps. The flow gets the permissions, selects where your speech becomes text, and makes one test recording.
+
+The flow opens on a new installation only, and one time. If you upgrade from an older build that already has modes, HyperWhisper marks the setup as complete and does not show the flow.
+
+## The eight steps
+
+<Steps>
+  <Step title="Welcome">
+    A summary of the three tasks: select how transcription runs, check your microphone, and make one recording. Click **Get started**.
+  </Step>
+  <Step title="Two quick permissions">
+    - **Microphone** — required. You cannot continue without it. HyperWhisper captures audio only while a recording runs.
+    - **Accessibility** — optional. With this permission, HyperWhisper puts the transcript at your cursor. Without it, the transcript goes to the clipboard.
+
+    If you refused a permission before, macOS does not ask again. The step gives an **Open Settings** button instead. HyperWhisper examines both permissions again when you come back to the app.
+  </Step>
+  <Step title="How do you want to transcribe?">
+    Select one of three sources:
+
+    | Source | What it uses |
+    | --- | --- |
+    | **HyperWhisper Cloud** | Your prepaid [credits](/cloud-credits). No API key of your own |
+    | **On this Mac** | A local model. No network after the download |
+    | **Your API Key** | Your own account with a cloud provider |
+
+    To change the source later, you use the [mode editor](/transcription-modes). You do not do this setup again.
+  </Step>
+  <Step title="Configure the source">
+    The step changes with the source that you selected:
+
+    - **HyperWhisper Cloud** — paste your access key. Click **Test access key**. The card then shows the credits of that key.
+    - **On this Mac** — select one of four models: **Parakeet V2** (English only, fastest), **Parakeet V3** (multilingual), **Whisper Base** (smallest download), or **Whisper Large v3 Turbo** (most accurate).
+    - **Your API Key** — select a provider and paste your API key. Click **Test API key**. macOS holds the key in your login keychain.
+
+    <Note>
+      For **Your API Key**, you must click **Test API key**, even when the key is already in your keychain. HyperWhisper does not accept a key that it did not verify in this session.
+    </Note>
+  </Step>
+  <Step title="Set up the source">
+    The step completes the work: it activates the Cloud key, downloads the local model, or writes the API key. It shows the result as a list of checks. A download failure or an activation failure appears here as a message.
+  </Step>
+  <Step title="Say something. Watch the bars.">
+    Select your input device and speak. The level bars move when HyperWhisper hears you. **System Default** is the first row, and it follows macOS, including a headset that you connect later. The **Sound Settings** button opens the macOS sound settings.
+  </Step>
+  <Step title="Make one recording.">
+    Press your recording shortcut one time to start and one time to stop. As an alternative, click the **Record** button. The step gives a sample line to say. The transcript appears below it.
+
+    <Note>
+      HyperWhisper does not paste this test transcript into other applications. The text stays in the setup window.
+    </Note>
+  </Step>
+  <Step title="You are ready to dictate.">
+    A summary of your transcription source, your microphone, your text delivery (cursor or clipboard), and your shortcut. Click **Done Onboarding**.
+  </Step>
+</Steps>
+
+## Set Up Later
+
+Each step, except the last one, has a **Set Up Later** button. The button closes the setup flow and puts back the state that the flow changed:
+
+- the default mode and the mode selection
+- any provider API key that a test in this flow replaced
+- your microphone selection
+
+Two things stay:
+
+- **Models that you downloaded.** The files stay on disk. Use the [Model Library](/models) to remove them.
+- **A HyperWhisper Cloud key that you activated.** Activation is an action on your account, not a local setting.
+
+<Warning>
+  **Set Up Later** also marks the setup as complete. The flow does not open again. To configure HyperWhisper after this, use **Settings** and the [mode editor](/transcription-modes).
+</Warning>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Permissions" href="/permissions">
+    Grant Accessibility later, and read what each permission does.
+  </Card>
+  <Card title="Keyboard Shortcuts" href="/keyboard-shortcuts">
+    Change the shortcut that starts and stops a recording.
+  </Card>
+  <Card title="Transcription Modes" href="/transcription-modes">
+    Change your provider, your model, and your post-processing.
+  </Card>
+  <Card title="Models" href="/models">
+    Compare the local models and the cloud models.
+  </Card>
+</CardGroup>
