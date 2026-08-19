@@ -50,6 +50,18 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
 
     If the file is too large for the provider of the selected mode, HyperWhisper shows an error. The error gives the file size, the limit of the provider, and the name of the provider. To transcribe larger files, change the mode to a different provider (for example, HyperWhisper Cloud or a local model).
 
+    <Warning>
+      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Three Cloud engines have a smaller limit on the server:
+
+      | Cloud engine | Server limit |
+      | --- | --- |
+      | OpenAI Whisper | 25 MB |
+      | Google Gemini | 14 MB |
+      | Google Chirp 3 | 9.5 MB and approximately 55 seconds, unless the server has the large-file path for Chirp 3 |
+
+      A file that is larger than the server limit gets a "file too large" error from the server. The app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
+    </Warning>
+
     ## What happens during transcription
 
     A floating progress popup appears when you select the file. The popup shows three stages:
@@ -111,6 +123,18 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
     | Google Cloud Speech | ~9.5 MB |
 
     If the file is larger than the limit, HyperWhisper shows a toast notification before the upload. The notification gives the maximum size for that provider.
+
+    <Warning>
+      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Three Cloud engines have a smaller limit on the server:
+
+      | Cloud engine | Server limit |
+      | --- | --- |
+      | OpenAI Whisper | 25 MB |
+      | Google Gemini | 14 MB |
+      | Google Chirp 3 | 9.5 MB and approximately 55 seconds, unless the server has the large-file path for Chirp 3 |
+
+      A file that is larger than the server limit gets a "file too large" error from the server. The app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
+    </Warning>
 
     ## What happens during transcription
 
