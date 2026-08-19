@@ -34,7 +34,7 @@ namespace HyperWhisper.Services;
 /// Cloud transcription service using Google Gemini generateContent + Files API.
 /// Uses multimodal audio understanding (not a dedicated STT endpoint).
 /// </summary>
-public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
+public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
@@ -56,36 +56,24 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
     // STATE
     // =========================================================================
 
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "gemini-2.5-flash";
     private string? _customPrompt;
-    private bool _disposed;
 
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"Gemini {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.Gemini)?.DisplayName ?? _modelId}";
+    public override string Name => $"Gemini {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Gemini)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
     public GeminiTranscriptionService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "gemini-2.5-flash")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
     // =========================================================================
@@ -98,10 +86,10 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">Google Gemini API key.</param>
     /// <param name="modelId">Model ID (e.g., gemini-2.5-flash).</param>
-    public void Configure(string apiKey, string modelId = "gemini-2.5-flash")
+    public override void Configure(string apiKey, string modelId = "gemini-2.5-flash")
     {
-        _apiKey = apiKey?.Trim();
-        _modelId = modelId;
+        ApiKey = apiKey?.Trim();
+        ModelId = modelId;
         LoggingService.Info($"GeminiTranscriptionService: Configured with model {modelId}");
     }
 
@@ -123,7 +111,7 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
     /// generateContent -> delete). All request building / response parsing / prompt
     /// assembly is owned by the Rust shared core.
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -131,14 +119,14 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== GEMINI CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Audio path: {audioPath}");
         LoggingService.Info($"  Custom prompt: {(_customPrompt != null ? "yes" : "no")}");
 
         // Validate configuration and audio file (shared gate). Gemini does not
         // cap the file size client-side.
-        var fileInfo = TranscriptionPreflight.Validate("Gemini", _apiKey, audioPath);
+        var fileInfo = TranscriptionPreflight.Validate("Gemini", ApiKey, audioPath);
 
         // Build core params once. Pass ALL raw vocab terms — the core's prompt
         // builder folds base + language hint + vocabulary + custom prompt into the
@@ -150,8 +138,8 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId,
+            apiKey: ApiKey,
+            model: ModelId,
             prompt: _customPrompt);
 
         GeminiFile? uploadedFile = null;
@@ -260,7 +248,7 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
             try
             {
                 var pollReq = HyperwhisperCoreMethods.GeminiBuildPollRequest(coreParams, fileName!);
-                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, _httpClient, cancellationToken);
+                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, Http, cancellationToken);
             }
             catch (HwTranscriptionException ex)
             {
@@ -304,7 +292,7 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
     {
         try
         {
-            return await RustRetry.PerformAsync(_httpClient, buildRequest, parseError, cancellationToken);
+            return await RustRetry.PerformAsync(Http, buildRequest, parseError, cancellationToken);
         }
         catch (HwTranscriptionException ex)
         {
@@ -366,26 +354,12 @@ public class GeminiTranscriptionService : ITranscriptionProvider, IDisposable
             try
             {
                 var req = HyperwhisperCoreMethods.GeminiBuildDeleteRequest(coreParams, fileName);
-                await RustHttpExecutor.ExecuteAsync(req, _httpClient, CancellationToken.None);
+                await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 LoggingService.Warn($"Gemini cleanup failed for {fileName}: {ex.Message}");
             }
         });
-    }
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
     }
 }

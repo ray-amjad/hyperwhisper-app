@@ -20,7 +20,6 @@
 // - Supported containers (auto-detected): wav, mp3, ogg, opus, flac, aac, mp4, m4a, mkv
 
 using System.Diagnostics;
-using System.Net.Http;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
 
@@ -29,7 +28,7 @@ namespace HyperWhisper.Services;
 /// <summary>
 /// Cloud transcription service using xAI Grok speech-to-text batch HTTP API.
 /// </summary>
-public class GrokSttService : ITranscriptionProvider, IDisposable
+public class GrokSttService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
@@ -59,36 +58,24 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     };
 
     // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private bool _disposed;
-
-    // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    public string Name => "Grok";
+    public override string Name => "Grok";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
+    // No HttpClient-level cap: the request bound is the size-scaled
+    // per-attempt timeout that TranscribeAsync below passes to
+    // RustSingleShot.TranscribeAsync (GetRequestTimeout — 5 min base +
+    // 3 s/MB, capped at 30 min). A fixed 300 s cap here killed large-file
+    // uploads that legitimately need longer than 5 minutes to send.
+    // Grok STT has no `model` parameter, so no default model id is passed.
     public GrokSttService()
+        : base(Timeout.InfiniteTimeSpan)
     {
-        _httpClient = new HttpClient
-        {
-            // No HttpClient-level cap: the request bound is the size-scaled
-            // per-attempt timeout that TranscribeAsync below passes to
-            // RustSingleShot.TranscribeAsync (GetRequestTimeout — 5 min base +
-            // 3 s/MB, capped at 30 min). A fixed 300 s cap here killed large-file
-            // uploads that legitimately need longer than 5 minutes to send.
-            Timeout = Timeout.InfiniteTimeSpan
-        };
     }
 
     // =========================================================================
@@ -100,9 +87,9 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     /// `modelId` is accepted for factory signature uniformity but ignored — Grok
     /// STT has no `model` parameter (single implicit model).
     /// </summary>
-    public void Configure(string apiKey, string modelId = "")
+    public override void Configure(string apiKey, string modelId = "")
     {
-        _apiKey = apiKey?.Trim();
+        ApiKey = apiKey?.Trim();
         LoggingService.Info("GrokSttService: Configured");
     }
 
@@ -110,7 +97,7 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
     // TRANSCRIPTION
     // =========================================================================
 
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -123,7 +110,7 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         LoggingService.Info($"  Audio path: {audioPath}");
 
         // Validate configuration and audio file (shared gate).
-        var fileInfo = TranscriptionPreflight.Validate("Grok", _apiKey, audioPath, MaxFileSizeBytes, "500 MB");
+        var fileInfo = TranscriptionPreflight.Validate("Grok", ApiKey, audioPath, MaxFileSizeBytes, "500 MB");
 
         if (vocabulary?.Count > 0)
         {
@@ -142,13 +129,13 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey);
+            apiKey: ApiKey);
 
         var requestTimeout = GetRequestTimeout(fileInfo.Length);
         LoggingService.Info($"  Request timeout: {requestTimeout.TotalMinutes:F1} minutes (per attempt)");
 
         return await RustSingleShot.TranscribeAsync(
-            _httpClient,
+            Http,
             "Grok",
             buildRequest: () => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(coreParams),
             parseResponse: HyperwhisperCoreMethods.GrokParseTranscribeResponse,
@@ -169,19 +156,5 @@ public class GrokSttService : ITranscriptionProvider, IDisposable
         // Budget extra time for large uploads instead of using a fixed timeout.
         var scaledTimeout = BaseRequestTimeout + TimeSpan.FromSeconds(fileSizeMb * 3);
         return scaledTimeout <= MaxRequestTimeout ? scaledTimeout : MaxRequestTimeout;
-    }
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
     }
 }

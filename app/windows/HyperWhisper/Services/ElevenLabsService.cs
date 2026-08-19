@@ -35,7 +35,6 @@
 // NOTE: Uses TranscriptionApiKeyType.ElevenLabs (separate from post-processing)
 
 using System.Diagnostics;
-using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -47,7 +46,7 @@ namespace HyperWhisper.Services;
 /// Scribe V2 supports custom vocabulary via keyterms (up to 100 terms).
 /// Scribe V1 does NOT support custom vocabulary.
 /// </summary>
-public class ElevenLabsService : ITranscriptionProvider, IDisposable
+public class ElevenLabsService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
@@ -56,38 +55,21 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
     private const int DefaultTimeoutSeconds = 120;
 
     // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "scribe_v2";
-    private bool _disposed;
-
-    // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"ElevenLabs {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.ElevenLabs)?.DisplayName ?? _modelId}";
+    public override string Name => $"ElevenLabs {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.ElevenLabs)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
     public ElevenLabsService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "scribe_v2")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
     // =========================================================================
@@ -100,11 +82,11 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">ElevenLabs API key.</param>
     /// <param name="modelId">Model ID (scribe_v2 for keyterm support, scribe_v1 for legacy). Legacy IDs are canonicalized automatically.</param>
-    public void Configure(string apiKey, string modelId = "scribe_v2")
+    public override void Configure(string apiKey, string modelId = "scribe_v2")
     {
-        _apiKey = apiKey;
-        _modelId = CloudTranscriptionModels.ResolveElevenLabsModelAlias(modelId);
-        LoggingService.Info($"ElevenLabsService: Configured with model {_modelId}");
+        ApiKey = apiKey;
+        ModelId = CloudTranscriptionModels.ResolveElevenLabsModelAlias(modelId);
+        LoggingService.Info($"ElevenLabsService: Configured with model {ModelId}");
     }
 
     // =========================================================================
@@ -116,17 +98,17 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
     /// Scribe V2: vocabulary is sent as keyterms (up to 100 terms, each &lt; 50 chars).
     /// Scribe V1: vocabulary is ignored (not supported).
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
         CancellationToken cancellationToken = default)
     {
         var totalSw = Stopwatch.StartNew();
-        var isScribeV2 = _modelId == "scribe_v2";
+        var isScribeV2 = ModelId == "scribe_v2";
 
         LoggingService.Info("========== ELEVENLABS CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
@@ -145,7 +127,7 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
 
         // STEP 1+2: Validate configuration and audio file (shared gate).
         // ElevenLabs does not cap the file size client-side.
-        TranscriptionPreflight.Validate("ElevenLabs", _apiKey, audioPath);
+        TranscriptionPreflight.Validate("ElevenLabs", ApiKey, audioPath);
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop. The core owns language
@@ -159,30 +141,15 @@ public class ElevenLabsService : ITranscriptionProvider, IDisposable
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            apiKey: ApiKey,
+            model: ModelId);
 
         return await RustSingleShot.TranscribeAsync(
-            _httpClient,
+            Http,
             "ElevenLabs",
             buildRequest: () => HyperwhisperCoreMethods.ElevenlabsBuildTranscribeRequest(coreParams),
             parseResponse: HyperwhisperCoreMethods.ElevenlabsParseTranscribeResponse,
             totalSw: totalSw,
             cancellationToken: cancellationToken);
-    }
-
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
     }
 }

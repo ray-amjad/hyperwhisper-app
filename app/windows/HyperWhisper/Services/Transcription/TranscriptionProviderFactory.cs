@@ -197,55 +197,9 @@ public class TranscriptionProviderFactory : IDisposable
     // PRIVATE HELPERS
     // =========================================================================
 
-    private static ITranscriptionProvider ConfigureAndReturn(OpenAIWhisperService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(GroqWhisperService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(DeepgramService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(AssemblyAIService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(ElevenLabsService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(MistralService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(SonioxService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(GeminiTranscriptionService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(GrokSttService service, string apiKey, string modelId)
+    // One overload covers every API-key provider: they all derive from
+    // ApiKeyTranscriptionServiceBase, which declares Configure.
+    private static ITranscriptionProvider ConfigureAndReturn(ApiKeyTranscriptionServiceBase service, string apiKey, string modelId)
     {
         service.Configure(apiKey, modelId);
         return service;
