@@ -123,7 +123,10 @@ actor ModelResidencyRegistry {
     ///
     /// See `ClaimResult` for the caller's obligations on each outcome. They are
     /// binding, not advisory: proceeding on a refusal is the HYPERWHISPER-SQ bug.
-    @discardableResult
+    ///
+    /// Deliberately NOT `@discardableResult`. Every call site consumes the
+    /// result, and the compiler is what keeps the next one from quietly
+    /// reverting to "claim and hope".
     func markBusy(id: String) -> ClaimResult {
         guard var e = entries[id] else { return .notResident }
         // Once the evict closure has actually started (`.freeing`), the runtime

@@ -306,8 +306,22 @@ final class ParakeetProvider: TranscriptionProvider {
         }
 
         // Mark busy so a memory-pressure event can't evict the runtime mid-pass.
-        // NOTE: a refused claim is survivable here (the runtime actor reloads lazily); if that changes, use `ResidentRuntimeClaim.acquire`.
-        await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId)
+        //
+        // SCOPE, honestly: a refusal here is NOT handled, and it is not benign.
+        // `manager` was fetched above, before the claim, and `ParakeetRuntime.reset()`
+        // calls `await manager?.cleanup()` before it drops the reference — so an
+        // ARC-surviving `AsrManager` is already torn down and the transcribe
+        // below will fail against it. Bringing this site up to the
+        // `ResidentRuntimeClaim.acquire` contract is deliberately out of scope
+        // for HYPERWHISPER-SQ, which is the whisper.cpp arm; it is tracked
+        // separately.
+        //
+        // What IS fixed here: the release is balanced on the claim. A second
+        // concurrent claimer reaches this same shared provider
+        // (`TranscribeEndpoint`), so an unconditional `markIdle` after a refused
+        // claim would drop THAT pass's useCount and expose its runtime to
+        // eviction mid-use.
+        let residencyClaimed = await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId).isHonored
 
         // STEP 4: Perform transcription
         // FluidAudio 0.15.x removed the per-call `source:` arg and threads
@@ -329,10 +343,14 @@ final class ParakeetProvider: TranscriptionProvider {
             if !vocabulary.isEmpty {
                 text = applyVocabulary(text, vocabulary: vocabulary)
             }
-            await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
+            if residencyClaimed {
+                await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
+            }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
-            await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
+            if residencyClaimed {
+                await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
+            }
             // IMPROVED ERROR HANDLING:
             // Instead of masking all errors with a generic message, expose the actual
             // FluidAudio error so users and Sentry can see what really went wrong.
