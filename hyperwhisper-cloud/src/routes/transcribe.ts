@@ -43,13 +43,14 @@ import {
 // runProviderAttempt is how the same page learns whether an attempt ever reached
 // the provider at all.
 import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
+// The providers layer's own answer to "how big a payload may this provider be
+// handed", so the route never needs a provider's byte caps or the environment
+// that lifts them. See providers/audio-limits.ts.
+import { preBufferMaxBytes } from '../providers/audio-limits';
 import { rawQuery } from '../lib/query';
 import {
   FLY_REPLAY_MAX_BODY_BYTES,
-  GEMINI_INLINE_MAX_BYTES,
-  GOOGLE_CHIRP_INLINE_MAX_BYTES,
   MAX_AUDIO_SIZE_BYTES,
-  OPENAI_INLINE_MAX_BYTES,
 } from '../lib/constants';
 import { isIPBlocked } from '../lib/redis';
 import {
@@ -292,36 +293,16 @@ function validateStreamingHeaders(c: Context, provider: Provider):
     return { ok: false, response: fileTooLargeResponse(contentLength, MAX_AUDIO_SIZE_BYTES) };
   }
 
-  // Google Chirp inline cap (~9.5 MB) applies before we buffer the body —
-  // without a scratch GCS bucket the provider has no path for larger audio,
-  // and we don't want to allocate a 50 MB buffer just to 413 the caller.
-  if (
-    provider === 'google-chirp'
-    && contentLength > GOOGLE_CHIRP_INLINE_MAX_BYTES
-    && !(process.env.GOOGLE_SPEECH_GCS_BUCKET || '').trim()
-  ) {
+  // Some providers reject a payload this large no matter what we do with it —
+  // Chirp's inline `recognize` cap, Gemini's base64 inline cap, OpenAI's hard
+  // 25 MB limit. Ask the providers layer for the cap and 413 on the way past,
+  // so we never allocate a buffer of up to MAX_AUDIO_SIZE_BYTES only to throw
+  // it away. `null` means this provider has no cap of its own.
+  const providerMaxBytes = preBufferMaxBytes(provider);
+  if (providerMaxBytes !== null && contentLength > providerMaxBytes) {
     return {
       ok: false,
-      response: fileTooLargeResponse(contentLength, GOOGLE_CHIRP_INLINE_MAX_BYTES),
-    };
-  }
-
-  // Gemini sends audio inline (base64) and rejects anything over ~14 MB raw.
-  // Gate on Content-Length before buffering so an oversized upload is rejected
-  // early instead of after buffering up to MAX_AUDIO_SIZE_BYTES on the machine.
-  if (provider === 'gemini' && contentLength > GEMINI_INLINE_MAX_BYTES) {
-    return {
-      ok: false,
-      response: fileTooLargeResponse(contentLength, GEMINI_INLINE_MAX_BYTES),
-    };
-  }
-
-  // OpenAI hard-rejects audio over 25 MB with a 400. Gate on Content-Length
-  // before buffering so we return 413 without allocating the buffer first.
-  if (provider === 'openai' && contentLength > OPENAI_INLINE_MAX_BYTES) {
-    return {
-      ok: false,
-      response: fileTooLargeResponse(contentLength, OPENAI_INLINE_MAX_BYTES),
+      response: fileTooLargeResponse(contentLength, providerMaxBytes),
     };
   }
 

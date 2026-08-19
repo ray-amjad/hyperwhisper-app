@@ -706,6 +706,60 @@ describe('OpenAI pre-buffer size gate (413 before any upstream call)', () => {
   });
 });
 
+describe('Google Chirp pre-buffer size gate (conditional on the GCS scratch bucket)', () => {
+  const originalBucket = process.env.GOOGLE_SPEECH_GCS_BUCKET;
+  const oversizedContentLength = 50 * 1024 * 1024;
+
+  function oversizedChirpRequest(): Request {
+    // Tiny actual body, but a Content-Length well over the 9.5 MB inline cap.
+    return new Request('http://localhost/transcribe?license_key=test-license', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(oversizedContentLength),
+        'X-STT-Provider': 'google-chirp',
+      },
+      body: new Uint8Array(8),
+    });
+  }
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBucket === undefined) {
+      delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
+    } else {
+      process.env.GOOGLE_SPEECH_GCS_BUCKET = originalBucket;
+    }
+  });
+
+  test('rejects an oversized Content-Length with 413 when no bucket is configured', async () => {
+    delete process.env.GOOGLE_SPEECH_GCS_BUCKET;
+    let fetchCalled = false;
+    globalThis.fetch = mock(async () => { fetchCalled = true; return Response.json({}); }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(oversizedChirpRequest());
+
+    expect(response.status).toBe(413);
+    // The gate must fire before any buffering / upstream provider call.
+    expect(fetchCalled).toBe(false);
+  });
+
+  test('admits the same request once a bucket is configured (batchRecognize has no inline cap)', async () => {
+    process.env.GOOGLE_SPEECH_GCS_BUCKET = 'hyperwhisper-stt-scratch';
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      // The attempt itself fails (no service-account credentials in the test
+      // environment). What this asserts is only that the pre-buffer gate let
+      // the request through to it.
+      return new Response('nope', { status: 500 });
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(oversizedChirpRequest());
+
+    expect(response.status).not.toBe(413);
+  });
+});
+
 describe('AssemblyAI keyterms preflight credit reservation', () => {
   // A big-enough clip that it's NOT sync-eligible (estimated well over the
   // ~100s sync threshold), so these tests isolate the async keyterms-add-on
