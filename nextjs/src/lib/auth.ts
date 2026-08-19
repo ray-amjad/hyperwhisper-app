@@ -14,10 +14,16 @@ export const auth = betterAuth({
   // 90 days + a daily rolling refresh keeps an active user signed in
   // indefinitely — but only if the refresh happens somewhere a `Set-Cookie`
   // can actually be sent. See `getServerComponentSession` below.
+  //
+  // Deliberately NO `cookieCache`. It would serve the session — including the
+  // custom `role` field — from a signed cookie for its whole maxAge without
+  // touching the DB, so a demoted admin or a deleted session row would keep
+  // passing every admin gate (`adminProcedure`, the `role !== "admin"` guards
+  // in customers/devices) until the cache expired. Revocation has to stay
+  // immediate; a per-request session SELECT is a cheap price for that.
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days
     updateAge: 60 * 60 * 24, // refresh at most once a day
-    cookieCache: { enabled: true, maxAge: 300 },
   },
   user: {
     additionalFields: {
