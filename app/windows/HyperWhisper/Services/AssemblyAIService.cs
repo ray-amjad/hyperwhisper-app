@@ -64,7 +64,7 @@ namespace HyperWhisper.Services;
 /// Cloud transcription service using AssemblyAI's async transcription API.
 /// Three-step workflow: upload -> create transcript -> poll for completion.
 /// </summary>
-public class AssemblyAIService : ITranscriptionProvider, IDisposable
+public class AssemblyAIService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
@@ -87,45 +87,28 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         TimeSpan.FromMilliseconds(HyperwhisperCoreMethods.AssemblyaiSyncTimeoutMs());
 
     // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "universal-2";
-    private bool _disposed;
-
-    // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"AssemblyAI {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.AssemblyAI)?.DisplayName ?? _modelId}";
+    public override string Name => $"AssemblyAI {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.AssemblyAI)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
+    // Timeout enforcement lives PER-CALL (via a linked CancellationTokenSource —
+    // RustRetry's `perAttemptTimeout` for upload/create, an explicit CTS wrap for
+    // poll, and the sync path's own `SyncTimeout` CTS below), not on the
+    // HttpClient itself. A fixed HttpClient.Timeout here previously raced the
+    // sync path's own (longer) timeout budget and won, mislabeling a
+    // successful-but-slow sync call as "timed out" and needlessly falling back
+    // to async — Timeout.InfiniteTimeSpan removes that race entirely.
     public AssemblyAIService()
+        : base(Timeout.InfiniteTimeSpan, "universal-2")
     {
-        // Timeout enforcement lives PER-CALL (via a linked CancellationTokenSource —
-        // RustRetry's `perAttemptTimeout` for upload/create, an explicit CTS wrap for
-        // poll, and the sync path's own `SyncTimeout` CTS below), not on the
-        // HttpClient itself. A fixed HttpClient.Timeout here previously raced the
-        // sync path's own (longer) timeout budget and won, mislabeling a
-        // successful-but-slow sync call as "timed out" and needlessly falling back
-        // to async — Timeout.InfiniteTimeSpan removes that race entirely.
-        _httpClient = new HttpClient
-        {
-            Timeout = Timeout.InfiniteTimeSpan
-        };
     }
 
     // =========================================================================
@@ -138,11 +121,11 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">AssemblyAI API key.</param>
     /// <param name="modelId">Model ID (universal-2, universal-3-pro). Legacy IDs are canonicalized automatically.</param>
-    public void Configure(string apiKey, string modelId = "universal-2")
+    public override void Configure(string apiKey, string modelId = "universal-2")
     {
-        _apiKey = apiKey;
-        _modelId = CloudTranscriptionModels.ResolveAssemblyAIModelAlias(modelId);
-        LoggingService.Info($"AssemblyAIService: Configured with model {_modelId}");
+        ApiKey = apiKey;
+        ModelId = CloudTranscriptionModels.ResolveAssemblyAIModelAlias(modelId);
+        LoggingService.Info($"AssemblyAIService: Configured with model {ModelId}");
     }
 
     // =========================================================================
@@ -153,7 +136,7 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     /// Transcribes audio using AssemblyAI's async API (ITranscriptionProvider
     /// entry point — no pre-computed duration available to the caller).
     /// </summary>
-    public Task<string> TranscribeAsync(
+    public override Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -193,14 +176,14 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== ASSEMBLYAI CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
         // STEP 1+2: Validate configuration and audio file (shared gate).
         // AssemblyAI does not cap the file size client-side.
-        TranscriptionPreflight.Validate("AssemblyAI", _apiKey, audioPath);
+        TranscriptionPreflight.Validate("AssemblyAI", ApiKey, audioPath);
 
         // STEP 3: Build core params (model/keyterms/language/domain owned by core).
         // Pass the RAW vocab list (keyterms_prompt is built + capped by the core).
@@ -222,8 +205,8 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            apiKey: ApiKey,
+            model: ModelId);
 
         // STEP 3.5: Try the sync fast path for short clips. Uses the EXACT NAudio
         // duration (not a byte-size estimate) since we have the file on disk.
@@ -243,7 +226,7 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
             ? Result<double>.Success(knownDurationSeconds.Value)
             : FileTranscriptionService.GetAudioDuration(audioPath);
         var syncMaxDurationSeconds = HyperwhisperCoreMethods.AssemblyaiSyncMaxDurationSecs();
-        var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(_modelId).Medical;
+        var isMedicalModel = CloudTranscriptionModels.GetAssemblyAIRequestParams(ModelId).Medical;
         if (IsSyncEligible(durationResult, syncMaxDurationSeconds, isMedicalModel))
         {
             LoggingService.Info($"  Duration {durationResult.Value:F1}s < {syncMaxDurationSeconds:F0}s sync cap — trying sync fast path");
@@ -299,14 +282,14 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
             try
             {
                 var pollReq = HyperwhisperCoreMethods.AssemblyaiBuildPollRequest(coreParams, transcriptId);
-                // _httpClient.Timeout is Timeout.InfiniteTimeSpan (see the
+                // Http.Timeout is Timeout.InfiniteTimeSpan (see the
                 // constructor) — bound this single poll attempt with its own linked
                 // CTS so a single stalled poll can't hang the whole loop forever;
                 // this restores the same DefaultTimeoutSeconds budget the client-level
                 // timeout used to provide for free.
                 using var pollCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 pollCts.CancelAfter(TimeSpan.FromSeconds(DefaultTimeoutSeconds));
-                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, _httpClient, pollCts.Token);
+                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, Http, pollCts.Token);
             }
             catch (HwTranscriptionException ex)
             {
@@ -405,7 +388,7 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         try
         {
             var request = HyperwhisperCoreMethods.AssemblyaiBuildSyncRequest(coreParams);
-            response = await RustHttpExecutor.ExecuteAsync(request, _httpClient, timeoutCts.Token);
+            response = await RustHttpExecutor.ExecuteAsync(request, Http, timeoutCts.Token);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -451,12 +434,12 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
     {
         try
         {
-            // _httpClient.Timeout is now Timeout.InfiniteTimeSpan (see the
+            // Http.Timeout is now Timeout.InfiniteTimeSpan (see the
             // constructor) — pass the per-attempt budget explicitly so upload/create
             // still get the same DefaultTimeoutSeconds protection that used to come
             // for free from the client-level timeout.
             return await RustRetry.PerformAsync(
-                _httpClient, buildRequest, parseError, cancellationToken,
+                Http, buildRequest, parseError, cancellationToken,
                 perAttemptTimeout: TimeSpan.FromSeconds(DefaultTimeoutSeconds));
         }
         catch (HwTranscriptionException ex)
@@ -504,19 +487,5 @@ public class AssemblyAIService : ITranscriptionProvider, IDisposable
         {
             return RustCoreMapping.MapTranscriptionError(ex, "AssemblyAI", (int)resp.@status);
         }
-    }
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
     }
 }

@@ -27,7 +27,6 @@
 // NOTE: Shares API key with Groq post-processing (PostProcessingProvider.Groq)
 
 using System.Diagnostics;
-using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
 using uniffi.hyperwhisper_core;
@@ -38,7 +37,7 @@ namespace HyperWhisper.Services;
 /// Cloud transcription service using Groq's Whisper API.
 /// OpenAI-compatible API with Groq's fast LPU inference.
 /// </summary>
-public class GroqWhisperService : ITranscriptionProvider, IDisposable
+public class GroqWhisperService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
@@ -48,38 +47,21 @@ public class GroqWhisperService : ITranscriptionProvider, IDisposable
     private const int DefaultTimeoutSeconds = 120;
 
     // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "whisper-large-v3-turbo";
-    private bool _disposed;
-
-    // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"Groq {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.Groq)?.DisplayName ?? _modelId}";
+    public override string Name => $"Groq {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Groq)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
     public GroqWhisperService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "whisper-large-v3-turbo")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
     // =========================================================================
@@ -92,10 +74,10 @@ public class GroqWhisperService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">Groq API key (starts with "gsk_").</param>
     /// <param name="modelId">Model ID (whisper-large-v3-turbo, whisper-large-v3).</param>
-    public void Configure(string apiKey, string modelId = "whisper-large-v3-turbo")
+    public override void Configure(string apiKey, string modelId = "whisper-large-v3-turbo")
     {
-        _apiKey = apiKey;
-        _modelId = modelId;
+        ApiKey = apiKey;
+        ModelId = modelId;
         LoggingService.Info($"GroqWhisperService: Configured with model {modelId}");
     }
 
@@ -106,7 +88,7 @@ public class GroqWhisperService : ITranscriptionProvider, IDisposable
     /// <summary>
     /// Transcribes audio using Groq's Whisper API.
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -114,13 +96,13 @@ public class GroqWhisperService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== GROQ CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
         // STEP 1+2: Validate configuration and audio file (shared gate).
-        TranscriptionPreflight.Validate("Groq", _apiKey, audioPath, MaxFileSizeBytes, "25 MB");
+        TranscriptionPreflight.Validate("Groq", ApiKey, audioPath, MaxFileSizeBytes, "25 MB");
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop.
@@ -132,30 +114,15 @@ public class GroqWhisperService : ITranscriptionProvider, IDisposable
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            apiKey: ApiKey,
+            model: ModelId);
 
         return await RustSingleShot.TranscribeAsync(
-            _httpClient,
+            Http,
             "Groq",
             buildRequest: () => HyperwhisperCoreMethods.GroqBuildTranscribeRequest(coreParams),
             parseResponse: HyperwhisperCoreMethods.GroqParseTranscribeResponse,
             totalSw: totalSw,
             cancellationToken: cancellationToken);
-    }
-
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
     }
 }
