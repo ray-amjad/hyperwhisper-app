@@ -48,6 +48,16 @@ class LibWhisperProvider: TranscriptionProvider {
     /// Track if model is ready
     private var isModelReady: Bool = false
 
+    /// Name of the last model that loaded successfully.
+    ///
+    /// Deliberately STICKY — it survives `cleanup()`, unlike `currentModel` and
+    /// `whisperContext`. After a memory-pressure eviction the provider has been
+    /// stripped of every clue about what it was running (`pendingModel` was
+    /// already consumed at the top of `transcribe`), and without this it cannot
+    /// tell "evicted, reload it" apart from "the user never downloaded a model".
+    /// It is a name, not a runtime, so keeping it costs nothing.
+    private var lastLoadedModelName: String?
+
     /// Timestamp granularities requested for the next transcribe(...) call.
     /// Empty = text only (default; zero extra cost).
     private var requestedGranularities: TimestampGranularities = []
@@ -131,6 +141,8 @@ class LibWhisperProvider: TranscriptionProvider {
             whisperContext = try await WhisperContext.createContext(path: modelPath)
             currentModel = model
             isModelReady = true
+            // Sticky: this is what `transcribe` reloads after an eviction.
+            lastLoadedModelName = modelName
             logger.info("✅ Model loaded successfully: \(modelName) - READY TO TRANSCRIBE!")
 
             // Telemetry + register for memory-pressure eviction. The whisper
@@ -173,25 +185,70 @@ class LibWhisperProvider: TranscriptionProvider {
             pendingModel = nil
         }
         
-        guard let context = whisperContext else {
-            logger.error("❌ No whisper context available for transcription")
-            logger.error("   Available models: \(self.modelManager.downloadedModels.map { $0.name })")
-            logger.error("   Current model: \(self.currentModel?.name ?? "none")")
-            logger.error("   Model ready: \(self.isModelReady)")
-            throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "No model loaded. Please download a model first.")
-        }
-        
-        logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
-        
         // Cancel any existing transcription
         transcriptionTask?.cancel()
 
-        // Claim residency BEFORE the task can start touching the context, so a
-        // concurrent memory-pressure eviction can't free it mid-pass. The
-        // registry is an actor: this markBusy happens-before any later evict,
-        // and the task below only begins after this await returns — closing the
-        // pressure/start race where a late claim left the entry briefly idle.
-        await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId)
+        // HYPERWHISPER-SQ, the whisper.cpp arm — the one that logs "No context
+        // available for transcription". (That Sentry group is fingerprinted on
+        // category/kind/stage alone, so every local provider lands in it; its
+        // Apple Speech arm is an unrelated fault handled by
+        // `TranscriptionCancellationPolicy`.)
+        //
+        // The context MUST be read under an HONORED residency claim, never
+        // before one. `ModelResidencyRegistry` is an actor, but it is REENTRANT
+        // across the `await e.evict()` inside `evict(...)`, so this method can
+        // run while that eviction closure — our own `cleanup()` — is midway
+        // through `releaseResources()`. The previous order (read the context
+        // into a local, then claim, then ignore whether the claim was honored)
+        // handed the task below a `WhisperContext` that was being freed
+        // underneath it, and there is no happens-before relationship that
+        // prevents it.
+        //
+        // So: claim first, re-read the context under that claim, and reload it
+        // exactly once if it is gone. On `.claimed` this call holds exactly ONE
+        // claim, balanced by the `markIdle` on every exit path of the do/catch
+        // at the bottom of this method. On `.unavailable` — or on anything
+        // thrown out of the reload — it holds NO claim and leaves `transcribe`
+        // before that block is ever reached.
+        let acquisition: ResidentRuntimeClaim.Acquisition<WhisperContext> =
+            try await ResidentRuntimeClaim.acquire(
+                claim: { await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId) },
+                release: { await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId) },
+                runtime: { self.whisperContext },
+                reload: {
+                    guard let modelName = self.lastLoadedModelName else {
+                        // Nothing was ever loaded, so this is not an eviction:
+                        // the user has no model. Same four diagnostics and the
+                        // same reason string as before, byte for byte, so that
+                        // pre-existing Sentry signature is untouched.
+                        let availableModels = self.modelManager.downloadedModels.map { $0.name }.joined(separator: ", ")
+                        let currentModelName = self.currentModel?.name ?? "none"
+                        self.logger.error("❌ No whisper context available for transcription")
+                        self.logger.error("   Available models: \(availableModels, privacy: .public)")
+                        self.logger.error("   Current model: \(currentModelName, privacy: .public)")
+                        self.logger.error("   Model ready: \(self.isModelReady, privacy: .public)")
+                        throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "No model loaded. Please download a model first.")
+                    }
+                    self.logger.notice("♻️ Whisper context was freed to reclaim memory - reloading \(modelName, privacy: .public)")
+                    try await self.loadModel(named: modelName)
+                }
+            )
+
+        guard case .claimed(let context) = acquisition else {
+            // Reloaded fine, but the claim was refused again: memory pressure is
+            // sustained (MemoryPressureMonitor evicts with `minIdle: 0` when
+            // critical) and evicted the fresh runtime too. Retrying here would
+            // livelock, so fail honestly — and stay visible in Sentry, which is
+            // why this reason avoids the "transient provider availability"
+            // vocabulary that `TranscriptionPipeline+ErrorClassification`
+            // substring-matches to suppress.
+            throw TranscriptionError.providerNotAvailable(
+                provider: "Local Whisper",
+                reason: "The local Whisper model was unloaded to free memory and could not be reclaimed."
+            )
+        }
+
+        logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
 
         // Create new transcription task
         let task = Task<String, Error> {
@@ -254,7 +311,13 @@ class LibWhisperProvider: TranscriptionProvider {
             var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
 
             guard success else {
-                throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "Transcription failed. The audio may be corrupted or too short.")
+                // The old wording here ("the audio may be corrupted or too
+                // short") was an invented diagnosis, and it was the message
+                // users and Sentry got for HYPERWHISPER-SQ — where the real
+                // cause was a context freed under the claim, nothing to do with
+                // the audio. That path is closed above, so a `false` from a LIVE
+                // context is now genuinely a decode failure. Say only that.
+                throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "Whisper produced no result for this recording.")
             }
 
             // Get transcription result
@@ -333,6 +396,10 @@ class LibWhisperProvider: TranscriptionProvider {
         whisperContext = nil
         currentModel = nil
         isModelReady = false
+        // `lastLoadedModelName` is deliberately NOT cleared here. This method is
+        // the registry's evict closure, so clearing it would erase the only
+        // record of what to reload and turn every memory-pressure eviction back
+        // into a "No model loaded. Please download a model first." dead end.
         await ModelResidencyRegistry.shared.deregister(id: libWhisperResidencyId)
         logger.info("🧽 Provider cleaned up")
     }

@@ -306,6 +306,7 @@ final class ParakeetProvider: TranscriptionProvider {
         }
 
         // Mark busy so a memory-pressure event can't evict the runtime mid-pass.
+        // NOTE: a refused claim is survivable here (the runtime actor reloads lazily); if that changes, use `ResidentRuntimeClaim.acquire`.
         await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId)
 
         // STEP 4: Perform transcription
