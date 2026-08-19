@@ -20,6 +20,7 @@
 // service account's IAM, never via a public URL. The bucket can stay private
 // (and SHOULD — these are user voice recordings).
 
+import { getConfiguredBucket } from './gcs-config';
 import { getGoogleAccessToken } from './google-auth';
 import { ProviderUnavailableError } from '../providers/types';
 import { markProviderNetworkCall } from '../providers/utils';
@@ -53,15 +54,10 @@ export interface TranscriptionAudioUpload extends TranscriptionAudioRef {
   readonly gcsUri: string;
 }
 
-function getConfiguredBucket(): string | null {
-  const bucket = process.env.GOOGLE_SPEECH_GCS_BUCKET?.trim();
-  return bucket && bucket.length > 0 ? bucket : null;
-}
-
-/** True when `uploadTranscriptionAudio` can be used. */
-export function isGcsTranscriptionBucketConfigured(): boolean {
-  return getConfiguredBucket() !== null;
-}
+// Re-exported so every existing importer keeps its `from './gcs-storage'`
+// path. The environment variable itself is read in exactly one place,
+// `lib/gcs-config.ts`.
+export { isGcsTranscriptionBucketConfigured } from './gcs-config';
 
 function inferExtension(contentType: string): string {
   const lower = contentType.toLowerCase();
