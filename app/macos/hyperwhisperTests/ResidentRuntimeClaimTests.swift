@@ -24,8 +24,7 @@ private struct ReloadFailure: Error, Equatable {
 /// An actor because the helper calls these closures across suspension points, so
 /// the bookkeeping cannot be a plain captured `var`. `events` is the point of
 /// the whole double: the counts say what happened, the order says whether a
-/// stale claim was released BEFORE the reload — the invariant that keeps a claim
-/// from being erased by `register(id:tier:evict:)` resetting `useCount` to 0.
+/// stale claim was released BEFORE the reload.
 private actor ClaimProbe {
     /// Scripted answers for the 1st and 2nd `claim()`. Anything past the end of
     /// the script is `.notResident`; nothing should ever get that far.
@@ -194,10 +193,9 @@ struct ResidentRuntimeClaimTests {
     }
 
     /// The defensive window: the entry is still registered, so the claim IS
-    /// honored, but the runtime behind it has already been freed. That claim
-    /// protects nothing, and the reload's `register(...)` would reset the
-    /// entry's `useCount` to 0 — erasing it beyond repayment, since `markIdle`
-    /// floors at 0. So it has to be given back BEFORE the reload, not after.
+    /// honored, but the runtime behind it has already been freed. The claim must
+    /// be given back BEFORE the reload — `acquire`'s doc says why carrying it
+    /// across would pin the model resident for the session.
     @Test func aStaleClaimOnAMissingRuntimeIsReleasedBeforeTheReload() async throws {
         let probe = ClaimProbe(
             claimAnswers: [.claimed, .claimed],
@@ -289,9 +287,8 @@ struct ResidentRuntimeClaimTests {
 
     /// Sustained pressure: the reload succeeds, the fresh runtime is evicted
     /// straight away too, and the second claim is refused as well. The answer is
-    /// `.unavailable` after EXACTLY ONE reload — `MemoryPressureMonitor` evicts
-    /// with `minIdle: 0` under critical pressure, so a retry loop here would
-    /// reload and lose the model over and over instead of failing honestly.
+    /// `.unavailable` after EXACTLY ONE reload — see `acquire`'s doc for why a
+    /// retry loop would livelock rather than recover.
     @Test func sustainedPressureGivesUpAfterExactlyOneReload() async throws {
         let probe = ClaimProbe(
             claimAnswers: [.evicting, .evicting],

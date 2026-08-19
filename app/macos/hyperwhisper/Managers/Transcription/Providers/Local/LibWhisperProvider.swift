@@ -194,13 +194,10 @@ class LibWhisperProvider: TranscriptionProvider {
             contextGeneration &+= 1
             logger.info("✅ Model loaded successfully: \(modelName) - READY TO TRANSCRIBE!")
 
-            // Telemetry + register for memory-pressure eviction. The whisper
-            // context was previously never freed until a model switch; this lets
-            // it be reclaimed when idle under pressure. Weak capture.
-            //
-            // Registered while `lifecycleLock` is STILL held, so the window
-            // between the context existing and its entry existing is closed to
-            // anyone who reloads: they queue on the lock and find both.
+            // Telemetry + register for memory-pressure eviction (weak capture).
+            // Still under `lifecycleLock`, so the window between the context
+            // existing and its entry existing is closed to anyone who reloads:
+            // they queue on the lock and find both.
             let coldMs = Int(Date().timeIntervalSince(coldLoadStart) * 1000)
             AppLogger.memory.info("model.load.cold id=\(libWhisperResidencyId, privacy: .public) durationMs=\(coldMs, privacy: .public) footprintMB=\(MemoryFootprint.currentMB(), privacy: .public)")
             await ModelResidencyRegistry.shared.register(id: libWhisperResidencyId, tier: .stt) { [weak self] in
@@ -249,15 +246,10 @@ class LibWhisperProvider: TranscriptionProvider {
         cancellationEpoch &+= 1
         let epoch = cancellationEpoch
 
-        // The context MUST be read under an HONORED residency claim, never
-        // before one, and the reload must be able to run without a stale
-        // teardown clobbering it. `ResidentRuntimeClaim.acquire` is the canonical
-        // account of both halves and of HYPERWHISPER-SQ's whisper.cpp arm — read
-        // it there rather than restating it here.
-        //
-        // On `.claimed` this call holds exactly ONE claim, balanced on every
-        // exit path below. On `.unavailable`, or on anything thrown out of the
-        // reload, it holds NO claim.
+        // Claim residency, THEN read the context under that claim. See
+        // `ResidentRuntimeClaim.acquire` for why, and for the caller obligations
+        // the branches below discharge — it is the canonical account of
+        // HYPERWHISPER-SQ's whisper.cpp arm and is not restated here.
         let acquisition: ResidentRuntimeClaim.Acquisition<WhisperContext> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId) },
@@ -286,15 +278,10 @@ class LibWhisperProvider: TranscriptionProvider {
         case .claimed(let live):
             context = live
         case .unavailable(let stillEvicting):
-            // Reloaded fine, but the claim was refused again: memory pressure is
-            // sustained (MemoryPressureMonitor evicts with `minIdle: 0` when
-            // critical) and evicted the fresh runtime too. Retrying here would
-            // livelock, so fail honestly — and in its OWN error case, so this
-            // failure gets its own Sentry fingerprint instead of landing back in
-            // the HYPERWHISPER-SQ group it exists to close. As prose inside
-            // `providerNotAvailable` it was indistinguishable from the bug, and
-            // its visibility depended on the wording dodging
-            // `isTransientProviderAvailabilityReason`'s substring list.
+            // Reloaded fine and lost it again: pressure is sustained, and
+            // retrying here would livelock. Fail honestly, in the dedicated
+            // error case — `TranscriptionError.localSpeechModelEvicted` explains
+            // why this cannot be a `providerNotAvailable` reason string.
             logger.error("❌ Whisper context could not be reclaimed after reload (stillEvicting=\(stillEvicting, privacy: .public))")
             throw TranscriptionError.localSpeechModelEvicted(model: currentModel?.name)
         }

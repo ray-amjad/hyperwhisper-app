@@ -265,12 +265,13 @@ class AIPostProcessor: ObservableObject {
         // markBusy/markIdle anywhere else — without this, a CRITICAL pressure
         // event would run the eviction closure (tier .llm) and stop the server
         // in the middle of an active chat-completion request, failing the pass.
-        // Released on every exit via defer.
-        // A REFUSED claim is not survivable here. It means the registry has
-        // already moved llama-server to `.freeing` under critical pressure and
-        // is stopping it, so POSTing a chat-completion at it would fail anyway —
-        // and releasing a claim we never took would zero a concurrent pass's
-        // claim (`PostProcessEndpoint` documents that these interleave).
+        // Released on every exit via defer — but only if it was actually taken.
+        //
+        // A REFUSED claim is not survivable here: it means the registry has
+        // already moved llama-server to `.freeing` and is stopping it, so
+        // POSTing a chat-completion at it would fail anyway, and releasing a
+        // claim we never took would zero a concurrent pass's claim
+        // (`PostProcessEndpoint` documents that these interleave).
         var claimedLocalLLM = false
         if provider == .localLLM {
             claimedLocalLLM = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId).isHonored
