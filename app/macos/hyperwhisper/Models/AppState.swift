@@ -775,12 +775,6 @@ class AppState: ObservableObject {
         }
     }
 
-    func modeSnapshotForCurrentSession() -> ModeSnapshot? {
-        cachedSortedModeSnapshots.first { $0.id.uuidString == currentSessionModeId } ??
-        cachedSortedModeSnapshots.first { $0.name == currentSessionModeName } ??
-        selectedModeSnapshot
-    }
-
     /// The mode currently relevant to the active recording/transcription session.
     /// Falls back to the selected mode when no session is active.
     var currentSessionModeName: String {
