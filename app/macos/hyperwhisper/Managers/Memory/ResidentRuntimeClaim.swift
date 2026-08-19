@@ -18,6 +18,10 @@ import Foundation
 /// Acquires a memory-resident runtime for one in-flight operation, reloading it
 /// exactly once if a memory-pressure eviction got there first.
 ///
+/// **This doc is the canonical account of HYPERWHISPER-SQ's whisper.cpp arm.**
+/// The call sites and the tests point here rather than restating it, so there is
+/// one description to keep true when the behaviour changes.
+///
 /// ## The bug this exists to prevent
 ///
 /// HYPERWHISPER-SQ, the whisper.cpp arm — the one that logs `No context
@@ -33,6 +37,22 @@ import Foundation
 /// (`phase == .freeing`), the refusal was invisible, and the transcription ran
 /// on a `WhisperContext` whose underlying `whisper_context` had just been freed.
 /// The user was told the audio might be corrupted.
+///
+/// ## Why claiming first is not on its own enough
+///
+/// Reordering fixes the read. It does not stop the OWNER from mutating its
+/// runtime across a suspension point, which is the same reentrancy from the
+/// other side: a teardown that suspends inside `releaseResources()` can resume
+/// after a reload has installed a fresh runtime, and free THAT one. So the owner
+/// must also serialise its own load against its own teardown and make a
+/// superseded teardown recognise itself — `LibWhisperProvider` does this with an
+/// `AsyncSerialLock` plus a generation counter. The invariant the two halves buy
+/// together: **a runtime handed back as `.claimed` cannot be freed or
+/// deregistered by a teardown that started before the claim.**
+///
+/// That serialisation is also why `reload` is cheap in the common case: it
+/// queues behind whatever load is in flight and returns without doing anything
+/// when the model it wanted is already resident.
 ///
 /// ## The contract, which the caller must honor exactly
 ///
@@ -55,7 +75,14 @@ enum ResidentRuntimeClaim {
         case claimed(Runtime)
         /// No runtime could be claimed, even after one reload attempt. The
         /// caller holds nothing and must not release.
-        case unavailable
+        ///
+        /// - Parameter stillEvicting: the final refusal was
+        ///   `ClaimResult.evicting` — the freshly reloaded runtime is being torn
+        ///   down too, i.e. memory pressure is sustained. `false` means the
+        ///   reload simply left nothing registered. Both are failures; they are
+        ///   distinguished so the failure is legible in logs instead of arriving
+        ///   as a bare "not available".
+        case unavailable(stillEvicting: Bool)
     }
 
     /// Claims residency, then re-reads the runtime under that claim, reloading
@@ -78,7 +105,7 @@ enum ResidentRuntimeClaim {
     /// eligible again — a retry loop would livelock instead of failing.
     ///
     /// - Parameters:
-    ///   - claim: Takes a residency claim; `true` when it was honored. Typically
+    ///   - claim: Takes a residency claim. Typically
     ///     `ModelResidencyRegistry.markBusy(id:)`.
     ///   - release: Gives back one honored claim. Typically `markIdle(id:)`.
     ///     Only ever called here for a claim this call itself took.
@@ -90,28 +117,35 @@ enum ResidentRuntimeClaim {
     ///     fresh residency entry. Anything it throws propagates unchanged.
     /// - Returns: `.claimed` holding the live runtime, or `.unavailable`.
     static func acquire<Runtime>(
-        claim: () async -> Bool,
+        claim: () async -> ModelResidencyRegistry.ClaimResult,
         release: () async -> Void,
         runtime: () async -> Runtime?,
         reload: () async throws -> Void
     ) async rethrows -> Acquisition<Runtime> {
-        var honored = await claim()
-        if honored, let live = await runtime() {
-            return .claimed(live)
-        }
-        // A claim on a runtime that is already gone: it protects nothing, and
-        // the reload below would erase it anyway. Give it back first.
-        if honored {
+        // One claim/read/release triple. Returns the live runtime with exactly
+        // one claim outstanding, or `nil` with NOTHING outstanding — including
+        // the awkward middle case, an honored claim on a runtime that has
+        // already gone, where the claim protects nothing and is given back here
+        // rather than carried into the reload that would erase it.
+        func attempt() async -> (runtime: Runtime?, refusal: ModelResidencyRegistry.ClaimResult) {
+            let result = await claim()
+            guard result.isHonored else { return (nil, result) }
+            if let live = await runtime() {
+                return (live, result)
+            }
             await release()
+            return (nil, result)
+        }
+
+        let first = await attempt()
+        if let live = first.runtime {
+            return .claimed(live)
         }
         try await reload()
-        honored = await claim()
-        if honored, let live = await runtime() {
+        let second = await attempt()
+        if let live = second.runtime {
             return .claimed(live)
         }
-        if honored {
-            await release()
-        }
-        return .unavailable
+        return .unavailable(stillEvicting: second.refusal == .evicting)
     }
 }

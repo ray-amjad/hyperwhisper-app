@@ -2,15 +2,9 @@
 //  ResidentRuntimeClaimTests.swift
 //  hyperwhisperTests
 //
-//  Pins the acquire sequence behind HYPERWHISPER-SQ's whisper.cpp arm ("No
-//  context available for transcription"): claim residency FIRST, re-read the
-//  runtime under that claim, reload exactly once if it is gone — and never leave
-//  a claim outstanding on a path that does not return `.claimed`.
-//
-//  `LibWhisperProvider` itself is not unit-testable (it wants a real
-//  `WhisperModelManager` and a real `whisper_context`), which is exactly why the
-//  sequencing lives in a closure-injected helper. These tests are the coverage
-//  that provider cannot have.
+//  Pins the acquire sequence. See `ResidentRuntimeClaim.acquire` for what it is
+//  for and why — that doc is the canonical account of HYPERWHISPER-SQ's
+//  whisper.cpp arm and is not restated here.
 //
 
 import Foundation
@@ -33,9 +27,9 @@ private struct ReloadFailure: Error, Equatable {
 /// stale claim was released BEFORE the reload — the invariant that keeps a claim
 /// from being erased by `register(id:tier:evict:)` resetting `useCount` to 0.
 private actor ClaimProbe {
-    /// Honored/refused answers for the 1st and 2nd `claim()`. Anything past the
-    /// end of the script is refused; nothing should ever get that far.
-    private let claimAnswers: [Bool]
+    /// Scripted answers for the 1st and 2nd `claim()`. Anything past the end of
+    /// the script is `.notResident`; nothing should ever get that far.
+    private let claimAnswers: [ModelResidencyRegistry.ClaimResult]
     private let runtimeAfterReload: String?
     private let reloadError: Error?
 
@@ -48,7 +42,7 @@ private actor ClaimProbe {
     private(set) var reloads = 0
 
     init(
-        claimAnswers: [Bool],
+        claimAnswers: [ModelResidencyRegistry.ClaimResult],
         runtime: String?,
         runtimeAfterReload: String? = nil,
         reloadError: Error? = nil
@@ -60,16 +54,14 @@ private actor ClaimProbe {
     }
 
     /// Stands in for `ModelResidencyRegistry.markBusy(id:)`.
-    func claim() -> Bool {
-        let honored = claimAttempts < claimAnswers.count ? claimAnswers[claimAttempts] : false
+    func claim() -> ModelResidencyRegistry.ClaimResult {
+        let result = claimAttempts < claimAnswers.count ? claimAnswers[claimAttempts] : .notResident
         claimAttempts += 1
-        if honored {
+        if result.isHonored {
             honoredClaims += 1
-            events.append("claim.honored")
-        } else {
-            events.append("claim.refused")
         }
-        return honored
+        events.append("claim.\(result)")
+        return result
     }
 
     /// Stands in for `ModelResidencyRegistry.markIdle(id:)`.
@@ -108,6 +100,13 @@ private extension ResidentRuntimeClaim.Acquisition {
         if case .claimed(let runtime) = self { return runtime }
         return nil
     }
+
+    /// `nil` for `.claimed`; otherwise whether the FINAL refusal was a teardown
+    /// in progress rather than a missing registration.
+    var unavailableStillEvicting: Bool? {
+        if case .unavailable(let stillEvicting) = self { return stillEvicting }
+        return nil
+    }
 }
 
 // MARK: - Tests
@@ -117,7 +116,7 @@ struct ResidentRuntimeClaimTests {
     /// The ordinary case: nothing is evicting, the claim lands, the runtime is
     /// there. One claim outstanding, no reload, no wasted work.
     @Test func aLiveRuntimeUnderAnHonoredClaimIsReturnedWithoutReloading() async throws {
-        let probe = ClaimProbe(claimAnswers: [true], runtime: "whisper-context")
+        let probe = ClaimProbe(claimAnswers: [.claimed], runtime: "whisper-context")
 
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
@@ -133,7 +132,7 @@ struct ResidentRuntimeClaimTests {
         let outstanding = await probe.outstandingClaims
         #expect(outstanding == 1)
         let events = await probe.events
-        #expect(events == ["claim.honored"])
+        #expect(events == ["claim.claimed"])
     }
 
     /// THE BUG. The eviction closure is already running, so the claim is refused
@@ -143,7 +142,7 @@ struct ResidentRuntimeClaimTests {
     /// and exactly one claim on it.
     @Test func aClaimRefusedDuringEvictionReloadsAndClaimsTheFreshRuntime() async throws {
         let probe = ClaimProbe(
-            claimAnswers: [false, true],
+            claimAnswers: [.evicting, .claimed],
             runtime: nil,
             runtimeAfterReload: "reloaded-context"
         )
@@ -164,7 +163,34 @@ struct ResidentRuntimeClaimTests {
         // And no release against the refused claim: a refusal means no claim was
         // taken, so releasing would decrement somebody else's.
         let events = await probe.events
-        #expect(events == ["claim.refused", "reload", "claim.honored"])
+        #expect(events == ["claim.evicting", "reload", "claim.claimed"])
+    }
+
+    /// The OTHER refusal, and the reason `markBusy` reports two: `.notResident`
+    /// is not a teardown. It is also what a caller sees in the window where an
+    /// owner has built its runtime but not yet registered it. The recovery is
+    /// the same shape — reload, which under `LibWhisperProvider`'s lifecycle
+    /// lock queues behind that owner and returns without rebuilding anything.
+    @Test func aClaimRefusedBecauseNothingIsResidentAlsoReloadsAndClaims() async throws {
+        let probe = ClaimProbe(
+            claimAnswers: [.notResident, .claimed],
+            runtime: nil,
+            runtimeAfterReload: "reloaded-context"
+        )
+
+        let acquisition: ResidentRuntimeClaim.Acquisition<String> =
+            try await ResidentRuntimeClaim.acquire(
+                claim: { await probe.claim() },
+                release: { await probe.release() },
+                runtime: { await probe.currentRuntime() },
+                reload: { try await probe.reload() }
+            )
+
+        #expect(acquisition.claimedRuntime == "reloaded-context")
+        let outstanding = await probe.outstandingClaims
+        #expect(outstanding == 1)
+        let events = await probe.events
+        #expect(events == ["claim.notResident", "reload", "claim.claimed"])
     }
 
     /// The defensive window: the entry is still registered, so the claim IS
@@ -174,7 +200,7 @@ struct ResidentRuntimeClaimTests {
     /// floors at 0. So it has to be given back BEFORE the reload, not after.
     @Test func aStaleClaimOnAMissingRuntimeIsReleasedBeforeTheReload() async throws {
         let probe = ClaimProbe(
-            claimAnswers: [true, true],
+            claimAnswers: [.claimed, .claimed],
             runtime: nil,
             runtimeAfterReload: "reloaded-context"
         )
@@ -189,10 +215,41 @@ struct ResidentRuntimeClaimTests {
 
         #expect(acquisition.claimedRuntime == "reloaded-context")
         let events = await probe.events
-        #expect(events == ["claim.honored", "release", "reload", "claim.honored"])
+        #expect(events == ["claim.claimed", "release", "reload", "claim.claimed"])
         // Two claims taken, one given back: the caller still owns exactly one.
         let outstanding = await probe.outstandingClaims
         #expect(outstanding == 1)
+    }
+
+    /// The same stale claim, but on the SECOND attempt — the branch that had no
+    /// coverage at all. The reload registered a fresh entry (so the claim is
+    /// honored) and the runtime was freed again before we could read it, so
+    /// `acquire` must give that claim back too and report `.unavailable`.
+    /// Keeping it would pin the model resident for the rest of the session,
+    /// since the caller is told it holds nothing and never releases.
+    @Test func aStaleClaimOnTheSecondAttemptIsAlsoReleased() async throws {
+        let probe = ClaimProbe(
+            claimAnswers: [.evicting, .claimed],
+            runtime: nil,
+            runtimeAfterReload: nil
+        )
+
+        let acquisition: ResidentRuntimeClaim.Acquisition<String> =
+            try await ResidentRuntimeClaim.acquire(
+                claim: { await probe.claim() },
+                release: { await probe.release() },
+                runtime: { await probe.currentRuntime() },
+                reload: { try await probe.reload() }
+            )
+
+        #expect(acquisition.claimedRuntime == nil)
+        // The final refusal was not a teardown — the claim was honored, the
+        // runtime was simply not there.
+        #expect(acquisition.unavailableStillEvicting == false)
+        let outstanding = await probe.outstandingClaims
+        #expect(outstanding == 0)
+        let events = await probe.events
+        #expect(events == ["claim.evicting", "reload", "claim.claimed", "release"])
     }
 
     /// A reload that fails (model file deleted, out of memory) must surface as
@@ -201,7 +258,7 @@ struct ResidentRuntimeClaimTests {
     /// reaches its `markIdle`.
     @Test func aFailedReloadPropagatesUnchangedAndLeaksNoClaim() async throws {
         let probe = ClaimProbe(
-            claimAnswers: [false, true],
+            claimAnswers: [.evicting, .claimed],
             runtime: nil,
             reloadError: ReloadFailure(stage: "load-model")
         )
@@ -227,7 +284,7 @@ struct ResidentRuntimeClaimTests {
         #expect(outstanding == 0)
         // The second scripted claim is never reached: acquire left immediately.
         let events = await probe.events
-        #expect(events == ["claim.refused", "reload"])
+        #expect(events == ["claim.evicting", "reload"])
     }
 
     /// Sustained pressure: the reload succeeds, the fresh runtime is evicted
@@ -237,7 +294,7 @@ struct ResidentRuntimeClaimTests {
     /// reload and lose the model over and over instead of failing honestly.
     @Test func sustainedPressureGivesUpAfterExactlyOneReload() async throws {
         let probe = ClaimProbe(
-            claimAnswers: [false, false],
+            claimAnswers: [.evicting, .evicting],
             runtime: nil,
             runtimeAfterReload: "reloaded-context"
         )
@@ -251,11 +308,14 @@ struct ResidentRuntimeClaimTests {
             )
 
         #expect(acquisition.claimedRuntime == nil)
+        // And it says WHY: still being torn down, so this is sustained pressure
+        // rather than a model that was never registered.
+        #expect(acquisition.unavailableStillEvicting == true)
         let reloads = await probe.reloads
         #expect(reloads == 1)
         let outstanding = await probe.outstandingClaims
         #expect(outstanding == 0)
         let events = await probe.events
-        #expect(events == ["claim.refused", "reload", "claim.refused"])
+        #expect(events == ["claim.evicting", "reload", "claim.evicting"])
     }
 }

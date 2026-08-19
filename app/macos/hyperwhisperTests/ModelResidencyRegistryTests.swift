@@ -3,10 +3,9 @@
 //  hyperwhisperTests
 //
 //  First coverage for `ModelResidencyRegistry`, pinning the claim/refusal
-//  contract that HYPERWHISPER-SQ depends on: `markBusy` now reports whether the
-//  claim was honored, so a caller can tell "the model is yours" apart from "the
-//  model is being freed right now" instead of reading a runtime that is on its
-//  way out.
+//  contract. See `ModelResidencyRegistry.ClaimResult` for what each outcome
+//  obliges a caller to do, and `ResidentRuntimeClaim.acquire` for the bug behind
+//  it — neither is restated here.
 //
 
 import Foundation
@@ -32,41 +31,8 @@ private actor EvictionProbe {
     }
 }
 
-/// A deterministic handshake between a test and an `evict` closure it is
-/// deliberately blocking inside.
-///
-/// Built on `AsyncStream` rather than `Task.sleep` so the ordering is exact
-/// instead of hopefully-long-enough: `signal()` buffers, so it is safe to call
-/// before the waiter has started, and `open()` is permanent, so every gate a
-/// test opens on its way out releases current *and* future waiters. That last
-/// property is what keeps a failed `#expect` from parking a closure forever and
-/// hanging the whole suite in CI.
-private struct ResidencyGate {
-    private let stream: AsyncStream<Void>
-    private let continuation: AsyncStream<Void>.Continuation
-
-    init() {
-        let made = AsyncStream.makeStream(of: Void.self)
-        self.stream = made.stream
-        self.continuation = made.continuation
-    }
-
-    /// Release one waiter (buffered if nobody is waiting yet).
-    func signal() {
-        continuation.yield(())
-    }
-
-    /// Release every current and future waiter, permanently.
-    func open() {
-        continuation.finish()
-    }
-
-    /// Suspend until `signal()` or `open()`.
-    func wait() async {
-        var iterator = stream.makeAsyncIterator()
-        _ = await iterator.next()
-    }
-}
+// The blocking handshake these tests drive their interleavings with lives in
+// `ResidencyGate.swift`, shared with `ResidentRuntimeLifecycleTests`.
 
 // MARK: - Tests
 
@@ -85,9 +51,10 @@ struct ModelResidencyRegistryTests {
     @Test func aClaimOnAnUnknownIdIsRefused() async {
         let registry = ModelResidencyRegistry()
 
-        let honored = await registry.markBusy(id: "not-resident")
+        let claim = await registry.markBusy(id: "not-resident")
 
-        #expect(honored == false)
+        #expect(claim == .notResident)
+        #expect(claim.isHonored == false)
     }
 
     /// The ordinary lifecycle: a claim on a resident model is honored, it
@@ -100,8 +67,9 @@ struct ModelResidencyRegistryTests {
             await probe.recordEviction(of: "stt")
         }
 
-        let honored = await registry.markBusy(id: "stt")
-        #expect(honored == true)
+        let claim = await registry.markBusy(id: "stt")
+        #expect(claim == .claimed)
+        #expect(claim.isHonored)
 
         // Claimed: a sweep must leave it strictly alone.
         await registry.evict(aggressive: false, reason: "test", minIdle: 0)
@@ -142,8 +110,12 @@ struct ModelResidencyRegistryTests {
         // The registry is an actor, but it is REENTRANT across `await e.evict()`
         // — which is precisely why a claim can land in this window at all.
         await freeingStarted.wait()
-        let honored = await registry.markBusy(id: "stt")
-        #expect(honored == false)
+        let claim = await registry.markBusy(id: "stt")
+        // `.evicting`, NOT `.notResident`: the entry is still in the map, it is
+        // the runtime behind it that is going away. Conflating the two is what
+        // sent a caller into a destructive cold reload.
+        #expect(claim == .evicting)
+        #expect(claim.isHonored == false)
 
         releaseEviction.open()
         freeingStarted.open()
@@ -187,8 +159,8 @@ struct ModelResidencyRegistryTests {
         let survivor = frozen.first == "stt-a" ? "stt-b" : "stt-a"
 
         // The survivor is `.selected`, not `.freeing` — this claim must land.
-        let honored = await registry.markBusy(id: survivor)
-        #expect(honored == true)
+        let claim = await registry.markBusy(id: survivor)
+        #expect(claim == .claimed)
 
         releaseEviction.open()
         freeingStarted.open()
@@ -219,8 +191,8 @@ struct ModelResidencyRegistryTests {
         await registry.markIdle(id: "stt")
 
         // One honored claim is still exactly one claim: the model is protected.
-        let honored = await registry.markBusy(id: "stt")
-        #expect(honored == true)
+        let claim = await registry.markBusy(id: "stt")
+        #expect(claim == .claimed)
         await registry.evict(aggressive: false, reason: "test", minIdle: 0)
         let evictionsWhileClaimed = await probe.evictionCount(for: "stt")
         #expect(evictionsWhileClaimed == 0)
