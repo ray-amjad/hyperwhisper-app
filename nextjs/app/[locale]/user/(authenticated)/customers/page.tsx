@@ -1,8 +1,7 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
-import { getServerComponentSession } from "@/src/lib/auth";
+import { getPortalSession } from "@/src/lib/auth";
 import CustomersClient from "./CustomersClient";
 
 export const metadata: Metadata = {
@@ -26,10 +25,7 @@ export default async function CustomersPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  // Server Component read: never rolls the session (see
-  // `getServerComponentSession`) — the cookie is re-issued from route
-  // handlers and <SessionRefresher /> instead.
-  const session = await getServerComponentSession(await headers());
+  const session = await getPortalSession();
 
   // Not authenticated - redirect to sign-in
   if (!session?.user) {
