@@ -953,6 +953,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.guidance.needsNativeRelaunch" = "Uždarykite ir vėl atidarykite HyperWhisper natyviai, kad galėtumėte naudoti vietinį papildomą apdorojimą.";
 "transcription.guidance.localRuntimeUnavailable" = "Bandykite dar kartą arba režimo nustatymuose pasirinkite mažesnį vietinį modelį.";
 "transcription.error.localRuntimeUnavailable" = "Vietiniam DI nepavyko baigti apdorojimo — jūsų neapdorotas nuorašas išsaugotas.";
+"transcription.error.localSpeechModelEvicted" = "Kalbos modelis buvo iškrautas atminčiai atlaisvinti ir jo nepavyko įkelti iš naujo. Uždarykite kelias programas ir bandykite dar kartą.";
 "settings.backup.localDownload.title" = "Atsisiųsti vietinius modelius?";
 "settings.backup.localDownload.message" = "%d iš jūsų atkurtų režimų naudoja įrenginyje veikiančius DI modelius, kurie dar neatsisiųsti.";
 "settings.backup.localDownload.downloadAll" = "Atsisiųsti visus";

@@ -953,6 +953,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
 "transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
 "transcription.error.localRuntimeUnavailable" = "Staðbundna gervigreindin gat ekki lokið verkinu — hráa uppskriftin þín var varðveitt.";
+"transcription.error.localSpeechModelEvicted" = "Talmódelið var affermt til að losa minni og ekki tókst að hlaða því aftur. Lokaðu einhverjum forritum og reyndu aftur.";
 "settings.backup.localDownload.title" = "Sækja staðbundin líkön?";
 "settings.backup.localDownload.message" = "%d af endurheimtu hömunum þínum nota gervigreindarlíkön í tækinu sem hafa ekki verið sótt.";
 "settings.backup.localDownload.downloadAll" = "Hlaða öllu niður";

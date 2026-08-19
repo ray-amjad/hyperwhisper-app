@@ -289,12 +289,14 @@ class LibWhisperProvider: TranscriptionProvider {
             // Reloaded fine, but the claim was refused again: memory pressure is
             // sustained (MemoryPressureMonitor evicts with `minIdle: 0` when
             // critical) and evicted the fresh runtime too. Retrying here would
-            // livelock, so fail honestly.
+            // livelock, so fail honestly — and in its OWN error case, so this
+            // failure gets its own Sentry fingerprint instead of landing back in
+            // the HYPERWHISPER-SQ group it exists to close. As prose inside
+            // `providerNotAvailable` it was indistinguishable from the bug, and
+            // its visibility depended on the wording dodging
+            // `isTransientProviderAvailabilityReason`'s substring list.
             logger.error("❌ Whisper context could not be reclaimed after reload (stillEvicting=\(stillEvicting, privacy: .public))")
-            throw TranscriptionError.providerNotAvailable(
-                provider: "Local Whisper",
-                reason: "The local Whisper model was unloaded to free memory and could not be reclaimed."
-            )
+            throw TranscriptionError.localSpeechModelEvicted(model: currentModel?.name)
         }
 
         // The reload above may have taken seconds. If the user cancelled during

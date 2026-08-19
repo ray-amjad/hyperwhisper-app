@@ -953,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "Завершите работу HyperWhisper и откройте программу в нативном режиме, чтобы использовать локальную постобработку.";
 "transcription.guidance.localRuntimeUnavailable" = "Повторите попытку или выберите более компактную локальную модель в настройках режима.";
 "transcription.error.localRuntimeUnavailable" = "Локальный ИИ не смог завершить обработку — исходная расшифровка сохранена.";
+"transcription.error.localSpeechModelEvicted" = "Речевая модель была выгружена для освобождения памяти и не смогла загрузиться снова. Закройте несколько приложений и повторите попытку.";
 "settings.backup.localDownload.title" = "Загрузить локальные модели?";
 "settings.backup.localDownload.message" = "Восстановленных режимов, использующих локальные ИИ-модели, которые ещё не загружены: %d.";
 "settings.backup.localDownload.downloadAll" = "Загрузить все";

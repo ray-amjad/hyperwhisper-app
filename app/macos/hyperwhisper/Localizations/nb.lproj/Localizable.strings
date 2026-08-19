@@ -953,6 +953,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.guidance.needsNativeRelaunch" = "Avslutt og åpne HyperWhisper nativt på nytt for å bruke lokal etterbehandling.";
 "transcription.guidance.localRuntimeUnavailable" = "Prøv igjen, eller velg en mindre lokal modell i modusinnstillingene.";
 "transcription.error.localRuntimeUnavailable" = "Lokal AI ble ikke ferdig — den rå transkripsjonen ble beholdt.";
+"transcription.error.localSpeechModelEvicted" = "Talemodellen ble lastet ut for å frigjøre minne og kunne ikke lastes inn igjen. Lukk noen apper og prøv på nytt.";
 "settings.backup.localDownload.title" = "Vil du laste ned lokale modeller?";
 "settings.backup.localDownload.message" = "%d av modusene du gjenopprettet, bruker lokale AI-modeller som ikke er lastet ned ennå.";
 "settings.backup.localDownload.downloadAll" = "Last ned alle";

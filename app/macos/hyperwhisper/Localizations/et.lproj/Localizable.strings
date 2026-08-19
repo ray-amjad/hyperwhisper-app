@@ -953,6 +953,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.guidance.needsNativeRelaunch" = "Kohaliku järeltöötluse kasutamiseks sulge HyperWhisper ja ava see uuesti natiivselt.";
 "transcription.guidance.localRuntimeUnavailable" = "Proovi uuesti või vali režiimi seadetes väiksem kohalik mudel.";
 "transcription.error.localRuntimeUnavailable" = "Kohalik tehisintellekt ei saanud tööd lõpetada — töötlemata transkriptsioon säilitati.";
+"transcription.error.localSpeechModelEvicted" = "Kõnemudel laaditi mälu vabastamiseks maha ja seda ei õnnestunud uuesti laadida. Sulge mõned rakendused ja proovi uuesti.";
 "settings.backup.localDownload.title" = "Kas laadida kohalikud mudelid alla?";
 "settings.backup.localDownload.message" = "%d taastatud režiimi kasutavad seadmesisese tehisintellekti mudeleid, mida pole veel alla laaditud.";
 "settings.backup.localDownload.downloadAll" = "Laadi kõik alla";

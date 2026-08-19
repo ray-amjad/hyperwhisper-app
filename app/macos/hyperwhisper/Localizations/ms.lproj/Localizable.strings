@@ -953,6 +953,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.guidance.needsNativeRelaunch" = "Berhenti dan buka semula HyperWhisper secara asli untuk menggunakan pasca-pemprosesan tempatan.";
 "transcription.guidance.localRuntimeUnavailable" = "Cuba lagi, atau pilih model tempatan yang lebih kecil dalam tetapan Mod anda.";
 "transcription.error.localRuntimeUnavailable" = "AI tempatan tidak dapat menyelesaikannya — transkrip mentah anda telah disimpan.";
+"transcription.error.localSpeechModelEvicted" = "Model pertuturan dinyahmuat untuk membebaskan memori dan tidak dapat dimuatkan semula. Tutup beberapa apl dan cuba lagi.";
 "settings.backup.localDownload.title" = "Muat turun model tempatan?";
 "settings.backup.localDownload.message" = "%d daripada mod yang anda pulihkan menggunakan model AI pada peranti yang belum dimuat turun.";
 "settings.backup.localDownload.downloadAll" = "Muat Turun Semua";

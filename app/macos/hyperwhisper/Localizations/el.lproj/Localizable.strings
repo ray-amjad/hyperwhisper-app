@@ -953,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "Κλείστε και ανοίξτε ξανά το HyperWhisper σε εγγενή λειτουργία για να χρησιμοποιήσετε την τοπική μετεπεξεργασία.";
 "transcription.guidance.localRuntimeUnavailable" = "Δοκιμάστε ξανά ή επιλέξτε μικρότερο τοπικό μοντέλο στις ρυθμίσεις της Λειτουργίας.";
 "transcription.error.localRuntimeUnavailable" = "Το τοπικό AI δεν μπόρεσε να ολοκληρώσει — η αρχική απομαγνητοφώνηση διατηρήθηκε.";
+"transcription.error.localSpeechModelEvicted" = "Το μοντέλο ομιλίας αποφορτώθηκε για να ελευθερωθεί μνήμη και δεν ήταν δυνατή η επαναφόρτωσή του. Κλείστε μερικές εφαρμογές και δοκιμάστε ξανά.";
 "settings.backup.localDownload.title" = "Λήψη τοπικών μοντέλων;";
 "settings.backup.localDownload.message" = "%d από τις λειτουργίες που επαναφέρατε χρησιμοποιούν μοντέλα AI στη συσκευή τα οποία δεν έχουν ληφθεί ακόμη.";
 "settings.backup.localDownload.downloadAll" = "Λήψη όλων";

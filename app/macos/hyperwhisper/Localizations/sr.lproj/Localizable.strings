@@ -953,6 +953,7 @@ Pre brisanja ažurirajte ove režime da koriste drugi model.";
 "transcription.guidance.needsNativeRelaunch" = "Zatvorite i ponovo otvorite HyperWhisper izvorno da biste koristili lokalnu naknadnu obradu.";
 "transcription.guidance.localRuntimeUnavailable" = "Pokušajte ponovo ili izaberite manji lokalni model u podešavanjima režima.";
 "transcription.error.localRuntimeUnavailable" = "Lokalni AI nije uspeo da završi — sačuvan je vaš neobrađeni transkript.";
+"transcription.error.localSpeechModelEvicted" = "Говорни модел је уклоњен ради ослобађања меморије и није могао поново да се учита. Затворите неке апликације и покушајте поново.";
 "settings.backup.localDownload.title" = "Preuzeti lokalne modele?";
 "settings.backup.localDownload.message" = "%d vaših vraćenih režima koristi AI modele na uređaju koji još nisu preuzeti.";
 "settings.backup.localDownload.downloadAll" = "Preuzmi sve";

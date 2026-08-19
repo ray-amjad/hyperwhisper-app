@@ -953,6 +953,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.guidance.needsNativeRelaunch" = "Yerel son işlemeyi kullanmak için HyperWhisper'dan çıkıp uygulamayı yerel mimaride yeniden açın.";
 "transcription.guidance.localRuntimeUnavailable" = "Tekrar deneyin veya Mod ayarlarınızda daha küçük bir yerel model seçin.";
 "transcription.error.localRuntimeUnavailable" = "Yerel yapay zeka işlemi tamamlayamadı — ham metniniz korundu.";
+"transcription.error.localSpeechModelEvicted" = "Konuşma modeli belleği boşaltmak için kaldırıldı ve yeniden yüklenemedi. Bazı uygulamaları kapatıp yeniden deneyin.";
 "settings.backup.localDownload.title" = "Yerel modeller indirilsin mi?";
 "settings.backup.localDownload.message" = "Geri yüklenen modlarınızdan %d tanesi henüz indirilmemiş, cihaz üzerinde çalışan yapay zeka modellerini kullanıyor.";
 "settings.backup.localDownload.downloadAll" = "Tümünü İndir";

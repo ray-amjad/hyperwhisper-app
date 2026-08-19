@@ -954,6 +954,7 @@
 "transcription.guidance.needsNativeRelaunch" = "请退出并以原生方式重新打开 HyperWhisper，以使用本地后处理。";
 "transcription.guidance.localRuntimeUnavailable" = "请重试，或在模式设置中选择更小的本地模型。";
 "transcription.error.localRuntimeUnavailable" = "本地 AI 未能完成处理 — 已为你保留原始转写文本。";
+"transcription.error.localSpeechModelEvicted" = "为释放内存，语音模型已被卸载且无法重新加载。请关闭部分应用后重试。";
 "settings.backup.localDownload.title" = "要下载本地模型吗？";
 "settings.backup.localDownload.message" = "在已恢复的模式中，有 %d 个使用了尚未下载的设备端 AI 模型。";
 "settings.backup.localDownload.downloadAll" = "全部下载";

@@ -953,6 +953,7 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcription.guidance.needsNativeRelaunch" = "Închide și redeschide HyperWhisper în mod nativ pentru a folosi post-procesarea locală.";
 "transcription.guidance.localRuntimeUnavailable" = "Încearcă din nou sau alege un model local mai mic în setările modului.";
 "transcription.error.localRuntimeUnavailable" = "AI-ul local nu a putut finaliza — transcrierea brută a fost păstrată.";
+"transcription.error.localSpeechModelEvicted" = "Modelul de vorbire a fost descărcat pentru a elibera memorie și nu a putut fi reîncărcat. Închide câteva aplicații și încearcă din nou.";
 "settings.backup.localDownload.title" = "Descarci modelele locale?";
 "settings.backup.localDownload.message" = "%d dintre modurile restaurate folosesc modele AI locale care nu sunt încă descărcate.";
 "settings.backup.localDownload.downloadAll" = "Descarcă toate";

@@ -953,6 +953,7 @@ Mettez à jour ces modes pour utiliser un autre modèle avant de supprimer.";
 "transcription.guidance.needsNativeRelaunch" = "Quittez puis rouvrez HyperWhisper en mode natif pour utiliser le post-traitement local.";
 "transcription.guidance.localRuntimeUnavailable" = "Réessayez ou choisissez un modèle local plus léger dans les réglages de votre mode.";
 "transcription.error.localRuntimeUnavailable" = "L'IA locale n'a pas pu terminer — votre transcription brute a été conservée.";
+"transcription.error.localSpeechModelEvicted" = "Le modèle vocal a été déchargé pour libérer de la mémoire et n'a pas pu être rechargé. Fermez quelques apps et réessayez.";
 "settings.backup.localDownload.title" = "Télécharger les modèles locaux ?";
 "settings.backup.localDownload.message" = "%d de vos modes restaurés utilisent des modèles d'IA sur l'appareil qui ne sont pas encore téléchargés.";
 "settings.backup.localDownload.downloadAll" = "Tout télécharger";

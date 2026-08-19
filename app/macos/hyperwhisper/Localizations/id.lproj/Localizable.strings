@@ -953,6 +953,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.guidance.needsNativeRelaunch" = "Keluar lalu buka kembali HyperWhisper secara native untuk memakai pasca-pemrosesan lokal.";
 "transcription.guidance.localRuntimeUnavailable" = "Coba lagi, atau pilih model lokal yang lebih kecil di pengaturan Mode Anda.";
 "transcription.error.localRuntimeUnavailable" = "AI lokal tidak dapat menyelesaikan prosesnya — transkrip mentah Anda tetap disimpan.";
+"transcription.error.localSpeechModelEvicted" = "Model ucapan dilepas untuk membebaskan memori dan tidak dapat dimuat ulang. Tutup beberapa aplikasi lalu coba lagi.";
 "settings.backup.localDownload.title" = "Unduh model lokal?";
 "settings.backup.localDownload.message" = "%d mode yang Anda pulihkan menggunakan model AI di perangkat yang belum diunduh.";
 "settings.backup.localDownload.downloadAll" = "Unduh Semua";

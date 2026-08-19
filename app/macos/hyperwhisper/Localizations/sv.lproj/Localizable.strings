@@ -953,6 +953,7 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcription.guidance.needsNativeRelaunch" = "Avsluta och öppna HyperWhisper nativt igen för att använda lokal efterbearbetning.";
 "transcription.guidance.localRuntimeUnavailable" = "Försök igen eller välj en mindre lokal modell i lägesinställningarna.";
 "transcription.error.localRuntimeUnavailable" = "Den lokala AI:n kunde inte slutföra — din obearbetade transkribering sparades.";
+"transcription.error.localSpeechModelEvicted" = "Talmodellen laddades ur för att frigöra minne och kunde inte laddas in igen. Stäng några appar och försök igen.";
 "settings.backup.localDownload.title" = "Hämta lokala modeller?";
 "settings.backup.localDownload.message" = "%d av dina återställda lägen använder lokala AI-modeller som inte har hämtats än.";
 "settings.backup.localDownload.downloadAll" = "Hämta alla";

@@ -44,13 +44,27 @@ enum TranscriptionError: LocalizedError {
     /// guaranteed to 401 — we refuse locally instead of burning the round-trip
     /// and reporting a non-actionable Sentry error. Fail-closed only: this is
     /// never used to *grant* access, the server stays the sole authority.
+    case cloudAccountRequired(provider: String? = nil)
+    /// The local speech (whisper.cpp) model was unloaded to reclaim memory and
+    /// could not be made resident again for this pass — memory pressure is
+    /// sustained and evicted the freshly reloaded runtime too.
+    ///
+    /// Its OWN case, not a `providerNotAvailable` reason string, because the
+    /// fingerprint is `[category, kind, stage]` and `kind` comes from the case
+    /// alone: as prose it landed in the very HYPERWHISPER-SQ group it exists to
+    /// close, so triage could not tell the fix from the bug. It is also
+    /// deliberately CAPTURED in Sentry — do not copy `.localRuntimeUnavailable`,
+    /// which is suppressed. If this fires we want to see it.
+    ///
+    /// - Parameter model: the model that was evicted, for diagnostics.
     ///
     /// ⚠️ APPEND-ONLY ENUM — always add new cases at the END, never in the
-    /// middle. `(error as NSError).code` is the Swift-synthesized *positional*
-    /// case index and is recorded in Sentry extras as `errorCode`. Inserting a
-    /// case mid-enum silently renumbers every case after it and invalidates all
+    /// middle, and move this warning down to stay on the last case.
+    /// `(error as NSError).code` is the Swift-synthesized *positional* case
+    /// index and is recorded in Sentry extras as `errorCode`. Inserting a case
+    /// mid-enum silently renumbers every case after it and invalidates all
     /// historical Sentry triage.
-    case cloudAccountRequired(provider: String? = nil)
+    case localSpeechModelEvicted(model: String? = nil)
 
     var errorDescription: String? {
         switch self {
@@ -126,6 +140,11 @@ enum TranscriptionError: LocalizedError {
             // Cloud, so the string needs no format specifier. The provider value
             // is carried for logs/classification only.
             return "transcription.error.cloudAccountRequired".localized
+        case .localSpeechModelEvicted:
+            // Deliberately ignores the associated `model`: the user cannot act
+            // on the model name, only on the memory pressure. The name is
+            // carried for logs and Sentry.
+            return "transcription.error.localSpeechModelEvicted".localized
         }
     }
 
@@ -136,7 +155,10 @@ enum TranscriptionError: LocalizedError {
             return true
         case .rateLimited(_):
             return true  // Can retry after waiting
-        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized(_), .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_):
+        // `.localSpeechModelEvicted` is NOT retryable: the pass already reloaded
+        // the model once and lost it again, so the pressure is sustained and an
+        // automatic retry would reload and lose it over and over.
+        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized(_), .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_), .localSpeechModelEvicted(_):
             return false
         }
     }
@@ -165,7 +187,8 @@ enum TranscriptionError: LocalizedError {
              .providerNotAvailable, .modelNotDownloaded, .modelProtected, .audioFileNotFound,
              .maxRetriesExceeded, .invalidRequest, .streamingInterrupted, .busy,
              .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _),
-             .localRuntimeUnavailable(_):
+             .localRuntimeUnavailable(_), .localSpeechModelEvicted(_):
+            // Nothing in Settings frees memory; the user's action is elsewhere.
             return false
         }
     }

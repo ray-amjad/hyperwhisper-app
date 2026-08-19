@@ -953,6 +953,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.guidance.needsNativeRelaunch" = "Aizveriet un atveriet HyperWhisper natīvajā režīmā, lai izmantotu lokālo pēcapstrādi.";
 "transcription.guidance.localRuntimeUnavailable" = "Mēģiniet vēlreiz vai režīma iestatījumos izvēlieties mazāku lokālo modeli.";
 "transcription.error.localRuntimeUnavailable" = "Lokālais AI nevarēja pabeigt darbu — jūsu sākotnējais transkripts tika saglabāts.";
+"transcription.error.localSpeechModelEvicted" = "Runas modelis tika izlādēts, lai atbrīvotu atmiņu, un to neizdevās ielādēt atkārtoti. Aizveriet dažas lietotnes un mēģiniet vēlreiz.";
 "settings.backup.localDownload.title" = "Vai lejupielādēt lokālos modeļus?";
 "settings.backup.localDownload.message" = "%d no atjaunotajiem režīmiem izmanto ierīcē darbināmus AI modeļus, kas vēl nav lejupielādēti.";
 "settings.backup.localDownload.downloadAll" = "Lejupielādēt visus";

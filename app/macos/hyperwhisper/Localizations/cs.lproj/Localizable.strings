@@ -953,6 +953,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "transcription.guidance.needsNativeRelaunch" = "Ukončete HyperWhisper a spusťte jej znovu nativně, abyste mohli používat lokální následné zpracování.";
 "transcription.guidance.localRuntimeUnavailable" = "Zkuste to znovu nebo v nastavení režimu zvolte menší lokální model.";
 "transcription.error.localRuntimeUnavailable" = "Lokální AI nedokončila zpracování — váš původní přepis byl zachován.";
+"transcription.error.localSpeechModelEvicted" = "Model řeči byl uvolněn kvůli nedostatku paměti a nepodařilo se jej znovu načíst. Zavřete některé aplikace a zkuste to znovu.";
 "settings.backup.localDownload.title" = "Stáhnout lokální modely?";
 "settings.backup.localDownload.message" = "%d z vašich obnovených režimů používá lokální modely AI, které zatím nejsou stažené.";
 "settings.backup.localDownload.downloadAll" = "Stáhnout vše";
