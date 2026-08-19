@@ -1564,8 +1564,11 @@ You can re-download it later.</value>
   <data name="settings.models.localLlm.hardware.cudaFirst" xml:space="preserve">
     <value>CUDA will be tried first, with CPU fallback if loading fails</value>
   </data>
-  <data name="settings.models.localLlm.hardware.cudaRequiresNvidia" xml:space="preserve">
-    <value>CPU fallback. CUDA acceleration requires an NVIDIA GPU</value>
+  <data name="settings.models.localLlm.hardware.vulkanFirst" xml:space="preserve">
+    <value>Vulkan을 먼저 시도하며, 로드에 실패하면 CPU로 대체됩니다</value>
+  </data>
+  <data name="settings.models.localLlm.hardware.gpuUnsupported" xml:space="preserve">
+    <value>CPU 대체 실행. 이 GPU는 가속 로컬 후처리를 지원하지 않습니다</value>
   </data>
   <data name="settings.models.localLlm.hardware.sharedGpu" xml:space="preserve">
     <value>Local LLM and Whisper may share GPU memory; use a smaller model if transcription slows.</value>

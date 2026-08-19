@@ -423,6 +423,21 @@
                                                         <TextBlock Text="{Binding TagText}" FontSize="10"
                                                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                                                     </Border>
+                                                    <!-- Local-LLM runtime backend chip (GPU · CUDA / GPU · Vulkan / CPU);
+                                                         collapsed on all other row kinds. Tooltip carries the full
+                                                         localized runtime sentence via the row detail tooltip. -->
+                                                    <Border Background="{DynamicResource BadgeGrayBackgroundBrush}"
+                                                            BorderBrush="{DynamicResource BorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="9"
+                                                            Padding="6,1"
+                                                            Margin="8,0,0,0"
+                                                            VerticalAlignment="Center"
+                                                            ToolTip="{Binding DetailToolTip}"
+                                                            Visibility="{Binding RuntimeBadgeVisibility}">
+                                                        <TextBlock Text="{Binding RuntimeBadgeText}" FontSize="10"
+                                                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                    </Border>
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding ProviderName}"
                                                            FontSize="11"

@@ -156,7 +156,7 @@ Post-processing is an optional second step after transcription. It removes fille
     Start with **Gemma 4 E2B**. It fits in 4 GB and does most cleanup tasks well.
   </Tab>
   <Tab title="Windows">
-    Local Gemma post-processing is available on Windows x64 and Windows ARM64. On x64, if a compatible NVIDIA GPU is present, GPU acceleration uses CUDA; systems with AMD or Intel GPUs use the CPU. On ARM64, local Gemma post-processing always uses the CPU — there is no GPU acceleration path yet.
+    Local Gemma post-processing is available on Windows x64 and Windows ARM64. On x64, GPU acceleration uses CUDA when a compatible NVIDIA GPU is present, and Vulkan on a discrete AMD or Intel GPU. On ARM64, and on a machine with an integrated GPU, local Gemma post-processing uses the CPU.
 
     | Model | Size | Recommended VRAM | Best for |
     | --- | --- | --- | --- |
@@ -166,7 +166,7 @@ Post-processing is an optional second step after transcription. It removes fille
     | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
 
     <Note>
-      On AMD and Intel GPUs, local Gemma post-processing uses the CPU in the current Windows build. Transcription can still use GPU acceleration.
+      On an integrated GPU (including an AMD APU and Intel UHD/Iris), local Gemma post-processing uses the CPU. Transcription can still use GPU acceleration independently.
     </Note>
   </Tab>
 </Tabs>

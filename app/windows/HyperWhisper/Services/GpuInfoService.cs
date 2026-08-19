@@ -133,6 +133,16 @@ public class GpuInfoService
         public bool IsDiscrete { get; set; }
 
         /// <summary>
+        /// Whether this adapter is in the discrete, ML-offload-worthy class
+        /// (PriorityScore 1–3: NVIDIA, AMD RX/PRO/VEGA, Intel Arc). APUs,
+        /// integrated graphics, and old or unrecognised discrete parts score
+        /// 4+ and stay on CPU for local-LLM offload — the safe direction for
+        /// unknown hardware. (Narrower than <see cref="IsDiscrete"/>, which
+        /// defaults unknown adapters to discrete.)
+        /// </summary>
+        public bool IsDiscreteForMl => PriorityScore is >= 1 and <= 3;
+
+        /// <summary>
         /// DXGI adapter index (0-based). Used to tell Whisper.net which GPU to use
         /// via WhisperFactoryOptions.GpuDevice, since Vulkan/CUDA may default to
         /// the integrated GPU (adapter 0) on multi-GPU systems.
@@ -594,8 +604,11 @@ public class GpuInfoService
     /// 4. Other/Unknown GPUs
     /// 5. Intel Iris (integrated, better than UHD)
     /// 6. Intel UHD/HD (integrated, slowest)
+    ///
+    /// Internal (not private) so SmokeTests can assert the name → class
+    /// mapping that gates local-LLM Vulkan eligibility (GpuInfo.IsDiscreteForMl).
     /// </summary>
-    private static int GetGpuPriorityScore(string gpuName)
+    internal static int GetGpuPriorityScore(string gpuName)
     {
         var name = gpuName.ToUpperInvariant();
 

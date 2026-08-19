@@ -969,7 +969,8 @@ public partial class MainViewModel : ViewModelBase
 
         var modelId = mode.LocalPostProcessingModel ?? mode.LanguageModel;
         var model = LocalLlmModelInfo.GetById(modelId) ?? LocalLlmModelInfo.GetDefault();
-        var displayName = model.DisplayName;
+        // Plan-aware: drops "(Recommended)" on machines whose local-LLM plan is CPU-only.
+        var displayName = LocalLlmGpuHelper.DisplayNameFor(model);
 
         if (!_localLlmModelService.IsModelDownloaded(model))
         {

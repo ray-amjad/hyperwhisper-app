@@ -67,6 +67,13 @@
     <PackageReference Include="LLamaSharp" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.27.0" />
+    <!-- LLamaSharp GPU backends:
+         - Backend.Cuda12: NVIDIA GPUs
+         - Backend.Vulkan: vendor-agnostic (AMD, Intel Arc; NVIDIA fallback when
+           CUDA is unavailable). win-x64 only — the package ships no ARM64 payload.
+           LocalLlmService pins this library explicitly via NativeLibraryConfig;
+           see LocalLlmGpuHelper for the backend selection rules. -->
+    <PackageReference Include="LLamaSharp.Backend.Vulkan" Version="0.27.0" />
     <PackageReference Include="System.Management" Version="9.0.0" />
     <PackageReference Include="GregsStack.InputSimulatorStandard" Version="1.3.5" />
   </ItemGroup>
@@ -234,6 +241,39 @@
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
                              Condition="'$(RuntimeIdentifier)' == 'win-arm64' And $([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/](win-x64|win-x86|noavx|vulkan)[\\/]'))" />
     </ItemGroup>
+  </Target>
+
+  <!-- LLamaSharp's GPU backend packages ship WITHOUT ggml-cpu.dll in their
+       native folders (cuda12/, vulkan/). The default loader papers over that by
+       preloading ggml-cpu from the CPU package's avx-level folder, but the
+       Vulkan path is pinned via NativeLibraryConfig.WithLibrary (see
+       LocalLlmService), which resolves every dependency from the pinned
+       library's OWN directory — so the vulkan folder must be self-contained.
+       It also gives the GPU→CPU in-process degrade (GpuLayerCount 0 after a
+       failed GPU load) a CPU compute backend. Copy the avx2 variant into both
+       GPU folders for Build output and inject it into the Publish file list. -->
+  <Target Name="CopyLlamaCpuBackendIntoGpuRuntimeDirsOnBuild" AfterTargets="Build"
+          Condition="('$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'win-x64') And Exists('$(OutDir)runtimes\win-x64\native\avx2\ggml-cpu.dll')">
+    <Copy SourceFiles="$(OutDir)runtimes\win-x64\native\avx2\ggml-cpu.dll"
+          DestinationFolder="$(OutDir)runtimes\win-x64\native\vulkan"
+          Condition="Exists('$(OutDir)runtimes\win-x64\native\vulkan')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutDir)runtimes\win-x64\native\avx2\ggml-cpu.dll"
+          DestinationFolder="$(OutDir)runtimes\win-x64\native\cuda12"
+          Condition="Exists('$(OutDir)runtimes\win-x64\native\cuda12')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyLlamaCpuBackendIntoGpuRuntimeDirsOnPublish" AfterTargets="ComputeFilesToPublish"
+          Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <ItemGroup>
+      <_LlamaAvx2CpuBackend Include="@(ResolvedFileToPublish)"
+                            Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ResolvedFileToPublish.RelativePath)', '^runtimes[\\/]win-x64[\\/]native[\\/]avx2[\\/]ggml-cpu\.dll$'))" />
+      <ResolvedFileToPublish Include="@(_LlamaAvx2CpuBackend)" RelativePath="runtimes\win-x64\native\vulkan\ggml-cpu.dll" />
+      <ResolvedFileToPublish Include="@(_LlamaAvx2CpuBackend)" RelativePath="runtimes\win-x64\native\cuda12\ggml-cpu.dll" />
+    </ItemGroup>
+    <Warning Condition="'@(_LlamaAvx2CpuBackend)' == ''"
+             Text="avx2 ggml-cpu.dll was not found in the publish file list; the vulkan/cuda12 runtime folders will ship without a CPU compute backend and the pinned Vulkan load will fail." />
   </Target>
 
 </Project>

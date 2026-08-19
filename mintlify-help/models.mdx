@@ -211,7 +211,7 @@ After you download them, the local **Gemma 4** models clean and format the trans
     | Gemma 4 31B Dense | 18.3 GB | ~20 GB | Highest local quality, slowest |
   </Tab>
   <Tab title="Windows">
-    Local LLM post-processing runs on **Windows x64 and ARM64**. On x64, GPU acceleration uses NVIDIA CUDA when the app finds a compatible GPU. ARM64 machines and machines with no CUDA GPU use the CPU.
+    Local LLM post-processing runs on **Windows x64 and ARM64**. On x64, GPU acceleration uses NVIDIA CUDA when the app finds a compatible NVIDIA GPU, and Vulkan on a discrete AMD or Intel GPU. Integrated GPUs and ARM64 machines use the CPU.
 
     | Model | Size | Recommended VRAM | Best for |
     | --- | --- | --- | --- |
@@ -295,7 +295,7 @@ Local engines use your GPU when one is available. If you have no dedicated GPU, 
 | Nemotron (Windows) | sherpa-onnx daemon | Same as Parakeet (Windows) | Yes |
 | Qwen3 ASR (Windows) | sherpa-onnx daemon | Same as Parakeet (Windows) | Yes |
 | Local Gemma post-processing (macOS) | llama.cpp / Metal | Apple Silicon (M1+) | No (Intel Macs not supported) |
-| Local Gemma post-processing (Windows) | LLamaSharp / GGUF | NVIDIA CUDA (x64 only) | Yes (CPU — x64 and ARM64) |
+| Local Gemma post-processing (Windows) | LLamaSharp / GGUF | NVIDIA (CUDA), discrete AMD/Intel (Vulkan) — x64 only | Yes (CPU — x64 and ARM64) |
 
 ## Remove models
 
