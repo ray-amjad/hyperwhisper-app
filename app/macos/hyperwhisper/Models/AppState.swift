@@ -761,6 +761,26 @@ class AppState: ObservableObject {
         AppLogger.ui.debug("📝 Selected mode: \(snapshot.name, privacy: .public) (persist: \(persist))")
     }
 
+    /// Counterpart to `selectMode` for when the selected Mode no longer exists.
+    /// Leaving a stale id behind would point the app at a deleted row, so callers
+    /// that delete the selected Mode without a replacement must clear it here.
+    func clearModeSelection() {
+        selectedModeId = ""
+        selectedModeName = ""
+        selectedModeSnapshot = nil
+
+        if let settingsManager = settingsManager {
+            settingsManager.currentModeId = ""
+            settingsManager.currentMode = ""
+        }
+    }
+
+    func modeSnapshotForCurrentSession() -> ModeSnapshot? {
+        cachedSortedModeSnapshots.first { $0.id.uuidString == currentSessionModeId } ??
+        cachedSortedModeSnapshots.first { $0.name == currentSessionModeName } ??
+        selectedModeSnapshot
+    }
+
     /// The mode currently relevant to the active recording/transcription session.
     /// Falls back to the selected mode when no session is active.
     var currentSessionModeName: String {

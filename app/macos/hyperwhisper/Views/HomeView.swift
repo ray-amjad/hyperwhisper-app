@@ -520,7 +520,7 @@ struct KeyboardShortcutBadge: View {
     var body: some View {
         HStack(spacing: 2) {
             // Parse and display each key
-            ForEach(parseKeys(keys), id: \.self) { key in
+            ForEach(renderedKeys(keys), id: \.self) { key in
                 Text(key)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.primary)
@@ -538,46 +538,21 @@ struct KeyboardShortcutBadge: View {
         }
     }
     
-    /// Parse keyboard shortcut string into individual keys
-    private func parseKeys(_ shortcut: String) -> [String] {
-        // Normalize a few special glyphs to readable labels
-        var s = shortcut.trimmingCharacters(in: .whitespacesAndNewlines)
-        let escapeLabel = "keyboard.escape".localized
-        let returnLabel = "keyboard.return".localized
-        let spaceLabel = "keyboard.space".localized
-        s = s.replacingOccurrences(of: "⎋", with: escapeLabel)
-        s = s.replacingOccurrences(of: "Escape", with: escapeLabel)
-        s = s.replacingOccurrences(of: "↩︎", with: returnLabel)
-        s = s.replacingOccurrences(of: "↩", with: returnLabel)
-
-        // Collect known modifiers in order
-        var keys: [String] = []
-        let modifierMap: [(glyph: String, key: String)] = [("⌘","⌘"),("⌥","⌥"),("⇧","⇧"),("⌃","⌃")]
-        for (glyph, key) in modifierMap {
-            if s.contains(glyph) { keys.append(key) }
+    /// The badge draws modifiers as glyphs; only the named primaries are worded.
+    private func renderedKeys(_ shortcut: String) -> [String] {
+        ShortcutKeyTokens.tokenize(shortcut).map { token in
+            switch token {
+            case .command: return "⌘"
+            case .option: return "⌥"
+            case .control: return "⌃"
+            case .shift: return "⇧"
+            case .capsLock: return "⇪"
+            case .escape: return "keyboard.escape".localized
+            case .return: return "keyboard.return".localized
+            case .space: return "keyboard.space".localized
+            case .key(let key): return key.uppercased()
+            }
         }
-
-        // Determine the primary key label
-        if shortcut.localizedCaseInsensitiveContains("Space") || s.localizedCaseInsensitiveContains(spaceLabel) {
-            keys.append(spaceLabel)
-        } else if shortcut.localizedCaseInsensitiveContains("Esc") ||
-                    shortcut.localizedCaseInsensitiveContains("Escape") ||
-                    shortcut.contains("⎋") ||
-                    s.localizedCaseInsensitiveContains(escapeLabel) {
-            keys.append(escapeLabel)
-        } else if shortcut.localizedCaseInsensitiveContains("Return") ||
-                    shortcut.contains("↩") ||
-                    shortcut.contains("↩︎") ||
-                    s.localizedCaseInsensitiveContains(returnLabel) {
-            keys.append(returnLabel)
-        } else if let lastAlnum = s.reversed().first(where: { $0.isLetter || $0.isNumber }) {
-            keys.append(String(lastAlnum).uppercased())
-        } else if !s.isEmpty {
-            // Fallback: show the normalized string as-is
-            keys.append(s)
-        }
-
-        return keys
     }
 }
 
