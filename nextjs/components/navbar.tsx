@@ -26,16 +26,23 @@ export const Navbar = () => {
   const locale = useLocale();
 
   /*
-    The latency page is English-only — it 404s on every other locale — so its
-    href is the absolute /en/latency and it is rendered with a native <a>,
-    never LocaleLink (which would prefix it into /ja/en/latency). Label is
-    hardcoded for the same reason: the page it opens is English either way.
+    The latency and model-chooser pages are English-only — they 404 on every
+    other locale — so their hrefs are the absolute /en/... and they are rendered
+    with a native <a>, never LocaleLink (which would prefix them into
+    /ja/en/latency). Labels are hardcoded for the same reason: the page each one
+    opens is English either way.
   */
   const latencyItem = { label: "Latency", href: "/en/latency", raw: true };
+  const chooseModelItem = {
+    label: "Choose a model",
+    href: "/en/choosing-a-model",
+    raw: true,
+  };
 
   const navItems = [
     { label: t("features"), href: `/${locale}#features` },
     { label: t("cloud"), href: `/${locale}#cloud` },
+    chooseModelItem,
     latencyItem,
     { label: t("faq"), href: `/${locale}#faq` },
   ];
@@ -43,6 +50,7 @@ export const Navbar = () => {
   const navMenuItems = [
     { label: t("features"), href: `/${locale}#features` },
     { label: t("cloud"), href: `/${locale}#cloud` },
+    chooseModelItem,
     latencyItem,
     { label: t("faq"), href: `/${locale}#faq` },
     { label: t("support"), href: "/support" },
