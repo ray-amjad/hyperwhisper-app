@@ -21,6 +21,11 @@ import { authClient } from "@/src/lib/auth-client";
  *    the only method that takes the write branch. Both hit a route handler, so
  *    the re-issued `Set-Cookie` reaches the browser intact.
  *
+ *    That POST only works because `src/lib/auth-client.ts` gives it a body and
+ *    a `Content-Type`. Better Auth sends neither, and its own router rejects
+ *    the result with 415 while its client swallows the error — read the comment
+ *    there before changing either file.
+ *
  *    This is now the ONLY thing that rolls the session. Server-side reads
  *    (`server/api/trpc.ts`, `app/api/customer/profile/route.ts`, every Server
  *    Component) all go through `getSessionFromCtx`, which hard-codes

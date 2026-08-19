@@ -33,6 +33,12 @@ export const auth = betterAuth({
   // branch — and POST is rejected outright unless `deferSessionRefresh` is on.
   // That request hits `/api/auth/[...all]`, a route handler, so the re-issued
   // `Set-Cookie: ...; Max-Age=7776000` reaches the browser intact.
+  //
+  // That POST does NOT work out of the box. Better Auth sends it with no body
+  // and therefore no `Content-Type`, and its own router answers 415 — silently,
+  // because the client swallows the error. `src/lib/auth-client.ts` carries the
+  // workaround and the full trace; without it this whole design degrades to a
+  // hard 90-day deadline that looks healthy.
   // <SessionRefresher /> in the portal layout is what guarantees that POST
   // happens on every hard page load, for every page in the segment. Because
   // server reads no longer refresh at all, that component is now the *only*
