@@ -110,6 +110,28 @@ struct GeneralSettingsSection: View {
 
                 Divider()
 
+                // ANONYMOUS SPEED DATA
+                // Sharing is the default. Turning this off makes every cloud
+                // transcription send `X-Latency-Opt-Out: 1` (see LatencyOptOut),
+                // and the server drops the measurement instead of storing it.
+                //
+                // The comparison page is the pay-off for the toggle, so it sits
+                // on the title line and stays reachable whether or not sharing
+                // is on — someone who opted out can still read it, and seeing
+                // what it produces is the fairest way to present the choice.
+                SettingsToggleRow(
+                    title: "settings.general.shareSpeedData.title",
+                    subtitle: nil,
+                    info: "settings.general.shareSpeedData.info",
+                    isOn: $settingsManager.shareAnonymousSpeedData,
+                    standalone: false,
+                    titleLink: URL(string: "https://www.hyperwhisper.com/en/latency").map {
+                        SettingsRowLink(url: $0, label: "settings.general.shareSpeedData.link")
+                    }
+                )
+
+                Divider()
+
                 SettingsToggleRow(
                     title: "settings.general.autoUpdate.title",
                     subtitle: nil,

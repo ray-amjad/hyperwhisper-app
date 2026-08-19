@@ -24,13 +24,8 @@
 // - 400/422: Invalid request
 
 using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -39,64 +34,31 @@ namespace HyperWhisper.Services;
 /// Cloud transcription service using OpenAI's Whisper API.
 /// Implements ITranscriptionProvider for unified provider abstraction.
 /// </summary>
-public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
+public class OpenAIWhisperService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.openai.com/v1/audio/transcriptions";
     private const long MaxFileSizeBytes = 25 * 1024 * 1024; // 25 MB
     private const int DefaultTimeoutSeconds = 120; // 2 minutes for large files
-    private const int MaxRetries = 3;
-
-    // Supported audio MIME types
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
-    // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "whisper-1";
-    private bool _disposed;
 
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"OpenAI {CloudTranscriptionModels.GetById(_modelId)?.DisplayName ?? _modelId}";
+    public override string Name => $"OpenAI {CloudTranscriptionModels.GetById(ModelId)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
     public OpenAIWhisperService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "whisper-1")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
     // =========================================================================
@@ -109,10 +71,10 @@ public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">OpenAI API key (starts with "sk-").</param>
     /// <param name="modelId">Model ID (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe).</param>
-    public void Configure(string apiKey, string modelId = "whisper-1")
+    public override void Configure(string apiKey, string modelId = "whisper-1")
     {
-        _apiKey = apiKey;
-        _modelId = modelId;
+        ApiKey = apiKey;
+        ModelId = modelId;
         LoggingService.Info($"OpenAIWhisperService: Configured with model {modelId}");
     }
 
@@ -123,7 +85,7 @@ public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
     /// <summary>
     /// Transcribes audio using OpenAI's Whisper API.
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -131,99 +93,33 @@ public class OpenAIWhisperService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== OPENAI CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "OpenAI API key not configured",
-                "OpenAI");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "OpenAI");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
-
-        if (fileInfo.Length > MaxFileSizeBytes)
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.FileTooLarge,
-                $"File size ({fileInfo.Length / 1024.0 / 1024.0:F1} MB) exceeds 25 MB limit",
-                "OpenAI");
-        }
+        // STEP 1+2: Validate configuration and audio file (shared gate).
+        TranscriptionPreflight.Validate("OpenAI", ApiKey, audioPath, MaxFileSizeBytes, "25 MB");
 
         // STEP 3: Build the request via the Rust shared core, then drive it
         // through the shared executor + core retry loop.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            apiKey: ApiKey,
+            model: ModelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.OpenaiBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.OpenaiParseTranscribeResponse(resp), "OpenAI", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by OpenaiBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "OpenAI");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.OpenaiParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "OpenAI");
-        }
-
-        LoggingService.Info("========== OPENAI TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
-    }
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
+        return await RustSingleShot.TranscribeAsync(
+            Http,
+            "OpenAI",
+            buildRequest: () => HyperwhisperCoreMethods.OpenaiBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.OpenaiParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 }

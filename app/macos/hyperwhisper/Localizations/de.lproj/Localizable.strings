@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Öffnen Sie Einstellungen";
 "home.accessibility.restart.after.permission" = "Starten Sie die App neu, nachdem Sie die Erlaubnis erteilt haben";
 "home.getting.started.completed" = "✓ Abgeschlossen";
-"home.whatsnew.badge" = "NEU";
-"home.whatsnew.title" = "Was ist neu?";
-"home.whatsnew.update1.date" = "3. Juli";
-"home.whatsnew.update1.title" = "Sittich ist jetzt verfügbar";
-"home.whatsnew.update1.description" = "Laden Sie es direkt aus der Liste der Sprachmodelle in der Moduserstellung herunter, um es noch heute auszuprobieren.";
-"home.whatsnew.update2.date" = "5. Juni";
-"home.whatsnew.update2.title" = "Unterstützung für jedes OpenAI-kompatible benutzerdefinierte Modell";
-"home.whatsnew.update2.description" = "Sie können jetzt alle OpenAI-kompatiblen APIs zu Ihrer Modellliste hinzufügen.";
-"home.whatsnew.update3.date" = "27. Mai";
-"home.whatsnew.update3.title" = "Brandneues Mini-Aufnahmefenster";
-"home.whatsnew.update3.description" = "Eine elegante, minimalistische Aufnahmeoberfläche, die Ihnen nicht im Weg steht.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Aktuelle Updates";
@@ -393,6 +382,9 @@
 
 "settings.general.errorLogging.title" = "Fehlerprotokollierung";
 "settings.general.errorLogging.info" = "Erfassen und senden Sie automatisch Fehlerberichte, um die App zu verbessern.";
+"settings.general.shareSpeedData.title" = "Anonyme Geschwindigkeitsdaten teilen";
+"settings.general.shareSpeedData.info" = "Misst, wie lange jeder Cloud-Anbieter braucht, und fügt es einem öffentlichen Vergleich hinzu. Eine Messung enthält den Anbieter, die Serverregion, die Clip-Länge und die benötigte Zeit — kein Konto, kein Schlüssel, kein Audio und kein Text. Schalte es aus, und HyperWhisper sendet es nicht mehr. Sonst ändert sich nichts, und lokale Modelle senden nie etwas.";
+"settings.general.shareSpeedData.link" = "Geschwindigkeitsvergleich ansehen";
 "settings.general.autoUpdate.title" = "Automatische Aktualisierung";
 "settings.general.autoUpdate.info" = "Suchen Sie automatisch nach neuen Versionen von HyperWhisper und laden Sie sie herunter.";
 "settings.general.support.title" = "Brauchen Sie Hilfe?";
@@ -821,10 +813,6 @@ Bearbeite diese Modi, um ein anderes Modell auszuwählen, bevor du es entfernst.
 "page.header.learnMore" = "Erfahren Sie mehr";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Transkription abgeschlossen";
-"recording.status.retrying" = "Transkription wird erneut versucht…";
-"recording.status.postprocessing" = "Nachbearbeitung mit KI…";
-"recording.status.transcribing" = "Transkribieren…";
 "recording.success.pasted" = "Eingefügt!";
 "recording.loading.retrying" = "Erneuter Versuch…";
 "recording.loading.postprocessing" = "Verarbeitung mit KI…";
@@ -852,39 +840,22 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "modes.provider.manageInLibrary" = "In der Bibliothek verwalten →";
 "streaming.loading.warming" = "Lokales Modell wird aufgewärmt...";
 "streaming.status.listening" = "Hören...";
-"streaming.status.streaming" = "Live-Übertragung...";
 "streaming.status.disconnecting" = "Stoppen...";
 "streaming.loading.connecting" = "Verbindung zum Server wird hergestellt...";
 "streaming.loading.ready" = "Audio wird initialisiert...";
 "streaming.loading.streaming" = "Warten auf Rede...";
 "streaming.state.reconnecting" = "Verbindung wird wieder hergestellt...";
 "recording.stop.help" = "Aufzeichnung stoppen (%@)";
-"recording.postprocessing.unavailable" = "Nachbearbeitung nicht verfügbar";
-"recording.postprocessing.missing.single" = "%@ Schlüssel fehlt – Aufnahme ohne Nachbearbeitung";
-"recording.postprocessing.missing.multiple" = "Fehlende API-Schlüssel – Aufnahme ohne Nachbearbeitung";
-"recording.postprocessing.addKey" = "Schlüssel hinzufügen";
-"recording.offline.banner" = "Keine Internetverbindung. Die Cloud-Transkription schlägt fehl, bis Sie online sind.";
-"recording.offline.title" = "Keine Internetverbindung";
-"recording.offline.subtitle" = "Stellen Sie die Verbindung erneut her, um fortzufahren, oder wechseln Sie in den Offline-Modus.";
-"recording.error.network" = "Überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.";
-"recording.error.timeout" = "Zeitüberschreitung bei der Anfrage. Überprüfen Sie Ihre Verbindungsgeschwindigkeit und versuchen Sie es erneut.";
-"recording.error.rateLimit" = "Sie haben zu viele Anfragen gestellt. Warten Sie einen Moment und versuchen Sie es erneut.";
-"recording.error.credits" = "Nicht genügend Credits. Fügen Sie in den Einstellungen weitere Credits hinzu.";
-"recording.error.apiKey" = "Fügen Sie Ihren API-Schlüssel %@ in den Einstellungen hinzu.";
-"recording.error.server" = "Der Transkriptionsdienst hat Probleme. Bitte versuchen Sie es gleich noch einmal.";
 "recording.retry" = "Wiederholen";
 "recording.retry.inProgress" = "Erneuter Versuch…";
 "recording.retry.count" = "Wiederholen (%d)";
 "recording.retry.failed.missing" = "Wiederholen fehlgeschlagen: Audiodatei nicht gefunden";
 "recording.retry.failed.error" = "Wiederholen fehlgeschlagen: %@";
 "recording.retry.pending" = "Bereit zum erneuten Versuch – zum Transkribieren klicken";
-"recording.provider.unknown" = "Cloud-Anbieter";
 "recording.cancel.dialog.title" = "Aufzeichnung abbrechen?";
 "recording.cancel.dialog.message" = "Dadurch wird die aktuelle Aufzeichnung verworfen Aufnahme.";
 "recording.cancel.dialog.confirm" = "Aufnahme abbrechen";
 "recording.cancel.dialog.resume" = "Fortsetzen";
-"recording.error.overlay.title" = "Netzwerkverbindungsfehler";
-"recording.error.overlay.message" = "Klicken Sie unten auf „Wiederholen“ oder wechseln Sie in einen Offline-Modus fortfahren.";
 "recording.mode.default" = "Standard";
 "recording.dialog.window.title" = "Aufzeichnungsdialog";
 "recording.button.start" = "Aufzeichnung starten";
@@ -942,6 +913,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.error.maxRetriesExceeded" = "Maximale Wiederholungsversuche überschritten";
 "transcription.error.unauthorized.provider" = "Nicht autorisiert: Ungültiger %@ API-Schlüssel oder Berechtigungen.\n\nÖffnen Sie Einstellungen → API-Schlüssel, um Ihre zu überprüfen Anmeldeinformationen.";
 "transcription.error.unauthorized.generic" = "Nicht autorisiert: Ungültiger API-Schlüssel oder ungültige Berechtigungen.\n\nÖffnen Sie Einstellungen → API-Schlüssel, um Ihre Anmeldeinformationen zu überprüfen.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud erfordert einen Kontoschlüssel.\n\nÖffnen Sie Einstellungen → HyperWhisper Cloud, um Ihren Schlüssel einzugeben oder Credits zu erwerben.";
 "transcription.error.invalidRequest" = "Ungültige Anfrage: Überprüfen Sie die Audiodatei oder Einstellungen";
 "transcription.error.streamingInterrupted" = "Streaming unterbrochen; Teiltext angezeigt";
 "transcription.error.busy" = "Der Transkriptionsdienst ist derzeit ausgelastet";
@@ -981,6 +953,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.guidance.needsNativeRelaunch" = "Beenden Sie HyperWhisper und öffnen Sie es nativ erneut, um die lokale Nachbearbeitung zu verwenden.";
 "transcription.guidance.localRuntimeUnavailable" = "Versuchen Sie es erneut, oder wählen Sie in Ihren Modus-Einstellungen ein kleineres lokales Modell.";
 "transcription.error.localRuntimeUnavailable" = "Die lokale KI konnte nicht abgeschlossen werden — Ihr Rohtranskript wurde beibehalten.";
+"transcription.error.localSpeechModelEvicted" = "Das Sprachmodell wurde entladen, um Speicher freizugeben, und konnte nicht neu geladen werden. Schließen Sie einige Apps und versuchen Sie es erneut.";
 "settings.backup.localDownload.title" = "Lokale Modelle herunterladen?";
 "settings.backup.localDownload.message" = "%d Ihrer wiederhergestellten Modi verwenden lokale KI-Modelle, die noch nicht heruntergeladen sind.";
 "settings.backup.localDownload.downloadAll" = "Alle herunterladen";
@@ -1113,10 +1086,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "history.autoDelete.unit.minutes" = "Minuten";
 "history.autoDelete.unit.hours" = "Std";
 "history.autoDelete.unit.days" = "Tage";
-"history.autoDelete.unit.minutes.plural" = "Minuten";
-"history.autoDelete.unit.hours.plural" = "Std.";
-"history.autoDelete.unit.days.plural" = "Tage";
-"history.autoDelete.status.disabled" = "Das automatische Löschen ist deaktiviert";
 "history.autoDelete.status.enabled" = "Aufnahmen löschen, die älter als %d %@ sind";
 "history.autoDelete.cleanup.noItems" = "Keine Aufnahmen zum Löschen vorhanden";
 "history.autoDelete.cleanup.summary" = "%d Aufnahme(n) gelöscht und %@ freigegeben";

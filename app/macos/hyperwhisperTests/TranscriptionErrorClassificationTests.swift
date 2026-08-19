@@ -48,6 +48,24 @@ struct TranscriptionErrorClassificationTests {
         #expect(TranscriptionPipeline.transientURLErrorCodes == expected)
     }
 
+    /// The three `TranscriptionError` switches outside the pipeline, for the
+    /// case this change appended.
+    ///
+    /// Not retryable: the pass already reloaded the model once and lost it
+    /// again, so under sustained pressure an automatic retry reloads and loses
+    /// it over and over — the same livelock `ResidentRuntimeClaim` refuses to
+    /// enter. No Settings button: nothing in Settings frees memory.
+    @Test func anEvictedLocalSpeechModelIsNotRetryableAndHasNoSettingsAction() {
+        let error = TranscriptionError.localSpeechModelEvicted(model: "base.en")
+
+        #expect(error.isRetryable == false)
+        #expect(error.showSettingsButton == false)
+        // `NSLocalizedString` hands back the key when the entry is missing, so
+        // this also catches a case appended without its Localizable.strings row.
+        #expect(error.errorDescription != "transcription.error.localSpeechModelEvicted")
+        #expect(error.errorDescription?.isEmpty == false)
+    }
+
     @Test func transcriptionFailureFingerprintIncludesClassificationAndStage() {
         let classification = TranscriptionPipeline.TranscriptionErrorClassification(
             category: "auth",
@@ -101,7 +119,18 @@ struct TranscriptionErrorClassificationTests {
         (.quotaExceeded(provider: "p", message: nil), false),
         (.timeout(operation: "x"), false),
         (.noSpeechDetected, false),
-        (.localRuntimeUnavailable(reason: "llama-server unreachable"), false)
+        (.localRuntimeUnavailable(reason: "llama-server unreachable"), false),
+        // Client-side entitlement refusal (HYPERWHISPER-T2): expected,
+        // user-recoverable, never reported. Its sibling `.unauthorized` above
+        // stays `true` on purpose — a 401 on a request we believed was licensed
+        // is still a real signal.
+        (.cloudAccountRequired(provider: "HyperWhisper Cloud"), false),
+        (.cloudAccountRequired(provider: nil), false),
+        // Memory-pressure eviction the pass could not recover from. REPORTED,
+        // unlike its lookalike `.localRuntimeUnavailable` above: it is the only
+        // signal that says the eviction policy is costing users transcriptions.
+        (.localSpeechModelEvicted(model: "base.en"), true),
+        (.localSpeechModelEvicted(model: nil), true)
     ]
 
     private static let cloudErrorCases: [(HyperWhisperCloudError, Bool)] = [
@@ -119,6 +148,8 @@ struct TranscriptionErrorClassificationTests {
     /// **Do not add a `default:` case.** A new enum case must fail the build.
     private static func shouldCaptureInSentry(_ error: TranscriptionError) -> Bool {
         switch error {
+        case .cloudAccountRequired:
+            return false
         case .transientNetwork, .timeout, .rateLimited,
              .noSpeechDetected, .insufficientCredits, .quotaExceeded,
              .localRuntimeUnavailable(_):
@@ -137,7 +168,7 @@ struct TranscriptionErrorClassificationTests {
         case .invalidResponse, .modelNotDownloaded, .modelProtected, .audioFileNotFound,
              .apiKeyMissing, .maxRetriesExceeded, .unauthorized, .invalidRequest,
              .streamingInterrupted, .busy, .invalidAudioFormat, .audioConversionFailed,
-             .audioFileTooLarge:
+             .audioFileTooLarge, .localSpeechModelEvicted:
             return true
         }
     }

@@ -11,21 +11,6 @@ extension TranscriptionPipeline {
 
     // MARK: - Vocabulary
 
-    /// Add a word to custom vocabulary with optional replacement.
-    /// - Returns: True if added successfully, false if it already exists or is invalid.
-    @discardableResult
-    func addToVocabulary(_ word: String, replacement: String? = nil) -> Bool {
-        let normalizedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedReplacement = replacement?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !normalizedWord.isEmpty else {
-            AppLogger.transcription.warning("Cannot add empty word to vocabulary")
-            return false
-        }
-
-        return PersistenceController.shared.addVocabularyItem(word: normalizedWord, replacement: normalizedReplacement)
-    }
-
     /// Remove a word from custom vocabulary.
     func removeFromVocabulary(_ word: String) {
         let items = PersistenceController.shared.fetchAllVocabularyItems()

@@ -25,15 +25,25 @@ export const Navbar = () => {
   const t = useTranslations("navbar");
   const locale = useLocale();
 
+  /*
+    The latency page is English-only — it 404s on every other locale — so its
+    href is the absolute /en/latency and it is rendered with a native <a>,
+    never LocaleLink (which would prefix it into /ja/en/latency). Label is
+    hardcoded for the same reason: the page it opens is English either way.
+  */
+  const latencyItem = { label: "Latency", href: "/en/latency", raw: true };
+
   const navItems = [
     { label: t("features"), href: `/${locale}#features` },
     { label: t("cloud"), href: `/${locale}#cloud` },
+    latencyItem,
     { label: t("faq"), href: `/${locale}#faq` },
   ];
 
   const navMenuItems = [
     { label: t("features"), href: `/${locale}#features` },
     { label: t("cloud"), href: `/${locale}#cloud` },
+    latencyItem,
     { label: t("faq"), href: `/${locale}#faq` },
     { label: t("support"), href: "/support" },
   ];
@@ -120,10 +130,10 @@ export const Navbar = () => {
 
       <NavbarMenu className="bg-black/95 backdrop-blur-xl">
         <div className="mx-4 mt-2 flex flex-col gap-2">
-          {/* Use native <a> for anchor links, LocaleLink for page routes */}
+          {/* Use native <a> for anchor links and already-localed hrefs, LocaleLink for page routes */}
           {navMenuItems.map((item, index) => (
             <NavbarMenuItem key={`${item}-${index}`}>
-              {item.href.includes("#") ? (
+              {item.href.includes("#") || "raw" in item ? (
                 <a
                   className="text-gray-300 hover:text-white transition-colors text-lg"
                   href={item.href}

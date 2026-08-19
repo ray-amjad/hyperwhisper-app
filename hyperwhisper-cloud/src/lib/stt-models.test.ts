@@ -57,6 +57,50 @@ describe('resolveModel', () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.model.isPreview).toBe(true);
   });
+
+  test('resolves the new OpenAI transcription models', () => {
+    const transcribe = resolveModel('openai', 'gpt-transcribe');
+    expect(transcribe.ok).toBe(true);
+    if (transcribe.ok) expect(transcribe.model.id).toBe('gpt-transcribe');
+
+    const live = resolveModel('openai', 'gpt-live-transcribe');
+    expect(live.ok).toBe(true);
+    if (live.ok) expect(live.model.id).toBe('gpt-live-transcribe');
+  });
+
+  test('AssemblyAI universal-3-5-pro resolves and is now the provider default', () => {
+    const explicit = resolveModel('assemblyai', 'universal-3-5-pro');
+    expect(explicit.ok).toBe(true);
+    if (explicit.ok) expect(explicit.model.id).toBe('universal-3-5-pro');
+
+    const defaulted = resolveModel('assemblyai', undefined);
+    expect(defaulted.ok).toBe(true);
+    if (defaulted.ok) expect(defaulted.model.id).toBe('universal-3-5-pro');
+
+    // universal-3-pro remains a valid, resolvable (non-default) id.
+    const legacy = resolveModel('assemblyai', 'universal-3-pro');
+    expect(legacy.ok).toBe(true);
+    if (legacy.ok) expect(legacy.model.id).toBe('universal-3-pro');
+  });
+
+  test('Soniox stt-async-v5 resolves and is now the provider default', () => {
+    const explicit = resolveModel('soniox', 'stt-async-v5');
+    expect(explicit.ok).toBe(true);
+    if (explicit.ok) expect(explicit.model.id).toBe('stt-async-v5');
+
+    const defaulted = resolveModel('soniox', undefined);
+    expect(defaulted.ok).toBe(true);
+    if (defaulted.ok) expect(defaulted.model.id).toBe('stt-async-v5');
+  });
+
+  test('ElevenLabs scribe_v1 is retired and now unresolvable (fail-closed)', () => {
+    const r = resolveModel('elevenlabs', 'scribe_v1');
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.validModels).not.toContain('scribe_v1');
+      expect(r.validModels).toContain('scribe_v2');
+    }
+  });
 });
 
 describe('estimatedUsdPerMinute', () => {
@@ -67,8 +111,8 @@ describe('estimatedUsdPerMinute', () => {
   });
 
   test('adds the medical add-on only for AssemblyAI', () => {
-    const base = estimatedUsdPerMinute('assemblyai', 'universal-3-pro', false);
-    const medical = estimatedUsdPerMinute('assemblyai', 'universal-3-pro', true);
+    const base = estimatedUsdPerMinute('assemblyai', 'universal-3-5-pro', false);
+    const medical = estimatedUsdPerMinute('assemblyai', 'universal-3-5-pro', true);
     expect(medical).toBeGreaterThan(base);
 
     // A provider that doesn't meter medical ignores the flag.

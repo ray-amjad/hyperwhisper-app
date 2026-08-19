@@ -3,6 +3,66 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.44.1</title>
+            <pubDate>Sun, 16 Aug 2026 14:08:26 +0000</pubDate>
+            <sparkle:version>114</sparkle:version>
+            <sparkle:shortVersionString>2.44.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.44.1.dmg" length="33713787" type="application/octet-stream" sparkle:edSignature="SoPc9GVirMX42YCSOqGfvBJdNMme0C5jr/3aHRoFWzqK2Je+QCfn4KhWW559i8E/+++QmIYR5HvNQi38mv9OAg=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li>Faster AssemblyAI transcription for clips under 2 minutes</li><li>Fixed a Parakeet bug that pegged a CPU core and left the menu bar unclickable</li><li>Fixed the History window clipping the sidebar and search bar when you select a transcript</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.44.0</title>
+            <pubDate>Sun, 16 Aug 2026 03:57:23 +0000</pubDate>
+            <sparkle:version>113</sparkle:version>
+            <sparkle:shortVersionString>2.44.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.44.0.dmg" length="33713877" type="application/octet-stream" sparkle:edSignature="DPP917c7aauffQ4pGjxhPk24cXrC+HwaKpP2Yw7xrOtjqiyYPwhqAD2UYBoISfAWwuouaBUmKWBuT3rq2BTkAw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Your vocabulary now reaches more providers.</b> Grok, Mistral with your own key, Google Chirp 3 and OpenAI's gpt-transcribe all read your custom terms. Before, the terms were sent nowhere.</li><li><b>Three new post-processing models.</b> Gemini 3.7 Flash, Grok 4.6 and GPT-5.6 Luna. Modes set to a retired model move to a current one on their own.</li><li><b>Clearer provider and model pickers.</b> The Provider list names the company, the Model list names the model, and Google no longer appears twice.</li><li><b>New modes start with your region's English spelling.</b> Modes you already made keep their setting.</li><li>HyperWhisper Cloud now tells you straight away when it needs a licence, instead of recording and uploading first and failing at the end.</li><li>A provider error during streaming now shows one clear message, instead of replacing it with a misleading reconnection failure.</li><li>Fixed the audio file picker freezing the app, badges cramming together in History, and links in this window not opening.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.43.0</title>
+            <pubDate>Thu, 13 Aug 2026 03:09:10 +0000</pubDate>
+            <sparkle:version>112</sparkle:version>
+            <sparkle:shortVersionString>2.43.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.43.0.dmg" length="33660309" type="application/octet-stream" sparkle:edSignature="2ap/8VHMUySpDPe0lUCyHJ8whlqhnqEB4F1rkZnmD/y63tloARrYtY7C2QhfH1MToBZiFb4G4r4xzTYkENEzDQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Find the fastest provider for you</b> — the new <a href="https://www.hyperwhisper.com/en/latency">latency page</a> shows how quickly every cloud provider actually answers, broken down by server region and clip length, from real transcriptions rather than vendor claims. Pick the fastest one for where you are. Your transcriptions help build it: <b>Share anonymous speed data</b> in Settings → General is on by default and stores only a timing — no account, no audio, no text. Turn it off any time.</li><li>Global hotkeys now work when the main window has never been opened.</li><li>Launching minimized no longer hides a window you just opened yourself.</li><li>Cancelling a live Apple Speech dictation is no longer reported as a failure.</li><li>Release notes now show bold text instead of raw tags.</li><li>Faster launch — the startup recording scan no longer blocks the interface.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
+            <title>2.42.0</title>
+            <pubDate>Mon, 10 Aug 2026 01:44:14 +0000</pubDate>
+            <sparkle:version>111</sparkle:version>
+            <sparkle:shortVersionString>2.42.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.42.0.dmg" length="33626299" type="application/octet-stream" sparkle:edSignature="fU7sEHL+aSIshVNTRTfCIumcerWjLfMfEVw8wrykuo+3g5qaT9vTTLoDdScScJZddwZ6BRfy8k40F8tr7BxrAQ=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Redesigned first-run setup</b> — a clearer 8-step walkthrough gets you dictating faster.</li><li><b>New models</b> — OpenAI gpt-transcribe, AssemblyAI Universal-3.5 Pro, Claude Sonnet 5, Gemini 3.6 Flash, Grok 4.5, Mistral Medium 3.5 and more.</li><li><b>Punctuation control</b> — choose how much punctuation and automatic formatting you want in your dictation.</li><li>Short clips now transcribe much faster on AssemblyAI.</li><li>Fixed the app freezing during a live transcription.</li><li>Vocabulary replacements now apply when AI post-processing is off, and "Remove filler words" works in live mode.</li><li>All 39 languages are now fully translated, plus fixes to History search, license activation and Parakeet model downloads.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.41.0</title>
             <pubDate>Thu, 02 Jul 2026 04:27:40 +0000</pubDate>
             <sparkle:version>110</sparkle:version>

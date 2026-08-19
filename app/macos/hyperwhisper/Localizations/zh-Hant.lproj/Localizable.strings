@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "開啟設定";
 "home.accessibility.restart.after.permission" = "授予許可後重新啟動應用程式";
 "home.getting.started.completed" = "✓ 已完成";
-"home.whatsnew.badge" = "新";
-"home.whatsnew.title" = "有什麼新功能？";
-"home.whatsnew.update1.date" = "7 月 3 日";
-"home.whatsnew.update1.title" = "Parakeet 現已推出";
-"home.whatsnew.update1.description" = "直接從模式建立中的語言模型清單下載它，今天就試試看。";
-"home.whatsnew.update2.date" = "6 月 5 日";
-"home.whatsnew.update2.title" = "支援每個 OpenAI 相容的自訂模型";
-"home.whatsnew.update2.description" = "您現在可以將任何 OpenAI 相容 API 新增到您的模型清單中。";
-"home.whatsnew.update3.date" = "5 月 27 日";
-"home.whatsnew.update3.title" = "全新迷你錄音視窗";
-"home.whatsnew.update3.description" = "一個光滑、最小化的錄音介面，不會佔用您的空間。";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "最近更新";
@@ -393,6 +382,9 @@
 
 "settings.general.errorLogging.title" = "錯誤日誌";
 "settings.general.errorLogging.info" = "自動擷取並傳送錯誤報告以協助改進應用程式。";
+"settings.general.shareSpeedData.title" = "分享匿名速度資料";
+"settings.general.shareSpeedData.info" = "測量每個雲端服務供應商所需的時間，並將其加入公開比較。一次測量包含供應商、伺服器區域、片段長度和所用時間 — 不含帳戶、金鑰、音訊或文字。關閉此選項後，HyperWhisper 將停止傳送這些資料。其他一切保持不變，本機模型永遠不會傳送任何內容。";
+"settings.general.shareSpeedData.link" = "查看速度比較";
 "settings.general.autoUpdate.title" = "自動更新";
 "settings.general.autoUpdate.info" = "自動檢查和下載 HyperWhisper 的新版本。";
 "settings.general.support.title" = "需要幫助？";
@@ -821,10 +813,6 @@
 "page.header.learnMore" = "深入瞭解";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "轉錄完成";
-"recording.status.retrying" = "重試轉錄中…";
-"recording.status.postprocessing" = "使用 AI 進行後處理中…";
-"recording.status.transcribing" = "轉錄中…";
 "recording.success.pasted" = "已貼上！";
 "recording.loading.retrying" = "重試中…";
 "recording.loading.postprocessing" = "使用 AI 進行處理中…";
@@ -852,39 +840,22 @@
 "modes.provider.manageInLibrary" = "在庫中管理 →";
 "streaming.loading.warming" = "正在預熱本機模型...";
 "streaming.status.listening" = "聆聽中...";
-"streaming.status.streaming" = "串流中...";
 "streaming.status.disconnecting" = "停止中...";
 "streaming.loading.connecting" = "連線到伺服器中...";
 "streaming.loading.ready" = "初始化音頻中...";
 "streaming.loading.streaming" = "等待語音中...";
 "streaming.state.reconnecting" = "重新連線中...";
 "recording.stop.help" = "停止錄音 (%@)";
-"recording.postprocessing.unavailable" = "後處理不可用";
-"recording.postprocessing.missing.single" = "%@ 金鑰遺漏 – 在沒有後處理的情況下錄音";
-"recording.postprocessing.missing.multiple" = "API 金鑰遺漏 – 在沒有後處理的情況下錄音";
-"recording.postprocessing.addKey" = "新增金鑰";
-"recording.offline.banner" = "沒有網際網路連線。雲端轉錄將失敗，直到您上線。";
-"recording.offline.title" = "沒有網際網路連線";
-"recording.offline.subtitle" = "重新連線以繼續或切換到離線模式。";
-"recording.error.network" = "檢查您的網際網路連線並再試一次。";
-"recording.error.timeout" = "請求逾時。檢查您的連線速度並重試。";
-"recording.error.rateLimit" = "您的請求過於頻繁。稍候片刻並重試。";
-"recording.error.credits" = "額度不足。請在設定中新增更多額度。";
-"recording.error.apiKey" = "在設定中新增您的 %@ API 金鑰。";
-"recording.error.server" = "轉錄服務遇到問題。請稍後再試。";
 "recording.retry" = "重試";
 "recording.retry.inProgress" = "重試中…";
 "recording.retry.count" = "重試 (%d)";
 "recording.retry.failed.missing" = "重試失敗：找不到音頻檔案";
 "recording.retry.failed.error" = "重試失敗：%@";
 "recording.retry.pending" = "準備好重試 – 按一下轉錄";
-"recording.provider.unknown" = "雲端提供商";
 "recording.cancel.dialog.title" = "取消錄音？";
 "recording.cancel.dialog.message" = "這將捨棄目前的錄音。";
 "recording.cancel.dialog.confirm" = "取消錄音";
 "recording.cancel.dialog.resume" = "繼續";
-"recording.error.overlay.title" = "網路連線錯誤";
-"recording.error.overlay.message" = "按下方「重試」或切換到離線模式以繼續。";
 "recording.mode.default" = "預設";
 "recording.dialog.window.title" = "錄音對話";
 "recording.button.start" = "開始錄音";
@@ -942,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "超過最大重試次數";
 "transcription.error.unauthorized.provider" = "未授權：無效的 %@ API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
 "transcription.error.unauthorized.generic" = "未授權：無效的 API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud 需要帳戶金鑰。\n\n開啟設定 → HyperWhisper Cloud 輸入金鑰或購買點數。";
 "transcription.error.invalidRequest" = "無效的請求：檢查音頻檔案或設定";
 "transcription.error.streamingInterrupted" = "串流中斷；顯示部分文字";
 "transcription.error.busy" = "轉錄服務目前忙碌中";
@@ -981,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "請結束並以原生模式重新開啟 HyperWhisper，才能使用本機後處理。";
 "transcription.guidance.localRuntimeUnavailable" = "請再試一次，或在模式設定中選擇較小的本機模型。";
 "transcription.error.localRuntimeUnavailable" = "本機 AI 無法完成處理 — 已保留你的原始逐字稿。";
+"transcription.error.localSpeechModelEvicted" = "為釋放記憶體，語音模型已被卸載且無法重新載入。請關閉部分應用程式後再試一次。";
 "settings.backup.localDownload.title" = "要下載本機模型嗎？";
 "settings.backup.localDownload.message" = "你還原的模式中有 %d 個使用尚未下載的裝置端 AI 模型。";
 "settings.backup.localDownload.downloadAll" = "全部下載";
@@ -1113,10 +1086,6 @@
 "history.autoDelete.unit.minutes" = "分鐘";
 "history.autoDelete.unit.hours" = "小時";
 "history.autoDelete.unit.days" = "天";
-"history.autoDelete.unit.minutes.plural" = "分鐘";
-"history.autoDelete.unit.hours.plural" = "小時";
-"history.autoDelete.unit.days.plural" = "天";
-"history.autoDelete.status.disabled" = "自動刪除已停用";
 "history.autoDelete.status.enabled" = "刪除早於 %d %@ 的錄音";
 "history.autoDelete.cleanup.noItems" = "沒有錄音要刪除";
 "history.autoDelete.cleanup.summary" = "已刪除 %d 個錄音並釋放 %@";

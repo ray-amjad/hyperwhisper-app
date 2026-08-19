@@ -297,6 +297,11 @@ class SettingsManager: ObservableObject {
         set { general.enableErrorLogging = newValue }
     }
 
+    var shareAnonymousSpeedData: Bool {
+        get { general.shareAnonymousSpeedData }
+        set { general.shareAnonymousSpeedData = newValue }
+    }
+
     var enableVAD: Bool {
         get { general.enableVAD }
         set { general.enableVAD = newValue }
@@ -390,8 +395,8 @@ class SettingsManager: ObservableObject {
         storage.ensureRecordingsFolderExists()
     }
 
-    func prepareRecordingsFolderIfNeeded() {
-        storage.prepareRecordingsFolderIfNeeded()
+    func prepareRecordingsFolderIfNeeded(canPresentInWindow: Bool = false) {
+        storage.prepareRecordingsFolderIfNeeded(canPresentInWindow: canPresentInWindow)
     }
 
     func prepareRecordingsFolderIfNeededAsync(timeoutSeconds: Double = 120) async -> Bool {
@@ -523,10 +528,6 @@ class SettingsManager: ObservableObject {
         defaultModelByMode[modeId]
     }
 
-    func setDefaultModel(_ modelId: String, forModeId modeId: String) {
-        defaultModelByMode[modeId] = modelId
-    }
-
     // MARK: - Private Methods
 
     private func validateSettings() {
@@ -592,6 +593,7 @@ extension UserDefaults {
             "showRecordingWindow": true,
             "checkForUpdatesAutomatically": true,
             "enableErrorLogging": true,
+            "shareAnonymousSpeedData": true,
             "enableVAD": true,
             "autoIncreaseMicVolume": true,
             "keepMicrophoneWarm": false,

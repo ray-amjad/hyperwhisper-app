@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "فتح الإعدادات";
 "home.accessibility.restart.after.permission" = "إعادة تشغيل التطبيق بعد منح الإذن";
 "home.getting.started.completed" = "✓ اكتمل";
-"home.whatsnew.badge" = "جديد";
-"home.whatsnew.title" = "ما الجديد؟";
-"home.whatsnew.update1.date" = "3 يوليو";
-"home.whatsnew.update1.title" = "Parakeet متاح الآن";
-"home.whatsnew.update1.description" = "قم بتنزيله مباشرة من قائمة نماذج اللغة في إنشاء الوضع لتجربته اليوم.";
-"home.whatsnew.update2.date" = "5 يونيو";
-"home.whatsnew.update2.title" = "دعم كل نموذج مخصص متوافق مع OpenAI";
-"home.whatsnew.update2.description" = "يمكنك الآن إضافة أي واجهات برمجية متوافقة مع OpenAI إلى قائمة النماذج الخاصة بك.";
-"home.whatsnew.update3.date" = "27 مايو";
-"home.whatsnew.update3.title" = "نافذة تسجيل صغيرة جديدة تماماً";
-"home.whatsnew.update3.description" = "واجهة تسجيل أنيقة وبسيطة تبقى بعيدة عن طريقك.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "التحديثات الأخيرة";
@@ -393,6 +382,9 @@
 
 "settings.general.errorLogging.title" = "تسجيل الأخطاء";
 "settings.general.errorLogging.info" = "التقط تلقائياً وأرسل تقارير الأخطاء للمساعدة في تحسين التطبيق.";
+"settings.general.shareSpeedData.title" = "مشاركة بيانات السرعة المجهولة";
+"settings.general.shareSpeedData.info" = "يقيس المدة التي يستغرقها كل مزود سحابي ويضيفها إلى مقارنة عامة. يتضمن القياس المزوّد، ومنطقة الخادم، وطول المقطع، والوقت المستغرق — بلا حساب، ولا مفتاح، ولا صوت، ولا نص. أوقف هذا الخيار ليتوقف HyperWhisper عن إرساله. لا شيء آخر يتغير، والنماذج المحلية لا ترسل أي شيء أبداً.";
+"settings.general.shareSpeedData.link" = "عرض مقارنة السرعة";
 "settings.general.autoUpdate.title" = "التحديث التلقائي";
 "settings.general.autoUpdate.info" = "تحقق تلقائياً من وقم بتنزيل إصدارات جديدة من HyperWhisper.";
 "settings.general.support.title" = "هل تحتاج إلى مساعدة؟";
@@ -821,10 +813,6 @@
 "page.header.learnMore" = "تعرف على المزيد";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "اكتمل النسخ";
-"recording.status.retrying" = "جارٍ إعادة محاولة النسخ…";
-"recording.status.postprocessing" = "المعالجة اللاحقة مع AI…";
-"recording.status.transcribing" = "جارٍ النسخ…";
 "recording.success.pasted" = "تم اللصق!";
 "recording.loading.retrying" = "جارٍ المحاولة…";
 "recording.loading.postprocessing" = "المعالجة مع AI…";
@@ -852,39 +840,22 @@
 "modes.provider.manageInLibrary" = "إدارة في المكتبة ←";
 "streaming.loading.warming" = "جارٍ تسخين النموذج المحلي...";
 "streaming.status.listening" = "جارٍ الاستماع...";
-"streaming.status.streaming" = "جارٍ البث...";
 "streaming.status.disconnecting" = "جارٍ الإيقاف...";
 "streaming.loading.connecting" = "جارٍ الاتصال بالخادم...";
 "streaming.loading.ready" = "جارٍ تهيئة الصوت...";
 "streaming.loading.streaming" = "جارٍ انتظار الكلام...";
 "streaming.state.reconnecting" = "جارٍ إعادة الاتصال...";
 "recording.stop.help" = "إيقاف التسجيل (%@)";
-"recording.postprocessing.unavailable" = "المعالجة اللاحقة غير متاحة";
-"recording.postprocessing.missing.single" = "مفتاح %@ غير موجود – جارٍ التسجيل بدون معالجة لاحقة";
-"recording.postprocessing.missing.multiple" = "مفاتيح API غير موجودة – جارٍ التسجيل بدون معالجة لاحقة";
-"recording.postprocessing.addKey" = "إضافة مفتاح";
-"recording.offline.banner" = "لا يوجد اتصال إنترنت. سيفشل النسخ السحابي حتى تكون متصلاً.";
-"recording.offline.title" = "لا يوجد اتصال إنترنت";
-"recording.offline.subtitle" = "أعد الاتصال للمتابعة أو التبديل إلى وضع غير متصل.";
-"recording.error.network" = "تحقق من اتصال الإنترنت الخاص بك وحاول مرة أخرى.";
-"recording.error.timeout" = "انتهت مهلة الطلب. تحقق من سرعة اتصالك وأعد المحاولة.";
-"recording.error.rateLimit" = "لقد قدمت الكثير من الطلبات. انتظر قليلاً وأعد المحاولة.";
-"recording.error.credits" = "رصيد غير كافٍ. أضف المزيد من الرصيد في الإعدادات.";
-"recording.error.apiKey" = "أضف مفتاح %@ API في الإعدادات.";
-"recording.error.server" = "تواجه خدمة النسخ مشاكل. يرجى المحاولة مرة أخرى في لحظة.";
 "recording.retry" = "إعادة المحاولة";
 "recording.retry.inProgress" = "جارٍ المحاولة…";
 "recording.retry.count" = "إعادة المحاولة (%d)";
 "recording.retry.failed.missing" = "فشلت المحاولة: لم يتم العثور على ملف الصوت";
 "recording.retry.failed.error" = "فشلت المحاولة: %@";
 "recording.retry.pending" = "جاهز لإعادة المحاولة – انقر للنسخ";
-"recording.provider.unknown" = "مزود سحابة";
 "recording.cancel.dialog.title" = "إلغاء التسجيل؟";
 "recording.cancel.dialog.message" = "سيؤدي هذا إلى تجاهل التسجيل الحالي.";
 "recording.cancel.dialog.confirm" = "إلغاء التسجيل";
 "recording.cancel.dialog.resume" = "استئناف";
-"recording.error.overlay.title" = "خطأ في اتصال الشبكة";
-"recording.error.overlay.message" = "اضغط 'إعادة المحاولة' أدناه أو قم بالتبديل إلى وضع غير متصل للمتابعة.";
 "recording.mode.default" = "افتراضي";
 "recording.dialog.window.title" = "نافذة التسجيل";
 "recording.button.start" = "بدء التسجيل";
@@ -942,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "تم تجاوز حد محاولات إعادة المحاولة الأقصى";
 "transcription.error.unauthorized.provider" = "غير مصرح: مفتاح API %@ غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
 "transcription.error.unauthorized.generic" = "غير مصرح: مفتاح API غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
+"transcription.error.cloudAccountRequired" = "يتطلب HyperWhisper Cloud مفتاح حساب.\n\nافتح الإعدادات → HyperWhisper Cloud لإدخال مفتاحك أو الحصول على رصيد.";
 "transcription.error.invalidRequest" = "طلب غير صحيح: تحقق من ملف الصوت أو الإعدادات";
 "transcription.error.streamingInterrupted" = "تم مقاطعة البث؛ تم عرض نص جزئي";
 "transcription.error.busy" = "خدمة النسخ مشغولة حالياً";
@@ -981,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "أغلق HyperWhisper وأعد فتحه كتطبيق أصلي لاستخدام المعالجة اللاحقة المحلية.";
 "transcription.guidance.localRuntimeUnavailable" = "حاول مرة أخرى، أو اختر نموذجاً محلياً أصغر في إعدادات الوضع.";
 "transcription.error.localRuntimeUnavailable" = "تعذّر على الذكاء الاصطناعي المحلي إكمال المعالجة — تم الاحتفاظ بالنص الأصلي.";
+"transcription.error.localSpeechModelEvicted" = "تم إلغاء تحميل نموذج الكلام لتحرير الذاكرة ولم تتم إعادة تحميله. أغلق بعض التطبيقات وحاول مرة أخرى.";
 "settings.backup.localDownload.title" = "تنزيل النماذج المحلية؟";
 "settings.backup.localDownload.message" = "%d من الأوضاع المستعادة تستخدم نماذج ذكاء اصطناعي على الجهاز لم يتم تنزيلها بعد.";
 "settings.backup.localDownload.downloadAll" = "تنزيل الكل";
@@ -1113,10 +1086,6 @@
 "history.autoDelete.unit.minutes" = "دقائق";
 "history.autoDelete.unit.hours" = "ساعات";
 "history.autoDelete.unit.days" = "أيام";
-"history.autoDelete.unit.minutes.plural" = "دقائق";
-"history.autoDelete.unit.hours.plural" = "ساعات";
-"history.autoDelete.unit.days.plural" = "أيام";
-"history.autoDelete.status.disabled" = "الحذف التلقائي معطّل";
 "history.autoDelete.status.enabled" = "حذف التسجيلات الأقدم من %d %@";
 "history.autoDelete.cleanup.noItems" = "لا توجد تسجيلات لحذفها";
 "history.autoDelete.cleanup.summary" = "تم حذف %d تسجيلات وتحرير %@";

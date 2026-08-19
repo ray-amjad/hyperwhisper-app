@@ -1,18 +1,18 @@
 ---
 title: General Settings
-description: Configure how HyperWhisper launches, behaves in the background, handles updates, and reports errors.
+description: Configure how HyperWhisper starts, runs in the background, updates itself, and reports errors.
 ---
 
-General Settings is the first sidebar section in HyperWhisper's Settings window. It controls app-level behavior — how the app starts, how it appears on screen, whether it checks for updates, and how it handles error reporting.
+General Settings is the first sidebar section in the HyperWhisper Settings window. It controls the behavior of the app: how the app starts and how it shows on screen. It also controls when the app looks for updates and how it reports errors.
 
-## Opening General Settings
+## Open General Settings
 
 <Tabs>
   <Tab title="macOS">
-    Click the HyperWhisper menu bar icon, then choose **Settings**. The General sidebar section opens automatically.
+    Click the HyperWhisper menu bar icon. Then click **Settings**. The General section opens automatically.
   </Tab>
   <Tab title="Windows">
-    Click the HyperWhisper tray icon (or open the main window), then navigate to **Settings** and select **General** in the sidebar.
+    Click the HyperWhisper tray icon, or open the main window. Then click **Settings**. Then click **General** in the sidebar.
   </Tab>
 </Tabs>
 
@@ -22,27 +22,27 @@ General Settings is the first sidebar section in HyperWhisper's Settings window.
 
 ### Launch on login / Launch at startup
 
-When enabled, HyperWhisper starts automatically when you log in to your computer. On macOS this uses the system's native login item service (`SMAppService`); on Windows it registers a startup entry.
+If you enable this setting, HyperWhisper starts each time you log in to your computer. On macOS, the app uses the system login item service (`SMAppService`). On Windows, the app adds a startup entry.
 
 <Tabs>
   <Tab title="macOS">
-    Labeled **Launch on login**. If macOS rejects the change (for example, because the app is unsigned or you denied the system prompt), the toggle snaps back to its actual state automatically.
+    The label is **Launch on login**. If macOS rejects the change, the toggle goes back to its actual state. Two conditions cause a rejection: the app is unsigned, or you denied the system prompt. A third case is not a rejection: macOS may register the login item but require you to approve it in System Settings → Login Items & Extensions (for example, after Migration Assistant or an app rename). In that case, the toggle stays **on** and HyperWhisper opens the Login Items settings pane for you to finish approval.
   </Tab>
   <Tab title="Windows">
-    Labeled **Launch at startup**. If enabling or disabling fails, an error message is shown explaining that you may need to check your startup permissions.
+    The label is **Launch at startup**. If the change fails, the app shows an error message. The message tells you to examine your startup permissions.
   </Tab>
 </Tabs>
 
 ### Launch minimized
 
-When enabled, HyperWhisper starts in the background without showing its main window. This applies to every launch — whether from a login item, a shortcut, or manually — regardless of whether **Launch on login / Launch at startup** is also enabled.
+If you enable this setting, HyperWhisper starts in the background and the main window stays closed. This applies to every start of the app: from a login item, from a shortcut, or by hand. The setting also applies when **Launch on login / Launch at startup** is off.
 
 <Tabs>
   <Tab title="macOS">
-    The app is accessible via the menu bar icon. The main window stays hidden until you open it manually.
+    You get to the app from the menu bar icon. The main window stays hidden until you open it.
   </Tab>
   <Tab title="Windows">
-    The app launches hidden in the system tray. Click the tray icon to open the main window.
+    The app starts hidden in the system tray. Click the tray icon to open the main window.
   </Tab>
 </Tabs>
 
@@ -52,7 +52,7 @@ When enabled, HyperWhisper starts in the background without showing its main win
   This setting is macOS only.
 </Note>
 
-When enabled, the HyperWhisper app icon appears in the macOS Dock. When disabled, the app runs as a menu-bar-only app with no Dock presence. Changing this takes effect immediately.
+If you enable this setting, the HyperWhisper icon shows in the macOS Dock. If you disable it, the app runs only in the menu bar and shows no icon in the Dock. The change takes effect immediately.
 
 ### Minimize to system tray
 
@@ -60,13 +60,21 @@ When enabled, the HyperWhisper app icon appears in the macOS Dock. When disabled
   This setting is Windows only.
 </Note>
 
-When enabled, closing the HyperWhisper window minimizes it to the system tray rather than quitting the app. The app continues running in the background; click the tray icon to restore the window.
+If you enable this setting and then close the HyperWhisper window, the window goes to the system tray. The app does not quit, and it continues to run in the background. Click the tray icon to open the window again.
 
 ### Show recording window
 
-When enabled, a floating overlay appears on screen while you are recording and while HyperWhisper is processing your audio. Both macOS and Windows show an animated waveform.
+If you enable this setting, a floating overlay shows on screen. The overlay shows while you record, and while HyperWhisper processes your audio. macOS and Windows both show an animated waveform.
 
-Disable this if you find the overlay distracting or if you prefer a more discreet recording experience.
+If the overlay distracts you, or if you want a more discreet recording, disable this setting.
+
+### Typing speed for "minutes saved" (Windows only)
+
+<Note>
+  This setting is Windows only, and it lives on the Home page, not in Settings.
+</Note>
+
+The Home page's stats bar estimates the time that dictation saves you, based on an assumed typing speed. Click the gear icon on the stats bar to change this typing speed (in words per minute) among the preset values. A higher typing speed lowers the estimated time saved, and a lower one raises it.
 
 ---
 
@@ -76,38 +84,52 @@ Disable this if you find the overlay distracting or if you prefer a more discree
 
 <Tabs>
   <Tab title="macOS">
-    Labeled **Error logging**. When enabled, HyperWhisper automatically captures and sends error reports to help improve the app.
+    The label is **Error logging**. If you enable this setting, HyperWhisper collects error reports and sends them. These reports help us make the app better.
   </Tab>
   <Tab title="Windows">
-    Labeled **Send error reports**. When enabled, crash reports are sent automatically. Your transcriptions are never included in these reports.
+    The label is **Send error reports**. If you enable this setting, HyperWhisper sends crash reports automatically. The reports never include your transcriptions.
   </Tab>
 </Tabs>
 
-You can turn this off at any time if you prefer not to share diagnostic data.
+If you do not want to share diagnostic data, you can turn off this setting at any time.
+
+### Share anonymous speed data
+
+The label is **Share anonymous speed data** on both platforms. This setting is **on** by default.
+
+If the setting is on, HyperWhisper Cloud measures how long each cloud provider takes and stores the measurement. These measurements make the public [latency page](https://www.hyperwhisper.com/en/latency), which shows how fast each provider answers in each server region. Both apps give a link to that page. On macOS, the link is a small arrow glyph on the title line of the row. On Windows, the link is the text **See the speed comparison** below the title. The link operates whether the setting is on or off.
+
+One measurement holds the provider, the server region, the clip-length group, and the time taken. It holds no account, no key, no IP address, no audio, and no text.
+
+If you turn the setting off, each cloud transcription sends the `X-Latency-Opt-Out: 1` header and the server stores no measurement. Your transcriptions do not change: the same providers run, at the same speed, and you get the same result. Local models never send a measurement, whatever this setting is.
+
+The setting arrived in macOS 2.43.0 and Windows 1.10.0. Older versions have no switch, so the server measures nothing from them at all.
+
+For the full list of the stored fields and the retention period, read [Data & Privacy](/data-privacy#timing-measurements).
 
 ### Auto update / Check for updates automatically
 
 <Tabs>
   <Tab title="macOS">
-    Labeled **Auto update**. When enabled, HyperWhisper automatically checks for and downloads new versions.
+    The label is **Auto update**. If you enable this setting, HyperWhisper looks for new versions and downloads them automatically.
   </Tab>
   <Tab title="Windows">
-    Labeled **Check for updates automatically**. When enabled, HyperWhisper silently checks for new versions on startup.
+    The label is **Check for updates automatically**. If you enable this setting, HyperWhisper looks for new versions at startup. It shows no message while it looks.
   </Tab>
 </Tabs>
 
-See [Updates](/updates) for details on the update process.
+The [Updates](/updates) page gives more information about the update process.
 
 ---
 
 ## Support
 
-The **Need help?** row in General Settings opens the HyperWhisper support page in your browser, where you can contact the support team directly.
+The **Need help?** row in General Settings opens the HyperWhisper support page in your browser. On that page, you can contact the support team.
 
-You can also reach support at [support@hyperwhisper.com](mailto:support@hyperwhisper.com) or via the [support page](https://www.hyperwhisper.com/support).
+You can also write to [support@hyperwhisper.com](mailto:support@hyperwhisper.com), or use the [support page](https://www.hyperwhisper.com/support).
 
 ---
 
 ## App version
 
-The current version and build number are shown at the bottom of the General Settings panel. This is useful when contacting support or checking whether you have the latest release.
+The bottom of the General Settings panel shows the current version and the build number. When you write to the support team, give them this version. You can also use the version to make sure that you have the latest release.

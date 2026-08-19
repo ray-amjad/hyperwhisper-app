@@ -80,9 +80,6 @@
   <data name="common.edit" xml:space="preserve">
     <value>Уреди</value>
   </data>
-  <data name="common.add" xml:space="preserve">
-    <value>Додај</value>
-  </data>
   <data name="common.copy" xml:space="preserve">
     <value>Копирај</value>
   </data>
@@ -231,12 +228,6 @@
   <data name="mode.editor.field.language" xml:space="preserve">
     <value>Language</value>
   </data>
-  <data name="mode.editor.provider.local" xml:space="preserve">
-    <value>Local</value>
-  </data>
-  <data name="mode.editor.provider.cloud" xml:space="preserve">
-    <value>Cloud</value>
-  </data>
   <data name="mode.editor.field.source" xml:space="preserve">
     <value>Извор</value>
   </data>
@@ -248,9 +239,6 @@
   </data>
   <data name="mode.editor.source.yourProvider" xml:space="preserve">
     <value>API кључ</value>
-  </data>
-  <data name="mode.editor.field.engine" xml:space="preserve">
-    <value>Мотор</value>
   </data>
   <data name="mode.editor.engine.recommendedLabel" xml:space="preserve">
     <value>{0} (Препоручено)</value>
@@ -275,12 +263,6 @@
   <data name="vocabulary.description" xml:space="preserve">
     <value>Ово помаже софтверу да препозна имена, акронименезе, жаргон или речи из других језика када мешаш језике.</value>
   </data>
-  <data name="vocabulary.input.title" xml:space="preserve">
-    <value>Унос</value>
-  </data>
-  <data name="vocabulary.edit.title" xml:space="preserve">
-    <value>Edit vocabulary entry</value>
-  </data>
   <data name="common.update" xml:space="preserve">
     <value>Update</value>
   </data>
@@ -301,12 +283,6 @@
   </data>
   <data name="vocabulary.limit.title" xml:space="preserve">
     <value>Граница Кључних Речи Достигнута</value>
-  </data>
-  <data name="vocabulary.input.wordLabel" xml:space="preserve">
-    <value>Word</value>
-  </data>
-  <data name="vocabulary.input.replacementLabel" xml:space="preserve">
-    <value>Replacement (optional)</value>
   </data>
   <data name="vocabulary.input.placeholder" xml:space="preserve">
     <value>Додај реч или направи исечак</value>
@@ -335,12 +311,6 @@
   <data name="settings.nav.appearance" xml:space="preserve">
     <value>Appearance</value>
   </data>
-  <data name="settings.nav.license" xml:space="preserve">
-    <value>License</value>
-  </data>
-  <data name="settings.nav.credits" xml:space="preserve">
-    <value>Credits</value>
-  </data>
   <data name="settings.nav.cloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
   </data>
@@ -361,9 +331,6 @@
   </data>
   <data name="settings.nav.about" xml:space="preserve">
     <value>About</value>
-  </data>
-  <data name="settings.section.license" xml:space="preserve">
-    <value>Лиценца</value>
   </data>
   <data name="settings.section.storage" xml:space="preserve">
     <value>Складиште</value>
@@ -388,12 +355,6 @@
   <data name="settings.general.title" xml:space="preserve">
     <value>General</value>
   </data>
-  <data name="settings.general.startup.title" xml:space="preserve">
-    <value>Startup</value>
-  </data>
-  <data name="settings.general.startup.subtitle" xml:space="preserve">
-    <value>Configure how HyperWhisper starts</value>
-  </data>
   <data name="settings.general.launchAtLogin.title" xml:space="preserve">
     <value>Покрени при пријави</value>
   </data>
@@ -405,12 +366,6 @@
   </data>
   <data name="settings.general.launchMinimized.subtitle" xml:space="preserve">
     <value>Start HyperWhisper hidden in the system tray.</value>
-  </data>
-  <data name="settings.general.windowBehavior.title" xml:space="preserve">
-    <value>Window Behavior</value>
-  </data>
-  <data name="settings.general.windowBehavior.subtitle" xml:space="preserve">
-    <value>Configure window and recording appearance</value>
   </data>
   <data name="settings.general.minimizeToTray.title" xml:space="preserve">
     <value>Minimize to system tray</value>
@@ -424,17 +379,20 @@
   <data name="settings.general.showRecordingWindow.subtitle" xml:space="preserve">
     <value>Display the recording overlay with audio visualization</value>
   </data>
-  <data name="settings.general.loggingAndUpdates.title" xml:space="preserve">
-    <value>Logging and Updates</value>
-  </data>
-  <data name="settings.general.loggingAndUpdates.subtitle" xml:space="preserve">
-    <value>Help us improve HyperWhisper</value>
-  </data>
   <data name="settings.general.errorLogging.title" xml:space="preserve">
     <value>Бележење грешака</value>
   </data>
   <data name="settings.general.errorLogging.subtitle" xml:space="preserve">
     <value>Automatically send crash reports to help us fix issues. Your transcriptions are never sent.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.title" xml:space="preserve">
+    <value>Дели анонимне податке о брзини</value>
+  </data>
+  <data name="settings.general.shareSpeedData.subtitle" xml:space="preserve">
+    <value>Мери колико времена треба сваком добављачу услуга у облаку и додаје то јавном поређењу, како би сви могли да виде који је модел најбржи тамо где су. Мерење садржи добављача, регион сервера, дужину исечка и утрошено време — без налога, без кључа, без звука и без текста. Локални модели никада ништа не шаљу.</value>
+  </data>
+  <data name="settings.general.shareSpeedData.link" xml:space="preserve">
+    <value>Погледај поређење брзине</value>
   </data>
   <data name="settings.general.autoUpdate.title" xml:space="preserve">
     <value>Аутоматско ажурирање</value>
@@ -665,9 +623,6 @@
   </data>
 
   <!-- Settings - Output -->
-  <data name="settings.output.cleanup.section" xml:space="preserve">
-    <value>Čišćenje</value>
-  </data>
   <data name="settings.output.removeFillerWords.title" xml:space="preserve">
     <value>Ukloni poštapalice</value>
   </data>
@@ -686,17 +641,8 @@
   <data name="settings.output.restoreClipboard.subtitle" xml:space="preserve">
     <value>Врати претходни садржај клипборда после лепљења</value>
   </data>
-  <data name="settings.output.clipboard.description" xml:space="preserve">
-    <value>Manage clipboard behavior after pasting</value>
-  </data>
   <data name="settings.output.clipboard.section" xml:space="preserve">
     <value>Clipboard</value>
-  </data>
-  <data name="settings.output.paste.description" xml:space="preserve">
-    <value>Configure automatic paste behavior</value>
-  </data>
-  <data name="settings.output.paste.section" xml:space="preserve">
-    <value>Paste Behavior</value>
   </data>
   <data name="settings.output.restoreDelay.subtitle" xml:space="preserve">
     <value>Delay before restoring clipboard contents</value>
@@ -713,9 +659,6 @@
   <!-- Settings - Storage -->
   <data name="settings.storage.recordings.title" xml:space="preserve">
     <value>Фолдер Снимања</value>
-  </data>
-  <data name="settings.storage.recordings.subtitle" xml:space="preserve">
-    <value>Choose where new recordings are stored.</value>
   </data>
   <data name="settings.storage.showFolder.button" xml:space="preserve">
     <value>Прикажи у Finder-у</value>
@@ -804,9 +747,6 @@
   </data>
 
   <!-- Settings - Models -->
-  <data name="settings.models.downloaded" xml:space="preserve">
-    <value>Преузето</value>
-  </data>
   <data name="settings.models.download" xml:space="preserve">
     <value>Преузми</value>
   </data>
@@ -815,42 +755,6 @@
   </data>
   <data name="settings.models.download.failed" xml:space="preserve">
     <value>Download failed: {0}</value>
-  </data>
-  <data name="settings.models.available.title" xml:space="preserve">
-    <value>Available Models</value>
-  </data>
-  <data name="settings.models.available.subtitle" xml:space="preserve">
-    <value>Download models for offline transcription</value>
-  </data>
-  <data name="settings.models.englishOnly" xml:space="preserve">
-    <value>(English only)</value>
-  </data>
-  <data name="settings.models.gpu.detecting" xml:space="preserve">
-    <value>Detecting...</value>
-  </data>
-  <data name="settings.models.gpu.name" xml:space="preserve">
-    <value>GPU:</value>
-  </data>
-  <data name="settings.models.gpu.subtitle" xml:space="preserve">
-    <value>GPU acceleration improves transcription speed</value>
-  </data>
-  <data name="settings.models.gpu.title" xml:space="preserve">
-    <value>GPU Information</value>
-  </data>
-  <data name="settings.models.gpu.vram" xml:space="preserve">
-    <value>VRAM:</value>
-  </data>
-  <data name="settings.models.guide.title" xml:space="preserve">
-    <value>Model Selection Guide</value>
-  </data>
-  <data name="settings.models.recommendation.title" xml:space="preserve">
-    <value>Recommended</value>
-  </data>
-  <data name="settings.models.recommendation.text" xml:space="preserve">
-    <value>Based on your hardware</value>
-  </data>
-  <data name="settings.models.vramWarning" xml:space="preserve">
-    <value>(Exceeds VRAM)</value>
   </data>
 
   <!-- Post-Processing -->
@@ -885,9 +789,6 @@
   </data>
   <data name="status.model.localReady" xml:space="preserve">
     <value>Local: {0} ({1} Ready)</value>
-  </data>
-  <data name="status.model.cloudReady" xml:space="preserve">
-    <value>Cloud (Ready)</value>
   </data>
   <data name="status.model.unknown" xml:space="preserve">
     <value>Unknown</value>
@@ -946,20 +847,8 @@
   </data>
 
   <!-- History - Status -->
-  <data name="history.status.processing" xml:space="preserve">
-    <value>Processing...</value>
-  </data>
-  <data name="history.status.completed" xml:space="preserve">
-    <value>Completed</value>
-  </data>
 
   <!-- History - Retry -->
-  <data name="history.retry.attemptSingular" xml:space="preserve">
-    <value>1 attempt</value>
-  </data>
-  <data name="history.retry.attemptPlural" xml:space="preserve">
-    <value>{0} attempts</value>
-  </data>
   <data name="history.context.retryAgain" xml:space="preserve">
     <value>Retry again</value>
   </data>
@@ -1069,9 +958,6 @@
   <data name="mode.editor.warning.vocabularyUnsupported.elevenlabs" xml:space="preserve">
     <value>Custom vocabulary is not supported with ElevenLabs Scribe V1.</value>
   </data>
-  <data name="mode.editor.warning.vocabularyUnsupported.mistral" xml:space="preserve">
-    <value>Custom vocabulary is not supported with Mistral.</value>
-  </data>
   <data name="mode.editor.warning.vocabularyUnsupported.deepgramBase" xml:space="preserve">
     <value>Custom vocabulary is not supported with Deepgram Base models.</value>
   </data>
@@ -1177,12 +1063,6 @@ This action cannot be undone.</value>
 You must have at least one mode.</value>
   </data>
   <!-- Settings - Shortcuts (additional) -->
-  <data name="settings.shortcuts.global.title" xml:space="preserve">
-    <value>Global Shortcuts</value>
-  </data>
-  <data name="settings.shortcuts.global.subtitle" xml:space="preserve">
-    <value>Customize your keyboard shortcuts</value>
-  </data>
   <data name="settings.shortcuts.toggle.label" xml:space="preserve">
     <value>Toggle Recording</value>
   </data>
@@ -1216,9 +1096,6 @@ You must have at least one mode.</value>
     <value>Failed to disable launch at startup. Please check if you have permission to modify startup settings.</value>
   </data>
   <!-- Settings - Models -->
-  <data name="settings.models.vramWarning.title" xml:space="preserve">
-    <value>Insufficient VRAM</value>
-  </data>
   <data name="settings.models.downloadFailed.title" xml:space="preserve">
     <value>Download Failed</value>
   </data>
@@ -1268,9 +1145,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.storage.autoDelete.subtitle" xml:space="preserve">
     <value>Automatically delete old recordings to save disk space</value>
-  </data>
-  <data name="settings.storage.autoDelete.enabled" xml:space="preserve">
-    <value>Enable automatic deletion</value>
   </data>
   <data name="settings.storage.autoDelete.deleteAfter" xml:space="preserve">
     <value>Delete recordings older than</value>
@@ -1378,30 +1252,6 @@ You can re-download it later.</value>
   </data>
 
   <!-- Models - ARM64 and GPU -->
-  <data name="settings.models.noGpu.title" xml:space="preserve">
-    <value>No NVIDIA GPU detected</value>
-  </data>
-  <data name="settings.models.cpuMode" xml:space="preserve">
-    <value>CPU Mode</value>
-  </data>
-  <data name="settings.models.noGpu.description" xml:space="preserve">
-    <value>For best performance, an NVIDIA GPU with CUDA support is recommended for local transcription.</value>
-  </data>
-  <data name="settings.models.gpu.notDetected" xml:space="preserve">
-    <value>Not detected</value>
-  </data>
-  <data name="settings.models.gpu.unknown" xml:space="preserve">
-    <value>Unknown</value>
-  </data>
-  <data name="settings.models.gpu.recommendBase" xml:space="preserve">
-    <value>GPU not detected. We recommend using the Base model for CPU transcription.</value>
-  </data>
-  <data name="settings.models.diskUsage.none" xml:space="preserve">
-    <value>No models downloaded</value>
-  </data>
-  <data name="settings.models.diskUsage.format" xml:space="preserve">
-    <value>{0} models ({1})</value>
-  </data>
 
   <!-- Mode Editor - Additional -->
   <data name="mode.editor.model.notDownloaded" xml:space="preserve">
@@ -1441,9 +1291,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.soundEffects.title" xml:space="preserve">
     <value>Звучни ефекти</value>
-  </data>
-  <data name="settings.sound.soundEffects.subtitle" xml:space="preserve">
-    <value>Подесите звучне сигнале за догађаје снимања</value>
   </data>
   <data name="settings.sound.enableSoundEffects.title" xml:space="preserve">
     <value>Пусти звучне ефекте</value>
@@ -1589,12 +1436,6 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Асинхрона транскрипција са најновијим STT моделом Soniox</value>
   </data>
-  <data name="mode.editor.warning.parakeetLanguageUnsupported" xml:space="preserve">
-    <value>Parakeet v3 не подржава овај језик. Размотрите Whisper или облачног провајдера.</value>
-  </data>
-  <data name="mode.editor.warning.parakeetV2EnglishOnly" xml:space="preserve">
-    <value>Parakeet v2 подржава само енглески. Језик ће бити постављен на енглески.</value>
-  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
@@ -1633,12 +1474,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.backup.import.button" xml:space="preserve">
     <value>Увези резервну копију...</value>
-  </data>
-  <data name="settings.backup.import.confirmReplace.message" xml:space="preserve">
-    <value>Ово ће избрисати све тренутне поставке, режиме, речник и транскрипције пре увоза. Ово се не може поништити. Наставити?</value>
-  </data>
-  <data name="settings.backup.import.confirmReplace.title" xml:space="preserve">
-    <value>Заменити постојеће податке?</value>
   </data>
   <data name="settings.backup.import.dialogTitle" xml:space="preserve">
     <value>Увези резервну копију HyperWhisper</value>
@@ -1682,9 +1517,6 @@ You can re-download it later.</value>
   <data name="settings.shortcuts.pushToTalk.doublePress.subtitle" xml:space="preserve">
     <value>Притисните двапут брзо за непрекидно снимање без задржавања</value>
   </data>
-  <data name="settings.shortcuts.pushToTalk.mode.label" xml:space="preserve">
-    <value>Режим</value>
-  </data>
   <data name="settings.shortcuts.pushToTalk.modifier.label" xml:space="preserve">
     <value>Модификатор</value>
   </data>
@@ -1702,12 +1534,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.autoIncreaseMicVolume.title" xml:space="preserve">
     <value>Аутоматски повећај јачину микрофона</value>
-  </data>
-  <data name="settings.sound.microphone.subtitle" xml:space="preserve">
-    <value>Конфигурисање понашања улаза микрофона током снимања</value>
-  </data>
-  <data name="settings.sound.microphone.title" xml:space="preserve">
-    <value>Микрофон</value>
   </data>
   <data name="status.model.parakeet.loading" xml:space="preserve">
     <value>Учитавање {0}...</value>
@@ -1731,12 +1557,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.api.provider.localLlm.manageModels" xml:space="preserve">
     <value>Manage Models</value>
-  </data>
-  <data name="settings.models.localLlm.title" xml:space="preserve">
-    <value>Local LLM Models</value>
-  </data>
-  <data name="settings.models.localLlm.subtitle" xml:space="preserve">
-    <value>Offline post-processing models stored on this device</value>
   </data>
   <data name="settings.models.localLlm.hardware.cpuFallback" xml:space="preserve">
     <value>Runtime: CPU fallback. No GPU acceleration device was detected.</value>
@@ -1840,18 +1660,6 @@ You can re-download it later.</value>
   <data name="vocabulary.manual.badge" xml:space="preserve">
     <value>Ručno</value>
   </data>
-  <data name="vocabulary.autoLearned.clear" xml:space="preserve">
-    <value>Clear auto-learned</value>
-  </data>
-  <data name="vocabulary.autoLearned.clearConfirm.title" xml:space="preserve">
-    <value>Clear auto-learned vocabulary?</value>
-  </data>
-  <data name="vocabulary.autoLearned.clearConfirm.message" xml:space="preserve">
-    <value>Remove {0} auto-learned vocabulary entries? Manually added entries stay.</value>
-  </data>
-  <data name="settings.nav.vocabulary" xml:space="preserve">
-    <value>Vocabulary</value>
-  </data>
   <data name="settings.nav.streaming" xml:space="preserve">
     <value>Streaming</value>
   </data>
@@ -1945,21 +1753,6 @@ You can re-download it later.</value>
   <data name="recording.state.streaming" xml:space="preserve">
     <value>Live</value>
   </data>
-  <data name="settings.models.parakeet.title" xml:space="preserve">
-    <value>Parakeet Models</value>
-  </data>
-  <data name="settings.models.parakeet.subtitle" xml:space="preserve">
-    <value>Recommended for most users. Multilingual model supports 25 languages.</value>
-  </data>
-  <data name="settings.models.directory.parakeet" xml:space="preserve">
-    <value>Parakeet models folder</value>
-  </data>
-  <data name="settings.models.directory.whisper" xml:space="preserve">
-    <value>Whisper models folder</value>
-  </data>
-  <data name="settings.models.directory.local" xml:space="preserve">
-    <value>Local LLM models folder</value>
-  </data>
   <data name="settings.models.directory.show" xml:space="preserve">
     <value>Show in Explorer</value>
   </data>
@@ -1980,9 +1773,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.models.feature.vocabulary" xml:space="preserve">
     <value>custom vocabulary</value>
-  </data>
-  <data name="settings.models.directory.openFailed" xml:space="preserve">
-    <value>Failed to open models folder: {0}</value>
   </data>
   <data name="statusbar.postProcessing" xml:space="preserve">
     <value>Post: </value>
@@ -2050,9 +1840,6 @@ You can re-download it later.</value>
   <data name="mode.editor.cloudModel.noVocabularyHint" xml:space="preserve">
     <value>Nema prilagođenog rečnika</value>
   </data>
-  <data name="mode.editor.cloudModel.defaultLabel" xml:space="preserve">
-    <value>{0} (preporučeno)</value>
-  </data>
   <data name="mode.editor.cloudDomain.medical" xml:space="preserve">
     <value>Medicinski rečnik (dodatak za medicinski režim)</value>
   </data>
@@ -2074,14 +1861,8 @@ You can re-download it later.</value>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
     <value>Streaming shortcut</value>
   </data>
-  <data name="settings.streaming.shortcut.current" xml:space="preserve">
-    <value>Current shortcut: {0}</value>
-  </data>
   <data name="settings.streaming.provider.title" xml:space="preserve">
     <value>Provider</value>
-  </data>
-  <data name="settings.streaming.provider.subtitle" xml:space="preserve">
-    <value>Choose the service used for real-time transcription.</value>
   </data>
   <data name="settings.streaming.provider.hyperwhisperCloud" xml:space="preserve">
     <value>HyperWhisper Cloud</value>
@@ -2134,15 +1915,6 @@ You can re-download it later.</value>
   <data name="settings.streaming.language.title" xml:space="preserve">
     <value>Language</value>
   </data>
-  <data name="settings.streaming.language.subtitle" xml:space="preserve">
-    <value>Pick the language used for streaming transcription.</value>
-  </data>
-  <data name="settings.streaming.deepgram.title" xml:space="preserve">
-    <value>Deepgram options</value>
-  </data>
-  <data name="settings.streaming.deepgram.subtitle" xml:space="preserve">
-    <value>Configure Deepgram-specific streaming behavior.</value>
-  </data>
   <data name="settings.streaming.deepgram.model.title" xml:space="preserve">
     <value>Model</value>
   </data>
@@ -2172,12 +1944,6 @@ You can re-download it later.</value>
   </data>
   <data name="settings.sound.mediaControl.subtitle" xml:space="preserve">
     <value>Control other audio while HyperWhisper is recording.</value>
-  </data>
-  <data name="settings.sound.mediaControl.mode.title" xml:space="preserve">
-    <value>While recording</value>
-  </data>
-  <data name="settings.sound.mediaControl.mode.subtitle" xml:space="preserve">
-    <value>Mute system output so music, calls, or videos do not bleed into dictation.</value>
   </data>
   <data name="settings.sound.mediaControl.off" xml:space="preserve">
     <value>Off</value>

@@ -64,6 +64,7 @@
             "showRecordingWindow": { "type": "boolean" },
             "checkForUpdatesAutomatically": { "type": "boolean" },
             "enableErrorLogging": { "type": "boolean" },
+            "shareAnonymousSpeedData": { "type": "boolean" },
             "enableSoundEffects": { "type": "boolean" }
           },
           "additionalProperties": false

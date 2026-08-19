@@ -7,3 +7,4 @@ export * from "./emails";
 export * from "./sent-emails";
 export * from "./blog-posts";
 export * from "./stripe-processed-events";
+export * from "./stt-latency-samples";

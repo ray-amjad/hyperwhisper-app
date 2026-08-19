@@ -249,9 +249,6 @@ struct LanguageData {
     /// Popular languages that appear at the top of the list
     static let popularLanguageCodes = ["en", "ja", "es", "zh", "zh-TW", "nl", "hi", "ru", "ko", "it", "uk", "pl", "pt", "el", "cs", "sv", "no", "da", "id"]
 
-    /// Index where "Automatic" appears in the full list
-    static let automaticIndex = 0
-
     /// Helper to canonicalize BCP-47 language tags (replace underscores, enforce casing)
     private static func canonicalize(_ code: String) -> String {
         let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)

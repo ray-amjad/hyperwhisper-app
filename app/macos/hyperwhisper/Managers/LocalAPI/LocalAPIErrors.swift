@@ -119,6 +119,20 @@ enum LocalAPIResponder {
                 return (.transcriptionFailed, "Provider error (HTTP \(statusCode)): \(message)", nil)
             case .noSpeechDetected:
                 return (.transcriptionFailed, "No speech detected in audio.", nil)
+            case .cloudAccountRequired:
+                // Reuses MISSING_API_KEY rather than adding a code: LocalAPIErrorCode
+                // is a closed enum decoded by cross-platform clients, and this IS a
+                // missing-credential condition. Without an arm it fell through to
+                // the generic TRANSCRIPTION_FAILED, which is exactly the leak this
+                // function exists to prevent.
+                return (.missingAPIKey, "HyperWhisper Cloud requires an account key.", "Add your account key in Settings → HyperWhisper Cloud.")
+            case .localSpeechModelEvicted(let model):
+                // ENGINE_UNAVAILABLE, not the generic TRANSCRIPTION_FAILED the
+                // `default:` below would give it: the engine genuinely was not
+                // resident, and a Local API client can act on that (retry later)
+                // in a way it cannot act on "transcription failed".
+                let name = model ?? "The local speech model"
+                return (.engineUnavailable, "\(name) was unloaded to free memory and could not be reloaded.", "Close some apps to free memory and retry.")
             default:
                 return (.transcriptionFailed, error.localizedDescription, nil)
             }

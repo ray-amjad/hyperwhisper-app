@@ -15,10 +15,8 @@ export const downloadEmailRateLimiter = new Ratelimit({
 /**
  * Rate limiter for the public license validate/activate endpoints.
  *
- * These endpoints are unauthenticated and, on a database miss, fall back to a
- * live Polar API call (importLicenseFromPolar). Without a limiter, one cheap
- * unauthenticated POST maps 1:1 to one outbound Polar request, letting any
- * caller flood random keys to burn Polar quota / amplify load. The limit is
+ * These endpoints are unauthenticated, so any caller can flood random keys
+ * and drive database lookups. The limit is
  * generous enough for legitimate clients (the macOS app re-validates
  * periodically and many users may share a NAT IP) while bounding abuse.
  *
@@ -28,5 +26,23 @@ export const licenseValidateRateLimiter = new Ratelimit({
   redis: redis,
   limiter: Ratelimit.slidingWindow(30, "1 m"),
   prefix: "ratelimit:license-validate",
+  analytics: true,
+});
+
+/**
+ * Rate limiter for the internal STT latency ingest.
+ *
+ * Keyed by Fly region, NOT by IP: every machine in one region shares an exit
+ * address, so a per-IP limit would make the busiest region throttle itself.
+ * This exists only as a runaway-loop backstop — a bug in the edge service that
+ * reports in a hot loop should not be able to fill the table. The ceiling sits
+ * far above real traffic, so a healthy region never sees it.
+ *
+ * Limits: 6000 batches per region per minute using sliding window algorithm.
+ */
+export const latencyIngestRateLimiter = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(6000, "1 m"),
+  prefix: "ratelimit:latency-ingest",
   analytics: true,
 });

@@ -15,7 +15,7 @@
 // LIMITS:
 // - Supported formats: mp3, mp4, m4a, wav, webm, ogg, flac
 //
-// IMPORTANT: Does NOT support custom vocabulary/prompts
+// IMPORTANT: No free-text prompt; vocabulary goes out as `context_bias`
 //
 // ERROR HANDLING:
 // - 401: Invalid API key
@@ -25,78 +25,40 @@
 // NOTE: Uses TranscriptionApiKeyType.Mistral (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System / HyperWhisper types; qualify with
-// `uniffi.hyperwhisper_core.` where ambiguous (HttpResponse below).
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
 
 /// <summary>
 /// Cloud transcription service using Mistral's Voxtral API.
-/// Note: Does NOT support custom vocabulary.
+/// Vocabulary is sent as a `context_bias` list (max 100 terms).
 /// </summary>
-public class MistralService : ITranscriptionProvider, IDisposable
+public class MistralService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiEndpoint = "https://api.mistral.ai/v1/audio/transcriptions";
     private const int DefaultTimeoutSeconds = 120;
-    private const int MaxRetries = 3;
-
-    // Supported audio MIME types
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
-    // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "voxtral-mini-latest";
-    private bool _disposed;
 
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"Mistral {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.Mistral)?.DisplayName ?? _modelId}";
+    public override string Name => $"Mistral {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Mistral)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
     public MistralService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "voxtral-mini-latest")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
     // =========================================================================
@@ -109,10 +71,10 @@ public class MistralService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">Mistral API key.</param>
     /// <param name="modelId">Model ID (voxtral-mini-latest).</param>
-    public void Configure(string apiKey, string modelId = "voxtral-mini-latest")
+    public override void Configure(string apiKey, string modelId = "voxtral-mini-latest")
     {
-        _apiKey = apiKey;
-        _modelId = modelId;
+        ApiKey = apiKey;
+        ModelId = modelId;
         LoggingService.Info($"MistralService: Configured with model {modelId}");
     }
 
@@ -122,9 +84,9 @@ public class MistralService : ITranscriptionProvider, IDisposable
 
     /// <summary>
     /// Transcribes audio using Mistral's Voxtral API.
-    /// Note: vocabulary parameter is ignored as Mistral doesn't support it.
+    /// Vocabulary terms are sent as a `context_bias` list (max 100 terms).
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -132,98 +94,39 @@ public class MistralService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== MISTRAL CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        // Warn if vocabulary was provided (not supported)
         if (vocabulary?.Count > 0)
         {
-            LoggingService.Warn($"  Warning: Vocabulary ignored - Mistral does not support custom vocabulary");
+            LoggingService.Info($"  Vocabulary sent as context_bias: {vocabulary.Count} term(s) before capping");
         }
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Mistral API key not configured",
-                "Mistral");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Mistral");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
+        // STEP 1+2: Validate configuration and audio file (shared gate). Mistral
+        // does not cap the file size client-side.
+        TranscriptionPreflight.Validate("Mistral", ApiKey, audioPath);
 
         // STEP 3: Build the request via the Rust shared core, then drive it
-        // through the shared executor + core retry loop. Mistral does not support
-        // custom vocabulary; pass an empty term list.
+        // through the shared executor + core retry loop. Pass the RAW vocabulary
+        // list — the core normalizes it and caps the `context_bias` field.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
-            vocabulary: Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            vocabulary: vocabulary ?? Array.Empty<string>(),
+            apiKey: ApiKey,
+            model: ModelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.MistralBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.MistralParseTranscribeResponse(resp), "Mistral", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            // Thrown by MistralBuildTranscribeRequest (request-build validation).
-            throw RustCoreMapping.MapTranscriptionError(ex, "Mistral");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.MistralParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Mistral");
-        }
-
-        LoggingService.Info("========== MISTRAL TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
-    }
-
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
+        return await RustSingleShot.TranscribeAsync(
+            Http,
+            "Mistral",
+            buildRequest: () => HyperwhisperCoreMethods.MistralBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.MistralParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 }

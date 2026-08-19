@@ -9,13 +9,17 @@ import { computeSonioxTranscriptionCost, estimateSonioxContextTokens } from '../
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
-const DEFAULT_MODEL = 'stt-async-v4';
+// v4 auto-routed to v5 after 2026-06-30 (Soniox docs/changelog); v5 is now the
+// default, matching stt-models.ts's `soniox.defaultModel`. v4 stays a valid,
+// API-compatible id for any caller that pins it explicitly.
+const DEFAULT_MODEL = 'stt-async-v5';
 const POLL_INTERVAL_MS = 1_000;
 const POLL_DEADLINE_MS = 240_000;
 const MAX_CONTEXT_TERMS = 200;
+const MAX_CONTEXT_TERM_CHARS = 80;
 // Soniox supports async files up to 300 min, but our request-scoped poll budget
 // is POLL_DEADLINE_MS, and a transcription still "processing" at the deadline
 // CANNOT be deleted (Soniox returns 409 transcription_invalid_state) — so
@@ -43,22 +47,11 @@ function authHeader(apiKey: string): Record<string, string> {
   return { Authorization: `Bearer ${apiKey}` };
 }
 
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
-
 function toContextTerms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-    .filter((t) => t.length >= 1 && t.length <= 80)
-    .slice(0, MAX_CONTEXT_TERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_CONTEXT_TERMS,
+    maxTermChars: MAX_CONTEXT_TERM_CHARS,
+  });
 }
 
 function throwForStatus(status: number, bodyPreview: string): never {
@@ -140,8 +133,9 @@ export async function transcribeWithSoniox(
       model, audioBytes: audio.byteLength, contentType, language: language || 'auto',
     }, context);
 
+    const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
     const uploadForm = new FormData();
-    uploadForm.append('file', new Blob([audio], { type: contentType }), `audio.${getExtension(contentType)}`);
+    uploadForm.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
 
     const uploadResp = await fetchWithTimeout(provider, `${SONIOX_BASE}/v1/files`, {
       method: 'POST',
@@ -169,11 +163,11 @@ export async function transcribeWithSoniox(
       model,
       enable_language_identification: true,
     };
-    if (language && language.toLowerCase() !== 'auto') {
-      // Soniox `language_hints` expects ISO language codes (e.g. "en"/"es"), not
-      // full BCP-47 tags — strip any region/script subtag so a client-supplied
-      // "en-US"/"pt-BR" becomes "en"/"pt" and actually biases detection.
-      const hint = language.toLowerCase().split(/[-_]/)[0];
+    // Soniox `language_hints` expects ISO language codes (e.g. "en"/"es"), not
+    // full BCP-47 tags — strip any region/script subtag so a client-supplied
+    // "en-US"/"pt-BR" becomes "en"/"pt" and actually biases detection.
+    const hint = explicitLanguageSubtag(language);
+    if (hint !== undefined) {
       createBody.language_hints = [hint];
     }
     const terms = initialPrompt ? toContextTerms(initialPrompt) : [];

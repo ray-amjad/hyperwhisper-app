@@ -112,13 +112,13 @@ enum RustRetry {
 
             // Non-2xx → consult the core retry decision.
             let bodyText = String(data: response.body, encoding: .utf8) ?? ""
-            let retryAfter = parseRetryAfterHeader(response)
+            let retryAfter = response.retryAfterSeconds
 
             let decision = nextRetry(
                 attempt: attempt,
                 status: response.status,
                 body: bodyText,
-                // Clamp at the conversion: `parseRetryAfterHeader` uses `Int(...)`
+                // Clamp at the conversion: `retryAfterSeconds` uses `Int(...)`
                 // and so accepts negatives; `UInt64(-1)` would TRAP. A negative
                 // Retry-After is meaningless, so floor it at 0. (The `Int?` value
                 // is still passed to `enrichRateLimited` below for user messaging.)
@@ -166,15 +166,6 @@ enum RustRetry {
             return error
         }
         return .rateLimited(retryAfter: retryAfter)
-    }
-
-    /// Parse the integer `Retry-After` header from a binding `HttpResponse`,
-    /// reading the header list the core captured (case-insensitive).
-    private static func parseRetryAfterHeader(_ response: HttpResponse) -> Int? {
-        guard let value = response.headers.first(where: {
-            $0.name.caseInsensitiveCompare("Retry-After") == .orderedSame
-        })?.value else { return nil }
-        return Int(value.trimmingCharacters(in: .whitespaces))
     }
 
     private static func sleep(_ delayMs: UInt64) async throws {

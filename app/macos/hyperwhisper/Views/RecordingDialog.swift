@@ -62,7 +62,6 @@ struct RecordingDialog: View {
     private let controlHeight: CGFloat = 24  // Stop button size
     
     // Mode selection
-    @State private var showModeSelector = false
     @State private var modeCycleRotation: Double = 0
     @State private var modeJustCycled = false
     
@@ -76,15 +75,10 @@ struct RecordingDialog: View {
     @State private var isRetrying = false
     @State private var transcriptActionHandler: TranscriptActionHandler?
     @State private var showSuccessState = false  // Brief success indicator
-    // Local key monitor token for cancel overlay
-    @State private var cancelOverlayKeyMonitor: Any?
-    // Whether we installed a global event tap (no app activation)
-    @State private var usingCancelOverlayEventTap: Bool = false
 
     // MARK: - Animation States
     @State private var stopButtonPressed = false  // Stop button press animation
     @State private var stopButtonHovered = false  // Stop button hover state
-    @State private var checkmarkProgress: CGFloat = 0.0  // Checkmark stroke animation progress
     @State private var successScale: CGFloat = 0.0  // Success state scale animation
     @State private var stateTransitionScale: CGFloat = 1.0  // Scale for state transitions
     @State private var pulseAnimation = false  // Pulse animation for connection status indicator
@@ -96,53 +90,6 @@ struct RecordingDialog: View {
     }
     
     // MARK: - Computed Properties
-    
-    /// The text to display in the status bar
-    private var statusText: String {
-        // Streaming connection states take priority
-        if appState.isStreamingShortcutTriggered {
-            switch appState.streamingConnectionState {
-            case .warmingUp:
-                return "streaming.status.warming".localized
-            case .connecting:
-                return "streaming.status.connecting".localized
-            case .ready:
-                return "streaming.status.ready".localized
-            case .streaming:
-                if !liveStreamingText.text.isEmpty {
-                    return "streaming.status.streaming".localized
-                } else {
-                    return "streaming.status.listening".localized
-                }
-            case .reconnecting:
-                return "streaming.state.reconnecting".localized
-            case .disconnecting:
-                return "streaming.status.disconnecting".localized
-            case .error(let message):
-                return "Error: \(message)"
-            case .idle:
-                return formattedDuration
-            }
-        }
-
-        // Non-streaming states (existing logic)
-        if showTranscription {
-            return "recording.status.complete".localized
-        } else if isRetrying {
-            return "recording.status.retrying".localized
-        } else if isPostProcessing {
-            return "recording.status.postprocessing".localized
-        } else if isLoading {
-            return "recording.status.transcribing".localized
-        } else {
-            return formattedDuration
-        }
-    }
-    
-    /// Whether to use monospaced font (for duration display)
-    private var useMonospacedFont: Bool {
-        !showTranscription && !isPostProcessing && !isLoading && !isRetrying
-    }
     
     /// Text to show in the loading overlay
     private var loadingStatusText: String {
@@ -177,22 +124,6 @@ struct RecordingDialog: View {
         return baseDialogWidth
     }
     
-    /// Top status bar extracted to reduce body complexity
-    private var topBar: some View {
-        Color.black.opacity(0.3)
-            .overlay(
-                HStack {
-                    Spacer()
-                    Text(statusText)
-                        .font(.system(size: 11, weight: .medium, design: useMonospacedFont ? .monospaced : .default))
-                        .foregroundColor(.white)
-                    Spacer()
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 16)
-            )
-    }
-
     /// Streaming status indicator with fixed footprint so the waveform width stays stable.
     @ViewBuilder
     private var connectionStatusIndicator: some View {
@@ -730,13 +661,6 @@ struct RecordingDialog: View {
     
     // MARK: - Helper Methods
     
-    private var formattedDuration: String {
-        let duration = liveMetrics.recordingDuration
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
-
     private var shouldShowPendingRetry: Bool {
         appState.pendingRetryAudioPath != nil && !isLoading && !isPostProcessing && !isRetrying && !showTranscription
     }
@@ -789,11 +713,37 @@ struct RecordingDialog: View {
         // Determine if we should show Settings button
         // Show for errors that user can fix in settings (API keys, auth, credits)
         // Hide for transient errors (network, rate limits, no speech)
+        // "account key" matches `TranscriptionError.cloudAccountRequired`, the
+        // client-side HyperWhisper Cloud entitlement refusal (HYPERWHISPER-T2).
+        // Without it that error shows no button here at all — the `.unauthorized`
+        // it replaced matched "unauthorized"/"API key" and got one.
+        //
+        // NOT in sync with `AppState.showError`'s `settingsActionableMarkers`,
+        // and do not read it as a mirror of that list: this one holds 6 markers,
+        // that one ~19, and this one is a strict subset. The asymmetry is
+        // load-bearing rather than cosmetic, because this matcher runs LAST and
+        // therefore wins. On the transcription-failure path
+        // `RecordingTranscriptionFlow+ErrorHandling` calls `showError` first and
+        // only then sets `lastTranscription` to "Error: …", which is what wakes
+        // this dialog's `onChange` and lands here second; and
+        // `InlineErrorToastManager.show` dismisses the existing toast before
+        // presenting the new one. So while the recording dialog is on screen,
+        // an error whose message matches only a marker unique to
+        // `settingsActionableMarkers` (e.g. billing, forbidden, "exceeded your
+        // current quota") is given a Settings button by `showError` and then has
+        // it stripped again here. Reconciling the two lists is deliberately out
+        // of scope for this change.
+        //
+        // English-only, like the list it shadows: these are English literals but
+        // `cleanError` arrives already localized, so none of them match in the
+        // other 39 locales. See the note in `AppState.showError` for the typed
+        // alternative that exists and why this path bypasses it.
         let showSettings = cleanError.localizedCaseInsensitiveContains("API key") ||
                            cleanError.localizedCaseInsensitiveContains("unauthorized") ||
                            cleanError.localizedCaseInsensitiveContains("invalid api key") ||
                            cleanError.localizedCaseInsensitiveContains("insufficient credits") ||
-                           cleanError.localizedCaseInsensitiveContains("quota exceeded")
+                           cleanError.localizedCaseInsensitiveContains("quota exceeded") ||
+                           cleanError.localizedCaseInsensitiveContains("account key")
 
         // Show the inline error toast ABOVE the recording dialog
         // This does NOT close the recording dialog
@@ -930,273 +880,6 @@ struct RecordingDialog: View {
                 appState.lastTranscription = message
             }
         }
-    }
-}
-
-// MARK: - Offline Banner and Guidance
-
-extension RecordingDialog {
-    private var shouldUseCenteredNetworkErrorLayout: Bool {
-        transcribedText.lowercased().contains("error: no internet connection")
-    }
-
-    private var centeredNetworkErrorView: some View {
-        return VStack(spacing: 10) {
-            Text("recording.error.overlay.title".localized)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.white)
-
-            Text("recording.error.overlay.message".localized)
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.8))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var retryCandidate: Transcript? {
-        PersistenceController.shared.findMostRecentFailedTranscript() ??
-        PersistenceController.shared.findMostRecentProcessingTranscript()
-    }
-
-    private var isCloudModeSelected: Bool {
-        appState.modeSnapshotForCurrentSession()?.model.lowercased() == "cloud"
-    }
-
-    private var showOfflineBanner: Bool {
-        !shouldShowOfflineOverlay && (isLoading || isPostProcessing || isRetrying) && isCloudModeSelected && !network.isOnline
-    }
-
-    private var shouldShowOfflineOverlay: Bool {
-        guard isCloudModeSelected, !network.isOnline else { return false }
-
-        if isLoading || isPostProcessing || isRetrying { return true }
-        if hasError || showTranscription { return true }
-        if appState.isStreaming { return true }
-
-        switch appState.recordingState {
-        case .recording, .transcribing, .postProcessing:
-            return true
-        default:
-            return false
-        }
-    }
-    
-    // MARK: - Post-Processing Key Banner
-    private var postProcessingKeyBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "info.circle.fill")
-                .font(.system(size: 12))
-                .foregroundColor(.orange)
-            
-            // Build message based on missing keys
-            Text(buildPostProcessingMessage())
-                .font(.system(size: 11))
-                .foregroundColor(.white.opacity(0.8))
-            
-            Spacer()
-            
-            Button(LocalizedStringKey("recording.postprocessing.addKey")) {
-                // Navigate to the Model Library, which now owns API key management.
-                appState.navigateToModelLibraryAPIKeys()
-                closeDialog()
-            }
-            .font(.system(size: 10, weight: .medium))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Color.orange.opacity(0.8))
-            .foregroundColor(.white)
-            .cornerRadius(4)
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.orange.opacity(0.15))
-        .overlay(
-            Rectangle()
-                .frame(height: 0.5)
-                .foregroundColor(.white.opacity(0.1)),
-            alignment: .bottom
-        )
-    }
-    
-    // Helper to build the post-processing message
-    private func buildPostProcessingMessage() -> String {
-        let providers = appState.missingAPIKeys.compactMap { key in
-            if case .postProcessing(let provider) = key.context {
-                return provider.displayName
-            }
-            return nil
-        }
-        
-        if providers.isEmpty {
-            return "recording.postprocessing.unavailable".localized
-        } else if providers.count == 1 {
-            return String(format: "recording.postprocessing.missing.single".localized, providers[0])
-        } else {
-            return "recording.postprocessing.missing.multiple".localized
-        }
-    }
-
-    private var offlineBanner: some View {
-        Text("recording.offline.banner".localized)
-            .font(.system(size: 11))
-            .foregroundColor(.secondary)
-            .frame(maxWidth: .infinity)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-    }
-
-    private var offlineCenteredMessage: some View {
-        VStack(spacing: 8) {
-            Text("recording.offline.title".localized)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(.secondary)
-
-            Text("recording.offline.subtitle".localized)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    /// ERROR GUIDANCE BLOCK
-    /// Provides contextual help and actions based on the specific error type
-    /// Parses error messages to show relevant UI hints, buttons, and recommendations
-    private var errorGuidanceBlock: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // NETWORK ERRORS: No internet connection or connectivity issues
-            if transcribedText.localizedCaseInsensitiveContains("Network error") ||
-               transcribedText.localizedCaseInsensitiveContains("Network connection") ||
-               transcribedText.localizedCaseInsensitiveContains("No internet connection") ||
-               transcribedText.localizedCaseInsensitiveContains("Cannot reach") {
-                HStack(spacing: 10) {
-                    Image(systemName: "wifi.slash")
-                        .foregroundColor(.orange)
-                    Text("recording.error.network".localized)
-                        .font(.system(size: 12))
-                        .foregroundColor(.orange)
-                }
-                .padding(.horizontal)
-            }
-
-            // TIMEOUT ERRORS: Request took too long
-            if transcribedText.localizedCaseInsensitiveContains("timed out") ||
-               transcribedText.localizedCaseInsensitiveContains("timeout") {
-                HStack(spacing: 10) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .foregroundColor(.orange)
-                    Text("recording.error.timeout".localized)
-                        .font(.system(size: 12))
-                        .foregroundColor(.orange)
-                }
-                .padding(.horizontal)
-            }
-
-            // RATE LIMIT ERRORS: Too many requests
-            if transcribedText.localizedCaseInsensitiveContains("Rate limited") ||
-               transcribedText.localizedCaseInsensitiveContains("Too many requests") {
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.orange)
-                    Text("recording.error.rateLimit".localized)
-                        .font(.system(size: 12))
-                        .foregroundColor(.orange)
-                }
-                .padding(.horizontal)
-            }
-
-            // INSUFFICIENT CREDITS ERRORS: HyperWhisper Cloud credit exhausted
-            if transcribedText.localizedCaseInsensitiveContains("Insufficient credits") {
-                HStack(spacing: 10) {
-                    Image(systemName: "dollarsign.circle")
-                        .foregroundColor(.orange)
-                    Text("recording.error.credits".localized)
-                        .font(.system(size: 12))
-                        .foregroundColor(.orange)
-                    Spacer()
-                    Button {
-                        appState.selectedNavigationItem = .settings
-                        closeDialog()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "gearshape")
-                            Text(LocalizedStringKey("common.open.settings"))
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal)
-            }
-
-            // API KEY ERRORS: Missing or invalid API key
-            if transcribedText.localizedCaseInsensitiveContains("API key is required") ||
-               transcribedText.localizedCaseInsensitiveContains("unauthorized") {
-                // Extract provider name from error message if present
-                let providerName = extractProviderFromError(transcribedText) ?? getCurrentCloudProvider()
-
-                HStack(spacing: 10) {
-                    Image(systemName: "key.fill")
-                        .foregroundColor(.orange)
-                    Text(String(format: "recording.error.apiKey".localized, providerName))
-                        .font(.system(size: 12))
-                        .foregroundColor(.orange)
-                    Spacer()
-                    Button {
-                        appState.selectedNavigationItem = .settings
-                        closeDialog()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "gearshape")
-                            Text(LocalizedStringKey("common.open.settings"))
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding(.horizontal)
-            }
-
-            // SERVER ERRORS: 500-level errors from backend
-            if transcribedText.localizedCaseInsensitiveContains("Server error") {
-                HStack(spacing: 10) {
-                    Image(systemName: "server.rack")
-                        .foregroundColor(.orange)
-                    Text("recording.error.server".localized)
-                        .font(.system(size: 12))
-                        .foregroundColor(.orange)
-                }
-                .padding(.horizontal)
-            }
-        }
-    }
-    
-    /// Extract provider name from error message
-    private func extractProviderFromError(_ error: String) -> String? {
-        // Check for provider names in the error message
-        let providers = ["OpenAI", "Deepgram", "Groq", "AssemblyAI", "ElevenLabs"]
-        for provider in providers {
-            if error.localizedCaseInsensitiveContains(provider) {
-                return provider
-            }
-        }
-        return nil
-    }
-    
-    /// Get the current cloud provider from the selected mode
-    private func getCurrentCloudProvider() -> String {
-        if let mode = appState.modeSnapshotForCurrentSession(),
-           mode.model.lowercased() == "cloud" {
-            let providerId = mode.rawCloudProvider ?? mode.cloudProvider
-            if let provider = CloudProvider(rawValue: providerId) {
-                return provider.displayName
-            }
-        }
-        return "recording.provider.unknown".localized
     }
 }
 

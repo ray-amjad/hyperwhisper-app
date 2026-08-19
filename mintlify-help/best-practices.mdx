@@ -1,65 +1,65 @@
 ---
 title: Best Practices
-description: Tips for getting the most accurate transcriptions with HyperWhisper.
+description: How to get the most accurate transcriptions with HyperWhisper.
 ---
 
-Follow these guidelines to improve transcription accuracy and reliability across all your recording scenarios.
+Use these guidelines in all your recordings. They make your transcriptions more accurate and more reliable.
 
 ## Specify Your Language
 
-**Avoid using "Auto-detect" for short recordings.** When language is set to auto-detect, the transcription provider needs enough audio to determine which language you're speaking. For shorter recordings (under 10–15 seconds), there may not be enough speech data for reliable detection.
+**Do not use "Auto-detect" for short recordings.** The transcription provider needs sufficient audio to identify the language that you speak. A recording of less than 10–15 seconds can give too little speech data for reliable detection.
 
-This can cause several problems:
+Auto-detect on a short recording causes these problems:
 
-- **Nonsense output** – The model may transcribe your speech as a completely different language, producing gibberish
-- **Empty results** – The provider may return no text at all if it can't confidently identify the language
-- **Inconsistent behavior** – The same short phrase may transcribe correctly sometimes and fail other times
+- **Nonsense output** – The model can transcribe your speech as a different language and give unreadable text
+- **Empty results** – If the provider cannot identify the language, it returns no text
+- **Inconsistent behavior** – The same short phrase can transcribe correctly one time and fail the next time
 
 <Tip>
-  Create separate modes for each language you use regularly. This gives you the best accuracy while keeping switching easy via the mode picker or keyboard shortcuts.
+  Create a separate mode for each language that you use regularly. This gives you the best accuracy. You can still change language quickly with the mode picker or a keyboard shortcut.
 </Tip>
 
 ## Speak Clearly and Naturally
 
-- Maintain a consistent distance from your microphone
-- Avoid background noise when possible
-- Speak at a natural pace—rushing can reduce accuracy
-- Pause briefly between sentences for cleaner punctuation
+- Keep the same distance from your microphone
+- Remove background noise when you can
+- Speak at a natural speed, because fast speech decreases accuracy
+- Make a short pause between sentences to get better punctuation
 
 ## Use Custom Vocabulary
 
-Add frequently used terms, names, and acronyms to your [vocabulary list](/vocabulary). This helps with:
+Add the terms, the names, and the acronyms that you use often to your [vocabulary list](/vocabulary). This helps with:
 
 - Proper nouns and company names
-- Technical jargon and industry terms
-- Unusual spellings or brand names
-- Common abbreviations you want expanded
+- Technical terms and industry terms
+- Unusual spellings and brand names
+- Common abbreviations that you want the app to expand
 
 ## Choose the Right Model
 
-- **Cloud models** — accuracy varies by provider; HyperWhisper Cloud's ElevenLabs Scribe v2 tier is rated highest accuracy, with Grok STT rated high accuracy — see [Choosing a Provider](/choosing-a-provider) for the full comparison
-- **Local models** provide privacy and work offline but may be less accurate for specialized vocabulary
-- Larger local models generally produce better results but require more processing time
+- **Cloud models** — the accuracy is different for each provider. HyperWhisper Cloud's ElevenLabs Scribe v2 tier has the highest accuracy rating, and Grok STT has a high accuracy rating. For the full comparison, see [Choosing a Provider](/choosing-a-provider)
+- **Local models** keep your audio private and work offline, but they can be less accurate for specialized vocabulary
+- A large local model usually gives better results, but it needs more processing time
 
 ## Use a Dedicated Microphone
 
-**A dedicated microphone significantly improves transcription accuracy.** Built-in laptop microphones pick up more background noise—keyboard typing, fans, air conditioning, and ambient sounds—which makes it harder for all transcription providers to isolate your voice.
+**A dedicated microphone makes transcriptions much more accurate.** A built-in laptop microphone picks up more background noise: keyboard sounds, fans, air conditioning, and room noise. This noise makes it more difficult for every transcription provider to isolate your voice.
 
-The more background noise in your recording, the more the speech-to-text model has to work to distinguish your words from everything else. This affects every provider equally, whether you're using cloud services or local models.
+More background noise in your recording makes it more difficult for the speech-to-text model to separate your words from the other sounds. This applies equally to cloud services and to local models.
 
-Good options include:
+These microphones are good options:
 
-- **USB microphones** – Easy to set up, good quality (e.g., Blue Yeti, Audio-Technica ATR2100x)
-- **Headset microphones** – Keep a consistent distance from your mouth
-- **Lavalier/lapel mics** – Great for mobile use or when you move around
+- **USB microphones** – Easy to install and good quality (for example, Blue Yeti, Audio-Technica ATR2100x)
+- **Headset microphones** – These keep the same distance from your mouth
+- **Lavalier/lapel mics** – Good for mobile use and when you move around
 
 <Tip>
-  Even an inexpensive USB microphone will typically outperform your computer's built-in microphone for transcription accuracy.
+  A low-cost USB microphone usually gives better accuracy than the built-in microphone of your computer.
 </Tip>
 
 ## Optimize Your Recording Environment
 
-- Test your [microphone input level](/audio-input) to ensure HyperWhisper can hear you clearly
-- Minimize background noise—close windows, turn off fans, and avoid typing while recording
-- Reduce echo by recording in carpeted rooms or spaces with soft furnishings
-- Position your microphone 6–12 inches from your mouth for the best signal-to-noise ratio
+- Do a test of your [microphone input level](/audio-input) to make sure that HyperWhisper receives your voice clearly
+- Decrease background noise: close the windows, switch off fans, and do not type during a recording
+- To decrease echo, record in a carpeted room or a room with soft furniture
+- Put your microphone 6–12 inches from your mouth to get the best signal-to-noise ratio

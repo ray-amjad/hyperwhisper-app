@@ -2,9 +2,21 @@
 // High accuracy STT - $0.00983/min using Scribe v2
 
 import { computeElevenLabsTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { resolveProviderLanguage } from '../lib/language-codes';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  audioExtensionFromContentType,
+  fetchWithTimeout,
+  logProviderEvent,
+  providerHttpError,
+  splitVocabularyTerms,
+} from './utils';
+
+// ElevenLabs treats mp3 as the *fallback* container rather than one it matches
+// on, so an `mp3`/`mpeg` hint never wins over another container named in the
+// same content type. Leaving mp3 out of the match set preserves that.
+const ELEVENLABS_AUDIO_EXTENSIONS = ['wav', 'm4a', 'webm', 'ogg', 'flac'] as const;
 
 // ElevenLabs `keyterms` limits (scribe_v2): 1000 terms / 50 chars / 5 words each.
 // We cap term count to the platform's 100-term client cap.
@@ -18,11 +30,11 @@ const MAX_KEYTERM_WORDS = 5;
  * and additionally drops terms exceeding ElevenLabs' 50-char / 5-word limits.
  */
 function toKeyterms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map(t => t.trim().replace(/^[-*]\s*/, ''))
-    .filter(t => t.length > 0 && t.length <= MAX_KEYTERM_CHARS && t.split(/\s+/).length <= MAX_KEYTERM_WORDS)
-    .slice(0, MAX_KEYTERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYTERMS,
+    maxTermChars: MAX_KEYTERM_CHARS,
+    maxTermWords: MAX_KEYTERM_WORDS,
+  });
 }
 
 /**
@@ -42,13 +54,7 @@ export async function transcribeWithElevenLabs(
     throw new Error('ELEVENLABS_API_KEY not configured');
   }
 
-  // Determine file extension from content type
-  let ext = 'mp3';
-  if (contentType.includes('wav')) ext = 'wav';
-  else if (contentType.includes('m4a') || contentType.includes('mp4')) ext = 'm4a';
-  else if (contentType.includes('webm')) ext = 'webm';
-  else if (contentType.includes('ogg')) ext = 'ogg';
-  else if (contentType.includes('flac')) ext = 'flac';
+  const ext = audioExtensionFromContentType(contentType, ELEVENLABS_AUDIO_EXTENSIONS) ?? 'mp3';
 
   const modelId = context.model || 'scribe_v2';
   const formData = new FormData();
@@ -57,10 +63,19 @@ export async function transcribeWithElevenLabs(
   formData.append('tag_audio_events', 'false');
 
   // ElevenLabs Scribe `language_code` expects a bare ISO-639-1/639-3 code, not a
-  // hyphenated BCP-47 locale — strip the region to the primary subtag ("en-US" →
-  // "en") like the sibling adapters so a region-tagged code isn't rejected.
-  if (language && language.toLowerCase() !== 'auto') {
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // hyphenated BCP-47 locale — the resolver strips the region ("en-US" → "en")
+  // like the sibling adapters so a region-tagged code isn't rejected.
+  //
+  // It also fixes the handful of codes where stripping alone lands on something
+  // Scribe does not list (the picker's Tagalog `tl` has to become `fil`,
+  // Mandarin `zh` has to become `cmn`) and — the part that matters most —
+  // returns null for a language Scribe simply does not have. Forwarding one of
+  // those was a 4xx, which `providerHttpError` turns into `ProviderInputError`,
+  // which walks FALLBACK_CHAINS.elevenlabs down to deepgram/groq: the user is
+  // moved off the provider they picked, silently. Auto-detect on the chosen
+  // provider is the better answer, and now it is a logged one.
+  const langCode = resolveProviderLanguage({ provider, model: modelId, language, context });
+  if (langCode) {
     formData.append('language_code', langCode);
   }
 
@@ -79,6 +94,9 @@ export async function transcribeWithElevenLabs(
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
+    // What actually went out. `auto` means either the user picked Automatic or
+    // Scribe has no code for the language.
+    languageCodeSent: langCode ?? 'auto',
     keytermCount: keyterms.length,
   }, context);
 
@@ -108,38 +126,11 @@ export async function transcribeWithElevenLabs(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startTime);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('ElevenLabs API key is invalid');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('ElevenLabs', 'rate limit exceeded', {
-        kind: 'rate_limit',
-        status: 429,
-        elapsedMs,
-      });
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('ElevenLabs', `upstream 5xx: ${response.status}`, {
-        kind: 'upstream_5xx',
-        status: response.status,
-        elapsedMs,
-      });
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('ElevenLabs', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startTime, context, {
+      label: 'ElevenLabs',
+      authMessage: 'ElevenLabs API key is invalid',
+      attachUnavailableDetails: true,
+    });
   }
 
   // Bun's `response.json()` has been observed to throw "Failed to parse JSON"

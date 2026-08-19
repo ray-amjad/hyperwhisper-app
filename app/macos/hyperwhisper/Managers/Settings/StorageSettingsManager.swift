@@ -192,9 +192,14 @@ class StorageSettingsManager: ObservableObject {
     /// 2. If user chose alternate storage → use best fallback
     /// 3. If folder is in Documents and not explained → show alert first
     /// 4. Otherwise attempt creation (may trigger TCC) → fallback on error
-    func prepareRecordingsFolderIfNeeded() {
+    ///
+    /// - Parameter canPresentInWindow: Pass `true` from the main window's own
+    ///   appear pass. The window provably exists and is staying there, but
+    ///   `MainWindowStore.window` is published from `WindowConfigurator`'s
+    ///   deferred hop and can still be nil at that moment, so the visibility
+    ///   probe below would wrongly conclude nothing can ask the question.
+    func prepareRecordingsFolderIfNeeded(canPresentInWindow: Bool = false) {
         let recordingsURL = URL(fileURLWithPath: recordingsFolder)
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
 
         // If the folder already exists and is writable, nothing to do.
         var isDir: ObjCBool = false
@@ -209,9 +214,9 @@ class StorageSettingsManager: ObservableObject {
             return
         }
 
-        // If it lives in Documents and we haven't explained yet, show alert first.
-        if recordingsURL.path.hasPrefix(documentsURL.path) && !documentsPermissionExplained && !documentsAccessDenied {
-            showDocumentsPermissionAlert = true
+        // If it lives in Documents and we haven't explained yet, ask first.
+        if needsDocumentsPermissionExplanation {
+            requestDocumentsPermissionExplanation(canPresentInWindow: canPresentInWindow)
             if AppLogger.isErrorLoggingEnabled {
                 SentryService.addBreadcrumb(
                     message: "Documents access explanation shown",
@@ -250,10 +255,34 @@ class StorageSettingsManager: ObservableObject {
                FileManager.default.isWritableFile(atPath: url.path) {
                 return true
             }
-            // If alert is showing, wait for user to respond
+            // NO-PRESENTER GUARD:
+            // The explanation is only answerable while a visible main window can
+            // show its `.alert` — that alert lives in MainAppView's window body;
+            // MenuBarContentView binds the same flag but renders as an NSMenu
+            // under `.menuBarExtraStyle(.menu)` and cannot host an alert.
+            //
+            // With no window (login-item launch, or the window ordered out) there
+            // are only bad answers here: waiting burns the full timeout, and
+            // falling through to the fallbacks below silently relocates the user's
+            // recordings for good — `fallbackRecordingsLocationToAppSupport()`
+            // rewrites the persisted `recordingsFolder` to a writable path, so
+            // every later `prepareRecordingsFolderIfNeeded()` early-returns and the
+            // question is never asked again.
+            //
+            // So do neither. Report not-ready promptly and let the caller ask:
+            // both call sites follow a false with `presentStorageRecoveryPrompt()`,
+            // a window-independent NSAlert with manual folder selection, and treat
+            // a decline as `AudioError.permissionDenied`.
             if showDocumentsPermissionAlert {
+                guard canPresentDocumentsPermissionAlertInWindow else { return false }
                 try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
                 continue
+            }
+            // Same rule for the case where the flag was never raised because
+            // nothing could present it: the Documents question is still
+            // outstanding, so the fallbacks below must not answer it for the user.
+            if needsDocumentsPermissionExplanation {
+                return false
             }
             // If we aren't showing an alert and not writable, try fallbacks
             if fallbackToBestAvailableLocation() {
@@ -345,6 +374,54 @@ class StorageSettingsManager: ObservableObject {
     }
 
     // MARK: - Private Methods
+
+    /// Whether the SwiftUI `.alert` bound to `showDocumentsPermissionAlert` can
+    /// actually be presented right now.
+    ///
+    /// That alert is attached to MainAppView's window body, so it needs a visible
+    /// main window. MenuBarContentView binds the same flag but renders as an
+    /// NSMenu under `.menuBarExtraStyle(.menu)` and cannot host an alert.
+    private var canPresentDocumentsPermissionAlertInWindow: Bool {
+        MainWindowStore.window?.isVisible == true
+    }
+
+    /// Whether the recordings folder still sits under Documents with the access
+    /// question unasked.
+    ///
+    /// Shared by the sync prepare step and the async wait so both agree on what
+    /// "still waiting on the user" means — the wait must not treat this state as
+    /// licence to relocate.
+    private var needsDocumentsPermissionExplanation: Bool {
+        let recordingsURL = URL(fileURLWithPath: recordingsFolder)
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return recordingsURL.path.hasPrefix(documentsURL.path)
+            && !documentsPermissionExplained
+            && !documentsAccessDenied
+    }
+
+    /// Raise the Documents-access question, but only if something can actually
+    /// show it.
+    ///
+    /// CONSENT INVARIANT:
+    /// Every path out of this question must be a user decision — the recordings
+    /// location is sticky (`fallbackRecordingsLocationToAppSupport()` rewrites the
+    /// persisted `recordingsFolder`, and the next
+    /// `prepareRecordingsFolderIfNeeded()` early-returns because that folder is
+    /// writable), so answering it on the user's behalf silently moves where their
+    /// recordings live for good.
+    ///
+    /// With no presenter we therefore do NOTHING: no flag nothing can show, and
+    /// no relocation. No state is burned, so the next call from a window that can
+    /// ask still asks — and a recording started before then gets a `false` out of
+    /// `prepareRecordingsFolderIfNeededAsync`, which every caller follows with the
+    /// window-independent `presentStorageRecoveryPrompt()`.
+    private func requestDocumentsPermissionExplanation(canPresentInWindow: Bool) {
+        guard canPresentInWindow || canPresentDocumentsPermissionAlertInWindow else {
+            logger.warning("⚠️ No main window can present the Documents explanation — leaving it unasked rather than answering it for the user")
+            return
+        }
+        showDocumentsPermissionAlert = true
+    }
 
     /// Create app folder if it doesn't exist
     /// This is safe to call anytime - Application Support doesn't require TCC

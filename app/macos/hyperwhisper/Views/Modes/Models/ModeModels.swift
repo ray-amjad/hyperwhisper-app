@@ -215,7 +215,10 @@ struct ModeData {
         self.language = LanguageData.canonicalLanguageCode(mode.language)
         self.model = mode.model ?? "base"
         self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
-        self.cloudTranscriptionModel = CloudTranscriptionModels.resolveAssemblyAIModelAlias(mode.cloudTranscriptionModel ?? "whisper-1")
+        self.cloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
+            mode.cloudTranscriptionModel ?? "whisper-1",
+            provider: CloudProvider(rawValue: self.cloudProvider)
+        )
         // Convert from Core Data Int16 to enum, default to cloud for backward compatibility
         let processingMode = isLegacyVoiceToText ? .off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
         self.postProcessingMode = processingMode
@@ -387,17 +390,6 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// Tiers shown in the Provider dropdown (level 1), in catalog order so the
-    /// macOS list stays aligned with the shared source of truth and Windows.
-    /// Falls back to `allCases` only if the catalog failed to load (so the UI
-    /// never goes empty).
-    static var pickerOrder: [CloudAccuracyTier] {
-        let ordered = CloudSTTCatalog.shared.cloudTierEntries.compactMap {
-            CloudAccuracyTier(rawValue: $0.id)
-        }
-        return ordered.isEmpty ? allCases : ordered
-    }
-
     static func fromStorageValue(_ value: String?) -> CloudAccuracyTier {
         let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if normalized.isEmpty { return .deepgramNova3 }
@@ -426,6 +418,62 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     /// the raw value if the catalog failed to load.
     var displayName: String {
         CloudSTTCatalog.shared.entry(byId: rawValue)?.displayName ?? rawValue
+    }
+
+    // MARK: - Vendor grouping (Provider dropdown)
+
+    /// The catalog `vendor` key this tier belongs to — the Provider dropdown's
+    /// selection tag. Two tiers can share one (Chirp + Gemini are both
+    /// `google`), which is what collapses them into a single Provider row.
+    var vendorKey: String {
+        CloudSTTCatalog.shared.entry(byId: rawValue)?.vendor ?? rawValue
+    }
+
+    /// Rows of the Provider dropdown. Normally the catalog's vendor groups;
+    /// falls back to one row per tier if the catalog failed to load (its loader
+    /// returns an EMPTY catalog rather than throwing), so the UI never goes
+    /// empty — the guarantee the old `pickerOrder` fallback carried. The
+    /// fallback rows are keyed by the tier's own raw value, which is exactly
+    /// what `vendorKey` degrades to without a catalog, so the binding still
+    /// round-trips.
+    static var pickerVendorGroups: [CloudSTTCatalog.VendorGroup] {
+        let groups = CloudSTTCatalog.shared.cloudTierVendorGroups
+        if !groups.isEmpty { return groups }
+        return allCases.map {
+            CloudSTTCatalog.VendorGroup(id: $0.rawValue, displayName: $0.displayName, entries: [])
+        }
+    }
+
+    /// The tier a fresh Provider selection lands on: the vendor group's first
+    /// entry in catalog order. With no catalog the row's key IS a tier raw
+    /// value (see `pickerVendorGroups`), so fall back to parsing it — otherwise
+    /// the Provider row would render but refuse every selection. Nil only when
+    /// the key matches neither.
+    static func defaultTier(forVendorKey vendor: String) -> CloudAccuracyTier? {
+        if let group = CloudSTTCatalog.shared.cloudTierVendorGroups.first(where: { $0.id == vendor }),
+           let entry = group.defaultEntry,
+           let tier = CloudAccuracyTier(rawValue: entry.id) {
+            return tier
+        }
+        return CloudAccuracyTier(rawValue: vendor)
+    }
+
+    /// The tier that owns `modelId` within this tier's vendor group. Selecting a
+    /// Gemini model under the merged "Google" row has to move the tier from
+    /// `googleChirp3` to `gemini`, since the tier is what becomes the
+    /// `X-STT-Provider` header. Falls back to `self` when nothing matches.
+    func tierOwningModel(_ modelId: String) -> CloudAccuracyTier {
+        guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return self }
+        let owner = group.models.first { $0.model.id.caseInsensitiveCompare(modelId) == .orderedSame }
+        guard let owner, let tier = CloudAccuracyTier(rawValue: owner.entry.id) else { return self }
+        return tier
+    }
+
+    /// Every model selectable under this tier's Provider row — the whole vendor
+    /// group, so the merged "Google" row lists Chirp and Gemini models together.
+    var vendorGroupModels: [CloudSTTCatalog.Model] {
+        guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return models }
+        return group.models.map(\.model)
     }
 
     /// Whether this engine (provider/tier) is the recommended default for

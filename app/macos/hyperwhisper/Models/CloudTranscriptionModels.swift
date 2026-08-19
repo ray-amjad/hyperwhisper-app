@@ -81,37 +81,6 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         }
     }
 
-    /// API endpoint for transcription
-    var transcriptionEndpoint: String {
-        switch self {
-        case .hyperwhisper:
-            return NetworkConfig.hyperwhisperCloudURL
-        case .openai:
-            return "https://api.openai.com/v1/audio/transcriptions"
-        case .groq:
-            return "https://api.groq.com/openai/v1/audio/transcriptions"
-        case .deepgram:
-            return "https://api.deepgram.com/v1/listen"
-        case .assemblyAI:
-            return "https://api.assemblyai.com/v2/transcript"
-        case .elevenLabs:
-            return "https://api.elevenlabs.io/v1/speech-to-text"
-        case .mistral:
-            return "https://api.mistral.ai/v1/audio/transcriptions"
-        case .soniox:
-            return "https://api.soniox.com/v1/transcriptions"
-        case .gemini:
-            return "https://generativelanguage.googleapis.com/v1beta/models"
-        case .grok:
-            return "https://api.x.ai/v1/stt"
-        case .microsoftAzureSpeech, .googleSpeech:
-            // Routed through HyperWhisper Cloud — the upstream URL is not
-            // user-facing. Returning the Fly endpoint keeps callers that
-            // inspect this string consistent across HW-Cloud-only providers.
-            return NetworkConfig.hyperwhisperCloudURL
-        }
-    }
-
     /// API key URL for getting keys
     var apiKeyURL: String {
         switch self {
@@ -197,18 +166,6 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // Inline V2 recognize caps near 10 MB (~1 min). GCS upload path is
             // out of scope for v1; cap matches the backend's 9.5 MB guard.
             return 9_500_000
-        }
-    }
-
-    /// Human-readable file size limit string for error messages
-    var maxFileSizeDisplay: String {
-        let bytes = maxFileSizeBytes
-        if bytes >= 1024 * 1024 * 1024 {
-            let gb = Double(bytes) / (1024.0 * 1024.0 * 1024.0)
-            return String(format: "%.1f GB", gb)
-        } else {
-            let mb = bytes / (1024 * 1024)
-            return "\(mb) MB"
         }
     }
 
@@ -371,7 +328,26 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: 0.006 / 60.0
         ),
-        
+        CloudTranscriptionModel(
+            id: "gpt-transcribe",
+            displayName: "GPT Transcribe",
+            isAvailable: true,
+            description: "OpenAI's flat-rate transcription model billed per audio minute.",
+            provider: .openai,
+            isPopular: true,
+            pricePerSecond: 0.0045 / 60.0
+        ),
+        CloudTranscriptionModel(
+            id: "gpt-live-transcribe",
+            displayName: "GPT Live Transcribe",
+            isAvailable: false,  // Requires OpenAI's Realtime WebSocket API — no request path (this
+            // app's cloud/BYOK OpenAI transcription is REST/batch-only) actually serves it yet.
+            // Catalogued for pricing/metadata; flip once a Realtime session relay is wired.
+            description: "OpenAI's realtime transcription model for the Realtime WebSocket API, billed per audio minute.",
+            provider: .openai,
+            pricePerSecond: 0.017 / 60.0
+        ),
+
         // Groq Models
         CloudTranscriptionModel(
             id: "whisper-large-v3-turbo",
@@ -449,6 +425,15 @@ struct CloudTranscriptionModels {
             pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21 per hour
         ),
         CloudTranscriptionModel(
+            id: "universal-3-5-pro",
+            displayName: "Universal-3.5 Pro",
+            isAvailable: true,
+            description: "AssemblyAI's most accurate model. Natively covers 18 languages. Keyterms prompting up to 1000 terms.",
+            provider: .assemblyAI,
+            isPopular: true,
+            pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21 per hour — same as Universal-3 Pro
+        ),
+        CloudTranscriptionModel(
             id: "universal-2-medical",
             displayName: "Universal-2 (Medical)",
             isAvailable: true,
@@ -464,12 +449,20 @@ struct CloudTranscriptionModels {
             provider: .assemblyAI,
             pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21/hr base — medical add-on billed separately
         ),
+        CloudTranscriptionModel(
+            id: "universal-3-5-pro-medical",
+            displayName: "Universal-3.5 Pro (Medical)",
+            isAvailable: true,
+            description: "Universal-3.5 Pro with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-3.5 Pro pricing.",
+            provider: .assemblyAI,
+            pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21/hr base — same as Universal-3 Pro; medical add-on billed separately
+        ),
 
         // ElevenLabs Models
         CloudTranscriptionModel(
             id: "scribe_v1",
             displayName: "Scribe v1",
-            isAvailable: true,
+            isAvailable: false,  // Retired by ElevenLabs 2026-07-09 — resolved to scribe_v2 via legacyElevenLabsAliases
             description: "ElevenLabs Scribe model with multilingual coverage and word-level timestamps. Does not support custom vocabulary.",
             provider: .elevenLabs,
             pricePerSecond: nil
@@ -492,7 +485,7 @@ struct CloudTranscriptionModels {
             description: "Mistral's state-of-the-art transcription model. Faster and more accurate than Whisper large-v3.",
             provider: .mistral,
             isPopular: true,
-            pricePerSecond: 0.002 / 60.0  // $0.002 per minute
+            pricePerSecond: 0.003 / 60.0  // $0.003 per minute
         ),
 
         // Soniox Models
@@ -501,6 +494,15 @@ struct CloudTranscriptionModels {
             displayName: "STT Async v4",
             isAvailable: true,
             description: "Soniox async batch transcription model with 60+ supported languages.",
+            provider: .soniox,
+            isPopular: true,
+            pricePerSecond: nil
+        ),
+        CloudTranscriptionModel(
+            id: "stt-async-v5",
+            displayName: "STT Async v5",
+            isAvailable: true,
+            description: "Soniox's latest async batch transcription model with 60+ supported languages.",
             provider: .soniox,
             isPopular: true,
             pricePerSecond: nil
@@ -580,6 +582,20 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: 0.016 / 60.0
         ),
+
+        // xAI Grok — one implicit model. The API takes no model parameter, so
+        // the id is the empty string (matching `defaultModel(for: .grok)`). It
+        // is listed so the Model row is a one-item dropdown like every other
+        // provider, instead of a read-only label.
+        CloudTranscriptionModel(
+            id: "",
+            displayName: "Grok Speech-to-Text",
+            isAvailable: true,
+            description: "xAI's speech-to-text endpoint. It exposes a single model, so there is nothing to choose.",
+            provider: .grok,
+            isPopular: true,
+            pricePerSecond: nil
+        ),
     ]
     
     /// Legacy AssemblyAI model IDs that have been retired. Resolved transparently to their
@@ -595,6 +611,20 @@ struct CloudTranscriptionModels {
     /// do not add aliases for other providers here; give them their own resolver.
     static func resolveAssemblyAIModelAlias(_ id: String) -> String {
         legacyAssemblyAIAliases[id] ?? id
+    }
+
+    /// Legacy ElevenLabs model IDs that have been retired. Resolved transparently to
+    /// their modern replacements so existing Modes and backups keep working after the
+    /// 2026-07-09 retirement of `scribe_v1`.
+    private static let legacyElevenLabsAliases: [String: String] = [
+        "scribe_v1": "scribe_v2"
+    ]
+
+    /// Resolve a legacy ElevenLabs model ID to its current equivalent. Non-ElevenLabs
+    /// and already-current IDs pass through unchanged. ElevenLabs-scoped by design —
+    /// do not add aliases for other providers here; give them their own resolver.
+    static func resolveElevenLabsModelAlias(_ id: String) -> String {
+        legacyElevenLabsAliases[id] ?? id
     }
 
     /// Deepgram model IDs removed in the 2026-05 catalog cleanup. Stored Modes,
@@ -618,6 +648,33 @@ struct CloudTranscriptionModels {
         return removedDeepgramModelIds.contains(id) ? "nova-3-general" : id
     }
 
+    /// Single dispatcher for resolving a (possibly legacy) model ID to its current
+    /// equivalent, scoped by provider. PARITY: Windows `ResolveModelAlias(modelId:provider:)`
+    /// (`CloudTranscriptionModel.cs`). Every call site that reads a Mode's stored model ID
+    /// — not just request-build time — should go through this so a Mode still holding a
+    /// retired ID (e.g. ElevenLabs `scribe_v1`) gets migrated wherever it's loaded, not
+    /// only where the wire request happens to be built.
+    ///
+    /// When `provider` is `nil` (the caller doesn't have it handy), all three per-provider
+    /// resolvers run in sequence — safe because each one's aliases are keyed by IDs scoped
+    /// to that provider and don't collide with another provider's model IDs.
+    static func resolveModelAlias(_ id: String, provider: CloudProvider?) -> String {
+        switch provider {
+        case .assemblyAI:
+            return resolveAssemblyAIModelAlias(id)
+        case .elevenLabs:
+            return resolveElevenLabsModelAlias(id)
+        case .deepgram:
+            return resolveDeepgramModelAlias(id) ?? id
+        case nil:
+            return resolveDeepgramModelAlias(
+                resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+            ) ?? id
+        default:
+            return id
+        }
+    }
+
     /// Splits a (possibly medical) model ID into the canonical AssemblyAI
     /// `speech_model` value and whether Medical Mode is enabled. Medical Mode
     /// is encoded as a `-medical` suffix on the model ID; the suffix never goes
@@ -635,8 +692,21 @@ struct CloudTranscriptionModels {
     /// - Parameter id: The model ID to look up
     /// - Returns: The CloudTranscriptionModel if found, nil otherwise
     static func model(withId id: String) -> CloudTranscriptionModel? {
-        let resolved = resolveAssemblyAIModelAlias(id)
+        // Grok's entry has an empty id (its API takes no model parameter), so an
+        // id-only lookup must reject "" — otherwise any provider left without a
+        // model would resolve to Grok. Callers that know the provider should use
+        // `model(withId:provider:)`.
+        guard !id.isEmpty else { return nil }
+        let resolved = resolveModelAlias(id, provider: nil)
         return availableModels.first { $0.id == resolved }
+    }
+
+    /// Look up a model within a known provider. Required for providers whose
+    /// model id is the empty string, and safer than the id-only lookup wherever
+    /// the provider is already in hand.
+    static func model(withId id: String, provider: CloudProvider) -> CloudTranscriptionModel? {
+        let resolved = resolveModelAlias(id, provider: provider)
+        return availableModels.first { $0.provider == provider && $0.id == resolved }
     }
     
     /// Get the display name for a model ID
@@ -645,17 +715,22 @@ struct CloudTranscriptionModels {
     static func displayName(for id: String) -> String {
         model(withId: id)?.displayName ?? id
     }
+
+    /// Get the display name for a model ID within a known provider. Required for
+    /// providers whose model id is the empty string (Grok) — the id-only lookup
+    /// rejects "" and falls back to the id, which renders as a blank name.
+    /// - Parameters:
+    ///   - id: The model ID to look up
+    ///   - provider: The provider that owns the model
+    /// - Returns: The display name if found, or the ID itself as fallback
+    static func displayName(for id: String, provider: CloudProvider) -> String {
+        model(withId: id, provider: provider)?.displayName ?? id
+    }
     
     /// Get all available model IDs
     /// - Returns: Array of model IDs that are marked as available
     static var availableModelIds: [String] {
         availableModels.filter { $0.isAvailable }.map { $0.id }
-    }
-    
-    /// Get all available models for UI pickers
-    /// - Returns: Array of available models
-    static var availableModelsForPicker: [CloudTranscriptionModel] {
-        availableModels.filter { $0.isAvailable }
     }
     
     /// Get models for a specific provider
@@ -687,7 +762,7 @@ struct CloudTranscriptionModels {
         case .deepgram:
             return "nova-3-general"  // Use latest Nova-3 as default
         case .assemblyAI:
-            return "universal-2"  // Multi-language default; users can switch to universal-3-pro
+            return "universal-3-5-pro"  // Highest accuracy, 18-language coverage; users can switch to universal-2
         case .elevenLabs:
             return "scribe_v2"
         case .mistral:

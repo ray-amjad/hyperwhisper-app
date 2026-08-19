@@ -1,37 +1,41 @@
 ---
 title: HyperWhisper Cloud Credits
-description: How credits work, how to check your balance, and how to purchase more.
+description: How credits work, how to see your balance, and how to buy more.
 ---
 
-HyperWhisper Cloud is the built-in transcription service that requires no API key. It charges from a credit balance so you only pay for what you use.
+HyperWhisper Cloud is the built-in transcription service. It needs no API key. It takes payment from a credit balance, so you pay only for what you use.
+
+<Note>
+  HyperWhisper does not sell a license. If you bought a "Pro license" before HyperWhisper went open source, see [Going Open Source](/going-open-source) — it explains what changed and why your credits can run out even though you paid once.
+</Note>
 
 ## What are credits?
 
-Credits are the currency for HyperWhisper Cloud transcription. One credit equals **$0.001 USD**. Credits are deducted from your balance after each successful transcription — you are never charged for a transcription that fails.
+Credits are the currency for HyperWhisper Cloud transcription. One credit equals **$0.001 USD**. HyperWhisper deducts credits from your balance after each successful transcription. A transcription that fails costs no credits.
 
-The number of credits consumed depends on the provider you have selected in your mode settings. At the default Deepgram Nova 3 tier, transcription costs approximately **5.5 credits per minute** of audio. The exact rate is always shown in **Settings → HyperWhisper Cloud** next to your balance.
+The number of credits depends on the provider that you select in your mode settings. A new installation starts on ElevenLabs Scribe v2, which costs about **9.83 credits per minute** of audio. **Settings → HyperWhisper Cloud** always shows the exact rate next to your balance.
 
-Credits are tied to your account key, not to a device — your balance carries over across all your devices and platforms.
+Credits belong to your account key, not to a device. The same balance applies on all your devices and platforms.
 
 <Note>
-  BYOK providers — where you supply your own API key for OpenAI, Groq, Deepgram, etc. — do not consume HyperWhisper credits at all.
+  With a BYOK provider, you give your own API key for OpenAI, Groq, Deepgram, or another service. A BYOK provider does not use HyperWhisper credits.
 </Note>
 
-## Getting an account key
+## Get an account key
 
-HyperWhisper Cloud requires an account key for every request — there's no trial or anonymous usage. You don't need to buy one separately: your first credit purchase mints a key automatically and emails it to you, and that same key is both your Cloud "license" and your credit wallet. If you already have a key, buying more credits just tops up its balance instead of minting a new one.
+HyperWhisper Cloud needs an account key for every request. There is no trial and no anonymous usage. You do not buy the key separately. Your first credit purchase creates a key and emails it to you. This key is both your Cloud license and your credit wallet. If you already have a key, a new purchase adds credits to that key.
 
 ## Per-provider credit rates
 
-Different HyperWhisper Cloud providers have different costs per minute. The rate is set by the backend and displayed in your credits card alongside your balance.
+Each HyperWhisper Cloud provider has a different cost per minute. The backend sets the rate. The credits card shows the rate next to your balance.
 
 | Provider | Approximate credits per minute |
 |---|---|
 | Groq Whisper | ~0.7 |
-| Deepgram Nova 3 (default) | ~5.5 |
+| Deepgram Nova 3 | ~5.5 |
 | Grok STT | ~1.67 |
 | Microsoft MAI-Transcribe 1.5 | ~6.0 |
-| ElevenLabs Scribe v2 | ~9.83 |
+| ElevenLabs Scribe v2 (default) | ~9.83 |
 | Google Chirp 3 | ~16.0 |
 | OpenAI | ~6.0 |
 | AssemblyAI | ~3.5 |
@@ -39,95 +43,95 @@ Different HyperWhisper Cloud providers have different costs per minute. The rate
 | Soniox | ~1.67 |
 | Google Gemini | ~2.4 |
 
-Rates reflect the backend's current pricing and may change. The live rate for your active provider is always shown in Settings.
+The rates follow the current prices of the backend and can change. Settings always shows the live rate for your active provider.
 
-## Checking your balance
+## See your balance
 
 <Tabs>
   <Tab title="macOS">
-    Open **Settings** from the menu bar icon, then select **HyperWhisper Cloud** in the sidebar. The credits card is only visible when a Pro license is active.
+    Open **Settings** from the menu bar icon. Then select **HyperWhisper Cloud** in the sidebar. The credits card shows only when an account key is active.
 
     The credits card shows:
-    - Estimated minutes remaining
-    - Your raw credit balance and its dollar equivalent
+    - The estimated minutes that remain
+    - Your credit balance and its value in dollars
 
-    Use the **refresh button** (circular arrow, top-right of the section header) to force a fresh balance check from the server. The balance is also refreshed automatically each time you navigate to the HyperWhisper Cloud section.
+    To get a new balance from the server, click the **refresh button** (circular arrow, top-right of the section header). HyperWhisper also refreshes the balance each time you open the HyperWhisper Cloud section.
 
-    A warning appears when fewer than 10 minutes remain, and an error state appears when credits are exhausted.
+    When less than 10 minutes remain, the card shows a warning. When no credits remain, the card shows an error.
   </Tab>
   <Tab title="Windows">
-    Open **Settings** from the system tray icon, then select **HyperWhisper Cloud** from the left navigation panel.
+    Open **Settings** from the system tray icon. Then select **HyperWhisper Cloud** in the left navigation panel.
 
     The credits page shows:
-    - Estimated minutes remaining and dollar equivalent
-    - Your credit balance and cost per minute for your current provider
+    - The estimated minutes that remain, and their value in dollars
+    - Your credit balance and the cost per minute for your current provider
 
-    Use the **refresh button** (top-right of the page) to fetch an updated balance.
+    To get a new balance, click the **refresh button** (top-right of the page).
   </Tab>
 </Tabs>
 
 <Note>
-  "Estimated minutes remaining" is calculated from a blended average rate (~6.3 credits/minute across all providers), not the specific rate of your currently selected provider. Use the per-provider table above for a more precise estimate.
+  The estimate of the minutes that remain uses a blended average rate of about 6.3 credits per minute across all providers. It does not use the rate of the provider that you select. The table of provider rates above gives a more exact estimate.
 </Note>
 
-## Purchasing additional credits
+## Buy more credits
 
-You don't need an existing account key to buy credits — if you don't have one yet, your purchase mints one for you. Two preset amounts are available, or you can enter a custom amount:
+You do not need an account key to buy credits. If you do not have a key, your purchase creates one. You can select one of two preset amounts, or enter a custom amount:
 
 | Package | Credits | Value |
 |---|---|---|
-| $5 | 5,000 credits | ~15 hours at default tier |
-| $10 | 10,000 credits | ~30 hours at default tier |
+| $5 | 5,000 credits | About 15 hours at the default tier |
+| $10 | 10,000 credits | About 30 hours at the default tier |
 | Custom | Varies | Any amount from $5 to $500 |
 
 <Note>
-  A non-refundable 6% processing fee is added on top of the credit value at checkout — for example, a $5 purchase (5,000 credits) charges $5.30 total. The fee is shown as a separate line item before you pay. The credit value itself (unlike the fee) is covered by a 14-day money-back guarantee for any unconsumed balance — see the refund policy on [hyperwhisper.com](https://www.hyperwhisper.com) for details.
+  Checkout adds a processing fee of 6% to the credit value. This fee is not refundable. For example, a $5 purchase (5,000 credits) costs $5.30 in total. The checkout page shows the fee as a separate line before you pay. A 14-day money-back guarantee covers the credit value that you did not use, but it does not cover the fee. The refund policy on [hyperwhisper.com](https://www.hyperwhisper.com) gives the details.
 </Note>
 
 <Steps>
   <Step title="Open the credits purchase page">
     <Tabs>
       <Tab title="macOS">
-        If you already have an account key, click **Purchase Credits** in **Settings → HyperWhisper Cloud** — this opens [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) with your key pre-filled, taking you to your dashboard to top up. Otherwise, click **Get Credits** or visit [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) directly to buy credits as a guest.
+        If you already have an account key, click **Purchase Credits** in **Settings → HyperWhisper Cloud**. This opens [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) with your key filled in, and shows your dashboard. If you do not have a key, click **Get Credits**, or go to [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) to buy credits as a guest.
       </Tab>
       <Tab title="Windows">
-        Same flow as macOS: **Purchase Credits** in **Settings → HyperWhisper Cloud** pre-fills your existing key, or **Get Credits** / [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits) directly if you don't have one yet.
+        Windows uses the same flow as macOS. **Purchase Credits** in **Settings → HyperWhisper Cloud** fills in your existing key. If you do not have a key, click **Get Credits**, or go to [hyperwhisper.com/credits](https://www.hyperwhisper.com/credits).
       </Tab>
     </Tabs>
   </Step>
   <Step title="Choose an amount and complete checkout">
-    Select the $5 or $10 preset, or enter a custom whole-dollar amount from $5 to $500. If you're buying as a guest, enter your email — your account key will be sent there. You'll be taken to a Stripe Checkout page to enter payment details; promotion codes are accepted.
+    Select the $5 or $10 preset, or enter a custom amount in whole dollars from $5 to $500. If you buy as a guest, enter your email address. HyperWhisper sends your account key to that address. The next page is a Stripe Checkout page for your payment details. This page accepts promotion codes.
   </Step>
   <Step title="Credits are added immediately">
-    After a successful payment, credits are credited right away. First-time guest purchases also get a new account key emailed to them. Refresh your balance in Settings to see the updated amount.
+    After a successful payment, HyperWhisper adds the credits immediately. For a first purchase as a guest, HyperWhisper also emails a new account key to you. To see the new amount, refresh your balance in Settings.
   </Step>
 </Steps>
 
-## Managing your billing account
+## Manage your billing account
 
-Once you have an active account key, a **Manage Billing** button appears in **Settings → HyperWhisper Cloud** (on both macOS and Windows). Clicking it opens your account dashboard at [hyperwhisper.com/user](https://www.hyperwhisper.com/user), where you can:
+When you have an active account key, a **Manage Billing** button shows in **Settings → HyperWhisper Cloud** on macOS and on Windows. This button opens your account dashboard at [hyperwhisper.com/user](https://www.hyperwhisper.com/user). On the dashboard, you can:
 
-- View your current credit balance
+- See your current credit balance
 - See your purchase history
-- Buy additional top-ups
-- Update your payment method
+- Buy more credits
+- Change your payment method
 
 <Note>
-  The Manage Billing button is only available when you have an active key. Without one, visit [hyperwhisper.com/user](https://www.hyperwhisper.com/user) directly to sign in or buy credits.
+  The **Manage Billing** button shows only when you have an active key. Without a key, you can sign in or buy credits at [hyperwhisper.com/user](https://www.hyperwhisper.com/user).
 </Note>
 
 ## How credits are deducted
 
-Credits are deducted **after** a successful transcription completes. If the transcription fails — due to a network error, an audio problem, or a server-side validation failure — no credits are charged.
+HyperWhisper deducts credits **after** a successful transcription. If a transcription fails, HyperWhisper deducts no credits. A network error, an audio problem, or a server-side validation error can cause a failure.
 
-The balance shown in Settings may be slightly behind if you have just completed a transcription. Use the refresh button to fetch the latest server-side balance.
+Immediately after a transcription, the balance in Settings can be out of date. To get the latest balance from the server, click the refresh button.
 
 ## Running low or out of credits
 
-When your balance drops below 10 minutes of estimated transcription time, the credits card displays an orange warning. When your balance reaches zero, HyperWhisper Cloud transcriptions will be blocked until you purchase more credits.
+When your balance falls below 10 minutes of estimated transcription time, the credits card shows an orange warning. When your balance reaches zero, HyperWhisper Cloud blocks all transcriptions until you buy more credits.
 
-If you run out, you have two options:
-- **Purchase additional credits** from the credits page.
-- **Switch to a BYOK provider** such as your own OpenAI or Groq API key — these do not consume HyperWhisper credits.
+If you run out of credits, you have two options:
+- **Buy more credits** on the credits page.
+- **Change to a BYOK provider**, such as your own OpenAI or Groq API key. A BYOK provider does not use HyperWhisper credits.
 
-See [Choosing a Provider](/choosing-a-provider) for more information on switching providers.
+For more information about a change of provider, see [Choosing a Provider](/choosing-a-provider).

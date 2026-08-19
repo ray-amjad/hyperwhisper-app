@@ -44,7 +44,12 @@ describe('resolveLLMModel', () => {
   test('echoes a valid allowlisted model id', () => {
     expect(resolveLLMModel('openai', requestWith({ 'x-llm-model': 'gpt-5-nano' }))).toBe('gpt-5-nano');
     expect(resolveLLMModel('gemini', requestWith({ 'x-llm-model': 'gemini-2.5-flash-lite' }))).toBe('gemini-2.5-flash-lite');
-    expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'open-mistral-nemo' }))).toBe('open-mistral-nemo');
+    expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'mistral-small-latest' }))).toBe('mistral-small-latest');
+  });
+
+  test('the retired open-mistral-nemo id falls back to the mistral default', () => {
+    // Old clients still send it; it must never error, just resolve to the default.
+    expect(resolveLLMModel('mistral', requestWith({ 'x-llm-model': 'open-mistral-nemo' }))).toBe('mistral-small-latest');
   });
 
   test('returns the provider default for missing or invalid model', () => {
@@ -78,7 +83,8 @@ describe('cost functions', () => {
 
   test('computeMistralChatCost per model', () => {
     expect(computeMistralChatCost('mistral-small-latest', oneM)).toBeCloseTo(0.15 + 0.60, 6);
-    expect(computeMistralChatCost('open-mistral-nemo', oneM)).toBeCloseTo(0.15 + 0.15, 6);
+    // The retired open-mistral-nemo bills at the default (mistral-small-latest) rate.
+    expect(computeMistralChatCost('open-mistral-nemo', oneM)).toBeCloseTo(0.15 + 0.60, 6);
   });
 
   test('a small realistic usage hand-computes correctly (gpt-5-mini)', () => {
@@ -100,7 +106,10 @@ describe('servedLLMName', () => {
     expect(servedLLMName('openai', 'gpt-5-nano')).toBe('openai-gpt-5-nano');
     expect(servedLLMName('openai', 'gpt-5-nano')).not.toBe(LLM_PROVIDER_NAMES.openai);
     expect(servedLLMName('gemini', 'gemini-2.5-flash-lite')).toBe('gemini-2.5-flash-lite');
-    expect(servedLLMName('mistral', 'open-mistral-nemo')).toBe('open-mistral-nemo');
+  });
+
+  test('the retired open-mistral-nemo has no served name of its own', () => {
+    expect(servedLLMName('mistral', 'open-mistral-nemo')).toBe(LLM_PROVIDER_NAMES.mistral);
   });
 
   test('an unknown model falls back to the static provider name', () => {

@@ -176,19 +176,6 @@ final class AppLogger {
         case storeLoad
     }
     
-    /// Logs update events (also mirrors to UpdateLogger for file export)
-    static func logUpdate(_ message: String, error: Error? = nil, isError: Bool = false) {
-        if isError {
-            updates.error("\(message, privacy: .public): \(error!, privacy: .public)")
-            // Also log to UpdateLogger for file export
-            UpdateLogger.shared.error(message, error: error as NSError?)
-            if let error, isErrorLoggingEnabled { SentryService.capture(error: error, message: message, tags: ["category": "update"]) }
-        } else {
-            updates.info("\(message, privacy: .public)")
-            UpdateLogger.shared.info(message)
-        }
-    }
-    
     // MARK: - Helper Methods
     
     /// Logs metadata dictionary to a specific logger
@@ -332,35 +319,6 @@ final class AppLogger {
     
     // MARK: - Console.app Helper
     
-    /// Opens Console.app filtered to our app's logs
-    static func openConsole() {
-        // Open Console.app with a predicate for our subsystem
-        let script = """
-        tell application "Console"
-            activate
-            -- Note: Console.app doesn't support AppleScript filtering
-            -- User will need to manually enter: subsystem:"com.hyperwhisper.app"
-        end tell
-        """
-        
-        if let scriptObject = NSAppleScript(source: script) {
-            var error: NSDictionary?
-            scriptObject.executeAndReturnError(&error)
-            if let error = error {
-                audio.error("Failed to open Console.app: \(error, privacy: .public)")
-            }
-        }
-        
-        // Alternative: Open Console directly
-        NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Utilities/Console.app"))
-        
-        // Copy filter string to clipboard for easy paste
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("subsystem:\"com.hyperwhisper.app\"", forType: .string)
-        
-        ui.info("Opened Console.app - filter string copied to clipboard")
-    }
-    
 // MARK: - Recent Logs for Error Context
 
     /// Retrieves recent log entries as sanitized text for attaching to error reports.
@@ -479,25 +437,6 @@ final class AppLogger {
         return result
     }
 
-    /// Returns Terminal commands for viewing logs
-    static func getLogCommands() -> String {
-        """
-        # View all HyperWhisper logs from last hour
-        log show --predicate 'subsystem == "com.hyperwhisper.app"' --last 1h
-        
-        # View only errors
-        log show --predicate 'subsystem == "com.hyperwhisper.app" AND messageType == error' --last 1h
-        
-        # View specific category (e.g., audio)
-        log show --predicate 'subsystem == "com.hyperwhisper.app" AND category == "audio"' --last 1h
-        
-        # Stream live logs
-        log stream --predicate 'subsystem == "com.hyperwhisper.app"'
-        
-        # Export to file
-        log show --predicate 'subsystem == "com.hyperwhisper.app"' --last 24h > ~/Desktop/hyperwhisper-logs.txt
-        """
-    }
 }
 
 // MARK: - Settings Integration
@@ -509,21 +448,4 @@ extension AppLogger {
         UserDefaults.standard.bool(forKey: "enableErrorLogging")
     }
     
-    /// Logs only if error logging is enabled
-    static func logIfEnabled(_ logger: Logger, level: OSLogType, _ message: String) {
-        guard isErrorLoggingEnabled || level == .fault else { return }
-        
-        switch level {
-        case .debug:
-            logger.debug("\(message, privacy: .public)")
-        case .info:
-            logger.info("\(message, privacy: .public)")
-        case .error:
-            logger.error("\(message, privacy: .public)")
-        case .fault:
-            logger.fault("\(message, privacy: .public)")
-        default:
-            logger.log("\(message, privacy: .public)")
-        }
-    }
 }

@@ -96,6 +96,30 @@ enum STTLanguageTemplates {
         "vi"
     ], context: "Azure MAI-Transcribe language filter")
 
+    /// ElevenLabs Scribe v2 supported languages, normalized from the shared
+    /// catalog (elevenLabsScribeV2, ISO-639-3) to the macOS picker code space:
+    /// "fil" → "tl", "cmn" → "zh", "jav" → "jw", Cantonese kept as "yue".
+    /// Codes with no LanguageData entry are dropped (ori, ast, kir, ceb, nya,
+    /// ful, lug, ibo, gle, kea, kur, luo, nso, wol, xho, zul).
+    ///
+    /// Scribe was on `whisperUniversal` before, which let the picker offer ~17
+    /// languages Scribe does not transcribe. The backend now folds the codes it
+    /// can (`resolveElevenLabsLanguage` in hyperwhisper-cloud), but a language
+    /// Scribe simply lacks has nothing to fold to — so it has to leave the
+    /// picker.
+    static let elevenLabsScribeV2: [STTLanguageSpec] = codes([
+        "auto",
+        "af", "am", "ar", "as", "az", "be", "bg", "bn", "bs", "ca",
+        "cs", "cy", "da", "de", "el", "en", "es", "et", "fa", "fi",
+        "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id",
+        "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb",
+        "ln", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms",
+        "mt", "my", "ne", "nl", "no", "oc", "pa", "pl", "ps", "pt",
+        "ro", "ru", "sd", "sk", "sl", "sn", "so", "sr", "sv", "sw",
+        "ta", "te", "tg", "th", "tl", "tr", "uk", "ur", "uz", "vi",
+        "yo", "yue", "zh"
+    ], context: "ElevenLabs Scribe v2 language filter")
+
     /// Google Speech-to-Text Chirp 3 supported languages, normalized from the
     /// shared catalog (googleChirp3, BCP-47 locale) to the macOS picker code
     /// space: primary subtag, lowercased, deduped. "iw" → "he", "jv" → "jw",
@@ -279,6 +303,16 @@ enum STTCapabilities {
                         notes: "Highest-accuracy model. Supports English, Spanish, German, French, Portuguese, and Italian. Keyterms prompting up to 1000 terms."
                     ),
                     STTModelSpec(
+                        id: "universal-3-5-pro",
+                        displayName: "Universal-3.5 Pro",
+                        languages: STTLanguageTemplates.codes([
+                            "auto",
+                            "en", "es", "fr", "de", "it", "pt",
+                            "ar", "da", "nl", "fi", "he", "hi", "ja", "no", "sv", "tr", "vi", "zh"
+                        ]),
+                        notes: "Default AssemblyAI model. Natively supports 18 languages with mid-sentence code-switching. Keyterms prompting up to 1000 terms."
+                    ),
+                    STTModelSpec(
                         id: "universal-2-medical",
                         displayName: "Universal-2 (Medical)",
                         languages: STTLanguageTemplates.codes([
@@ -293,6 +327,14 @@ enum STTCapabilities {
                             "auto", "en", "es", "de", "fr"
                         ]),
                         notes: "Universal-3 Pro with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
+                    ),
+                    STTModelSpec(
+                        id: "universal-3-5-pro-medical",
+                        displayName: "Universal-3.5 Pro (Medical)",
+                        languages: STTLanguageTemplates.codes([
+                            "auto", "en", "es", "de", "fr"
+                        ]),
+                        notes: "Universal-3.5 Pro with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
                     )
                 ]
             ),
@@ -302,16 +344,14 @@ enum STTCapabilities {
                 authKeyName: "ElevenLabs",
                 lastVerifiedAt: "2025-09-22",
                 models: [
-                    STTModelSpec(
-                        id: "scribe_v1",
-                        displayName: "Scribe v1",
-                        languages: STTLanguageTemplates.whisperUniversal,
-                        notes: "Multilingual batch transcription with word-level timestamps and diarization support. Does not support custom vocabulary."
-                    ),
+                    // scribe_v1 was retired by ElevenLabs on 2026-07-09 and is gone from
+                    // this registry. Saved Modes that still name it are migrated by
+                    // CloudTranscriptionModels.legacyElevenLabsAliases (scribe_v1 → scribe_v2),
+                    // so do NOT re-add it here to "keep old modes working".
                     STTModelSpec(
                         id: "scribe_v2",
                         displayName: "Scribe v2",
-                        languages: STTLanguageTemplates.whisperUniversal,
+                        languages: STTLanguageTemplates.elevenLabsScribeV2,
                         notes: "Latest generation Scribe model with improved accuracy. Supports custom vocabulary with keyterm prompting (up to 100 terms)."
                     )
                 ]
@@ -341,7 +381,7 @@ enum STTCapabilities {
                             "it",  // Italian
                             "nl"   // Dutch
                         ]),
-                        notes: "Mistral's state-of-the-art transcription model. Supports 13 languages with automatic detection. Does not support custom vocabulary."
+                        notes: "Mistral's state-of-the-art transcription model. Supports 13 languages with automatic detection. Custom vocabulary is sent as a context_bias list (max 100 terms)."
                     )
                 ]
             ),

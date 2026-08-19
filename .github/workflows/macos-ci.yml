@@ -46,6 +46,16 @@ jobs:
   build-and-test:
     name: Build & Test (macOS, unsigned)
     runs-on: macos-26
+    # The outer backstop for a wedged test. Without it the only limit is
+    # GitHub's 360-minute default, so a deadlocked async test — the residency
+    # suites block real tasks on real handshakes — burns six hours of runner
+    # time and reports as an infrastructure timeout rather than as a failure.
+    # The inner backstop is `ResidencyGate.wait()`, which fails the specific
+    # test in seconds and names it; this only catches whatever that cannot.
+    # Recent green runs finish in 5-8 minutes (Rust core rebuild + full Debug
+    # build + unit tests), so 60 leaves generous headroom for a cold runner
+    # while still turning a wedged test into a fast, obvious failure.
+    timeout-minutes: 60
     steps:
       # ----------------------------------------------------------------
       # 1. Checkout

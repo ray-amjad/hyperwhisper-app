@@ -161,22 +161,6 @@ class RecordingSessionManager {
 
     // MARK: - Session Updates
 
-    /// Update session format metadata after conversion
-    ///
-    /// **What This Does:**
-    /// Helper method to update audio format metadata if needed after
-    /// AAC conversion. Useful when format info wasn't available at creation.
-    ///
-    /// **Parameters:**
-    /// - `session`: The session to update
-    /// - `url`: Audio file URL to extract format metadata from
-    func updateSessionFormat(session: RecordingSession, url: URL) {
-        // This is a helper method for future use
-        // Currently format metadata is set during creation
-        // Could be extended to read actual file format if needed
-        AppLogger.audio.debug("Session format update (currently no-op)")
-    }
-
     // MARK: - Cleanup
 
     /// Clear current session reference without saving

@@ -18,6 +18,5 @@
   "devDependencies": {
     "@types/bun": "^1.1.0",
     "typescript": "^5.5.0"
-  },
-  "packageManager": "pnpm@10.33.0"
+  }
 }

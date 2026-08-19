@@ -19,9 +19,9 @@
     <!-- Prevent .NET 8+ from appending +git-hash to AssemblyInformationalVersion,
          which causes NetSparkle to treat the same version as a new update -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Version>1.8.3</Version>
-    <AssemblyVersion>1.8.3.0</AssemblyVersion>
-    <FileVersion>1.8.3.0</FileVersion>
+    <Version>1.11.0</Version>
+    <AssemblyVersion>1.11.0.0</AssemblyVersion>
+    <FileVersion>1.11.0.0</FileVersion>
     <!-- Scratch/workstream builds sometimes leave alternate intermediate folders
          inside the project tree. Keep SDK globs from compiling their generated
          WPF sources and duplicate assembly attributes. -->
@@ -214,28 +214,10 @@
     </Compile>
   </ItemGroup>
 
-  <!-- Shared prompt templates (linked from repo root shared-prompts/) -->
+  <!-- Shared catalogs (linked from repo root). The shared-prompts/ templates are
+       NOT embedded here: the Rust shared core embeds them itself and does the
+       prompt assembly. -->
   <ItemGroup>
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\hyper.txt" Link="SharedPrompts\presets\hyper.txt" LogicalName="HyperWhisper.SharedPrompts.presets.hyper.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\message.txt" Link="SharedPrompts\presets\message.txt" LogicalName="HyperWhisper.SharedPrompts.presets.message.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\mail.txt" Link="SharedPrompts\presets\mail.txt" LogicalName="HyperWhisper.SharedPrompts.presets.mail.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\note.txt" Link="SharedPrompts\presets\note.txt" LogicalName="HyperWhisper.SharedPrompts.presets.note.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\meeting.txt" Link="SharedPrompts\presets\meeting.txt" LogicalName="HyperWhisper.SharedPrompts.presets.meeting.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\code.txt" Link="SharedPrompts\presets\code.txt" LogicalName="HyperWhisper.SharedPrompts.presets.code.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\presets\custom.txt" Link="SharedPrompts\presets\custom.txt" LogicalName="HyperWhisper.SharedPrompts.presets.custom.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\email-formatting-rules.txt" Link="SharedPrompts\fragments\email-formatting-rules.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.email-formatting-rules.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\anti-reply-directive.txt" Link="SharedPrompts\fragments\anti-reply-directive.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.anti-reply-directive.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\override-directive.txt" Link="SharedPrompts\fragments\override-directive.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.override-directive.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\fragments\number-formatting.txt" Link="SharedPrompts\fragments\number-formatting.txt" LogicalName="HyperWhisper.SharedPrompts.fragments.number-formatting.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\email.txt" Link="SharedPrompts\contextual\email.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.email.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\work-message.txt" Link="SharedPrompts\contextual\work-message.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.work-message.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\personal-message.txt" Link="SharedPrompts\contextual\personal-message.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.personal-message.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\document.txt" Link="SharedPrompts\contextual\document.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.document.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\code.txt" Link="SharedPrompts\contextual\code.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.code.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\contextual\terminal.txt" Link="SharedPrompts\contextual\terminal.txt" LogicalName="HyperWhisper.SharedPrompts.contextual.terminal.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\flags\punctuation.txt" Link="SharedPrompts\flags\punctuation.txt" LogicalName="HyperWhisper.SharedPrompts.flags.punctuation.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\flags\capitalization.txt" Link="SharedPrompts\flags\capitalization.txt" LogicalName="HyperWhisper.SharedPrompts.flags.capitalization.txt" />
-    <EmbeddedResource Include="..\..\..\shared-prompts\flags\profanity-filter.txt" Link="SharedPrompts\flags\profanity-filter.txt" LogicalName="HyperWhisper.SharedPrompts.flags.profanity-filter.txt" />
     <EmbeddedResource Include="..\..\..\shared-app-classification\app-type-catalog.json" Link="SharedAppClassification\app-type-catalog.json" LogicalName="HyperWhisper.SharedAppClassification.app-type-catalog.json" />
     <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-stt-catalog.json" Link="SharedAppClassification\cloud-stt-catalog.json" LogicalName="HyperWhisper.SharedAppClassification.cloud-stt-catalog.json" />
     <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-pp-catalog.json" Link="SharedAppClassification\cloud-pp-catalog.json" LogicalName="HyperWhisper.SharedAppClassification.cloud-pp-catalog.json" />
@@ -295,6 +277,9 @@
   </Target>
 
 </Project>
+
+
+
 
 
 

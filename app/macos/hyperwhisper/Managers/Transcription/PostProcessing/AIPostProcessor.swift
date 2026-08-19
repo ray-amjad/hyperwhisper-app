@@ -265,10 +265,35 @@ class AIPostProcessor: ObservableObject {
         // markBusy/markIdle anywhere else — without this, a CRITICAL pressure
         // event would run the eviction closure (tier .llm) and stop the server
         // in the middle of an active chat-completion request, failing the pass.
-        // Released on every exit via defer.
-        let claimedLocalLLM = (provider == .localLLM)
-        if claimedLocalLLM {
-            await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+        // Released on every exit via defer — but only if it was actually taken.
+        //
+        // The TWO refusals are not the same event and must not share an exit.
+        // `.evicting` is not survivable: the registry has already moved
+        // llama-server to `.freeing` and is stopping it, so POSTing a
+        // chat-completion at it would fail anyway. `.notResident` means only
+        // that nothing is registered under this id — and `ensureRunning` above
+        // returns success from its warm early returns without touching the
+        // registry, and `refreshLocalRuntime`'s warm-up can still be inside a
+        // multi-second GGUF load, so this is reachable with ZERO memory
+        // pressure. Aborting there would hand the user an un-post-processed
+        // transcript plus a banner blaming memory pressure that never happened,
+        // under a `.localRuntimeUnavailable` that Sentry suppresses. The server
+        // we can see is very likely live, so proceed — WITHOUT a claim, and so
+        // without the `markIdle` that would decrement a concurrent pass's claim
+        // (`PostProcessEndpoint` documents that these interleave).
+        var claimedLocalLLM = false
+        if provider == .localLLM {
+            let claim = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+            switch claim {
+            case .claimed:
+                claimedLocalLLM = true
+            case .evicting:
+                AppLogger.transcription.error("Local LLM residency claim refused (runtime is being freed under memory pressure); returning original text.")
+                onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "local model unloaded to free memory"))
+                return text
+            case .notResident:
+                AppLogger.transcription.notice("Local LLM is not registered for residency (owner has not registered it yet); proceeding unclaimed.")
+            }
         }
         defer {
             if claimedLocalLLM {
@@ -787,10 +812,25 @@ class AIPostProcessor: ObservableObject {
         // Claim LLM residency for the rest of this streaming pass (including the
         // SSE stream and any non-streaming fallback) so a memory-pressure event
         // can't stop llama-server mid-request. See the non-streaming variant for
-        // the full rationale. Released on every exit via defer.
-        await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+        // the full rationale, including why `.evicting` returns while
+        // `.notResident` proceeds unclaimed. Released on exit via defer, but
+        // only when a claim was actually taken.
+        var claimedLocalLLM = false
+        let streamingClaim = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+        switch streamingClaim {
+        case .claimed:
+            claimedLocalLLM = true
+        case .evicting:
+            AppLogger.transcription.error("Local LLM residency claim refused (runtime is being freed under memory pressure); returning original text.")
+            onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "local model unloaded to free memory"))
+            return text
+        case .notResident:
+            AppLogger.transcription.notice("Local LLM is not registered for residency (owner has not registered it yet); proceeding unclaimed.")
+        }
         defer {
-            Task { await ModelResidencyRegistry.shared.markIdle(id: LlamaServerController.residencyId) }
+            if claimedLocalLLM {
+                Task { await ModelResidencyRegistry.shared.markIdle(id: LlamaServerController.residencyId) }
+            }
         }
 
         // Build request body — the local LLM (llama-server) speaks the
@@ -1057,6 +1097,7 @@ class AIPostProcessor: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
                         forHTTPHeaderField: "User-Agent")
+        HyperWhisperClientInfo.apply(to: &request)
         request.timeoutInterval = 60
 
         let cloudPPModel = CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel)

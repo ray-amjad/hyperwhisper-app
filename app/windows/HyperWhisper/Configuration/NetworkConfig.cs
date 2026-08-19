@@ -64,8 +64,4 @@ public static class NetworkConfig
         false;
 #endif
 
-    /// <summary>
-    /// Current environment name for logging.
-    /// </summary>
-    public static string EnvironmentName => IsDevelopment ? "Development" : "Production";
 }

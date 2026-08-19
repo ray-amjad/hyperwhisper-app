@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Beállítások megnyitása";
 "home.accessibility.restart.after.permission" = "Alkalmazás újraindítása az engedély megadása után";
 "home.getting.started.completed" = "✓ Kész";
-"home.whatsnew.badge" = "ÚJ";
-"home.whatsnew.title" = "Mi újság?";
-"home.whatsnew.update1.date" = "Júl 3";
-"home.whatsnew.update1.title" = "Parakeet már elérhető";
-"home.whatsnew.update1.description" = "Töltsd le közvetlenül a Nyelvi modellek listából a Mód létrehozása során, hogy még ma kipróbáld.";
-"home.whatsnew.update2.date" = "Jún 5";
-"home.whatsnew.update2.title" = "Támogatás minden OpenAI-kompatibilis egyéni modellhez";
-"home.whatsnew.update2.description" = "Most már hozzáadhatsz bármilyen OpenAI kompatibilis API-t a modelljeid listájához.";
-"home.whatsnew.update3.date" = "Máj 27";
-"home.whatsnew.update3.title" = "Teljesen új Mini-felvételi ablak";
-"home.whatsnew.update3.description" = "Egy elegáns, minimális felvételi felület, ami nem zavar.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Legutóbbi frissítések";
@@ -393,6 +382,9 @@
 
 "settings.general.errorLogging.title" = "Hibanaplózás";
 "settings.general.errorLogging.info" = "Automatikus hibajelentések rögzítése és küldése az alkalmazás fejlesztésének segítésére.";
+"settings.general.shareSpeedData.title" = "Névtelen sebességadatok megosztása";
+"settings.general.shareSpeedData.info" = "Méri, mennyi ideig tart minden felhőszolgáltatónak, és hozzáadja egy nyilvános összehasonlításhoz. Egy mérés tartalmazza a szolgáltatót, a szerver régióját, a klip hosszát és az eltelt időt — nincs fiók, nincs kulcs, nincs hang és nincs szöveg. Kapcsold ki, és a HyperWhisper leáll a küldéssel. Semmi más nem változik, a helyi modellek pedig soha nem küldenek semmit.";
+"settings.general.shareSpeedData.link" = "Sebességösszehasonlítás megtekintése";
 "settings.general.autoUpdate.title" = "Automatikus frissítés";
 "settings.general.autoUpdate.info" = "Új HyperWhisper verziók automatikus keresése és letöltése.";
 "settings.general.support.title" = "Segítségre van szükséged?";
@@ -821,10 +813,6 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "page.header.learnMore" = "Többet tudj meg";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Átírás kész";
-"recording.status.retrying" = "Átírás újrapróbálása…";
-"recording.status.postprocessing" = "Utófeldolgozás AI-val…";
-"recording.status.transcribing" = "Átírás…";
 "recording.success.pasted" = "Beillesztve!";
 "recording.loading.retrying" = "Újrapróbálás…";
 "recording.loading.postprocessing" = "Feldolgozás AI-val…";
@@ -852,39 +840,22 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "modes.provider.manageInLibrary" = "Kezelés a könyvtárban →";
 "streaming.loading.warming" = "Helyi modell bemelegítése...";
 "streaming.status.listening" = "Hallgat...";
-"streaming.status.streaming" = "Streamelés...";
 "streaming.status.disconnecting" = "Leállítás...";
 "streaming.loading.connecting" = "Csatlakozás a szerverhez...";
 "streaming.loading.ready" = "Audio inicializálása...";
 "streaming.loading.streaming" = "Várakozás beszédre...";
 "streaming.state.reconnecting" = "Újracsatlakozás...";
 "recording.stop.help" = "Felvétel leállítása (%@)";
-"recording.postprocessing.unavailable" = "Utófeldolgozás nem elérhető";
-"recording.postprocessing.missing.single" = "%@ kulcs hiányzik – felvétel utófeldolgozás nélkül";
-"recording.postprocessing.missing.multiple" = "API kulcsok hiányoznak – felvétel utófeldolgozás nélkül";
-"recording.postprocessing.addKey" = "Kulcs hozzáadása";
-"recording.offline.banner" = "Nincs internetkapcsolat. A felhő átírás sikertelen lesz, amíg online nem vagy.";
-"recording.offline.title" = "Nincs internetkapcsolat";
-"recording.offline.subtitle" = "Csatlakozz újra a folytatáshoz vagy válts offline módra.";
-"recording.error.network" = "Ellenőrizd az internetkapcsolatot és próbáld újra.";
-"recording.error.timeout" = "Időtúllépés. Ellenőrizd a kapcsolat sebességét és próbáld újra.";
-"recording.error.rateLimit" = "Túl sok kérést küldtél. Várj egy kicsit és próbáld újra.";
-"recording.error.credits" = "Nincs elég kredit. Adj hozzá több kreditet a Beállításokban.";
-"recording.error.apiKey" = "Add hozzá a(z) %@ API kulcsodat a Beállításokban.";
-"recording.error.server" = "Az átírási szolgáltatás problémákat tapasztal. Kérlek próbáld újra egy pillanat múlva.";
 "recording.retry" = "Újra";
 "recording.retry.inProgress" = "Újrapróbálás…";
 "recording.retry.count" = "Újra (%d)";
 "recording.retry.failed.missing" = "Újrapróbálás sikertelen: Audio fájl nem található";
 "recording.retry.failed.error" = "Újrapróbálás sikertelen: %@";
 "recording.retry.pending" = "Kész az újrapróbálásra – kattints az átíráshoz";
-"recording.provider.unknown" = "felhő szolgáltató";
 "recording.cancel.dialog.title" = "Felvétel megszakítása?";
 "recording.cancel.dialog.message" = "Ez elveti a jelenlegi felvételt.";
 "recording.cancel.dialog.confirm" = "Felvétel megszakítása";
 "recording.cancel.dialog.resume" = "Folytatás";
-"recording.error.overlay.title" = "Hálózati kapcsolati hiba";
-"recording.error.overlay.message" = "Nyomd meg az 'Újra' gombot alul vagy válts offline módra a folytatáshoz.";
 "recording.mode.default" = "Alapértelmezett";
 "recording.dialog.window.title" = "Felvételi párbeszéd";
 "recording.button.start" = "Felvétel indítása";
@@ -942,6 +913,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.error.maxRetriesExceeded" = "Maximum újrapróbálási kísérletek túllépve";
 "transcription.error.unauthorized.provider" = "Jogosulatlan: érvénytelen %@ API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
 "transcription.error.unauthorized.generic" = "Jogosulatlan: érvénytelen API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
+"transcription.error.cloudAccountRequired" = "A HyperWhisper Cloud fiókkulcsot igényel.\n\nNyisd meg a Beállítások → HyperWhisper Cloud menüt a kulcs megadásához vagy kreditek vásárlásához.";
 "transcription.error.invalidRequest" = "Érvénytelen kérés: ellenőrizd az audio fájlt vagy beállításokat";
 "transcription.error.streamingInterrupted" = "Streamelés megszakítva; részleges szöveg megjelenítve";
 "transcription.error.busy" = "Az átírási szolgáltatás jelenleg foglalt";
@@ -981,6 +953,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.guidance.needsNativeRelaunch" = "A helyi utófeldolgozáshoz lépjen ki, és indítsa újra a HyperWhispert natív módban.";
 "transcription.guidance.localRuntimeUnavailable" = "Próbálja újra, vagy válasszon kisebb helyi modellt a Mód beállításaiban.";
 "transcription.error.localRuntimeUnavailable" = "A helyi MI nem tudta befejezni — a nyers átirat megmaradt.";
+"transcription.error.localSpeechModelEvicted" = "A beszédmodellt a memória felszabadításához eltávolítottuk, és nem sikerült újratölteni. Zárjon be néhány alkalmazást, és próbálja újra.";
 "settings.backup.localDownload.title" = "Letölti a helyi modelleket?";
 "settings.backup.localDownload.message" = "A visszaállított módok közül %d olyan helyi MI-modellt használ, amely még nincs letöltve.";
 "settings.backup.localDownload.downloadAll" = "Az összes letöltése";
@@ -1113,10 +1086,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "history.autoDelete.unit.minutes" = "Perc";
 "history.autoDelete.unit.hours" = "Óra";
 "history.autoDelete.unit.days" = "Nap";
-"history.autoDelete.unit.minutes.plural" = "perc";
-"history.autoDelete.unit.hours.plural" = "óra";
-"history.autoDelete.unit.days.plural" = "nap";
-"history.autoDelete.status.disabled" = "Automatikus törlés letiltva";
 "history.autoDelete.status.enabled" = "Felvételek törlése %d %@ után";
 "history.autoDelete.cleanup.noItems" = "Nincs törlendő felvétel";
 "history.autoDelete.cleanup.summary" = "%d felvétel törölve és %@ felszabadítva";

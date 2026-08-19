@@ -90,6 +90,7 @@ namespace HyperWhisper.Services
 '@ | Set-Content -LiteralPath $HarnessStubs -Encoding UTF8
 
 @'
+using System.Linq;
 using System.Reflection;
 using HyperWhisper.Services;
 using HyperWhisper.Services.Transcription;
@@ -107,42 +108,72 @@ static object AudioDiagnostics(
     double peakDbfs = -10.0,
     double rmsDbfs = -20.0,
     double nonSilentRatio = 0.5,
-    string? analysisError = null)
+    string? analysisError = null,
+    long? decodedSampleCount = 16000L)
 {
     var diagnosticsType = typeof(TranscriptionDiagnosticsService).GetNestedType(
         "AudioAnalysisDiagnostics",
         BindingFlags.NonPublic)
         ?? throw new MissingMemberException(typeof(TranscriptionDiagnosticsService).FullName, "AudioAnalysisDiagnostics");
 
-    return Activator.CreateInstance(
-        diagnosticsType,
-        BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
-        binder: null,
-        args: new object?[]
-        {
-            analysisSucceeded,
-            durationSeconds,
-            fileSizeBytes,
-            16000,
-            1,
-            peakDbfs,
-            rmsDbfs,
-            nonSilentRatio,
-            analysisError
-        },
-        culture: null)
+    var args = new object?[]
+    {
+        analysisSucceeded,
+        durationSeconds,
+        fileSizeBytes,
+        16000,
+        1,
+        peakDbfs,
+        rmsDbfs,
+        nonSilentRatio,
+        analysisError,
+        decodedSampleCount
+    };
+
+    // Pick the constructor by arity instead of letting Activator.CreateInstance go
+    // through Type.DefaultBinder. The binder has no Nullable<T> handling -
+    // typeof(long?).IsAssignableFrom(typeof(long)) is false - so a boxed System.Int64
+    // passed for the trailing "long? DecodedSampleCount" parameter makes BindToMethod
+    // discard the only candidate constructor and throw MissingMethodException, which
+    // would take out the very first assertion below and leave this script verifying
+    // nothing. ConstructorInfo.Invoke instead goes through CheckValue, which DOES
+    // accept a boxed T for a T? parameter - the same reason the MethodInfo.Invoke
+    // helpers below were never affected. The record's copy constructor takes one
+    // argument, so matching on args.Length is unambiguous.
+    var ctor = diagnosticsType
+        .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        .SingleOrDefault(c => c.GetParameters().Length == args.Length)
+        ?? throw new MissingMethodException(diagnosticsType.FullName, $".ctor({args.Length} parameters)");
+
+    return ctor.Invoke(args)
         ?? throw new InvalidOperationException("Could not create AudioAnalysisDiagnostics.");
 }
 
-static bool ShouldCapture(object audioDiagnostics, TranscriptionProviderDiagnostics? providerDiagnostics = null)
+// True only when the input is reported AS a no-speech diagnostic. An empty
+// recording is also reported - under its own name - and is false here; use
+// Classify() for "is anything reported at all".
+static bool ShouldCaptureAsNoSpeech(object audioDiagnostics, TranscriptionProviderDiagnostics? providerDiagnostics = null)
 {
     var method = typeof(TranscriptionDiagnosticsService).GetMethod(
-        "ShouldCaptureNoSpeechDiagnostic",
+        "ShouldCaptureAsNoSpeech",
         BindingFlags.Static | BindingFlags.NonPublic)
-        ?? throw new MissingMethodException(typeof(TranscriptionDiagnosticsService).FullName, "ShouldCaptureNoSpeechDiagnostic");
+        ?? throw new MissingMethodException(typeof(TranscriptionDiagnosticsService).FullName, "ShouldCaptureAsNoSpeech");
 
     return (bool)(method.Invoke(null, new object?[] { audioDiagnostics, providerDiagnostics })
-        ?? throw new InvalidOperationException("ShouldCaptureNoSpeechDiagnostic returned null."));
+        ?? throw new InvalidOperationException("ShouldCaptureAsNoSpeech returned null."));
+}
+
+// The classification itself: "Skip" (nothing reported), "EmptyRecording" or
+// "NoSpeech". Returned as a string so the harness does not need the enum type.
+static string Classify(object audioDiagnostics, TranscriptionProviderDiagnostics? providerDiagnostics = null)
+{
+    var method = typeof(TranscriptionDiagnosticsService).GetMethod(
+        "ClassifyNoSpeechDiagnostic",
+        BindingFlags.Static | BindingFlags.NonPublic)
+        ?? throw new MissingMethodException(typeof(TranscriptionDiagnosticsService).FullName, "ClassifyNoSpeechDiagnostic");
+
+    return (method.Invoke(null, new object?[] { audioDiagnostics, providerDiagnostics })
+        ?? throw new InvalidOperationException("ClassifyNoSpeechDiagnostic returned null.")).ToString()!;
 }
 
 static TranscriptionProviderDiagnostics ProviderDiagnostics(
@@ -156,47 +187,89 @@ static TranscriptionProviderDiagnostics ProviderDiagnostics(
 }
 
 Assert(
-    ShouldCapture(AudioDiagnostics(analysisSucceeded: false, analysisError: "decoder failed")),
+    ShouldCaptureAsNoSpeech(AudioDiagnostics(analysisSucceeded: false, analysisError: "decoder failed")),
     "Analysis failure must capture diagnostics because the audio signal could not be classified.");
 
+// An empty recording is still reported - it just stopped being reported as a
+// no-speech result. The discriminator is the decoded sample count, not the
+// duration: the live-recording call site substitutes the wall-clock recording
+// length whenever the container reports no duration, so a header-only file from
+// a 5-second recording arrives here with durationSeconds 5.0.
 Assert(
-    ShouldCapture(AudioDiagnostics(durationSeconds: 0)),
-    "Zero-duration analyzed files must capture diagnostics instead of being treated as expected silence.");
+    Classify(AudioDiagnostics(durationSeconds: 5.0, fileSizeBytes: 44, decodedSampleCount: 0L)) == "EmptyRecording",
+    "A recording the decoder produced no frames for must classify as an empty recording.");
 
 Assert(
-    ShouldCapture(AudioDiagnostics(fileSizeBytes: 0)),
-    "Empty analyzed files must capture diagnostics instead of being treated as expected silence.");
+    Classify(
+        AudioDiagnostics(
+            durationSeconds: 5.0,
+            fileSizeBytes: 44,
+            peakDbfs: -120.0,
+            rmsDbfs: -120.0,
+            nonSilentRatio: 0.0,
+            decodedSampleCount: 0L),
+        ProviderDiagnostics(backendNoSpeechDetected: true)) != "Skip",
+    "Zero-frame analyzed files must capture diagnostics instead of being treated as expected silence.");
 
 Assert(
-    ShouldCapture(
+    !ShouldCaptureAsNoSpeech(AudioDiagnostics(durationSeconds: 5.0, fileSizeBytes: 44, decodedSampleCount: 0L)),
+    "An empty recording must be reported under its own name, not as a no-speech diagnostic.");
+
+// The mirror image: a decodable file whose container reports no duration is not
+// a recorder failure - nothing was recorded on that path in the first place.
+Assert(
+    Classify(AudioDiagnostics(durationSeconds: 0, decodedSampleCount: 16000L)) == "NoSpeech",
+    "A file with decoded frames but no container duration must not be called an empty recording.");
+
+Assert(
+    ShouldCaptureAsNoSpeech(
         AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0),
         ProviderDiagnostics(emptyTranscriptWithoutFlag: true)),
     "EmptyTranscriptWithoutFlag must capture diagnostics even when the audio looks silent.");
 
 Assert(
-    !ShouldCapture(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)),
+    !ShouldCaptureAsNoSpeech(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)),
     "Confirmed silence should skip noisy diagnostics.");
 
+// ShouldCaptureAsNoSpeech is false for BOTH Skip and EmptyRecording, so the assertion
+// above would still pass if this input started emitting a full empty_recording event.
+// Only the outcome itself proves that nothing is reported.
 Assert(
-    !ShouldCapture(
+    Classify(AudioDiagnostics(peakDbfs: -80.0, rmsDbfs: -120.0, nonSilentRatio: 0.0)) == "Skip",
+    "Confirmed silence must report nothing at all, not under another diagnostic's name.");
+
+Assert(
+    !ShouldCaptureAsNoSpeech(
         AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02),
         ProviderDiagnostics(backendNoSpeechDetected: true)),
     "Backend-confirmed no speech on low-signal audio should skip noisy diagnostics.");
 
 Assert(
-    ShouldCapture(
-        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -45.0, nonSilentRatio: 0.02),
+    Classify(
+        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02),
+        ProviderDiagnostics(backendNoSpeechDetected: true)) == "Skip",
+    "Backend-confirmed no speech on low-signal audio must report nothing at all.");
+
+// The two "enough signal" samples below sit either side of the low-signal
+// thresholds as they ship today (-38.0dBFS / 0.06, widened in #160). Their
+// original values (-45.0dBFS and 0.03) were written against the older, stricter
+// -50.0dBFS / 0.02 pair and have been inside the skip window - i.e. asserting
+// the opposite of the shipped policy - since that change. What they assert is
+// unchanged; only the sample values move back outside the window.
+Assert(
+    ShouldCaptureAsNoSpeech(
+        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -30.0, nonSilentRatio: 0.02),
         ProviderDiagnostics(backendNoSpeechDetected: true)),
     "Backend no-speech with enough RMS signal must still capture diagnostics.");
 
 Assert(
-    ShouldCapture(
-        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.03),
+    ShouldCaptureAsNoSpeech(
+        AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.1),
         ProviderDiagnostics(backendNoSpeechDetected: true)),
     "Backend no-speech with enough non-silent samples must still capture diagnostics.");
 
 Assert(
-    ShouldCapture(AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02)),
+    ShouldCaptureAsNoSpeech(AudioDiagnostics(peakDbfs: -20.0, rmsDbfs: -55.0, nonSilentRatio: 0.02)),
     "Low-signal audio without backend no-speech confirmation must still capture diagnostics.");
 
 Console.WriteLine("No-speech diagnostic capture policy verification passed.");

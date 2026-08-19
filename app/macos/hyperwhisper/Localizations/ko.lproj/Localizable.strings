@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "설정 열기";
 "home.accessibility.restart.after.permission" = "권한 부여 후 앱 재시작";
 "home.getting.started.completed" = "✓ 완료됨";
-"home.whatsnew.badge" = "새로운 기능";
-"home.whatsnew.title" = "새로운 기능?";
-"home.whatsnew.update1.date" = "7월 3일";
-"home.whatsnew.update1.title" = "Parakeet을 사용할 수 있습니다";
-"home.whatsnew.update1.description" = "모드 생성의 언어 모델 목록에서 직접 다운로드하여 오늘 사용해 보세요.";
-"home.whatsnew.update2.date" = "6월 5일";
-"home.whatsnew.update2.title" = "모든 OpenAI 호환 사용자 정의 모델 지원";
-"home.whatsnew.update2.description" = "이제 OpenAI 호환 API를 모델 목록에 추가할 수 있습니다.";
-"home.whatsnew.update3.date" = "5월 27일";
-"home.whatsnew.update3.title" = "완전히 새로운 미니 녹음 창";
-"home.whatsnew.update3.description" = "방해가 되지 않는 세련되고 미니멀한 녹음 인터페이스입니다.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "최근 업데이트";
@@ -393,6 +382,9 @@
 
 "settings.general.errorLogging.title" = "오류 로깅";
 "settings.general.errorLogging.info" = "앱 개선에 도움이 되도록 오류 보고서를 자동으로 캡처하고 전송합니다.";
+"settings.general.shareSpeedData.title" = "익명 속도 데이터 공유";
+"settings.general.shareSpeedData.info" = "각 클라우드 제공업체가 걸리는 시간을 측정하여 공개 비교에 추가합니다. 측정에는 제공업체, 서버 지역, 클립 길이, 소요 시간이 포함됩니다 — 계정도, 키도, 오디오도, 텍스트도 없습니다. 이 설정을 끄면 HyperWhisper가 전송을 중단합니다. 다른 것은 아무것도 바뀌지 않으며, 로컬 모델은 절대 아무것도 전송하지 않습니다.";
+"settings.general.shareSpeedData.link" = "속도 비교 보기";
 "settings.general.autoUpdate.title" = "자동 업데이트";
 "settings.general.autoUpdate.info" = "HyperWhisper의 새 버전을 자동으로 확인하고 다운로드합니다.";
 "settings.general.support.title" = "도움이 필요하신가요?";
@@ -821,10 +813,6 @@
 "page.header.learnMore" = "자세히 알아보기";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "음성 인식 완료";
-"recording.status.retrying" = "음성 인식 재시도 중…";
-"recording.status.postprocessing" = "AI로 후처리 중…";
-"recording.status.transcribing" = "음성 인식 중…";
 "recording.success.pasted" = "붙여넣기 완료!";
 "recording.loading.retrying" = "재시도 중…";
 "recording.loading.postprocessing" = "AI로 처리 중…";
@@ -852,39 +840,22 @@
 "modes.provider.manageInLibrary" = "라이브러리에서 관리 →";
 "streaming.loading.warming" = "로컬 모델 예열 중...";
 "streaming.status.listening" = "듣는 중...";
-"streaming.status.streaming" = "스트리밍 중...";
 "streaming.status.disconnecting" = "중지 중...";
 "streaming.loading.connecting" = "서버에 연결 중...";
 "streaming.loading.ready" = "오디오 초기화 중...";
 "streaming.loading.streaming" = "음성 대기 중...";
 "streaming.state.reconnecting" = "재연결 중...";
 "recording.stop.help" = "녹음 중지 (%@)";
-"recording.postprocessing.unavailable" = "후처리를 사용할 수 없음";
-"recording.postprocessing.missing.single" = "%@ 키 누락 – 후처리 없이 녹음";
-"recording.postprocessing.missing.multiple" = "API 키 누락 – 후처리 없이 녹음";
-"recording.postprocessing.addKey" = "키 추가";
-"recording.offline.banner" = "인터넷 연결이 없습니다. 온라인 상태가 될 때까지 클라우드 음성 인식이 실패합니다.";
-"recording.offline.title" = "인터넷 연결 없음";
-"recording.offline.subtitle" = "계속하려면 다시 연결하거나 오프라인 모드로 전환하세요.";
-"recording.error.network" = "인터넷 연결을 확인하고 다시 시도하세요.";
-"recording.error.timeout" = "요청 시간 초과. 연결 속도를 확인하고 다시 시도하세요.";
-"recording.error.rateLimit" = "요청이 너무 많습니다. 잠시 기다린 후 다시 시도하세요.";
-"recording.error.credits" = "크레딧이 부족합니다. 설정에서 크레딧을 더 추가하세요.";
-"recording.error.apiKey" = "설정에서 %@ API 키를 추가하세요.";
-"recording.error.server" = "음성 인식 서비스에 문제가 있습니다. 잠시 후 다시 시도하세요.";
 "recording.retry" = "재시도";
 "recording.retry.inProgress" = "재시도 중…";
 "recording.retry.count" = "재시도 (%d)";
 "recording.retry.failed.missing" = "재시도 실패: 오디오 파일을 찾을 수 없음";
 "recording.retry.failed.error" = "재시도 실패: %@";
 "recording.retry.pending" = "재시도 준비 완료 – 클릭하여 음성 인식";
-"recording.provider.unknown" = "클라우드 제공자";
 "recording.cancel.dialog.title" = "녹음을 취소하시겠습니까?";
 "recording.cancel.dialog.message" = "현재 녹음을 삭제합니다.";
 "recording.cancel.dialog.confirm" = "녹음 취소";
 "recording.cancel.dialog.resume" = "재개";
-"recording.error.overlay.title" = "네트워크 연결 오류";
-"recording.error.overlay.message" = "아래 '재시도'를 누르거나 오프라인 모드로 전환하여 계속하세요.";
 "recording.mode.default" = "기본값";
 "recording.dialog.window.title" = "녹음 대화 상자";
 "recording.button.start" = "녹음 시작";
@@ -942,6 +913,7 @@
 "transcription.error.maxRetriesExceeded" = "최대 재시도 횟수 초과";
 "transcription.error.unauthorized.provider" = "권한 없음: 잘못된 %@ API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
 "transcription.error.unauthorized.generic" = "권한 없음: 잘못된 API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud에는 계정 키가 필요합니다.\n\n설정 → HyperWhisper Cloud를 열어 키를 입력하거나 크레딧을 구매하세요.";
 "transcription.error.invalidRequest" = "잘못된 요청: 오디오 파일 또는 설정 확인";
 "transcription.error.streamingInterrupted" = "스트리밍 중단됨; 부분 텍스트 표시됨";
 "transcription.error.busy" = "음성 인식 서비스가 현재 바쁩니다";
@@ -981,6 +953,7 @@
 "transcription.guidance.needsNativeRelaunch" = "로컬 후처리를 사용하려면 HyperWhisper를 종료한 후 네이티브로 다시 실행하세요.";
 "transcription.guidance.localRuntimeUnavailable" = "다시 시도하거나, 모드 설정에서 더 작은 로컬 모델을 선택하세요.";
 "transcription.error.localRuntimeUnavailable" = "로컬 AI가 처리를 완료하지 못했습니다 — 원본 받아쓰기 결과는 그대로 유지했습니다.";
+"transcription.error.localSpeechModelEvicted" = "메모리를 확보하기 위해 음성 모델이 해제되었고 다시 불러올 수 없었습니다. 일부 앱을 닫고 다시 시도해 주세요.";
 "settings.backup.localDownload.title" = "로컬 모델을 다운로드할까요?";
 "settings.backup.localDownload.message" = "복원된 모드 중 %d개가 아직 다운로드되지 않은 온디바이스 AI 모델을 사용합니다.";
 "settings.backup.localDownload.downloadAll" = "모두 다운로드";
@@ -1113,10 +1086,6 @@
 "history.autoDelete.unit.minutes" = "분";
 "history.autoDelete.unit.hours" = "시간";
 "history.autoDelete.unit.days" = "일";
-"history.autoDelete.unit.minutes.plural" = "분";
-"history.autoDelete.unit.hours.plural" = "시간";
-"history.autoDelete.unit.days.plural" = "일";
-"history.autoDelete.status.disabled" = "자동 삭제가 비활성화됨";
 "history.autoDelete.status.enabled" = "%d %@보다 오래된 녹음 삭제";
 "history.autoDelete.cleanup.noItems" = "삭제할 녹음 없음";
 "history.autoDelete.cleanup.summary" = "%d개 녹음 삭제 및 %@ 확보";

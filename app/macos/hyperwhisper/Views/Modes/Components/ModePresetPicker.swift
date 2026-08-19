@@ -17,7 +17,6 @@ struct PresetPickerView: View {
     @Binding var preset: String
     @Binding var customInstructions: String
     @State private var showingInfo = false
-    @State private var hoveredPreset: PresetType?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

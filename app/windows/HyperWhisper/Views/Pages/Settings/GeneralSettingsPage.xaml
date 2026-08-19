@@ -130,6 +130,36 @@
 
                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
 
+                    <!-- Anonymous Speed Data Toggle -->
+                    <!-- Sharing is the default. Turning this off makes every cloud
+                         transcription send X-Latency-Opt-Out: 1 (see LatencyOptOut),
+                         and the server drops the measurement instead of storing it. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{loc:Loc settings.general.shareSpeedData.title}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{loc:Loc settings.general.shareSpeedData.subtitle}"
+                                       FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
+                            <TextBlock FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap">
+                                <Hyperlink RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentBrush}"
+                                           NavigateUri="https://www.hyperwhisper.com/en/latency"><Run Text="{loc:Loc settings.general.shareSpeedData.link}"/></Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <CheckBox x:Name="ShareSpeedDataCheckbox" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Checked="ShareSpeedDataCheckbox_Checked"
+                                  Unchecked="ShareSpeedDataCheckbox_Unchecked"/>
+                    </Grid>
+
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
+
                     <!-- Auto Update Toggle -->
                     <Grid>
                         <Grid.ColumnDefinitions>

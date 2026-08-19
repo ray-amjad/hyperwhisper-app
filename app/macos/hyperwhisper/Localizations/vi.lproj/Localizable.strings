@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Mở Cài đặt";
 "home.accessibility.restart.after.permission" = "Khởi động lại ứng dụng sau khi cấp quyền";
 "home.getting.started.completed" = "✓ Hoàn thành";
-"home.whatsnew.badge" = "MỚI";
-"home.whatsnew.title" = "Có gì mới?";
-"home.whatsnew.update1.date" = "3 Tháng 7";
-"home.whatsnew.update1.title" = "Parakeet hiện đã có sẵn";
-"home.whatsnew.update1.description" = "Tải xuống trực tiếp từ danh sách Mô hình Ngôn ngữ trong tạo Chế độ để thử nó ngay hôm nay.";
-"home.whatsnew.update2.date" = "5 Tháng 6";
-"home.whatsnew.update2.title" = "Hỗ trợ cho mọi mô hình tùy chỉnh tương thích với OpenAI";
-"home.whatsnew.update2.description" = "Bây giờ bạn có thể thêm bất kỳ API tương thích OpenAI nào vào danh sách mô hình của bạn.";
-"home.whatsnew.update3.date" = "27 Tháng 5";
-"home.whatsnew.update3.title" = "Cửa sổ ghi âm Mini hoàn toàn mới";
-"home.whatsnew.update3.description" = "Giao diện ghi âm gọn gàng, tối thiểu lại khỏi đường của bạn.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Cập nhật Gần đây";
@@ -393,6 +382,9 @@
 
 "settings.general.errorLogging.title" = "Ghi lỗi";
 "settings.general.errorLogging.info" = "Tự động chụp và gửi báo cáo lỗi để giúp cải thiện ứng dụng.";
+"settings.general.shareSpeedData.title" = "Chia sẻ dữ liệu tốc độ ẩn danh";
+"settings.general.shareSpeedData.info" = "Đo thời gian mỗi nhà cung cấp đám mây mất và thêm vào so sánh công khai. Một phép đo gồm nhà cung cấp, khu vực máy chủ, độ dài đoạn ghi âm và thời gian đã dùng — không tài khoản, không khóa, không âm thanh và không văn bản. Tắt tính năng này và HyperWhisper sẽ ngừng gửi. Không có gì khác thay đổi, và các mô hình cục bộ không bao giờ gửi bất cứ thứ gì.";
+"settings.general.shareSpeedData.link" = "Xem so sánh tốc độ";
 "settings.general.autoUpdate.title" = "Cập nhật tự động";
 "settings.general.autoUpdate.info" = "Tự động kiểm tra và tải xuống các phiên bản mới của HyperWhisper.";
 "settings.general.support.title" = "Cần giúp đỡ?";
@@ -821,10 +813,6 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "page.header.learnMore" = "Tìm hiểu thêm";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Chuyển đổi Hoàn tất";
-"recording.status.retrying" = "Đang thử lại Chuyển đổi…";
-"recording.status.postprocessing" = "Đang xử lý sau bằng AI…";
-"recording.status.transcribing" = "Đang chuyển đổi…";
 "recording.success.pasted" = "Đã dán!";
 "recording.loading.retrying" = "Đang thử lại…";
 "recording.loading.postprocessing" = "Đang xử lý bằng AI…";
@@ -852,39 +840,22 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "modes.provider.manageInLibrary" = "Quản lý trong Thư viện →";
 "streaming.loading.warming" = "Đang khởi động mô hình cục bộ...";
 "streaming.status.listening" = "Đang nghe...";
-"streaming.status.streaming" = "Đang phát trực tiếp...";
 "streaming.status.disconnecting" = "Đang dừng...";
 "streaming.loading.connecting" = "Đang kết nối với máy chủ...";
 "streaming.loading.ready" = "Khởi tạo âm thanh...";
 "streaming.loading.streaming" = "Chờ đợi lời nói...";
 "streaming.state.reconnecting" = "Đang kết nối lại...";
 "recording.stop.help" = "Dừng Ghi âm (%@)";
-"recording.postprocessing.unavailable" = "Xử lý sau không có sẵn";
-"recording.postprocessing.missing.single" = "Khóa %@ bị thiếu – ghi âm mà không xử lý sau";
-"recording.postprocessing.missing.multiple" = "Khóa API bị thiếu – ghi âm mà không xử lý sau";
-"recording.postprocessing.addKey" = "Thêm Khóa";
-"recording.offline.banner" = "Không có kết nối internet. Chuyển đổi đám mây sẽ thất bại cho đến khi bạn trực tuyến.";
-"recording.offline.title" = "Không có kết nối internet";
-"recording.offline.subtitle" = "Kết nối lại để tiếp tục hoặc chuyển sang chế độ ngoại tuyến.";
-"recording.error.network" = "Kiểm tra kết nối internet của bạn và thử lại.";
-"recording.error.timeout" = "Yêu cầu hết thời gian chờ. Kiểm tra tốc độ kết nối của bạn và thử lại.";
-"recording.error.rateLimit" = "Bạn đã thực hiện quá nhiều yêu cầu. Chờ một lúc rồi thử lại.";
-"recording.error.credits" = "Tín dụng không đủ. Thêm tín dụng trong Cài đặt.";
-"recording.error.apiKey" = "Thêm khóa API %@ của bạn trong Cài đặt.";
-"recording.error.server" = "Dịch vụ chuyển đổi đang gặp vấn đề. Vui lòng thử lại trong giây lát.";
 "recording.retry" = "Thử lại";
 "recording.retry.inProgress" = "Đang thử lại…";
 "recording.retry.count" = "Thử lại (%d)";
 "recording.retry.failed.missing" = "Thử lại không thành công: Tệp âm thanh không tìm thấy";
 "recording.retry.failed.error" = "Thử lại không thành công: %@";
 "recording.retry.pending" = "Sẵn sàng để thử lại – nhấp để chuyển đổi";
-"recording.provider.unknown" = "nhà cung cấp đám mây";
 "recording.cancel.dialog.title" = "Hủy Ghi âm?";
 "recording.cancel.dialog.message" = "Điều này sẽ loại bỏ bản ghi âm hiện tại.";
 "recording.cancel.dialog.confirm" = "Hủy Ghi âm";
 "recording.cancel.dialog.resume" = "Tiếp tục";
-"recording.error.overlay.title" = "Lỗi kết nối mạng";
-"recording.error.overlay.message" = "Nhấn 'Thử lại' dưới đây hoặc chuyển sang chế độ ngoại tuyến để tiếp tục.";
 "recording.mode.default" = "Mặc định";
 "recording.dialog.window.title" = "Hộp thoại Ghi âm";
 "recording.button.start" = "Bắt đầu Ghi âm";
@@ -942,6 +913,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.error.maxRetriesExceeded" = "Vượt quá số lần thử lại tối đa";
 "transcription.error.unauthorized.provider" = "Không được phép: khóa API %@ không hợp lệ hoặc quyền.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
 "transcription.error.unauthorized.generic" = "Không được phép: khóa API hoặc quyền không hợp lệ.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud yêu cầu khóa tài khoản.\n\nMở Cài đặt → HyperWhisper Cloud để nhập khóa của bạn hoặc mua tín dụng.";
 "transcription.error.invalidRequest" = "Yêu cầu không hợp lệ: kiểm tra tệp âm thanh hoặc cài đặt";
 "transcription.error.streamingInterrupted" = "Luồng phát bị gián đoạn; văn bản một phần được hiển thị";
 "transcription.error.busy" = "Dịch vụ chuyển đổi hiện đang bận";
@@ -981,6 +953,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.guidance.needsNativeRelaunch" = "Hãy thoát và mở lại HyperWhisper ở chế độ gốc để dùng hậu xử lý cục bộ.";
 "transcription.guidance.localRuntimeUnavailable" = "Hãy thử lại hoặc chọn một mô hình cục bộ nhỏ hơn trong cài đặt Chế độ.";
 "transcription.error.localRuntimeUnavailable" = "AI cục bộ không thể hoàn tất — bản chép lời gốc của bạn đã được giữ lại.";
+"transcription.error.localSpeechModelEvicted" = "Mô hình giọng nói đã được giải phóng để lấy lại bộ nhớ và không thể tải lại. Hãy đóng bớt ứng dụng rồi thử lại.";
 "settings.backup.localDownload.title" = "Tải xuống mô hình cục bộ?";
 "settings.backup.localDownload.message" = "%d chế độ đã khôi phục của bạn dùng mô hình AI trên thiết bị nhưng chưa được tải xuống.";
 "settings.backup.localDownload.downloadAll" = "Tải xuống tất cả";
@@ -1113,10 +1086,6 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "history.autoDelete.unit.minutes" = "Phút";
 "history.autoDelete.unit.hours" = "Giờ";
 "history.autoDelete.unit.days" = "Ngày";
-"history.autoDelete.unit.minutes.plural" = "phút";
-"history.autoDelete.unit.hours.plural" = "giờ";
-"history.autoDelete.unit.days.plural" = "ngày";
-"history.autoDelete.status.disabled" = "Xóa tự động bị vô hiệu hóa";
 "history.autoDelete.status.enabled" = "Xóa các bản ghi âm cũ hơn %d %@";
 "history.autoDelete.cleanup.noItems" = "Không có bản ghi âm nào để xóa";
 "history.autoDelete.cleanup.summary" = "Đã xóa %d bản ghi âm và giải phóng %@";

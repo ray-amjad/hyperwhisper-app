@@ -197,55 +197,9 @@ public class TranscriptionProviderFactory : IDisposable
     // PRIVATE HELPERS
     // =========================================================================
 
-    private static ITranscriptionProvider ConfigureAndReturn(OpenAIWhisperService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(GroqWhisperService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(DeepgramService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(AssemblyAIService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(ElevenLabsService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(MistralService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(SonioxService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(GeminiTranscriptionService service, string apiKey, string modelId)
-    {
-        service.Configure(apiKey, modelId);
-        return service;
-    }
-
-    private static ITranscriptionProvider ConfigureAndReturn(GrokSttService service, string apiKey, string modelId)
+    // One overload covers every API-key provider: they all derive from
+    // ApiKeyTranscriptionServiceBase, which declares Configure.
+    private static ITranscriptionProvider ConfigureAndReturn(ApiKeyTranscriptionServiceBase service, string apiKey, string modelId)
     {
         service.Configure(apiKey, modelId);
         return service;
@@ -265,10 +219,10 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.OpenAI => "whisper-1",
             CloudTranscriptionProvider.Groq => "whisper-large-v3-turbo",
             CloudTranscriptionProvider.Deepgram => "nova-3-general",
-            CloudTranscriptionProvider.AssemblyAI => "universal-2",
+            CloudTranscriptionProvider.AssemblyAI => "universal-3-5-pro",
             CloudTranscriptionProvider.ElevenLabs => "scribe_v2",
             CloudTranscriptionProvider.Mistral => "voxtral-mini-latest",
-            CloudTranscriptionProvider.Soniox => "stt-async-v4",
+            CloudTranscriptionProvider.Soniox => "stt-async-v5",
             CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
             CloudTranscriptionProvider.HyperWhisperCloud => "",
             CloudTranscriptionProvider.Grok => "",

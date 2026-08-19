@@ -1,0 +1,33 @@
+name: Drizzle journal
+
+# Runs on every pull request, not only the ones that touch the migrations
+# directory. A `paths:` filter would leave this check permanently pending on
+# unrelated pull requests, which stops it from being usable as a required
+# status check. It costs a few seconds when nothing changed.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate migration order
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check compares the pull request against the base branch, so it
+          # needs the history, not just the tip commit.
+          fetch-depth: 0
+
+      # Runs first, on throwaway repositories, so a change that breaks a rule
+      # fails the pull request that makes it rather than one that trips over it
+      # months later.
+      - name: Test the check itself
+        run: bash .github/scripts/test_validate_drizzle_journal.sh
+
+      - name: Validate the Drizzle journal
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: python3 .github/scripts/validate_drizzle_journal.py

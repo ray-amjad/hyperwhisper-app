@@ -606,6 +606,7 @@ fn macos_adapter_matches_fixture_universal_settings() {
             "showRecordingWindow": fixture_settings["general"]["showRecordingWindow"],
             "checkForUpdatesAutomatically": fixture_settings["general"]["checkForUpdatesAutomatically"],
             "enableErrorLogging": fixture_settings["general"]["enableErrorLogging"],
+            "shareAnonymousSpeedData": fixture_settings["general"]["shareAnonymousSpeedData"],
             "launchAtLogin": fixture["platformExtensions"]["macos"]["settings"]["general"]["launchAtLogin"],
             "showInDock": fixture["platformExtensions"]["macos"]["settings"]["general"]["showInDock"]
         }),

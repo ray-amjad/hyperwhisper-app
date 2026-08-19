@@ -17,6 +17,12 @@ struct CloudSTTCatalog: Decodable {
         let displayName: String
         let displayModel: String?
         let vendor: String
+        /// Plain company name shown in the Provider dropdown ("Deepgram",
+        /// "xAI"). Catalog v7+ — carries no model family or version, unlike
+        /// `displayName` ("Deepgram Nova 3"), which stays for tooltips and
+        /// diagnostics. Optional so an older catalog still decodes; callers
+        /// fall back to `displayName`.
+        let vendorDisplayName: String?
         /// The `X-STT-Provider` header value the backend routes on
         /// (e.g. `deepgram`, `azure-mai`, `assemblyai`). Catalog v6+. Optional
         /// so older catalogs still decode; callers fall back conservatively.
@@ -110,7 +116,6 @@ struct CloudSTTCatalog: Decodable {
             self = .unverified
         }
 
-        var asInt: Int? { if case .int(let n) = self { return n } else { return nil } }
     }
 
     /// `autoDetect: true` or `autoDetect: "unverified"` — accept either.
@@ -217,6 +222,59 @@ extension CloudSTTCatalog {
     /// in catalog order. These are the cloud providers the credit path routes to.
     var cloudTierEntries: [Entry] {
         providers.filter { $0.access.cloudTierEligible }
+    }
+
+    // MARK: - Vendor groups (catalog v7+)
+
+    /// One row of the Provider dropdown: a company and every cloud-tier entry
+    /// it owns. Google owns two entries (Chirp + Gemini) and so contributes one
+    /// row whose model list spans both.
+    struct VendorGroup: Identifiable {
+        /// The catalog `vendor` key — the dropdown's selection tag.
+        let id: String
+        /// Plain company name shown in the dropdown.
+        let displayName: String
+        /// The group's entries, in catalog order. Non-empty for every group the
+        /// catalog produces; only the UI's catalog-load-failure fallback rows
+        /// (`CloudAccuracyTier.pickerVendorGroups`) synthesize an empty one.
+        let entries: [Entry]
+
+        /// The entry a fresh selection lands on — the first in catalog order,
+        /// nil for a synthesized fallback row.
+        var defaultEntry: Entry? { entries.first }
+
+        /// Every model in the group, each paired with the entry that owns it.
+        /// Ordered by entry, then by the entry's own model order.
+        var models: [(entry: Entry, model: Model)] {
+            entries.flatMap { entry in (entry.models ?? []).map { (entry, $0) } }
+        }
+    }
+
+    /// The Provider dropdown's rows: cloud-tier entries grouped by `vendor` and
+    /// sorted by company name, so the list reads alphabetically and each
+    /// company appears exactly once.
+    var cloudTierVendorGroups: [VendorGroup] {
+        var order: [String] = []
+        var byVendor: [String: [Entry]] = [:]
+        for entry in cloudTierEntries {
+            if byVendor[entry.vendor] == nil { order.append(entry.vendor) }
+            byVendor[entry.vendor, default: []].append(entry)
+        }
+        return order.compactMap { vendor -> VendorGroup? in
+            guard let entries = byVendor[vendor], let first = entries.first else { return nil }
+            return VendorGroup(
+                id: vendor,
+                displayName: first.vendorDisplayName ?? first.displayName,
+                entries: entries
+            )
+        }
+        .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+
+    /// The vendor group a cloud-tier entry id belongs to, or nil for an unknown id.
+    func vendorGroup(forEntryId id: String) -> VendorGroup? {
+        guard let vendor = entry(byId: id)?.vendor else { return nil }
+        return cloudTierVendorGroups.first { $0.id == vendor }
     }
 
     // MARK: - Provider → model helpers (catalog v6+)

@@ -1,21 +1,23 @@
 ---
 title: Local API Overview
-description: HTTP API exposed by HyperWhisper.app on 127.0.0.1 when the user enables it. Off by default.
+description: HTTP API that HyperWhisper.app serves on 127.0.0.1 after you turn it on. It is off by default.
 ---
 
-HyperWhisper ships with an in-app HTTP server you can opt into from
-**Settings → Local API**. When on, it listens on `127.0.0.1` only — never
-the LAN — and writes the bound port plus a bearer token to a discovery
-file on disk so MCP wrappers, benchmark scripts, and shell automation
-can find it without configuration.
+HyperWhisper contains an HTTP server. You can turn on this server from
+**Settings → API Server** on macOS, or **Settings → Local API** on Windows.
+The server listens on `127.0.0.1` only. It never
+listens on the LAN. The server writes the bound port and a bearer token to a
+discovery file on disk. MCP wrappers, benchmark scripts, and shell automation
+read this file to find the server, and they need no configuration.
 
 ## Discovery file
 
 ```
-~/Library/Application Support/HyperWhisper/local-api.json
+macOS:   ~/Library/Application Support/HyperWhisper/local-api.json
+Windows: %LOCALAPPDATA%\HyperWhisper\local-api.json
 ```
 
-`chmod 600`, JSON shape:
+The file has `chmod 600` permissions on macOS. It has this JSON shape:
 
 ```json
 {
@@ -30,19 +32,22 @@ can find it without configuration.
 
 ## Authentication
 
-Every endpoint except `/health` requires:
+Every endpoint except `/health` needs this header:
 
 ```
 Authorization: Bearer <token>
 ```
 
-The token is generated on first server start (32 random bytes,
-base64-url-encoded) and stored in the macOS Keychain. You can regenerate
-it from Settings → Local API; the previous token is invalidated immediately.
+The server makes the token at the first start (32 random bytes,
+base64-url-encoded). On macOS, the server keeps the token in the Keychain. On
+Windows, it keeps the token in a DPAPI-protected blob at
+`%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. You can make a new token
+from **Settings → API Server** (macOS) or **Settings → Local API** (Windows).
+The previous token then becomes invalid immediately.
 
 ## Response envelope
 
-Both shapes are returned with **HTTP 200**:
+The server returns both shapes with **HTTP 200**:
 
 ```json
 { "ok": true, "...": "..." }
@@ -59,31 +64,36 @@ Both shapes are returned with **HTTP 200**:
 }
 ```
 
-HTTP 4xx is reserved for protocol failures: 400 for malformed JSON, 401
-for missing or invalid bearer token, 403 for a rejected Host/Origin header
-(macOS only — a DNS-rebinding guard applied to every route). Everything else
-(including "transcription engine errored", "API key missing", "file not found")
-arrives as `ok:false` with a machine-readable code.
+The server uses HTTP 4xx for protocol failures only:
+
+- 400 for malformed JSON
+- 401 for a missing or invalid bearer token
+- 403 for a rejected Host/Origin header (macOS only). This is a
+  DNS-rebinding guard on every route.
+
+All other errors arrive as `ok:false` with a machine-readable code. Examples
+are a transcription engine error, a missing API key, and a file that the
+server cannot find.
 
 ## Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/health` | Server identity, provider health snapshot, local-model inventory. **No auth.** |
-| GET | `/models?kind=&installed_only=` | Flat model catalog. |
-| GET | `/modes` | List saved Modes. |
-| POST | `/modes` | Create Mode. |
-| GET | `/modes/{id}` | Fetch one Mode. |
-| PATCH | `/modes/{id}` | Partial-field update. |
-| DELETE | `/modes/{id}` | Delete Mode (refuses to delete the last one). |
-| POST | `/transcribe` | File path (must resolve inside your recordings folder) or `audio_base64`. Drive by `mode_id`, by `engine`+`model`, or mix. Accepts optional `timestamp_granularities` (macOS only) to get `segments`/`words` back. |
-| POST | `/post-process` | Rewrite text via preset or free-form prompt. |
-| GET | `/recordings/search?q=&since=&until=&limit=` | Substring search across past transcripts. |
-| GET | `/recordings/{id}` | Single transcript row. |
+| GET | `/health` | Gets the server identity, the provider health, and the local model inventory. **No token necessary.** |
+| GET | `/models?kind=&installed_only=` | Gets the flat model catalog. |
+| GET | `/modes` | Lists the saved Modes. |
+| POST | `/modes` | Makes a Mode. |
+| GET | `/modes/{id}` | Gets one Mode. |
+| PATCH | `/modes/{id}` | Updates some fields of a Mode. |
+| DELETE | `/modes/{id}` | Deletes a Mode. The server does not delete the last Mode. |
+| POST | `/transcribe` | Transcribes a file path or `audio_base64`. The file path must resolve inside your recordings folder. Control the work with `mode_id`, with `engine` and `model`, or with both. The optional `timestamp_granularities` parameter returns `segments` and `words` (macOS only). |
+| POST | `/post-process` | Rewrites text with a preset or a free-form prompt. |
+| GET | `/recordings/search?q=&since=&until=&limit=` | Searches past transcripts for a substring. |
+| GET | `/recordings/{id}` | Gets one transcript row. |
 
-Full schema is in [`openapi.yaml`](./openapi.yaml).
+The full schema is in [`openapi.yaml`](./openapi.yaml).
 
 ## Next: MCP
 
-To plug HyperWhisper into Cursor, Claude Desktop, or Claude Code as a tool an
-agent can call, follow the [MCP setup guide](./mcp-setup).
+An agent can call HyperWhisper as a tool in Cursor, Claude Desktop, or Claude
+Code. To set up this connection, read the [MCP setup guide](./mcp-setup).

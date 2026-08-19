@@ -640,6 +640,27 @@ extension RecordingTranscriptionFlow {
             clearActiveSessionMode()
             powerActivityManager.endPowerActivity()
 
+            // Resolve the "processing" row created above — UI state first, write
+            // after, as on the success path. Nothing else resolves it: the cancel
+            // shortcut (`handleCancelShortcut`) only cancels the task and resets UI
+            // state, and the pipeline's supersede (`transcribeWithDetails`, "latest
+            // request wins") only cancels. Without this the row sits in HistoryView
+            // as "processing" until `repairStaleProcessingTranscriptsOnLaunch` reaps
+            // it on the next launch — so apply the same treatment launch repair
+            // gives exactly this situation (a processing row that can never
+            // complete): mark it failed, which also restores the Retry affordance
+            // (canRetry = failed + audio path present) and keeps the audio file
+            // referenced rather than orphaned. Reaching this catch means the
+            // completed-status write above never ran, so a finished row cannot be
+            // downgraded. Applies to every provider, cloud included.
+            if let processingTranscriptID {
+                await PersistenceController.shared.markTranscriptFailedInBackground(
+                    transcriptID: processingTranscriptID,
+                    failedReason: "cancelled",
+                    errorText: "Transcription cancelled"
+                )
+            }
+
         } catch {
             let flowElapsedMs = Int(Date().timeIntervalSince(flowStart) * 1000)
             let transcribingUIElapsedMs = transcribingUIStart.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1

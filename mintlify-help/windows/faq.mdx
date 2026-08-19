@@ -5,27 +5,27 @@ description: Troubleshooting and answers for HyperWhisper on Windows.
 
 ## Common questions
 
-- **How do I transcribe an audio file I have on disk?** Right-click the tray icon and choose **Transcribe File**. Supported formats are WAV, MP3, and M4A. Full walkthrough on the [Transcribe a File](/file-transcription) page (Windows tab).
-- **Do I need to set up an API key?** No. HyperWhisper Cloud works out of the box and a Pro license includes 5,000 credits. API keys are only needed if you want to BYOK — see [Providers](/choosing-a-provider) and [API Keys](/api-keys).
-- **Does HyperWhisper Cloud add a markup?** No, it's priced at face value over the underlying provider. See [Providers](/choosing-a-provider).
-- **Which local model should I download?** **Whisper Small** is the best balance for most users. If you're on ARM Windows or want maximum English speed, use **Parakeet v2**. Full hardware-by-hardware guidance on the [Models](/models) page.
-- **Do local models run offline?** Yes — once downloaded, audio never leaves your device.
-- **What if I don't have a dedicated GPU?** Both engines fall back to CPU automatically. Pick a Tiny or Base Whisper model for the best CPU experience.
+- **How do I transcribe an audio file on my disk?** Right-click the tray icon. Then select **Transcribe File**. The supported formats are WAV, MP3, and M4A. For the full procedure, read the [Transcribe a File](/file-transcription) page (Windows tab).
+- **Do I need an API key?** No. HyperWhisper Cloud works by default, and your first credit purchase (from \$5) creates an account key with 5,000 credits. You need an API key only for BYOK. Read [Providers](/choosing-a-provider) and [API Keys](/api-keys).
+- **Does HyperWhisper Cloud add a markup?** No. The price is the face value of the provider that does the work. Read [Providers](/choosing-a-provider).
+- **Which local model is correct for me?** **Whisper Small** gives the best balance for most users. If you use ARM Windows, or you want the maximum English speed, use **Parakeet v2**. The [Models](/models) page gives guidance for each type of hardware.
+- **Do local models run offline?** Yes. After you download a model, your audio stays on your device.
+- **What if I do not have a dedicated GPU?** Both engines change to the CPU automatically. Select a Tiny or Base Whisper model for the best results on a CPU.
 
 ## A "No suggestions." popup appears after dictation
 
-This popup comes from **Windows**, not HyperWhisper or your editor. Windows 11 has a built-in hardware-keyboard text prediction feature that watches any text field and shows a small prediction bar above the cursor — including the "No suggestions." message when it has nothing to predict.
+This popup comes from **Windows**, not from HyperWhisper or your editor. Windows 11 has a text prediction feature for the hardware keyboard. This feature watches each text field and shows a small prediction bar above the cursor. The bar shows the "No suggestions." message when the feature has no prediction.
 
-It triggers whenever new text lands in a focused editable field, so it can appear after HyperWhisper pastes a transcript the same way it would after you type manually.
+The prediction bar appears when new text goes into a focused editable field. HyperWhisper pastes a transcript into the field, and the bar appears. It appears the same way when you type the text manually.
 
-### How to turn it off
+### How to turn off text prediction
 
 <Steps>
   <Step title="Open Windows Settings">
     Press `Windows + I`.
   </Step>
   <Step title="Go to Typing settings">
-    Navigate to **Time & language → Typing**.
+    Go to **Time & language → Typing**.
   </Step>
   <Step title="Disable physical-keyboard suggestions">
     Turn off **Show text suggestions when typing on the physical keyboard**.
@@ -33,7 +33,7 @@ It triggers whenever new text lands in a focused editable field, so it can appea
 </Steps>
 
 <Tip>
-  Prefer the registry? Set `HKEY_CURRENT_USER\Software\Microsoft\Input\Settings\EnableHwkbTextPrediction` to `0` and sign out / sign in.
+  You can also use the registry. Set `HKEY_CURRENT_USER\Software\Microsoft\Input\Settings\EnableHwkbTextPrediction` to `0`. Then sign out and sign in.
 </Tip>
 
-This is a known quirk that affects VS Code and other editors regardless of how text is inserted — see [microsoft/vscode#212357](https://github.com/microsoft/vscode/issues/212357) for background.
+This behavior is known. It affects VS Code and other editors, and the method of text insertion makes no difference. For more information, read [microsoft/vscode#212357](https://github.com/microsoft/vscode/issues/212357).

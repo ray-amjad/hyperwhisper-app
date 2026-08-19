@@ -9,7 +9,7 @@
 ;   2. Ensure Inno Setup is installed and iscc.exe is in PATH
 
 #define MyAppName "HyperWhisper"
-#define MyAppVersion "1.8.3"
+#define MyAppVersion "1.11.0"
 #define MyAppPublisher "HyperWhisper"
 #define MyAppURL "https://www.hyperwhisper.com"
 #define MyAppExeName "HyperWhisper.exe"

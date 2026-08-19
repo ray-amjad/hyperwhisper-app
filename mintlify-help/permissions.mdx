@@ -1,9 +1,9 @@
 ---
 title: macOS Permissions
-description: What permissions HyperWhisper needs on macOS, when each is prompted, what breaks without it, and how to grant them in System Settings.
+description: The macOS permissions that HyperWhisper requires — when macOS prompts for each one, what stops without it, and how to grant it in System Settings.
 ---
 
-HyperWhisper needs a small number of macOS permissions to work. Each is prompted only when first needed — you don't have to grant everything up front.
+HyperWhisper requires a small number of macOS permissions. macOS asks for each permission at the time the app first needs it. You do not have to grant all of them at the start.
 
 ## Permissions at a glance
 
@@ -18,72 +18,76 @@ HyperWhisper needs a small number of macOS permissions to work. Each is prompted
 
 ## Microphone
 
-Required for any transcription. The first time you start a recording, macOS shows the standard system dialog:
+All transcription requires the Microphone permission. At your first recording, macOS shows the standard system dialog:
 
 > "HyperWhisper" would like to access the microphone.
 
-Click **OK**. If you click **Don't Allow** by accident, you can change it later at **System Settings → Privacy & Security → Microphone** and toggle HyperWhisper on.
+Click **OK**. If you click **Don't Allow** by accident, open **System Settings → Privacy & Security → Microphone**. Then turn on HyperWhisper.
 
-**Without it:** Recording fails immediately. The app shows an error banner explaining how to grant access.
+**Without it:** Recording fails immediately. The app shows an error banner that tells you how to grant access.
 
 ## Accessibility
 
-Required for two features:
+Two features require the Accessibility permission:
 
-- **Auto-paste** — issuing the paste keystroke on your behalf into the frontmost app.
-- **Bare-modifier push-to-talk** — listening for hold-to-record on a single modifier key (Fn, Option, or Control) globally, including the Fn+Control and Fn+Option combo modes. Fn is the default. (Standard hotkey combinations like `⌥Space` work without Accessibility.)
+- **Auto-paste** — HyperWhisper sends the paste keystroke to the frontmost app for you.
+- **Bare-modifier push-to-talk** — HyperWhisper detects hold-to-record on one modifier key (Fn, Option, or Control) in all apps. This includes the Fn+Control and Fn+Option combination modes. Fn is the default. Standard hotkey combinations such as `⌥Space` work without the Accessibility permission.
 
-Unlike Microphone, macOS does not show an automatic prompt for Accessibility — you have to grant it manually:
+macOS does not show an automatic prompt for Accessibility, unlike the Microphone permission. You must grant it manually:
 
 <Steps>
   <Step title="Open System Settings">
     Choose **System Settings → Privacy & Security → Accessibility**.
   </Step>
   <Step title="Unlock and add HyperWhisper">
-    Click the lock icon and authenticate, then enable **HyperWhisper** in the list.
+    Click the lock icon and authenticate. Then turn on **HyperWhisper** in the list.
   </Step>
-  <Step title="Restart HyperWhisper">
-    Quit and reopen the app so the new permission takes effect.
+  <Step title="Go back to HyperWhisper">
+    The new permission takes effect while the app runs. You do not need to start the app again. Auto-paste examines the permission at each use, so it works at your next transcription. Bare-modifier push-to-talk starts as soon as the app finds the grant.
   </Step>
 </Steps>
 
-If Accessibility is missing, HyperWhisper shows a banner on the home screen with a one-click link to the right pane in System Settings.
+<Note>
+  HyperWhisper watches for the Accessibility grant for 10 minutes after it finds the permission missing. If you take more than 10 minutes to grant it, select the push-to-talk mode again in **Settings → Shortcuts**, or start the app again.
+</Note>
 
-**Without it:** Auto-paste does nothing (transcript stays on clipboard); bare-modifier push-to-talk doesn't activate. Standard hotkey combos still work.
+If the Accessibility permission is missing, HyperWhisper shows a banner on the home screen. The banner has a link to the correct pane in System Settings.
 
-![Accessibility permissions](/images/accessibility-permissions.jpg)
+**Without it:** Auto-paste does nothing, and the transcript stays on the clipboard. Bare-modifier push-to-talk does not start. Standard hotkey combinations still work.
+
+![Accessibility permission for HyperWhisper in System Settings](/images/accessibility-permissions.jpg)
 
 ## Screen Recording
 
-**Optional** — only needed if you use **Screen Text mode**, which reads on-screen text into your transcript context. If you don't use that mode, you don't need this permission.
+**Optional** — only **Screen Text mode** requires this permission. This mode reads the text on the screen into your transcript context. If you do not use this mode, you do not need this permission.
 
-If you enable Screen Text mode, macOS prompts the first time it captures the screen. Grant at **System Settings → Privacy & Security → Screen Recording** and restart HyperWhisper.
+If you turn on Screen Text mode, macOS prompts you at the first screen capture. Grant the permission at **System Settings → Privacy & Security → Screen Recording**. Then start HyperWhisper again.
 
-**Without it:** Screen Text mode fails silently. Other modes are unaffected.
+**Without it:** Screen Text mode fails and shows no error. Other modes continue to work.
 
 ## Automation (Apple Events)
 
-Used to send your transcribed text to apps like **Notes** (Quick Capture). macOS prompts the first time HyperWhisper needs to automate one of these apps — grant at **System Settings → Privacy & Security → Automation**.
+HyperWhisper uses this permission to send your transcribed text to apps such as **Notes** (Quick Capture). macOS prompts you when HyperWhisper first controls one of these apps. Grant the permission at **System Settings → Privacy & Security → Automation**.
 
-**Without it:** Quick Capture to Notes doesn't work; other transcription features are unaffected.
+**Without it:** Quick Capture to Notes does not work. Other transcription features continue to work.
 
 <Note>
-  HyperWhisper mutes system audio during recording (see [Media Control](/media-control)) using direct system audio APIs, not Apple Events automation — this does not require the Automation permission.
+  HyperWhisper mutes the system audio during recording (see [Media Control](/media-control)). It uses the direct system audio APIs, not Apple Events automation. This function does not require the Automation permission.
 </Note>
 
 ## Speech Recognition
 
-Used by the **Apple Speech Analyzer** local transcription engine (macOS 26+). macOS prompts the first time you transcribe with that model — grant at **System Settings → Privacy & Security → Speech Recognition**.
+The **Apple Speech Analyzer** local transcription engine uses this permission (macOS 26+). macOS prompts you at your first transcription with that model. Grant the permission at **System Settings → Privacy & Security → Speech Recognition**.
 
-**Without it:** Apple Speech Analyzer transcriptions fail; other local and cloud models are unaffected.
+**Without it:** Transcriptions with Apple Speech Analyzer fail. Other local models and cloud models continue to work.
 
 ## Input Monitoring
 
-**Not required.** HyperWhisper uses macOS's standard global hotkey API and the Accessibility API for advanced push-to-talk — neither needs Input Monitoring. If macOS or another tool prompts you to grant Input Monitoring to HyperWhisper, it's safe to decline.
+**Not required.** HyperWhisper uses the standard global hotkey API of macOS. It also uses the Accessibility API for advanced push-to-talk. These two APIs do not need Input Monitoring. If macOS or another tool prompts you to grant Input Monitoring to HyperWhisper, you can refuse.
 
-## Resetting permissions
+## Reset the permissions
 
-If permissions get stuck or you've granted them to an old build:
+If the permissions stop working, or if you granted them to an old build, run these commands:
 
 ```bash
 tccutil reset Microphone com.hyperwhisper.hyperwhisper
@@ -93,8 +97,8 @@ tccutil reset AppleEvents com.hyperwhisper.hyperwhisper
 tccutil reset SpeechRecognition com.hyperwhisper.hyperwhisper
 ```
 
-Then relaunch HyperWhisper and re-grant when prompted.
+Then start HyperWhisper again. Grant each permission again when macOS prompts you.
 
 <Note>
-  Replace `com.hyperwhisper.hyperwhisper` with the bundle ID of your build if you're running a development version.
+  If you run a development version, replace `com.hyperwhisper.hyperwhisper` with the bundle ID of your build.
 </Note>

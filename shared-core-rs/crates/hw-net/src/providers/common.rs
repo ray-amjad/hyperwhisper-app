@@ -28,9 +28,48 @@ pub enum Auth {
 pub enum VocabularyMode {
     /// Inject comma-separated terms into the `prompt` field (OpenAI / Groq).
     Prompt,
-    /// Provider does not accept vocabulary; terms are dropped (Mistral / Grok).
-    None,
+    /// Send one field per term under `name`, capped at `max_terms`
+    /// (Mistral `context_bias`).
+    ///
+    /// `underscore_separators` replaces every whitespace run and comma inside a
+    /// term with a single `_`. Mistral validates `context_bias` items with its
+    /// `comma_separated` format and rejects any item containing whitespace or a
+    /// comma with HTTP 400 — so a two-word term like `Claude Code` would fail
+    /// the whole transcription rather than just miss its boost. Mistral's own
+    /// docs bias phrases this way (`["affordable_health_care"]`), and
+    /// `hyperwhisper-cloud/src/providers/mistral.ts` already does the same
+    /// substitution on the routed path.
+    Terms {
+        name: &'static str,
+        max_terms: usize,
+        underscore_separators: bool,
+    },
 }
+
+/// Replace every whitespace run and comma in `term` with a single `_`.
+/// See [`VocabularyMode::Terms`] for why Mistral needs this.
+fn underscore_separators(term: &str) -> String {
+    // Split on the characters Voxtral forbids and rejoin with a single "_".
+    // Working on segments rather than substituting in place is what preserves a
+    // term's OWN underscores: "__init__" contains no whitespace and no comma, so
+    // it is one segment and passes through untouched, while "Smith,  Jr." is two
+    // segments and becomes "Smith_Jr.".
+    term.split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
+/// Multipart field name for a structured keyword list. OpenAI encodes array
+/// parameters on this endpoint with a trailing `[]` (same shape as the
+/// documented `timestamp_granularities[]`), one field per element.
+pub const KEYWORDS_FIELD: &str = "keywords[]";
+
+/// Cap on the structured keyword list. Mirrors `MAX_KEYWORDS` in
+/// `hyperwhisper-cloud/src/providers/openai.ts` so BYOK and the routed path
+/// send the same number of hints; without it the BYOK path was unbounded while
+/// the cloud path capped, and a 250-entry vocabulary POSTed 250 parts.
+pub const MAX_KEYWORDS: usize = 100;
 
 /// Declarative description of an OpenAI-style multipart transcription provider.
 pub struct OpenAiStyleSpec {
@@ -43,6 +82,12 @@ pub struct OpenAiStyleSpec {
     /// Whether to send `response_format=json` (OpenAI / Groq). Mistral / Grok
     /// return `{ "text" }` without this field, so they omit it.
     pub send_response_format: bool,
+    /// Models on this provider that take a STRUCTURED keyword list instead of
+    /// vocabulary-in-`prompt`. For a model listed here the terms go out as
+    /// repeated [`KEYWORDS_FIELD`] parts and `prompt` carries only the caller's
+    /// own instructions. Every other model keeps the framed-prompt behavior.
+    /// Empty for providers with no such model.
+    pub keywords_models: &'static [&'static str],
 }
 
 /// Build an OpenAI-compatible multipart request from a spec.
@@ -68,14 +113,15 @@ pub fn build_openai_style(
         filename_of(&params.audio_path),
     ));
 
+    let model = if params.model.trim().is_empty() {
+        spec.default_model.to_string()
+    } else {
+        params.model.clone()
+    };
+
     // model
     if spec.send_model {
-        let model = if params.model.trim().is_empty() {
-            spec.default_model.to_string()
-        } else {
-            params.model.clone()
-        };
-        parts.push(multipart_field("model", model));
+        parts.push(multipart_field("model", model.clone()));
     }
 
     // language — omitted when absent / empty / "auto" (case-insensitive).
@@ -95,12 +141,47 @@ pub fn build_openai_style(
         }
     }
 
-    // prompt — vocabulary CSV (when supported) followed by the caller's custom
-    // instructions (`params.prompt`). Either may be empty.
-    if spec.vocabulary == VocabularyMode::Prompt {
-        let prompt = build_prompt(params);
-        if !prompt.is_empty() {
-            parts.push(multipart_field("prompt", prompt));
+    // vocabulary — folded into `prompt` with the framing preamble (followed by
+    // the caller's custom instructions), sent as a structured `keywords[]` list
+    // on the models that take one, or sent as one field per term. Any of them
+    // may be empty.
+    match spec.vocabulary {
+        VocabularyMode::Prompt => {
+            // A model listed in `spec.keywords_models` takes the terms as a
+            // structured `keywords[]` list, so the framing preamble is NOT
+            // applied and `prompt` carries only the caller's own instructions —
+            // the framing would otherwise describe terms that are not there.
+            let sends_keywords = spec.keywords_models.contains(&model.as_str());
+            if sends_keywords {
+                for term in keyword_boost_terms(&params.vocabulary, Some(MAX_KEYWORDS)) {
+                    parts.push(multipart_field(KEYWORDS_FIELD, term));
+                }
+            }
+            let prompt = if sends_keywords {
+                custom_prompt(params).unwrap_or_default().to_string()
+            } else {
+                build_prompt(params)
+            };
+            if !prompt.is_empty() {
+                parts.push(multipart_field("prompt", prompt));
+            }
+        }
+        VocabularyMode::Terms {
+            name,
+            max_terms,
+            underscore_separators: needs_underscores,
+        } => {
+            for term in keyword_boost_terms(&params.vocabulary, Some(max_terms)) {
+                let value = if needs_underscores {
+                    underscore_separators(&term)
+                } else {
+                    term
+                };
+                if value.is_empty() {
+                    continue;
+                }
+                parts.push(multipart_field(name, value));
+            }
         }
     }
 
@@ -121,6 +202,17 @@ pub fn build_openai_style(
     })
 }
 
+/// The caller's own instructions, trimmed, or `None` when there are none.
+/// Both `prompt` shapes (framed-vocabulary and keywords-only) end with these,
+/// so the normalization lives in one place.
+fn custom_prompt(params: &TranscribeParams) -> Option<&str> {
+    params
+        .prompt
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
 /// Compose the `prompt` field value: vocabulary terms framed as
 /// `"Important terms to recognize: a, b, c. "` (comma-**space** join, trailing
 /// `". "`), then the caller's custom instructions (`params.prompt`).
@@ -138,11 +230,7 @@ fn build_prompt(params: &TranscribeParams) -> String {
     } else {
         format!("Important terms to recognize: {}. ", terms.join(", "))
     };
-    let custom = params
-        .prompt
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty());
+    let custom = custom_prompt(params);
     match (framed_vocab.is_empty(), custom) {
         (true, None) => String::new(),
         (true, Some(c)) => c.to_string(),
@@ -301,7 +389,7 @@ pub(crate) fn error_message(json: Option<&serde_json::Value>, raw: &str) -> Stri
 }
 
 /// Parse the `Retry-After` header (integer seconds) if present.
-fn retry_after(resp: &HttpResponse) -> Option<u64> {
+pub(crate) fn retry_after(resp: &HttpResponse) -> Option<u64> {
     resp.header("Retry-After")
         .and_then(|v| v.trim().parse::<u64>().ok())
 }
@@ -359,6 +447,7 @@ mod tests {
             auth: Auth::Bearer,
             vocabulary: VocabularyMode::Prompt,
             send_model: true,
+            keywords_models: &[],
             send_response_format: true,
         }
     }

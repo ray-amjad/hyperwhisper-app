@@ -161,27 +161,6 @@ public static class CloudTranscriptionProviderExtensions
     };
 
     /// <summary>
-    /// Gets the base API endpoint URL for the provider.
-    /// </summary>
-    public static string GetApiBaseUrl(this CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.OpenAI => "https://api.openai.com",
-        CloudTranscriptionProvider.Groq => "https://api.groq.com",
-        CloudTranscriptionProvider.Deepgram => "https://api.deepgram.com",
-        CloudTranscriptionProvider.AssemblyAI => "https://api.assemblyai.com",
-        CloudTranscriptionProvider.ElevenLabs => "https://api.elevenlabs.io",
-        CloudTranscriptionProvider.Mistral => "https://api.mistral.ai",
-        CloudTranscriptionProvider.Soniox => "https://api.soniox.com",
-        CloudTranscriptionProvider.HyperWhisperCloud => "https://transcribe-prod-v2.hyperwhisper.com",
-        CloudTranscriptionProvider.Gemini => "https://generativelanguage.googleapis.com",
-        CloudTranscriptionProvider.Grok => "https://api.x.ai",
-        // HW Cloud only — backend routes through the Fly /transcribe endpoint.
-        CloudTranscriptionProvider.MicrosoftAzureSpeech => "https://transcribe-prod-v2.hyperwhisper.com",
-        CloudTranscriptionProvider.GoogleSpeech => "https://transcribe-prod-v2.hyperwhisper.com",
-        _ => ""
-    };
-
-    /// <summary>
     /// Gets the URL where users can obtain an API key for this provider.
     /// </summary>
     public static string GetApiKeyUrl(this CloudTranscriptionProvider provider) => provider switch
@@ -227,27 +206,16 @@ public static class CloudTranscriptionProviderExtensions
     public static bool SupportsVocabulary(this CloudTranscriptionProvider provider) => provider switch
     {
         // ElevenLabs: Scribe v2 supports vocabulary, v1 doesn't (model-specific check in UI)
-        CloudTranscriptionProvider.Mistral => false,
-        // Grok STT has no prompt or keyterm parameter
-        CloudTranscriptionProvider.Grok => false,
         // Azure MAI + Google Chirp 3 are surfaced as HW Cloud accuracy tiers
         // since PR #521; they no longer appear in the standalone BYOK list.
         // Any un-migrated mode that still hits the BYOK path with these
-        // provider values must NOT ship `initial_prompt` (Chirp 3 drops it,
-        // Azure MAI uses a different field). The HW Cloud send path has its
-        // own catalog-driven gate.
+        // provider values must NOT ship `initial_prompt` (Chirp 3 takes a
+        // phrase set on the routed path only, Azure MAI uses a different
+        // field). The HW Cloud send path has its own catalog-driven gate.
         CloudTranscriptionProvider.MicrosoftAzureSpeech => false,
         CloudTranscriptionProvider.GoogleSpeech => false,
         CloudTranscriptionProvider.None => false,
         _ => true
     };
 
-    /// <summary>
-    /// Gets all available providers (excluding None).
-    /// </summary>
-    public static IEnumerable<CloudTranscriptionProvider> GetAllProviders()
-    {
-        return Enum.GetValues<CloudTranscriptionProvider>()
-            .Where(p => p != CloudTranscriptionProvider.None);
-    }
 }

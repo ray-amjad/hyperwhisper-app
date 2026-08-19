@@ -14,13 +14,24 @@
 //!
 //! ## Vocabulary
 //!
-//! Voxtral does not support custom vocabulary/prompts, so vocabulary terms are
-//! dropped (no `prompt` field). Matches both shipped clients.
+//! Voxtral has no free-text `prompt` field. It takes a STRUCTURED
+//! `context_bias` list instead — one field per term, at most
+//! [`MAX_CONTEXT_BIAS_TERMS`], with whitespace and commas folded to `_` because
+//! Voxtral's `comma_separated` validator 400s an item that contains either.
+//! `params.prompt` (custom instructions) is still dropped, since there is no
+//! field to carry it.
+//!
+//! PARITY: `hyperwhisper-cloud/src/providers/mistral.ts` sends the same field
+//! with the same 100-term cap and the same `\s+ → _` substitution on the routed
+//! path. Mistral's API schema types
+//! `context_bias` as an array, so it is one form field per term — a single
+//! comma-joined value would bias one literal phrase containing commas.
 //!
 //! ## Fields & response
 //!
 //! `file`, `model` (default `voxtral-mini-latest`), `language` (omitted when
-//! absent / empty / `"auto"`). Response is `{ "text": "..." }`.
+//! absent / empty / `"auto"`), `context_bias` (repeated, omitted when the
+//! vocabulary is empty). Response is `{ "text": "..." }`.
 //!
 //! Parity references: macOS `MistralProvider.swift`, Windows `MistralService.cs`.
 //!
@@ -39,14 +50,24 @@ pub const ENDPOINT: &str = "https://api.mistral.ai/v1/audio/transcriptions";
 /// PARITY: macOS + Windows both default to `voxtral-mini-latest`.
 pub const DEFAULT_MODEL: &str = "voxtral-mini-latest";
 
+/// Mistral caps `context_bias` at 100 phrases.
+pub const MAX_CONTEXT_BIAS_TERMS: usize = 100;
+
 fn spec() -> OpenAiStyleSpec {
     OpenAiStyleSpec {
         endpoint: ENDPOINT,
         default_model: DEFAULT_MODEL,
         // x-api-key, NOT Bearer — see module docs.
         auth: Auth::XApiKey,
-        vocabulary: VocabularyMode::None,
+        vocabulary: VocabularyMode::Terms {
+            name: "context_bias",
+            max_terms: MAX_CONTEXT_BIAS_TERMS,
+            // Voxtral rejects a context_bias item containing whitespace or a
+            // comma with HTTP 400 — see VocabularyMode::Terms.
+            underscore_separators: true,
+        },
         send_model: true,
+        keywords_models: &[],
         // Mistral returns { "text" } without a response_format field.
         send_response_format: false,
     }
@@ -85,6 +106,16 @@ mod tests {
         })
     }
 
+    fn fields<'a>(parts: &'a [Part], name: &str) -> Vec<&'a str> {
+        parts
+            .iter()
+            .filter_map(|p| match p {
+                Part::Field { name: n, value } if n == name => Some(value.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
     #[test]
     fn uses_x_api_key_not_bearer() {
         let req = build_transcribe_request(&params()).unwrap();
@@ -97,20 +128,101 @@ mod tests {
 
     #[test]
     fn default_model_and_no_prompt_or_response_format() {
-        let mut p = params();
-        p.vocabulary = vec!["ignored".to_string()];
-        let req = build_transcribe_request(&p).unwrap();
+        let req = build_transcribe_request(&params()).unwrap();
         assert_eq!(req.url, ENDPOINT);
         match &req.body {
             Body::Multipart { parts, .. } => {
                 assert!(matches!(&parts[0], Part::FileRef { field, mime, .. }
                     if field == "file" && mime == "audio/flac"));
                 assert_eq!(field(parts, "model"), Some("voxtral-mini-latest"));
-                // Voxtral: no vocabulary support, no response_format.
+                // Voxtral: no free-text prompt field, no response_format.
                 assert_eq!(field(parts, "prompt"), None);
                 assert_eq!(field(parts, "response_format"), None);
+                assert!(fields(parts, "context_bias").is_empty());
             }
             other => panic!("expected multipart, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn vocabulary_becomes_repeated_context_bias_fields() {
+        let mut p = params();
+        p.vocabulary = vec!["HyperWhisper".to_string(), "UniFFI".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(
+                fields(parts, "context_bias"),
+                vec!["HyperWhisper", "UniFFI"]
+            );
+            // The custom-instructions prompt still has no field to go in.
+            assert_eq!(field(parts, "prompt"), None);
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn context_bias_deduplicates_and_caps_at_100() {
+        let mut p = params();
+        p.vocabulary = std::iter::once("Kept".to_string())
+            .chain(std::iter::once("kept".to_string()))
+            .chain((0..MAX_CONTEXT_BIAS_TERMS).map(|i| format!("term{i}")))
+            .collect();
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            let sent = fields(parts, "context_bias");
+            assert_eq!(sent.len(), MAX_CONTEXT_BIAS_TERMS);
+            assert_eq!(sent[0], "Kept");
+            assert_eq!(sent[1], "term0");
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn prompt_only_still_sends_nothing() {
+        let mut p = params();
+        p.prompt = Some("Format as bullet points.".to_string());
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(field(parts, "prompt"), None);
+            assert!(fields(parts, "context_bias").is_empty());
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn multi_word_and_comma_terms_are_underscored_not_rejected() {
+        // Voxtral's comma_separated validator 400s an item containing
+        // whitespace or a comma, so the builder must fold both to "_".
+        let mut p = params();
+        p.vocabulary = vec![
+            "Claude Code".to_string(),
+            "Smith,  Jr.".to_string(),
+            "HyperWhisper".to_string(),
+        ];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            let sent = fields(parts, "context_bias");
+            assert_eq!(sent, vec!["Claude_Code", "Smith_Jr.", "HyperWhisper"]);
+            assert!(!sent.iter().any(|t| t.contains(' ') || t.contains(',')));
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn a_terms_own_underscores_survive() {
+        // Only whitespace and commas are separators. A term that already
+        // contains underscores is not a multi-word term and must not be trimmed.
+        let mut p = params();
+        p.vocabulary = vec!["__init__".to_string(), "_private".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "context_bias"), vec!["__init__", "_private"]);
+        } else {
+            panic!("expected multipart");
         }
     }
 
@@ -121,6 +233,8 @@ mod tests {
         let req = build_transcribe_request(&p).unwrap();
         if let Body::Multipart { parts, .. } = &req.body {
             assert_eq!(field(parts, "language"), Some("fr"));
+        } else {
+            panic!("expected multipart");
         }
     }
 

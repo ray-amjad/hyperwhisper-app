@@ -92,6 +92,13 @@
       "when": 1782799378674,
       "tag": "0012_rename_license_keys_to_account_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786504473867,
+      "tag": "0013_nifty_amazoness",
+      "breakpoints": true
     }
   ]
 }

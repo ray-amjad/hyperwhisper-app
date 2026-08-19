@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Yerel API ve MCP Sunucusu",
-      "description": "Yerleşik MCP sunucusu Claude, Cursor ve diğer yapay zeka ajanlarının HyperWhisper'ı çalıştırmasına olanak tanır. Komut dosyaları ve otomasyonlar için bearer kimlik doğrulamalı, yalnızca yerel HTTP API."
+      "description": "Yerleşik MCP sunucusu Claude, Cursor ve diğer yapay zeka ajanlarının HyperWhisper'ı çalıştırmasına olanak tanır. Komut dosyaları ve otomasyonlar için yalnızca yerel HTTP API."
     },
     "modes": {
       "title": "Her durum için modlar",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Transkripsiyon ne kadar doğru?",
-        "answer": "Son teknoloji yapay zeka modelleriyle sektör lideri %99 doğruluk sağlıyoruz. Teknik terimler, isimler ve uzmanlık jargonları için kendi özel sözlüğünüzü ekleyerek doğruluğu daha da artırabilirsiniz."
+        "answer": "Bu, kullandığınız model ve dil kombinasyonuna bağlıdır. Bazı modeller İngilizcede çok iyi ama başka dillerde daha zayıftır; bulut modelleri de genellikle yerel modellerden daha doğrudur. Teknik terimler, isimler ve uzmanlık jargonları için kendi özel sözlüğünüzü ekleyerek herhangi bir modelin doğruluğunu artırabilirsiniz."
       },
       "offline": {
         "question": "İnternetsiz kullanabilir miyim?",
-        "answer": "Kesinlikle. HyperWhisper, Mac'inizde yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
+        "answer": "Kesinlikle. HyperWhisper, Mac'inizde veya Windows bilgisayarınızda yerel yapay zeka modelleriyle tamamen çevrimdışı kullanılabilir - internet gerekmez. En yüksek doğruluk ve hız isteyen kullanıcılar için farklı bulut sağlayıcıları üzerinden isteğe bağlı bulut işleme de sunuyoruz."
       },
       "apiKey": {
         "question": "API erişimi için ödeme yapmam gerekiyor mu?",
-        "answer": "Şu sağlayıcılar için kendi API anahtarınızı kullanırsınız: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ve Google Gemini. Bazı sağlayıcılar yeni kullanıcılara ücretsiz kredi verir; Deepgram $200, AssemblyAI $50 sunar. Uzun vadede bu, herhangi bir abonelikten belirgin şekilde daha ucuzdur. \n\nAyrıca API anahtarı gerektirmeyen ve kullandıkça öde modeliyle çalışan HyperWhisper Cloud'u (yerleşik) da kullanabilirsiniz.\n\nUnutmayın, yerel çevrimdışı mod herhangi bir API anahtarı olmadan çalışır ve tamamen ücretsizdir."
+        "answer": "Şu sağlayıcılar için kendi API anahtarınızı kullanırsınız: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ve Google Gemini. Bazı sağlayıcılar yeni kullanıcılara ücretsiz kredi verir; Deepgram $200, AssemblyAI $50 sunar. Uzun vadede bu, herhangi bir abonelikten belirgin şekilde daha ucuzdur. \n\nAyrıca API anahtarı gerektirmeyen ve kullandıkça öde modeliyle çalışan HyperWhisper Cloud'u (yerleşik) da kullanabilirsiniz.\n\nUnutmayın, yerel çevrimdışı mod herhangi bir API anahtarı olmadan çalışır ve tamamen ücretsizdir."
       },
       "languages": {
         "question": "Hangi dilleri destekliyor?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Gizliliğim nasıl korunuyor?",
-        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs veya Mistral).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi veya [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile kendiniz doğrulayabilirsiniz."
+        "answer": "Yerel mod kullanırken hiçbir veri Mac'inizden veya Windows bilgisayarınızdan çıkmaz.\n\nBulut transkripsiyonu kullanırken verileriniz seçtiğiniz bulut sağlayıcısına gönderilir (ör. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox veya Google Gemini).\n\nBunu [Proxyman](https://proxyman.io) gibi bir ağ denetleyicisi, [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) gibi bir ağ monitoru ile veya [GitHub'daki kaynak kodu](https://github.com/ray-amjad/hyperwhisper-app) okuyarak kendiniz doğrulayabilirsiniz."
       },
       "cloud": {
         "question": "HyperWhisper Cloud nedir?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Sistem gereksinimleri nelerdir?",
         "answer": "Mac için: macOS 14 veya üzeri, Apple Silicon ve Intel desteklenir. Windows için: Windows 10/11, x64 veya ARM64. En iyi performans için 8 GB RAM önerilir."
-      },
-      "windowsStatus": {
-        "question": "Windows sürümünde macOS'taki tüm özellikler var mı?",
-        "answer": "Windows sürümü yakın zamanda yayımlandı, bu yüzden macOS'ta bulunan tüm özelliklere henüz sahip olmayabilir. Her iki platformda tam özellik eşitliği sağlamak için aktif olarak çalışıyoruz."
       },
       "madeBy": {
         "question": "Bunu kim yaptı?",

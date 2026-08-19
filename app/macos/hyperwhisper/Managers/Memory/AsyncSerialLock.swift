@@ -1,0 +1,81 @@
+//
+//  AsyncSerialLock.swift
+//  hyperwhisper
+//
+//  A FIFO async mutex, for serialising an owner's load/teardown sequence.
+//
+
+import Foundation
+
+/// Mutual exclusion that holds ACROSS `await`, handing the lock on in FIFO order.
+///
+/// An `actor` on its own does not give you this. Actor methods are REENTRANT:
+/// another call slips in at every suspension point of the one in progress. That
+/// reentrancy is the whole of HYPERWHISPER-SQ's whisper.cpp arm — a teardown
+/// suspended inside `releaseResources()` resumed after a reload had already
+/// installed a fresh context, and tore the fresh one down. Holding this lock
+/// across an entire load or an entire teardown makes that interleaving
+/// impossible rather than merely detectable.
+///
+/// Use `withLock`, not `lock()`/`unlock()`. The raw pair is exposed only because
+/// `withLock` is built from it (and because a test double may want it): every
+/// production call site goes through `withLock`, so no edit to a critical
+/// section can leak the lock.
+///
+/// Deliberately NOT cancellation-aware: every waiter is resumed by the holder's
+/// `unlock()`, which `withLock` runs on the throwing path as well as the
+/// returning one, so nobody can be parked forever. A task cancelled while
+/// waiting still takes the lock, and checks cancellation itself once it holds
+/// it.
+actor AsyncSerialLock {
+
+    private var isHeld = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Suspends until the lock is free, then takes it. MUST be balanced by
+    /// exactly one `unlock()` on every exit path, including throws — which is
+    /// what `withLock` exists to guarantee. Prefer it.
+    func lock() async {
+        guard isHeld else {
+            isHeld = true
+            return
+        }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            waiters.append(continuation)
+        }
+    }
+
+    /// Hands the lock to the longest-waiting caller, or frees it when nobody is
+    /// waiting. Ownership passes directly on a handoff, so `isHeld` stays true —
+    /// a third caller arriving in between must still wait.
+    func unlock() {
+        if waiters.isEmpty {
+            isHeld = false
+        } else {
+            waiters.removeFirst().resume()
+        }
+    }
+
+    /// Runs `body` with the lock held and releases it on EVERY exit path,
+    /// including a throw. This is the only form call sites should use:
+    /// hand-written `lock()` / `unlock()` pairs put the release obligation on
+    /// whoever edits the body next, and `defer` cannot discharge it because
+    /// `unlock()` is `async`.
+    ///
+    /// `nonisolated` on purpose. `body` therefore runs in the CALLER's context,
+    /// exactly as an inline `lock()`/`unlock()` pair would, and only the two
+    /// bookkeeping calls hop onto this actor — so a caller can keep passing a
+    /// closure that touches its own non-`Sendable` state (which is the entire
+    /// point: `LibWhisperProvider` guards a `whisper_context` with this).
+    nonisolated func withLock<T>(_ body: () async throws -> T) async rethrows -> T {
+        await lock()
+        do {
+            let value = try await body()
+            await unlock()
+            return value
+        } catch {
+            await unlock()
+            throw error
+        }
+    }
+}

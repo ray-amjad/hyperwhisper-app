@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "API Tempatan & Pelayan MCP",
-      "description": "Pelayan MCP terbina dalam membolehkan Claude, Cursor dan ejen AI lain memacu HyperWhisper. API HTTP setempat sahaja dengan pengesahan bearer untuk skrip dan automasi."
+      "description": "Pelayan MCP terbina dalam membolehkan Claude, Cursor dan ejen AI lain memacu HyperWhisper. API HTTP setempat sahaja untuk skrip dan automasi."
     },
     "modes": {
       "title": "Mod untuk setiap situasi",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Sejauh mana ketepatan transkripsi?",
-        "answer": "Kami mencapai ketepatan 99% yang terulung dalam industri menggunakan model AI tercanggih. Anda boleh meningkatkan ketepatan lagi dengan menambah perbendaharaan kata tersuai anda untuk istilah teknikal, nama dan jargon khusus."
+        "answer": "Ia bergantung pada gabungan model dan bahasa yang anda guna. Sesetengah model sangat baik dalam bahasa Inggeris tetapi lebih lemah dalam bahasa lain, dan model awan umumnya lebih tepat berbanding model setempat. Anda boleh meningkatkan ketepatan mana-mana model dengan menambah perbendaharaan kata tersuai anda untuk istilah teknikal, nama dan jargon khusus."
       },
       "offline": {
         "question": "Boleh saya guna tanpa internet?",
-        "answer": "Sudah tentu. HyperWhisper boleh digunakan sepenuhnya luar talian pada Mac anda menggunakan model AI setempat - internet tidak diperlukan. Untuk pengguna yang mahukan ketepatan dan kelajuan maksimum, kami juga menawarkan pemprosesan awan pilihan melalui pelbagai penyedia."
+        "answer": "Sudah tentu. HyperWhisper boleh digunakan sepenuhnya luar talian pada Mac atau PC Windows anda menggunakan model AI setempat - internet tidak diperlukan. Untuk pengguna yang mahukan ketepatan dan kelajuan maksimum, kami juga menawarkan pemprosesan awan pilihan melalui pelbagai penyedia."
       },
       "apiKey": {
         "question": "Adakah saya perlu bayar untuk akses API?",
-        "answer": "Anda gunakan kunci API anda sendiri untuk penyedia berikut: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral dan Google Gemini. Sesetengah penyedia menawarkan kredit percuma kepada pengguna baharu; Deepgram menawarkan $200, AssemblyAI menawarkan $50. Dalam jangka panjang, ini jauh lebih murah berbanding mana-mana langganan. \n\nAnda juga boleh menggunakan HyperWhisper Cloud (terbina dalam) yang tidak memerlukan kunci API dan berfungsi secara pay-as-you-go.\n\nNamun ingat, mod luar talian setempat berfungsi tanpa sebarang kunci API dan sepenuhnya percuma."
+        "answer": "Anda gunakan kunci API anda sendiri untuk penyedia berikut: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox dan Google Gemini. Sesetengah penyedia menawarkan kredit percuma kepada pengguna baharu; Deepgram menawarkan $200, AssemblyAI menawarkan $50. Dalam jangka panjang, ini jauh lebih murah berbanding mana-mana langganan. \n\nAnda juga boleh menggunakan HyperWhisper Cloud (terbina dalam) yang tidak memerlukan kunci API dan berfungsi secara pay-as-you-go.\n\nNamun ingat, mod luar talian setempat berfungsi tanpa sebarang kunci API dan sepenuhnya percuma."
       },
       "languages": {
         "question": "Bahasa apa yang disokong?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Bagaimana privasi saya dilindungi?",
-        "answer": "Apabila menggunakan mod setempat, tiada data yang keluar dari Mac anda.\n\nApabila menggunakan transkripsi awan, data anda dihantar kepada penyedia awan yang anda pilih (contohnya OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs atau Mistral).\n\nAnda boleh sahkan sendiri dengan pemerhati rangkaian seperti [Proxyman](https://proxyman.io) atau pemantau rangkaian seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Apabila menggunakan mod setempat, tiada data yang keluar dari Mac atau PC Windows anda.\n\nApabila menggunakan transkripsi awan, data anda dihantar kepada penyedia awan yang anda pilih (contohnya OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox atau Google Gemini).\n\nAnda boleh sahkan sendiri dengan pemerhati rangkaian seperti [Proxyman](https://proxyman.io), pemantau rangkaian seperti [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), atau dengan membaca [kod sumber di GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Apa itu HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Apakah keperluan sistem?",
         "answer": "Untuk Mac: macOS 14 atau lebih baharu, menyokong Apple Silicon dan Intel. Untuk Windows: Windows 10/11, x64 atau ARM64. 8GB RAM disyorkan untuk prestasi optimum."
-      },
-      "windowsStatus": {
-        "question": "Adakah versi Windows mempunyai semua ciri yang sama seperti macOS?",
-        "answer": "Versi Windows baru dilancarkan, jadi mungkin belum mempunyai semua ciri yang tersedia pada macOS. Kami sedang aktif berusaha untuk membawa kesetaraan ciri penuh pada kedua-dua platform."
       },
       "madeBy": {
         "question": "Siapa yang membangunkan ini?",

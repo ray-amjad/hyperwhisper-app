@@ -286,24 +286,6 @@ public class GpuInfoService
     }
 
     /// <summary>
-    /// Gets the VRAM of the best GPU in bytes.
-    /// Returns 0 if no GPU is detected.
-    /// </summary>
-    public static long GetBestGpuVramBytes()
-    {
-        return GetBestGpu()?.VramBytes ?? 0;
-    }
-
-    /// <summary>
-    /// Gets the VRAM of the best GPU in gigabytes.
-    /// Returns 0 if no GPU is detected.
-    /// </summary>
-    public static double GetBestGpuVramGB()
-    {
-        return GetBestGpu()?.VramGB ?? 0;
-    }
-
-    /// <summary>
     /// Detects all GPUs in the system.
     /// Tries DXGI first (accurate 64-bit memory values), falls back to WMI.
     /// On ARM64, skips DXGI due to COM interop issues and goes straight to WMI.

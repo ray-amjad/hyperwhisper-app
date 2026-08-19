@@ -1,52 +1,52 @@
 ---
 title: Voice Activity Detection & Silence Trimming
-description: Automatically remove silence from your recordings before transcription to reduce costs and improve speed.
+description: Remove silence from your recordings before transcription to lower costs and increase speed.
 ---
 
-Voice Activity Detection (VAD) analyzes your recording and removes silence before sending audio to your transcription provider. Shorter audio means lower API costs, faster results, and — in many cases — better accuracy.
+Voice Activity Detection (VAD) examines your recording and removes the silence. HyperWhisper then sends the shorter audio to your transcription provider. Shorter audio costs less, returns results faster, and in many cases gives better accuracy.
 
 ## Overview
 
-When you finish recording, HyperWhisper can detect which portions of the audio contain speech. Silence is stripped out, producing a trimmed version of your audio that goes to the transcription provider instead of the full original.
+When you stop a recording, HyperWhisper finds the parts of the audio that contain speech. HyperWhisper removes the silence and makes a trimmed copy of your audio. The transcription provider receives this trimmed copy, not the full original.
 
-VAD is **enabled by default** on macOS. You can opt out through Settings.
+VAD is **enabled by default** on macOS. You can turn it off in Settings.
 
 ## How It Works
 
-VAD uses the [Silero VAD](https://github.com/snakers4/silero-vad) model, bundled with the macOS app (~864 KB). Processing happens entirely on your device.
+VAD uses the [Silero VAD](https://github.com/snakers4/silero-vad) model. The macOS app includes this model (~864 KB). All processing occurs on your device.
 
-**When VAD runs:**
+**VAD runs when both of these conditions are true:**
 
-- VAD is enabled in Settings, and
-- The recording is at least 30 seconds long
+- VAD is on in Settings.
+- The recording is 30 seconds long or longer.
 
-Recordings under 30 seconds are sent to the provider as-is — they're short enough that silence trimming offers little benefit.
+HyperWhisper sends recordings shorter than 30 seconds to the provider without a change. These recordings are too short for silence removal to give a benefit.
 
 **Processing flow:**
 
 <Steps>
   <Step title="Detect speech segments">
-    The Silero VAD model scans your audio and identifies which portions contain speech.
+    The Silero VAD model examines your audio. It finds the parts that contain speech.
   </Step>
   <Step title="Remove silence">
-    All detected speech segments are extracted and concatenated into a trimmed audio file. Any gap between segments larger than 200 ms is removed — this includes leading and trailing silence as well as mid-recording pauses.
+    HyperWhisper joins all of the speech segments into one trimmed audio file. It removes each gap between segments that is longer than 200 ms. This includes the silence at the start, the silence at the end, and the pauses in the middle.
   </Step>
   <Step title="Validate the result">
-    HyperWhisper checks that the trimmed file meets minimum quality thresholds (see [Validation & Quality Checks](#validation-quality-checks) below). If it doesn't, the original audio is used instead.
+    HyperWhisper makes sure that the trimmed file passes the minimum quality checks (see [Validation & Quality Checks](#validation-quality-checks) below). If the file fails a check, HyperWhisper uses the original audio.
   </Step>
   <Step title="Prepare for upload">
-    If the trimmed file is 25 MB or larger, it is converted to M4A to reduce upload size. Files under 25 MB are sent as WAV. Imported files that were already in a compressed format (M4A, MP3, etc.) skip re-encoding to avoid quality loss.
+    If the trimmed file is 25 MB or larger, HyperWhisper converts it to M4A to make the upload smaller. HyperWhisper sends files smaller than 25 MB as WAV. Imported files that are already in a compressed format (M4A, MP3, and other compressed formats) are not encoded again, because a second encode lowers the quality.
   </Step>
 </Steps>
 
-The original audio is always kept on disk. The trimmed version is stored alongside it and used only for transcription and playback — the original is never overwritten.
+HyperWhisper always keeps the original audio on disk. It stores the trimmed copy next to the original and uses the trimmed copy only for transcription and playback. HyperWhisper never writes over the original.
 
 ## Benefits
 
-- **Lower API costs** — you're billed for less audio when silence is removed.
-- **Faster transcription** — smaller files upload and process more quickly.
-- **Potentially better accuracy** — less background noise and silence for the model to work through.
-- **Useful for any recording with pauses** — interviews, dictation with thinking gaps, or recordings started early and stopped late.
+- **Lower API costs** — you pay for less audio when HyperWhisper removes the silence.
+- **Faster transcription** — smaller files upload and process faster.
+- **Better accuracy in many cases** — the model gets less silence and less background noise.
+- **Good for any recording with pauses** — interviews, dictation with thinking gaps, and recordings that you start early and stop late.
 
 ## Enabling VAD
 
@@ -56,13 +56,13 @@ The original audio is always kept on disk. The trimmed version is stored alongsi
     2. Go to the **Sound** section.
     3. Turn on **Remove silence before transcription**.
 
-    The toggle takes effect immediately — your next recording will use VAD trimming if it meets the minimum duration.
+    The toggle takes effect immediately. If your next recording is 30 seconds long or longer, HyperWhisper trims it with VAD.
   </Tab>
   <Tab title="Windows">
-    There is no user-facing VAD toggle on Windows, and this page's trimmed-file workflow (a separate trimmed audio file, an Original/Trimmed toggle) does not apply. When you use a local model such as Parakeet, HyperWhisper's Windows transcription daemon bundles and runs Silero VAD internally to segment speech chunk-by-chunk during transcription — it isn't a pre-processing step you can enable or disable, and it doesn't produce a separate stored audio file.
+    Windows has no user-facing VAD toggle. The trimmed-file workflow on this page (a separate trimmed audio file and an Original/Trimmed toggle) does not apply to Windows. When you use a local model such as Parakeet or Qwen3 ASR, the Windows transcription daemon runs Silero VAD internally. The daemon includes this model and uses it to divide the speech into chunks during transcription. This is not a pre-processing step that you can turn on or off, and it makes no separate audio file. The Nemotron streaming model is the exception — it deliberately skips VAD, since its own streaming decoder handles segmentation.
   </Tab>
   <Tab title="iOS">
-    There is no VAD toggle on iOS. A lightweight amplitude-based silence trimmer runs automatically on every recording — it removes leading and trailing silence before upload when at least 0.5 seconds of silence is detected.
+    iOS has no VAD toggle. A small silence trimmer that uses amplitude runs automatically on every recording. If the trimmer finds 0.5 seconds of silence or more, it removes the silence at the start and at the end before upload.
   </Tab>
 </Tabs>
 
@@ -70,35 +70,35 @@ The original audio is always kept on disk. The trimmed version is stored alongsi
 
 <Tabs>
   <Tab title="macOS">
-    When a recording was trimmed, the History detail view shows an **Original / Trimmed** toggle above the audio player. Select **Trimmed** to hear the version with silence removed, or **Original** to hear the full recording.
+    If HyperWhisper trimmed a recording, the History detail view shows an **Original / Trimmed** toggle above the audio player. Select **Trimmed** to hear the audio without the silence. Select **Original** to hear the full recording.
 
-    Both files are stored on disk. Switching the toggle changes only which one plays — nothing is deleted.
+    HyperWhisper keeps both files on disk. The toggle changes only which file plays. It deletes nothing.
 
-    See [Viewing Transcription History](/history) for more about the audio player.
+    For more about the audio player, see [Viewing Transcription History](/history).
   </Tab>
   <Tab title="Windows">
-    Windows doesn't produce a separate trimmed audio file, so no Original / Trimmed toggle is available — internal VAD segmentation during local transcription happens per-chunk and isn't stored as a standalone artifact.
+    Windows makes no separate trimmed audio file. Therefore, it has no Original / Trimmed toggle. The internal VAD divides the audio into chunks during local transcription, but it does not store these chunks as a file.
   </Tab>
 </Tabs>
 
 ## Validation & Quality Checks
 
-After trimming, HyperWhisper validates the result before using it. If any check fails, the original audio is used for transcription automatically — you will not see an error.
+After the trim, HyperWhisper examines the result before it uses the result. If the trimmed file fails one check or more, HyperWhisper uses the original audio for the transcription. You do not see an error.
 
 | Check | Threshold | Why |
 |---|---|---|
-| Silence removed | More than 0.5 seconds | Avoids unnecessary file duplication when there is almost no silence |
-| Trimmed duration | At least 0.3 seconds | Guards against over-aggressive trimming that would remove actual speech |
-| Trimmed file size | More than 5 KB | Ensures the output file contains real audio content, not just a WAV header |
+| Silence removed | More than 0.5 seconds | Prevents a second file when the recording has almost no silence |
+| Trimmed duration | At least 0.3 seconds | Prevents a trim that removes real speech |
+| Trimmed file size | More than 5 KB | Makes sure that the file contains real audio, not only a WAV header |
 
 <Note>
-  Failures during VAD processing are logged as breadcrumbs to Sentry to help diagnose edge cases. The original audio is always the fallback, so a VAD failure never blocks transcription.
+  HyperWhisper sends VAD failures to Sentry as breadcrumbs. These breadcrumbs help to diagnose rare faults. The original audio is always the fallback, so a VAD failure never stops the transcription.
 </Note>
 
 ## Platform Support
 
 | Platform | Status |
 |---|---|
-| macOS | Fully supported — enable in **Settings → Sound → Remove silence before transcription** |
-| Windows | No separate trimmed file or toggle — internal per-chunk VAD segmentation runs automatically during local model transcription |
-| iOS | Amplitude-based leading/trailing silence trimming runs automatically on every recording |
+| macOS | Supported. Turn it on in **Settings → Sound → Remove silence before transcription** |
+| Windows | No separate trimmed file and no toggle. The internal VAD runs automatically on each chunk during local model transcription |
+| iOS | A trimmer removes the silence at the start and at the end automatically on every recording |

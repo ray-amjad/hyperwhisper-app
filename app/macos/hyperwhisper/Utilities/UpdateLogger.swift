@@ -199,16 +199,6 @@ final class UpdateLogger {
         ])
     }
     
-    /// Logs download progress
-    func logDownloadProgress(bytesDownloaded: Int64, totalBytes: Int64) {
-        let percentage = totalBytes > 0 ? Int((Double(bytesDownloaded) / Double(totalBytes)) * 100) : 0
-        debug("Download progress", context: [
-            "bytesDownloaded": formatBytes(Int(bytesDownloaded)),
-            "totalBytes": formatBytes(Int(totalBytes)),
-            "percentage": "\(percentage)%"
-        ])
-    }
-    
     /// Logs successful download
     func logDownloadCompleted() {
         info("Update download completed successfully")
@@ -234,14 +224,6 @@ final class UpdateLogger {
         info("Update installation completed successfully")
     }
     
-    /// Logs installation failure
-    func logInstallationFailed(error: NSError) {
-        critical("Update installation failed", error: error, context: [
-            "diskSpace": formatBytes(availableDiskSpace()),
-            "permissions": checkPermissions()
-        ])
-    }
-    
     // MARK: - Log Management
     
     /// Returns the path to the current log file
@@ -261,11 +243,6 @@ final class UpdateLogger {
             self.error("Failed to export logs", error: error as NSError)
             return nil
         }
-    }
-    
-    /// Opens the log file in the default text editor
-    func openLogFile() {
-        NSWorkspace.shared.open(logFileURL)
     }
     
     /// Clears all logs
@@ -419,11 +396,4 @@ final class UpdateLogger {
         return 0
     }
     
-    /// Checks file system permissions
-    private func checkPermissions() -> String {
-        let appURL = Bundle.main.bundleURL
-        let isWritable = FileManager.default.isWritableFile(atPath: appURL.path)
-        let isReadable = FileManager.default.isReadableFile(atPath: appURL.path)
-        return "readable=\(isReadable), writable=\(isWritable)"
-    }
 }

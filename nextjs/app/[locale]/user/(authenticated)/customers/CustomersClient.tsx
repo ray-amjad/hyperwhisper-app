@@ -1,8 +1,39 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { keepPreviousData } from "@tanstack/react-query";
 import { api } from "@/lib/trpc/client";
 import { formatDate } from "@/lib/format-date";
+
+/**
+ * Windowed list of page numbers to render in the pager: always page 1,
+ * the last page, the current page, and current±1, with "ellipsis" markers
+ * standing in for any gaps. Keeps the control a fixed, scannable width even
+ * when totalPages is large, instead of rendering every page number.
+ */
+function getPageNumbers(
+  currentPage: number,
+  totalPages: number
+): Array<number | "ellipsis"> {
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(totalPages);
+  for (let p = currentPage - 1; p <= currentPage + 1; p++) {
+    if (p >= 1 && p <= totalPages) pages.add(p);
+  }
+
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+  const result: Array<number | "ellipsis"> = [];
+  let previous: number | null = null;
+  for (const p of sorted) {
+    if (previous !== null && p - previous > 1) {
+      result.push("ellipsis");
+    }
+    result.push(p);
+    previous = p;
+  }
+  return result;
+}
 
 const CREDITS_PER_MINUTE = 6.3;
 
@@ -13,12 +44,32 @@ function formatCredits(credits: number) {
   });
 }
 
+const currencyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+function formatCurrency(cents: number) {
+  return currencyFormatter.format(cents / 100);
+}
+
 export default function CustomersClient() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
 
+  // A new search always starts back at page 1 — otherwise a search narrow
+  // enough to have fewer pages than the current page number would request a
+  // page that no longer exists. Reset page in the SAME batch as the
+  // debouncedSearch update (rather than in a separate effect keyed off
+  // debouncedSearch) so there's never a render where the query sees the new
+  // search term paired with the stale page — that extra render was firing a
+  // wasted request (including the Stripe spend fan-out server-side).
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -38,11 +89,44 @@ export default function CustomersClient() {
   const {
     data,
     isLoading: loading,
+    isFetching,
     error: queryError,
     refetch,
   } = api.admin.customers.list.useQuery(
-    debouncedSearch ? { search: debouncedSearch } : undefined
+    { search: debouncedSearch || undefined, page },
+    // Keep showing the previous page's rows while a new page (or search)
+    // loads, instead of dropping to the loading skeleton on every page
+    // change — that flash is exactly what the pager is meant to avoid.
+    { placeholderData: keepPreviousData }
   );
+
+  // True during any background refetch (page change, search, manual
+  // refresh) — including the keepPreviousData window where `loading` stays
+  // false and the table still shows the previous page's rows. Used to give a
+  // subtle in-flight signal so a page-button click doesn't look like it did
+  // nothing.
+  const isTransitioning = isFetching && !loading;
+
+  // The server clamps an out-of-range page to the last valid one and echoes
+  // the clamped value back as data.page. Sync local page state to that once
+  // a fetch completes, so the pager (highlighted page, Prev/Next disabled
+  // state) never disagrees with what was actually fetched — e.g. an admin
+  // sitting on the last page when the result set shrinks out from under
+  // them. Guarded by the equality check, so this settles rather than loops.
+  //
+  // Gated on !isFetching: while a new page/search request is in flight,
+  // keepPreviousData keeps `data` pointing at the PREVIOUS page's response,
+  // so data.page briefly disagrees with the just-clicked `page` even though
+  // nothing needs correcting — that's expected transient staleness, not a
+  // server clamp. Without this gate, clicking a new page would fire this
+  // effect on that intermediate render and immediately revert `page` back
+  // before the real response ever arrived. Only sync once the fetch settles
+  // and `data` is confirmed fresh for the current request.
+  useEffect(() => {
+    if (data && !isFetching && data.page !== page) {
+      setPage(data.page);
+    }
+  }, [data, isFetching, page]);
 
   const [showGrant, setShowGrant] = useState(false);
   const [grantEmail, setGrantEmail] = useState("");
@@ -52,6 +136,10 @@ export default function CustomersClient() {
     onSuccess: (data) => {
       setGrantResult(data);
       setGrantEmail("");
+      // A newly granted customer sorts first (newest createdAt wins page 1),
+      // so jump back to page 1 — otherwise an admin on page 3+ sees no
+      // visible change after granting.
+      setPage(1);
       refetch();
     },
   });
@@ -259,7 +347,11 @@ export default function CustomersClient() {
       )}
 
       {/* Customers Table */}
-      <div className="bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden">
+      <div
+        className={`bg-white/5 backdrop-blur-lg rounded-xl border border-white/10 overflow-hidden transition-opacity ${
+          isTransitioning ? "opacity-50" : "opacity-100"
+        }`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -274,6 +366,9 @@ export default function CustomersClient() {
                   Total
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Total Spend
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                   Created
                 </th>
               </tr>
@@ -282,7 +377,7 @@ export default function CustomersClient() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 4 }).map((_, j) => (
+                    {Array.from({ length: 5 }).map((_, j) => (
                       <td key={j} className="px-6 py-4">
                         <div className="h-4 bg-white/10 rounded w-24 animate-pulse" />
                       </td>
@@ -291,7 +386,7 @@ export default function CustomersClient() {
                 ))
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     No customers found.
                   </td>
                 </tr>
@@ -375,9 +470,10 @@ export default function CustomersClient() {
                             <button
                               type="button"
                               onClick={() => startEdit(customer.userId, customer.email)}
+                              disabled={isTransitioning}
                               title="Edit email"
                               aria-label="Edit email"
-                              className="text-gray-500 hover:text-emerald-300 transition-colors"
+                              className="text-gray-500 hover:text-emerald-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-500"
                             >
                               <svg
                                 className="h-3.5 w-3.5"
@@ -466,7 +562,8 @@ export default function CustomersClient() {
                                     credits: license.credits,
                                   })
                                 }
-                                className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium"
+                                disabled={isTransitioning}
+                                className="px-2 py-0.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/20"
                               >
                                 Add credits
                               </button>
@@ -479,7 +576,8 @@ export default function CustomersClient() {
                                       key: license.key,
                                     })
                                   }
-                                  className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded transition-colors text-[11px] font-medium"
+                                  disabled={isTransitioning}
+                                  className="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded transition-colors text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-500/20"
                                 >
                                   Refund
                                 </button>
@@ -496,6 +594,53 @@ export default function CustomersClient() {
                         </span>
                       </td>
 
+                      {/* Total Spend (net lifetime Stripe spend across all of this
+                          customer's Stripe customer IDs). Two distinct "no number"
+                          states, rendered differently so a real Stripe error isn't
+                          silently mistaken for "$0 spent":
+                          - No Stripe customer ID on any license at all -> dash,
+                            no Stripe call was ever made for this customer.
+                          - Has Stripe customer ID(s) but totalSpentCents is null ->
+                            a fetch failed server-side (logged there); show a
+                            distinct "error" indicator rather than a dash or $0.00.
+                          - Otherwise -> the real formatted currency amount. */}
+                      <td className="px-6 py-4">
+                        {!customer.licenses.some(
+                          (license) => license.stripeCustomerId
+                        ) ? (
+                          <span
+                            className="text-gray-500 text-sm font-medium"
+                            title="No Stripe purchase on file (may have paid via another method)"
+                          >
+                            —
+                          </span>
+                        ) : customer.totalSpentCents === null ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-amber-300 text-sm font-medium"
+                            title="Failed to fetch Stripe spend for this customer"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                              />
+                            </svg>
+                            error
+                          </span>
+                        ) : (
+                          <span className="text-emerald-300 text-sm font-medium">
+                            {formatCurrency(customer.totalSpentCents)}
+                          </span>
+                        )}
+                      </td>
+
                       {/* Created */}
                       <td className="px-6 py-4 text-gray-400 text-sm">
                         {formatDate(customer.created, "en-US")}
@@ -509,11 +654,82 @@ export default function CustomersClient() {
         </div>
       </div>
 
-      {/* Customer Count */}
-      {!loading && customers.length > 0 && (
-        <p className="text-gray-400 text-sm">
-          Showing {customers.length} customer{customers.length !== 1 ? "s" : ""}
-        </p>
+      {/* Customer Count + Pagination */}
+      {data && data.totalCustomers > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-gray-400 text-sm flex items-center gap-2">
+            <span>
+              Showing {(data.page - 1) * data.pageSize + 1}
+              &ndash;
+              {Math.min(data.page * data.pageSize, data.totalCustomers)} of{" "}
+              {data.totalCustomers} customer{data.totalCustomers !== 1 ? "s" : ""}
+            </span>
+            {isTransitioning && (
+              <svg
+                className="w-3.5 h-3.5 animate-spin text-gray-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-label="Loading"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            )}
+          </p>
+
+          {data.totalPages > 1 && (
+            <nav className="flex items-center gap-2" aria-label="Pagination">
+              <button
+                type="button"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg border border-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-sm"
+              >
+                Prev
+              </button>
+              {getPageNumbers(page, data.totalPages).map((entry, i) =>
+                entry === "ellipsis" ? (
+                  <span key={`ellipsis-${i}`} className="text-gray-500 px-1">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={entry}
+                    type="button"
+                    onClick={() => setPage(entry)}
+                    aria-current={entry === page ? "page" : undefined}
+                    className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                      entry === page
+                        ? "bg-emerald-500 text-white"
+                        : "bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10"
+                    }`}
+                  >
+                    {entry}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= data.totalPages}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/15 text-gray-300 rounded-lg border border-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/10 text-sm"
+              >
+                Next
+              </button>
+            </nav>
+          )}
+        </div>
       )}
 
       {/* Refund Modal */}

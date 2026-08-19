@@ -123,6 +123,7 @@ enum StreamingStopStep {
 /// the fields relevant to its provider:
 /// - HW Cloud: licenseKey/deviceId, language, vocabulary
 /// - Deepgram: apiKey, language, vocabulary, model, fastFormatting
+/// - xAI: apiKey, language, vocabulary
 /// - ElevenLabs: apiKey, language
 /// - xAI: apiKey, language
 ///
@@ -139,7 +140,8 @@ struct StreamingSessionConfig {
     /// Language code (e.g., "en", "ja"). nil = auto-detect
     let language: String?
 
-    /// Comma-separated vocabulary terms for boosting (HW Cloud + Deepgram only)
+    /// Comma-separated vocabulary terms for boosting. Consumed by every strategy
+    /// whose `supportsVocabulary` is true (HW Cloud, Deepgram, xAI).
     let vocabulary: String?
 
     /// API key for direct providers (Deepgram/ElevenLabs/xAI)
@@ -233,7 +235,7 @@ protocol StreamingProviderStrategy {
     /// - HW Cloud: true (via Deepgram keyterm on backend)
     /// - Deepgram: true (via keyterm query params)
     /// - ElevenLabs: false (realtime API doesn't support vocabulary)
-    /// - xAI: false (streaming API has no vocabulary parameter)
+    /// - xAI: true (repeated `keyterm` query items, max 100 terms / 50 chars)
     var supportsVocabulary: Bool { get }
 
     /// Whether this provider should treat WebSocket open as session started.
@@ -306,7 +308,7 @@ extension StreamingProviderStrategy {
 /// | HyperWhisper    | license/device | Yes        | Yes (server)    |
 /// | Deepgram        | WebSocket subprotocol | Yes* | No              |
 /// | ElevenLabs      | API key header | No         | No              |
-/// | xAI             | Bearer header  | No         | No              |
+/// | xAI             | Bearer header  | Yes        | No              |
 ///
 /// *Deepgram vocabulary only works with explicit language (not auto-detect)
 enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {

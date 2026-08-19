@@ -349,6 +349,10 @@ struct BackupGeneralSettings: Codable {
     let showRecordingWindow: Bool
     let checkForUpdatesAutomatically: Bool
     let enableErrorLogging: Bool
+    /// Optional because backups written before this setting existed have no
+    /// such key, and a missing key must not fail the whole import. Absent means
+    /// the default (sharing on) — see GeneralSettingsManager.
+    let shareAnonymousSpeedData: Bool?
 }
 
 /// Audio-related settings

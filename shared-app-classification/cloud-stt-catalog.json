@@ -1,13 +1,14 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
-  "version": 6,
-  "updated": "2026-06-20",
+  "version": 7,
+  "updated": "2026-08-13",
   "providers": [
     {
       "id": "groqWhisper",
       "displayName": "Groq Whisper",
       "displayModel": "whisper-large-v3-turbo",
       "vendor": "groq",
+      "vendorDisplayName": "Groq",
       "sttProvider": "groq",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -46,6 +47,7 @@
       "displayName": "Deepgram Nova 3",
       "displayModel": "nova-3",
       "vendor": "deepgram",
+      "vendorDisplayName": "Deepgram",
       "sttProvider": "deepgram",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -93,18 +95,19 @@
       "displayName": "Grok STT",
       "displayModel": "grok-stt",
       "vendor": "xai",
+      "vendorDisplayName": "xAI",
       "sttProvider": "grok",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "", "displayName": "Grok STT", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+        { "id": "", "displayName": "Grok Speech-to-Text", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 1.67 },
       "migrateFrom": ["grok", "grokstt"],
       "customVocabulary": {
-        "supported": false,
+        "supported": true,
         "fieldName": "keyterm",
         "maxPhrases": 100,
-        "caveats": "xAI docs claim `keyterm` support (max 100 terms, 50 chars each), but the HyperWhisper backend (`xai-stt.ts:88`) does NOT forward `initial_prompt` to xAI. Flip to true if/when wired."
+        "caveats": "One repeated `keyterm` field per term (max 100 terms, 50 chars each). Wired on all four request sites: `hyperwhisper-cloud/src/providers/xai-stt.ts`, the Rust core `grok::keyterms`, and both WebSocket streaming strategies. Terms longer than 50 chars are dropped, not truncated. There is no free-text `prompt` field on this endpoint."
       },
       "languages": {
         "count": 25,
@@ -131,6 +134,7 @@
       "displayName": "Microsoft MAI-Transcribe 1.5",
       "displayModel": "mai-transcribe-1.5",
       "vendor": "azure",
+      "vendorDisplayName": "Microsoft",
       "sttProvider": "azure-mai",
       "access": { "cloudTierEligible": true, "byokEligible": false },
       "models": [
@@ -172,18 +176,20 @@
       "displayName": "Google Chirp 3",
       "displayModel": "chirp_3",
       "vendor": "google",
+      "vendorDisplayName": "Google",
       "sttProvider": "google-chirp",
       "access": { "cloudTierEligible": true, "byokEligible": false },
       "models": [
-        { "id": "chirp_3", "displayName": "Chirp 3", "creditsPerMinute": 16.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": false }
+        { "id": "chirp_3", "displayName": "Chirp 3", "creditsPerMinute": 16.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 16.0 },
       "migrateFrom": ["googlespeech", "googleSpeech", "chirp", "google-chirp", "googlechirp", "googlechirp3"],
       "legacyCloudProviderAliases": ["googlespeech", "googleSpeech"],
       "customVocabulary": {
-        "supported": false,
-        "fieldName": "unverified",
-        "caveats": "Empirically confirmed: Speech V2 adaptation returns 404 NOT_FOUND on chirp_3 (`Requested entity was not found`). The Speech V2 adaptation doc doesn't explicitly list chirp_3 as supported — all examples use the `short` model. Treat as unsupported until Google formally documents chirp_3 adaptation. Fix shipped in backend PR #15."
+        "supported": true,
+        "fieldName": "adaptation.phraseSets",
+        "maxPhrases": 1000,
+        "caveats": "Sent as an inline phrase set on `config.adaptation`. Google now documents Speech adaptation (biasing) as GA for Chirp 3 with a dictionary of up to 1,000 phrases, and recommends fewer entries to avoid hurting accuracy on non-listed terms. History: an earlier integration got 404 NOT_FOUND from this exact field (backend PR #15), so `google-chirp.ts` retries a rejected request once WITHOUT adaptation — biasing can be lost, the transcript cannot."
       },
       "languages": {
         "count": 111,
@@ -212,12 +218,13 @@
       "displayName": "ElevenLabs Scribe v2",
       "displayModel": "scribe_v2",
       "vendor": "elevenlabs",
+      "vendorDisplayName": "ElevenLabs",
       "sttProvider": "elevenlabs",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "scribe_v2", "displayName": "Scribe v2", "creditsPerMinute": 9.83, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "scribe_v1", "displayName": "Scribe v1", "creditsPerMinute": 9.83, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": false }
+        { "id": "scribe_v2", "displayName": "Scribe v2", "creditsPerMinute": 9.83, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
+      "modelsCaveat": "scribe_v1 was retired by ElevenLabs on 2026-07-09 (deprecated in favor of scribe_v2 / scribe_v2_realtime — see changelog source below) and has been removed from this catalog; the backend registry (stt-models.ts) now rejects it fail-closed.",
       "cloudTier": { "accuracy": "highest", "creditsPerMinute": 9.83 },
       "migrateFrom": ["highest", "elevenlabs", "elevenlabsscribev2"],
       "customVocabulary": {
@@ -248,7 +255,8 @@
         "https://elevenlabs.io/blog/introducing-scribe-v2",
         "https://elevenlabs.io/docs/overview/capabilities/speech-to-text",
         "https://elevenlabs.io/speech-to-text",
-        "https://help.elevenlabs.io/hc/en-us/articles/13313366263441"
+        "https://help.elevenlabs.io/hc/en-us/articles/13313366263441",
+        "https://elevenlabs.io/docs/changelog/2026/6/8"
       ]
     },
 
@@ -257,18 +265,21 @@
       "displayName": "OpenAI Whisper",
       "displayModel": "whisper-1",
       "vendor": "openai",
+      "vendorDisplayName": "OpenAI",
       "sttProvider": "openai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
         { "id": "gpt-4o-transcribe", "displayName": "GPT-4o Transcribe", "creditsPerMinute": 6.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gpt-4o-mini-transcribe", "displayName": "GPT-4o Mini Transcribe", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "whisper-1", "displayName": "Whisper", "creditsPerMinute": 6.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gpt-transcribe", "displayName": "GPT Transcribe", "creditsPerMinute": 4.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "gpt-live-transcribe", "displayName": "GPT Live Transcribe", "creditsPerMinute": 17.0, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {
         "supported": true,
         "fieldName": "prompt",
         "maxTokens": 224,
-        "caveats": "Whisper uses a custom tokenizer; only the final 224 tokens of the prompt are considered. Not a keyterm list — functions as style/context priming."
+        "caveats": "Whisper uses a custom tokenizer; only the final 224 tokens of the prompt are considered. Not a keyterm list — functions as style/context priming. gpt-transcribe / gpt-live-transcribe (launched 2026-07-29) instead take free-form context + keyword hints per OpenAI's docs — for `gpt-transcribe` we send the terms as a structured `keywords[]` list and leave `prompt` for the user's own instructions; both are flat per-audio-minute billed (like whisper-1), NOT token-billed like gpt-4o-*. gpt-live-transcribe's only supported endpoint is a Realtime WebSocket transcription session — hyperwhisper-cloud's synchronous REST adapter does not yet serve it, so it is cataloged here but not yet actually reachable via HyperWhisper Cloud (see shared-models/models-catalog.json)."
       },
       "languages": {
         "count": 100,
@@ -288,7 +299,10 @@
         "https://developers.openai.com/api/docs/guides/speech-to-text",
         "https://developers.openai.com/api/docs/api-reference/audio/createTranscription",
         "https://developers.openai.com/api/docs/models/whisper-1",
-        "https://openai-whisper.mintlify.app/concepts/languages"
+        "https://openai-whisper.mintlify.app/concepts/languages",
+        "https://developers.openai.com/api/docs/models/gpt-transcribe",
+        "https://developers.openai.com/api/docs/models/gpt-live-transcribe",
+        "https://developers.openai.com/api/docs/pricing"
       ]
     },
 
@@ -297,24 +311,26 @@
       "displayName": "AssemblyAI",
       "displayModel": "universal-2",
       "vendor": "assemblyai",
+      "vendorDisplayName": "AssemblyAI",
       "sttProvider": "assemblyai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "universal-3-pro", "displayName": "Universal-3 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "universal-3-pro", "displayName": "Universal-3 Pro", "creditsPerMinute": 3.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "universal-3-5-pro", "displayName": "Universal-3.5 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {
         "supported": true,
         "fieldName": "keyterms_prompt",
         "maxPhrases": 200,
-        "caveats": "200 for Universal-2; 1000 for Universal-3 Pro. Each phrase ≤ 6 words on Universal-3 Pro. Universal-2 ignores terms < 5 chars or > 50 chars."
+        "caveats": "200 for Universal-2; 1000 for Universal-3 Pro / Universal-3.5 Pro. Each phrase ≤ 6 words on the Pro tier. Universal-2 ignores terms < 5 chars or > 50 chars."
       },
       "languages": {
         "count": 98,
         "autoDetect": true,
         "codeFormat": "ISO-639-1 + a few regional variants (e.g. `en_au`, `en_uk`, `en_us`)",
         "codes": ["af","am","ar","as","az","ba","be","bg","bn","bo","br","bs","ca","cs","cy","da","de","el","en","en_au","en_uk","en_us","es","et","eu","fa","fi","fo","fr","ga","gl","gu","ha","haw","he","hi","hr","hu","hy","id","is","it","ja","jw","ka","kk","km","kn","ko","la","lb","ln","lo","lt","lv","mk","ml","mn","mr","ms","mt","my","ne","nl","nn","no","oc","pa","pl","ps","pt","ro","ru","sa","sd","si","sk","sl","so","sq","sr","su","sv","sw","ta","te","tg","th","tl","tr","tt","uk","ur","uz","vi","yi","yo","zh"],
-        "notes": "AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3 Pro natively supports 6; falls back to Universal-2 for the others via `speech_models` array."
+        "notes": "AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3 Pro natively supports 6; Universal-3.5 Pro (GA 2026-07-01, now default) natively supports 18 per AssemblyAI's release material, but the exact 18-code list is not enumerated on their public supported-languages page as of this verification — both Pro-tier models fall back to Universal-2 for the rest via the `speech_models` array, so combined coverage stays 98."
       },
       "acceptedFormats": ["3ga","8svx","aac","ac3","aif","aiff","alac","amr","ape","au","dss","flac","flv","m4a","m4b","m4p","m4r","mp3","mpga","ogg","oga","mogg","opus","qcp","tta","voc","wav","wma","wv","webm","mts","m2ts","ts","mov","mp2","mp4","m4v","mxf"],
       "maxFileSizeMb": 5120,
@@ -325,7 +341,9 @@
         "https://www.assemblyai.com/docs/pre-recorded-audio/language-detection#supported-languages",
         "https://support.assemblyai.com/articles/2616970375-what-audio-and-video-file-types-are-supported-by-your-api",
         "https://www.assemblyai.com/docs/api-reference/transcripts/submit",
-        "https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-pro"
+        "https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-pro",
+        "https://www.assemblyai.com/topic/universal-3-5-pro-realtime",
+        "https://www.assemblyai.com/docs/getting-started/models"
       ]
     },
 
@@ -334,6 +352,7 @@
       "displayName": "Mistral Voxtral",
       "displayModel": "voxtral-mini-latest",
       "vendor": "mistral",
+      "vendorDisplayName": "Mistral",
       "sttProvider": "mistral",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -369,6 +388,7 @@
       "displayName": "Soniox",
       "displayModel": "soniox-async",
       "vendor": "soniox",
+      "vendorDisplayName": "Soniox",
       "sttProvider": "soniox",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
@@ -398,7 +418,9 @@
         "https://soniox.com/docs/stt/api-reference/websocket-api",
         "https://soniox.com/docs/stt/async/async-transcription",
         "https://soniox.com/docs/stt/async/limits-and-quotas",
-        "https://soniox.com/docs/speech-to-text/core-concepts/audio-formats"
+        "https://soniox.com/docs/speech-to-text/core-concepts/audio-formats",
+        "https://soniox.com/docs/stt/models",
+        "https://soniox.com/blog/soniox-v5-async"
       ]
     },
 
@@ -407,14 +429,15 @@
       "displayName": "Google Gemini",
       "displayModel": "gemini-2.5-flash",
       "vendor": "google",
+      "vendorDisplayName": "Google",
       "sttProvider": "gemini",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
         { "id": "gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "creditsPerMinute": 2.4, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-flash-lite", "displayName": "Gemini 2.5 Flash Lite", "creditsPerMinute": 0.8, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "gemini-2.5-pro", "displayName": "Gemini 2.5 Pro", "creditsPerMinute": 7.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash (Preview)", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
-        { "id": "gemini-3.1-pro-preview", "displayName": "Gemini 3.1 Pro (Preview)", "creditsPerMinute": 10.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true }
+        { "id": "gemini-3-flash-preview", "displayName": "Gemini 3 Flash", "creditsPerMinute": 3.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true },
+        { "id": "gemini-3.1-pro-preview", "displayName": "Gemini 3.1 Pro", "creditsPerMinute": 10.0, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {
         "supported": true,

@@ -25,6 +25,20 @@ import CoreAudio
 /// All methods are `nonisolated` and safe to call from any thread.
 /// This allows device enumeration on background queues without blocking the UI.
 ///
+/// **EVERY METHOD IN THIS FILE BLOCKS, AND `nonisolated` DOES NOT CHANGE THAT.**
+/// These are synchronous `AudioObjectGetPropertyData` / `AudioObjectSetPropertyData`
+/// calls — `mach_msg` round trips to `coreaudiod`, and `fetchCoreAudioInputDevices()`
+/// makes 3+N of them for N devices. During an audio route change (Bluetooth disconnect,
+/// USB audio removal, AirPods reconnect) or wake-from-sleep the daemon can take many
+/// seconds to answer, which is what froze the app in Sentry HYPERWHISPER-F7 /
+/// HYPERWHISPER-HP ("App hanging for at least 10000 ms"). A `nonisolated` method called
+/// from `@MainActor` code still runs synchronously on the caller's thread: `nonisolated`
+/// removes the actor hop, it does not add a thread hop. From the main actor, wrap the
+/// call — `await offMainActor { CoreAudioDeviceHelper.… }` — and batch a fan-out into one
+/// wrapped block rather than wrapping each read. `RecordingLifecycle.startRecording()`'s
+/// input-device probe is the worked example. Call these directly only from code that is
+/// already off the main actor.
+///
 /// **Important Note:**
 /// These methods interact with the system's audio hardware directly.
 /// They require proper audio permissions and may fail if hardware is unavailable.
@@ -384,45 +398,6 @@ class CoreAudioDeviceHelper {
     }
 
     // MARK: - Device Validation
-
-    /// Check if an audio device ID is still valid and available
-    ///
-    /// **What This Does:**
-    /// Verifies that a device ID still exists in the system by attempting to read
-    /// its UID property. This is the minimal property query that CoreAudio supports.
-    ///
-    /// **Use Case:**
-    /// Before restoring a previously-saved device ID, we should verify the device
-    /// still exists. Devices can disappear if:
-    /// - Bluetooth devices disconnect
-    /// - USB devices are unplugged
-    /// - The system reassigns device IDs
-    ///
-    /// **Parameters:**
-    /// - `deviceID`: The device ID to validate
-    ///
-    /// **Returns:**
-    /// true if the device exists and is accessible, false otherwise
-    nonisolated static func isDeviceAvailable(_ deviceID: AudioDeviceID) -> Bool {
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyDeviceUID,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        // Check if device exists by querying its UID property
-        var dataSize: UInt32 = 0
-        let status = AudioObjectGetPropertyDataSize(
-            deviceID,
-            &address,
-            0,
-            nil,
-            &dataSize
-        )
-
-        // Device exists if we can query its property size
-        return status == noErr && dataSize > 0
-    }
 
     // MARK: - Device Properties
 
